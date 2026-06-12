@@ -13,402 +13,95 @@
     color: #111;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     overflow: hidden;
+    cursor: text;
   }
-  h1 {
-    margin: 0;
+  /* real input, visually hidden — it owns focus and the mobile keyboard */
+  #key {
+    position: fixed;
+    width: 1px; height: 1px;
+    opacity: 0;
+    border: 0; padding: 0;
+  }
+  #line {
+    display: flex;
+    align-items: center;
     font-weight: 700;
-    font-size: clamp(4rem, 18vw, 16rem);
-    letter-spacing: -0.04em;
+    font-size: clamp(4rem, 12vw, 10rem);
+    letter-spacing: 0.04em;
+    user-select: none;
+    transition: opacity 0.45s ease;
   }
-  h1 a {
-    color: inherit;
-    text-decoration: none;
-    transition: color 0.2s ease;
+  #line.gone { opacity: 0; }
+  #caret {
+    width: 0.07em;
+    min-width: 4px;
+    height: 1.05em;
+    background: #111;
+    animation: blink 1.06s step-end infinite;
   }
-  h1 a:hover,
-  h1 a:active {
-    color: #999;
+  /* caret holds solid while typing, like a real text field */
+  #line.typing #caret { animation: none; opacity: 1; }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
   }
-  canvas { position: fixed; inset: 0; }
-  /* keep the real link in the tree for keyboard/screen-reader users */
-  body.particles h1 { opacity: 0; pointer-events: none; }
-  #gate {
-    position: fixed; inset: 0;
-    display: grid; place-items: center;
-    opacity: 0; pointer-events: none;
-    transform: translateY(10px);
-    transition: opacity 0.45s ease, transform 0.45s ease;
-  }
-  #gate.show { opacity: 1; pointer-events: auto; transform: none; }
-  #gate input {
-    font-family: inherit;
-    font-weight: 700;
-    font-size: clamp(1.6rem, 4vw, 2.6rem);
-    letter-spacing: -0.02em;
-    text-align: center;
-    width: min(72vw, 430px);
-    padding: 0.25em 0;
-    border: 0; border-bottom: 4px solid #111; border-radius: 0;
-    background: transparent; color: #111;
-    outline: none;
-  }
-  #gate input::placeholder { color: #c6c6c6; }
   @keyframes shake {
-    20% { transform: translateX(-10px); }
-    40% { transform: translateX(8px); }
-    60% { transform: translateX(-6px); }
-    80% { transform: translateX(4px); }
+    20% { transform: translateX(-0.12em); }
+    40% { transform: translateX(0.1em); }
+    60% { transform: translateX(-0.07em); }
+    80% { transform: translateX(0.05em); }
   }
-  #gate input.shake { animation: shake 0.35s ease; }
-  body.unlocked h1, body.unlocked canvas, body.unlocked #gate { display: none; }
+  #line.shake { animation: shake 0.35s ease; }
+  body.unlocked #line { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    #caret { animation: none; }
+    #line.shake { animation: none; }
+  }
 </style>
 </head>
 <body>
-  <h1><a href="#">Hello.</a></h1>
-  <form id="gate" aria-label="Enter password">
-    <input id="pw" type="password" placeholder="password" autocomplete="off" spellcheck="false">
-  </form>
+  <input id="key" type="password" autocomplete="off" spellcheck="false" aria-label="Password">
+  <div id="line" aria-hidden="true"><span id="dots"></span><span id="caret"></span></div>
   <script>
   (() => {
-    const PASSWORD = 'hello'; // <-- change me. Client-side only: a curtain, not a lock.
+    const PASSWORD = 'KnockKnock'; // client-side only: a curtain, not a lock
+    const key = document.getElementById('key');
+    const line = document.getElementById('line');
+    const dots = document.getElementById('dots');
+    let typingTimer;
 
-    const gate = document.getElementById('gate');
-    const pwInput = document.getElementById('pw');
-    let implodeHook = null; // wired up by the canvas section below
-
-    function showGate() {
-      gate.classList.add('show');
-      pwInput.focus();
+    function focusKey() {
+      if (!document.body.classList.contains('unlocked')) key.focus();
     }
+    focusKey();
+    addEventListener('pointerdown', () => setTimeout(focusKey, 0));
+    key.addEventListener('blur', () => setTimeout(focusKey, 50));
 
-    gate.addEventListener('submit', e => {
-      e.preventDefault();
-      if (pwInput.value === PASSWORD) {
-        pwInput.blur();
-        gate.classList.remove('show');
-        document.body.classList.add('unlocked');
-        // stage is now blank — the work showcase mounts here
-        dispatchEvent(new CustomEvent('unlocked'));
+    key.addEventListener('input', () => {
+      dots.textContent = '·'.repeat(key.value.length);
+      line.classList.add('typing');
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => line.classList.remove('typing'), 600);
+    });
+
+    key.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      if (key.value === PASSWORD) {
+        key.value = '';
+        key.blur();
+        line.classList.add('gone');
+        setTimeout(() => {
+          document.body.classList.add('unlocked');
+          // blank stage — the work showcase mounts here
+          dispatchEvent(new CustomEvent('unlocked'));
+        }, 450);
       } else {
-        pwInput.value = '';
-        pwInput.classList.add('shake');
-        pwInput.addEventListener('animationend', () => pwInput.classList.remove('shake'), { once: true });
+        key.value = '';
+        dots.textContent = '';
+        line.classList.add('shake');
+        line.addEventListener('animationend', () => line.classList.remove('shake'), { once: true });
       }
     });
-
-    // keyboard / reduced-motion path: activating the link opens the gate
-    document.querySelector('h1 a').addEventListener('click', e => {
-      e.preventDefault();
-      if (document.body.classList.contains('unlocked')) return;
-      if (implodeHook) implodeHook(); else showGate();
-    });
-
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-    const TEXT = 'Hello.';
-    const PALETTE = [
-      [255, 59, 48], [255, 149, 0], [255, 204, 0], [52, 199, 89],
-      [0, 199, 190], [50, 173, 230], [0, 122, 255], [88, 86, 214],
-      [175, 82, 222], [255, 45, 85]
-    ];
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    document.body.appendChild(canvas);
-    document.body.classList.add('particles');
-
-    let particles = [], bbox = null, baselineY = 0;
-    let raf = null, settled = true, fade = 0;
-    let mode = 'word', implodeT = 0; // word -> implode -> gate
-    const center = { x: 0, y: 0 };
-    let fontPx = 0, gap = 2, dpr = 1;
-    const mouse = { x: -1e4, y: -1e4, near: false };
-
-    // physics tuning — gentle dimple, soft spring home
-    let R = 49;            // cursor influence radius
-    const PUSH = 2.0;      // cursor push strength
-    const SPRING = 0.015;  // pull toward home
-    const DAMP = 0.90;     // velocity damping
-    const SEP = 0.2;       // particle-particle separation strength
-    const MAXV = 6;        // speed cap keeps things calm
-    let minD = 4;          // separation distance
-
-    function setupText(c) {
-      c.font = `700 ${fontPx}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
-      try { c.letterSpacing = (-0.04 * fontPx) + 'px'; } catch (e) {}
-      c.textAlign = 'center';
-      c.textBaseline = 'alphabetic';
-      c.fillStyle = '#111';
-    }
-
-    function build() {
-      dpr = Math.min(devicePixelRatio || 1, 2);
-      const W = innerWidth, H = innerHeight;
-      canvas.width = W * dpr; canvas.height = H * dpr;
-      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-      fontPx = Math.min(Math.max(64, W * 0.18), 256);
-      gap = fontPx > 140 ? 3 : 2;
-      minD = gap * 1.2;
-      R = Math.max(49, fontPx * 0.315);
-
-      const off = document.createElement('canvas');
-      off.width = W * dpr; off.height = H * dpr;
-      const o = off.getContext('2d', { willReadFrequently: true });
-      o.setTransform(dpr, 0, 0, dpr, 0, 0);
-      setupText(o);
-
-      const m = o.measureText(TEXT);
-      const asc = m.actualBoundingBoxAscent || fontPx * 0.74;
-      const desc = m.actualBoundingBoxDescent || fontPx * 0.05;
-      baselineY = H / 2 + (asc - desc) / 2;
-      o.fillText(TEXT, W / 2, baselineY);
-
-      const left = W / 2 - m.width / 2, right = W / 2 + m.width / 2;
-      const top = baselineY - asc, bottom = baselineY + desc;
-      bbox = { left: left - 16, top: top - 16, right: right + 16, bottom: bottom + 16 };
-
-      const data = o.getImageData(0, 0, off.width, off.height).data;
-      particles = [];
-      for (let y = Math.max(0, top | 0); y < bottom; y += gap) {
-        for (let x = Math.max(0, left | 0); x < right; x += gap) {
-          const a = data[(((y * dpr) | 0) * off.width + ((x * dpr) | 0)) * 4 + 3];
-          // keep the glyph's antialiased alpha so the assembled particle
-          // image matches the real type at the edges
-          if (a > 30) particles.push({
-            hx: x, hy: y, x, y, vx: 0, vy: 0, al: Math.min(1, a / 255),
-            ci: (Math.random() * PALETTE.length) | 0, amt: 0
-          });
-        }
-      }
-      settled = true;
-      if (mode === 'word') drawCrisp();
-    }
-
-    // when every particle is home we draw the real glyphs, so at rest
-    // the page is pixel-identical to plain text
-    function drawCrisp() {
-      ctx.clearRect(0, 0, innerWidth, innerHeight);
-      setupText(ctx);
-      ctx.fillText(TEXT, innerWidth / 2, baselineY);
-    }
-
-    // tap: the word swallows itself — particles spiral into the centre and
-    // fade, then the password gate rises
-    function startImplode() {
-      if (mode !== 'word' || !bbox) return;
-      mode = 'implode';
-      implodeT = 0;
-      center.x = (bbox.left + bbox.right) / 2;
-      center.y = (bbox.top + bbox.bottom) / 2;
-      // randomise each particle's pull and spin so the word shreds
-      // apart as it's swallowed instead of rotating rigidly
-      for (const p of particles) {
-        p.rk = 0.6 + Math.random() * 0.9;
-        p.rs = (Math.random() < 0.5 ? -1 : 1) * (0.006 + Math.random() * 0.016);
-      }
-      settled = false;
-      fade = 0;
-      if (!raf) raf = requestAnimationFrame(tick);
-    }
-    implodeHook = startImplode;
-
-    function implodeStep() {
-      implodeT = Math.min(1, implodeT + 1 / 45);
-      const k = 0.01 + implodeT * 0.18;            // suction ramps up
-      const fadeA = Math.pow(1 - implodeT, 1.4);   // and everything dims out
-      ctx.clearRect(0, 0, innerWidth, innerHeight);
-      for (const p of particles) {
-        const dx = center.x - p.x, dy = center.y - p.y;
-        p.vx += dx * k * p.rk - dy * p.rs;         // pull + per-particle swirl
-        p.vy += dy * k * p.rk + dx * p.rs;
-        p.vx *= 0.86; p.vy *= 0.86;
-        p.x += p.vx; p.y += p.vy;
-        ctx.globalAlpha = fadeA * p.al;
-        if (p.amt > 0.02) {
-          const c = PALETTE[p.ci], t = p.amt;
-          ctx.fillStyle = `rgb(${(17 + (c[0] - 17) * t) | 0},${(17 + (c[1] - 17) * t) | 0},${(17 + (c[2] - 17) * t) | 0})`;
-        } else {
-          ctx.fillStyle = '#111';
-        }
-        ctx.fillRect(p.x, p.y, gap, gap);
-      }
-      ctx.globalAlpha = 1;
-      if (implodeT >= 1) {
-        ctx.clearRect(0, 0, innerWidth, innerHeight);
-        raf = null;
-        mode = 'gate';
-        showGate();
-        return;
-      }
-      raf = requestAnimationFrame(tick);
-    }
-
-    function tick() {
-      if (mode === 'implode') { implodeStep(); return; }
-      if (mode !== 'word') { raf = null; return; }
-      const R2 = R * R, minD2 = minD * minD;
-
-      // spatial hash so neighbours can push each other apart while the
-      // cursor is in play; the return trip is pure spring so the crowd
-      // can't jam itself out of reaching home. Particles sitting at home
-      // don't collide (the rest lattice is tighter than minD).
-      const cell = minD * 2;
-      const awayThr2 = (gap * 2) * (gap * 2);
-      const fade2 = (gap * 3) * (gap * 3);
-      const grid = mouse.near ? new Map() : null;
-      if (grid) {
-        for (let i = 0; i < particles.length; i++) {
-          const p = particles[i];
-          const ddx = p.x - p.hx, ddy = p.y - p.hy;
-          const d2 = ddx * ddx + ddy * ddy;
-          p.away = d2 > awayThr2;
-          p.dn = d2 > fade2 ? 1 : d2 / fade2; // collision weight fades to 0 at home
-          const key = ((p.x / cell) | 0) * 100000 + ((p.y / cell) | 0);
-          const b = grid.get(key);
-          if (b) b.push(i); else grid.set(key, [i]);
-        }
-      }
-
-      let calm = true;
-      for (const p of particles) {
-        // soft spring home
-        p.vx += (p.hx - p.x) * SPRING;
-        p.vy += (p.hy - p.y) * SPRING;
-
-        // cursor gently displaces nearby particles; pushed ones light up
-        if (mouse.near) {
-          const dx = p.x - mouse.x, dy = p.y - mouse.y;
-          const d2 = dx * dx + dy * dy;
-          if (d2 < R2) {
-            const d = Math.sqrt(d2) || 1;
-            const f = (1 - d / R) * PUSH;
-            p.vx += (dx / d) * f;
-            p.vy += (dy / d) * f;
-            if (f > 0.25 && p.amt < 0.15) p.ci = (Math.random() * PALETTE.length) | 0;
-            p.amt = Math.min(1, p.amt + f * 0.5);
-          }
-        }
-        p.amt *= 0.955;
-        if (p.amt < 0.02) p.amt = 0;
-
-        // neighbours shoulder each other out of the way
-        if (grid) {
-          const cx = (p.x / cell) | 0, cy = (p.y / cell) | 0;
-          for (let gx = cx - 1; gx <= cx + 1; gx++) {
-            for (let gy = cy - 1; gy <= cy + 1; gy++) {
-              const b = grid.get(gx * 100000 + gy);
-              if (!b) continue;
-              for (const j of b) {
-                const q = particles[j];
-                if (q === p || (!p.away && !q.away)) continue;
-                const dx = p.x - q.x, dy = p.y - q.y;
-                const d2 = dx * dx + dy * dy;
-                if (d2 > 0 && d2 < minD2) {
-                  const d = Math.sqrt(d2);
-                  const f = ((minD - d) / minD) * SEP * (p.dn + q.dn) * 0.5;
-                  p.vx += (dx / d) * f;
-                  p.vy += (dy / d) * f;
-                }
-              }
-            }
-          }
-        }
-
-        p.vx *= DAMP; p.vy *= DAMP;
-        const sp = p.vx * p.vx + p.vy * p.vy;
-        if (sp > MAXV * MAXV) {
-          const s = MAXV / Math.sqrt(sp);
-          p.vx *= s; p.vy *= s;
-        }
-        p.x += p.vx; p.y += p.vy;
-
-        // snap stragglers home so the crisp swap happens promptly
-        const ex = p.x - p.hx, ey = p.y - p.hy;
-        if (!mouse.near && ex * ex + ey * ey < 0.25 &&
-            Math.abs(p.vx) < 0.3 && Math.abs(p.vy) < 0.3) {
-          p.x = p.hx; p.y = p.hy; p.vx = 0; p.vy = 0;
-        }
-
-        if (p.x !== p.hx || p.y !== p.hy ||
-            Math.abs(p.vx) > 0.05 || Math.abs(p.vy) > 0.05 || p.amt > 0) calm = false;
-      }
-
-      // once everyone is home, cross-fade the crisp glyphs in over a few
-      // frames instead of swapping abruptly
-      if (calm && !mouse.near) {
-        for (const p of particles) { p.x = p.hx; p.y = p.hy; p.vx = 0; p.vy = 0; p.amt = 0; }
-        fade = Math.min(1, fade + 0.09);
-      } else {
-        fade = 0;
-      }
-
-      // draw: once settling starts the crisp text sits fully opaque
-      // underneath and the particle squares dissolve on top — the interior
-      // stays solid black the whole time, so no brightness dip
-      ctx.clearRect(0, 0, innerWidth, innerHeight);
-      if (fade > 0) {
-        setupText(ctx);
-        ctx.fillText(TEXT, innerWidth / 2, baselineY);
-      }
-      const pa = 1 - fade;
-      ctx.globalAlpha = pa;
-      ctx.fillStyle = '#111';
-      for (const p of particles) {
-        if (p.amt <= 0.02 && p.al > 0.98) ctx.fillRect(p.x, p.y, gap, gap);
-      }
-      for (const p of particles) {
-        if (p.amt <= 0.02 && p.al <= 0.98) {
-          ctx.globalAlpha = pa * p.al;
-          ctx.fillRect(p.x, p.y, gap, gap);
-        }
-      }
-      for (const p of particles) {
-        if (p.amt > 0.02) {
-          const c = PALETTE[p.ci], t = p.amt;
-          ctx.globalAlpha = pa * p.al;
-          ctx.fillStyle = `rgb(${(17 + (c[0] - 17) * t) | 0},${(17 + (c[1] - 17) * t) | 0},${(17 + (c[2] - 17) * t) | 0})`;
-          ctx.fillRect(p.x, p.y, gap, gap);
-        }
-      }
-      ctx.globalAlpha = 1;
-
-      if (fade >= 1) {
-        settled = true;
-        raf = null;
-        drawCrisp();
-        return;
-      }
-      raf = requestAnimationFrame(tick);
-    }
-
-    function wake() {
-      if (mode !== 'word') return;
-      fade = 0;
-      if (!raf) { settled = false; raf = requestAnimationFrame(tick); }
-    }
-
-    function inText(x, y) {
-      return bbox && x > bbox.left && x < bbox.right && y > bbox.top && y < bbox.bottom;
-    }
-
-    addEventListener('mousemove', e => {
-      mouse.x = e.clientX; mouse.y = e.clientY;
-      mouse.near = bbox &&
-        e.clientX > bbox.left - R && e.clientX < bbox.right + R &&
-        e.clientY > bbox.top - R && e.clientY < bbox.bottom + R;
-      canvas.style.cursor = (mode === 'word' && inText(e.clientX, e.clientY)) ? 'pointer' : 'default';
-      if (mouse.near) wake();
-    });
-    document.documentElement.addEventListener('mouseleave', () => { mouse.near = false; });
-    canvas.addEventListener('click', e => {
-      if (mode === 'word' && inText(e.clientX, e.clientY)) startImplode();
-    });
-
-    let rt;
-    addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(build, 150); });
-    build();
   })();
   </script>
 </body>
