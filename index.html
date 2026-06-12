@@ -68,6 +68,7 @@
     position: fixed; inset: 0;
     overflow: hidden;
     display: none;
+    pointer-events: none;
   }
   body.unlocked #pile { display: block; }
   #pile img {
@@ -75,7 +76,23 @@
     will-change: transform;
     user-select: none;
     -webkit-user-drag: none;
+    pointer-events: auto;
+    cursor: pointer;
+  }
+  /* soft veil between the pile and a lifted card */
+  #pile::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: rgba(255, 255, 255, 0.82);
+    opacity: 0;
     pointer-events: none;
+    transition: opacity 0.4s ease;
+    z-index: 1;
+  }
+  body.zoomcard #pile::after { opacity: 1; pointer-events: auto; }
+  #pile img.zoom { z-index: 2; cursor: zoom-out; }
+  @media (prefers-reduced-motion: reduce) {
+    #pile img { transition: none !important; }
   }
   @media (prefers-reduced-motion: reduce) {
     #caret { animation: none; }
@@ -151,7 +168,8 @@
     const GRAV = 0.45;
     const REST = 0.18;    // bounce
     const MAXV = 22;
-    let bodies = [], raf = null, calmFrames = 0, frames = 0;
+    const pile = document.getElementById('pile');
+    let bodies = [], raf = null, calmFrames = 0, frames = 0, zoomed = null;
 
     // warm the image cache while the visitor is still at the door
     addEventListener('load', () => setTimeout(() => {
@@ -161,7 +179,6 @@
     addEventListener('unlocked', start, { once: true });
 
     function start() {
-      const pile = document.getElementById('pile');
       const W = innerWidth, H = innerHeight;
       // size cards so the settled pile covers roughly half the viewport
       const w = Math.max(44, Math.min(120, Math.sqrt((W * H * 0.42) / (SKETCHES.length * ASPECT))));
@@ -249,6 +266,7 @@
       }
       let maxSpeed = 0;
       for (const b of bodies) {
+        if (b === zoomed) continue; // a lifted card is the transition's to move
         if (b.rest) {
           b.rot *= 0.82;                      // straighten as it settles
           if (Math.abs(b.rot) < 0.05) b.rot = 0;
@@ -276,6 +294,45 @@
     // a resize wakes the pile so cards re-settle inside the new walls
     addEventListener('resize', () => {
       if (bodies.length && !raf) { calmFrames = 0; raf = requestAnimationFrame(step); }
+    });
+
+    // tap a card: it lifts out of the pile to full size; tap again,
+    // the veil, or Escape and it glides back to its spot
+    const EASE = 'transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1)';
+
+    function zoom(b) {
+      zoomed = b;
+      document.body.classList.add('zoomcard');
+      const s = Math.min((innerWidth * 0.82) / b.w, (innerHeight * 0.88) / b.h);
+      b.el.classList.add('zoom');
+      b.el.style.transition = EASE;
+      b.el.style.transform =
+        `translate(${innerWidth / 2 - b.w / 2}px, ${innerHeight / 2 - b.h / 2}px) scale(${s.toFixed(4)})`;
+    }
+
+    function unzoom() {
+      const b = zoomed;
+      zoomed = null;
+      document.body.classList.remove('zoomcard');
+      b.el.style.transition = EASE;
+      b.el.style.transform =
+        `translate(${(b.x - b.w / 2).toFixed(2)}px, ${(b.y - b.h / 2).toFixed(2)}px) rotate(${b.rot.toFixed(2)}deg)`;
+      setTimeout(() => {
+        if (zoomed !== b) { b.el.style.transition = ''; b.el.classList.remove('zoom'); }
+      }, 500);
+    }
+
+    pile.addEventListener('click', e => {
+      const el = e.target.closest('img');
+      if (!el) { if (zoomed) unzoom(); return; }
+      const b = bodies.find(x => x.el === el);
+      if (!b) return;
+      if (zoomed === b) { unzoom(); return; }
+      if (zoomed) unzoom();
+      zoom(b);
+    });
+    addEventListener('keydown', e => {
+      if (e.key === 'Escape' && zoomed) unzoom();
     });
   })();
   </script>
