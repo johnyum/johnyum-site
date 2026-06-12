@@ -79,21 +79,6 @@
     pointer-events: auto;
     cursor: pointer;
   }
-  /* soft veil between the pile and a lifted card */
-  #pile::after {
-    content: "";
-    position: absolute; inset: 0;
-    background: rgba(255, 255, 255, 0.82);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.4s ease;
-    z-index: 1;
-  }
-  body.zoomcard #pile::after { opacity: 1; pointer-events: auto; }
-  #pile img.zoom { z-index: 2; cursor: zoom-out; }
-  @media (prefers-reduced-motion: reduce) {
-    #pile img { transition: none !important; }
-  }
   @media (prefers-reduced-motion: reduce) {
     #caret { animation: none; }
     #line.shake { animation: none; }
@@ -147,8 +132,11 @@
   })();
   </script>
   <script>
-  // After the knock: the calendar sketches rain down and pile up.
-  // Axis-aligned physics with a 4px force field — cards never touch.
+  // After the knock: the calendar sketches rain down and pack the whole
+  // page, some leaking off the edges. Live physics the entire time —
+  // hover inflates a phone and its neighbours shuffle aside; tap parks
+  // it centre stage as an immovable body the pile flows around.
+  // A 4px force field keeps every card from ever touching another.
   (() => {
     const DIR = 'img/Calendar_Sketches/';
     const SKETCHES = [
@@ -164,12 +152,14 @@
       "Group 3.png"
     ];
     const ASPECT = 1840 / 900;
-    const GAP = 4;        // the invisible force field
+    const GAP = 4;          // the invisible force field
     const GRAV = 0.45;
-    const REST = 0.18;    // bounce
+    const REST = 0.18;      // bounce
     const MAXV = 22;
+    const HOVER_S = 1.3;    // hovered phones grow 30%
     const pile = document.getElementById('pile');
-    let bodies = [], raf = null, calmFrames = 0, frames = 0, zoomed = null;
+    let bodies = [], raf = null, calmFrames = 0, frames = 0;
+    let hovered = null, opened = null, leak = 0;
 
     // warm the image cache while the visitor is still at the door
     addEventListener('load', () => setTimeout(() => {
@@ -180,9 +170,11 @@
 
     function start() {
       const W = innerWidth, H = innerHeight;
-      // size cards so the settled pile covers roughly half the viewport
-      const w = Math.max(44, Math.min(120, Math.sqrt((W * H * 0.42) / (SKETCHES.length * ASPECT))));
+      // size cards to slightly overfill the page, so the settled pile
+      // packs edge to edge with a few phones poking past the sides
+      const w = Math.max(60, Math.min(240, Math.sqrt((W * H * 1.12) / (SKETCHES.length * ASPECT))));
       const h = w * ASPECT;
+      leak = w * 0.35;
       const order = [...SKETCHES].sort(() => Math.random() - 0.5);
       bodies = order.map((f, i) => {
         const el = document.createElement('img');
@@ -190,67 +182,99 @@
         el.alt = '';
         el.style.width = w + 'px';
         el.style.height = h + 'px';
-        pile.appendChild(el);
-        return {
+        const b = {
           el, w, h,
-          x: GAP + w / 2 + Math.random() * (W - w - GAP * 2),
-          y: -h / 2 - i * (h * 0.35 + Math.random() * h * 0.25),
+          x: Math.random() * W,
+          y: -h / 2 - i * (h * 0.3 + Math.random() * h * 0.2),
           vx: (Math.random() - 0.5) * 1.2,
           vy: 0,
           rot: (Math.random() - 0.5) * 7,
           spin: (Math.random() - 0.5) * 0.5,
+          scale: 1, target: 1, kin: false,
           rest: false
         };
+        el.style.transform = `translate(${b.x - w / 2}px, ${b.y - h / 2}px)`;
+        pile.appendChild(el);
+        return b;
       });
+      wake();
+    }
+
+    function wake() {
       calmFrames = 0;
       frames = 0;
       if (!raf) raf = requestAnimationFrame(step);
     }
 
+    // inverse mass: an opened card is immovable, a hovered card is heavy
+    function im(b) { return b.kin ? 0 : (b === hovered ? 0.35 : 1); }
+
     function collide(a, b) {
       // tilted cards get a wider field so rotation can never cause overlap
       const pad = GAP + ((Math.abs(a.rot) > 0.5 || Math.abs(b.rot) > 0.5) ? 8 : 0);
+      const aw = a.w * a.scale, ah = a.h * a.scale;
+      const bw = b.w * b.scale, bh = b.h * b.scale;
       const dx = b.x - a.x;
-      const px = (a.w + b.w) / 2 + pad - Math.abs(dx);
+      const px = (aw + bw) / 2 + pad - Math.abs(dx);
       if (px <= 0) return;
       const dy = b.y - a.y;
-      const py = (a.h + b.h) / 2 + pad - Math.abs(dy);
+      const py = (ah + bh) / 2 + pad - Math.abs(dy);
       if (py <= 0) return;
+      const ia = im(a), ib = im(b), tot = ia + ib;
+      if (!tot) return;
       if (px < py) {
         const s = dx < 0 ? -1 : 1;
-        a.x -= s * px / 2; b.x += s * px / 2;
+        a.x -= s * px * (ia / tot); b.x += s * px * (ib / tot);
         const rv = b.vx - a.vx;
-        if (rv * s < 0) { const imp = -(1 + REST) * rv / 2; a.vx -= imp; b.vx += imp; }
+        if (rv * s < 0) {
+          const j = -(1 + REST) * rv * s / tot;
+          a.vx -= j * ia * s; b.vx += j * ib * s;
+        }
       } else {
         const s = dy < 0 ? -1 : 1;
-        a.y -= s * py / 2; b.y += s * py / 2;
+        a.y -= s * py * (ia / tot); b.y += s * py * (ib / tot);
         const rv = b.vy - a.vy;
-        if (rv * s < 0) { const imp = -(1 + REST) * rv / 2; a.vy -= imp; b.vy += imp; }
+        if (rv * s < 0) {
+          const j = -(1 + REST) * rv * s / tot;
+          a.vy -= j * ia * s; b.vy += j * ib * s;
+        }
         a.vx *= 0.95; b.vx *= 0.95;          // landing friction
-        // upper card is supported; if it overhangs its support it tips
-        // sideways and slides off instead of growing a tower
+        // the upper card is supported; overhanging cards tip sideways and
+        // slide off instead of growing towers — and everything slides off
+        // an opened card so it stays unobstructed
         const upper = s > 0 ? a : b, lower = s > 0 ? b : a;
         upper.rest = true;
         const off = upper.x - lower.x;
-        if (Math.abs(off) > upper.w * 0.3) upper.vx += off * 0.015;
+        if (lower.kin) upper.vx += (off || (Math.random() - 0.5)) * 0.03;
+        else if (Math.abs(off) > upper.w * 0.3) upper.vx += off * 0.015;
       }
     }
 
     function step() {
       const W = innerWidth, H = innerHeight;
       const SUB = 2;
+      let busy = false;
       for (let s = 0; s < SUB; s++) {
         for (const b of bodies) {
-          b.vy += GRAV / SUB;
-          if (b.vy > MAXV) b.vy = MAXV;
-          b.x += b.vx / SUB;
-          b.y += b.vy / SUB;
+          if (b.kin) {
+            // an opened card glides to centre stage and parks there
+            b.x += (W / 2 - b.x) * 0.07;
+            b.y += (H / 2 - b.y) * 0.07;
+            b.vx = 0; b.vy = 0;
+          } else {
+            b.vy += GRAV / SUB;
+            if (b.vy > MAXV) b.vy = MAXV;
+            b.x += b.vx / SUB;
+            b.y += b.vy / SUB;
+          }
           b.rest = false;
         }
         for (const b of bodies) {
-          const hw = b.w / 2, hh = b.h / 2;
-          if (b.x < hw + GAP) { b.x = hw + GAP; b.vx = Math.abs(b.vx) * REST; }
-          if (b.x > W - hw - GAP) { b.x = W - hw - GAP; b.vx = -Math.abs(b.vx) * REST; }
+          if (b.kin) continue;
+          // side walls sit a little past the screen so phones leak out
+          const hw = b.w * b.scale / 2, hh = b.h * b.scale / 2;
+          if (b.x < hw - leak) { b.x = hw - leak; b.vx = Math.abs(b.vx) * REST; }
+          if (b.x > W - hw + leak) { b.x = W - hw + leak; b.vx = -Math.abs(b.vx) * REST; }
           if (b.y > H - hh) {
             b.y = H - hh;
             if (b.vy > 0) b.vy = Math.abs(b.vy) < 1.2 ? 0 : -b.vy * REST;
@@ -266,8 +290,12 @@
       }
       let maxSpeed = 0;
       for (const b of bodies) {
-        if (b === zoomed) continue; // a lifted card is the transition's to move
-        if (b.rest) {
+        b.scale += (b.target - b.scale) * 0.18;
+        if (Math.abs(b.scale - b.target) > 0.003) busy = true; else b.scale = b.target;
+        if (b.kin) {
+          busy = true;
+          b.rot *= 0.8;
+        } else if (b.rest) {
           b.rot *= 0.82;                      // straighten as it settles
           if (Math.abs(b.rot) < 0.05) b.rot = 0;
           if (Math.abs(b.vx) < 0.05) b.vx = 0;
@@ -277,13 +305,15 @@
         }
         const sp = Math.abs(b.vx) + Math.abs(b.vy);
         if (sp > maxSpeed) maxSpeed = sp;
+        b.el.style.zIndex = b === opened ? 3 : (b.scale > 1.02 ? 2 : '');
         b.el.style.transform =
-          `translate(${(b.x - b.w / 2).toFixed(2)}px, ${(b.y - b.h / 2).toFixed(2)}px) rotate(${b.rot.toFixed(2)}deg)`;
+          `translate(${(b.x - b.w / 2).toFixed(2)}px, ${(b.y - b.h / 2).toFixed(2)}px) ` +
+          `rotate(${b.rot.toFixed(2)}deg) scale(${b.scale.toFixed(4)})`;
       }
-      calmFrames = maxSpeed < 0.12 ? calmFrames + 1 : 0;
+      calmFrames = (maxSpeed < 0.12 && !busy) ? calmFrames + 1 : 0;
       frames++;
       // asleep, or out of patience with the last micro-creeper — freeze
-      if (calmFrames > 30 || frames > 1500) {
+      if (calmFrames > 30 || frames > 2400) {
         for (const b of bodies) { b.vx = 0; b.vy = 0; }
         raf = null;
         return;
@@ -291,49 +321,60 @@
       raf = requestAnimationFrame(step);
     }
 
-    // a resize wakes the pile so cards re-settle inside the new walls
-    addEventListener('resize', () => {
-      if (bodies.length && !raf) { calmFrames = 0; raf = requestAnimationFrame(step); }
+    // hover: that phone grows and the pile makes room
+    pile.addEventListener('mouseover', e => {
+      const el = e.target.closest('img');
+      if (!el) return;
+      const b = bodies.find(x => x.el === el);
+      if (!b || b === opened) return;
+      if (hovered && hovered !== opened) hovered.target = 1;
+      hovered = b;
+      b.target = HOVER_S;
+      wake();
+    });
+    pile.addEventListener('mouseout', e => {
+      const el = e.target.closest('img');
+      if (!el) return;
+      const b = bodies.find(x => x.el === el);
+      if (b && b === hovered) {
+        if (b !== opened) b.target = 1;
+        hovered = null;
+        wake();
+      }
     });
 
-    // tap a card: it lifts out of the pile to full size; tap again,
-    // the veil, or Escape and it glides back to its spot
-    const EASE = 'transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1)';
-
-    function zoom(b) {
-      zoomed = b;
-      document.body.classList.add('zoomcard');
-      const s = Math.min((innerWidth * 0.82) / b.w, (innerHeight * 0.88) / b.h);
-      b.el.classList.add('zoom');
-      b.el.style.transition = EASE;
-      b.el.style.transform =
-        `translate(${innerWidth / 2 - b.w / 2}px, ${innerHeight / 2 - b.h / 2}px) scale(${s.toFixed(4)})`;
+    // tap: the phone parks centre stage and the pile parts around it;
+    // tap it again (or another phone, or Escape) to fold it back in
+    function open(b) {
+      opened = b;
+      if (hovered === b) hovered = null;
+      b.kin = true;
+      b.target = Math.min((innerWidth * 0.8) / b.w, (innerHeight * 0.86) / b.h);
+      b.el.style.cursor = 'zoom-out';
+      wake();
     }
-
-    function unzoom() {
-      const b = zoomed;
-      zoomed = null;
-      document.body.classList.remove('zoomcard');
-      b.el.style.transition = EASE;
-      b.el.style.transform =
-        `translate(${(b.x - b.w / 2).toFixed(2)}px, ${(b.y - b.h / 2).toFixed(2)}px) rotate(${b.rot.toFixed(2)}deg)`;
-      setTimeout(() => {
-        if (zoomed !== b) { b.el.style.transition = ''; b.el.classList.remove('zoom'); }
-      }, 500);
+    function close(b) {
+      opened = null;
+      b.kin = false;
+      b.target = 1;
+      b.el.style.cursor = '';
+      wake();
     }
-
     pile.addEventListener('click', e => {
       const el = e.target.closest('img');
-      if (!el) { if (zoomed) unzoom(); return; }
+      if (!el) { if (opened) close(opened); return; }
       const b = bodies.find(x => x.el === el);
       if (!b) return;
-      if (zoomed === b) { unzoom(); return; }
-      if (zoomed) unzoom();
-      zoom(b);
+      if (opened === b) { close(b); return; }
+      if (opened) close(opened);
+      open(b);
     });
     addEventListener('keydown', e => {
-      if (e.key === 'Escape' && zoomed) unzoom();
+      if (e.key === 'Escape' && opened) close(opened);
     });
+
+    // a resize wakes the pile so cards re-settle inside the new walls
+    addEventListener('resize', () => { if (bodies.length) wake(); });
   })();
   </script>
 </body>
