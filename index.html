@@ -64,6 +64,19 @@
   }
   #line.shake { animation: shake 0.35s ease; }
   body.unlocked #line { display: none; }
+  #pile {
+    position: fixed; inset: 0;
+    overflow: hidden;
+    display: none;
+  }
+  body.unlocked #pile { display: block; }
+  #pile img {
+    position: absolute; left: 0; top: 0;
+    will-change: transform;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+  }
   @media (prefers-reduced-motion: reduce) {
     #caret { animation: none; }
     #line.shake { animation: none; }
@@ -73,6 +86,7 @@
 <body>
   <input id="key" type="password" autocomplete="off" spellcheck="false" aria-label="Password">
   <div id="line" aria-hidden="true"><span id="dots"></span><span id="caret"></span></div>
+  <div id="pile" aria-hidden="true"></div>
   <script>
   (() => {
     const PASSWORD = 'KnockKnock'; // client-side only: a curtain, not a lock
@@ -112,6 +126,156 @@
         line.classList.add('shake');
         line.addEventListener('animationend', () => line.classList.remove('shake'), { once: true });
       }
+    });
+  })();
+  </script>
+  <script>
+  // After the knock: the calendar sketches rain down and pile up.
+  // Axis-aligned physics with a 4px force field — cards never touch.
+  (() => {
+    const DIR = 'img/Calendar_Sketches/';
+    const SKETCHES = [
+      "Component 100-1.png", "Component 100.png", "Component 101-1.png",
+      "Component 101.png", "Component 102.png", "Component 92-1.png",
+      "Component 92-10.png", "Component 92-11.png", "Component 92-12.png",
+      "Component 92-13.png", "Component 92-14.png", "Component 92-2.png",
+      "Component 92-3.png", "Component 92-4.png", "Component 92-5.png",
+      "Component 92-6.png", "Component 92-7.png", "Component 92-8.png",
+      "Component 92-9.png", "Component 92.png", "Component 93.png",
+      "Component 94.png", "Component 95.png", "Component 96.png",
+      "Component 97.png", "Component 98.png", "Component 99.png",
+      "Group 3.png"
+    ];
+    const ASPECT = 1840 / 900;
+    const GAP = 4;        // the invisible force field
+    const GRAV = 0.45;
+    const REST = 0.18;    // bounce
+    const MAXV = 22;
+    let bodies = [], raf = null, calmFrames = 0, frames = 0;
+
+    // warm the image cache while the visitor is still at the door
+    addEventListener('load', () => setTimeout(() => {
+      for (const f of SKETCHES) { const im = new Image(); im.src = DIR + encodeURIComponent(f); }
+    }, 600));
+
+    addEventListener('unlocked', start, { once: true });
+
+    function start() {
+      const pile = document.getElementById('pile');
+      const W = innerWidth, H = innerHeight;
+      // size cards so the settled pile covers roughly half the viewport
+      const w = Math.max(44, Math.min(120, Math.sqrt((W * H * 0.42) / (SKETCHES.length * ASPECT))));
+      const h = w * ASPECT;
+      const order = [...SKETCHES].sort(() => Math.random() - 0.5);
+      bodies = order.map((f, i) => {
+        const el = document.createElement('img');
+        el.src = DIR + encodeURIComponent(f);
+        el.alt = '';
+        el.style.width = w + 'px';
+        el.style.height = h + 'px';
+        pile.appendChild(el);
+        return {
+          el, w, h,
+          x: GAP + w / 2 + Math.random() * (W - w - GAP * 2),
+          y: -h / 2 - i * (h * 0.35 + Math.random() * h * 0.25),
+          vx: (Math.random() - 0.5) * 1.2,
+          vy: 0,
+          rot: (Math.random() - 0.5) * 7,
+          spin: (Math.random() - 0.5) * 0.5,
+          rest: false
+        };
+      });
+      calmFrames = 0;
+      frames = 0;
+      if (!raf) raf = requestAnimationFrame(step);
+    }
+
+    function collide(a, b) {
+      // tilted cards get a wider field so rotation can never cause overlap
+      const pad = GAP + ((Math.abs(a.rot) > 0.5 || Math.abs(b.rot) > 0.5) ? 8 : 0);
+      const dx = b.x - a.x;
+      const px = (a.w + b.w) / 2 + pad - Math.abs(dx);
+      if (px <= 0) return;
+      const dy = b.y - a.y;
+      const py = (a.h + b.h) / 2 + pad - Math.abs(dy);
+      if (py <= 0) return;
+      if (px < py) {
+        const s = dx < 0 ? -1 : 1;
+        a.x -= s * px / 2; b.x += s * px / 2;
+        const rv = b.vx - a.vx;
+        if (rv * s < 0) { const imp = -(1 + REST) * rv / 2; a.vx -= imp; b.vx += imp; }
+      } else {
+        const s = dy < 0 ? -1 : 1;
+        a.y -= s * py / 2; b.y += s * py / 2;
+        const rv = b.vy - a.vy;
+        if (rv * s < 0) { const imp = -(1 + REST) * rv / 2; a.vy -= imp; b.vy += imp; }
+        a.vx *= 0.95; b.vx *= 0.95;          // landing friction
+        // upper card is supported; if it overhangs its support it tips
+        // sideways and slides off instead of growing a tower
+        const upper = s > 0 ? a : b, lower = s > 0 ? b : a;
+        upper.rest = true;
+        const off = upper.x - lower.x;
+        if (Math.abs(off) > upper.w * 0.3) upper.vx += off * 0.015;
+      }
+    }
+
+    function step() {
+      const W = innerWidth, H = innerHeight;
+      const SUB = 2;
+      for (let s = 0; s < SUB; s++) {
+        for (const b of bodies) {
+          b.vy += GRAV / SUB;
+          if (b.vy > MAXV) b.vy = MAXV;
+          b.x += b.vx / SUB;
+          b.y += b.vy / SUB;
+          b.rest = false;
+        }
+        for (const b of bodies) {
+          const hw = b.w / 2, hh = b.h / 2;
+          if (b.x < hw + GAP) { b.x = hw + GAP; b.vx = Math.abs(b.vx) * REST; }
+          if (b.x > W - hw - GAP) { b.x = W - hw - GAP; b.vx = -Math.abs(b.vx) * REST; }
+          if (b.y > H - hh) {
+            b.y = H - hh;
+            if (b.vy > 0) b.vy = Math.abs(b.vy) < 1.2 ? 0 : -b.vy * REST;
+            b.vx *= 0.9;
+            b.rest = true;
+          }
+        }
+        for (let it = 0; it < 3; it++) {
+          for (let i = 0; i < bodies.length; i++) {
+            for (let j = i + 1; j < bodies.length; j++) collide(bodies[i], bodies[j]);
+          }
+        }
+      }
+      let maxSpeed = 0;
+      for (const b of bodies) {
+        if (b.rest) {
+          b.rot *= 0.82;                      // straighten as it settles
+          if (Math.abs(b.rot) < 0.05) b.rot = 0;
+          if (Math.abs(b.vx) < 0.05) b.vx = 0;
+          if (Math.abs(b.vy) < 0.05) b.vy = 0;
+        } else {
+          b.rot += b.spin;
+        }
+        const sp = Math.abs(b.vx) + Math.abs(b.vy);
+        if (sp > maxSpeed) maxSpeed = sp;
+        b.el.style.transform =
+          `translate(${(b.x - b.w / 2).toFixed(2)}px, ${(b.y - b.h / 2).toFixed(2)}px) rotate(${b.rot.toFixed(2)}deg)`;
+      }
+      calmFrames = maxSpeed < 0.12 ? calmFrames + 1 : 0;
+      frames++;
+      // asleep, or out of patience with the last micro-creeper — freeze
+      if (calmFrames > 30 || frames > 1500) {
+        for (const b of bodies) { b.vx = 0; b.vy = 0; }
+        raf = null;
+        return;
+      }
+      raf = requestAnimationFrame(step);
+    }
+
+    // a resize wakes the pile so cards re-settle inside the new walls
+    addEventListener('resize', () => {
+      if (bodies.length && !raf) { calmFrames = 0; raf = requestAnimationFrame(step); }
     });
   })();
   </script>
