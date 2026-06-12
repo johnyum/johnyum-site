@@ -132,13 +132,15 @@
     });
   })();
   </script>
+  <script src="js/matter.min.js"></script>
   <script>
-  // After the knock: the calendar sketches rain down and pack the whole
-  // page, some leaking off the edges. Live physics the entire time —
-  // hover inflates a phone and its neighbours shuffle aside; tap parks
-  // it centre stage as an immovable body the pile flows around.
-  // A 4px force field keeps every card from ever touching another.
+  // After the knock: the calendar sketches pour in under a real rigid-body
+  // engine (Matter.js) — true rotation, torque, friction — so phones tumble
+  // and lie exactly how thrown things lie. Each physics body is 2px larger
+  // than its image on every side: the invisible 4px force field.
   (() => {
+    if (!window.Matter) return;
+    const { Engine, World, Bodies, Body, Events, Mouse, MouseConstraint, Sleeping } = Matter;
     const DIR = 'img/Calendar_Sketches/';
     const SKETCHES = [
       "Component 100-1.png", "Component 100.png", "Component 101-1.png",
@@ -153,17 +155,14 @@
       "Group 3.png"
     ];
     const ASPECT = 1840 / 900;
-    const GAP = 4;          // the invisible force field
-    const GRAV = 0.12;      // low gravity: slow, floaty falls
-    const REST = 0.18;      // bounce
-    const MAXV = 10;
-    const HOVER_S = 1.3;    // hovered phones grow 30%
+    const PAD = 2;            // half the 4px force field, on every side
+    const HOVER_S = 1.3;
     const pile = document.getElementById('pile');
-    let bodies = [], pending = [], nextDrop = 0;
-    let raf = null, calmFrames = 0, frames = 0;
-    let hovered = null, opened = null, leak = 0;
-    let drag = null, suppressClick = false;
-    const pointer = { x: 0, y: 0 };
+
+    let engine = null, mouseCon = null;
+    let cards = [], pendingCards = [], walls = [];
+    let opened = null, hovered = null, downInfo = null;
+    let frames = 0, nextDrop = 0, leak = 0;
 
     // warm the image cache while the visitor is still at the door
     addEventListener('load', () => setTimeout(() => {
@@ -172,17 +171,28 @@
 
     addEventListener('unlocked', start, { once: true });
 
+    function makeWalls(W, H) {
+      const t = 400;
+      for (const w of walls) World.remove(engine.world, w);
+      walls = [
+        Bodies.rectangle(W / 2, H + t / 2, W * 3, t, { isStatic: true }),
+        Bodies.rectangle(-leak - t / 2, H / 2 - H, t, H * 4, { isStatic: true }),
+        Bodies.rectangle(W + leak + t / 2, H / 2 - H, t, H * 4, { isStatic: true })
+      ];
+      World.add(engine.world, walls);
+    }
+
     function start() {
       const W = innerWidth, H = innerHeight;
-      // size cards so the settled pile covers most of the page but leaves
-      // breathing room — phones still poke past the side walls. Sizes vary
-      // per phone and each one has its own resting tilt, so the pile lies
-      // naturally instead of snapping into a grid
+      engine = Engine.create({ enableSleeping: true });
+      engine.gravity.y = 0.45;   // floaty
+
       const baseW = Math.max(52, Math.min(200, Math.sqrt((W * H * 0.72) / (SKETCHES.length * ASPECT))));
       leak = baseW * 0.35;
+      makeWalls(W, H);
+
       const order = [...SKETCHES].sort(() => Math.random() - 0.5);
-      // every phone waits above the screen; step() pours them in one by one
-      pending = order.map(f => {
+      pendingCards = order.map(f => {
         const w = baseW * (0.85 + 0.3 * Math.random());
         const h = w * ASPECT;
         const el = document.createElement('img');
@@ -192,276 +202,170 @@
         el.style.height = h + 'px';
         el.style.transform = `translate(${W / 2 - w / 2}px, ${-2 * h}px)`;
         pile.appendChild(el);
-        return {
-          el, w, h,
-          x: W / 2, y: -2 * h,
-          vx: 0, vy: 0, rot: 0, spin: 0, e: REST,
-          lie: (Math.random() - 0.5) * 14, exX: 0, exY: 0,
-          scale: 1, target: 1, kin: false, rest: false
+        return { el, w, h };
+      });
+
+      // grabbing is a real spring constraint: cards dangle and swing from
+      // wherever you pick them up, and fly when you let go
+      const mouse = Mouse.create(document.body);
+      mouseCon = MouseConstraint.create(engine, {
+        mouse,
+        constraint: { stiffness: 0.12, damping: 0.1 }
+      });
+      World.add(engine.world, mouseCon);
+
+      Events.on(mouseCon, 'mousedown', () => {
+        downInfo = {
+          body: mouseCon.body,
+          x: mouse.position.x, y: mouse.position.y,
+          t: performance.now()
         };
       });
-      bodies = [];
-      nextDrop = 0;
-      wake();
+      Events.on(mouseCon, 'mouseup', () => {
+        if (!downInfo) return;
+        const moved = Math.hypot(mouse.position.x - downInfo.x, mouse.position.y - downInfo.y);
+        if (moved < 8 && performance.now() - downInfo.t < 400) {
+          handleTap(downInfo.body ? cards.find(c => c.body === downInfo.body) : null);
+        }
+        downInfo = null;
+      });
+
+      // anything perched on an opened card gets nudged until it slides off
+      Events.on(engine, 'collisionActive', e => {
+        if (!opened) return;
+        for (const pair of e.pairs) {
+          const other =
+            pair.bodyA === opened.body ? pair.bodyB :
+            pair.bodyB === opened.body ? pair.bodyA : null;
+          if (other && !other.isStatic) {
+            const dx = other.position.x - opened.body.position.x;
+            Body.applyForce(other, other.position,
+              { x: (dx >= 0 ? 1 : -1) * 0.0009 * other.mass, y: 0 });
+          }
+        }
+      });
+
+      requestAnimationFrame(step);
     }
 
-    function wake() {
-      calmFrames = 0;
-      frames = 0;
-      if (!raf) raf = requestAnimationFrame(step);
+    function spawnNext() {
+      const def = pendingCards.shift();
+      const splashy = cards.length < 5;
+      const body = Bodies.rectangle(
+        innerWidth * (0.12 + 0.76 * Math.random()), -def.h,
+        def.w + PAD * 2, def.h + PAD * 2,
+        {
+          restitution: splashy ? 0.5 : 0.22,
+          friction: 0.35,
+          frictionStatic: 0.5,
+          frictionAir: 0.012,
+          angle: (Math.random() - 0.5) * 0.3,
+          chamfer: { radius: Math.min(10, def.w * 0.08) }
+        }
+      );
+      Body.setVelocity(body, {
+        x: (Math.random() - 0.5) * (splashy ? 9 : 2.5),
+        y: splashy ? 2 + Math.random() * 3 : 1 + Math.random() * 1.5
+      });
+      Body.setAngularVelocity(body, (Math.random() - 0.5) * (splashy ? 0.12 : 0.05));
+      World.add(engine.world, body);
+      cards.push({ ...def, body, scale: 1, target: 1 });
+      nextDrop = frames + (splashy ? 10 : 22);
     }
 
-    // inverse mass: opened/dragged cards are immovable, hovered is heavy
-    function im(b) { return (b.kin || b.drag) ? 0 : (b === hovered ? 0.35 : 1); }
-
-    function collide(a, b) {
-      // each card's field is its true rotated footprint plus the 4px gap,
-      // so phones can rest at any angle and still never touch
-      const aw = a.w * a.scale, ah = a.h * a.scale;
-      const bw = b.w * b.scale, bh = b.h * b.scale;
-      const dx = b.x - a.x;
-      const px = (aw + bw) / 2 + GAP + a.exX + b.exX - Math.abs(dx);
-      if (px <= 0) return;
-      const dy = b.y - a.y;
-      const py = (ah + bh) / 2 + GAP + a.exY + b.exY - Math.abs(dy);
-      if (py <= 0) return;
-      const ia = im(a), ib = im(b), tot = ia + ib;
-      if (!tot) return;
-      const e = Math.max(a.e, b.e);
-      if (px < py) {
-        const s = dx < 0 ? -1 : 1;
-        a.x -= s * px * (ia / tot); b.x += s * px * (ib / tot);
-        const rv = b.vx - a.vx;
-        if (rv * s < 0) {
-          const j = -(1 + e) * rv * s / tot;
-          a.vx -= j * ia * s; b.vx += j * ib * s;
-        }
-      } else {
-        const s = dy < 0 ? -1 : 1;
-        a.y -= s * py * (ia / tot); b.y += s * py * (ib / tot);
-        const rv = b.vy - a.vy;
-        if (rv * s < 0) {
-          const j = -(1 + e) * rv * s / tot;
-          a.vy -= j * ia * s; b.vy += j * ib * s;
-        }
-        a.vx *= 0.95; b.vx *= 0.95;          // landing friction
-        // the upper card is supported; overhanging cards tip sideways and
-        // flow off like water instead of growing towers or arching over
-        // voids — and everything slides off an opened card
-        const upper = s > 0 ? a : b, lower = s > 0 ? b : a;
-        upper.rest = true;
-        const off = upper.x - lower.x;
-        if (lower.kin) upper.vx += (off || (Math.random() - 0.5)) * 0.03;
-        else if (Math.abs(off) > upper.w * 0.22) upper.vx += off * 0.02;
-      }
+    function handleTap(card) {
+      if (!card) { if (opened) close(opened); return; }
+      if (card === opened) { close(card); return; }
+      if (opened) close(opened);
+      open(card);
+    }
+    function open(card) {
+      opened = card;
+      if (hovered === card) hovered = null;
+      card.target = Math.min((innerWidth * 0.8) / card.w, (innerHeight * 0.86) / card.h);
+      Body.setStatic(card.body, true);
+      card.el.style.cursor = 'zoom-out';
+    }
+    function close(card) {
+      opened = null;
+      card.target = 1;
+      Body.setStatic(card.body, false);
+      Sleeping.set(card.body, false);
+      card.el.style.cursor = '';
     }
 
     function step() {
-      const W = innerWidth, H = innerHeight;
-      const SUB = 2;
-      let busy = false;
-
-      // the pour: a few splashy droplets first, then a steady fill
-      if (pending.length && frames >= nextDrop) {
-        const b = pending.shift();
-        const splashy = bodies.length < 5;
-        b.x = W * (0.1 + 0.8 * Math.random());
-        b.y = -b.h;
-        b.vx = (Math.random() - 0.5) * (splashy ? 7 : 2);
-        b.vy = splashy ? 2 + Math.random() * 4 : 1 + Math.random() * 2;
-        b.rot = (Math.random() - 0.5) * 7;
-        b.spin = (Math.random() - 0.5) * (splashy ? 0.9 : 0.4);
-        b.e = splashy ? 0.5 : REST;
-        bodies.push(b);
-        nextDrop = frames + (splashy ? 10 : 22);
-      }
-      if (pending.length) busy = true;
-
-      // settle each card's tilt first so collision fields match the frame
-      for (const b of bodies) {
-        if (b.kin || b.drag) {
-          b.rot *= 0.8;
-        } else if (b.rest) {
-          b.rot += (b.lie - b.rot) * 0.12;    // relax into its natural lie
-          if (Math.abs(b.rot - b.lie) < 0.05) b.rot = b.lie;
-          else busy = true;
-        } else {
-          b.rot += b.spin;
-        }
-      }
-
-      // how far each card's rotated corners reach past its upright box
-      for (const b of bodies) {
-        const r = b.rot * 0.017453;
-        const as = Math.abs(Math.sin(r)), ac = Math.abs(Math.cos(r));
-        const hw = b.w * b.scale / 2, hh = b.h * b.scale / 2;
-        b.exX = Math.max(0, hw * (ac - 1) + hh * as);
-        b.exY = Math.max(0, hw * as + hh * (ac - 1));
-      }
-
-      for (let s = 0; s < SUB; s++) {
-        for (const b of bodies) {
-          if (b.drag) {
-            // a held card chases the pointer; its velocity is real so it
-            // shoulders the pile aside and throws on release
-            b.vx = Math.max(-30, Math.min(30, (pointer.x - b.x) * 0.5));
-            b.vy = Math.max(-30, Math.min(30, (pointer.y - b.y) * 0.5));
-            b.x += b.vx / SUB;
-            b.y += b.vy / SUB;
-          } else if (b.kin) {
-            // an opened card glides to centre stage and parks there
-            b.x += (W / 2 - b.x) * 0.07;
-            b.y += (H / 2 - b.y) * 0.07;
-            b.vx = 0; b.vy = 0;
-          } else {
-            b.vy += GRAV / SUB;
-            if (b.vy > MAXV) b.vy = MAXV;
-            b.x += b.vx / SUB;
-            b.y += b.vy / SUB;
-          }
-          b.rest = false;
-        }
-        for (const b of bodies) {
-          if (b.kin || b.drag) continue;
-          // side walls sit a little past the screen so phones leak out
-          const hw = b.w * b.scale / 2 + b.exX, hh = b.h * b.scale / 2 + b.exY;
-          if (b.x < hw - leak) { b.x = hw - leak; b.vx = Math.abs(b.vx) * b.e; }
-          if (b.x > W - hw + leak) { b.x = W - hw + leak; b.vx = -Math.abs(b.vx) * b.e; }
-          if (b.y > H - hh) {
-            b.y = H - hh;
-            if (b.vy > 0) b.vy = Math.abs(b.vy) < 1.2 ? 0 : -b.vy * b.e;
-            b.vx *= 0.94;
-            b.rest = true;
-          }
-        }
-        for (let it = 0; it < 3; it++) {
-          for (let i = 0; i < bodies.length; i++) {
-            for (let j = i + 1; j < bodies.length; j++) collide(bodies[i], bodies[j]);
-          }
-        }
-      }
-      let maxSpeed = 0;
-      for (const b of bodies) {
-        b.scale += (b.target - b.scale) * 0.18;
-        if (Math.abs(b.scale - b.target) > 0.003) busy = true; else b.scale = b.target;
-        if (b.kin || b.drag) {
-          busy = true;
-        } else if (b.rest) {
-          if (b.e > REST) b.e = Math.max(REST, b.e * 0.97); // splashiness wears off
-          if (Math.abs(b.vx) < 0.05) b.vx = 0;
-          if (Math.abs(b.vy) < 0.05) b.vy = 0;
-        }
-        const sp = Math.abs(b.vx) + Math.abs(b.vy);
-        if (sp > maxSpeed) maxSpeed = sp;
-        b.el.style.zIndex = b === opened ? 3 : (b.scale > 1.02 ? 2 : '');
-        b.el.style.transform =
-          `translate(${(b.x - b.w / 2).toFixed(2)}px, ${(b.y - b.h / 2).toFixed(2)}px) ` +
-          `rotate(${b.rot.toFixed(2)}deg) scale(${b.scale.toFixed(4)})`;
-      }
-      calmFrames = (maxSpeed < 0.12 && !busy) ? calmFrames + 1 : 0;
       frames++;
-      // asleep, or out of patience with the last micro-creeper — freeze
-      if (calmFrames > 30 || frames > 2400) {
-        for (const b of bodies) { b.vx = 0; b.vy = 0; }
-        raf = null;
-        return;
-      }
-      raf = requestAnimationFrame(step);
-    }
+      if (pendingCards.length && frames >= nextDrop) spawnNext();
 
-    // press-and-move picks a phone up and carries it through the pile;
-    // release throws it. A press without movement stays a tap.
-    pile.addEventListener('pointerdown', e => {
-      const el = e.target.closest('img');
-      if (!el) return;
-      const b = bodies.find(x => x.el === el);
-      if (!b || b === opened) return;
-      drag = { b, sx: e.clientX, sy: e.clientY, moved: false };
-      pointer.x = e.clientX; pointer.y = e.clientY;
-    });
-    addEventListener('pointermove', e => {
-      pointer.x = e.clientX; pointer.y = e.clientY;
-      if (!drag) return;
-      if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 7) {
-        drag.moved = true;
-        drag.b.drag = true;
-        drag.b.target = 1.08;       // a held card lifts a little
-        drag.b.el.style.cursor = 'grabbing';
-        if (hovered === drag.b) hovered = null;
+      // an opened card glides to centre stage and straightens for reading
+      if (opened) {
+        const b = opened.body;
+        Body.setPosition(b, {
+          x: b.position.x + (innerWidth / 2 - b.position.x) * 0.09,
+          y: b.position.y + (innerHeight / 2 - b.position.y) * 0.09
+        });
+        Body.setAngle(b, b.angle * 0.85);
       }
-      if (drag.moved) wake();
-    });
-    function endDrag() {
-      if (!drag) return;
-      if (drag.moved) {
-        const b = drag.b;
-        b.drag = false;             // velocity persists — the throw
-        b.target = 1;
-        b.el.style.cursor = '';
-        suppressClick = true;       // swallow the click that follows
-        setTimeout(() => { suppressClick = false; }, 120); // unless none comes
-        wake();
+
+      // ease scales (hover growth / open fit) — scaling wakes neighbours
+      for (const c of cards) {
+        if (Math.abs(c.target - c.scale) > 0.002) {
+          const ns = c.scale + (c.target - c.scale) * 0.18;
+          Body.scale(c.body, ns / c.scale, ns / c.scale);
+          c.scale = ns;
+          Sleeping.set(c.body, false);
+        } else if (c.scale !== c.target) {
+          Body.scale(c.body, c.target / c.scale, c.target / c.scale);
+          c.scale = c.target;
+        }
       }
-      drag = null;
+
+      Engine.update(engine, 1000 / 60);
+
+      const dragBody = mouseCon && mouseCon.body;
+      for (const c of cards) {
+        const b = c.body;
+        c.el.style.zIndex =
+          c === opened ? 3 :
+          (b === dragBody || c.scale > 1.02) ? 2 : '';
+        c.el.style.transform =
+          `translate(${(b.position.x - c.w / 2).toFixed(2)}px, ${(b.position.y - c.h / 2).toFixed(2)}px) ` +
+          `rotate(${b.angle.toFixed(4)}rad) scale(${c.scale.toFixed(4)})`;
+      }
+      requestAnimationFrame(step);
     }
-    addEventListener('pointerup', endDrag);
-    addEventListener('pointercancel', endDrag);
 
     // hover: that phone grows and the pile makes room
     pile.addEventListener('mouseover', e => {
       const el = e.target.closest('img');
       if (!el) return;
-      const b = bodies.find(x => x.el === el);
-      if (!b || b === opened || b.drag) return;
+      const c = cards.find(x => x.el === el);
+      if (!c || c === opened || (mouseCon && mouseCon.body === c.body)) return;
       if (hovered && hovered !== opened) hovered.target = 1;
-      hovered = b;
-      b.target = HOVER_S;
-      wake();
+      hovered = c;
+      c.target = HOVER_S;
     });
     pile.addEventListener('mouseout', e => {
       const el = e.target.closest('img');
       if (!el) return;
-      const b = bodies.find(x => x.el === el);
-      if (b && b === hovered) {
-        if (b !== opened) b.target = 1;
+      const c = cards.find(x => x.el === el);
+      if (c && c === hovered) {
+        if (c !== opened) c.target = 1;
         hovered = null;
-        wake();
       }
     });
 
-    // tap: the phone parks centre stage and the pile parts around it;
-    // tap it again (or another phone, or Escape) to fold it back in
-    function open(b) {
-      opened = b;
-      if (hovered === b) hovered = null;
-      b.kin = true;
-      b.target = Math.min((innerWidth * 0.8) / b.w, (innerHeight * 0.86) / b.h);
-      b.el.style.cursor = 'zoom-out';
-      wake();
-    }
-    function close(b) {
-      opened = null;
-      b.kin = false;
-      b.target = 1;
-      b.el.style.cursor = '';
-      wake();
-    }
-    pile.addEventListener('click', e => {
-      if (suppressClick) { suppressClick = false; return; }
-      const el = e.target.closest('img');
-      if (!el) { if (opened) close(opened); return; }
-      const b = bodies.find(x => x.el === el);
-      if (!b) return;
-      if (opened === b) { close(b); return; }
-      if (opened) close(opened);
-      open(b);
-    });
     addEventListener('keydown', e => {
       if (e.key === 'Escape' && opened) close(opened);
     });
 
-    // a resize wakes the pile so cards re-settle inside the new walls
-    addEventListener('resize', () => { if (bodies.length) wake(); });
+    // a resize moves the walls and wakes the pile so it re-settles
+    addEventListener('resize', () => {
+      if (!engine) return;
+      makeWalls(innerWidth, innerHeight);
+      for (const c of cards) Sleeping.set(c.body, false);
+    });
   })();
   </script>
 </body>
