@@ -54,7 +54,7 @@
     document.body.classList.add('particles');
 
     let particles = [], bbox = null, baselineY = 0;
-    let raf = null, settled = true;
+    let raf = null, settled = true, fade = 0;
     let fontPx = 0, gap = 2, dpr = 1;
     const mouse = { x: -1e4, y: -1e4, near: false };
 
@@ -108,8 +108,10 @@
       for (let y = Math.max(0, top | 0); y < bottom; y += gap) {
         for (let x = Math.max(0, left | 0); x < right; x += gap) {
           const a = data[(((y * dpr) | 0) * off.width + ((x * dpr) | 0)) * 4 + 3];
-          if (a > 140) particles.push({
-            hx: x, hy: y, x, y, vx: 0, vy: 0,
+          // keep the glyph's antialiased alpha so the assembled particle
+          // image matches the real type at the edges
+          if (a > 30) particles.push({
+            hx: x, hy: y, x, y, vx: 0, vy: 0, al: Math.min(1, a / 255),
             ci: (Math.random() * PALETTE.length) | 0, amt: 0
           });
         }
@@ -214,24 +216,48 @@
             Math.abs(p.vx) > 0.05 || Math.abs(p.vy) > 0.05 || p.amt > 0) calm = false;
       }
 
-      // draw: settled particles in one black pass, radiant ones tinted
+      // once everyone is home, cross-fade the crisp glyphs in over a few
+      // frames instead of swapping abruptly
+      if (calm && !mouse.near) {
+        for (const p of particles) { p.x = p.hx; p.y = p.hy; p.vx = 0; p.vy = 0; p.amt = 0; }
+        fade = Math.min(1, fade + 0.09);
+      } else {
+        fade = 0;
+      }
+
+      // draw: once settling starts the crisp text sits fully opaque
+      // underneath and the particle squares dissolve on top — the interior
+      // stays solid black the whole time, so no brightness dip
       ctx.clearRect(0, 0, innerWidth, innerHeight);
+      if (fade > 0) {
+        setupText(ctx);
+        ctx.fillText(TEXT, innerWidth / 2, baselineY);
+      }
+      const pa = 1 - fade;
+      ctx.globalAlpha = pa;
       ctx.fillStyle = '#111';
       for (const p of particles) {
-        if (p.amt <= 0.02) ctx.fillRect(p.x, p.y, gap, gap);
+        if (p.amt <= 0.02 && p.al > 0.98) ctx.fillRect(p.x, p.y, gap, gap);
+      }
+      for (const p of particles) {
+        if (p.amt <= 0.02 && p.al <= 0.98) {
+          ctx.globalAlpha = pa * p.al;
+          ctx.fillRect(p.x, p.y, gap, gap);
+        }
       }
       for (const p of particles) {
         if (p.amt > 0.02) {
           const c = PALETTE[p.ci], t = p.amt;
+          ctx.globalAlpha = pa * p.al;
           ctx.fillStyle = `rgb(${(17 + (c[0] - 17) * t) | 0},${(17 + (c[1] - 17) * t) | 0},${(17 + (c[2] - 17) * t) | 0})`;
           ctx.fillRect(p.x, p.y, gap, gap);
         }
       }
+      ctx.globalAlpha = 1;
 
-      if (calm && !mouse.near) {
+      if (fade >= 1) {
         settled = true;
         raf = null;
-        for (const p of particles) { p.x = p.hx; p.y = p.hy; p.vx = 0; p.vy = 0; p.amt = 0; }
         drawCrisp();
         return;
       }
@@ -239,6 +265,7 @@
     }
 
     function wake() {
+      fade = 0;
       if (!raf) { settled = false; raf = requestAnimationFrame(tick); }
     }
 
