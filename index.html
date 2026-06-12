@@ -175,13 +175,16 @@
     function start() {
       const W = innerWidth, H = innerHeight;
       // size cards so the settled pile covers most of the page but leaves
-      // breathing room — phones still poke past the side walls
-      const w = Math.max(52, Math.min(200, Math.sqrt((W * H * 0.72) / (SKETCHES.length * ASPECT))));
-      const h = w * ASPECT;
-      leak = w * 0.35;
+      // breathing room — phones still poke past the side walls. Sizes vary
+      // per phone and each one has its own resting tilt, so the pile lies
+      // naturally instead of snapping into a grid
+      const baseW = Math.max(52, Math.min(200, Math.sqrt((W * H * 0.72) / (SKETCHES.length * ASPECT))));
+      leak = baseW * 0.35;
       const order = [...SKETCHES].sort(() => Math.random() - 0.5);
       // every phone waits above the screen; step() pours them in one by one
       pending = order.map(f => {
+        const w = baseW * (0.85 + 0.3 * Math.random());
+        const h = w * ASPECT;
         const el = document.createElement('img');
         el.src = DIR + encodeURIComponent(f);
         el.alt = '';
@@ -193,6 +196,7 @@
           el, w, h,
           x: W / 2, y: -2 * h,
           vx: 0, vy: 0, rot: 0, spin: 0, e: REST,
+          lie: (Math.random() - 0.5) * 14, exX: 0, exY: 0,
           scale: 1, target: 1, kin: false, rest: false
         };
       });
@@ -211,15 +215,15 @@
     function im(b) { return (b.kin || b.drag) ? 0 : (b === hovered ? 0.35 : 1); }
 
     function collide(a, b) {
-      // tilted cards get a wider field so rotation can never cause overlap
-      const pad = GAP + ((Math.abs(a.rot) > 0.5 || Math.abs(b.rot) > 0.5) ? 8 : 0);
+      // each card's field is its true rotated footprint plus the 4px gap,
+      // so phones can rest at any angle and still never touch
       const aw = a.w * a.scale, ah = a.h * a.scale;
       const bw = b.w * b.scale, bh = b.h * b.scale;
       const dx = b.x - a.x;
-      const px = (aw + bw) / 2 + pad - Math.abs(dx);
+      const px = (aw + bw) / 2 + GAP + a.exX + b.exX - Math.abs(dx);
       if (px <= 0) return;
       const dy = b.y - a.y;
-      const py = (ah + bh) / 2 + pad - Math.abs(dy);
+      const py = (ah + bh) / 2 + GAP + a.exY + b.exY - Math.abs(dy);
       if (py <= 0) return;
       const ia = im(a), ib = im(b), tot = ia + ib;
       if (!tot) return;
@@ -273,6 +277,28 @@
       }
       if (pending.length) busy = true;
 
+      // settle each card's tilt first so collision fields match the frame
+      for (const b of bodies) {
+        if (b.kin || b.drag) {
+          b.rot *= 0.8;
+        } else if (b.rest) {
+          b.rot += (b.lie - b.rot) * 0.12;    // relax into its natural lie
+          if (Math.abs(b.rot - b.lie) < 0.05) b.rot = b.lie;
+          else busy = true;
+        } else {
+          b.rot += b.spin;
+        }
+      }
+
+      // how far each card's rotated corners reach past its upright box
+      for (const b of bodies) {
+        const r = b.rot * 0.017453;
+        const as = Math.abs(Math.sin(r)), ac = Math.abs(Math.cos(r));
+        const hw = b.w * b.scale / 2, hh = b.h * b.scale / 2;
+        b.exX = Math.max(0, hw * (ac - 1) + hh * as);
+        b.exY = Math.max(0, hw * as + hh * (ac - 1));
+      }
+
       for (let s = 0; s < SUB; s++) {
         for (const b of bodies) {
           if (b.drag) {
@@ -298,7 +324,7 @@
         for (const b of bodies) {
           if (b.kin || b.drag) continue;
           // side walls sit a little past the screen so phones leak out
-          const hw = b.w * b.scale / 2, hh = b.h * b.scale / 2;
+          const hw = b.w * b.scale / 2 + b.exX, hh = b.h * b.scale / 2 + b.exY;
           if (b.x < hw - leak) { b.x = hw - leak; b.vx = Math.abs(b.vx) * b.e; }
           if (b.x > W - hw + leak) { b.x = W - hw + leak; b.vx = -Math.abs(b.vx) * b.e; }
           if (b.y > H - hh) {
@@ -320,15 +346,10 @@
         if (Math.abs(b.scale - b.target) > 0.003) busy = true; else b.scale = b.target;
         if (b.kin || b.drag) {
           busy = true;
-          b.rot *= 0.8;
         } else if (b.rest) {
-          b.rot *= 0.82;                      // straighten as it settles
           if (b.e > REST) b.e = Math.max(REST, b.e * 0.97); // splashiness wears off
-          if (Math.abs(b.rot) < 0.05) b.rot = 0;
           if (Math.abs(b.vx) < 0.05) b.vx = 0;
           if (Math.abs(b.vy) < 0.05) b.vy = 0;
-        } else {
-          b.rot += b.spin;
         }
         const sp = Math.abs(b.vx) + Math.abs(b.vy);
         if (sp > maxSpeed) maxSpeed = sp;
