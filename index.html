@@ -77,7 +77,8 @@
     user-select: none;
     -webkit-user-drag: none;
     pointer-events: auto;
-    cursor: pointer;
+    cursor: grab;
+    touch-action: none;
   }
   @media (prefers-reduced-motion: reduce) {
     #caret { animation: none; }
@@ -161,6 +162,8 @@
     let bodies = [], pending = [], nextDrop = 0;
     let raf = null, calmFrames = 0, frames = 0;
     let hovered = null, opened = null, leak = 0;
+    let drag = null, suppressClick = false;
+    const pointer = { x: 0, y: 0 };
 
     // warm the image cache while the visitor is still at the door
     addEventListener('load', () => setTimeout(() => {
@@ -204,8 +207,8 @@
       if (!raf) raf = requestAnimationFrame(step);
     }
 
-    // inverse mass: an opened card is immovable, a hovered card is heavy
-    function im(b) { return b.kin ? 0 : (b === hovered ? 0.35 : 1); }
+    // inverse mass: opened/dragged cards are immovable, hovered is heavy
+    function im(b) { return (b.kin || b.drag) ? 0 : (b === hovered ? 0.35 : 1); }
 
     function collide(a, b) {
       // tilted cards get a wider field so rotation can never cause overlap
@@ -272,7 +275,14 @@
 
       for (let s = 0; s < SUB; s++) {
         for (const b of bodies) {
-          if (b.kin) {
+          if (b.drag) {
+            // a held card chases the pointer; its velocity is real so it
+            // shoulders the pile aside and throws on release
+            b.vx = Math.max(-30, Math.min(30, (pointer.x - b.x) * 0.5));
+            b.vy = Math.max(-30, Math.min(30, (pointer.y - b.y) * 0.5));
+            b.x += b.vx / SUB;
+            b.y += b.vy / SUB;
+          } else if (b.kin) {
             // an opened card glides to centre stage and parks there
             b.x += (W / 2 - b.x) * 0.07;
             b.y += (H / 2 - b.y) * 0.07;
@@ -286,7 +296,7 @@
           b.rest = false;
         }
         for (const b of bodies) {
-          if (b.kin) continue;
+          if (b.kin || b.drag) continue;
           // side walls sit a little past the screen so phones leak out
           const hw = b.w * b.scale / 2, hh = b.h * b.scale / 2;
           if (b.x < hw - leak) { b.x = hw - leak; b.vx = Math.abs(b.vx) * b.e; }
@@ -308,7 +318,7 @@
       for (const b of bodies) {
         b.scale += (b.target - b.scale) * 0.18;
         if (Math.abs(b.scale - b.target) > 0.003) busy = true; else b.scale = b.target;
-        if (b.kin) {
+        if (b.kin || b.drag) {
           busy = true;
           b.rot *= 0.8;
         } else if (b.rest) {
@@ -338,12 +348,50 @@
       raf = requestAnimationFrame(step);
     }
 
+    // press-and-move picks a phone up and carries it through the pile;
+    // release throws it. A press without movement stays a tap.
+    pile.addEventListener('pointerdown', e => {
+      const el = e.target.closest('img');
+      if (!el) return;
+      const b = bodies.find(x => x.el === el);
+      if (!b || b === opened) return;
+      drag = { b, sx: e.clientX, sy: e.clientY, moved: false };
+      pointer.x = e.clientX; pointer.y = e.clientY;
+    });
+    addEventListener('pointermove', e => {
+      pointer.x = e.clientX; pointer.y = e.clientY;
+      if (!drag) return;
+      if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 7) {
+        drag.moved = true;
+        drag.b.drag = true;
+        drag.b.target = 1.08;       // a held card lifts a little
+        drag.b.el.style.cursor = 'grabbing';
+        if (hovered === drag.b) hovered = null;
+      }
+      if (drag.moved) wake();
+    });
+    function endDrag() {
+      if (!drag) return;
+      if (drag.moved) {
+        const b = drag.b;
+        b.drag = false;             // velocity persists — the throw
+        b.target = 1;
+        b.el.style.cursor = '';
+        suppressClick = true;       // swallow the click that follows
+        setTimeout(() => { suppressClick = false; }, 120); // unless none comes
+        wake();
+      }
+      drag = null;
+    }
+    addEventListener('pointerup', endDrag);
+    addEventListener('pointercancel', endDrag);
+
     // hover: that phone grows and the pile makes room
     pile.addEventListener('mouseover', e => {
       const el = e.target.closest('img');
       if (!el) return;
       const b = bodies.find(x => x.el === el);
-      if (!b || b === opened) return;
+      if (!b || b === opened || b.drag) return;
       if (hovered && hovered !== opened) hovered.target = 1;
       hovered = b;
       b.target = HOVER_S;
@@ -378,6 +426,7 @@
       wake();
     }
     pile.addEventListener('click', e => {
+      if (suppressClick) { suppressClick = false; return; }
       const el = e.target.closest('img');
       if (!el) { if (opened) close(opened); return; }
       const b = bodies.find(x => x.el === el);
