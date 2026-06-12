@@ -32,16 +32,80 @@
   canvas { position: fixed; inset: 0; }
   /* keep the real link in the tree for keyboard/screen-reader users */
   body.particles h1 { opacity: 0; pointer-events: none; }
+  #gate {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    opacity: 0; pointer-events: none;
+    transform: translateY(10px);
+    transition: opacity 0.45s ease, transform 0.45s ease;
+  }
+  #gate.show { opacity: 1; pointer-events: auto; transform: none; }
+  #gate input {
+    font-family: inherit;
+    font-weight: 700;
+    font-size: clamp(1.6rem, 4vw, 2.6rem);
+    letter-spacing: -0.02em;
+    text-align: center;
+    width: min(72vw, 430px);
+    padding: 0.25em 0;
+    border: 0; border-bottom: 4px solid #111; border-radius: 0;
+    background: transparent; color: #111;
+    outline: none;
+  }
+  #gate input::placeholder { color: #c6c6c6; }
+  @keyframes shake {
+    20% { transform: translateX(-10px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(4px); }
+  }
+  #gate input.shake { animation: shake 0.35s ease; }
+  body.unlocked h1, body.unlocked canvas, body.unlocked #gate { display: none; }
 </style>
 </head>
 <body>
-  <h1><a href="mailto:yum@johnyum.com">Hello.</a></h1>
+  <h1><a href="#">Hello.</a></h1>
+  <form id="gate" aria-label="Enter password">
+    <input id="pw" type="password" placeholder="password" autocomplete="off" spellcheck="false">
+  </form>
   <script>
   (() => {
+    const PASSWORD = 'hello'; // <-- change me. Client-side only: a curtain, not a lock.
+
+    const gate = document.getElementById('gate');
+    const pwInput = document.getElementById('pw');
+    let implodeHook = null; // wired up by the canvas section below
+
+    function showGate() {
+      gate.classList.add('show');
+      pwInput.focus();
+    }
+
+    gate.addEventListener('submit', e => {
+      e.preventDefault();
+      if (pwInput.value === PASSWORD) {
+        pwInput.blur();
+        gate.classList.remove('show');
+        document.body.classList.add('unlocked');
+        // stage is now blank — the work showcase mounts here
+        dispatchEvent(new CustomEvent('unlocked'));
+      } else {
+        pwInput.value = '';
+        pwInput.classList.add('shake');
+        pwInput.addEventListener('animationend', () => pwInput.classList.remove('shake'), { once: true });
+      }
+    });
+
+    // keyboard / reduced-motion path: activating the link opens the gate
+    document.querySelector('h1 a').addEventListener('click', e => {
+      e.preventDefault();
+      if (document.body.classList.contains('unlocked')) return;
+      if (implodeHook) implodeHook(); else showGate();
+    });
+
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const TEXT = 'Hello.';
-    const EMAIL = 'mailto:yum@johnyum.com';
     const PALETTE = [
       [255, 59, 48], [255, 149, 0], [255, 204, 0], [52, 199, 89],
       [0, 199, 190], [50, 173, 230], [0, 122, 255], [88, 86, 214],
@@ -55,6 +119,8 @@
 
     let particles = [], bbox = null, baselineY = 0;
     let raf = null, settled = true, fade = 0;
+    let mode = 'word', implodeT = 0; // word -> implode -> gate
+    const center = { x: 0, y: 0 };
     let fontPx = 0, gap = 2, dpr = 1;
     const mouse = { x: -1e4, y: -1e4, near: false };
 
@@ -117,7 +183,7 @@
         }
       }
       settled = true;
-      drawCrisp();
+      if (mode === 'word') drawCrisp();
     }
 
     // when every particle is home we draw the real glyphs, so at rest
@@ -128,7 +194,60 @@
       ctx.fillText(TEXT, innerWidth / 2, baselineY);
     }
 
+    // tap: the word swallows itself — particles spiral into the centre and
+    // fade, then the password gate rises
+    function startImplode() {
+      if (mode !== 'word' || !bbox) return;
+      mode = 'implode';
+      implodeT = 0;
+      center.x = (bbox.left + bbox.right) / 2;
+      center.y = (bbox.top + bbox.bottom) / 2;
+      // randomise each particle's pull and spin so the word shreds
+      // apart as it's swallowed instead of rotating rigidly
+      for (const p of particles) {
+        p.rk = 0.6 + Math.random() * 0.9;
+        p.rs = (Math.random() < 0.5 ? -1 : 1) * (0.006 + Math.random() * 0.016);
+      }
+      settled = false;
+      fade = 0;
+      if (!raf) raf = requestAnimationFrame(tick);
+    }
+    implodeHook = startImplode;
+
+    function implodeStep() {
+      implodeT = Math.min(1, implodeT + 1 / 45);
+      const k = 0.01 + implodeT * 0.18;            // suction ramps up
+      const fadeA = Math.pow(1 - implodeT, 1.4);   // and everything dims out
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      for (const p of particles) {
+        const dx = center.x - p.x, dy = center.y - p.y;
+        p.vx += dx * k * p.rk - dy * p.rs;         // pull + per-particle swirl
+        p.vy += dy * k * p.rk + dx * p.rs;
+        p.vx *= 0.86; p.vy *= 0.86;
+        p.x += p.vx; p.y += p.vy;
+        ctx.globalAlpha = fadeA * p.al;
+        if (p.amt > 0.02) {
+          const c = PALETTE[p.ci], t = p.amt;
+          ctx.fillStyle = `rgb(${(17 + (c[0] - 17) * t) | 0},${(17 + (c[1] - 17) * t) | 0},${(17 + (c[2] - 17) * t) | 0})`;
+        } else {
+          ctx.fillStyle = '#111';
+        }
+        ctx.fillRect(p.x, p.y, gap, gap);
+      }
+      ctx.globalAlpha = 1;
+      if (implodeT >= 1) {
+        ctx.clearRect(0, 0, innerWidth, innerHeight);
+        raf = null;
+        mode = 'gate';
+        showGate();
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    }
+
     function tick() {
+      if (mode === 'implode') { implodeStep(); return; }
+      if (mode !== 'word') { raf = null; return; }
       const R2 = R * R, minD2 = minD * minD;
 
       // spatial hash so neighbours can push each other apart while the
@@ -265,6 +384,7 @@
     }
 
     function wake() {
+      if (mode !== 'word') return;
       fade = 0;
       if (!raf) { settled = false; raf = requestAnimationFrame(tick); }
     }
@@ -278,12 +398,12 @@
       mouse.near = bbox &&
         e.clientX > bbox.left - R && e.clientX < bbox.right + R &&
         e.clientY > bbox.top - R && e.clientY < bbox.bottom + R;
-      canvas.style.cursor = inText(e.clientX, e.clientY) ? 'pointer' : 'default';
+      canvas.style.cursor = (mode === 'word' && inText(e.clientX, e.clientY)) ? 'pointer' : 'default';
       if (mouse.near) wake();
     });
     document.documentElement.addEventListener('mouseleave', () => { mouse.near = false; });
     canvas.addEventListener('click', e => {
-      if (inText(e.clientX, e.clientY)) location.href = EMAIL;
+      if (mode === 'word' && inText(e.clientX, e.clientY)) startImplode();
     });
 
     let rt;
