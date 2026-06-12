@@ -158,7 +158,8 @@
     const MAXV = 22;
     const HOVER_S = 1.3;    // hovered phones grow 30%
     const pile = document.getElementById('pile');
-    let bodies = [], raf = null, calmFrames = 0, frames = 0;
+    let bodies = [], pending = [], nextDrop = 0;
+    let raf = null, calmFrames = 0, frames = 0;
     let hovered = null, opened = null, leak = 0;
 
     // warm the image cache while the visitor is still at the door
@@ -176,27 +177,24 @@
       const h = w * ASPECT;
       leak = w * 0.35;
       const order = [...SKETCHES].sort(() => Math.random() - 0.5);
-      bodies = order.map((f, i) => {
+      // every phone waits above the screen; step() pours them in one by one
+      pending = order.map(f => {
         const el = document.createElement('img');
         el.src = DIR + encodeURIComponent(f);
         el.alt = '';
         el.style.width = w + 'px';
         el.style.height = h + 'px';
-        const b = {
-          el, w, h,
-          x: Math.random() * W,
-          y: -h / 2 - i * (h * 0.3 + Math.random() * h * 0.2),
-          vx: (Math.random() - 0.5) * 1.2,
-          vy: 0,
-          rot: (Math.random() - 0.5) * 7,
-          spin: (Math.random() - 0.5) * 0.5,
-          scale: 1, target: 1, kin: false,
-          rest: false
-        };
-        el.style.transform = `translate(${b.x - w / 2}px, ${b.y - h / 2}px)`;
+        el.style.transform = `translate(${W / 2 - w / 2}px, ${-2 * h}px)`;
         pile.appendChild(el);
-        return b;
+        return {
+          el, w, h,
+          x: W / 2, y: -2 * h,
+          vx: 0, vy: 0, rot: 0, spin: 0, e: REST,
+          scale: 1, target: 1, kin: false, rest: false
+        };
       });
+      bodies = [];
+      nextDrop = 0;
       wake();
     }
 
@@ -222,12 +220,13 @@
       if (py <= 0) return;
       const ia = im(a), ib = im(b), tot = ia + ib;
       if (!tot) return;
+      const e = Math.max(a.e, b.e);
       if (px < py) {
         const s = dx < 0 ? -1 : 1;
         a.x -= s * px * (ia / tot); b.x += s * px * (ib / tot);
         const rv = b.vx - a.vx;
         if (rv * s < 0) {
-          const j = -(1 + REST) * rv * s / tot;
+          const j = -(1 + e) * rv * s / tot;
           a.vx -= j * ia * s; b.vx += j * ib * s;
         }
       } else {
@@ -235,18 +234,18 @@
         a.y -= s * py * (ia / tot); b.y += s * py * (ib / tot);
         const rv = b.vy - a.vy;
         if (rv * s < 0) {
-          const j = -(1 + REST) * rv * s / tot;
+          const j = -(1 + e) * rv * s / tot;
           a.vy -= j * ia * s; b.vy += j * ib * s;
         }
         a.vx *= 0.95; b.vx *= 0.95;          // landing friction
         // the upper card is supported; overhanging cards tip sideways and
-        // slide off instead of growing towers — and everything slides off
-        // an opened card so it stays unobstructed
+        // flow off like water instead of growing towers or arching over
+        // voids — and everything slides off an opened card
         const upper = s > 0 ? a : b, lower = s > 0 ? b : a;
         upper.rest = true;
         const off = upper.x - lower.x;
         if (lower.kin) upper.vx += (off || (Math.random() - 0.5)) * 0.03;
-        else if (Math.abs(off) > upper.w * 0.3) upper.vx += off * 0.015;
+        else if (Math.abs(off) > upper.w * 0.22) upper.vx += off * 0.02;
       }
     }
 
@@ -254,6 +253,23 @@
       const W = innerWidth, H = innerHeight;
       const SUB = 2;
       let busy = false;
+
+      // the pour: a few splashy droplets first, then a steady fill
+      if (pending.length && frames >= nextDrop) {
+        const b = pending.shift();
+        const splashy = bodies.length < 5;
+        b.x = W * (0.1 + 0.8 * Math.random());
+        b.y = -b.h;
+        b.vx = (Math.random() - 0.5) * (splashy ? 9 : 2.5);
+        b.vy = splashy ? 4 + Math.random() * 6 : 2 + Math.random() * 3;
+        b.rot = (Math.random() - 0.5) * 7;
+        b.spin = (Math.random() - 0.5) * (splashy ? 1.2 : 0.5);
+        b.e = splashy ? 0.5 : REST;
+        bodies.push(b);
+        nextDrop = frames + (splashy ? 7 : 16);
+      }
+      if (pending.length) busy = true;
+
       for (let s = 0; s < SUB; s++) {
         for (const b of bodies) {
           if (b.kin) {
@@ -273,12 +289,12 @@
           if (b.kin) continue;
           // side walls sit a little past the screen so phones leak out
           const hw = b.w * b.scale / 2, hh = b.h * b.scale / 2;
-          if (b.x < hw - leak) { b.x = hw - leak; b.vx = Math.abs(b.vx) * REST; }
-          if (b.x > W - hw + leak) { b.x = W - hw + leak; b.vx = -Math.abs(b.vx) * REST; }
+          if (b.x < hw - leak) { b.x = hw - leak; b.vx = Math.abs(b.vx) * b.e; }
+          if (b.x > W - hw + leak) { b.x = W - hw + leak; b.vx = -Math.abs(b.vx) * b.e; }
           if (b.y > H - hh) {
             b.y = H - hh;
-            if (b.vy > 0) b.vy = Math.abs(b.vy) < 1.2 ? 0 : -b.vy * REST;
-            b.vx *= 0.9;
+            if (b.vy > 0) b.vy = Math.abs(b.vy) < 1.2 ? 0 : -b.vy * b.e;
+            b.vx *= 0.94;
             b.rest = true;
           }
         }
@@ -297,6 +313,7 @@
           b.rot *= 0.8;
         } else if (b.rest) {
           b.rot *= 0.82;                      // straighten as it settles
+          if (b.e > REST) b.e = Math.max(REST, b.e * 0.97); // splashiness wears off
           if (Math.abs(b.rot) < 0.05) b.rot = 0;
           if (Math.abs(b.vx) < 0.05) b.vx = 0;
           if (Math.abs(b.vy) < 0.05) b.vy = 0;
