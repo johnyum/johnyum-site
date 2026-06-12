@@ -12,16 +12,257 @@
     background: #fff;
     color: #111;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    overflow: hidden;
   }
   h1 {
     margin: 0;
     font-weight: 700;
     font-size: clamp(4rem, 18vw, 16rem);
-    letter-spacing: -0.03em;
+    letter-spacing: -0.04em;
   }
+  h1 a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+  h1 a:hover,
+  h1 a:active {
+    color: #999;
+  }
+  canvas { position: fixed; inset: 0; }
+  /* keep the real link in the tree for keyboard/screen-reader users */
+  body.particles h1 { opacity: 0; pointer-events: none; }
 </style>
 </head>
 <body>
-  <h1>Hello.</h1>
+  <h1><a href="mailto:yum@johnyum.com">Hello.</a></h1>
+  <script>
+  (() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const TEXT = 'Hello.';
+    const EMAIL = 'mailto:yum@johnyum.com';
+    const PALETTE = [
+      [255, 59, 48], [255, 149, 0], [255, 204, 0], [52, 199, 89],
+      [0, 199, 190], [50, 173, 230], [0, 122, 255], [88, 86, 214],
+      [175, 82, 222], [255, 45, 85]
+    ];
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    document.body.appendChild(canvas);
+    document.body.classList.add('particles');
+
+    let particles = [], bbox = null, baselineY = 0;
+    let raf = null, settled = true;
+    let fontPx = 0, gap = 2, dpr = 1;
+    const mouse = { x: -1e4, y: -1e4, near: false };
+
+    // physics tuning — gentle dimple, soft spring home
+    let R = 49;            // cursor influence radius
+    const PUSH = 2.0;      // cursor push strength
+    const SPRING = 0.015;  // pull toward home
+    const DAMP = 0.90;     // velocity damping
+    const SEP = 0.2;       // particle-particle separation strength
+    const MAXV = 6;        // speed cap keeps things calm
+    let minD = 4;          // separation distance
+
+    function setupText(c) {
+      c.font = `700 ${fontPx}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
+      try { c.letterSpacing = (-0.04 * fontPx) + 'px'; } catch (e) {}
+      c.textAlign = 'center';
+      c.textBaseline = 'alphabetic';
+      c.fillStyle = '#111';
+    }
+
+    function build() {
+      dpr = Math.min(devicePixelRatio || 1, 2);
+      const W = innerWidth, H = innerHeight;
+      canvas.width = W * dpr; canvas.height = H * dpr;
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      fontPx = Math.min(Math.max(64, W * 0.18), 256);
+      gap = fontPx > 140 ? 3 : 2;
+      minD = gap * 1.2;
+      R = Math.max(49, fontPx * 0.315);
+
+      const off = document.createElement('canvas');
+      off.width = W * dpr; off.height = H * dpr;
+      const o = off.getContext('2d', { willReadFrequently: true });
+      o.setTransform(dpr, 0, 0, dpr, 0, 0);
+      setupText(o);
+
+      const m = o.measureText(TEXT);
+      const asc = m.actualBoundingBoxAscent || fontPx * 0.74;
+      const desc = m.actualBoundingBoxDescent || fontPx * 0.05;
+      baselineY = H / 2 + (asc - desc) / 2;
+      o.fillText(TEXT, W / 2, baselineY);
+
+      const left = W / 2 - m.width / 2, right = W / 2 + m.width / 2;
+      const top = baselineY - asc, bottom = baselineY + desc;
+      bbox = { left: left - 16, top: top - 16, right: right + 16, bottom: bottom + 16 };
+
+      const data = o.getImageData(0, 0, off.width, off.height).data;
+      particles = [];
+      for (let y = Math.max(0, top | 0); y < bottom; y += gap) {
+        for (let x = Math.max(0, left | 0); x < right; x += gap) {
+          const a = data[(((y * dpr) | 0) * off.width + ((x * dpr) | 0)) * 4 + 3];
+          if (a > 140) particles.push({
+            hx: x, hy: y, x, y, vx: 0, vy: 0,
+            ci: (Math.random() * PALETTE.length) | 0, amt: 0
+          });
+        }
+      }
+      settled = true;
+      drawCrisp();
+    }
+
+    // when every particle is home we draw the real glyphs, so at rest
+    // the page is pixel-identical to plain text
+    function drawCrisp() {
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      setupText(ctx);
+      ctx.fillText(TEXT, innerWidth / 2, baselineY);
+    }
+
+    function tick() {
+      const R2 = R * R, minD2 = minD * minD;
+
+      // spatial hash so neighbours can push each other apart while the
+      // cursor is in play; the return trip is pure spring so the crowd
+      // can't jam itself out of reaching home. Particles sitting at home
+      // don't collide (the rest lattice is tighter than minD).
+      const cell = minD * 2;
+      const awayThr2 = (gap * 2) * (gap * 2);
+      const fade2 = (gap * 3) * (gap * 3);
+      const grid = mouse.near ? new Map() : null;
+      if (grid) {
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          const ddx = p.x - p.hx, ddy = p.y - p.hy;
+          const d2 = ddx * ddx + ddy * ddy;
+          p.away = d2 > awayThr2;
+          p.dn = d2 > fade2 ? 1 : d2 / fade2; // collision weight fades to 0 at home
+          const key = ((p.x / cell) | 0) * 100000 + ((p.y / cell) | 0);
+          const b = grid.get(key);
+          if (b) b.push(i); else grid.set(key, [i]);
+        }
+      }
+
+      let calm = true;
+      for (const p of particles) {
+        // soft spring home
+        p.vx += (p.hx - p.x) * SPRING;
+        p.vy += (p.hy - p.y) * SPRING;
+
+        // cursor gently displaces nearby particles; pushed ones light up
+        if (mouse.near) {
+          const dx = p.x - mouse.x, dy = p.y - mouse.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < R2) {
+            const d = Math.sqrt(d2) || 1;
+            const f = (1 - d / R) * PUSH;
+            p.vx += (dx / d) * f;
+            p.vy += (dy / d) * f;
+            if (f > 0.25 && p.amt < 0.15) p.ci = (Math.random() * PALETTE.length) | 0;
+            p.amt = Math.min(1, p.amt + f * 0.5);
+          }
+        }
+        p.amt *= 0.955;
+        if (p.amt < 0.02) p.amt = 0;
+
+        // neighbours shoulder each other out of the way
+        if (grid) {
+          const cx = (p.x / cell) | 0, cy = (p.y / cell) | 0;
+          for (let gx = cx - 1; gx <= cx + 1; gx++) {
+            for (let gy = cy - 1; gy <= cy + 1; gy++) {
+              const b = grid.get(gx * 100000 + gy);
+              if (!b) continue;
+              for (const j of b) {
+                const q = particles[j];
+                if (q === p || (!p.away && !q.away)) continue;
+                const dx = p.x - q.x, dy = p.y - q.y;
+                const d2 = dx * dx + dy * dy;
+                if (d2 > 0 && d2 < minD2) {
+                  const d = Math.sqrt(d2);
+                  const f = ((minD - d) / minD) * SEP * (p.dn + q.dn) * 0.5;
+                  p.vx += (dx / d) * f;
+                  p.vy += (dy / d) * f;
+                }
+              }
+            }
+          }
+        }
+
+        p.vx *= DAMP; p.vy *= DAMP;
+        const sp = p.vx * p.vx + p.vy * p.vy;
+        if (sp > MAXV * MAXV) {
+          const s = MAXV / Math.sqrt(sp);
+          p.vx *= s; p.vy *= s;
+        }
+        p.x += p.vx; p.y += p.vy;
+
+        // snap stragglers home so the crisp swap happens promptly
+        const ex = p.x - p.hx, ey = p.y - p.hy;
+        if (!mouse.near && ex * ex + ey * ey < 0.25 &&
+            Math.abs(p.vx) < 0.3 && Math.abs(p.vy) < 0.3) {
+          p.x = p.hx; p.y = p.hy; p.vx = 0; p.vy = 0;
+        }
+
+        if (p.x !== p.hx || p.y !== p.hy ||
+            Math.abs(p.vx) > 0.05 || Math.abs(p.vy) > 0.05 || p.amt > 0) calm = false;
+      }
+
+      // draw: settled particles in one black pass, radiant ones tinted
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      ctx.fillStyle = '#111';
+      for (const p of particles) {
+        if (p.amt <= 0.02) ctx.fillRect(p.x, p.y, gap, gap);
+      }
+      for (const p of particles) {
+        if (p.amt > 0.02) {
+          const c = PALETTE[p.ci], t = p.amt;
+          ctx.fillStyle = `rgb(${(17 + (c[0] - 17) * t) | 0},${(17 + (c[1] - 17) * t) | 0},${(17 + (c[2] - 17) * t) | 0})`;
+          ctx.fillRect(p.x, p.y, gap, gap);
+        }
+      }
+
+      if (calm && !mouse.near) {
+        settled = true;
+        raf = null;
+        for (const p of particles) { p.x = p.hx; p.y = p.hy; p.vx = 0; p.vy = 0; p.amt = 0; }
+        drawCrisp();
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    }
+
+    function wake() {
+      if (!raf) { settled = false; raf = requestAnimationFrame(tick); }
+    }
+
+    function inText(x, y) {
+      return bbox && x > bbox.left && x < bbox.right && y > bbox.top && y < bbox.bottom;
+    }
+
+    addEventListener('mousemove', e => {
+      mouse.x = e.clientX; mouse.y = e.clientY;
+      mouse.near = bbox &&
+        e.clientX > bbox.left - R && e.clientX < bbox.right + R &&
+        e.clientY > bbox.top - R && e.clientY < bbox.bottom + R;
+      canvas.style.cursor = inText(e.clientX, e.clientY) ? 'pointer' : 'default';
+      if (mouse.near) wake();
+    });
+    document.documentElement.addEventListener('mouseleave', () => { mouse.near = false; });
+    canvas.addEventListener('click', e => {
+      if (inText(e.clientX, e.clientY)) location.href = EMAIL;
+    });
+
+    let rt;
+    addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(build, 150); });
+    build();
+  })();
+  </script>
 </body>
 </html>
