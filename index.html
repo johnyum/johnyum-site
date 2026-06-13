@@ -599,7 +599,13 @@
       Body.setStatic(card.body, true);
       card.body.isSensor = true;
       if (fromDir) {
-        const sx = fromDir > 0 ? innerWidth + card.w * 2 : -card.w * 2;
+        // jump to full opened scale immediately so no scaling happens during slide
+        if (card.scale !== card.target) {
+          Body.scale(card.body, card.target / card.scale, card.target / card.scale);
+          card.scale = card.target;
+        }
+        const sw = card.w * card.target;
+        const sx = fromDir > 0 ? innerWidth + sw : -sw;
         Body.setPosition(card.body, { x: sx, y: innerHeight / 2 });
         Body.setAngle(card.body, 0);
       }
@@ -614,7 +620,7 @@
       opened = null;
       closing = card;
       closing.slideDir = toDir || 0;
-      card.target = 1;
+      card.target = toDir ? card.scale : 1; // directional: no scale change during slide
       card.el.style.cursor = '';
       card.label.style.opacity = '0';
       if (!keepVeil) document.body.classList.remove('zoomcard');
@@ -656,8 +662,9 @@
       if (closing) {
         const b = closing.body;
         if (closing.slideDir) {
-          // slide off screen then snap back to pile hole
-          const tx = closing.slideDir > 0 ? innerWidth + closing.w * 2 : -closing.w * 2;
+          // slide off screen then snap back to pile hole (use scaled width for clearance)
+          const csw = closing.w * closing.scale;
+          const tx = closing.slideDir > 0 ? innerWidth + csw : -csw;
           Body.setPosition(b, {
             x: b.position.x + (tx - b.position.x) * 0.14,
             y: b.position.y + (innerHeight / 2 - b.position.y) * 0.1
