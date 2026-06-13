@@ -279,6 +279,7 @@
     const PAD = 2.5;          // half the ~5px force field, on every side
     const HOVER_S = 1.18;   // a hovered phone grows just slightly
     const pile = document.getElementById('pile');
+    const MAX_TILT = Math.PI * 0.47; // ~85° — cards never go fully upside-down
 
     // the descriptor above each phone is just its filename — name a file
     // "Booking calendar.png" and that's what shows. Underscores become
@@ -591,6 +592,14 @@
           const v = b.velocity;
           const sp = Math.hypot(v.x, v.y);
           if (sp > cap) Body.setVelocity(b, { x: v.x / sp * cap, y: v.y / sp * cap });
+          // clamp tilt — normalize to [-π, π] then hard-stop at ±85°
+          let a = b.angle % (2 * Math.PI);
+          if (a > Math.PI) a -= 2 * Math.PI;
+          else if (a < -Math.PI) a += 2 * Math.PI;
+          if (Math.abs(a) > MAX_TILT) {
+            Body.setAngle(b, Math.sign(a) * MAX_TILT);
+            Body.setAngularVelocity(b, 0);
+          }
         }
       }
 
