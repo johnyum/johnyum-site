@@ -80,6 +80,17 @@
     cursor: grab;
     touch-action: none;
   }
+  /* when a design is centre stage, everything else fades away behind it */
+  #pile::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: rgba(255, 255, 255, 0.9);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.45s ease;
+    z-index: 20;
+  }
+  body.zoomcard #pile::after { opacity: 1; pointer-events: auto; }
   @media (prefers-reduced-motion: reduce) {
     #caret { animation: none; }
     #line.shake { animation: none; }
@@ -214,11 +225,9 @@
 
     addEventListener('unlocked', start, { once: true });
 
-    function makeWalls(W, H, wide) {
-      // when a design is centre stage the side walls fly outward, so the
-      // pile is free to spill far past the edges of the screen
+    function makeWalls(W, H) {
       const t = 400;
-      const reach = leak + (wide ? W * 0.3 : 0);
+      const reach = leak;
       for (const w of walls) World.remove(engine.world, w);
       walls = [
         Bodies.rectangle(W / 2, H + t / 2, W * 4, t, { isStatic: true }),
@@ -353,27 +362,26 @@
       opened = card;
       card.target = Math.min((innerWidth * 0.8) / card.w, (innerHeight * 0.86) / card.h);
       Body.setStatic(card.body, true);
+      card.body.isSensor = true; // a ghost: glides and grows without touching the pile
       card.el.style.cursor = 'zoom-out';
-      makeWalls(innerWidth, innerHeight, true); // let the pile break the frame
-      for (const c of cards) Sleeping.set(c.body, false);
+      document.body.classList.add('zoomcard');
     }
     function close(card) {
       opened = null;
       card.target = 1;
+      card.body.isSensor = false;
       Body.setStatic(card.body, false);
       Sleeping.set(card.body, false);
       card.el.style.cursor = '';
-      makeWalls(innerWidth, innerHeight, false); // walls come home, pile refills
-      for (const c of cards) Sleeping.set(c.body, false);
+      document.body.classList.remove('zoomcard');
     }
 
     function step() {
       frames++;
       if (pendingCards.length && frames >= nextDrop) spawnNext();
 
-      // an opened card is static and simply lerps to centre — perfectly
-      // smooth by construction. It slides OVER the pile (it renders on
-      // top) while the phones beneath are ushered out of its destination
+      // an opened card is a static ghost that lerps to centre over the
+      // veil — perfectly smooth, and the pile never feels a thing
       if (opened) {
         const b = opened.body;
         Body.setPosition(b, {
@@ -381,21 +389,6 @@
           y: b.position.y + (innerHeight / 2 - b.position.y) * 0.085
         });
         Body.setAngle(b, b.angle * 0.88);
-        const tw = opened.w * opened.target, th = opened.h * opened.target;
-        for (const c of cards) {
-          if (c === opened) continue;
-          const o = c.body;
-          // everything in the destination footprint gets walked out
-          // sideways — down is the floor, so horizontal is the way out
-          const dx = o.position.x - innerWidth / 2, dy = o.position.y - innerHeight / 2;
-          if (Math.abs(dx) < tw / 2 + c.w / 2 + 30 && Math.abs(dy) < th / 2 + c.h / 2 + 30) {
-            Body.applyForce(o, o.position, {
-              x: (dx >= 0 ? 1 : -1) * 0.005 * o.mass,
-              y: dy < 0 ? -0.001 * o.mass : 0
-            });
-            Sleeping.set(o, false);
-          }
-        }
       }
 
       const draggedBody = mouseCon && mouseCon.body;
@@ -407,7 +400,7 @@
         if (Math.abs(c.scale - c.target) < 0.0005) continue;
         let ns = c.scale + (c.target - c.scale) * 0.18;
         if (ns > c.scale) {
-          let capPx = 2.5;
+          let capPx = 1e9; // the opened ghost grows on pure easing
           if (c !== opened) {
             // growing IS how a phone makes room — it may press gently
             // while the field has margin, and pauses when it's spent.
@@ -478,7 +471,7 @@
     // a resize moves the walls and wakes the pile so it re-settles
     addEventListener('resize', () => {
       if (!engine) return;
-      makeWalls(innerWidth, innerHeight, !!opened);
+      makeWalls(innerWidth, innerHeight);
       for (const c of cards) Sleeping.set(c.body, false);
     });
   })();
