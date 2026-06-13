@@ -42,7 +42,7 @@
     border-radius: 50%;
     background: #a3a3a3;
   }
-  #dots:empty { display: none; }
+  #dots i.sel { background: #0a84ff; }
   #caret {
     width: 0.035em;
     min-width: 2px;
@@ -88,7 +88,7 @@
 </head>
 <body>
   <input id="key" type="password" autocomplete="off" spellcheck="false" aria-label="Password">
-  <div id="line" aria-hidden="true"><span id="dots"></span><span id="caret"></span></div>
+  <div id="line" aria-hidden="true"><span id="dots"><span id="caret"></span></span></div>
   <div id="pile" aria-hidden="true"></div>
   <script>
   (() => {
@@ -96,20 +96,41 @@
     const key = document.getElementById('key');
     const line = document.getElementById('line');
     const dots = document.getElementById('dots');
+    const caret = document.getElementById('caret');
     let typingTimer;
 
     function focusKey() {
       if (!document.body.classList.contains('unlocked')) key.focus();
     }
     focusKey();
-    addEventListener('pointerdown', () => setTimeout(focusKey, 0));
+    // synchronous focus inside the gesture, so mobile taps summon the keyboard
+    addEventListener('pointerdown', focusKey);
+    addEventListener('click', focusKey);
     key.addEventListener('blur', () => setTimeout(focusKey, 50));
 
-    key.addEventListener('input', () => {
-      dots.innerHTML = '<i></i>'.repeat(key.value.length);
-      line.classList.add('typing');
-      clearTimeout(typingTimer);
-      typingTimer = setTimeout(() => line.classList.remove('typing'), 600);
+    // the hidden input is a real text field — arrows, select-all, cut,
+    // everything native works. This just draws its state: one dot per
+    // character, selection in blue, the caret exactly where it is.
+    function renderLine(active) {
+      const len = key.value.length;
+      const s = key.selectionStart ?? len, e = key.selectionEnd ?? len;
+      const caretAt = key.selectionDirection === 'backward' ? s : e;
+      let html = '';
+      for (let i = 0; i < len; i++) html += i >= s && i < e ? '<i class="sel"></i>' : '<i></i>';
+      dots.innerHTML = html;
+      caret.style.display = s !== e ? 'none' : '';
+      dots.insertBefore(caret, dots.children[caretAt] || null);
+      if (active) {
+        line.classList.add('typing');
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => line.classList.remove('typing'), 600);
+      }
+    }
+    key.addEventListener('input', () => renderLine(true));
+    key.addEventListener('keyup', () => renderLine(true));
+    key.addEventListener('select', () => renderLine(false));
+    document.addEventListener('selectionchange', () => {
+      if (document.activeElement === key) renderLine(false);
     });
 
     key.addEventListener('keydown', e => {
@@ -125,7 +146,7 @@
         }, 450);
       } else {
         key.value = '';
-        dots.innerHTML = '';
+        renderLine(false);
         line.classList.add('shake');
         line.addEventListener('animationend', () => line.classList.remove('shake'), { once: true });
       }
@@ -144,15 +165,19 @@
     const DIR = 'img/Calendar_Sketches/';
     const SKETCHES = [
       "Component 100-1.png", "Component 100.png", "Component 101-1.png",
-      "Component 101.png", "Component 102.png", "Component 92-1.png",
-      "Component 92-10.png", "Component 92-11.png", "Component 92-12.png",
-      "Component 92-13.png", "Component 92-14.png", "Component 92-2.png",
-      "Component 92-3.png", "Component 92-4.png", "Component 92-5.png",
-      "Component 92-6.png", "Component 92-7.png", "Component 92-8.png",
-      "Component 92-9.png", "Component 92.png", "Component 93.png",
-      "Component 94.png", "Component 95.png", "Component 96.png",
-      "Component 97.png", "Component 98.png", "Component 99.png",
-      "Group 3.png"
+      "Component 101.png", "Component 102.png", "Component 123.png",
+      "Component 124.png", "Component 2.png", "Component 6.png",
+      "Component 92-1.png", "Component 92-10.png", "Component 92-11.png",
+      "Component 92-12.png", "Component 92-13.png", "Component 92-14.png",
+      "Component 92-2.png", "Component 92-3.png", "Component 92-4.png",
+      "Component 92-5.png", "Component 92-6.png", "Component 92-7.png",
+      "Component 92-8.png", "Component 92-9.png", "Component 92.png",
+      "Component 93.png", "Component 94.png", "Component 95.png",
+      "Component 96.png", "Component 97.png", "Component 98.png",
+      "Component 99.png", "Group 2147237272.png", "Group 2147237277.png",
+      "Group 2147237308.png", "Group 2147237319.png", "Group 2147237320.png",
+      "Group 2147237322.png", "Group 2147237328.png", "Group 2147237329.png",
+      "Group 2147237330.png", "Group 3.png", "Villa_Mayana_Mobile.png"
     ];
     const ASPECT = 1840 / 900;
     const PAD = 2.5;          // half the ~5px force field, on every side
@@ -189,13 +214,16 @@
 
     addEventListener('unlocked', start, { once: true });
 
-    function makeWalls(W, H) {
+    function makeWalls(W, H, wide) {
+      // when a design is centre stage the side walls fly outward, so the
+      // pile is free to spill far past the edges of the screen
       const t = 400;
+      const reach = leak + (wide ? W * 0.3 : 0);
       for (const w of walls) World.remove(engine.world, w);
       walls = [
-        Bodies.rectangle(W / 2, H + t / 2, W * 3, t, { isStatic: true }),
-        Bodies.rectangle(-leak - t / 2, H / 2 - H, t, H * 4, { isStatic: true }),
-        Bodies.rectangle(W + leak + t / 2, H / 2 - H, t, H * 4, { isStatic: true })
+        Bodies.rectangle(W / 2, H + t / 2, W * 4, t, { isStatic: true }),
+        Bodies.rectangle(-reach - t / 2, H / 2 - H, t, H * 4, { isStatic: true }),
+        Bodies.rectangle(W + reach + t / 2, H / 2 - H, t, H * 4, { isStatic: true })
       ];
       World.add(engine.world, walls);
     }
@@ -209,10 +237,10 @@
       });
       engine.gravity.y = 0.45;   // floaty
 
-      const baseW = Math.max(52, Math.min(200, Math.sqrt((W * H * 0.72) / (SKETCHES.length * ASPECT))));
+      const baseW = Math.max(40, Math.min(150, Math.sqrt((W * H * 0.62) / (SKETCHES.length * ASPECT))));
       baseW0 = baseW;
       FR = baseW * 2.6;
-      leak = baseW * 0.35;
+      leak = baseW * 0.8; // phones live well past the screen edges
       makeWalls(W, H);
 
       const order = [...SKETCHES].sort(() => Math.random() - 0.5);
@@ -312,7 +340,7 @@
       Body.setAngularVelocity(body, (Math.random() - 0.5) * (splashy ? 0.12 : 0.05));
       World.add(engine.world, body);
       cards.push({ ...def, body, scale: 1, target: 1 });
-      nextDrop = frames + (splashy ? 10 : 22);
+      nextDrop = frames + (splashy ? 10 : 13);
     }
 
     function handleTap(card) {
@@ -326,6 +354,8 @@
       card.target = Math.min((innerWidth * 0.8) / card.w, (innerHeight * 0.86) / card.h);
       Body.setStatic(card.body, true);
       card.el.style.cursor = 'zoom-out';
+      makeWalls(innerWidth, innerHeight, true); // let the pile break the frame
+      for (const c of cards) Sleeping.set(c.body, false);
     }
     function close(card) {
       opened = null;
@@ -333,6 +363,8 @@
       Body.setStatic(card.body, false);
       Sleeping.set(card.body, false);
       card.el.style.cursor = '';
+      makeWalls(innerWidth, innerHeight, false); // walls come home, pile refills
+      for (const c of cards) Sleeping.set(c.body, false);
     }
 
     function step() {
@@ -446,7 +478,7 @@
     // a resize moves the walls and wakes the pile so it re-settles
     addEventListener('resize', () => {
       if (!engine) return;
-      makeWalls(innerWidth, innerHeight);
+      makeWalls(innerWidth, innerHeight, !!opened);
       for (const c of cards) Sleeping.set(c.body, false);
     });
   })();
