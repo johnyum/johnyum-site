@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendar — John Yum</title>
+<style>
+  :root {
+    --ink: #1d1d1f;
+    --muted: #9a9a9a;
+    --line: #ececec;
+    --past: #f4f4f4;
+    --pink: #ea0f62;
+    --chip: #f0f0f0;
+    --sheet: #161618;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: grid;
+    place-items: center;
+    background: #eef0f3;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    overflow: hidden;
+  }
+
+  /* the phone flows in from the left and settles at centre */
+  #phone {
+    position: relative;
+    width: 402px;
+    height: 874px;
+    background: #fff;
+    border-radius: 46px;
+    box-shadow: 0 30px 80px rgba(20, 30, 60, 0.18), inset 0 0 0 1px rgba(0,0,0,0.04);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    transform: translateX(-60vw) scale(0.96);
+    transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease;
+  }
+  #phone.in { opacity: 1; transform: translateX(0) scale(1); }
+
+  .status {
+    flex: 0 0 auto;
+    height: 52px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 30px 0 34px;
+    font-size: 15px; font-weight: 600; letter-spacing: -0.01em;
+  }
+  .status .icons { display: flex; align-items: center; gap: 6px; }
+  .status svg { display: block; }
+
+  .head {
+    flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 22px 14px;
+  }
+  .head h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  .head .controls { display: flex; align-items: center; gap: 10px; }
+  .chip {
+    height: 38px; padding: 0 16px; border-radius: 19px;
+    background: var(--chip); border: 0; font: inherit; font-size: 14px; font-weight: 600;
+    color: var(--ink); display: grid; place-items: center; cursor: pointer;
+  }
+  .iconbtn {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: var(--chip); border: 0; display: grid; place-items: center;
+    cursor: pointer; color: #3a3a3c;
+  }
+  .iconbtn svg { display: block; }
+
+  .weekdays {
+    flex: 0 0 auto;
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    padding: 0 14px 8px; border-bottom: 1px solid var(--line);
+    color: #b6b6b6; font-size: 12px; font-weight: 500; text-align: center;
+  }
+
+  .scroll {
+    flex: 1 1 auto; overflow-y: auto; padding: 0 14px 40px;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .scroll::-webkit-scrollbar { display: none; }
+
+  .month-label { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin: 26px 4px 14px; }
+
+  .grid { position: relative; display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; }
+  .cell {
+    position: relative; aspect-ratio: 50 / 78;
+    border: 1px solid var(--line); border-radius: 11px; background: #fff;
+    padding: 9px 10px; cursor: pointer; user-select: none; text-align: left; font: inherit;
+    transition: background 0.25s ease, border-color 0.25s ease;
+  }
+  .cell.empty { border: 0; background: transparent; cursor: default; }
+  .cell .num { font-size: 14px; font-weight: 700; letter-spacing: -0.01em; line-height: 1; transition: color 0.25s ease; }
+  .cell .price { position: absolute; left: 10px; bottom: 9px; font-size: 12px; color: var(--muted); letter-spacing: -0.01em; transition: color 0.25s ease; }
+  .cell.past { background: var(--past); border-color: transparent; }
+  .cell.past .num { color: #b4b4b4; }
+  .cell.past .price { color: #c2c2c2; }
+  .cell.today .num {
+    color: #fff; background: var(--pink); width: 24px; height: 24px;
+    border-radius: 50%; display: grid; place-items: center; margin: -3px 0 0 -3px;
+  }
+  /* selected range — black cells */
+  .cell.sel { background: #1d1d1f; border-color: #1d1d1f; }
+  .cell.sel .num { color: #fff; }
+  .cell.sel .price { color: #d2d2d2; }
+
+  /* Teddy booking bars — absolute overlays over the grid that grow in */
+  .booking { position: absolute; z-index: 3; pointer-events: none; }
+  .booking .bar {
+    height: 100%; width: 0;
+    background: #1d1d1f; border-radius: 21px; overflow: hidden;
+    display: flex; align-items: center; gap: 9px;
+    transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    white-space: nowrap;
+  }
+  .booking.show .bar { width: 100%; }
+  .booking .av {
+    width: 34px; height: 34px; border-radius: 50%; flex: 0 0 auto; margin-left: 4px;
+    background: radial-gradient(circle at 35% 30%, #ffb88c, #d76d77 60%, #6a3093);
+    box-shadow: inset 0 0 0 2px #fff;
+  }
+  .booking .nm { color: #fff; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+
+  /* QuickActions bottom sheet */
+  #closeX {
+    position: absolute; right: 16px; bottom: 248px; z-index: 6;
+    width: 44px; height: 44px; border-radius: 50%; border: 0;
+    background: var(--sheet); color: #fff; display: grid; place-items: center;
+    cursor: pointer; opacity: 0; pointer-events: none;
+    transform: translateY(10px); transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  #sheet {
+    position: absolute; left: 16px; right: 16px; bottom: 18px; z-index: 5;
+    display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: auto; gap: 14px;
+    transform: translateY(125%); transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  body.actions #sheet { transform: translateY(0); }
+  body.actions #closeX { opacity: 1; pointer-events: auto; transform: translateY(0); }
+  .card {
+    background: var(--sheet); border-radius: 24px; padding: 20px;
+    color: #fff; position: relative;
+  }
+  .card .lbl { color: #9a9a9c; font-size: 15px; font-weight: 500; letter-spacing: -0.01em; }
+  .card.avail { grid-row: span 2; display: flex; flex-direction: column; }
+  .card.avail .dot { position: absolute; top: 22px; right: 22px; width: 9px; height: 9px; border-radius: 50%; background: #34c759; }
+  .toggle {
+    margin-top: auto; display: grid; grid-template-columns: 1fr 1fr; align-items: center;
+    background: #000; border-radius: 22px; padding: 5px; height: 56px;
+  }
+  .toggle span { display: grid; place-items: center; height: 100%; border-radius: 18px; color: #8a8a8c; }
+  .toggle .on { background: #fff; color: #111; }
+  .card.price .big { font-size: 40px; font-weight: 700; letter-spacing: -0.02em; margin-top: 24px; }
+  .card.custom { display: flex; align-items: center; justify-content: space-between; }
+  .card.custom .plus { font-size: 22px; color: #fff; }
+
+  /* prev/next state arrows */
+  .nav {
+    position: fixed; top: 50%; transform: translateY(-50%) scale(1);
+    width: 54px; height: 54px; border: 0; border-radius: 50%;
+    display: grid; place-items: center; color: #1d1d1f; cursor: pointer; z-index: 50;
+    background: rgba(255,255,255,0.7);
+    box-shadow: 0 6px 22px rgba(0,0,0,0.12), inset 0 0 0 0.5px rgba(255,255,255,0.8);
+    transition: opacity 0.3s ease, transform 0.2s ease, background 0.2s ease;
+  }
+  #prev { left: 48px; }
+  #next { right: 48px; }
+  .nav:hover { background: rgba(255,255,255,0.92); }
+  .nav:active { transform: translateY(-50%) scale(0.9); }
+  .nav:disabled { opacity: 0.25; pointer-events: none; }
+  .nav svg { display: block; }
+</style>
+</head>
+<body>
+  <button class="nav" id="prev" aria-label="Previous state">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+  </button>
+  <button class="nav" id="next" aria-label="Next state">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+  </button>
+
+  <div id="phone">
+    <div class="status">
+      <span>9:41</span>
+      <span class="icons">
+        <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4.5" width="3" height="7.5" rx="1"/><rect x="10" y="2" width="3" height="10" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+        <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><path d="M8.5 2.2c2.6 0 5 1 6.8 2.7l-1.3 1.4A8 8 0 0 0 8.5 4.1 8 8 0 0 0 3 6.3L1.7 4.9A9.7 9.7 0 0 1 8.5 2.2Zm0 3.5c1.6 0 3.1.6 4.2 1.7l-1.4 1.4a4 4 0 0 0-5.6 0L4.3 7.4A6 6 0 0 1 8.5 5.7Zm0 3.4c.7 0 1.4.3 1.9.8L8.5 11.6 6.6 9.9c.5-.5 1.2-.8 1.9-.8Z"/></svg>
+        <svg width="26" height="13" viewBox="0 0 26 13" fill="none"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="currentColor" opacity="0.4"/><rect x="2" y="2" width="19" height="9" rx="2" fill="currentColor"/><rect x="23.5" y="4" width="2" height="5" rx="1" fill="currentColor" opacity="0.5"/></svg>
+      </span>
+    </div>
+
+    <div class="head">
+      <h1>September</h1>
+      <div class="controls">
+        <button class="chip">Today</button>
+        <button class="iconbtn" aria-label="Layers"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><polygon points="12 3 21 8 12 13 3 8 12 3"/><polyline points="3 13 12 18 21 13"/></svg></button>
+        <button class="iconbtn" aria-label="Settings"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg></button>
+      </div>
+    </div>
+
+    <div class="weekdays"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+    <div class="scroll" id="scroll"></div>
+
+    <button id="closeX" aria-label="Close"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+    <div id="sheet">
+      <div class="card avail">
+        <span class="dot"></span>
+        <div class="lbl">Availability</div>
+        <div class="toggle"><span>&times;</span><span class="on">&check;</span></div>
+      </div>
+      <div class="card price">
+        <div class="lbl">Price per night</div>
+        <div class="big">$625</div>
+      </div>
+      <div class="card custom">
+        <div class="lbl">Custom settings</div>
+        <div class="plus">+</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (() => {
+    const SEPT = {
+      label: 'September', startCol: 2, days: 30, today: 7, pastThrough: 6,
+      prices: { 1:550,2:550,3:550,4:610,5:610, 6:550,7:550,8:550,9:550,10:550,11:550,12:550,
+                13:550,14:550,15:550,16:550,17:625,18:625,19:625,
+                20:625,21:625,22:550,23:550,24:550,25:610,26:610,
+                27:550,28:550,29:550,30:550 }
+    };
+    const OCT = {
+      label: 'October', startCol: 4, days: 31, today: 0, pastThrough: 0,
+      prices: { 1:550,2:610,3:610,4:550,5:550,6:550,7:550,8:550,9:550,10:550 }
+    };
+    const SELECTION = [17, 18, 19, 20, 21]; // Teddy's stay + the selected range
+
+    function monthEl(m) {
+      const frag = document.createDocumentFragment();
+      const label = document.createElement('div');
+      label.className = 'month-label';
+      label.textContent = m.label;
+      frag.appendChild(label);
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      grid.dataset.month = m.label;
+      for (let i = 0; i < m.startCol; i++) {
+        const e = document.createElement('div'); e.className = 'cell empty'; grid.appendChild(e);
+      }
+      for (let d = 1; d <= m.days; d++) {
+        const cell = document.createElement('button');
+        cell.className = 'cell';
+        cell.dataset.month = m.label; cell.dataset.day = d;
+        if (m.today && d === m.today) cell.classList.add('today');
+        else if (m.pastThrough && d <= m.pastThrough) cell.classList.add('past');
+        const num = document.createElement('div'); num.className = 'num'; num.textContent = d; cell.appendChild(num);
+        if (m.prices[d] != null) { const p = document.createElement('div'); p.className = 'price'; p.textContent = '$' + m.prices[d]; cell.appendChild(p); }
+        grid.appendChild(cell);
+      }
+      frag.appendChild(grid);
+      return frag;
+    }
+
+    const scroll = document.getElementById('scroll');
+    scroll.appendChild(monthEl(SEPT));
+    scroll.appendChild(monthEl(OCT));
+    const septGrid = scroll.querySelector('.grid[data-month="September"]');
+
+    // which week-row a September day sits in (for splitting the booking)
+    function rowOf(day) { return Math.floor((SEPT.startCol + day - 1) / 7); }
+    // split Teddy's stay into contiguous same-row runs
+    function segments() {
+      const segs = []; let runStart = SELECTION[0];
+      for (let i = 1; i <= SELECTION.length; i++) {
+        const prev = SELECTION[i - 1], cur = SELECTION[i];
+        const brk = i === SELECTION.length || rowOf(cur) !== rowOf(prev) || cur !== prev + 1;
+        if (brk) { segs.push([runStart, prev]); runStart = cur; }
+      }
+      return segs;
+    }
+    // absolute overlay bars computed from the cells' real geometry, so they
+    // sit ON the grid without disturbing it
+    function makeBooking() {
+      const barH = 42;
+      segments().forEach(([a, b], i) => {
+        const ca = septGrid.querySelector(`.cell[data-day="${a}"]`);
+        const cb = septGrid.querySelector(`.cell[data-day="${b}"]`);
+        const left = ca.offsetLeft, top = ca.offsetTop, h = ca.offsetHeight;
+        const w = (cb.offsetLeft + cb.offsetWidth) - left;
+        const wrap = document.createElement('div');
+        wrap.className = 'booking';
+        wrap.style.left = left + 'px';
+        wrap.style.top = (top + (h - barH) / 2) + 'px';
+        wrap.style.width = w + 'px';
+        wrap.style.height = barH + 'px';
+        wrap.dataset.delay = i * 120;
+        const inner = document.createElement('div'); inner.className = 'bar';
+        if (i === 0) {
+          const av = document.createElement('div'); av.className = 'av'; inner.appendChild(av);
+          const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = 'Teddy'; inner.appendChild(nm);
+        }
+        wrap.appendChild(inner);
+        septGrid.appendChild(wrap);
+      });
+    }
+    makeBooking();
+    const bookings = [...septGrid.querySelectorAll('.booking')];
+
+    // ---- state machine: 0 plain, 1 guest (Teddy), 2 actions (selection + sheet) ----
+    let state = 0;
+    function selCells(on) {
+      SELECTION.forEach(d => {
+        const c = septGrid.querySelector(`.cell[data-day="${d}"]`);
+        if (c) c.classList.toggle('sel', on);
+      });
+    }
+    let bookingTimers = [];
+    function render() {
+      // bookings only in guest state — cancel any pending stagger timers and
+      // guard them, so a fast jump past state 1 can't leave Teddy lingering
+      bookingTimers.forEach(clearTimeout); bookingTimers = [];
+      bookings.forEach(b => {
+        if (state === 1) bookingTimers.push(setTimeout(() => { if (state === 1) b.classList.add('show'); }, +b.dataset.delay));
+        else b.classList.remove('show');
+      });
+      selCells(state === 2);
+      document.body.classList.toggle('actions', state === 2);
+      prev.disabled = state === 0;
+      next.disabled = state === 2;
+    }
+    const prev = document.getElementById('prev');
+    const next = document.getElementById('next');
+    prev.addEventListener('click', () => { if (state > 0) { state--; render(); } });
+    next.addEventListener('click', () => { if (state < 2) { state++; render(); } });
+    document.getElementById('closeX').addEventListener('click', () => { state = 0; render(); });
+    addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' && state < 2) { state++; render(); }
+      else if (e.key === 'ArrowLeft' && state > 0) { state--; render(); }
+    });
+    render();
+
+    // flow in from the left
+    const phone = document.getElementById('phone');
+    requestAnimationFrame(() => requestAnimationFrame(() => phone.classList.add('in')));
+  })();
+  </script>
+</body>
+</html>
