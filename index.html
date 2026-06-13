@@ -134,7 +134,8 @@
   body.zoomcard #pile::after { opacity: 1; pointer-events: auto; }
   /* in single-phone mode, the whole page is a tap target to go back */
   body.zoomcard { cursor: zoom-out; }
-  /* prev/next project arrows — dark glass circles, only in open mode */
+  /* prev/next project arrows — white glass circles on the main page;
+     they animate away when a project is opened centre stage */
   .nav {
     position: fixed;
     top: 50%;
@@ -150,16 +151,20 @@
     z-index: 110;
     opacity: 0;
     pointer-events: none;
-    transform: translateY(-50%) scale(0.96);
-    transition: opacity 0.35s ease, transform 0.2s ease, background 0.2s ease;
+    transform: translateY(-50%) scale(0.94);
+    transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease;
   }
   #navPrev { left: 48px; }
   #navNext { right: 48px; }
-  body.zoomcard .nav { opacity: 1; pointer-events: auto; transform: translateY(-50%) scale(1); }
+  /* shown on the main page (unlocked, no open project) */
+  body.unlocked .nav { opacity: 1; pointer-events: auto; transform: translateY(-50%) scale(1); }
+  /* animate away when a project is centre stage — slide toward the edge */
+  body.zoomcard #navPrev { opacity: 0; pointer-events: none; transform: translateY(-50%) translateX(-18px) scale(0.9); }
+  body.zoomcard #navNext { opacity: 0; pointer-events: none; transform: translateY(-50%) translateX(18px) scale(0.9); }
   .nav:hover { background: rgba(255, 255, 255, 0.62); }
   .nav:active { transform: translateY(-50%) scale(0.9); }
   .nav svg { width: 22px; height: 22px; display: block; }
-  @media (prefers-reduced-motion: reduce) { .nav { transition: opacity 0.2s ease; } }
+  @media (prefers-reduced-motion: reduce) { .nav { transition: opacity 0.25s ease; } }
   /* the open design sits crisp above the glass with a soft neutral lift */
   #pile .card.opened { filter: drop-shadow(0 24px 60px rgba(60, 60, 64, 0.22)); }
   @media (prefers-reduced-motion: reduce) {
@@ -174,10 +179,10 @@
   <div id="line" aria-hidden="true"><span id="dots"><span id="caret"></span></span></div>
   <div id="pile" aria-hidden="true"></div>
   <button class="nav" id="navPrev" aria-label="Previous project">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
   </button>
   <button class="nav" id="navNext" aria-label="Next project">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
   </button>
   <script>
   (() => {
@@ -276,7 +281,7 @@
     let engine = null, mouseCon = null, labelLayer = null;
     let cards = [], pendingCards = [], walls = [];
     let opened = null, closing = null, downInfo = null, mousePos = null;
-    let frames = 0, nextDrop = 0, leak = 0, openedAt = 0;
+    let frames = 0, nextDrop = 0, leak = 0, openedAt = 0, cursorIdx = -1;
 
     // a card sits exactly where its body is — no lens, so a phone's size
     // is never changed by what its neighbours are doing
@@ -443,6 +448,7 @@
     function open(card) {
       opened = card;
       openedAt = performance.now();
+      cursorIdx = cards.indexOf(card); // so the arrows continue from here
       // remember exactly where it was lying so it can return to its hole
       card.home = { x: card.body.position.x, y: card.body.position.y, angle: card.body.angle };
       card.target = Math.min((innerWidth * 0.8) / card.w, (innerHeight * 0.86) / card.h);
@@ -600,13 +606,13 @@
     addEventListener('mousemove', e => { mousePos = { x: e.clientX, y: e.clientY }; });
     document.documentElement.addEventListener('mouseleave', () => { mousePos = null; });
 
-    // step to the previous/next project, wrapping around the whole set.
-    // Reuses the tap path: the current flies home while the next flies in.
+    // open the previous/next project, wrapping around the whole set. From
+    // the main page this brings a project to centre; with one already open
+    // it swaps to the adjacent one (current flies home as the next flies in).
     function cycle(dir) {
-      if (!opened) return;
-      const idx = cards.indexOf(opened);
-      if (idx < 0) return;
-      handleTap(cards[(idx + dir + cards.length) % cards.length]);
+      if (!cards.length) return;
+      cursorIdx = (cursorIdx + dir + cards.length) % cards.length;
+      handleTap(cards[cursorIdx]);
     }
     const navPrev = document.getElementById('navPrev');
     const navNext = document.getElementById('navNext');
@@ -615,8 +621,8 @@
     if (navNext) navNext.addEventListener('click', e => { e.stopPropagation(); cycle(1); });
 
     addEventListener('keydown', e => {
-      if (!opened) return;
-      if (e.key === 'Escape') close(opened);
+      if (!document.body.classList.contains('unlocked')) return;
+      if (e.key === 'Escape') { if (opened) close(opened); }
       else if (e.key === 'ArrowLeft') cycle(-1);
       else if (e.key === 'ArrowRight') cycle(1);
     });
