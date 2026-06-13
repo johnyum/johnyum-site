@@ -228,7 +228,7 @@
     ];
     const ASPECT = 1840 / 900;
     const PAD = 2.5;          // half the ~5px force field, on every side
-    const HOVER_S = 1.3;
+    const HOVER_S = 1.18;   // a hovered phone grows just slightly
     const pile = document.getElementById('pile');
 
     // the descriptor above each phone is just its filename — name a file
@@ -241,26 +241,12 @@
     let engine = null, mouseCon = null, labelLayer = null;
     let cards = [], pendingCards = [], walls = [];
     let opened = null, closing = null, downInfo = null, mousePos = null;
-    let hoverEl = null, hoverTimer = 0;
-    let frames = 0, nextDrop = 0, leak = 0, baseW0 = 0, openedAt = 0;
-    let lensA = 0, FR = 260;
-    const A0 = HOVER_S - 1;
+    let frames = 0, nextDrop = 0, leak = 0, openedAt = 0;
 
-    // where the lens puts a card on screen: magnified near the cursor,
-    // displaced outward by the integral of the scale field
-    function lensView(c) {
-      const b = c.body;
-      let x = b.position.x, y = b.position.y, s = c.scale;
-      const dragged = mouseCon && mouseCon.body;
-      if (lensA > 0.004 && mousePos && c !== opened && c !== closing && b !== dragged) {
-        const dx = x - mousePos.x, dy = y - mousePos.y;
-        const d = Math.hypot(dx, dy);
-        const u = Math.max(0, 1 - d / FR);
-        if (u > 0) s = c.scale * (1 + lensA * A0 * u * u * (3 - 2 * u));
-        const shift = lensA * A0 * FR * (0.5 - u * u * u + (u * u * u * u) / 2);
-        if (d > 0.5) { x += (dx / d) * shift; y += (dy / d) * shift; }
-      }
-      return { x, y, s };
+    // a card sits exactly where its body is — no lens, so a phone's size
+    // is never changed by what its neighbours are doing
+    function cardView(c) {
+      return { x: c.body.position.x, y: c.body.position.y, s: c.scale };
     }
 
     // warm the image cache while the visitor is still at the door
@@ -285,15 +271,17 @@
     function start() {
       const W = innerWidth, H = innerHeight;
       engine = Engine.create({
-        enableSleeping: true,
+        // sleeping is OFF: with physical hover-push the solver must stay
+        // active so contacts always resolve (a sleeping pair could jam
+        // mid-overlap). Friction + the speed cap keep the pile calm; open
+        // mode is frozen separately by skipping Engine.update.
+        enableSleeping: false,
         positionIterations: 14,   // strong non-penetration solving
         velocityIterations: 10
       });
       engine.gravity.y = 0.45;   // floaty
 
       const baseW = Math.max(40, Math.min(150, Math.sqrt((W * H * 0.62) / (SKETCHES.length * ASPECT))));
-      baseW0 = baseW;
-      FR = baseW * 2.6;
       leak = baseW * 0.8; // phones live well past the screen edges
       makeWalls(W, H);
 
@@ -341,7 +329,7 @@
         if (!el) return;
         const c = cards.find(x => x.el === el);
         if (!c || c === opened || c.body.isStatic) return;
-        const v = lensView(c);
+        const v = cardView(c);
         mouseCon.constraint.pointB = { x: (e.clientX - v.x) / v.s, y: (e.clientY - v.y) / v.s };
         mouseCon.constraint.pointA = { x: e.clientX, y: e.clientY };
         mouseCon.constraint.angleB = c.body.angle; // without this the solver rotates pointB by NaN
@@ -457,8 +445,10 @@
 
     function step() {
       frames++;
-      const frozen = !!(opened || closing);
-      if (!frozen && pendingCards.length && frames >= nextDrop) spawnNext();
+      // freeze only while a design is FULLY open; the close animation runs
+      // live so the hover comes back the instant you tap to dismiss it
+      const frozen = !!opened;
+      if (!frozen && !closing && pendingCards.length && frames >= nextDrop) spawnNext();
 
       // an opened card is a static ghost that lerps to centre over the
       // veil — perfectly smooth, and the pile never feels a thing
@@ -483,50 +473,60 @@
 
       const draggedBody = mouseCon && mouseCon.body;
 
-      // ease scales — a phone only grows into room that actually exists:
-      // if it's already pressed against a neighbour it waits for the pile
-      // to make space, and each step is capped below the force field
-      for (const c of cards) {
-        if (Math.abs(c.scale - c.target) < 0.0005) continue;
-        let ns = c.scale + (c.target - c.scale) * 0.18;
-        if (ns > c.scale) {
-          let capPx = 1e9; // the opened ghost grows on pure easing
-          if (c !== opened) {
-            // growing IS how a phone makes room — it may press gently
-            // while the field has margin, and pauses when it's spent.
-            // The opened card is exempt: it expands steadily and the
-            // solver squeezes anything beneath it out to the sides.
-            const others = cards.filter(x => x !== c).map(x => x.body);
-            let worst = 0;
-            for (const hit of Matter.Query.collides(c.body, others)) {
-              if (hit.depth > worst) worst = hit.depth;
-            }
-            if (worst > 4) { Sleeping.set(c.body, false); continue; }
-            capPx = worst === 0 ? 3.5 : 1.2;
-          }
-          const maxNs = c.scale * (1 + capPx / (c.h * c.scale / 2));
-          if (ns > maxNs) ns = maxNs;
+      // which phone is under the cursor right now — re-hit-tested every
+      // frame so a parked cursor keeps its phone grown. Never the opened,
+      // closing, or dragged one.
+      let hoverCard = null;
+      if (mousePos && !opened) {
+        const hit = document.elementFromPoint(mousePos.x, mousePos.y);
+        const wrap = hit && hit.closest ? hit.closest('.card') : null;
+        if (wrap && wrap.parentElement === pile) {
+          const c = cards.find(x => x.el === wrap);
+          if (c && c !== closing && c.body !== draggedBody) hoverCard = c;
         }
+      }
+
+      // hover grows ONLY that phone, a little. Every other phone keeps its
+      // own size — the growth just leans on them through real physics.
+      for (const c of cards) {
+        if (c === opened || c === closing) continue; // size managed by open/close
+        c.target = c === hoverCard ? HOVER_S : 1;
+      }
+
+      // ease each card toward its size — a real Body.scale, so the solver
+      // resolves the new overlap by nudging neighbours aside
+      for (const c of cards) {
+        if (c.scale === c.target) continue;
+        let ns = c.scale + (c.target - c.scale) * 0.2;
         if (Math.abs(c.target - ns) < 0.002) ns = c.target;
         Body.scale(c.body, ns / c.scale, ns / c.scale);
         c.scale = ns;
         Sleeping.set(c.body, false);
       }
 
-      // while a design is centre stage the whole pile is frozen in place —
-      // it waits, untouched, until the opened card has slotted back home
+      // wake the phones a growing hover is about to lean on
+      if (hoverCard) {
+        const hx = hoverCard.body.position.x, hy = hoverCard.body.position.y;
+        const r2 = (hoverCard.w * 2.4) * (hoverCard.w * 2.4);
+        for (const o of cards) {
+          const dx = o.body.position.x - hx, dy = o.body.position.y - hy;
+          if (dx * dx + dy * dy < r2) Sleeping.set(o.body, false);
+        }
+      }
+
+      // freeze only while fully open; the close animation runs live
       if (!frozen) {
         // two half-steps per frame: bodies travel half as far between
         // solver passes, so penetration never gets a chance to build
         Engine.update(engine, 1000 / 120);
         Engine.update(engine, 1000 / 120);
 
-        // a universal speed limit: no card may ever move faster than the
-        // solver can clear penetration, so nothing can bury into anything.
-        // A dragged card gets more headroom for responsiveness.
         for (const c of cards) {
           const b = c.body;
           if (b.isStatic) continue;
+          // the hovered phone is held still so it stays under the cursor —
+          // it still grows and pushes, it just doesn't drift off
+          if (c === hoverCard) { Body.setVelocity(b, { x: 0, y: 0 }); Body.setAngularVelocity(b, 0); continue; }
           const cap = b === draggedBody ? 24 : 5;
           const v = b.velocity;
           const sp = Math.hypot(v.x, v.y);
@@ -534,28 +534,16 @@
         }
       }
 
-      // the hover fisheye is a pure visual lens over the physics: cards
-      // magnify under the cursor and the displacement field is the exact
-      // integral of the scale field, so spacing always stretches at least
-      // as fast as cards grow — overlap is impossible by construction.
-      // Bodies never move, so the pile stays perfectly calm.
-      //
-      // The lens only lives while the pointer is genuinely over a phone
-      // (hit-tested against the rendered, magnified pixels). A short grace
-      // bridges the gaps between phones so it doesn't flicker mid-sweep.
-      if (overPhone && !frozen) hoverTimer = frames + 7;
-      const lensWanted = (!frozen && frames < hoverTimer) ? 1 : 0;
-      lensA += (lensWanted - lensA) * 0.14;
+      // render: each card sits exactly where its body is, at its own size
       for (const c of cards) {
         const b = c.body;
-        const v = lensView(c);
-        // bigger phones stack visually on top, the opened one above all
         c.el.style.zIndex =
           c === opened ? 30 :
-          b === draggedBody ? 20 : Math.round(v.s * 10);
+          b === draggedBody ? 20 :
+          c === hoverCard ? 15 : Math.round(c.scale * 12);
         c.el.style.transform =
-          `translate(${(v.x - c.w / 2).toFixed(2)}px, ${(v.y - c.h / 2).toFixed(2)}px) ` +
-          `rotate(${b.angle.toFixed(4)}rad) scale(${v.s.toFixed(4)})`;
+          `translate(${(b.position.x - c.w / 2).toFixed(2)}px, ${(b.position.y - c.h / 2).toFixed(2)}px) ` +
+          `rotate(${b.angle.toFixed(4)}rad) scale(${c.scale.toFixed(4)})`;
       }
 
       // the descriptor — shown only in open mode — rides above the centre
@@ -571,18 +559,10 @@
       requestAnimationFrame(step);
     }
 
-    // the fisheye follows the pointer — and only engages over a phone.
-    // elementFromPoint hit-tests the actual rendered (transformed) pixels,
-    // so the hover begins and ends within the phone's real magnified bounds.
-    let overPhone = false;
-    addEventListener('mousemove', e => {
-      mousePos = { x: e.clientX, y: e.clientY };
-      if (opened || closing) { overPhone = false; return; }
-      const hit = document.elementFromPoint(e.clientX, e.clientY);
-      const wrap = hit && hit.closest ? hit.closest('.card') : null;
-      overPhone = !!(wrap && wrap.parentElement === pile);
-    });
-    document.documentElement.addEventListener('mouseleave', () => { mousePos = null; overPhone = false; });
+    // just track the pointer; step() hit-tests it each frame to decide
+    // which phone (if any) is hovered
+    addEventListener('mousemove', e => { mousePos = { x: e.clientX, y: e.clientY }; });
+    document.documentElement.addEventListener('mouseleave', () => { mousePos = null; });
 
     addEventListener('keydown', e => {
       if (e.key === 'Escape' && opened) close(opened);
