@@ -45,6 +45,7 @@
     pointer-events: none;
     user-select: none;
   }
+  .wm-pill { pointer-events: auto; cursor: pointer; }
   /* real input, visually hidden — it owns focus and the mobile keyboard */
   #key {
     position: fixed;
@@ -263,6 +264,22 @@
     });
   })();
 
+  document.querySelectorAll('.wm-pill').forEach(pill => {
+    pill.addEventListener('click', e => {
+      e.stopPropagation();
+      const text = pill.textContent.trim();
+      if (pill._copying) return;
+      pill._copying = true;
+      navigator.clipboard.writeText(text).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+      });
+      const orig = pill.textContent;
+      pill.textContent = 'Copied';
+      setTimeout(() => { pill.textContent = orig; pill._copying = false; }, 1400);
+    });
+  });
 
   </script>
   <script src="js/matter.min.js"></script>
