@@ -423,10 +423,11 @@
       pile.appendChild(labelLayer);
 
       const shuffled = [...SKETCHES].sort(() => Math.random() - 0.5);
-      // guarantee one big card lands early (slot 2) so it doesn't bunch at the end
-      const bigIdx = shuffled.findIndex(f => MAC_SIZED.includes(f.replace(/\.png$/i, '')));
-      if (bigIdx > 2) { const [big] = shuffled.splice(bigIdx, 1); shuffled.splice(2, 0, big); }
-      const order = shuffled;
+      // pull both big cards out and place them at slots 2 and 6 (left then right)
+      const bigs = [], rest = [];
+      for (const f of shuffled) (MAC_SIZED.includes(f.replace(/\.png$/i, '')) ? bigs : rest).push(f);
+      rest.splice(2, 0, bigs[0] || ''); rest.splice(6, 0, bigs[1] || '');
+      const order = rest.filter(Boolean);
       pendingCards = order.map(f => {
         const d = DIMS[f] || { w: 900, h: 1840 };
         const sc = deviceScale(d, f);
@@ -510,11 +511,15 @@
       requestAnimationFrame(step);
     }
 
+    let bigSpawned = 0;
     function spawnNext() {
       const def = pendingCards.shift();
       const splashy = cards.length < 5;
+      let spawnX;
+      if (def.isBig) { spawnX = bigSpawned === 0 ? innerWidth * 0.25 : innerWidth * 0.75; bigSpawned++; }
+      else { spawnX = innerWidth * (0.12 + 0.76 * Math.random()); }
       const body = Bodies.rectangle(
-        innerWidth * (0.12 + 0.76 * Math.random()), -def.h,
+        spawnX, -def.h,
         def.w + PAD * 2, def.h + PAD * 2,
         {
           restitution: splashy ? 0.5 : 0.22,
@@ -526,7 +531,7 @@
         }
       );
       Body.setVelocity(body, {
-        x: (Math.random() - 0.5) * (splashy ? 9 : 2.5),
+        x: def.isBig ? (Math.random() - 0.5) * 0.8 : (Math.random() - 0.5) * (splashy ? 9 : 2.5),
         y: splashy ? 2 + Math.random() * 3 : 1 + Math.random() * 1.5
       });
       Body.setAngularVelocity(body, (Math.random() - 0.5) * (splashy ? 0.12 : 0.05));
