@@ -256,17 +256,26 @@
   (() => {
     if (!window.Matter) return;
     const { Engine, World, Bodies, Body, Events, Mouse, MouseConstraint, Sleeping } = Matter;
-    const DIR = 'img/Calendar_Sketches/';
+    const DIR = 'img/Fresh_Work/';
     // The pile is whatever PNGs the manifest lists — so just rename/add/
-    // remove files in img/Calendar_Sketches and regenerate manifest.json;
+    // remove files in img/Fresh_Work and regenerate manifest.json;
     // no code changes needed. (Regenerate: from that folder run
     //   python3 -c "import os,json;open('manifest.json','w').write(json.dumps(sorted(f for f in os.listdir('.') if f.lower().endswith('.png'))))" )
-    let SKETCHES = [];
+    let SKETCHES = [], DIMS = {};
     const sketchesReady = fetch(DIR + 'manifest.json', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : [])
-      .then(list => (SKETCHES = Array.isArray(list) ? list : []))
-      .catch(() => (SKETCHES = []));
-    const ASPECT = 1840 / 900;
+      .then(list => {
+        SKETCHES = Array.isArray(list) ? list : [];
+        // preload every image to get natural dimensions before physics starts
+        // (Fresh_Work has phone, iPad and web screenshots — all different aspects)
+        return Promise.all(SKETCHES.map(f => new Promise(res => {
+          const img = new Image();
+          img.onload  = () => { DIMS[f] = { w: img.naturalWidth, h: img.naturalHeight }; res(); };
+          img.onerror = () => { DIMS[f] = { w: 900, h: 1840 }; res(); };
+          img.src = DIR + encodeURIComponent(f);
+        })));
+      })
+      .catch(() => {});
     const PAD = 2.5;          // half the ~5px force field, on every side
     const HOVER_S = 1.18;   // a hovered phone grows just slightly
     const pile = document.getElementById('pile');
@@ -289,12 +298,7 @@
       return { x: c.body.position.x, y: c.body.position.y, s: c.scale };
     }
 
-    // warm the image cache while the visitor is still at the door
-    sketchesReady.then(list => setTimeout(() => {
-      for (const f of list) { const im = new Image(); im.src = DIR + encodeURIComponent(f); }
-    }, 300));
-
-    // build the pile once unlocked AND the manifest has loaded
+    // build the pile once unlocked AND the manifest + dims have loaded
     addEventListener('unlocked', () => sketchesReady.then(start), { once: true });
 
     function makeWalls(W, H) {
@@ -322,8 +326,10 @@
       });
       engine.gravity.y = 0.45;   // floaty
 
-      const baseW = Math.max(40, Math.min(150, Math.sqrt((W * H * 0.62) / (SKETCHES.length * ASPECT))));
-      leak = baseW * 0.8; // phones live well past the screen edges
+      // target equal visual area per card regardless of orientation
+      const targetArea = (W * H * 0.62) / Math.max(1, SKETCHES.length);
+      const refW = Math.max(40, Math.min(180, Math.sqrt(targetArea * (900 / 1840))));
+      leak = refW * 0.8; // cards live well past the screen edges
       makeWalls(W, H);
 
       labelLayer = document.createElement('div');
@@ -331,10 +337,11 @@
       pile.appendChild(labelLayer);
 
       const order = [...SKETCHES].sort(() => Math.random() - 0.5);
-      // uniform size — only interaction (hover/open) changes a phone's scale
+      // uniform area per card — each uses its actual image aspect ratio
       pendingCards = order.map(f => {
-        const w = baseW;
-        const h = w * ASPECT;
+        const d = DIMS[f] || { w: 900, h: 1840 };
+        const w = Math.max(40, Math.min(260, Math.sqrt(targetArea * d.w / d.h)));
+        const h = w * (d.h / d.w);
         const name = labelFor(f);
         const el = document.createElement('div');
         el.className = 'card';
