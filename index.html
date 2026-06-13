@@ -422,12 +422,7 @@
       labelLayer.id = 'labels';
       pile.appendChild(labelLayer);
 
-      const shuffled = [...SKETCHES].sort(() => Math.random() - 0.5);
-      // pull both big cards out and place them at slots 2 and 6 (left then right)
-      const bigs = [], rest = [];
-      for (const f of shuffled) (MAC_SIZED.includes(f.replace(/\.png$/i, '')) ? bigs : rest).push(f);
-      rest.splice(2, 0, bigs[0] || ''); rest.splice(6, 0, bigs[1] || '');
-      const order = rest.filter(Boolean);
+      const order = [...SKETCHES].sort(() => Math.random() - 0.5);
       pendingCards = order.map(f => {
         const d = DIMS[f] || { w: 900, h: 1840 };
         const sc = deviceScale(d, f);
@@ -450,6 +445,12 @@
         labelLayer.appendChild(label);
         return { el, w, h, label, isBig: MAC_SIZED.includes(name) };
       });
+      // reorder: pull big cards out and drop them at slots 2 and 6
+      // (isBig is already computed reliably above — no second string match needed)
+      { const smalls = pendingCards.filter(d => !d.isBig);
+        const bigs   = pendingCards.filter(d =>  d.isBig);
+        smalls.splice(2, 0, bigs[0]); if (bigs[1]) smalls.splice(6, 0, bigs[1]);
+        pendingCards = smalls; }
 
       // grabbing is a real spring constraint: cards dangle and swing from
       // wherever you pick them up, and fly when you let go
