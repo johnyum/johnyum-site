@@ -161,8 +161,26 @@
 
     let engine = null, mouseCon = null;
     let cards = [], pendingCards = [], walls = [];
-    let opened = null, hovered = null, downInfo = null;
-    let frames = 0, nextDrop = 0, leak = 0;
+    let opened = null, downInfo = null, mousePos = null;
+    let frames = 0, nextDrop = 0, leak = 0, baseW0 = 0;
+    let lensA = 0, FR = 260;
+    const A0 = HOVER_S - 1;
+
+    // where the lens puts a card on screen: magnified near the cursor,
+    // displaced outward by the integral of the scale field
+    function lensView(c) {
+      const b = c.body;
+      let x = b.position.x, y = b.position.y, s = c.scale;
+      if (lensA > 0.004 && mousePos && c !== opened) {
+        const dx = x - mousePos.x, dy = y - mousePos.y;
+        const d = Math.hypot(dx, dy);
+        const u = Math.max(0, 1 - d / FR);
+        if (u > 0) s = c.scale * (1 + lensA * A0 * u * u * (3 - 2 * u));
+        const shift = lensA * A0 * FR * (0.5 - u * u * u + (u * u * u * u) / 2);
+        if (d > 0.5) { x += (dx / d) * shift; y += (dy / d) * shift; }
+      }
+      return { x, y, s };
+    }
 
     // warm the image cache while the visitor is still at the door
     addEventListener('load', () => setTimeout(() => {
@@ -192,6 +210,8 @@
       engine.gravity.y = 0.45;   // floaty
 
       const baseW = Math.max(52, Math.min(200, Math.sqrt((W * H * 0.72) / (SKETCHES.length * ASPECT))));
+      baseW0 = baseW;
+      FR = baseW * 2.6;
       leak = baseW * 0.35;
       makeWalls(W, H);
 
@@ -217,7 +237,24 @@
         mouse,
         constraint: { stiffness: 0.12, damping: 0.1 }
       });
+      // no auto-pick: under the lens, what you see isn't where bodies are,
+      // so grabbing is assigned manually from the DOM hit (lens-correct)
+      mouseCon.collisionFilter.mask = 0;
       World.add(engine.world, mouseCon);
+
+      pile.addEventListener('pointerdown', e => {
+        const el = e.target.closest('img');
+        if (!el) return;
+        const c = cards.find(x => x.el === el);
+        if (!c || c === opened || c.body.isStatic) return;
+        const v = lensView(c);
+        mouseCon.constraint.pointB = { x: (e.clientX - v.x) / v.s, y: (e.clientY - v.y) / v.s };
+        mouseCon.constraint.pointA = { x: e.clientX, y: e.clientY };
+        mouseCon.constraint.angleB = c.body.angle; // without this the solver rotates pointB by NaN
+        mouseCon.constraint.bodyB = c.body;
+        mouseCon.body = c.body;
+        Sleeping.set(c.body, false);
+      });
 
       Events.on(mouseCon, 'mousedown', () => {
         downInfo = {
@@ -286,18 +323,14 @@
     }
     function open(card) {
       opened = card;
-      if (hovered === card) hovered = null;
       card.target = Math.min((innerWidth * 0.8) / card.w, (innerHeight * 0.86) / card.h);
-      card.d0 = card.body.density;
-      Body.setDensity(card.body, card.d0 * 60); // far too heavy for the pile to push
-      Sleeping.set(card.body, false);
+      Body.setStatic(card.body, true);
       card.el.style.cursor = 'zoom-out';
     }
     function close(card) {
       opened = null;
       card.target = 1;
       Body.setStatic(card.body, false);
-      if (card.d0) Body.setDensity(card.body, card.d0);
       Sleeping.set(card.body, false);
       card.el.style.cursor = '';
     }
@@ -306,85 +339,56 @@
       frames++;
       if (pendingCards.length && frames >= nextDrop) spawnNext();
 
-      // an opened card travels to centre as a heavy dynamic body driven by
-      // velocity — collisions mean it can never pass through a neighbour —
-      // while everything sitting where it's headed is actively ushered away
+      // an opened card is static and simply lerps to centre — perfectly
+      // smooth by construction. It slides OVER the pile (it renders on
+      // top) while the phones beneath are ushered out of its destination
       if (opened) {
         const b = opened.body;
-        const ox = innerWidth / 2 - b.position.x, oy = innerHeight / 2 - b.position.y;
-        const od = Math.hypot(ox, oy);
-        if (!b.isStatic) {
-          // force-driven, speed-capped: it presses toward centre but the
-          // solver, not teleportation, decides how far it actually moves.
-          // If it's already pressed deep against someone it stops pushing
-          // and waits for the bow wave to clear the pinch.
-          let pinched = 0;
-          for (const hit of Matter.Query.collides(b, cards.filter(x => x !== opened).map(x => x.body))) {
-            if (hit.depth > pinched) pinched = hit.depth;
-          }
-          if (pinched > 3) {
-            Body.setVelocity(b, { x: b.velocity.x * 0.75, y: b.velocity.y * 0.75 });
-          } else if (od > 2) {
-            const f = 0.004 * b.mass;
-            Body.applyForce(b, b.position, { x: ox / od * f, y: oy / od * f });
-          }
-          Body.setAngularVelocity(b, -b.angle * 0.12);
-          if (od < 4 && opened.scale === opened.target) {
-            Body.setPosition(b, { x: innerWidth / 2, y: innerHeight / 2 });
-            Body.setStatic(b, true); // parked
-          }
-        }
+        Body.setPosition(b, {
+          x: b.position.x + (innerWidth / 2 - b.position.x) * 0.085,
+          y: b.position.y + (innerHeight / 2 - b.position.y) * 0.085
+        });
+        Body.setAngle(b, b.angle * 0.88);
         const tw = opened.w * opened.target, th = opened.h * opened.target;
-        // never shove a phone that's already pressed against something —
-        // pushing a jammed body only deepens the squeeze
-        const deep = new Map();
-        for (const p of engine.pairs.list) {
-          if (!p.isActive) continue;
-          const d = p.collision.depth;
-          if (d > (deep.get(p.bodyA.id) || 0)) deep.set(p.bodyA.id, d);
-          if (d > (deep.get(p.bodyB.id) || 0)) deep.set(p.bodyB.id, d);
-        }
         for (const c of cards) {
           if (c === opened) continue;
           const o = c.body;
-          if ((deep.get(o.id) || 0) > 2.5) continue; // jammed: let the solver work
-          // bow wave: squeeze neighbours sideways out of the channel —
-          // down is the floor, so horizontal is the only way out
-          const bx = o.position.x - b.position.x, by = o.position.y - b.position.y;
-          if (Math.abs(bx) < (opened.w * opened.scale + c.w) / 2 + 50 &&
-              Math.abs(by) < (opened.h * opened.scale + c.h) / 2 + 50) {
-            Body.applyForce(o, o.position, {
-              x: (bx >= 0 ? 1 : -1) * 0.003 * o.mass,
-              y: by < 0 ? -0.001 * o.mass : 0
-            });
-            Sleeping.set(o, false);
-          }
-          // and out of the destination footprint
+          // everything in the destination footprint gets walked out
+          // sideways — down is the floor, so horizontal is the way out
           const dx = o.position.x - innerWidth / 2, dy = o.position.y - innerHeight / 2;
           if (Math.abs(dx) < tw / 2 + c.w / 2 + 30 && Math.abs(dy) < th / 2 + c.h / 2 + 30) {
             Body.applyForce(o, o.position, {
-              x: (dx >= 0 ? 1 : -1) * 0.003 * o.mass,
-              y: dy < 0 ? -0.0008 * o.mass : 0
+              x: (dx >= 0 ? 1 : -1) * 0.005 * o.mass,
+              y: dy < 0 ? -0.001 * o.mass : 0
             });
             Sleeping.set(o, false);
           }
         }
       }
 
+      const draggedBody = mouseCon && mouseCon.body;
+
       // ease scales — a phone only grows into room that actually exists:
       // if it's already pressed against a neighbour it waits for the pile
       // to make space, and each step is capped below the force field
       for (const c of cards) {
-        if (c.scale === c.target) continue;
+        if (Math.abs(c.scale - c.target) < 0.0005) continue;
         let ns = c.scale + (c.target - c.scale) * 0.18;
         if (ns > c.scale) {
-          const others = cards.filter(x => x !== c).map(x => x.body);
-          let worst = 0;
-          for (const hit of Matter.Query.collides(c.body, others)) {
-            if (hit.depth > worst) worst = hit.depth;
+          let capPx = 2.5;
+          if (c !== opened) {
+            // growing IS how a phone makes room — it may press gently
+            // while the field has margin, and pauses when it's spent.
+            // The opened card is exempt: it expands steadily and the
+            // solver squeezes anything beneath it out to the sides.
+            const others = cards.filter(x => x !== c).map(x => x.body);
+            let worst = 0;
+            for (const hit of Matter.Query.collides(c.body, others)) {
+              if (hit.depth > worst) worst = hit.depth;
+            }
+            if (worst > 4) { Sleeping.set(c.body, false); continue; }
+            capPx = worst === 0 ? 3.5 : 1.2;
           }
-          if (worst > 2) { Sleeping.set(c.body, false); continue; } // no room yet
-          const capPx = worst === 0 ? 3.5 : 1.7;
           const maxNs = c.scale * (1 + capPx / (c.h * c.scale / 2));
           if (ns > maxNs) ns = maxNs;
         }
@@ -399,86 +403,41 @@
       Engine.update(engine, 1000 / 120);
       Engine.update(engine, 1000 / 120);
 
-      // targeted clamp: the opened card is heavy enough to genuinely pin a
-      // neighbour — if one ends the frame pressed past the (scaled) force
-      // field, ease the light body out a little
-      if (opened) {
-        const ob = opened.body;
-        for (const p of engine.pairs.list) {
-          if (!p.isActive) continue;
-          const other = p.bodyA === ob ? p.bodyB : p.bodyB === ob ? p.bodyA : null;
-          if (!other || other.isStatic) continue;
-          const oc = cards.find(x => x.body === other);
-          const visT = PAD * opened.scale + PAD * (oc ? oc.scale : 1);
-          const over = Math.min(3, p.collision.depth - (visT - 0.5));
-          if (over <= 0) continue;
-          let nx = p.collision.normal.x, ny = p.collision.normal.y;
-          if (nx * (other.position.x - ob.position.x) + ny * (other.position.y - ob.position.y) < 0) { nx = -nx; ny = -ny; }
-          Body.translate(other, { x: nx * over, y: ny * over });
-        }
-      }
-
       // a universal speed limit: no card may ever move faster than the
       // solver can clear penetration, so nothing can bury into anything.
       // A dragged card gets more headroom for responsiveness.
-      const dragged = mouseCon && mouseCon.body;
       for (const c of cards) {
         const b = c.body;
         if (b.isStatic) continue;
-        const cap = b === dragged ? 24 : (c === opened ? 7 : 5);
+        const cap = b === draggedBody ? 24 : 5;
         const v = b.velocity;
         const sp = Math.hypot(v.x, v.y);
         if (sp > cap) Body.setVelocity(b, { x: v.x / sp * cap, y: v.y / sp * cap });
       }
 
-      // safety valve: if a growing phone is still pressed past the force
-      // field this frame, it gives a little scale back
-      for (const c of new Set([hovered, opened])) {
-        if (!c || c.scale <= 1.001) continue;
-        const others = cards.filter(x => x !== c).map(x => x.body);
-        let worst = 0;
-        for (const hit of Matter.Query.collides(c.body, others)) {
-          if (hit.depth > worst) worst = hit.depth;
-        }
-        if (worst > 3.2) {
-          const give = Math.max(0.985, 1 - (worst - 3.2) / (c.h * c.scale / 2));
-          Body.scale(c.body, give, give);
-          c.scale *= give;
-        }
-      }
-
-      const dragBody = mouseCon && mouseCon.body;
+      // the hover fisheye is a pure visual lens over the physics: cards
+      // magnify under the cursor and the displacement field is the exact
+      // integral of the scale field, so spacing always stretches at least
+      // as fast as cards grow — overlap is impossible by construction.
+      // Bodies never move, so the pile stays perfectly calm.
+      lensA += (((mousePos && !opened) ? 1 : 0) - lensA) * 0.14;
       for (const c of cards) {
         const b = c.body;
+        const v = lensView(c);
+        // bigger phones stack visually on top, the opened one above all
         c.el.style.zIndex =
-          c === opened ? 3 :
-          (b === dragBody || c.scale > 1.02) ? 2 : '';
+          c === opened ? 30 :
+          b === draggedBody ? 20 : Math.round(v.s * 10);
         c.el.style.transform =
-          `translate(${(b.position.x - c.w / 2).toFixed(2)}px, ${(b.position.y - c.h / 2).toFixed(2)}px) ` +
-          `rotate(${b.angle.toFixed(4)}rad) scale(${c.scale.toFixed(4)})`;
+          `translate(${(v.x - c.w / 2).toFixed(2)}px, ${(v.y - c.h / 2).toFixed(2)}px) ` +
+          `rotate(${b.angle.toFixed(4)}rad) scale(${v.s.toFixed(4)})`;
       }
       requestAnimationFrame(step);
     }
 
-    // hover: that phone grows and the pile makes room
-    pile.addEventListener('mouseover', e => {
-      const el = e.target.closest('img');
-      if (!el) return;
-      const c = cards.find(x => x.el === el);
-      if (!c || c === opened || (mouseCon && mouseCon.body === c.body)) return;
-      if (hovered && hovered !== opened) hovered.target = 1;
-      hovered = c;
-      c.target = HOVER_S;
-    });
-    pile.addEventListener('mouseout', e => {
-      const el = e.target.closest('img');
-      if (!el) return;
-      const c = cards.find(x => x.el === el);
-      if (c && c === hovered) {
-        if (c !== opened) c.target = 1;
-        hovered = null;
-      }
-    });
+    // the fisheye follows the pointer
+    addEventListener('mousemove', e => { mousePos = { x: e.clientX, y: e.clientY }; });
+    document.documentElement.addEventListener('mouseleave', () => { mousePos = null; });
 
     addEventListener('keydown', e => {
       if (e.key === 'Escape' && opened) close(opened);
