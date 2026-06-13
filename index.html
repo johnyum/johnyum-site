@@ -422,7 +422,11 @@
       labelLayer.id = 'labels';
       pile.appendChild(labelLayer);
 
-      const order = [...SKETCHES].sort(() => Math.random() - 0.5);
+      const shuffled = [...SKETCHES].sort(() => Math.random() - 0.5);
+      // guarantee one big card lands early (slot 2) so it doesn't bunch at the end
+      const bigIdx = shuffled.findIndex(f => MAC_SIZED.includes(f.replace(/\.png$/i, '')));
+      if (bigIdx > 2) { const [big] = shuffled.splice(bigIdx, 1); shuffled.splice(2, 0, big); }
+      const order = shuffled;
       pendingCards = order.map(f => {
         const d = DIMS[f] || { w: 900, h: 1840 };
         const sc = deviceScale(d, f);
