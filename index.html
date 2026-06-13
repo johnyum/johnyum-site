@@ -39,7 +39,7 @@
     overflow: hidden;
     transition: border-radius 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
-  #wordmark:hover { border-radius: 16px; }
+  #wordmark.open { border-radius: 16px; }
   #wm-name { display: block; padding: 8px 18px; text-align: center; }
   #wm-contacts {
     max-height: 0;
@@ -47,7 +47,7 @@
     overflow: hidden;
     transition: max-height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease;
   }
-  #wordmark:hover #wm-contacts { max-height: 120px; opacity: 1; }
+  #wordmark.open #wm-contacts { max-height: 120px; opacity: 1; }
   .wm-rule { height: 1px; background: rgba(0,0,0,0.07); margin: 0 14px; }
   .wm-item {
     display: block;
@@ -288,21 +288,43 @@
     });
   })();
 
-  // copy-to-clipboard for contact pills
-  document.querySelectorAll('.wm-item').forEach(btn => {
-    btn.addEventListener('click', e => {
+  // wordmark pill: open on mouseenter/touchstart, close on mouseleave/outside-tap
+  (function() {
+    const wm = document.getElementById('wordmark');
+    let closeTimer;
+
+    function openPill()  { clearTimeout(closeTimer); wm.classList.add('open'); }
+    function closePill() { wm.classList.remove('open'); }
+
+    // desktop hover
+    wm.addEventListener('mouseenter', openPill);
+    wm.addEventListener('mouseleave', closePill);
+
+    // mobile tap-toggle; outside tap closes
+    wm.addEventListener('touchstart', e => {
       e.stopPropagation();
-      const text = btn.dataset.copy;
-      navigator.clipboard.writeText(text).catch(() => {
-        const ta = document.createElement('textarea');
-        ta.value = text; document.body.appendChild(ta); ta.select();
-        document.execCommand('copy'); document.body.removeChild(ta);
+      wm.classList.contains('open') ? closePill() : openPill();
+    }, { passive: true });
+    document.addEventListener('touchstart', e => {
+      if (!wm.contains(e.target)) closePill();
+    }, { passive: true });
+
+    // copy-to-clipboard
+    document.querySelectorAll('.wm-item').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const text = btn.dataset.copy;
+        navigator.clipboard.writeText(text).catch(() => {
+          const ta = document.createElement('textarea');
+          ta.value = text; document.body.appendChild(ta); ta.select();
+          document.execCommand('copy'); document.body.removeChild(ta);
+        });
+        const orig = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(() => { btn.textContent = orig; closePill(); }, 1500);
       });
-      const orig = btn.textContent;
-      btn.textContent = 'Copied!';
-      setTimeout(() => { btn.textContent = orig; }, 1500);
     });
-  });
+  })();
   </script>
   <script src="js/matter.min.js"></script>
   <script>
