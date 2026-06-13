@@ -21,7 +21,6 @@
     top: 16px;
     left: 50%;
     transform: translateX(-50%);
-    padding: 8px 18px;
     background: rgba(255, 255, 255, 0.72);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     backdrop-filter: blur(20px) saturate(180%);
@@ -34,9 +33,39 @@
     letter-spacing: -0.01em;
     color: #111;
     white-space: nowrap;
-    pointer-events: none;
+    pointer-events: auto;
     user-select: none;
+    cursor: default;
+    overflow: hidden;
+    transition: border-radius 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
+  #wordmark:hover { border-radius: 16px; }
+  #wm-name { display: block; padding: 8px 18px; }
+  #wm-contacts {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease;
+  }
+  #wordmark:hover #wm-contacts { max-height: 100px; opacity: 1; }
+  .wm-rule { height: 1px; background: rgba(0,0,0,0.07); margin: 0 14px; }
+  .wm-item {
+    display: block;
+    width: 100%;
+    padding: 7px 18px;
+    background: none;
+    border: none;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    color: #666;
+    cursor: pointer;
+    text-align: center;
+    white-space: nowrap;
+    transition: color 0.15s ease;
+  }
+  .wm-item:hover { color: #111; }
   /* real input, visually hidden — it owns focus and the mobile keyboard */
   #key {
     position: fixed;
@@ -178,7 +207,15 @@
 </style>
 </head>
 <body>
-  <div id="wordmark">John Yum</div>
+  <div id="wordmark">
+    <span id="wm-name">John Yum</span>
+    <div id="wm-contacts">
+      <div class="wm-rule"></div>
+      <button class="wm-item" data-copy="361.816.3515">361.816.3515</button>
+      <div class="wm-rule"></div>
+      <button class="wm-item" data-copy="yum@johnyum.com">yum@johnyum.com</button>
+    </div>
+  </div>
   <input id="key" type="password" autocomplete="off" spellcheck="false" aria-label="Password">
   <div id="line" aria-hidden="true"><span id="dots"><span id="caret"></span></span></div>
   <div id="pile" aria-hidden="true"></div>
@@ -250,6 +287,22 @@
       }
     });
   })();
+
+  // copy-to-clipboard for contact pills
+  document.querySelectorAll('.wm-item').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const text = btn.dataset.copy;
+      navigator.clipboard.writeText(text).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+      });
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    });
+  });
   </script>
   <script src="js/matter.min.js"></script>
   <script>
