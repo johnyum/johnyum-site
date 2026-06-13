@@ -93,6 +93,8 @@
     z-index: 20;
   }
   body.zoomcard #pile::after { opacity: 1; pointer-events: auto; }
+  /* in single-phone mode, the whole page is a tap target to go back */
+  body.zoomcard { cursor: zoom-out; }
   /* the open design sits crisp above the glass with a soft lift */
   #pile img.opened { filter: drop-shadow(0 24px 60px rgba(40, 70, 130, 0.28)); }
   @media (prefers-reduced-motion: reduce) {
@@ -210,7 +212,7 @@
     let cards = [], pendingCards = [], walls = [];
     let opened = null, closing = null, downInfo = null, mousePos = null;
     let hoverEl = null, hoverTimer = 0;
-    let frames = 0, nextDrop = 0, leak = 0, baseW0 = 0;
+    let frames = 0, nextDrop = 0, leak = 0, baseW0 = 0, openedAt = 0;
     let lensA = 0, FR = 260;
     const A0 = HOVER_S - 1;
 
@@ -374,6 +376,7 @@
     }
     function open(card) {
       opened = card;
+      openedAt = performance.now();
       // remember exactly where it was lying so it can return to its hole
       card.home = { x: card.body.position.x, y: card.body.position.y, angle: card.body.angle };
       card.target = Math.min((innerWidth * 0.8) / card.w, (innerHeight * 0.86) / card.h);
@@ -527,6 +530,14 @@
 
     addEventListener('keydown', e => {
       if (e.key === 'Escape' && opened) close(opened);
+    });
+
+    // in single-phone mode a tap ANYWHERE returns to the cluster. This is
+    // decoupled from the physics tap-handler (the engine — and with it
+    // Matter's mouse events — is frozen while a design is open). The short
+    // guard skips the very click that opened the card.
+    addEventListener('click', () => {
+      if (opened && performance.now() - openedAt > 250) close(opened);
     });
 
     // a resize moves the walls and wakes the pile so it re-settles
