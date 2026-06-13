@@ -80,17 +80,21 @@
     cursor: grab;
     touch-action: none;
   }
-  /* when a design is centre stage, everything else fades away behind it */
+  /* when a design is centre stage, the pile behind frosts into blue glass */
   #pile::after {
     content: "";
     position: absolute; inset: 0;
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(232, 240, 255, 0.55);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    backdrop-filter: blur(24px) saturate(160%);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.45s ease;
     z-index: 20;
   }
   body.zoomcard #pile::after { opacity: 1; pointer-events: auto; }
+  /* the open design sits crisp above the glass with a soft lift */
+  #pile img.opened { filter: drop-shadow(0 24px 60px rgba(40, 70, 130, 0.28)); }
   @media (prefers-reduced-motion: reduce) {
     #caret { animation: none; }
     #line.shake { animation: none; }
@@ -188,7 +192,14 @@
       "Component 99.png", "Group 2147237272.png", "Group 2147237277.png",
       "Group 2147237308.png", "Group 2147237319.png", "Group 2147237320.png",
       "Group 2147237322.png", "Group 2147237328.png", "Group 2147237329.png",
-      "Group 2147237330.png", "Group 3.png", "Villa_Mayana_Mobile.png"
+      "Group 2147237330.png", "Group 2147237331.png", "Group 3.png",
+      "Villa_Mayana_Mobile copy.png", "Villa_Mayana_Mobile-1 copy.png",
+      "Villa_Mayana_Mobile-1.png", "Villa_Mayana_Mobile-2 copy.png",
+      "Villa_Mayana_Mobile-2.png", "Villa_Mayana_Mobile-3.png",
+      "Villa_Mayana_Mobile-4.png", "Villa_Mayana_Mobile-5.png",
+      "Villa_Mayana_Mobile-6.png", "Villa_Mayana_Mobile-7.png",
+      "Villa_Mayana_Mobile-8.png", "Villa_Mayana_Mobile-9.png",
+      "Villa_Mayana_Mobile.png"
     ];
     const ASPECT = 1840 / 900;
     const PAD = 2.5;          // half the ~5px force field, on every side
@@ -197,7 +208,8 @@
 
     let engine = null, mouseCon = null;
     let cards = [], pendingCards = [], walls = [];
-    let opened = null, downInfo = null, mousePos = null;
+    let opened = null, closing = null, downInfo = null, mousePos = null;
+    let hoverEl = null, hoverTimer = 0;
     let frames = 0, nextDrop = 0, leak = 0, baseW0 = 0;
     let lensA = 0, FR = 260;
     const A0 = HOVER_S - 1;
@@ -207,7 +219,8 @@
     function lensView(c) {
       const b = c.body;
       let x = b.position.x, y = b.position.y, s = c.scale;
-      if (lensA > 0.004 && mousePos && c !== opened) {
+      const dragged = mouseCon && mouseCon.body;
+      if (lensA > 0.004 && mousePos && c !== opened && c !== closing && b !== dragged) {
         const dx = x - mousePos.x, dy = y - mousePos.y;
         const d = Math.hypot(dx, dy);
         const u = Math.max(0, 1 - d / FR);
@@ -353,6 +366,7 @@
     }
 
     function handleTap(card) {
+      if (closing) finishClose(); // a mid-flight return snaps home first
       if (!card) { if (opened) close(opened); return; }
       if (card === opened) { close(card); return; }
       if (opened) close(opened);
@@ -360,25 +374,44 @@
     }
     function open(card) {
       opened = card;
+      // remember exactly where it was lying so it can return to its hole
+      card.home = { x: card.body.position.x, y: card.body.position.y, angle: card.body.angle };
       card.target = Math.min((innerWidth * 0.8) / card.w, (innerHeight * 0.86) / card.h);
       Body.setStatic(card.body, true);
       card.body.isSensor = true; // a ghost: glides and grows without touching the pile
       card.el.style.cursor = 'zoom-out';
+      card.el.classList.add('opened');
       document.body.classList.add('zoomcard');
     }
     function close(card) {
+      // still a ghost: it flies back to the exact spot and angle it left,
+      // shrinking on the way, while the frozen pile waits for it
       opened = null;
+      closing = card;
       card.target = 1;
-      card.body.isSensor = false;
-      Body.setStatic(card.body, false);
-      Sleeping.set(card.body, false);
       card.el.style.cursor = '';
       document.body.classList.remove('zoomcard');
+    }
+    function finishClose() {
+      if (!closing) return;
+      const b = closing.body, h = closing.home;
+      Body.setPosition(b, { x: h.x, y: h.y });
+      Body.setAngle(b, h.angle);
+      if (closing.scale !== 1) {
+        Body.scale(b, 1 / closing.scale, 1 / closing.scale);
+        closing.scale = closing.target = 1;
+      }
+      b.isSensor = false;
+      Body.setStatic(b, false);
+      Sleeping.set(b, false);
+      closing.el.classList.remove('opened');
+      closing = null;
     }
 
     function step() {
       frames++;
-      if (pendingCards.length && frames >= nextDrop) spawnNext();
+      const frozen = !!(opened || closing);
+      if (!frozen && pendingCards.length && frames >= nextDrop) spawnNext();
 
       // an opened card is a static ghost that lerps to centre over the
       // veil — perfectly smooth, and the pile never feels a thing
@@ -389,6 +422,16 @@
           y: b.position.y + (innerHeight / 2 - b.position.y) * 0.085
         });
         Body.setAngle(b, b.angle * 0.88);
+      } else if (closing) {
+        // and on the way back it retraces into its exact hole
+        const b = closing.body, h = closing.home;
+        Body.setPosition(b, {
+          x: b.position.x + (h.x - b.position.x) * 0.12,
+          y: b.position.y + (h.y - b.position.y) * 0.12
+        });
+        Body.setAngle(b, b.angle + (h.angle - b.angle) * 0.12);
+        if (Math.hypot(h.x - b.position.x, h.y - b.position.y) < 1.5 &&
+            Math.abs(closing.scale - 1) < 0.01) finishClose();
       }
 
       const draggedBody = mouseCon && mouseCon.body;
@@ -423,21 +466,25 @@
         Sleeping.set(c.body, false);
       }
 
-      // two half-steps per frame: bodies travel half as far between solver
-      // passes, so penetration never gets a chance to build
-      Engine.update(engine, 1000 / 120);
-      Engine.update(engine, 1000 / 120);
+      // while a design is centre stage the whole pile is frozen in place —
+      // it waits, untouched, until the opened card has slotted back home
+      if (!frozen) {
+        // two half-steps per frame: bodies travel half as far between
+        // solver passes, so penetration never gets a chance to build
+        Engine.update(engine, 1000 / 120);
+        Engine.update(engine, 1000 / 120);
 
-      // a universal speed limit: no card may ever move faster than the
-      // solver can clear penetration, so nothing can bury into anything.
-      // A dragged card gets more headroom for responsiveness.
-      for (const c of cards) {
-        const b = c.body;
-        if (b.isStatic) continue;
-        const cap = b === draggedBody ? 24 : 5;
-        const v = b.velocity;
-        const sp = Math.hypot(v.x, v.y);
-        if (sp > cap) Body.setVelocity(b, { x: v.x / sp * cap, y: v.y / sp * cap });
+        // a universal speed limit: no card may ever move faster than the
+        // solver can clear penetration, so nothing can bury into anything.
+        // A dragged card gets more headroom for responsiveness.
+        for (const c of cards) {
+          const b = c.body;
+          if (b.isStatic) continue;
+          const cap = b === draggedBody ? 24 : 5;
+          const v = b.velocity;
+          const sp = Math.hypot(v.x, v.y);
+          if (sp > cap) Body.setVelocity(b, { x: v.x / sp * cap, y: v.y / sp * cap });
+        }
       }
 
       // the hover fisheye is a pure visual lens over the physics: cards
@@ -445,7 +492,13 @@
       // integral of the scale field, so spacing always stretches at least
       // as fast as cards grow — overlap is impossible by construction.
       // Bodies never move, so the pile stays perfectly calm.
-      lensA += (((mousePos && !opened) ? 1 : 0) - lensA) * 0.14;
+      //
+      // The lens only lives while the pointer is genuinely over a phone
+      // (hit-tested against the rendered, magnified pixels). A short grace
+      // bridges the gaps between phones so it doesn't flicker mid-sweep.
+      if (overPhone && !frozen) hoverTimer = frames + 7;
+      const lensWanted = (!frozen && frames < hoverTimer) ? 1 : 0;
+      lensA += (lensWanted - lensA) * 0.14;
       for (const c of cards) {
         const b = c.body;
         const v = lensView(c);
@@ -460,9 +513,17 @@
       requestAnimationFrame(step);
     }
 
-    // the fisheye follows the pointer
-    addEventListener('mousemove', e => { mousePos = { x: e.clientX, y: e.clientY }; });
-    document.documentElement.addEventListener('mouseleave', () => { mousePos = null; });
+    // the fisheye follows the pointer — and only engages over a phone.
+    // elementFromPoint hit-tests the actual rendered (transformed) pixels,
+    // so the hover begins and ends within the phone's real magnified bounds.
+    let overPhone = false;
+    addEventListener('mousemove', e => {
+      mousePos = { x: e.clientX, y: e.clientY };
+      if (opened || closing) { overPhone = false; return; }
+      const hit = document.elementFromPoint(e.clientX, e.clientY);
+      overPhone = !!(hit && hit.tagName === 'IMG' && hit.parentElement === pile);
+    });
+    document.documentElement.addEventListener('mouseleave', () => { mousePos = null; overPhone = false; });
 
     addEventListener('keydown', e => {
       if (e.key === 'Escape' && opened) close(opened);
