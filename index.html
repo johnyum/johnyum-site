@@ -522,19 +522,19 @@
         spawnX, -def.h,
         def.w + PAD * 2, def.h + PAD * 2,
         {
-          restitution: splashy ? 0.5 : 0.22,
-          friction: 0.35,
+          restitution: def.isBig ? 0.04 : (splashy ? 0.5 : 0.22),
+          friction: def.isBig ? 0.6 : 0.35,
           frictionStatic: 0.5,
-          frictionAir: 0.012,
-          angle: (Math.random() - 0.5) * 0.3,
+          frictionAir: def.isBig ? 0.04 : 0.012,
+          angle: def.isBig ? 0 : (Math.random() - 0.5) * 0.3,
           chamfer: { radius: Math.min(10, def.w * 0.08) }
         }
       );
       Body.setVelocity(body, {
-        x: def.isBig ? (Math.random() - 0.5) * 0.8 : (Math.random() - 0.5) * (splashy ? 9 : 2.5),
+        x: def.isBig ? 0 : (Math.random() - 0.5) * (splashy ? 9 : 2.5),
         y: splashy ? 2 + Math.random() * 3 : 1 + Math.random() * 1.5
       });
-      Body.setAngularVelocity(body, (Math.random() - 0.5) * (splashy ? 0.12 : 0.05));
+      Body.setAngularVelocity(body, def.isBig ? 0 : (Math.random() - 0.5) * (splashy ? 0.12 : 0.05));
       World.add(engine.world, body);
       cards.push({ ...def, body, scale: 1, target: 1 });
       nextDrop = frames + (splashy ? 10 : 13);
@@ -648,7 +648,7 @@
       // frame so a parked cursor keeps its phone grown. Never the opened,
       // closing, or dragged one.
       let hoverCard = null;
-      if (mousePos && !opened) {
+      if (mousePos && !opened && pendingCards.length === 0) {
         const hit = document.elementFromPoint(mousePos.x, mousePos.y);
         const wrap = hit && hit.closest ? hit.closest('.card') : null;
         if (wrap && wrap.parentElement === pile) {
