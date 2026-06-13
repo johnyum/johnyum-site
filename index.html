@@ -337,7 +337,10 @@
       // aspect ratio < 0.58 → tall phone portrait
       // 0.58–1.0   → iPad-ish (squarish portrait or near-square)
       // > 1.0      → landscape / web
-      function deviceScale(d) {
+      const MAC_SIZED = ['Multi Calendar Web', 'Trip Creator'];
+      function deviceScale(d, f) {
+        const name = f.replace(/\.png$/i, '');
+        if (MAC_SIZED.includes(name)) return 3.2; // mac display size
         const r = d.w / d.h;
         if (r > 1.0)  return 2.2;   // landscape web screenshot
         if (r > 0.58) return 1.6;   // iPad portrait
@@ -351,7 +354,7 @@
       const order = [...SKETCHES].sort(() => Math.random() - 0.5);
       pendingCards = order.map(f => {
         const d = DIMS[f] || { w: 900, h: 1840 };
-        const sc = deviceScale(d);
+        const sc = deviceScale(d, f);
         const w = Math.max(40, Math.min(260, Math.sqrt(targetArea * sc * sc * d.w / d.h)));
         const h = w * (d.h / d.w);
         const name = labelFor(f);
