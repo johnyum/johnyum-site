@@ -203,29 +203,15 @@
     if (!window.Matter) return;
     const { Engine, World, Bodies, Body, Events, Mouse, MouseConstraint, Sleeping } = Matter;
     const DIR = 'img/Calendar_Sketches/';
-    const SKETCHES = [
-      "Component 100-1.png", "Component 100.png", "Component 101-1.png",
-      "Component 101.png", "Component 102.png", "Component 123.png",
-      "Component 124.png", "Component 2.png", "Component 6.png",
-      "Component 92-1.png", "Component 92-10.png", "Component 92-11.png",
-      "Component 92-12.png", "Component 92-13.png", "Component 92-14.png",
-      "Component 92-2.png", "Component 92-3.png", "Component 92-4.png",
-      "Component 92-5.png", "Component 92-6.png", "Component 92-7.png",
-      "Component 92-8.png", "Component 92-9.png", "Component 92.png",
-      "Component 93.png", "Component 94.png", "Component 95.png",
-      "Component 96.png", "Component 97.png", "Component 98.png",
-      "Component 99.png", "Group 2147237272.png", "Group 2147237277.png",
-      "Group 2147237308.png", "Group 2147237319.png", "Group 2147237320.png",
-      "Group 2147237322.png", "Group 2147237328.png", "Group 2147237329.png",
-      "Group 2147237330.png", "Group 2147237331.png", "Group 3.png",
-      "Villa_Mayana_Mobile copy.png", "Villa_Mayana_Mobile-1 copy.png",
-      "Villa_Mayana_Mobile-1.png", "Villa_Mayana_Mobile-2 copy.png",
-      "Villa_Mayana_Mobile-2.png", "Villa_Mayana_Mobile-3.png",
-      "Villa_Mayana_Mobile-4.png", "Villa_Mayana_Mobile-5.png",
-      "Villa_Mayana_Mobile-6.png", "Villa_Mayana_Mobile-7.png",
-      "Villa_Mayana_Mobile-8.png", "Villa_Mayana_Mobile-9.png",
-      "Villa_Mayana_Mobile.png"
-    ];
+    // The pile is whatever PNGs the manifest lists — so just rename/add/
+    // remove files in img/Calendar_Sketches and regenerate manifest.json;
+    // no code changes needed. (Regenerate: from that folder run
+    //   python3 -c "import os,json;open('manifest.json','w').write(json.dumps(sorted(f for f in os.listdir('.') if f.lower().endswith('.png'))))" )
+    let SKETCHES = [];
+    const sketchesReady = fetch(DIR + 'manifest.json', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : [])
+      .then(list => (SKETCHES = Array.isArray(list) ? list : []))
+      .catch(() => (SKETCHES = []));
     const ASPECT = 1840 / 900;
     const PAD = 2.5;          // half the ~5px force field, on every side
     const HOVER_S = 1.18;   // a hovered phone grows just slightly
@@ -250,11 +236,12 @@
     }
 
     // warm the image cache while the visitor is still at the door
-    addEventListener('load', () => setTimeout(() => {
-      for (const f of SKETCHES) { const im = new Image(); im.src = DIR + encodeURIComponent(f); }
-    }, 600));
+    sketchesReady.then(list => setTimeout(() => {
+      for (const f of list) { const im = new Image(); im.src = DIR + encodeURIComponent(f); }
+    }, 300));
 
-    addEventListener('unlocked', start, { once: true });
+    // build the pile once unlocked AND the manifest has loaded
+    addEventListener('unlocked', () => sketchesReady.then(start), { once: true });
 
     function makeWalls(W, H) {
       const t = 400;
