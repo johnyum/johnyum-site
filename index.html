@@ -443,13 +443,13 @@
         const label = document.createElement('span');
         label.textContent = name; // whatever the file is named shows here
         labelLayer.appendChild(label);
-        return { el, w, h, label, isBig: MAC_SIZED.includes(name) };
+        return { el, w, h, label, isBig: sc >= 3 };
       });
-      // reorder: pull big cards out and drop them at slots 2 and 6
-      // (isBig is already computed reliably above — no second string match needed)
+      // reorder: big cards (detected by sc >= 3, not string match) at slots 2 and 6
       { const smalls = pendingCards.filter(d => !d.isBig);
         const bigs   = pendingCards.filter(d =>  d.isBig);
-        smalls.splice(2, 0, bigs[0]); if (bigs[1]) smalls.splice(6, 0, bigs[1]);
+        if (bigs[0]) smalls.splice(2, 0, bigs[0]);
+        if (bigs[1]) smalls.splice(Math.min(6, smalls.length), 0, bigs[1]);
         pendingCards = smalls; }
 
       // grabbing is a real spring constraint: cards dangle and swing from
