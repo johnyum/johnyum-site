@@ -478,10 +478,10 @@
       });
 
       Events.on(mouseCon, 'mousedown', () => {
-        // un-static a settled big card so it can be dragged
+        // un-settle a big card when grabbed so it can move freely while dragged
         if (mouseCon.body) {
           const bc = cards.find(c => c.body === mouseCon.body);
-          if (bc && bc.isBig && bc.isSettled) { Body.setStatic(bc.body, false); bc.isSettled = false; }
+          if (bc && bc.isBig) bc.isSettled = false;
         }
         downInfo = {
           body: mouseCon.body,
@@ -663,13 +663,19 @@
         }
       }
 
-      // freeze big cards once they've settled — makes them immovable anchors
+      // pin settled big cards each frame: zero out velocity so collisions can't jitter them
+      // (stays dynamic so MouseConstraint can still drag them)
       for (const c of cards) {
-        if (!c.isBig || c.isSettled || c === opened || c.body === draggedBody) continue;
-        const v = c.body.velocity, av = c.body.angularVelocity;
-        if (Math.abs(v.x) < 0.15 && Math.abs(v.y) < 0.15 && Math.abs(av) < 0.008) {
-          Body.setStatic(c.body, true);
-          c.isSettled = true;
+        if (!c.isBig || c === opened || c.body === draggedBody) continue;
+        const b = c.body, v = b.velocity;
+        if (!c.isSettled) {
+          if (Math.abs(v.x) < 0.2 && Math.abs(v.y) < 0.2 && Math.abs(b.angularVelocity) < 0.01) {
+            c.isSettled = true;
+          }
+        }
+        if (c.isSettled) {
+          Body.setVelocity(b, { x: 0, y: 0 });
+          Body.setAngularVelocity(b, 0);
         }
       }
 
