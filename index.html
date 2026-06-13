@@ -478,6 +478,11 @@
       });
 
       Events.on(mouseCon, 'mousedown', () => {
+        // un-static a settled big card so it can be dragged
+        if (mouseCon.body) {
+          const bc = cards.find(c => c.body === mouseCon.body);
+          if (bc && bc.isBig && bc.isSettled) { Body.setStatic(bc.body, false); bc.isSettled = false; }
+        }
         downInfo = {
           body: mouseCon.body,
           x: mouse.position.x, y: mouse.position.y,
@@ -522,10 +527,11 @@
         spawnX, -def.h,
         def.w + PAD * 2, def.h + PAD * 2,
         {
-          restitution: def.isBig ? 0.04 : (splashy ? 0.5 : 0.22),
-          friction: def.isBig ? 0.6 : 0.35,
-          frictionStatic: 0.5,
-          frictionAir: def.isBig ? 0.04 : 0.012,
+          restitution: def.isBig ? 0.0 : (splashy ? 0.5 : 0.22),
+          friction: def.isBig ? 0.8 : 0.35,
+          frictionStatic: def.isBig ? 1.0 : 0.5,
+          frictionAir: def.isBig ? 0.08 : 0.012,
+          density: def.isBig ? 0.06 : 0.001,
           angle: def.isBig ? 0 : (Math.random() - 0.5) * 0.3,
           chamfer: { radius: Math.min(10, def.w * 0.08) }
         }
@@ -654,6 +660,16 @@
         if (wrap && wrap.parentElement === pile) {
           const c = cards.find(x => x.el === wrap);
           if (c && c !== closing && c.body !== draggedBody) hoverCard = c;
+        }
+      }
+
+      // freeze big cards once they've settled — makes them immovable anchors
+      for (const c of cards) {
+        if (!c.isBig || c.isSettled || c === opened || c.body === draggedBody) continue;
+        const v = c.body.velocity, av = c.body.angularVelocity;
+        if (Math.abs(v.x) < 0.15 && Math.abs(v.y) < 0.15 && Math.abs(av) < 0.008) {
+          Body.setStatic(c.body, true);
+          c.isSettled = true;
         }
       }
 
