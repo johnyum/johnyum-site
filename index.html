@@ -280,7 +280,7 @@
     const PAD = 2.5;          // half the ~5px force field, on every side
     const HOVER_S = 1.18;   // a hovered phone grows just slightly
     const pile = document.getElementById('pile');
-    const MAX_TILT = Math.PI * 0.25; // 45° max lean either side
+    const MAX_TILT = Math.PI * 0.306; // 55° max lean either side
 
     // the descriptor above each phone is just its filename — name a file
     // "Booking calendar.png" and that's what shows. Underscores become
@@ -307,11 +307,31 @@
       const t = 400;
       const reach = leak;
       for (const w of walls) World.remove(engine.world, w);
-      walls = [
-        Bodies.rectangle(W / 2, H + t / 2, W * 4, t, { isStatic: true }),
+      walls = [];
+
+      // side walls
+      walls.push(
         Bodies.rectangle(-reach - t / 2, H / 2 - H, t, H * 4, { isStatic: true }),
         Bodies.rectangle(W + reach + t / 2, H / 2 - H, t, H * 4, { isStatic: true })
-      ];
+      );
+
+      // wavy floor: sine-wave segments so phones come to rest at gentle angles
+      const totalW = W + reach * 2;
+      const N = 20;
+      const segW = totalW / N;
+      const amp = 38;   // wave height — bigger = more lean variation
+      const freq = 2.5; // waves across the screen
+      const k = (freq * 2 * Math.PI) / totalW;
+      for (let i = 0; i < N; i++) {
+        const cx = -reach + (i + 0.5) * segW;
+        const cy = H + amp * Math.sin(k * cx) + t / 2;
+        const angle = Math.atan(amp * k * Math.cos(k * cx));
+        walls.push(Bodies.rectangle(cx, cy, segW + 2, t, {
+          isStatic: true, angle,
+          friction: 0.55, restitution: 0.08
+        }));
+      }
+
       World.add(engine.world, walls);
     }
 
