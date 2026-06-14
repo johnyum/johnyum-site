@@ -947,7 +947,7 @@
     // The zoom/pan is applied to the IMAGE inside the card (the card frame is
     // positioned every frame by the physics render, so the image transform is a
     // separate, independent layer).
-    let _tx = 0, _ty = 0, _swiped = false, _pinching = false;
+    let _tx = 0, _ty = 0, _swiped = false;
     let zoom = 1, panX = 0, panY = 0;
     let _p0x = 0, _p0y = 0, _pbX = 0, _pbY = 0;   // one-finger pan start/base
     function zImg() { return opened ? opened.el.querySelector('img') : null; }
@@ -961,33 +961,43 @@
     _resetZoom = resetZoom;
 
     // pinch via iOS Safari gesture events (scale + the gesture-centre for pan)
+    // _multiTouch latches TRUE the moment a 2nd finger (or a gesture) appears and
+    // only clears once EVERY finger is up. A swipe is processed solely on the
+    // final lift and only if the whole gesture was single-finger — so a pinch
+    // (zoom in OR out) can never be mistaken for a swipe, no matter what order
+    // iOS fires gestureend vs touchend.
+    let _multiTouch = false;
     if ('ongesturestart' in window) {
       let bz = 1, bpx = 0, bpy = 0, gx = 0, gy = 0;
       addEventListener('gesturestart', e => {
-        if (!opened) return; e.preventDefault(); _pinching = true;
+        if (!opened) return; e.preventDefault(); _multiTouch = true;
         bz = zoom; bpx = panX; bpy = panY; gx = e.clientX; gy = e.clientY;
       }, { passive: false });
       addEventListener('gesturechange', e => {
-        if (!opened || !_pinching) return; e.preventDefault();
+        if (!opened || !_multiTouch) return; e.preventDefault();
         zoom = Math.max(1, Math.min(5, bz * e.scale));
         panX = bpx + (e.clientX - gx); panY = bpy + (e.clientY - gy);
         applyZoom();
       }, { passive: false });
       addEventListener('gestureend', e => {
-        if (!_pinching) return; e.preventDefault(); _pinching = false;
+        e.preventDefault();
         if (zoom <= 1.05) resetZoom(true);   // pinched back out → snap fully clean
+        // NOTE: do NOT clear _multiTouch here — the trailing touchend(s) own that,
+        // so a late touchend can't be read as a swipe.
       }, { passive: false });
     }
 
     addEventListener('touchstart', e => {
-      if (e.touches.length > 1) { _pinching = true; return; }   // 2 fingers → pinch
-      _tx = e.touches[0].clientX; _ty = e.touches[0].clientY; _swiped = false;
-      _p0x = _tx; _p0y = _ty; _pbX = panX; _pbY = panY;          // seed one-finger pan
+      if (e.touches.length > 1) { _multiTouch = true; return; }   // 2+ fingers → pinch, never a swipe
+      if (!_multiTouch) {                                         // fresh single-finger gesture
+        _tx = e.touches[0].clientX; _ty = e.touches[0].clientY; _swiped = false;
+        _p0x = _tx; _p0y = _ty; _pbX = panX; _pbY = panY;         // seed one-finger pan
+      }
     }, { passive: true });
 
     // one-finger pan while zoomed (non-passive so we can stop native scrolling)
     addEventListener('touchmove', e => {
-      if (opened && zoom > 1 && !_pinching && e.touches.length === 1) {
+      if (opened && zoom > 1 && !_multiTouch && e.touches.length === 1) {
         panX = _pbX + (e.touches[0].clientX - _p0x);
         panY = _pbY + (e.touches[0].clientY - _p0y);
         applyZoom();
@@ -996,10 +1006,11 @@
     }, { passive: false });
 
     addEventListener('touchend', e => {
-      if (e.touches.length === 0 && _pinching) { _pinching = false; return; }
-      if (_pinching) return;
+      if (e.touches.length > 0) return;            // wait until ALL fingers are up
+      const wasMulti = _multiTouch; _multiTouch = false;
+      if (wasMulti) return;                        // gesture involved 2+ fingers → not a swipe
       if (!document.body.classList.contains('unlocked') || !opened) return;
-      if (zoom > 1) return;   // zoomed → that one-finger move was a pan, not a swipe
+      if (zoom > 1) return;                        // zoomed → that one-finger move was a pan
       const dx = e.changedTouches[0].clientX - _tx;
       const dy = e.changedTouches[0].clientY - _ty;
       // horizontal, far enough, and more sideways than vertical → swipe to cycle
