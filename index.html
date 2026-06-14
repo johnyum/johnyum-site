@@ -373,9 +373,9 @@
       const totalW = W + reach * 2;
       const N = 20;
       const segW = totalW / N;
-      // Gentle wave only (≈10° max slope) so the heavy anchors can't slide
-      // downhill into the corners — they grip where they land and stay central.
-      // Phone leans come from propping against each other, not from the floor.
+      // Gentle wave (≈10° max slope): cards grip where they land instead of
+      // sliding downhill, and lean variety comes from propping against each
+      // other. Same floor for every card.
       const amp = 9;    // wave height — bigger = more lean variation
       const freq = 2.5; // waves across the screen
       const k = (freq * 2 * Math.PI) / totalW;
@@ -412,21 +412,12 @@
       leak = refW * 0.55; // cards can poke out but ≥40% stays visible
       makeWalls(W, H);
 
-      // The two hero screens — "Trip Creator" and the desktop "… Calendar Web"
-      // — are the anchors. Matched leniently (case-insensitive, ignores any
-      // prefix/date) so a rename can't silently drop them back into the phone
-      // shuffle.
-      function isAnchor(name) {
-        const n = name.toLowerCase();
-        return n.includes('trip creator') ||
-               (n.includes('calendar') && n.includes('web'));
-      }
-      // aspect ratio < 0.58 → tall phone portrait
-      // 0.58–1.0   → iPad-ish (squarish portrait or near-square)
-      // > 1.0      → landscape / web
-      function deviceScale(d, f) {
-        const name = f.replace(/\.png$/i, '');
-        if (isAnchor(name)) return 3.2;   // hero desktop size
+      // size by aspect ratio only — NO special-casing for any card. Everything
+      // is one and the same: phone portrait, iPad-ish, or landscape/web.
+      //   aspect < 0.58 → tall phone portrait
+      //   0.58–1.0      → iPad-ish (squarish)
+      //   > 1.0         → landscape / web
+      function deviceScale(d) {
         const r = d.w / d.h;
         if (r > 1.0)  return 2.2;   // landscape web screenshot
         if (r > 0.58) return 1.6;   // iPad portrait
@@ -437,15 +428,16 @@
       labelLayer.id = 'labels';
       pile.appendChild(labelLayer);
 
+      // one shuffled queue, no reordering — every card drops in random order
       const order = [...SKETCHES].sort(() => Math.random() - 0.5);
       pendingCards = order.map(f => {
         const d = DIMS[f] || { w: 900, h: 1840 };
-        const sc = deviceScale(d, f);
-        const w = Math.max(40, Math.min(sc >= 3 ? 600 : 260, Math.sqrt(targetArea * sc * sc * d.w / d.h)));
+        const sc = deviceScale(d);
+        const w = Math.max(40, Math.min(260, Math.sqrt(targetArea * sc * sc * d.w / d.h)));
         const h = w * (d.h / d.w);
         const name = labelFor(f);
         const el = document.createElement('div');
-        el.className = d.w > d.h ? 'card web' : 'card';
+        el.className = 'card';
         el.style.width = w + 'px';
         el.style.height = h + 'px';
         el.style.transform = `translate(${W / 2 - w / 2}px, ${-2 * h}px)`;
@@ -458,18 +450,8 @@
         const label = document.createElement('span');
         label.textContent = name; // whatever the file is named shows here
         labelLayer.appendChild(label);
-        return { el, w, h, label, isBig: sc >= 3 };
+        return { el, w, h, label };
       });
-      // drop order: anchor-left FIRST, one phone, then anchor-right — both
-      // land early and central, then the phones rain down and fill the gaps
-      // around them.
-      { const bigs   = pendingCards.filter(d =>  d.isBig);
-        const smalls = pendingCards.filter(d => !d.isBig);
-        const queue  = [];
-        if (bigs[0]) queue.push(bigs[0]);
-        if (smalls.length) queue.push(smalls.shift());
-        if (bigs[1]) queue.push(bigs[1]);
-        pendingCards = queue.concat(smalls); }
 
       // grabbing is a real spring constraint: cards dangle and swing from
       // wherever you pick them up, and fly when you let go
@@ -533,39 +515,26 @@
       requestAnimationFrame(step);
     }
 
-    let bigSpawned = 0;
     function spawnNext() {
       const def = pendingCards.shift();
 
-      // WHERE it enters from. Anchors enter just left / just right of centre
-      // and fall straight & flat; phones enter anywhere across the width with
-      // a little drift and tumble so they scatter naturally.
-      let spawnX, spawnVx, spawnSpin, startAngle;
-      if (def.isBig) {
-        spawnX     = innerWidth * (bigSpawned === 0 ? 0.36 : 0.64);
-        spawnVx    = 0;
-        spawnSpin  = 0;
-        startAngle = 0;
-        bigSpawned++;
-      } else {
-        spawnX     = innerWidth * (0.14 + 0.72 * Math.random());
-        spawnVx    = (Math.random() - 0.5) * 1.4;     // gentle sideways drift
-        spawnSpin  = (Math.random() - 0.5) * 0.05;    // a little tumble
-        startAngle = (Math.random() - 0.5) * 0.28;    // enters slightly cocked
-      }
+      // EVERY card enters the same way: anywhere across the width, with a little
+      // sideways drift and tumble so the pile scatters naturally. No exceptions.
+      const spawnX     = innerWidth * (0.14 + 0.72 * Math.random());
+      const spawnVx    = (Math.random() - 0.5) * 1.4;   // gentle sideways drift
+      const spawnSpin  = (Math.random() - 0.5) * 0.05;  // a little tumble
+      const startAngle = (Math.random() - 0.5) * 0.28;  // enters slightly cocked
 
       const body = Bodies.rectangle(
         spawnX, -def.h * 0.6,
         def.w + PAD * 2, def.h + PAD * 2,
         {
-          // ZERO bounce for everyone → energy dies on landing, no micro-rebound.
-          // Anchors are simply VERY heavy + grippy, so phones can't shove them
-          // off-centre — no per-frame forcing needed (that was the jitter).
+          // ONE material for every card — zero bounce so energy dies on landing.
           restitution:    0,
-          friction:       def.isBig ? 0.95 : 0.55,
-          frictionStatic: def.isBig ? 1.2  : 0.8,
-          frictionAir:    def.isBig ? 0.06 : 0.03,      // bleed off residual motion
-          density:        def.isBig ? 0.15 : 0.0012,    // anchors ≈ 120× heavier → immovable
+          friction:       0.55,
+          frictionStatic: 0.8,
+          frictionAir:    0.03,     // bleed off residual motion
+          density:        0.0012,
           angle:          startAngle,
           chamfer: { radius: Math.min(10, def.w * 0.08) }
         }
@@ -575,7 +544,7 @@
       body.slop = 1.2;
       body.sleepThreshold = 20;
 
-      Body.setVelocity(body, { x: spawnVx, y: 1.2 });   // same soft entry for all
+      Body.setVelocity(body, { x: spawnVx, y: 1.2 });
       Body.setAngularVelocity(body, spawnSpin);
       World.add(engine.world, body);
       cards.push({ ...def, body, scale: 1, target: 1 });
@@ -701,9 +670,6 @@
         }
       }
 
-      // (anchors are NOT poked every frame any more — that forcing is what
-      //  kept them awake and swept their corners through the neighbours. They
-      //  stay put passively now: 120× mass + zero bounce + the global freeze.)
       if (hoverCard) wakePile();   // any hover needs live physics for the grow
 
       // hover grows ONLY that phone, a little. Every other phone keeps its
@@ -786,8 +752,7 @@
         c.el.style.zIndex =
           c === opened ? 30 :
           b === draggedBody ? 20 :
-          c === hoverCard ? 15 :
-          c.isBig ? 14 : Math.round(c.scale * 12);
+          c === hoverCard ? 15 : Math.round(c.scale * 12);
         c.el.style.transform =
           `translate(${(b.position.x - c.w / 2).toFixed(2)}px, ${(b.position.y - c.h / 2).toFixed(2)}px) ` +
           `rotate(${b.angle.toFixed(4)}rad) scale(${c.scale.toFixed(4)})`;
