@@ -317,10 +317,15 @@
       if (e.key !== 'Enter') return;
       if (key.value === PASSWORD) {
         key.value = '';
-        key.blur();
         line.classList.add('gone');
+        // iOS keeps the keyboard up after a bare blur() called from the input's
+        // own keydown. Making the field readonly (+ disabled) first forces
+        // WebKit to actually dismiss it. 'gone' stops focusKey re-grabbing it.
+        key.readOnly = true;
+        key.blur();
         setTimeout(() => {
           document.body.classList.add('unlocked');
+          key.disabled = true;   // belt-and-suspenders: nothing can re-summon the keyboard
           // blank stage — the work showcase mounts here
           dispatchEvent(new CustomEvent('unlocked'));
         }, 450);
@@ -396,6 +401,7 @@
     let cards = [], pendingCards = [], walls = [];
     let opened = null, closing = null, downInfo = null, mousePos = null;
     let frames = 0, nextDrop = 0, leak = 0, openedAt = 0, cursorIdx = -1;
+    let lastW = 0, lastH = 0;   // viewport at last (re)build/resize — for live re-scaling
     // once the whole pile has been still for a beat we STOP simulating it
     // entirely (a frozen engine cannot jitter). Any interaction wakes it.
     let pileAsleep = false, calmFrames = 0;
@@ -447,6 +453,7 @@
 
     function start() {
       const W = innerWidth, H = innerHeight;
+      lastW = W; lastH = H;
       engine = Engine.create({
         // sleeping is ON: once a card stops moving it sleeps and is no longer
         // integrated — that is what makes a resting pile DEAD STILL (zero
@@ -945,11 +952,27 @@
       if (opened && performance.now() - openedAt > 250) close(opened);
     });
 
-    // a resize moves the walls and wakes the pile so it re-settles
+    // a resize re-scales the whole pile to the new viewport — cards GROW when
+    // the window grows and shrink when it shrinks — then moves the walls and
+    // wakes the pile so it re-settles into the new space.
     addEventListener('resize', () => {
-      if (!engine) return;
-      makeWalls(innerWidth, innerHeight);
-      for (const c of cards) Sleeping.set(c.body, false);
+      if (!engine || !lastW || !lastH) return;
+      const nw = innerWidth, nh = innerHeight;
+      const fx = nw / lastW, fy = nh / lastH;
+      const fs = Math.sqrt(fx * fy);   // uniform size factor (keeps every card's aspect)
+      if (Math.abs(fs - 1) > 0.004) {
+        leak *= fs;
+        for (const c of cards) {
+          c.w *= fs; c.h *= fs;
+          c.el.style.width = c.w + 'px';
+          c.el.style.height = c.h + 'px';
+          Body.scale(c.body, fs, fs);
+          Body.setPosition(c.body, { x: c.body.position.x * fx, y: c.body.position.y * fy });
+          Sleeping.set(c.body, false);
+        }
+      }
+      lastW = nw; lastH = nh;
+      makeWalls(nw, nh);
       wakePile();
     });
   })();
