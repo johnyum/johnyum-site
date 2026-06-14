@@ -195,18 +195,19 @@
   .nav:active { transform: translateY(-50%) scale(0.9); }
   .nav svg { width: 22px; height: 22px; display: block; }
   @media (prefers-reduced-motion: reduce) { .nav { transition: opacity 0.25s ease; } }
-  /* touch-only close button — top-right, matches the wm-bar's 16px inset.
-     display:none on desktop (pointer:fine) so the web version is untouched;
-     on touch devices it fades in whenever a design is open. */
+  .nav { touch-action: manipulation; }
+  /* touch-only close button — bottom-centre, 24px up from the edge. Same glass
+     as the arrows. display:none on desktop (pointer:fine) so the web version is
+     untouched; on touch devices it fades in whenever a design is open. */
   #navClose {
     position: fixed;
-    top: 16px; right: 16px;
+    bottom: 24px; left: 50%;
     width: 44px; height: 44px;
     border: 0; border-radius: 50%;
     display: none;
     place-items: center;
     color: #1d1d1f;
-    background: rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.45);
     -webkit-backdrop-filter: blur(16px) saturate(150%);
     backdrop-filter: blur(16px) saturate(150%);
     box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.7), 0 6px 22px rgba(0, 0, 0, 0.12);
@@ -214,13 +215,18 @@
     cursor: pointer;
     opacity: 0;
     pointer-events: none;
+    transform: translateX(-50%);
+    touch-action: manipulation;
     transition: opacity 0.3s ease;
   }
+  #navClose:active { transform: translateX(-50%) scale(0.92); }
   #navClose svg { width: 20px; height: 20px; display: block; }
   /* touch devices OR narrow viewports (phones); the wide desktop never matches */
   @media (pointer: coarse), (max-width: 768px) {
     #navClose { display: grid; }
     body.zoomcard #navClose { opacity: 1; pointer-events: auto; }
+    #navPrev { left: 16px; }
+    #navNext { right: 16px; }
   }
   /* the open design sits crisp above the glass with a soft neutral lift */
   #pile .card.opened { filter: drop-shadow(0 24px 60px rgba(60, 60, 64, 0.22)); }
@@ -235,7 +241,7 @@
     <div id="wordmark">John Yum</div>
     <div class="wm-pill">yum@johnyum.com</div>
   </div>
-  <input id="key" type="password" autocomplete="off" spellcheck="false" aria-label="Password">
+  <input id="key" type="password" autocomplete="off" autocapitalize="off" enterkeyhint="go" spellcheck="false" aria-label="Password">
   <div id="line" aria-hidden="true"><span id="dots"><span id="caret"></span></span></div>
   <div id="pile" aria-hidden="true"></div>
   <button class="nav" id="navPrev" aria-label="Previous project">
@@ -257,7 +263,9 @@
     let typingTimer;
 
     function focusKey() {
-      if (!document.body.classList.contains('unlocked')) key.focus();
+      // don't re-grab focus once the right password is in ('gone' = unlocking) —
+      // that's what let the mobile keyboard pop straight back up after Enter.
+      if (!document.body.classList.contains('unlocked') && !line.classList.contains('gone')) key.focus();
     }
     focusKey();
     // synchronous focus inside the gesture, so mobile taps summon the keyboard
@@ -872,9 +880,30 @@
     const navPrev = document.getElementById('navPrev');
     const navNext = document.getElementById('navNext');
     const navClose = document.getElementById('navClose');
-    if (navPrev) navPrev.addEventListener('click', e => { e.stopPropagation(); cycleSlide(-1); });
-    if (navNext) navNext.addEventListener('click', e => { e.stopPropagation(); cycleSlide(1); });
-    if (navClose) navClose.addEventListener('click', e => { e.stopPropagation(); if (opened) close(opened); });
+    // iOS Safari can swallow synthetic clicks on fixed overlay buttons over a
+    // backdrop-filter veil. Bind the action on touchend directly (preventDefault
+    // kills the ghost click AND stops the window swipe/close handlers from also
+    // firing), with click kept as the mouse/desktop path. `handled` stops the
+    // touch path from double-firing via the ghost click.
+    function onTap(el, fn) {
+      if (!el) return;
+      let handled = false;
+      el.addEventListener('touchend', e => {
+        handled = true;
+        e.preventDefault();
+        e.stopPropagation();
+        fn();
+        setTimeout(() => { handled = false; }, 500);
+      }, { passive: false });
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        if (handled) return;
+        fn();
+      });
+    }
+    onTap(navPrev, () => cycleSlide(-1));
+    onTap(navNext, () => cycleSlide(1));
+    onTap(navClose, () => { if (opened) close(opened); });
 
     addEventListener('keydown', e => {
       if (!document.body.classList.contains('unlocked')) return;
@@ -906,7 +935,8 @@
     // but a swipe must NOT close (it navigates). Decoupled from the physics
     // tap-handler (the engine is frozen while a design is open); the 250ms
     // guard skips the very click that opened the card.
-    addEventListener('click', () => {
+    addEventListener('click', e => {
+      if (e.target && e.target.closest && e.target.closest('.nav, #navClose')) return; // buttons handle themselves
       if (_swiped) { _swiped = false; return; }   // that gesture was a swipe → keep viewing
       if (opened && performance.now() - openedAt > 250) close(opened);
     });
