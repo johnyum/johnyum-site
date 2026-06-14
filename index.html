@@ -939,11 +939,14 @@
     // mobile swipe — a clear HORIZONTAL swipe cycles next/prev (left = next,
     // right = prev). We record whether the gesture was a swipe so the tap-to-
     // close handler below can ignore it (a swipe should navigate, not close).
-    let _tx = 0, _ty = 0, _swiped = false;
+    let _tx = 0, _ty = 0, _swiped = false, _pinching = false;
     addEventListener('touchstart', e => {
+      if (e.touches.length > 1) _pinching = true;   // a second finger → pinch, not swipe
       _tx = e.touches[0].clientX; _ty = e.touches[0].clientY; _swiped = false;
     }, { passive: true });
     addEventListener('touchend', e => {
+      if (e.touches.length === 0 && _pinching) { _pinching = false; return; } // that gesture was a pinch
+      if (_pinching) return;
       if (!document.body.classList.contains('unlocked')) return;
       // Swipe only navigates when a design is OPEN. In the pile a touch is a
       // drag (move the card) or a tap (open it) — Matter's mouse handles both;
@@ -957,6 +960,28 @@
         cycleSlide(dx < 0 ? 1 : -1);
       }
     }, { passive: true });
+
+    // pinch-to-zoom in carousel mode: pinch to magnify the open design, release
+    // to snap it back to original. The zoom is applied to the IMAGE inside the
+    // card (the card frame is positioned every frame by the physics render, so
+    // the image transform is a separate, independent layer). iOS Safari's native
+    // gesture* events (e.scale) are used when present, with a two-finger
+    // distance fallback for other touch browsers.
+    let pinchImg = null;
+    function pinchStart() { if (opened) { pinchImg = opened.el.querySelector('img'); if (pinchImg) pinchImg.style.transition = 'none'; } }
+    function pinchTo(z) { if (pinchImg) pinchImg.style.transform = 'scale(' + Math.max(1, Math.min(4, z)) + ')'; }
+    function pinchEnd() { if (pinchImg) { pinchImg.style.transition = 'transform 0.3s cubic-bezier(0.2,0.8,0.2,1)'; pinchImg.style.transform = ''; pinchImg = null; } }
+    if ('ongesturestart' in window) {
+      addEventListener('gesturestart',  e => { if (opened) { e.preventDefault(); pinchStart(); } }, { passive: false });
+      addEventListener('gesturechange', e => { if (pinchImg) { e.preventDefault(); pinchTo(e.scale); } }, { passive: false });
+      addEventListener('gestureend',    e => { if (pinchImg) { e.preventDefault(); pinchEnd(); } }, { passive: false });
+    } else {
+      let pinch0 = 0;
+      const dist = e => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      addEventListener('touchstart', e => { if (opened && e.touches.length === 2) { pinch0 = dist(e); pinchStart(); } }, { passive: false });
+      addEventListener('touchmove',  e => { if (pinchImg && e.touches.length === 2) { e.preventDefault(); pinchTo(dist(e) / pinch0); } }, { passive: false });
+      addEventListener('touchend',   e => { if (pinchImg && e.touches.length < 2) pinchEnd(); }, { passive: true });
+    }
 
     // in single-phone mode a TAP anywhere (or the X) returns to the cluster —
     // but a swipe must NOT close (it navigates). Decoupled from the physics
