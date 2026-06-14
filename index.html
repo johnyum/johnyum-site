@@ -379,6 +379,10 @@
     if (!window.Matter) return;
     const { Engine, World, Bodies, Body, Events, Mouse, MouseConstraint, Sleeping } = Matter;
     const DIR = 'img/Fresh_Work/';
+    // bump when the image files change — forces browsers past any cached copies
+    // (the old oversized images would otherwise stay cached and blow iOS's image
+    // memory budget, blanking designs in the carousel)
+    const IMGV = '?v=1000';
     // The pile is whatever PNGs the manifest lists — so just rename/add/
     // remove files in img/Fresh_Work and regenerate manifest.json;
     // no code changes needed. (Regenerate: from that folder run
@@ -394,7 +398,7 @@
           const img = new Image();
           img.onload  = () => { DIMS[f] = { w: img.naturalWidth, h: img.naturalHeight }; res(); };
           img.onerror = () => { DIMS[f] = { w: 900, h: 1840 }; res(); };
-          img.src = DIR + encodeURIComponent(f);
+          img.src = DIR + encodeURIComponent(f) + IMGV;
         })));
       })
       .catch(() => {});
@@ -528,7 +532,7 @@
         el.style.height = h + 'px';
         el.style.transform = `translate(${W / 2 - w / 2}px, ${-2 * h}px)`;
         const img = document.createElement('img');
-        img.src = DIR + encodeURIComponent(f);
+        img.src = DIR + encodeURIComponent(f) + IMGV;
         img.alt = name;
         el.appendChild(img);
         pile.appendChild(el);
