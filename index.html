@@ -195,6 +195,33 @@
   .nav:active { transform: translateY(-50%) scale(0.9); }
   .nav svg { width: 22px; height: 22px; display: block; }
   @media (prefers-reduced-motion: reduce) { .nav { transition: opacity 0.25s ease; } }
+  /* touch-only close button — top-right, matches the wm-bar's 16px inset.
+     display:none on desktop (pointer:fine) so the web version is untouched;
+     on touch devices it fades in whenever a design is open. */
+  #navClose {
+    position: fixed;
+    top: 16px; right: 16px;
+    width: 44px; height: 44px;
+    border: 0; border-radius: 50%;
+    display: none;
+    place-items: center;
+    color: #1d1d1f;
+    background: rgba(255, 255, 255, 0.55);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    backdrop-filter: blur(16px) saturate(150%);
+    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.7), 0 6px 22px rgba(0, 0, 0, 0.12);
+    z-index: 120;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  #navClose svg { width: 20px; height: 20px; display: block; }
+  /* touch devices OR narrow viewports (phones); the wide desktop never matches */
+  @media (pointer: coarse), (max-width: 768px) {
+    #navClose { display: grid; }
+    body.zoomcard #navClose { opacity: 1; pointer-events: auto; }
+  }
   /* the open design sits crisp above the glass with a soft neutral lift */
   #pile .card.opened { filter: drop-shadow(0 24px 60px rgba(60, 60, 64, 0.22)); }
   @media (prefers-reduced-motion: reduce) {
@@ -217,6 +244,9 @@
   <button class="nav" id="navNext" aria-label="Next project">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
   </button>
+  <button id="navClose" aria-label="Close design">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+  </button>
   <script>
   (() => {
     const PASSWORD = 'KnockKnock'; // client-side only: a curtain, not a lock
@@ -234,6 +264,21 @@
     addEventListener('pointerdown', focusKey);
     addEventListener('click', focusKey);
     key.addEventListener('blur', () => setTimeout(focusKey, 50));
+
+    // mobile: the on-screen keyboard shrinks the visual viewport. Lift the
+    // password line so the blinking caret stays centred in the space ABOVE the
+    // keyboard instead of hiding behind it. Inert on desktop (no keyboard →
+    // viewport never shrinks → transform stays empty).
+    if (window.visualViewport) {
+      const vv = window.visualViewport;
+      const liftLine = () => {
+        if (document.body.classList.contains('unlocked')) { line.style.transform = ''; return; }
+        const kb = window.innerHeight - vv.height - vv.offsetTop;   // keyboard height
+        line.style.transform = kb > 90 ? `translateY(${Math.round(-kb / 2)}px)` : '';
+      };
+      vv.addEventListener('resize', liftLine);
+      vv.addEventListener('scroll', liftLine);
+    }
 
     // the hidden input is a real text field — arrows, select-all, cut,
     // everything native works. This just draws its state: one dot per
@@ -826,8 +871,10 @@
 
     const navPrev = document.getElementById('navPrev');
     const navNext = document.getElementById('navNext');
+    const navClose = document.getElementById('navClose');
     if (navPrev) navPrev.addEventListener('click', e => { e.stopPropagation(); cycleSlide(-1); });
     if (navNext) navNext.addEventListener('click', e => { e.stopPropagation(); cycleSlide(1); });
+    if (navClose) navClose.addEventListener('click', e => { e.stopPropagation(); if (opened) close(opened); });
 
     addEventListener('keydown', e => {
       if (!document.body.classList.contains('unlocked')) return;
@@ -836,22 +883,31 @@
       else if (e.key === 'ArrowRight') { opened ? cycleSlide(1)  : openRandom(1);  }
     });
 
-    // mobile swipe — left swipe = next (slide from right), right swipe = prev
-    let _tx = 0;
-    addEventListener('touchstart', e => { _tx = e.touches[0].clientX; }, { passive: true });
+    // mobile swipe — a clear HORIZONTAL swipe cycles next/prev (left = next,
+    // right = prev). We record whether the gesture was a swipe so the tap-to-
+    // close handler below can ignore it (a swipe should navigate, not close).
+    let _tx = 0, _ty = 0, _swiped = false;
+    addEventListener('touchstart', e => {
+      _tx = e.touches[0].clientX; _ty = e.touches[0].clientY; _swiped = false;
+    }, { passive: true });
     addEventListener('touchend', e => {
       if (!document.body.classList.contains('unlocked')) return;
       const dx = e.changedTouches[0].clientX - _tx;
-      if (Math.abs(dx) < 55) return;
-      const dir = dx < 0 ? 1 : -1;
-      opened ? cycleSlide(dir) : openRandom(dir);
+      const dy = e.changedTouches[0].clientY - _ty;
+      // horizontal, far enough, and more sideways than vertical → it's a swipe
+      if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        _swiped = true;
+        const dir = dx < 0 ? 1 : -1;
+        opened ? cycleSlide(dir) : openRandom(dir);
+      }
     }, { passive: true });
 
-    // in single-phone mode a tap ANYWHERE returns to the cluster. This is
-    // decoupled from the physics tap-handler (the engine — and with it
-    // Matter's mouse events — is frozen while a design is open). The short
+    // in single-phone mode a TAP anywhere (or the X) returns to the cluster —
+    // but a swipe must NOT close (it navigates). Decoupled from the physics
+    // tap-handler (the engine is frozen while a design is open); the 250ms
     // guard skips the very click that opened the card.
     addEventListener('click', () => {
+      if (_swiped) { _swiped = false; return; }   // that gesture was a swipe → keep viewing
       if (opened && performance.now() - openedAt > 250) close(opened);
     });
 
