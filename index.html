@@ -424,6 +424,13 @@
         return 1.0;                  // phone portrait
       }
 
+      // PURELY a size hint — these two render at 2×. Same physics as everything
+      // else (same material, drop, freeze); only their geometry is bigger.
+      function sizeBoost(name) {
+        const n = name.toLowerCase();
+        return (n.includes('trip creator') || (n.includes('calendar') && n.includes('web'))) ? 2 : 1;
+      }
+
       labelLayer = document.createElement('div');
       labelLayer.id = 'labels';
       pile.appendChild(labelLayer);
@@ -433,9 +440,10 @@
       pendingCards = order.map(f => {
         const d = DIMS[f] || { w: 900, h: 1840 };
         const sc = deviceScale(d);
-        const w = Math.max(40, Math.min(260, Math.sqrt(targetArea * sc * sc * d.w / d.h)));
-        const h = w * (d.h / d.w);
         const name = labelFor(f);
+        const boost = sizeBoost(name);
+        const w = Math.max(40, Math.min(260, Math.sqrt(targetArea * sc * sc * d.w / d.h))) * boost;
+        const h = w * (d.h / d.w);
         const el = document.createElement('div');
         el.className = 'card';
         el.style.width = w + 'px';
