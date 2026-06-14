@@ -419,6 +419,7 @@
     // entirely (a frozen engine cannot jitter). Any interaction wakes it.
     let pileAsleep = false, calmFrames = 0;
     function wakePile() { pileAsleep = false; calmFrames = 0; }
+    let _resetZoom = null;   // set up by the carousel touch model; clears a card's pinch-zoom
 
     // a card sits exactly where its body is — no lens, so a phone's size
     // is never changed by what its neighbours are doing
@@ -675,6 +676,7 @@
     }
     // toDir: 1 = slide out right, -1 = slide out left, 0/undefined = return to pile
     function close(card, toDir, keepVeil) {
+      if (_resetZoom) _resetZoom(false);   // clear any pinch-zoom on the outgoing card (opened still set here)
       opened = null;
       closing = card;
       closing.slideDir = toDir || 0;
@@ -936,52 +938,76 @@
       else if (e.key === 'ArrowRight') { opened ? cycleSlide(1)  : openRandom(1);  }
     });
 
-    // mobile swipe — a clear HORIZONTAL swipe cycles next/prev (left = next,
-    // right = prev). We record whether the gesture was a swipe so the tap-to-
-    // close handler below can ignore it (a swipe should navigate, not close).
+    // ===== carousel touch model (mobile) =====
+    //  • pinch (2 fingers) zooms AND pans the open design, and STAYS put when
+    //    you release (no snap-back) — pinch back near 1× to reset.
+    //  • while zoomed, a one-finger drag pans (see the left/right of the design).
+    //  • when NOT zoomed, a one-finger horizontal swipe cycles next/prev.
+    //  • navigating or closing always resets the zoom.
+    // The zoom/pan is applied to the IMAGE inside the card (the card frame is
+    // positioned every frame by the physics render, so the image transform is a
+    // separate, independent layer).
     let _tx = 0, _ty = 0, _swiped = false, _pinching = false;
+    let zoom = 1, panX = 0, panY = 0;
+    let _p0x = 0, _p0y = 0, _pbX = 0, _pbY = 0;   // one-finger pan start/base
+    function zImg() { return opened ? opened.el.querySelector('img') : null; }
+    function applyZoom() { const im = zImg(); if (im) { im.style.transition = 'none'; im.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')'; } }
+    function resetZoom(animate) {
+      const im = zImg();
+      if (im) { im.style.transition = animate ? 'transform 0.3s cubic-bezier(0.2,0.8,0.2,1)' : 'none'; im.style.transform = ''; }
+      zoom = 1; panX = 0; panY = 0;
+    }
+    // expose so cycleSlide/close can clear the zoom on the outgoing card
+    _resetZoom = resetZoom;
+
+    // pinch via iOS Safari gesture events (scale + the gesture-centre for pan)
+    if ('ongesturestart' in window) {
+      let bz = 1, bpx = 0, bpy = 0, gx = 0, gy = 0;
+      addEventListener('gesturestart', e => {
+        if (!opened) return; e.preventDefault(); _pinching = true;
+        bz = zoom; bpx = panX; bpy = panY; gx = e.clientX; gy = e.clientY;
+      }, { passive: false });
+      addEventListener('gesturechange', e => {
+        if (!opened || !_pinching) return; e.preventDefault();
+        zoom = Math.max(1, Math.min(5, bz * e.scale));
+        panX = bpx + (e.clientX - gx); panY = bpy + (e.clientY - gy);
+        applyZoom();
+      }, { passive: false });
+      addEventListener('gestureend', e => {
+        if (!_pinching) return; e.preventDefault(); _pinching = false;
+        if (zoom <= 1.05) resetZoom(true);   // pinched back out → snap fully clean
+      }, { passive: false });
+    }
+
     addEventListener('touchstart', e => {
-      if (e.touches.length > 1) _pinching = true;   // a second finger → pinch, not swipe
+      if (e.touches.length > 1) { _pinching = true; return; }   // 2 fingers → pinch
       _tx = e.touches[0].clientX; _ty = e.touches[0].clientY; _swiped = false;
+      _p0x = _tx; _p0y = _ty; _pbX = panX; _pbY = panY;          // seed one-finger pan
     }, { passive: true });
+
+    // one-finger pan while zoomed (non-passive so we can stop native scrolling)
+    addEventListener('touchmove', e => {
+      if (opened && zoom > 1 && !_pinching && e.touches.length === 1) {
+        panX = _pbX + (e.touches[0].clientX - _p0x);
+        panY = _pbY + (e.touches[0].clientY - _p0y);
+        applyZoom();
+        e.preventDefault();
+      }
+    }, { passive: false });
+
     addEventListener('touchend', e => {
-      if (e.touches.length === 0 && _pinching) { _pinching = false; return; } // that gesture was a pinch
+      if (e.touches.length === 0 && _pinching) { _pinching = false; return; }
       if (_pinching) return;
-      if (!document.body.classList.contains('unlocked')) return;
-      // Swipe only navigates when a design is OPEN. In the pile a touch is a
-      // drag (move the card) or a tap (open it) — Matter's mouse handles both;
-      // treating a pile drag as a swipe was opening a random card mid-drag.
-      if (!opened) return;
+      if (!document.body.classList.contains('unlocked') || !opened) return;
+      if (zoom > 1) return;   // zoomed → that one-finger move was a pan, not a swipe
       const dx = e.changedTouches[0].clientX - _tx;
       const dy = e.changedTouches[0].clientY - _ty;
-      // horizontal, far enough, and more sideways than vertical → it's a swipe
+      // horizontal, far enough, and more sideways than vertical → swipe to cycle
       if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) {
         _swiped = true;
         cycleSlide(dx < 0 ? 1 : -1);
       }
     }, { passive: true });
-
-    // pinch-to-zoom in carousel mode: pinch to magnify the open design, release
-    // to snap it back to original. The zoom is applied to the IMAGE inside the
-    // card (the card frame is positioned every frame by the physics render, so
-    // the image transform is a separate, independent layer). iOS Safari's native
-    // gesture* events (e.scale) are used when present, with a two-finger
-    // distance fallback for other touch browsers.
-    let pinchImg = null;
-    function pinchStart() { if (opened) { pinchImg = opened.el.querySelector('img'); if (pinchImg) pinchImg.style.transition = 'none'; } }
-    function pinchTo(z) { if (pinchImg) pinchImg.style.transform = 'scale(' + Math.max(1, Math.min(4, z)) + ')'; }
-    function pinchEnd() { if (pinchImg) { pinchImg.style.transition = 'transform 0.3s cubic-bezier(0.2,0.8,0.2,1)'; pinchImg.style.transform = ''; pinchImg = null; } }
-    if ('ongesturestart' in window) {
-      addEventListener('gesturestart',  e => { if (opened) { e.preventDefault(); pinchStart(); } }, { passive: false });
-      addEventListener('gesturechange', e => { if (pinchImg) { e.preventDefault(); pinchTo(e.scale); } }, { passive: false });
-      addEventListener('gestureend',    e => { if (pinchImg) { e.preventDefault(); pinchEnd(); } }, { passive: false });
-    } else {
-      let pinch0 = 0;
-      const dist = e => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-      addEventListener('touchstart', e => { if (opened && e.touches.length === 2) { pinch0 = dist(e); pinchStart(); } }, { passive: false });
-      addEventListener('touchmove',  e => { if (pinchImg && e.touches.length === 2) { e.preventDefault(); pinchTo(dist(e) / pinch0); } }, { passive: false });
-      addEventListener('touchend',   e => { if (pinchImg && e.touches.length < 2) pinchEnd(); }, { passive: true });
-    }
 
     // in single-phone mode a TAP anywhere (or the X) returns to the cluster —
     // but a swipe must NOT close (it navigates). Decoupled from the physics
@@ -990,6 +1016,7 @@
     addEventListener('click', e => {
       if (e.target && e.target.closest && e.target.closest('.nav, #navClose')) return; // buttons handle themselves
       if (_swiped) { _swiped = false; return; }   // that gesture was a swipe → keep viewing
+      if (opened && zoom > 1) { resetZoom(true); return; }   // tap while zoomed → zoom back out, stay in the carousel
       if (opened && performance.now() - openedAt > 250) close(opened);
     });
 
