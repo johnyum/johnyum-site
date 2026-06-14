@@ -664,17 +664,21 @@
         }
       }
 
-      // pin settled big cards each frame: zero out velocity so collisions can't jitter them
-      // (stays dynamic so MouseConstraint can still drag them)
+      // hard-lock settled big cards: restore saved position+angle every frame
+      // so collision solver can never nudge them (velocity-zero alone isn't enough)
       for (const c of cards) {
         if (!c.isBig || c === opened || c.body === draggedBody) continue;
         const b = c.body, v = b.velocity;
         if (!c.isSettled) {
           if (Math.abs(v.x) < 0.2 && Math.abs(v.y) < 0.2 && Math.abs(b.angularVelocity) < 0.01) {
             c.isSettled = true;
+            c.settledPos = { x: b.position.x, y: b.position.y };
+            c.settledAngle = b.angle;
           }
         }
         if (c.isSettled) {
+          Body.setPosition(b, c.settledPos);
+          Body.setAngle(b, c.settledAngle);
           Body.setVelocity(b, { x: 0, y: 0 });
           Body.setAngularVelocity(b, 0);
         }
