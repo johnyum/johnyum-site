@@ -380,9 +380,14 @@
     const { Engine, World, Bodies, Body, Events, Mouse, MouseConstraint, Sleeping } = Matter;
     const DIR = 'img/Fresh_Work/';
     // bump when the image files change — forces browsers past any cached copies
-    // (the old oversized images would otherwise stay cached and blow iOS's image
-    // memory budget, blanking designs in the carousel)
-    const IMGV = '?v=1000';
+    const IMGV = '?v=2';
+    // Memory-constrained phones load a SMALLER image set (the m/ subfolder, ≤900px)
+    // so the total decoded image memory stays well under iOS Safari's budget —
+    // that budget being blown by the huge originals is what blanked the designs in
+    // the carousel. Desktop loads the full-quality set. Aspect ratios are identical,
+    // so card sizing is unaffected. The manifest always lives in the main folder.
+    const IS_MOBILE = matchMedia('(pointer: coarse)').matches || innerWidth < 820;
+    const IMGDIR = DIR + (IS_MOBILE ? 'm/' : '');
     // The pile is whatever PNGs the manifest lists — so just rename/add/
     // remove files in img/Fresh_Work and regenerate manifest.json;
     // no code changes needed. (Regenerate: from that folder run
@@ -398,7 +403,7 @@
           const img = new Image();
           img.onload  = () => { DIMS[f] = { w: img.naturalWidth, h: img.naturalHeight }; res(); };
           img.onerror = () => { DIMS[f] = { w: 900, h: 1840 }; res(); };
-          img.src = DIR + encodeURIComponent(f) + IMGV;
+          img.src = IMGDIR + encodeURIComponent(f) + IMGV;
         })));
       })
       .catch(() => {});
@@ -532,7 +537,7 @@
         el.style.height = h + 'px';
         el.style.transform = `translate(${W / 2 - w / 2}px, ${-2 * h}px)`;
         const img = document.createElement('img');
-        img.src = DIR + encodeURIComponent(f) + IMGV;
+        img.src = IMGDIR + encodeURIComponent(f) + IMGV;
         img.alt = name;
         el.appendChild(img);
         pile.appendChild(el);
@@ -850,9 +855,23 @@
           c === closing ? 29 :          // outgoing sits just under the incoming during a cycle
           b === draggedBody ? 20 :
           c === hoverCard ? 15 : Math.round(c.scale * 12);
-        c.el.style.transform =
-          `translate(${(b.position.x - c.w / 2).toFixed(2)}px, ${(b.position.y - c.h / 2).toFixed(2)}px) ` +
-          `rotate(${b.angle.toFixed(4)}rad) scale(${c.scale.toFixed(4)})`;
+        if (c === opened || c === closing) {
+          // The opened/closing card is rendered at its REAL pixel size (element
+          // sized to the display dimensions, scale 1) instead of CSS-scaling a
+          // tiny pile element up ~7×. That keeps the image crisp AND avoids iOS
+          // Safari blanking a hard-scaled compositing layer (the bug that made
+          // phone-shaped designs vanish in the carousel).
+          const dw = c.w * c.scale, dh = c.h * c.scale;
+          if (c.el._dw !== dw) { c.el.style.width = dw + 'px'; c.el.style.height = dh + 'px'; c.el._dw = dw; }
+          c.el.style.transform =
+            `translate(${(b.position.x - dw / 2).toFixed(2)}px, ${(b.position.y - dh / 2).toFixed(2)}px) ` +
+            `rotate(${b.angle.toFixed(4)}rad)`;
+        } else {
+          if (c.el._dw != null) { c.el.style.width = c.w + 'px'; c.el.style.height = c.h + 'px'; c.el._dw = null; }
+          c.el.style.transform =
+            `translate(${(b.position.x - c.w / 2).toFixed(2)}px, ${(b.position.y - c.h / 2).toFixed(2)}px) ` +
+            `rotate(${b.angle.toFixed(4)}rad) scale(${c.scale.toFixed(4)})`;
+        }
       }
 
       // descriptor: when a card is open it lives at the top pill bar position
