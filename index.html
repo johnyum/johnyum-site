@@ -385,7 +385,7 @@
         const angle = Math.atan(amp * k * Math.cos(k * cx));
         walls.push(Bodies.rectangle(cx, cy, segW + 2, t, {
           isStatic: true, angle,
-          friction: 0.85, frictionStatic: 1.0, restitution: 0.04  // strong grip: land & STAY put
+          friction: 0.4, frictionStatic: 0.5, restitution: 0  // low grip: cards slide along & pack
         }));
       }
 
@@ -403,7 +403,7 @@
         positionIterations: 16,   // resolve the dense pile faster → settles sooner
         velocityIterations: 10
       });
-      engine.gravity.y = 0.5;   // one consistent fall — gentle, so a settled pile isn't squeezed
+      engine.gravity.y = 1.0;   // strong enough to drag cards down INTO the gaps and pack tight
 
       // base area for a phone; iPad and web scale up proportionally to
       // their real-world footprint (iPad ≈ 1.6×, web/landscape ≈ 2.2×).
@@ -541,11 +541,13 @@
         spawnX, -def.h * 0.6,
         def.w + PAD * 2, def.h + PAD * 2,
         {
-          // ONE material for every card — zero bounce so energy dies on landing.
+          // ONE material for every card — zero bounce, LOW friction so cards
+          // slide over each other and settle DOWN into the gaps instead of
+          // grabbing and hanging where they first touch.
           restitution:    0,
-          friction:       0.55,
-          frictionStatic: 0.8,
-          frictionAir:    0.03,     // bleed off residual motion
+          friction:       0.18,
+          frictionStatic: 0.25,
+          frictionAir:    0.008,    // very light damping — keep sliding until truly settled
           density:        0.0012,
           angle:          startAngle,
           chamfer: { radius: Math.min(10, def.w * 0.08) }
@@ -729,7 +731,7 @@
           // it still grows and pushes, it just doesn't drift off
           if (c === hoverCard) { Body.setVelocity(b, { x: 0, y: 0 }); Body.setAngularVelocity(b, 0); continue; }
           // one speed cap for everything (larger only while you're dragging it)
-          const cap = b === draggedBody ? 24 : 6;
+          const cap = b === draggedBody ? 24 : 11;
           const v = b.velocity;
           const sp = Math.hypot(v.x, v.y);
           if (sp > cap) Body.setVelocity(b, { x: v.x / sp * cap, y: v.y / sp * cap });
@@ -746,13 +748,13 @@
         }
 
         // settle detector. While nothing is dropping / dragged / hovered:
-        //  • if the busiest body is barely moving for ~½ s → FREEZE.
-        //  • even if it's still faintly twitching, force the freeze after ~4 s
-        //    so the pile ALWAYS ends up dead still (freezes in place, mid-pose).
+        //  • freeze only once the busiest body is REALLY still (tight threshold
+        //    so it can't freeze mid-settle, leaving floating gaps) for ~½ s.
+        //  • hard fallback after ~8 s so it always ends up dead still eventually.
         const quiet = pendingCards.length === 0 && !closing && !draggedBody && !hoverCard;
         if (quiet) {
           calmFrames++;
-          if (maxMotion < 0.35 ? calmFrames > 30 : calmFrames > 240) pileAsleep = true;
+          if (maxMotion < 0.12 ? calmFrames > 35 : calmFrames > 480) pileAsleep = true;
         } else {
           calmFrames = 0;
         }
