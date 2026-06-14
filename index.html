@@ -343,6 +343,10 @@
     let cards = [], pendingCards = [], walls = [];
     let opened = null, closing = null, downInfo = null, mousePos = null;
     let frames = 0, nextDrop = 0, leak = 0, openedAt = 0, cursorIdx = -1;
+    // once the whole pile has been still for a beat we STOP simulating it
+    // entirely (a frozen engine cannot jitter). Any interaction wakes it.
+    let pileAsleep = false, calmFrames = 0;
+    function wakePile() { pileAsleep = false; calmFrames = 0; }
 
     // a card sits exactly where its body is — no lens, so a phone's size
     // is never changed by what its neighbours are doing
@@ -396,10 +400,10 @@
         // jitter). Anything that must move again (a drag, a hover-grow, a
         // neighbour landing on it) wakes only the bodies it touches.
         enableSleeping: true,
-        positionIterations: 12,
-        velocityIterations: 8
+        positionIterations: 16,   // resolve the dense pile faster → settles sooner
+        velocityIterations: 10
       });
-      engine.gravity.y = 0.62;   // one consistent fall for every card
+      engine.gravity.y = 0.5;   // one consistent fall — gentle, so a settled pile isn't squeezed
 
       // base area for a phone; iPad and web scale up proportionally to
       // their real-world footprint (iPad ≈ 1.6×, web/landscape ≈ 2.2×)
@@ -491,6 +495,7 @@
         mouseCon.constraint.bodyB = c.body;
         mouseCon.body = c.body;
         Sleeping.set(c.body, false);
+        wakePile();   // grabbing a card needs live physics again
       });
 
       Events.on(mouseCon, 'mousedown', () => {
@@ -553,28 +558,33 @@
         spawnX, -def.h * 0.6,
         def.w + PAD * 2, def.h + PAD * 2,
         {
-          // ONE consistent material for phones; a heavier, grippier one for the
-          // two anchors so a falling phone can never knock them out of place.
-          restitution:    def.isBig ? 0.0  : 0.12,
+          // ZERO bounce for everyone → energy dies on landing, no micro-rebound.
+          // Anchors are simply VERY heavy + grippy, so phones can't shove them
+          // off-centre — no per-frame forcing needed (that was the jitter).
+          restitution:    0,
           friction:       def.isBig ? 0.95 : 0.55,
           frictionStatic: def.isBig ? 1.2  : 0.8,
-          frictionAir:    def.isBig ? 0.05 : 0.02,
-          density:        def.isBig ? 0.05 : 0.0012,   // anchors ≈ 40× heavier
+          frictionAir:    def.isBig ? 0.06 : 0.03,      // bleed off residual motion
+          density:        def.isBig ? 0.15 : 0.0012,    // anchors ≈ 120× heavier → immovable
           angle:          startAngle,
           chamfer: { radius: Math.min(10, def.w * 0.08) }
         }
       );
-      // sleep a touch sooner than Matter's default so the pile goes still fast
-      body.sleepThreshold = 24;
+      // bigger slop = tolerate a hair of overlap instead of fighting it (key
+      // anti-jitter knob); sleep sooner than Matter's default so it goes still fast
+      body.slop = 1.2;
+      body.sleepThreshold = 20;
 
       Body.setVelocity(body, { x: spawnVx, y: 1.2 });   // same soft entry for all
       Body.setAngularVelocity(body, spawnSpin);
       World.add(engine.world, body);
       cards.push({ ...def, body, scale: 1, target: 1 });
       nextDrop = frames + 12;                            // even cadence, no burst
+      wakePile();                                        // a new card needs the engine running
     }
 
     function handleTap(card) {
+      wakePile();   // opening / closing / sliding all move bodies → need live physics
       if (closing && !closing.slideDir) finishClose();
       if (!card) { if (opened) close(opened); return; }
       if (card === opened) { close(card); return; }
@@ -691,19 +701,10 @@
         }
       }
 
-      // Keep the two anchors planted. Every frame we zero their HORIZONTAL
-      // velocity and spin so the avalanche of phones can't shove them off
-      // their central drop-spot — but we never touch their position (that
-      // hard snap is what caused the old jitter). Result: they fall straight
-      // down, stay upright & central, stay dynamic (still draggable/openable).
-      for (const c of cards) {
-        if (!c.isBig || c === opened || c === closing || c.body === draggedBody) continue;
-        const b = c.body;
-        if (b.isSleeping) continue;
-        Body.setVelocity(b, { x: 0, y: Math.max(0, b.velocity.y) }); // fall, never drift
-        Body.setAngularVelocity(b, 0);                               // never spin
-        if (Math.abs(b.angle) > 0.001) Body.setAngle(b, b.angle * 0.6); // ease upright
-      }
+      // (anchors are NOT poked every frame any more — that forcing is what
+      //  kept them awake and swept their corners through the neighbours. They
+      //  stay put passively now: 120× mass + zero bounce + the global freeze.)
+      if (hoverCard) wakePile();   // any hover needs live physics for the grow
 
       // hover grows ONLY that phone, a little. Every other phone keeps its
       // own size — the growth just leans on them through real physics.
@@ -733,13 +734,16 @@
         }
       }
 
-      // freeze only while fully open; the close animation runs live
-      if (!frozen) {
+      // Run physics ONLY while the pile is awake (and no card is fully open).
+      // Once everything has been still for a beat we set pileAsleep and skip
+      // Engine.update entirely — a frozen engine is, by definition, jitter-free.
+      if (!frozen && !pileAsleep) {
         // two half-steps per frame: bodies travel half as far between
         // solver passes, so penetration never gets a chance to build
         Engine.update(engine, 1000 / 120);
         Engine.update(engine, 1000 / 120);
 
+        let maxMotion = 0;
         for (const c of cards) {
           const b = c.body;
           if (b.isStatic || b.isSleeping) continue;   // asleep = at rest, leave it be
@@ -760,6 +764,19 @@
             Body.setAngle(b, Math.sign(a) * MAX_TILT);
             Body.setAngularVelocity(b, b.angularVelocity * 0.25);
           }
+          maxMotion = Math.max(maxMotion, sp, Math.abs(b.angularVelocity) * 40);
+        }
+
+        // settle detector. While nothing is dropping / dragged / hovered:
+        //  • if the busiest body is barely moving for ~½ s → FREEZE.
+        //  • even if it's still faintly twitching, force the freeze after ~4 s
+        //    so the pile ALWAYS ends up dead still (freezes in place, mid-pose).
+        const quiet = pendingCards.length === 0 && !closing && !draggedBody && !hoverCard;
+        if (quiet) {
+          calmFrames++;
+          if (maxMotion < 0.35 ? calmFrames > 30 : calmFrames > 240) pileAsleep = true;
+        } else {
+          calmFrames = 0;
         }
       }
 
@@ -801,6 +818,7 @@
     // cycle while a card is open — old slides out, new slides in
     function cycleSlide(dir) {
       if (!cards.length) return;
+      wakePile();
       if (closing) finishClose();
       cursorIdx = (cursorIdx + dir + cards.length) % cards.length;
       const next = cards[cursorIdx];
@@ -812,6 +830,7 @@
     // pick a random visible card from the pile and slide it centre
     function openRandom(dir) {
       if (!cards.length) return;
+      wakePile();
       if (closing) finishClose();
       const W = innerWidth, H = innerHeight;
       const pool = cards.filter(c =>
@@ -862,6 +881,7 @@
       if (!engine) return;
       makeWalls(innerWidth, innerHeight);
       for (const c of cards) Sleeping.set(c.body, false);
+      wakePile();
     });
   })();
   </script>
