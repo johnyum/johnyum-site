@@ -686,13 +686,16 @@
       const frozen = !!opened;
       if (!frozen && !closing && pendingCards.length && frames >= nextDrop) spawnNext();
 
-      // an opened card is a static ghost that lerps to centre over the
-      // veil — perfectly smooth, and the pile never feels a thing
+      // an opened card is a static ghost that lerps to centre over the veil.
+      // When it's sliding in during a swipe/cycle it rushes in FAST (0.2) so it
+      // covers the centre before the outgoing card has left — no blank flash.
+      // Opening straight from the pile keeps the gentler 0.085 fly-in.
       if (opened) {
         const b = opened.body;
+        const k = opened.slideOpened ? 0.2 : 0.085;
         Body.setPosition(b, {
-          x: b.position.x + (innerWidth / 2 - b.position.x) * 0.085,
-          y: b.position.y + (innerHeight / 2 - b.position.y) * 0.085
+          x: b.position.x + (innerWidth / 2 - b.position.x) * k,
+          y: b.position.y + (innerHeight / 2 - b.position.y) * k
         });
         Body.setAngle(b, b.angle * 0.88);
       }
@@ -704,7 +707,7 @@
           const csw = closing.w * closing.scale;
           const tx = closing.slideDir > 0 ? innerWidth + csw : -csw;
           Body.setPosition(b, {
-            x: b.position.x + (tx - b.position.x) * 0.14,
+            x: b.position.x + (tx - b.position.x) * 0.1,   // outgoing lingers (slower) so it covers centre until the incoming arrives
             y: b.position.y + (innerHeight / 2 - b.position.y) * 0.1
           });
           Body.setAngle(b, b.angle * 0.9);
@@ -818,6 +821,7 @@
         const b = c.body;
         c.el.style.zIndex =
           c === opened ? 30 :
+          c === closing ? 29 :          // outgoing sits just under the incoming during a cycle
           b === draggedBody ? 20 :
           c === hoverCard ? 15 : Math.round(c.scale * 12);
         c.el.style.transform =
