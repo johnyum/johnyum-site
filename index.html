@@ -932,13 +932,16 @@
     }, { passive: true });
     addEventListener('touchend', e => {
       if (!document.body.classList.contains('unlocked')) return;
+      // Swipe only navigates when a design is OPEN. In the pile a touch is a
+      // drag (move the card) or a tap (open it) — Matter's mouse handles both;
+      // treating a pile drag as a swipe was opening a random card mid-drag.
+      if (!opened) return;
       const dx = e.changedTouches[0].clientX - _tx;
       const dy = e.changedTouches[0].clientY - _ty;
       // horizontal, far enough, and more sideways than vertical → it's a swipe
       if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) {
         _swiped = true;
-        const dir = dx < 0 ? 1 : -1;
-        opened ? cycleSlide(dir) : openRandom(dir);
+        cycleSlide(dx < 0 ? 1 : -1);
       }
     }, { passive: true });
 
@@ -958,18 +961,24 @@
     addEventListener('resize', () => {
       if (!engine || !lastW || !lastH) return;
       const nw = innerWidth, nh = innerHeight;
+      if (nw < 200 || nh < 200) return;   // ignore transient/degenerate sizes (mobile can briefly report ~0)
+      // ONLY re-scale on a real WIDTH change (desktop resize / device rotation).
+      // Mobile browsers fire resize constantly as the URL bar hides/shows — that
+      // is a height-only change and must NOT rescale the pile (it was zeroing
+      // the cards). On a height-only change just keep the floor under the pile.
+      if (Math.abs(nw - lastW) < 4) { lastH = nh; makeWalls(nw, nh); wakePile(); return; }
       const fx = nw / lastW, fy = nh / lastH;
-      const fs = Math.sqrt(fx * fy);   // uniform size factor (keeps every card's aspect)
-      if (Math.abs(fs - 1) > 0.004) {
-        leak *= fs;
-        for (const c of cards) {
-          c.w *= fs; c.h *= fs;
-          c.el.style.width = c.w + 'px';
-          c.el.style.height = c.h + 'px';
-          Body.scale(c.body, fs, fs);
-          Body.setPosition(c.body, { x: c.body.position.x * fx, y: c.body.position.y * fy });
-          Sleeping.set(c.body, false);
-        }
+      let fs = Math.sqrt(fx * fy);
+      if (!isFinite(fs) || fs <= 0) { lastW = nw; lastH = nh; return; }
+      fs = Math.max(0.5, Math.min(2, fs));   // clamp per-event so one bad value can never nuke the pile
+      leak *= fs;
+      for (const c of cards) {
+        c.w *= fs; c.h *= fs;
+        c.el.style.width = c.w + 'px';
+        c.el.style.height = c.h + 'px';
+        Body.scale(c.body, fs, fs);
+        Body.setPosition(c.body, { x: c.body.position.x * fx, y: c.body.position.y * fy });
+        Sleeping.set(c.body, false);
       }
       lastW = nw; lastH = nh;
       makeWalls(nw, nh);
