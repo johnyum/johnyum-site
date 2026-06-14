@@ -369,7 +369,10 @@
       const totalW = W + reach * 2;
       const N = 20;
       const segW = totalW / N;
-      const amp = 38;   // wave height — bigger = more lean variation
+      // Gentle wave only (≈10° max slope) so the heavy anchors can't slide
+      // downhill into the corners — they grip where they land and stay central.
+      // Phone leans come from propping against each other, not from the floor.
+      const amp = 9;    // wave height — bigger = more lean variation
       const freq = 2.5; // waves across the screen
       const k = (freq * 2 * Math.PI) / totalW;
       for (let i = 0; i < N; i++) {
@@ -378,7 +381,7 @@
         const angle = Math.atan(amp * k * Math.cos(k * cx));
         walls.push(Bodies.rectangle(cx, cy, segW + 2, t, {
           isStatic: true, angle,
-          friction: 0.55, restitution: 0.08
+          friction: 0.85, frictionStatic: 1.0, restitution: 0.04  // strong grip: land & STAY put
         }));
       }
 
@@ -388,15 +391,15 @@
     function start() {
       const W = innerWidth, H = innerHeight;
       engine = Engine.create({
-        // sleeping is OFF: with physical hover-push the solver must stay
-        // active so contacts always resolve (a sleeping pair could jam
-        // mid-overlap). Friction + the speed cap keep the pile calm; open
-        // mode is frozen separately by skipping Engine.update.
-        enableSleeping: false,
-        positionIterations: 14,   // strong non-penetration solving
-        velocityIterations: 10
+        // sleeping is ON: once a card stops moving it sleeps and is no longer
+        // integrated — that is what makes a resting pile DEAD STILL (zero
+        // jitter). Anything that must move again (a drag, a hover-grow, a
+        // neighbour landing on it) wakes only the bodies it touches.
+        enableSleeping: true,
+        positionIterations: 12,
+        velocityIterations: 8
       });
-      engine.gravity.y = 0.45;   // floaty
+      engine.gravity.y = 0.62;   // one consistent fall for every card
 
       // base area for a phone; iPad and web scale up proportionally to
       // their real-world footprint (iPad ≈ 1.6×, web/landscape ≈ 2.2×)
@@ -405,13 +408,21 @@
       leak = refW * 0.55; // cards can poke out but ≥40% stays visible
       makeWalls(W, H);
 
+      // The two hero screens — "Trip Creator" and the desktop "… Calendar Web"
+      // — are the anchors. Matched leniently (case-insensitive, ignores any
+      // prefix/date) so a rename can't silently drop them back into the phone
+      // shuffle.
+      function isAnchor(name) {
+        const n = name.toLowerCase();
+        return n.includes('trip creator') ||
+               (n.includes('calendar') && n.includes('web'));
+      }
       // aspect ratio < 0.58 → tall phone portrait
       // 0.58–1.0   → iPad-ish (squarish portrait or near-square)
       // > 1.0      → landscape / web
-      const MAC_SIZED = ['Hosting · Pro Calendar Web · 2026', 'Trip Creator · 2020'];
       function deviceScale(d, f) {
         const name = f.replace(/\.png$/i, '');
-        if (MAC_SIZED.includes(name)) return 3.2; // mac display size
+        if (isAnchor(name)) return 3.2;   // hero desktop size
         const r = d.w / d.h;
         if (r > 1.0)  return 2.2;   // landscape web screenshot
         if (r > 0.58) return 1.6;   // iPad portrait
@@ -445,12 +456,16 @@
         labelLayer.appendChild(label);
         return { el, w, h, label, isBig: sc >= 3 };
       });
-      // reorder: big cards (detected by sc >= 3, not string match) at slots 2 and 6
-      { const smalls = pendingCards.filter(d => !d.isBig);
-        const bigs   = pendingCards.filter(d =>  d.isBig);
-        if (bigs[0]) smalls.splice(2, 0, bigs[0]);
-        if (bigs[1]) smalls.splice(Math.min(6, smalls.length), 0, bigs[1]);
-        pendingCards = smalls; }
+      // drop order: anchor-left FIRST, one phone, then anchor-right — both
+      // land early and central, then the phones rain down and fill the gaps
+      // around them.
+      { const bigs   = pendingCards.filter(d =>  d.isBig);
+        const smalls = pendingCards.filter(d => !d.isBig);
+        const queue  = [];
+        if (bigs[0]) queue.push(bigs[0]);
+        if (smalls.length) queue.push(smalls.shift());
+        if (bigs[1]) queue.push(bigs[1]);
+        pendingCards = queue.concat(smalls); }
 
       // grabbing is a real spring constraint: cards dangle and swing from
       // wherever you pick them up, and fly when you let go
@@ -479,11 +494,7 @@
       });
 
       Events.on(mouseCon, 'mousedown', () => {
-        // un-settle a big card when grabbed so it can move freely while dragged
-        if (mouseCon.body) {
-          const bc = cards.find(c => c.body === mouseCon.body);
-          if (bc && bc.isBig) bc.isSettled = false;
-        }
+        if (mouseCon.body) Sleeping.set(mouseCon.body, false);  // wake whatever you grabbed
         downInfo = {
           body: mouseCon.body,
           x: mouse.position.x, y: mouse.position.y,
@@ -520,31 +531,47 @@
     let bigSpawned = 0;
     function spawnNext() {
       const def = pendingCards.shift();
-      const splashy = cards.length < 5;
-      let spawnX;
-      if (def.isBig) { spawnX = bigSpawned === 0 ? innerWidth * 0.32 : innerWidth * 0.68; bigSpawned++; }
-      else { spawnX = innerWidth * (0.12 + 0.76 * Math.random()); }
+
+      // WHERE it enters from. Anchors enter just left / just right of centre
+      // and fall straight & flat; phones enter anywhere across the width with
+      // a little drift and tumble so they scatter naturally.
+      let spawnX, spawnVx, spawnSpin, startAngle;
+      if (def.isBig) {
+        spawnX     = innerWidth * (bigSpawned === 0 ? 0.36 : 0.64);
+        spawnVx    = 0;
+        spawnSpin  = 0;
+        startAngle = 0;
+        bigSpawned++;
+      } else {
+        spawnX     = innerWidth * (0.14 + 0.72 * Math.random());
+        spawnVx    = (Math.random() - 0.5) * 1.4;     // gentle sideways drift
+        spawnSpin  = (Math.random() - 0.5) * 0.05;    // a little tumble
+        startAngle = (Math.random() - 0.5) * 0.28;    // enters slightly cocked
+      }
+
       const body = Bodies.rectangle(
-        spawnX, -def.h,
+        spawnX, -def.h * 0.6,
         def.w + PAD * 2, def.h + PAD * 2,
         {
-          restitution: def.isBig ? 0.0 : (splashy ? 0.5 : 0.22),
-          friction: def.isBig ? 0.8 : 0.35,
-          frictionStatic: def.isBig ? 1.0 : 0.5,
-          frictionAir: def.isBig ? 0.08 : 0.012,
-          density: def.isBig ? 0.06 : 0.001,
-          angle: def.isBig ? 0 : (Math.random() - 0.5) * 0.3,
+          // ONE consistent material for phones; a heavier, grippier one for the
+          // two anchors so a falling phone can never knock them out of place.
+          restitution:    def.isBig ? 0.0  : 0.12,
+          friction:       def.isBig ? 0.95 : 0.55,
+          frictionStatic: def.isBig ? 1.2  : 0.8,
+          frictionAir:    def.isBig ? 0.05 : 0.02,
+          density:        def.isBig ? 0.05 : 0.0012,   // anchors ≈ 40× heavier
+          angle:          startAngle,
           chamfer: { radius: Math.min(10, def.w * 0.08) }
         }
       );
-      Body.setVelocity(body, {
-        x: def.isBig ? 0 : (Math.random() - 0.5) * (splashy ? 9 : 2.5),
-        y: splashy ? 2 + Math.random() * 3 : 1 + Math.random() * 1.5
-      });
-      Body.setAngularVelocity(body, def.isBig ? 0 : (Math.random() - 0.5) * (splashy ? 0.12 : 0.05));
+      // sleep a touch sooner than Matter's default so the pile goes still fast
+      body.sleepThreshold = 24;
+
+      Body.setVelocity(body, { x: spawnVx, y: 1.2 });   // same soft entry for all
+      Body.setAngularVelocity(body, spawnSpin);
       World.add(engine.world, body);
       cards.push({ ...def, body, scale: 1, target: 1 });
-      nextDrop = frames + (splashy ? 10 : 13);
+      nextDrop = frames + 12;                            // even cadence, no burst
     }
 
     function handleTap(card) {
@@ -664,24 +691,18 @@
         }
       }
 
-      // hard-lock settled big cards: restore saved position+angle every frame
-      // so collision solver can never nudge them (velocity-zero alone isn't enough)
+      // Keep the two anchors planted. Every frame we zero their HORIZONTAL
+      // velocity and spin so the avalanche of phones can't shove them off
+      // their central drop-spot — but we never touch their position (that
+      // hard snap is what caused the old jitter). Result: they fall straight
+      // down, stay upright & central, stay dynamic (still draggable/openable).
       for (const c of cards) {
-        if (!c.isBig || c === opened || c.body === draggedBody) continue;
-        const b = c.body, v = b.velocity;
-        if (!c.isSettled) {
-          if (Math.abs(v.x) < 0.2 && Math.abs(v.y) < 0.2 && Math.abs(b.angularVelocity) < 0.01) {
-            c.isSettled = true;
-            c.settledPos = { x: b.position.x, y: b.position.y };
-            c.settledAngle = b.angle;
-          }
-        }
-        if (c.isSettled) {
-          Body.setPosition(b, c.settledPos);
-          Body.setAngle(b, c.settledAngle);
-          Body.setVelocity(b, { x: 0, y: 0 });
-          Body.setAngularVelocity(b, 0);
-        }
+        if (!c.isBig || c === opened || c === closing || c.body === draggedBody) continue;
+        const b = c.body;
+        if (b.isSleeping) continue;
+        Body.setVelocity(b, { x: 0, y: Math.max(0, b.velocity.y) }); // fall, never drift
+        Body.setAngularVelocity(b, 0);                               // never spin
+        if (Math.abs(b.angle) > 0.001) Body.setAngle(b, b.angle * 0.6); // ease upright
       }
 
       // hover grows ONLY that phone, a little. Every other phone keeps its
@@ -721,16 +742,17 @@
 
         for (const c of cards) {
           const b = c.body;
-          if (b.isStatic) continue;
+          if (b.isStatic || b.isSleeping) continue;   // asleep = at rest, leave it be
           // the hovered phone is held still so it stays under the cursor —
           // it still grows and pushes, it just doesn't drift off
           if (c === hoverCard) { Body.setVelocity(b, { x: 0, y: 0 }); Body.setAngularVelocity(b, 0); continue; }
-          const cap = b === draggedBody ? 24 : 5;
+          // one speed cap for everything (larger only while you're dragging it)
+          const cap = b === draggedBody ? 24 : 6;
           const v = b.velocity;
           const sp = Math.hypot(v.x, v.y);
           if (sp > cap) Body.setVelocity(b, { x: v.x / sp * cap, y: v.y / sp * cap });
           // soft tilt clamp — normalize to [-π, π], then damp angular
-          // velocity when past ±85° rather than hard-zeroing it (prevents jitter)
+          // velocity when past the max lean rather than hard-zeroing it
           let a = b.angle % (2 * Math.PI);
           if (a > Math.PI) a -= 2 * Math.PI;
           else if (a < -Math.PI) a += 2 * Math.PI;
