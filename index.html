@@ -406,8 +406,10 @@
       engine.gravity.y = 0.5;   // one consistent fall — gentle, so a settled pile isn't squeezed
 
       // base area for a phone; iPad and web scale up proportionally to
-      // their real-world footprint (iPad ≈ 1.6×, web/landscape ≈ 2.2×)
-      const targetArea = (W * H * 0.30) / Math.max(1, SKETCHES.length);
+      // their real-world footprint (iPad ≈ 1.6×, web/landscape ≈ 2.2×).
+      // This scales with W*H, so the pile fills the SAME fraction of the
+      // screen on a phone, an iPad, or a big monitor — no absolute px cap.
+      const targetArea = (W * H * 0.42) / Math.max(1, SKETCHES.length);
       const refW = Math.max(40, Math.min(140, Math.sqrt(targetArea * (900 / 1840))));
       leak = refW * 0.55; // cards can poke out but ≥40% stays visible
       makeWalls(W, H);
@@ -424,11 +426,13 @@
         return 1.0;                  // phone portrait
       }
 
-      // PURELY a size hint — these two render at 1.87×. Same physics as everything
-      // else (same material, drop, freeze); only their geometry is bigger.
+      // PURELY a size hint — these two render 1.4× their natural size. Same
+      // physics as everything else; only their geometry is bigger. (Now that
+      // there's no px cap their base size is already larger, so this multiplier
+      // is smaller than before but lands them at a similar prominent size.)
       function sizeBoost(name) {
         const n = name.toLowerCase();
-        return (n.includes('trip creator') || (n.includes('calendar') && n.includes('web'))) ? 1.87 : 1;
+        return (n.includes('trip creator') || (n.includes('calendar') && n.includes('web'))) ? 1.4 : 1;
       }
 
       labelLayer = document.createElement('div');
@@ -442,7 +446,7 @@
         const sc = deviceScale(d);
         const name = labelFor(f);
         const boost = sizeBoost(name);
-        const w = Math.max(40, Math.min(215, Math.sqrt(targetArea * sc * sc * d.w / d.h))) * boost;
+        const w = Math.max(40, Math.sqrt(targetArea * sc * sc * d.w / d.h)) * boost;  // no px cap → scales with viewport
         const h = w * (d.h / d.w);
         const el = document.createElement('div');
         el.className = 'card';
