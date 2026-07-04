@@ -1830,7 +1830,11 @@ body.hosts-morph .left { transition: width .44s cubic-bezier(.4,0,.2,1); }
 body.hosts-morph .booking-pill { transition: height .44s cubic-bezier(.4,0,.2,1), top .44s cubic-bezier(.4,0,.2,1), padding .44s cubic-bezier(.4,0,.2,1); }
 body.hosts-morph .booking-avatar { transition: width .44s cubic-bezier(.4,0,.2,1), height .44s cubic-bezier(.4,0,.2,1); }
 body.hosts-morph #gridRows, body.hosts-morph #listingThumbsInner { pointer-events: none; } /* data is already the new tier; hold taps until the rebuild lands */
-body.hosts-settling #gridRows .price-row, body.hosts-settling #listingThumbsInner .thumb-row { animation: morph-fadein .32s ease both; }
+/* Only the inventory DELTA animates — surviving rows never blink. Shrinking: the rows about to
+   leave fade out WHILE the density tweens (so the rebuild removes rows that are already invisible).
+   Growing: the freshly added rows fade in over the settled grid. */
+.price-row.row-exit, .thumb-row.row-exit { opacity: 0; transition: opacity .3s ease; }
+.price-row.row-enter, .thumb-row.row-enter { animation: morph-fadein .35s ease both; }
 /* Discount badge (top-left): scalloped seal icon with a tooltip pill on hover */
 .discount-badge {
   position: absolute;
@@ -7729,7 +7733,7 @@ function syncTierBack(n) {
 }
 let activeHost = 'big';
 function updateHostToggleUI() { document.querySelectorAll('#hostToggle .host-opt').forEach(o => o.classList.toggle('active', o.dataset.host === activeHost)); }
-function finishHostSwitch() {
+function finishHostSwitch(enterFrom) {
   recomputeDerived(); rebuildBookedSet();
   listingOrder = LISTINGS.map((_, i) => i);
   if (typeof rebuildSettingsGrids === 'function') rebuildSettingsGrids();
@@ -7739,15 +7743,16 @@ function finishHostSwitch() {
   if (typeof refreshCalendarPrices === 'function') refreshCalendarPrices();
   if (typeof updateMagicPill === 'function') updateMagicPill();
   if (typeof loadPlacesPhotos === 'function') loadPlacesPhotos();
-  document.body.classList.add('hosts-settling'); // rows fade back in over the fresh density
-  clearTimeout(finishHostSwitch._t);
-  finishHostSwitch._t = setTimeout(() => document.body.classList.remove('hosts-settling'), 380);
+  // growing: ONLY the freshly added rows fade in — the rows that were already on screen don't blink
+  if (enterFrom != null) document.querySelectorAll('#gridRows > .price-row, #listingThumbsInner .thumb-row')
+    .forEach(r => { if (+r.dataset.li >= enterFrom) r.classList.add('row-enter'); });
 }
 function switchHost(key, instant) {
   if (key === activeHost) return;
   if (document.body.classList.contains('optimize-mode') && typeof exitOptimize === 'function') exitOptimize();
   if (typeof clearSelection === 'function') clearSelection();
-  if (!MASTER) buildUnifiedHost(); else syncTierBack(HOST_N[activeHost]);
+  const prevN = HOST_N[activeHost];
+  if (!MASTER) buildUnifiedHost(); else syncTierBack(prevN);
   loadTier(HOST_N[key]);
   recomputeDerived(); rebuildBookedSet(); // derived state tracks the new tier even before the rebuild lands
   activeHost = key;
@@ -7760,13 +7765,18 @@ function switchHost(key, instant) {
   }
   // density morph: flip the tier classes FIRST so the rows already on screen tween to the new
   // height (96 ↔ 56 ↔ 48)… then the inventory delta swaps in once the density has landed.
+  // Shrinking: the rows that won't survive fade out DURING the tween, so the rebuild only removes
+  // rows that are already invisible — nothing flashes.
+  const newN = HOST_N[key];
+  if (newN < prevN) document.querySelectorAll('#gridRows > .price-row, #listingThumbsInner .thumb-row')
+    .forEach(r => { if (+r.dataset.li >= newN) r.classList.add('row-exit'); });
   document.body.classList.add('hosts-morph');
   document.body.classList.toggle('host-small', key === 'small');
   document.body.classList.toggle('host-pro', key === 'pro');
   clearTimeout(switchHost._t);
   switchHost._t = setTimeout(() => {
     document.body.classList.remove('hosts-morph');
-    finishHostSwitch();
+    finishHostSwitch(newN > prevN ? prevN : null);
   }, 470);
 }
 document.getElementById('hostToggle').addEventListener('click', e => { const b = e.target.closest('[data-host]'); if (b) switchHost(b.dataset.host); });
