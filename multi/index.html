@@ -7752,9 +7752,16 @@ function loadTier(n) {
   if (groups.some(g => g.members && g.members.length)) {
     const inG = new Set(); groups.forEach(g => g.members.forEach(x => inG.add(x)));
     const orphans = []; for (let i = 0; i < n; i++) if (!inG.has(i)) orphans.push(i);
-    // bucket the newcomers by the SAME smart rule, then merge each bucket into an existing group
+    // FIRST: anyone whose CITY already has a group joins it — a Palm Springs home never sits in
+    // "Desert" while a "Palm Springs" group exists.
+    const rest = [];
+    orphans.forEach(i => {
+      const g = groups.find(x => x.name === LISTINGS[i].city);
+      if (g) { g.members.push(i); g.members.sort((a, z) => a - z); } else rest.push(i);
+    });
+    // THEN: bucket the true leftovers by the smart rule and merge each bucket into an existing group
     // (exact name, or the lone-city bucket's destination) — or create it. NOTHING lands in "More".
-    if (orphans.length) smartGroupsFor(orphans).forEach(ng => {
+    if (rest.length) smartGroupsFor(rest).forEach(ng => {
       const isCity = !!CITY_DEST[ng.name];
       let hit = groups.find(x => x.name === ng.name);
       if (!hit && isCity && ng.members.length < 3) hit = groups.find(x => x.name === CITY_DEST[ng.name]);
