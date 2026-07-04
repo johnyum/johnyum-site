@@ -7860,26 +7860,31 @@ function buildUnifiedHost() {
   bootGroups.forEach(g => { if (g.members && g.members.length) groups.push(g); }); // re-seed the saved grouping
   recomputeDerived();
   BOOKINGS.length = 0; generateBookings().forEach(b => BOOKINGS.push(b)); // ONE seeded pass over all 32 → identical guests at every size
-  // Seed STRANDED GAPS for the "Unlock stays" opportunity: on every 3rd listing, drop in a pair of
-  // bookings with a 1–2 night hole between them — shorter than that listing's minimum, so the hole
-  // is unbookable until the host lowers the min for just those dates. Deterministic placement.
+  // Seed STRANDED GAPS so the "Unlock stays" bucket has fuel at EVERY host size — the simple story
+  // (1–2 night holes under the minimum) on listings in each tier's prefix, plus two COMPLICATED
+  // cases: a 4-night hole under a 5+ minimum, where the price play rides a min-night change.
+  // Prep time is cleared on seeded listings — a prep buffer would swallow the hole invisibly.
   {
     const GUESTS = [['Maya', 61], ['Leo', 62], ['Nora', 63], ['Finn', 64], ['Iris', 65], ['Owen', 66], ['Ruby', 67], ['Jude', 68]];
     let placed = 0;
-    for (let li = 2; li < M && placed < 8; li += 3) {
-      const minN = minNightsVals[li] || 2;
-      const gap = (minN >= 3 && li % 2 === 0) ? 2 : 1; if (gap >= minN) continue;
+    const placePair = (li, gap) => {
+      if (li >= M || gap >= (minNightsVals[li] || 2)) return false;
+      prepTimeVals[li] = 'None';
       const occ = new Set(); BOOKINGS.forEach(b => { if (b.listing === li) for (let k = b.start; k < b.start + b.nights; k++) occ.add(k); });
       const need = 4 + gap + 4;
-      for (let s = todayDi + 16 + (li * 5) % 21; s + need < allDays.length && s < todayDi + 150; s++) {
-        let free = true; for (let k = s; k < s + need; k++) if (occ.has(k)) { free = false; break; }
+      for (let s = todayDi + 16 + (li * 5) % 21; s + need < allDays.length && s < todayDi + 160; s++) {
+        let free = true; for (let k = s - 1; k <= s + need; k++) if (occ.has(k)) { free = false; break; }
         if (!free) continue;
-        const [gname, gimg] = GUESTS[placed % GUESTS.length];
-        BOOKINGS.push({ listing: li, start: s, nights: 4, guest: gname, img: 'https://i.pravatar.cc/96?img=' + gimg });
-        BOOKINGS.push({ listing: li, start: s + 4 + gap, nights: 4, guest: GUESTS[(placed + 1) % GUESTS.length][0], img: 'https://i.pravatar.cc/96?img=' + GUESTS[(placed + 1) % GUESTS.length][1] });
-        placed++; break;
+        const g1 = GUESTS[placed % GUESTS.length], g2 = GUESTS[(placed + 3) % GUESTS.length];
+        BOOKINGS.push({ listing: li, start: s, nights: 4, guest: g1[0], img: 'https://i.pravatar.cc/96?img=' + g1[1] });
+        BOOKINGS.push({ listing: li, start: s + 4 + gap, nights: 4, guest: g2[0], img: 'https://i.pravatar.cc/96?img=' + g2[1] });
+        placed++; return true;
       }
-    }
+      return false;
+    };
+    [1, 2, 5, 8, 11, 14, 17, 20, 23, 26].forEach(li => placePair(li, ((minNightsVals[li] || 2) >= 3 && li % 2 === 0) ? 2 : 1));
+    let riders = 0;
+    for (let li = 0; li < M && riders < 2; li++) if ((minNightsVals[li] || 0) >= 5 && placePair(li, 4)) riders++;
   }
   MASTER = captureHostState();
 }
