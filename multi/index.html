@@ -6451,8 +6451,35 @@ document.body.classList.toggle('no-min', !document.getElementById('devMinNights'
 { const dg = document.getElementById('devGroups'); if (dg) dg.addEventListener('change', e => autoGroupByCity(e.target.checked)); } // Groups switch retired from the dev bar; autoGroupByCity stays callable
 
 // "Automate group": the rows under the header rule fade OUT, three dots think for 2s, then the
-// listings — regrouped BY CITY (group name = the city) — fade back in subtly from the bottom.
+// listings — SMART-grouped — fade back in subtly from the bottom.
+// Smart rule: a city with 3+ homes is its own group (Palm Springs homes live in "Palm Springs");
+// smaller cities pool into a DESTINATION group (Mountains / Desert / Coast) — but a destination
+// bucket holding just one city keeps the city's name (no lonely "Mountains" for one Tahoe cabin).
 const hasRealGroups = () => groups.some(g => g.members && g.members.length);
+const CITY_DEST = {
+  'Aspen': 'Mountains', 'Lake Tahoe': 'Mountains', 'Big Bear': 'Mountains',
+  'Palm Springs': 'Desert', 'Joshua Tree': 'Desert',
+  'Malibu': 'Coast', 'Santa Barbara': 'Coast', 'San Diego': 'Coast', 'Los Angeles': 'Coast',
+};
+function smartGroupsFor(idxs) {
+  const byCity = {};
+  idxs.forEach(i => { const c = LISTINGS[i].city; (byCity[c] = byCity[c] || []).push(i); });
+  const out = [], buckets = {};
+  Object.keys(byCity).forEach(city => {
+    const m = byCity[city];
+    if (m.length >= 3) { out.push({ name: city, members: m }); return; }
+    const d = CITY_DEST[city] || 'More destinations';
+    (buckets[d] = buckets[d] || { cities: [], members: [] });
+    buckets[d].cities.push(city); buckets[d].members.push(...m);
+  });
+  Object.keys(buckets).forEach(d => {
+    const b = buckets[d];
+    out.push({ name: b.cities.length > 1 ? d : b.cities[0], members: b.members.sort((a, z) => a - z) });
+  });
+  out.sort((a, z) => z.members.length - a.members.length);   // biggest group first
+  return out;
+}
+function smartGroups() { return smartGroupsFor(LISTINGS.map((_, i) => i)); }
 function animateGroupsByCity() {
   let dots = document.getElementById('groupingDots');
   if (!dots) {
@@ -6469,10 +6496,9 @@ function animateGroupsByCity() {
   dots.style.top = Math.round((topY + botY) / 2) + 'px';
   dots.classList.add('show');
   setTimeout(() => {
-    const byCity = {};
-    LISTINGS.forEach((l, i) => { (byCity[l.city] = byCity[l.city] || []).push(i); });
+    const sg = smartGroups();
     groups.length = 0;                                 // mutate IN PLACE — the host snapshots hold this array reference
-    Object.keys(byCity).forEach(c => groups.push({ name: c, members: byCity[c] }));
+    sg.forEach(g => groups.push(g));
     saveGroups(); renderGroups(); applyGroupsToCalendar();
     dots.classList.remove('show');
     document.body.classList.remove('grouping-busy');
@@ -7720,6 +7746,22 @@ function loadTier(n) {
   [0, 1, 2, 3, 4].forEach(oi => { const a = _HOST_O[oi]; a.length = 0; M.o[oi].slice(0, n).forEach(x => a.push(JSON.parse(JSON.stringify(x)))); });
   ruleSets.length = 0; M.o[5].forEach(r => ruleSets.push(JSON.parse(JSON.stringify(r))));
   groups.length = 0; M.o[6].forEach(g => { const c = JSON.parse(JSON.stringify(g)); c.members = (c.members || []).filter(x => x < n); groups.push(c); });
+  // growing into a bigger tier: newly-visible listings join an existing group that matches their
+  // city (or their destination — Mountains/Desert/Coast) instead of piling up ungrouped below.
+  // "The Palm Springs homes should be in Palm Springs."
+  if (groups.some(g => g.members && g.members.length)) {
+    const inG = new Set(); groups.forEach(g => g.members.forEach(x => inG.add(x)));
+    const orphans = []; for (let i = 0; i < n; i++) if (!inG.has(i)) orphans.push(i);
+    // bucket the newcomers by the SAME smart rule, then merge each bucket into an existing group
+    // (exact name, or the lone-city bucket's destination) — or create it. NOTHING lands in "More".
+    if (orphans.length) smartGroupsFor(orphans).forEach(ng => {
+      const isCity = !!CITY_DEST[ng.name];
+      let hit = groups.find(x => x.name === ng.name);
+      if (!hit && isCity && ng.members.length < 3) hit = groups.find(x => x.name === CITY_DEST[ng.name]);
+      if (hit) { hit.members.push(...ng.members); hit.members.sort((a, z) => a - z); }
+      else groups.push(ng);
+    });
+  }
   BOOKINGS.length = 0; M.o[7].forEach(b => { if (b.listing < n) BOOKINGS.push(JSON.parse(JSON.stringify(b))); });
   _HOST_SET.forEach((a, i) => { a.length = 0; M.set[i].slice(0, n).forEach(arr => a.push(new Set(arr))); });
   customMinListings.clear(); M.customMin.forEach(x => { if (x < n) customMinListings.add(x); });
