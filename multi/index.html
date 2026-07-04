@@ -183,13 +183,13 @@ body.settings-mode .wm-drop, body.avail-mode .wm-drop { display: none; } /* view
 .listing-menu.wm-menu { min-width: 208px; } /* 16px narrower than the standard 224px menu; no divider, checkmark marks the active view */
 #groupsBtn { display: none; }  /* Groups pill retired from the top right (grouping lives in ⋯ → Automate group) */
 .wm-check { width: 18px; height: 18px; display: inline-flex; flex-shrink: 0; }
-.cal-nav { /* prev/next arrows — 40×40 grey-backed circles */
+.cal-nav { /* prev/next arrows — 40×40 white circles with a grey-300 stroke */
   width: 40px; height: 40px; border-radius: 50%;
-  border: none; background: #F2F2F2; color: #222;
+  border: 1px solid var(--grey-300); background: #fff; color: #222;
   display: inline-flex; align-items: center; justify-content: center;
   padding: 0; cursor: pointer;
 }
-.cal-nav:hover { background: var(--grey-200); }
+.cal-nav:hover { background: var(--grey-100); }
 .cal-nav svg { width: 16px; height: 16px; }
 /* View switcher dropdown (Week ↔ Month) — a grey pill like the other header pills (no chevron) */
 .view-dd { position: relative; margin-left: 16px; } /* +16px beyond the .tb-left gap → more space after Today/arrows */
@@ -1020,10 +1020,9 @@ body.magic-active #gridRows, body.magic-active #listingThumbsInner, body.magic-a
 .magic-pill.is-opp { background: #fff; color: #111; height: auto; } /* the review rides the same WHITE surface */
 .magic-cta { display: inline-flex; align-items: center; background: none; border: 0; color: #111;
   font: 600 16px 'Cereal', sans-serif; cursor: pointer; height: 72px; padding: 0 16px; border-radius: 999px; } /* 16 + 40 wand + 16 = a perfect 72×72 circle */
-/* hover: "Opportunities" unfurls out of the circle; hover-out folds it back in */
-.magic-label { max-width: 0; opacity: 0; overflow: hidden; padding: 0;
-  transition: max-width .45s cubic-bezier(.22,.9,.3,1), opacity .3s ease, padding .45s cubic-bezier(.22,.9,.3,1); }
-.magic-pill:hover .magic-label { max-width: 180px; opacity: 1; padding-left: 12px; padding-right: 8px; }
+/* the label rides OPEN by default — "N Opportunities" with 12px after the wand and 8px of air on
+   its right; tapping still collapses the whole pill into the 72px scanning circle */
+.magic-label { padding-left: 12px; padding-right: 8px; white-space: nowrap; }
 .magic-spark { font-size: 18px; line-height: 1; display: inline-block; }
 .magic-spark.spin { animation: magicSpin 1s linear infinite; }
 /* the wand, split into its real layers: the base PNG + the PNG's own three stars, overlaid in place.
@@ -6456,6 +6455,7 @@ function positionLeftToggle() {
 document.getElementById('devBookings').addEventListener('change', e => {
   bookingsOn = e.target.checked;
   render(true); // preserve scroll
+  if (window.__opt && window.__opt.state === 'idle' && typeof renderMagicPill === 'function') renderMagicPill(); // bookings change the gap/near opportunities → refresh the idle count
 });
 
 // Dev "Min nights": ON shows the "min N" text under every price; OFF hides it (body.no-min). OFF by default.
@@ -6892,6 +6892,7 @@ document.getElementById('devVariance').addEventListener('change', e => {
   }
   if (_tierN != null) { syncTierBack(HOST_N.pro); loadTier(_tierN); recomputeDerived(); rebuildBookedSet(); }
   rebuildSettingsGrids();
+  if (window.__opt && window.__opt.state === 'idle' && typeof renderMagicPill === 'function') renderMagicPill(); // variance flips the opportunity mix → refresh the idle count
   if (typeof clearSelection === 'function') clearSelection(); // drop any selection + the action panel (rule sets are gone)
 });
 
@@ -7535,7 +7536,8 @@ function renderMagicPill() {
       '</div>';
     return;
   }
-  pill.innerHTML = '<button class="magic-cta" data-magic="go">' + wandHTML() + '<span class="magic-label">Opportunities</span></button>'; // idle: a 72\u00d772 wand circle; hover unfurls the label
+  const nOpp = (typeof computeSuggestions === 'function') ? computeSuggestions().length : 0; // cheap heuristic pass — the count sells the tap
+  pill.innerHTML = '<button class="magic-cta" data-magic="go">' + wandHTML() + '<span class="magic-label">' + (nOpp ? nOpp + ' Opportunities' : 'Opportunities') + '</span></button>'; // idle: wand + live count, open by default
 }
 window.updateMagicPill = function () {
   const el = document.getElementById('magicAction'); if (!el) return;
@@ -7965,6 +7967,7 @@ function finishHostSwitch(enterFrom) {
   if (typeof applyGroupsToCalendar === 'function') applyGroupsToCalendar();
   if (typeof refreshCalendarPrices === 'function') refreshCalendarPrices();
   if (typeof updateMagicPill === 'function') updateMagicPill();
+  if (window.__opt && window.__opt.state === 'idle' && typeof renderMagicPill === 'function') renderMagicPill(); // refresh the idle count for the new tier
   if (typeof loadPlacesPhotos === 'function') loadPlacesPhotos();
   // growing: ONLY the freshly added rows fade in — the rows that were already on screen don't blink
   if (enterFrom != null) document.querySelectorAll('#gridRows > .price-row, #listingThumbsInner .thumb-row')
