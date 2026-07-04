@@ -1062,7 +1062,7 @@ body.opt-scanning #gridRows .price-card .price-val { color: var(--grey-400); } /
 .magic-exit:hover { background: rgba(255,255,255,0.28); }
 /* Opportunity review: WHITE pill mimicking the QA pill — the affected listings' photo stack on the
    left, info in the middle, Apply actions right, ‹ › steppers, and the QA-style floating X. */
-.magic-pill.is-opp { height: auto; border-radius: 999px; padding: 16px 20px 16px 24px; align-items: center; }
+.magic-pill.is-opp { height: auto; border-radius: 999px; padding: 24px; align-items: center; } /* centered anchor → padding change grows from the center out */
 /* ONE row: photos → name/dates (QA type) → the REASONING inline → Apply pinned right. */
 .mopp-pill { position: relative; display: inline-flex; align-items: center; gap: 12px; }
 .mopp-whywrap { display: flex; flex-direction: column; gap: 2px; max-width: 440px; padding: 0 2px; }
@@ -1941,6 +1941,17 @@ body.glow-hold .price-card.opt-min .min-badge { animation: none; opacity: 0; }
 }
 .price-card.unavailable:not(.booked)::before { transform: translate(-50%, -50%) rotate(45deg); }
 .price-card.unavailable:not(.booked)::after { transform: translate(-50%, -50%) rotate(-45deg); }
+/* NOT OPEN YET (beyond the booking window): looks exactly like a host-BLOCKED night — light grey
+   backing + struck-through grey price. The X is reserved for advance notice / prep time. */
+.price-card.unavailable.closed-window { background: #F2F2F2; border-color: #E8E8E8; }
+.price-card.unavailable.closed-window::before, .price-card.unavailable.closed-window::after,
+body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.selected)::before,
+body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.selected)::after { content: none; }
+.price-card.unavailable.closed-window .price-val { display: inline; position: relative; color: #6C6C6C; }
+.price-card.unavailable.closed-window .price-val::after { /* same custom strike as .blocked */
+  content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: calc(100% + 14px); height: 1.5px; background: currentColor; border-radius: 1px; pointer-events: none;
+}
 .price-card.unavailable:hover { border-color: var(--grey-200); background: var(--grey-200); }
 /* Host-BLOCKED night: the cell is left exactly as-is — ONLY the price is struck through. It stays
    selectable (it's not .unavailable) so the host can re-open it; the struck price persists after the
@@ -3619,7 +3630,7 @@ function buildPriceCell(li, di, booked, unavail, gapSet) {
   cell.style.left = morphing ? cellLeftCalc(di) : rowOffsets[di] + 'px'; // calc(var) → follows the animated geometry
 
   const card = document.createElement('div');
-  card.className = 'price-card' + (isPast ? ' past' : '') + (unavailable ? ' unavailable' : '') + (isBlocked ? ' blocked' : '') + (isBooked ? ' booked' : '') + (!isBooked && !unavailable && holidaySurcharge[di] > 0 ? ' holiday-priced' : '');
+  card.className = 'price-card' + (isPast ? ' past' : '') + (unavailable ? ' unavailable' + (blockType(li, di) ? ' closed-rule' : ' closed-window') : '') + (isBlocked ? ' blocked' : '') + (isBooked ? ' booked' : '') + (!isBooked && !unavailable && holidaySurcharge[di] > 0 ? ' holiday-priced' : '');
   card.dataset.di = di;
   if (isSel(li, di)) card.classList.add('selected');
   const _of = !isBooked ? optFlagFor(li, di) : null; // Optimize glow (model-driven, survives virtualization)
