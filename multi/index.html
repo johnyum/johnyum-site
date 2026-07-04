@@ -1065,8 +1065,10 @@ body.opt-scanning #gridRows .price-card .price-val { color: var(--grey-400); } /
 .magic-pill.is-opp { height: auto; border-radius: 999px; padding: 16px 20px 16px 24px; align-items: center; }
 /* ONE row: photos → name/dates (QA type) → the REASONING inline → Apply pinned right. */
 .mopp-pill { position: relative; display: inline-flex; align-items: center; gap: 12px; }
-.mopp-why { font: 400 13px/18px 'Cereal', sans-serif; color: var(--grey-600); max-width: 440px; padding: 0 2px;
-  white-space: normal; } /* the pill is nowrap — the reasoning is the one thing that WRAPS (\u22642 lines) */
+.mopp-whywrap { display: flex; flex-direction: column; gap: 2px; max-width: 440px; padding: 0 2px; }
+.mopp-head { font: 600 14px/18px 'Cereal', sans-serif; color: #222; white-space: normal; } /* the card's NAME — "Labor Day weekend", "August peak season" */
+.mopp-why { font: 400 13px/18px 'Cereal', sans-serif; color: var(--grey-600);
+  white-space: normal; } /* the pill is nowrap — this block is the one thing that WRAPS (\u22642 lines) */
 /* name + dates stacked exactly like the QA pill's meta (14/18, 600 over 400) — dark-surface colors inverted */
 .mopp-meta { display: flex; flex-direction: column; gap: 1px; }
 .mopp-name { font: 600 14px/18px 'Cereal', sans-serif; color: #222; white-space: nowrap; }
@@ -7375,6 +7377,7 @@ function computeSuggestions() {
     const pct = nearItems.reduce((s, x) => s + x.pct, 0) / nearItems.length;
     cards.push({ bucket: 'near', type: 'drop', intent: 'fill', pct,
       a: Math.min(...nearItems.map(x => x.a)), b: Math.max(...nearItems.map(x => x.b)), items: nearItems,
+      head: 'Open nights this week',
       title: 'Fill this week',
       why: 'Open nights this close earn nothing once they pass. A small cut gets them booked.' });
   }
@@ -7388,10 +7391,12 @@ function computeSuggestions() {
     const its = holBy[h];
     cards.push({ bucket: 'holiday', type: 'raise', intent: 'earn', pct: its[0].pct, hol: h,
       a: Math.min(...its.map(x => x.a)), b: Math.max(...its.map(x => x.b)), items: its,
+      head: h + ' weekend',
       title: h + ': raise ' + Math.round(its[0].pct * 100) + '%',
       why: h + ' demand, everyday prices. Add the premium before these dates book cheap.' });
   });
   if (eventCard) {
+    eventCard.head = 'Coachella weekends';
     eventCard.title = 'Coachella: raise 40%';
     eventCard.why = 'Coachella sells Palm Springs out at multiples. These weekends are still at your normal rate.';
     cards.push(eventCard);
@@ -7403,6 +7408,7 @@ function computeSuggestions() {
     cards.push({ bucket: t === 'raise' ? 'season-up' : t === 'drop' ? 'season-down' : 'promo',
       type: t, intent: its[0].intent, pct,
       a: Math.min(...its.map(x => x.a)), b: Math.max(...its.map(x => x.b)), items: its,
+      head: t === 'raise' ? mon + ' peak season' : t === 'drop' ? mon + ' slow season' : mon + ' slow stretch',
       title: its[0].title,
       why: t === 'raise'
         ? mon + ' is peak season ' + where + '. These nights book anyway \u2014 price them up.'
@@ -7415,6 +7421,7 @@ function computeSuggestions() {
     const tot = staysItems.reduce((s, x) => s + (x.b - x.a + 1), 0);
     cards.push({ bucket: 'stays', type: 'minnight', intent: 'fill',
       a: Math.min(...staysItems.map(x => x.a)), b: Math.max(...staysItems.map(x => x.b)), items: staysItems,
+      head: 'Stranded gap nights',
       title: 'Unlock ' + tot + ' stranded night' + (tot > 1 ? 's' : ''),
       why: 'Gaps shorter than your minimums — unbookable. Allow shorter stays on just these dates.' });
   }
@@ -7425,6 +7432,7 @@ function computeSuggestions() {
   if (setupItems.length) {
     cards.push({ bucket: 'setup', type: 'discount', intent: 'fill', pct: 0.15,
       a: Math.min(...setupItems.map(x => x.a)), b: Math.max(...setupItems.map(x => x.b)), items: setupItems,
+      head: 'Smart discounts',
       title: 'Turn on smart discounts',
       why: 'Last-minute and early-bird discounts are off. Turn them on once \u2014 they run themselves.' });
   }
@@ -7521,7 +7529,7 @@ function renderMagicPill() {
       '<div class="mopp-pill">' +
         '<div class="ma-photos" style="width:' + photoStackWidth(imgs.length) + 'px">' + photoStackHTML(imgs) + '</div>' +
         '<div class="mopp-meta"><span class="mopp-name">' + name + '</span><span class="mopp-dates">' + fmtRange(g.a, g.b) + '</span></div>' +
-        '<div class="mopp-why">' + g.why + '</div>' +
+        '<div class="mopp-whywrap"><span class="mopp-head">' + (g.head || '') + '</span><span class="mopp-why">' + g.why + '</span></div>' +
         '<button class="mopp-apply" data-magic="apply">Apply</button>' +
         '<button class="bp-close magic-close" data-magic="exit" aria-label="Exit">✕</button>' +
       '</div>';
