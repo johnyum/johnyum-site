@@ -7322,22 +7322,106 @@ function computeSuggestions() {
       if (minRide) for (let ii = segStart; ii < items.length; ii++) { items[ii].curMin = minN; items[ii].minTo = minRide; }
     }
   }
-  // GROUP BY DATE: the same play on an overlapping window -> one opportunity across every affected listing
-  items.sort((x, y) => x.a - y.a || x.li - y.li);
-  const groups = [];
+  // ── BUCKET BY DRIVER, not just by date. Merge across locations ONLY when the underlying trend
+  // is shared: holidays are national (one card, every city); an event owns its city; seasonality
+  // merges only listings whose window is the same month (desert winter never merges with ski
+  // winter just because both say "high season"). Cards then sort by estimated $ impact.
+  // (0) EVENT — Coachella: hand-placed compression for Palm Springs, the two April festival
+  // weekends. The event OWNS those nights: season/promo plays are clipped off them first.
+  let eventCard = null;
+  {
+    const psLis = LISTINGS.map((l, i) => l.city === 'Palm Springs' ? i : -1).filter(i => i >= 0);
+    let ea = -1;
+    for (let k = Math.max(0, todayDi); k < N; k++) { const d = allDays[k]; if (d.getMonth() === 3 && d.getDate() === 10) { ea = k; break; } }
+    if (psLis.length && ea >= 0) {
+      const eb = Math.min(N - 1, ea + 9);
+      eventCard = { bucket: 'event', type: 'raise', intent: 'earn', pct: 0.40, a: ea, b: eb, evName: 'Coachella',
+        items: psLis.map(li => { const p0 = getPrice(li, ea); return { li, a: ea, b: eb, intent: 'earn', type: 'raise', pct: 0.40,
+          curPrice: p0, newPrice: Math.round(p0 * 1.4) }; }) };
+      const evSet = new Set(psLis);
+      for (let ii = items.length - 1; ii >= 0; ii--) {
+        const it = items[ii];
+        if (!evSet.has(it.li) || it.b < ea || it.a > eb) continue;
+        if (it.a >= ea && it.b <= eb) { items.splice(ii, 1); continue; }
+        const leftL = ea - it.a, rightL = it.b - eb;               // partial overlap → keep the larger remainder
+        if (leftL >= rightL) it.b = ea - 1; else it.a = eb + 1;
+      }
+    }
+  }
+  // (1) HOLIDAY PREMIUM — one card per holiday, across every listing & city (national driver)
+  const cards = [], holBy = {}, seasonBy = {}, staysItems = [], setupItems = [];
   items.forEach(it => {
-    const g = groups.find(g => g.type === it.type && it.a <= g.b + 1 && it.b >= g.a - 1);
-    if (g) { g.items.push(it); g.a = Math.min(g.a, it.a); g.b = Math.max(g.b, it.b); if (it.hol) g.hol = it.hol; }
-    else groups.push({ type: it.type, intent: it.intent, pct: it.pct, a: it.a, b: it.b, hol: it.hol, items: [it] });
+    if (it.hol) { (holBy[it.hol] = holBy[it.hol] || []).push(it); return; }
+    if (it.type === 'minnight') { staysItems.push(it); return; }                      // (4) aggregate below
+    if (it.type === 'discount') { setupItems.push(it); return; }                      // (5) aggregate below
+    // (2)+(3) SEASON UP / DOWN / PROMOTE — merge only same-play + same-month windows
+    const key = it.type + '|' + allDays[it.a].getMonth();
+    (seasonBy[key] = seasonBy[key] || []).push(it);
   });
-  groups.sort((x, y) => x.a - y.a);              // today (or the next upcoming) always leads
-  groups.length = Math.min(groups.length, 10);   // digestible set
-  groups.forEach((g, i) => {
+  Object.keys(holBy).forEach(h => {
+    const its = holBy[h];
+    cards.push({ bucket: 'holiday', type: 'raise', intent: 'earn', pct: its[0].pct, hol: h,
+      a: Math.min(...its.map(x => x.a)), b: Math.max(...its.map(x => x.b)), items: its,
+      title: h + ': raise ' + Math.round(its[0].pct * 100) + '%', why: its[0].why });
+  });
+  if (eventCard) {
+    eventCard.title = 'Coachella: raise 40%';
+    eventCard.why = 'Coachella weekends — Palm Springs books out at multiples, and these nights are still at your normal rate.';
+    cards.push(eventCard);
+  }
+  Object.keys(seasonBy).forEach(key => {
+    const its = seasonBy[key], t = its[0].type;
+    const pct = its.reduce((s, x) => s + x.pct, 0) / its.length;
+    cards.push({ bucket: t === 'raise' ? 'season-up' : t === 'drop' ? 'season-down' : 'promo',
+      type: t, intent: its[0].intent, pct,
+      a: Math.min(...its.map(x => x.a)), b: Math.max(...its.map(x => x.b)), items: its,
+      title: its[0].title, why: its[0].why });
+  });
+  // (4) UNLOCK STAYS — every stranded gap on the calendar as ONE mass action
+  if (staysItems.length) {
+    const tot = staysItems.reduce((s, x) => s + (x.b - x.a + 1), 0);
+    cards.push({ bucket: 'stays', type: 'minnight', intent: 'fill',
+      a: Math.min(...staysItems.map(x => x.a)), b: Math.max(...staysItems.map(x => x.b)), items: staysItems,
+      title: 'Unlock ' + tot + ' stranded night' + (tot > 1 ? 's' : ''),
+      why: 'Gaps between bookings shorter than your minimums are unbookable. Allow shorter stays on just these dates and they can fill.' });
+  }
+  // (5) SMART DISCOUNTS (setup lane) — last-minute + early-bird as ONE switch card; shows only while off
+  LISTINGS.forEach((l, li) => {
+    if (earlyBirdVals[li] == null) setupItems.push({ li, a: Math.max(0, todayDi), b: Math.min(N - 1, todayDi + NEAR_DAYS), intent: 'fill', type: 'earlybird' });
+  });
+  if (setupItems.length) {
+    cards.push({ bucket: 'setup', type: 'discount', intent: 'fill', pct: 0.15,
+      a: Math.min(...setupItems.map(x => x.a)), b: Math.max(...setupItems.map(x => x.b)), items: setupItems,
+      title: 'Turn on smart discounts',
+      why: 'Last-minute and early-bird discounts win the guests deciding right now and the planners booking far ahead — set once, they run themselves.' });
+  }
+  // Estimated $ impact per card → biggest first. The number on the card is what justifies mass action.
+  cards.forEach(c => {
+    let sum = 0;
+    c.items.forEach(it => {
+      const L = it.b - it.a + 1, p = it.curPrice || getPrice(it.li, it.a);
+      if (it.type === 'raise') sum += L * p * it.pct * 0.7;             // premium on nights likely to book anyway
+      else if (it.type === 'drop') sum += L * p * (1 - it.pct) * 0.35;  // new bookings won by the lower rate
+      else if (it.type === 'promo') sum += L * p * (1 - it.pct) * 0.4;  // promo adds the search-ranking nudge
+      else if (it.type === 'minnight') sum += L * p * 0.6;              // stranded nights are pure recovery
+      else sum += 90;                                                    // a discount switch: modest steady lift
+    });
+    c.impact = Math.max(10, Math.round(sum / 10) * 10);
+  });
+  cards.sort((x, y) => y.impact - x.impact);
+  // digestible set of 8 — but bucket-DIVERSE: the best card of every bucket makes the cut before
+  // any bucket doubles up, so Unlock stays / Smart discounts never get crowded out by big price plays
+  {
+    const seen = new Set(), lead = [], rest = [];
+    cards.forEach(c => { if (!seen.has(c.bucket)) { seen.add(c.bucket); lead.push(c); } else rest.push(c); });
+    const picked = lead.concat(rest).slice(0, 8).sort((x, y) => y.impact - x.impact);
+    cards.length = 0; picked.forEach(c => cards.push(c));
+  }
+  cards.forEach((g, i) => {
     g.id = 'g' + i; g.li = g.items[0].li;
     g.lis = [...new Set(g.items.map(x => x.li))];
-    g.title = g.items[0].title; g.why = g.items[0].why;
   });
-  return groups;
+  return cards;
 }
 function buildFlags(groups) { // only the groups passed in glow — the focus model hands us ONE at a time
   const m = new Map();
@@ -7367,23 +7451,17 @@ function repaintOptGlows() { // re-apply glow classes to currently-mounted cells
     });
   });
 }
-function shortTitle(g) { // the five modes: price up / price down / add promotion / add discount / change min nights
+function shortTitle(g) { // tag = the bucket, in its own words
+  if (g.bucket === 'event')   return g.evName + ' +' + Math.round(g.pct * 100) + '%';
+  if (g.bucket === 'holiday') return g.hol + ' +' + Math.round(g.pct * 100) + '%';
+  if (g.bucket === 'stays')   return 'Unlock stays';
+  if (g.bucket === 'setup')   return 'Smart discounts';
   if (g.type === 'raise') return 'Raise ' + Math.round(g.pct * 100) + '%';
   if (g.type === 'drop')  return 'Lower ' + Math.round(g.pct * 100) + '%';
   if (g.type === 'promo') return Math.round(g.pct * 100) + '% promo';
-  if (g.type === 'discount') return 'Last-minute −' + Math.round(g.pct * 100) + '%';
-  return 'Min → ' + (g.items ? g.items[0].newMin : g.newMin);
+  return 'Min nights';
 }
-function shortChange(g) {
-  const it = g.items ? g.items[0] : g;
-  const multi = g.lis && g.lis.length > 1;
-  const ride = it.minTo != null ? ' · min <s>' + it.curMin + '</s> ' + it.minTo : ''; // riding min-night change
-  if (g.type === 'promo') return Math.round(g.pct * 100) + '% off' + (multi ? ' · ' + g.lis.length + ' listings' : ' · from $' + it.newPrice) + ride;
-  if (g.type === 'minnight') return 'min <s>' + it.curMin + '</s> ' + it.newMin + ' night' + (it.newMin > 1 ? 's' : '');
-  if (g.type === 'discount') return 'for stays ≤7 days out';
-  return (multi ? ((g.intent === 'earn' ? '+' : '−') + Math.round(g.pct * 100) + '% · ' + g.lis.length + ' listings')
-               : ('<s>$' + it.curPrice + '</s> → $' + it.newPrice)) + ride;
-}
+function impactStr(g) { return '\u2248 +$' + (g.impact || 0).toLocaleString('en-US'); } // the number that justifies mass action
 // The wand as its real layers — base PNG + the PNG's own 3 stars back in place (idle: identical to
 // wand.png; scanning: the stars flash). Shared by the idle circle and the scanning loader.
 function wandHTML() {
@@ -7410,7 +7488,7 @@ function renderMagicPill() {
         '<div class="ma-photos" style="width:' + photoStackWidth(imgs.length) + 'px">' + photoStackHTML(imgs) + '</div>' +
         '<div class="mopp-meta"><span class="mopp-name">' + name + '</span><span class="mopp-dates">' + fmtRange(g.a, g.b) + '</span></div>' +
         '<span class="mopp-tag ' + g.intent + '">' + shortTitle(g) + '</span>' +
-        '<span class="mopp-change">' + shortChange(g) + '</span>' +
+        '<span class="mopp-change">' + impactStr(g) + '</span>' +
         '<span class="mopp-count">' + (i + 1) + ' / ' + n + '</span>' +
         '<button class="mopp-apply" data-magic="apply">Apply</button>' +
         '<button class="mopp-allbtn" data-magic="all">Apply all</button>' +
@@ -7478,7 +7556,7 @@ function startOptimize() {
     pillEl.style.width = '72px'; // width = height → a perfect circle, wand centred
   });
   setTimeout(() => {
-    const suggs = computeSuggestions().sort((x, y) => x.a - y.a); // ordered by date so ‹ › steps chronologically
+    const suggs = computeSuggestions(); // pre-sorted by estimated $ impact — biggest opportunity leads
     window.__opt.suggs = suggs; buildFlags(suggs.slice(0, 1)); // ONE at a time: only the first opportunity glows
     document.body.classList.add('glow-hold'); // flags paint now, but the glow waits for the camera to settle
     repaintOptGlows();
@@ -7515,6 +7593,7 @@ function exitOptimize() {
 }
 function applySuggestion(s) { // one per-listing item (groups apply every item)
   if (s.type === 'discount') { lastMinuteVals[s.li] = '-15%'; return; } // introduces the last-minute discount setting
+  if (s.type === 'earlybird') { earlyBirdVals[s.li] = '-12%'; return; } // introduces the early-bird discount setting
   for (let k = s.a; k <= s.b; k++) {
     if (s.type === 'raise')      priceOverride[s.li][k] = Math.round(getPrice(s.li, k) * (1 + s.pct));
     else if (s.type === 'drop')  priceOverride[s.li][k] = Math.round(getPrice(s.li, k) * (1 - s.pct));
@@ -7751,6 +7830,27 @@ function buildUnifiedHost() {
   bootGroups.forEach(g => { if (g.members && g.members.length) groups.push(g); }); // re-seed the saved grouping
   recomputeDerived();
   BOOKINGS.length = 0; generateBookings().forEach(b => BOOKINGS.push(b)); // ONE seeded pass over all 32 → identical guests at every size
+  // Seed STRANDED GAPS for the "Unlock stays" opportunity: on every 3rd listing, drop in a pair of
+  // bookings with a 1–2 night hole between them — shorter than that listing's minimum, so the hole
+  // is unbookable until the host lowers the min for just those dates. Deterministic placement.
+  {
+    const GUESTS = [['Maya', 61], ['Leo', 62], ['Nora', 63], ['Finn', 64], ['Iris', 65], ['Owen', 66], ['Ruby', 67], ['Jude', 68]];
+    let placed = 0;
+    for (let li = 2; li < M && placed < 8; li += 3) {
+      const minN = minNightsVals[li] || 2;
+      const gap = (minN >= 3 && li % 2 === 0) ? 2 : 1; if (gap >= minN) continue;
+      const occ = new Set(); BOOKINGS.forEach(b => { if (b.listing === li) for (let k = b.start; k < b.start + b.nights; k++) occ.add(k); });
+      const need = 4 + gap + 4;
+      for (let s = todayDi + 16 + (li * 5) % 21; s + need < allDays.length && s < todayDi + 150; s++) {
+        let free = true; for (let k = s; k < s + need; k++) if (occ.has(k)) { free = false; break; }
+        if (!free) continue;
+        const [gname, gimg] = GUESTS[placed % GUESTS.length];
+        BOOKINGS.push({ listing: li, start: s, nights: 4, guest: gname, img: 'https://i.pravatar.cc/96?img=' + gimg });
+        BOOKINGS.push({ listing: li, start: s + 4 + gap, nights: 4, guest: GUESTS[(placed + 1) % GUESTS.length][0], img: 'https://i.pravatar.cc/96?img=' + GUESTS[(placed + 1) % GUESTS.length][1] });
+        placed++; break;
+      }
+    }
+  }
   MASTER = captureHostState();
 }
 // Load the first n master listings into the working arrays (the visible tier).
