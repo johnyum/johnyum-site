@@ -7436,12 +7436,12 @@ function computeSuggestions() {
   });
   if (nearItems.length) {
     const pct = nearItems.reduce((s, x) => s + x.pct, 0) / nearItems.length;
-    const openN = nearItems.reduce((s, x) => s + (x.b - x.a + 1), 0);
+    const nearLis = new Set(nearItems.map(x => x.li)).size;
     cards.push({ bucket: 'near', type: 'drop', intent: 'fill', pct,
       a: Math.min(...nearItems.map(x => x.a)), b: Math.max(...nearItems.map(x => x.b)), items: nearItems,
-      head: 'Lower prices · Next 7 days',
+      head: 'Open nights · Next 7 days', cta: 'Lower prices',
       title: 'Fill this week',
-      why: openN + ' night' + (openN > 1 ? 's are' : ' is') + ' still open in the next 7 days. Lower prices to fill them.' });
+      why: nearLis + ' listing' + (nearLis > 1 ? 's have' : ' has') + ' empty nights this week.' });
   }
   // Reasoning lines are CARD-level and cluster-aware: plain language, the value up front.
   const _MONF = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -7454,14 +7454,14 @@ function computeSuggestions() {
     const ha = Math.min(...its.map(x => x.a)), hb = Math.max(...its.map(x => x.b));
     cards.push({ bucket: 'holiday', type: 'raise', intent: 'earn', pct: its[0].pct, hol: h,
       a: ha, b: hb, items: its,
-      head: 'Raise prices for ' + h + ' · ' + fmtRange(ha, hb),
+      head: h + ' · ' + fmtRange(ha, hb), cta: 'Raise prices',
       title: h + ': raise ' + Math.round(its[0].pct * 100) + '%',
-      why: h + ' fills calendars in every market you’re in, and these nights are still at everyday rates. Raise prices to capture the premium.' });
+      why: 'Demand jumps everywhere you host, but these nights sit at everyday rates.' });
   });
   if (eventCard) {
-    eventCard.head = 'Raise prices for Coachella · ' + fmtRange(eventCard.a, eventCard.b);
+    eventCard.head = 'Coachella · ' + fmtRange(eventCard.a, eventCard.b); eventCard.cta = 'Raise prices';
     eventCard.title = 'Coachella: raise 40%';
-    eventCard.why = 'Coachella books Palm Springs out at multiples of normal rates, and your festival weekends are still priced like any other. Raise prices before they sell through.';
+    eventCard.why = 'Palm Springs sells out months ahead. Your festival nights are priced like any other.';
     cards.push(eventCard);
   }
   Object.keys(seasonBy).forEach(key => {
@@ -7472,22 +7472,23 @@ function computeSuggestions() {
     cards.push({ bucket: t === 'raise' ? 'season-up' : t === 'drop' ? 'season-down' : 'promo',
       type: t, intent: its[0].intent, pct,
       a: Math.min(...its.map(x => x.a)), b: Math.max(...its.map(x => x.b)), items: its,
-      head: (t === 'raise' ? 'Raise prices for peak season · ' + mon : t === 'drop' ? 'Lower prices for the slow season · ' + mon : 'Add a promotion · ' + mon),
+      head: (t === 'raise' ? mon + ' peak season' : t === 'drop' ? mon + ' slow season' : mon + ' slow stretch'),
+      cta: (t === 'raise' ? 'Raise prices' : t === 'drop' ? 'Lower prices' : 'Add promotion'),
       title: its[0].title,
       why: t === 'raise'
-        ? mon + ' is the busiest month ' + where + ', and ' + nL + ' listing' + (nL > 1 ? 's are' : ' is') + ' still at base rate. Raise prices to meet the demand.'
+        ? 'Your busiest month ' + where + ' — and ' + nL + ' listing' + (nL > 1 ? 's are' : ' is') + ' still at base rate.'
         : t === 'drop'
-        ? mon + ' is the quiet season ' + where + ', where most bookings happen under base rate. Lower prices to keep the bookings coming.'
-        : mon + ' runs quiet ' + where + '. Add a promotion to fill it and rank higher in search.' });
+        ? 'Quiet ' + where + ', where stays are booking below your base rate.'
+        : 'A quiet run ' + where + ' — a promotion fills it and lifts your search rank.' });
   });
   // (4) UNLOCK STAYS — every stranded gap on the calendar as ONE mass action
   if (staysItems.length) {
     const tot = staysItems.reduce((s, x) => s + (x.b - x.a + 1), 0);
     cards.push({ bucket: 'stays', type: 'minnight', intent: 'fill',
       a: Math.min(...staysItems.map(x => x.a)), b: Math.max(...staysItems.map(x => x.b)), items: staysItems,
-      head: 'Change minimum nights for gaps · ' + fmtRange(Math.min(...staysItems.map(x => x.a)), Math.max(...staysItems.map(x => x.b))),
+      head: 'Gap nights', cta: 'Change minimum',
       title: 'Unlock ' + tot + ' stranded night' + (tot > 1 ? 's' : ''),
-      why: 'These gaps between bookings are too short for your minimums, so guests can’t book them. Lower the minimum on just these dates to open them up.' });
+      why: 'Too short for your minimums, so guests can’t book them at all.' });
   }
   // (5) SMART DISCOUNTS (setup lane) — last-minute + early-bird as ONE switch card; shows only while off
   LISTINGS.forEach((l, li) => {
@@ -7496,9 +7497,9 @@ function computeSuggestions() {
   if (setupItems.length) {
     cards.push({ bucket: 'setup', type: 'discount', intent: 'fill', pct: 0.15,
       a: Math.min(...setupItems.map(x => x.a)), b: Math.max(...setupItems.map(x => x.b)), items: setupItems,
-      head: 'Turn on smart discounts · ' + new Set(setupItems.map(x => x.li)).size + ' listings',
+      head: 'Discounts off · ' + new Set(setupItems.map(x => x.li)).size + ' listings', cta: 'Turn on',
       title: 'Turn on smart discounts',
-      why: new Set(setupItems.map(x => x.li)).size + ' listings have last-minute and early-bird discounts turned off. Turn them on to win the last-minute bookers and the early planners.' });
+      why: 'Last-minute and early-bird are switched off — both bring in bookings.' });
   }
   // Estimated $ impact per card → biggest first. The number on the card is what justifies mass action.
   cards.forEach(c => {
@@ -7593,7 +7594,7 @@ function renderMagicPill() {
       '<div class="mopp-pill">' +
         '<div class="ma-photos" style="width:' + photoStackWidth(imgs.length) + 'px">' + photoStackHTML(imgs) + '</div>' +
         '<div class="mopp-whywrap"><span class="mopp-head">' + (g.head || '') + '</span><span class="mopp-why">' + g.why + '</span></div>' +
-        '<button class="mopp-apply" data-magic="apply">Apply</button>' +
+        '<button class="mopp-apply" data-magic="apply">' + (g.cta || 'Apply') + '</button>' +
         '<button class="bp-close magic-close" data-magic="exit" aria-label="Exit">✕</button>' +
       '</div>';
     return;
