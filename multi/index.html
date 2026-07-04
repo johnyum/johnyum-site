@@ -1978,13 +1978,15 @@ body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.se
   width: calc(100% + 14px); height: 1.5px; background: currentColor; border-radius: 1px; pointer-events: none;
 }
 .price-card.unavailable.closed-rule:hover { border-color: var(--grey-200); background: var(--grey-200); } /* adv/prep hover: grey-200 fill (window-closed cells keep their blocked look) */
-/* the WHOLE closed cell is hoverable: the old circular grey pill ("Prep time" / "Adv notice")
-   floats centre-aligned 4px above the cell */
+/* WHOLE-cell hover tips (adv notice / prep time / early bird / last minute): the holiday-hover
+   pill — white fill, dark type, soft shadow — centre-aligned 4px above the cell */
 .price-card.unavailable.closed-rule { position: relative; cursor: default; }
+.price-card { position: relative; } /* tips anchor to their cell */
 .block-tip { position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
-  display: none; background: #E8E8E8; color: #484848; font: 500 13px/1 'Cereal', sans-serif;
-  white-space: nowrap; padding: 5px 10px; border-radius: 999px; z-index: 10; pointer-events: none; }
-.price-card.unavailable.closed-rule:hover .block-tip { display: block; }
+  display: none; background: #fff; color: #222; font: 500 13px/1 'Cereal', sans-serif;
+  white-space: nowrap; padding: 7px 12px; border-radius: 999px;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.18); z-index: 20; pointer-events: none; }
+.price-card:hover > .block-tip { display: block; }
 /* Host-BLOCKED night: the cell is left exactly as-is — ONLY the price is struck through. It stays
    selectable (it's not .unavailable) so the host can re-open it; the struck price persists after the
    action panel closes (deselected). Selection (black, white text) still applies normally. */
@@ -3682,8 +3684,10 @@ function buildPriceCell(li, di, booked, unavail, gapSet) {
   if (isSel(li, di)) card.classList.add('selected');
   const _of = !isBooked ? optFlagFor(li, di) : null; // Optimize glow (model-driven, survives virtualization)
   if (_of) { card.classList.add('opt-flag', 'opt-' + _of.intent); if (_of.min) card.classList.add('opt-min'); card.dataset.sugg = _of.id; }
-  const _dtxt = (isBooked || unavailable) ? '' : discBadgeText(li, di);
-  card.innerHTML = isBooked ? '' : `<span class="price-val">$${getPrice(li, di)}</span><span class="min-badge">${_of && _of.min ? `min <s>${_of.min.cur}</s> ${_of.min.to}` : minBadgeHTML(li, gapSet.has(di), di)}</span>${_dtxt ? `<span class="disc-badge">${_dtxt}</span>` : ''}<span class="cell-date">${d.getDate()}</span>${_bt ? `<span class="block-tip">${_bt === 'adv' ? 'Adv notice' : 'Prep time'}</span>` : ''}`;
+  const _dk = (isBooked || unavailable) ? null : discountType(li, di); // 'early' | 'last' | null
+  const _dtxt = _dk ? discBadgeText(li, di) : '';
+  const _tip = _bt ? (_bt === 'adv' ? 'Adv notice' : 'Prep time') : _dk ? (_dk === 'early' ? 'Early bird' : 'Last minute') : '';
+  card.innerHTML = isBooked ? '' : `<span class="price-val">$${getPrice(li, di)}</span><span class="min-badge">${_of && _of.min ? `min <s>${_of.min.cur}</s> ${_of.min.to}` : minBadgeHTML(li, gapSet.has(di), di)}</span>${_dtxt ? `<span class="disc-badge">${_dtxt}</span>` : ''}<span class="cell-date">${d.getDate()}</span>${_tip ? `<span class="block-tip">${_tip}</span>` : ''}`;
   setCellBadge(card, li, di, gapSet);
   const rsIdx = ruleSetCell[li][di]; // persist the rule-set color tint + corner dot across re-renders
   if (!isBooked && rsIdx != null && ruleSets[rsIdx]) {
