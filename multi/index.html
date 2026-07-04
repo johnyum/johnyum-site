@@ -790,7 +790,7 @@ body.month-view:not(.settings-mode):not(.avail-mode) .month-rows { display: flex
   transition: background 0.12s, color 0.12s;
 }
 /* Tapped → the whole month column is selected → the callout becomes a black pill with white text. */
-.month-header-cell.col-selected .mh-label { background: #222; color: #fff; }
+.month-header-cell.col-selected .mh-label { background: var(--grey-100); border: 2px solid #222; color: #222; padding: 5px 15px; } /* same tapped-cell treatment; padding −2 offsets the stroke */
 /* ── Super-collapse: compact the week grid (narrow night columns) to fit many more dates ── */
 /* Registered so they can ANIMATE (a plain custom property can't transition). The grid is virtualized
    (only ~visible cells exist), so interpolating these is cheap → the Super-collapse morph runs smoothly. */
@@ -995,34 +995,59 @@ body.magic-active #gridRows, body.magic-active #listingThumbsInner, body.magic-a
    A bottom-centred pill (reuses .multi-action position + fade) that scans the calendar and glows the
    nights worth tuning. Green glow = "fill it" (drop price / promo / lower min); amber = "earn more"
    (raise on peak/holiday). Tapping a glow opens its suggestion card. */
-.magic-action { z-index: 201; }
-.magic-pill { /* idle/scanning: WHITE pill matching the QA pill's 88px height; black type; big wand */
-  display: inline-flex; align-items: center; gap: 12px; height: 88px; padding: 0 12px;
+.magic-action { z-index: 201; bottom: 124px; } /* anchored on the QA pill's CENTER line (80 + 88/2) */
+.magic-action .multi-action-inner { transform: translateY(50%); } /* pill centres on that line → height changes grow outward on all sides */
+.magic-pill { /* idle: a 72×72 white CIRCLE (just the wand); hover unfurls the label, states morph from here */
+  display: inline-flex; align-items: center; height: 72px; padding: 0;
   background: #fff; color: #111; border-radius: 999px; white-space: nowrap;
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.06), 0 4px 8px rgba(0,0,0,0.08), 0 12px 30px rgba(0,0,0,0.14); /* Figma spec: S1 ring + Y4/B8 + Y12/B30 */
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.06), 0 4px 8px rgba(0,0,0,0.08), 0 12px 30px rgba(0,0,0,0.14); /* Figma spec: S1 ring + Y12/B30 */
   font-family: 'Cereal', sans-serif;
+  transition: width .5s cubic-bezier(.22,.9,.3,1), height .5s cubic-bezier(.22,.9,.3,1); /* JS pins explicit px → the pill MORPHS between its states (circle ⇄ results) instead of snapping */
 }
+/* scanning: the pill has collapsed into a perfect 72px circle (width = height, radius already 999px)
+   with the wand dead-centre; the container flex is centred so both edges converge inward */
+.magic-pill.is-scan { justify-content: center; padding: 0; }
+.magic-pill.is-scan .magic-scan { padding: 0; }
+/* growing: the circle is swelling out to the results size — the surface leads, the info follows.
+   overflow clips the not-yet-revealed content; opacity 0 holds it back until the surface lands. */
+.magic-pill.is-growing { overflow: hidden; }
+.mopp-pill, .magic-results { transition: opacity .3s ease; }
+.magic-pill.is-growing .mopp-pill, .magic-pill.is-growing .magic-results { opacity: 0; }
 .magic-pill.is-opp { background: #fff; color: #111; height: auto; } /* the review rides the same WHITE surface */
-.magic-cta { display: inline-flex; align-items: center; gap: 12px; background: none; border: 0; color: #111;
-  font: 600 16px 'Cereal', sans-serif; cursor: pointer; height: 88px; padding: 0 20px; border-radius: 999px; } /* +12px left of the wand */
+.magic-cta { display: inline-flex; align-items: center; background: none; border: 0; color: #111;
+  font: 600 16px 'Cereal', sans-serif; cursor: pointer; height: 72px; padding: 0 16px; border-radius: 999px; } /* 16 + 40 wand + 16 = a perfect 72×72 circle */
+/* hover: "Opportunities" unfurls out of the circle; hover-out folds it back in */
+.magic-label { max-width: 0; opacity: 0; overflow: hidden; padding: 0;
+  transition: max-width .45s cubic-bezier(.22,.9,.3,1), opacity .3s ease, padding .45s cubic-bezier(.22,.9,.3,1); }
+.magic-pill:hover .magic-label { max-width: 180px; opacity: 1; padding-left: 12px; padding-right: 8px; }
 .magic-spark { font-size: 18px; line-height: 1; display: inline-block; }
 .magic-spark.spin { animation: magicSpin 1s linear infinite; }
-.magic-wand { width: 40px; height: 40px; display: block; object-fit: contain; } /* the wand sits still — only its stars twinkle */
-.magic-wandwrap { position: relative; display: inline-block; }
-.mspark { position: absolute; font-style: normal; color: #12B76A; pointer-events: none; animation: twinkle 1.6s ease-in-out infinite; }
-.mspark.s1 { top: -4px; right: -6px; font-size: 11px; }
-.mspark.s2 { top: 10px; right: -10px; font-size: 8px; animation-delay: .5s; }
-.mspark.s3 { top: -8px; right: 8px; font-size: 7px; animation-delay: 1s; }
-@keyframes twinkle { 0%, 100% { opacity: 0; transform: scale(.5) rotate(0deg); } 50% { opacity: 1; transform: scale(1.15) rotate(20deg); } }
-/* scanning = the wand alone, centred where the label was, its stars twinkling as the loader */
+/* the wand, split into its real layers: the base PNG + the PNG's own three stars, overlaid in place.
+   Idle they sit exactly where they're drawn (looks identical to wand.png); scanning they FLASH —
+   the original stars ARE the loader, nothing added. */
+.magic-wand { width: 40px; height: 40px; display: block; object-fit: contain; }
+.magic-wandwrap { position: relative; display: inline-block; width: 40px; height: 40px; }
+.wand-star { position: absolute; pointer-events: none; }
+.wand-star.ws1 { left: 15.4px; top: 2.7px; width: 8.3px; height: 8.5px; }
+.wand-star.ws2 { left: 29.8px; top: 2.7px; width: 8.3px; height: 8.5px; }
+.wand-star.ws3 { left: 29.8px; top: 17.1px; width: 8.3px; height: 8.3px; }
+.magic-pill.is-scan .wand-star { animation: starFlash 1.4s ease-in-out infinite; }
+.magic-pill.is-scan .wand-star.ws2 { animation-delay: .45s; }
+.magic-pill.is-scan .wand-star.ws3 { animation-delay: .9s; }
+@keyframes starFlash { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .1; transform: scale(.6); } }
+/* scanning = the wand alone, centred where the label was, its own stars flashing as the loader */
 .magic-scan { display: inline-flex; align-items: center; justify-content: center; padding: 0 32px; }
-/* the calendar "scanning" sweep — a soft green wave travelling left → right over the cells */
-.opt-sweep { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 55; display: none; }
-body.opt-scanning .opt-sweep { display: block; }
-.opt-sweep::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 240px;
-  background: linear-gradient(90deg, rgba(18,183,106,0) 0%, rgba(18,183,106,0.10) 50%, rgba(18,183,106,0) 100%);
-  animation: optSweep 1.4s ease-in-out infinite; }
-@keyframes optSweep { from { transform: translateX(-260px); } to { transform: translateX(100vw); } }
+/* the calendar "scanning" sweep — a greyscale wave riding the cell strokes WITH a background shimmer:
+   each column's border ramps grey-500 → crests grey-600 → relaxes, and the cell face washes
+   grey-100 → grey-200 in step, staggered left → right (--swd is set per cell on scan start). The
+   shoulders sit ±6% around the crest so the focused column reads grey-600 with grey-500 beside it. */
+body.opt-scanning #gridRows .price-card:not(.booked) { animation: strokeSweep 2.2s ease-in-out infinite; animation-delay: var(--swd, 0s); }
+body.opt-scanning #gridRows .price-card .price-val { color: var(--grey-400); } /* prices step right back while the scanner reads */
+@keyframes strokeSweep {
+  0%, 34%, 100% { border-color: var(--grey-300); border-width: 1px; background-color: #fff; }
+  10%, 22% { border-color: var(--grey-500); border-width: 1px; background-color: var(--grey-100); }
+  16% { border-color: var(--grey-600); border-width: 2px; background-color: var(--grey-200); }
+}
 @keyframes magicSpin { to { transform: rotate(360deg); } }
 .magic-scan { display: inline-flex; align-items: center; gap: 10px; padding: 0 20px; height: 56px; font: 600 15px 'Cereal', sans-serif; }
 .magic-results { display: inline-flex; align-items: center; gap: 12px; padding: 0 6px 0 20px; height: 56px; font: 500 15px 'Cereal', sans-serif; }
@@ -1065,8 +1090,14 @@ body.opt-scanning .opt-sweep { display: block; }
 /* (No dimming in optimize mode — the calendar keeps its normal look; only the glows are added.) */
 /* The glow itself — a pulsing ring in the intent colour; contiguous cells' rings merge into a band */
 .price-card.opt-flag { cursor: pointer; position: relative; z-index: 3; }
-.price-card.opt-fill { box-shadow: 0 0 0 2px #038026, 0 0 14px 3px rgba(3,128,38,0.5); animation: optPulseFill 1.5s ease-in-out infinite; }
-.price-card.opt-earn { box-shadow: 0 0 0 2px #E07912, 0 0 14px 3px rgba(224,121,18,0.5); animation: optPulseEarn 1.5s ease-in-out infinite; }
+/* Each glow BLOOMS in (glowIn* ends exactly on the pulse's 0% value → seamless handoff into the loop).
+   body.glow-hold suppresses everything: flags are painted during the fly-to scroll, but the glow only
+   blooms once the camera is still and the class is lifted — removing it restarts the animations. */
+.price-card.opt-fill { box-shadow: 0 0 0 2px #038026, 0 0 14px 3px rgba(3,128,38,0.5); animation: glowInFill .6s ease-out, optPulseFill 1.5s ease-in-out .6s infinite; }
+.price-card.opt-earn { box-shadow: 0 0 0 2px #E07912, 0 0 14px 3px rgba(224,121,18,0.5); animation: glowInEarn .6s ease-out, optPulseEarn 1.5s ease-in-out .6s infinite; }
+body.glow-hold .price-card.opt-fill, body.glow-hold .price-card.opt-earn { box-shadow: none; animation: none; }
+@keyframes glowInFill { from { box-shadow: 0 0 0 0 rgba(3,128,38,0), 0 0 0 0 rgba(3,128,38,0); } to { box-shadow: 0 0 0 2px #038026, 0 0 7px 1px rgba(3,128,38,0.4); } }
+@keyframes glowInEarn { from { box-shadow: 0 0 0 0 rgba(224,121,18,0), 0 0 0 0 rgba(224,121,18,0); } to { box-shadow: 0 0 0 2px #E07912, 0 0 7px 1px rgba(224,121,18,0.4); } }
 @keyframes optPulseFill { 0%,100% { box-shadow: 0 0 0 2px #038026, 0 0 7px 1px rgba(3,128,38,0.4); } 50% { box-shadow: 0 0 0 2px #038026, 0 0 18px 5px rgba(3,128,38,0.72); } }
 @keyframes optPulseEarn { 0%,100% { box-shadow: 0 0 0 2px #E07912, 0 0 7px 1px rgba(224,121,18,0.4); } 50% { box-shadow: 0 0 0 2px #E07912, 0 0 18px 5px rgba(224,121,18,0.72); } }
 
@@ -1462,9 +1493,11 @@ body.redlines-mode { cursor: crosshair; }
   background: #EBEBEB;
   color: #555;
 }
-.day-num.col-selected {
-  background: #222;
-  color: #fff;
+.day-num.col-selected { /* mimics the tapped cell underneath: grey-100 fill, 2px black stroke, black type */
+  background: var(--grey-100);
+  border: 2px solid #222;
+  color: #222;
+  box-sizing: border-box;
 }
 
 /* Price grid body */
@@ -1779,6 +1812,25 @@ body.host-small.dim-bookings:not(.super-collapse-2) .booking-pill {
 }
 /* month edit mode: same treatment, sized to the 56px month cell */
 body.host-small.dim-bookings.super-collapse-2 .booking-pill { top: 0; height: 56px; }
+
+/* ── Pro host density: 48px calendar rows. Same tools, same jobs — the Pricing/Availability input
+   rows stay at their normal height; only the calendar gets denser as the inventory grows. */
+body.host-pro:not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .price-row { height: 48px; }
+body.host-pro:not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .thumb-row { height: 48px; }
+body.host-pro:not(.super-collapse-2) .booking-pill { height: 36px; top: 6px; border-radius: 18px; }
+body.host-pro:not(.super-collapse-2) .booking-avatar { width: 28px; height: 28px; }
+body.host-pro:not(.super-collapse-2) .booking-name { font-size: 12px; }
+
+/* ── Host-size morph: switching Small ↔ Medium ↔ Pro tweens the DENSITY on the rows already on
+   screen (row heights, guest pills, thumbs), then the inventory delta swaps in and the rows fade
+   back — one host growing/shrinking, not three different hosts. */
+body.hosts-morph .price-row, body.hosts-morph .thumb-row { transition: height .44s cubic-bezier(.4,0,.2,1); }
+body.hosts-morph .thumb-img { transition: width .44s cubic-bezier(.4,0,.2,1), height .44s cubic-bezier(.4,0,.2,1); }
+body.hosts-morph .left { transition: width .44s cubic-bezier(.4,0,.2,1); }
+body.hosts-morph .booking-pill { transition: height .44s cubic-bezier(.4,0,.2,1), top .44s cubic-bezier(.4,0,.2,1), padding .44s cubic-bezier(.4,0,.2,1); }
+body.hosts-morph .booking-avatar { transition: width .44s cubic-bezier(.4,0,.2,1), height .44s cubic-bezier(.4,0,.2,1); }
+body.hosts-morph #gridRows, body.hosts-morph #listingThumbsInner { pointer-events: none; } /* data is already the new tier; hold taps until the rebuild lands */
+body.hosts-settling #gridRows .price-row, body.hosts-settling #listingThumbsInner .thumb-row { animation: morph-fadein .32s ease both; }
 /* Discount badge (top-left): scalloped seal icon with a tooltip pill on hover */
 .discount-badge {
   position: absolute;
@@ -1851,6 +1903,13 @@ body.host-small.dim-bookings.super-collapse-2 .booking-pill { top: 0; height: 56
   white-space: nowrap;
 }
 body.no-min .min-badge { display: none; } /* "No Min" dev switch — hide the "min N" text under every price */
+/* Opportunity min-night change: the badge force-shows JUST on the focused dates (even when hidden by
+   default under "No Min") and slides in after the glow bloom — current minimum struck, suggested
+   nights beside it ("min 7̶ 5"). glow-hold keeps it back until the camera is still, like the glow. */
+body.no-min .price-card.opt-min .min-badge { display: inline; }
+.price-card.opt-min .min-badge { animation: minReveal .5s ease .5s backwards; }
+body.glow-hold .price-card.opt-min .min-badge { animation: none; opacity: 0; }
+@keyframes minReveal { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .price-card.selected .min-badge { color: var(--grey-700); } /* "min N" secondary type = grey-700 on the light selected cell */
 .price-card.unavailable {
   background: repeating-linear-gradient(45deg, #F5F5F5, #F5F5F5 4px, #EFEFEF 4px, #EFEFEF 8px);
@@ -3540,8 +3599,9 @@ function buildPriceCell(li, di, booked, unavail, gapSet) {
   card.className = 'price-card' + (isPast ? ' past' : '') + (unavailable ? ' unavailable' : '') + (isBlocked ? ' blocked' : '') + (isBooked ? ' booked' : '') + (!isBooked && !unavailable && holidaySurcharge[di] > 0 ? ' holiday-priced' : '');
   card.dataset.di = di;
   if (isSel(li, di)) card.classList.add('selected');
-  { const _of = optFlagFor(li, di); if (_of && !isBooked) { card.classList.add('opt-flag', 'opt-' + _of.intent); card.dataset.sugg = _of.id; } } // Optimize glow (model-driven, survives virtualization)
-  card.innerHTML = isBooked ? '' : `<span class="price-val">$${getPrice(li, di)}</span><span class="min-badge">${minBadgeHTML(li, gapSet.has(di), di)}</span><span class="cell-date">${d.getDate()}</span>`;
+  const _of = !isBooked ? optFlagFor(li, di) : null; // Optimize glow (model-driven, survives virtualization)
+  if (_of) { card.classList.add('opt-flag', 'opt-' + _of.intent); if (_of.min) card.classList.add('opt-min'); card.dataset.sugg = _of.id; }
+  card.innerHTML = isBooked ? '' : `<span class="price-val">$${getPrice(li, di)}</span><span class="min-badge">${_of && _of.min ? `min <s>${_of.min.cur}</s> ${_of.min.to}` : minBadgeHTML(li, gapSet.has(di), di)}</span><span class="cell-date">${d.getDate()}</span>`;
   setCellBadge(card, li, di, gapSet);
   const rsIdx = ruleSetCell[li][di]; // persist the rule-set color tint + corner dot across re-renders
   if (!isBooked && rsIdx != null && ruleSets[rsIdx]) {
@@ -5628,11 +5688,13 @@ function sc2CellInfo(li, di) {
 })();
 
 // Fade ALL guest pills to the grey "past" look while the user is focused on editing — i.e. when
-// any calendar cell is selected OR the holiday modal is open. Cleared otherwise.
+// any calendar cell is selected, the holiday modal is open, OR optimize (Opportunities) mode is on:
+// opportunity review IS an edit focus, so the guest pills step back the same way.
 function updateBookingDim() {
   const hasSel = selCount() > 0;
   const holidayOpen = document.getElementById('holidayCard').classList.contains('visible');
-  document.body.classList.toggle('dim-bookings', hasSel || holidayOpen);
+  const optimizing = document.body.classList.contains('optimize-mode');
+  document.body.classList.toggle('dim-bookings', hasSel || holidayOpen || optimizing);
 }
 
 // Per-listing availability snapshot (built once per column pass — computeUnavailable is O(days), so we
@@ -6391,6 +6453,7 @@ function animateGroupsByCity() {
     document.querySelector('.cal').appendChild(dots);
   }
   document.body.classList.add('grouping-busy');        // everything under the rule fades away
+  if (window.updateMagicPill) updateMagicPill();       // Opportunities collapses away (same fade as the QA pill)
   // centre the dots between the header rule (under the dates) and the dev bar
   const rule = document.querySelector('.date-header-wrap'), dev = document.getElementById('devBar');
   const topY = rule ? rule.getBoundingClientRect().bottom : 160;
@@ -6405,6 +6468,7 @@ function animateGroupsByCity() {
     saveGroups(); renderGroups(); applyGroupsToCalendar();
     dots.classList.remove('show');
     document.body.classList.remove('grouping-busy');
+    if (window.updateMagicPill) updateMagicPill();     // …and Opportunities fades back in with the new groups
     document.body.classList.add('grouping-enter');     // the grouped rows fade up into place
     setTimeout(() => document.body.classList.remove('grouping-enter'), 700);
   }, 2000);
@@ -6729,6 +6793,10 @@ function rebuildSettingsGrids() {
   render(true); // recompute the calendar (prices/availability) preserving scroll
 }
 document.getElementById('devVariance').addEventListener('change', e => {
+  // Variance is a HOST-wide state: flatten/restore the FULL 32-listing portfolio, not just the
+  // visible tier — otherwise hidden rows would come back varied while the visible ones sit at $200.
+  const _tierN = (typeof MASTER !== 'undefined' && MASTER) ? HOST_N[activeHost] : null;
+  if (_tierN != null) { syncTierBack(_tierN); loadTier(HOST_N.pro); }
   if (!e.target.checked) {
     // Price variance OFF → flatten to the generic $200 baseline (same params everywhere). Snapshot
     // EVERYTHING first (so turning variance back ON restores it), then wipe to a clean baseline —
@@ -6746,7 +6814,7 @@ document.getElementById('devVariance').addEventListener('change', e => {
       monthBlocked: monthBlocked.map(s => [...s]),
     };
     applyZeroValues();
-    ruleSets = []; appliedRuleSetIdx = null;
+    ruleSets.length = 0; appliedRuleSetIdx = null; // in place — MASTER aliases this array via _HOST_O
     ruleSetCell.forEach(o => { for (const k in o) delete o[k]; });
     priceOverride.forEach(o => { for (const k in o) delete o[k]; });
     minOverride.forEach(o => { for (const k in o) delete o[k]; });
@@ -6762,7 +6830,7 @@ document.getElementById('devVariance').addEventListener('change', e => {
     Object.keys(holidaySurcharge).forEach(k => delete holidaySurcharge[k]);
     Object.assign(holidaySurcharge, preZeroSnapshot.holidays); // restore the holiday %s we cleared
     // restore the overlays
-    ruleSets = preZeroSnapshot.ruleSets; appliedRuleSetIdx = preZeroSnapshot.appliedRuleSetIdx;
+    ruleSets.length = 0; preZeroSnapshot.ruleSets.forEach(r => ruleSets.push(r)); appliedRuleSetIdx = preZeroSnapshot.appliedRuleSetIdx; // in place — MASTER aliases this array
     ruleSetCell.forEach((o, i) => { for (const k in o) delete o[k]; Object.assign(o, preZeroSnapshot.ruleSetCell[i]); });
     priceOverride.forEach((o, i) => { for (const k in o) delete o[k]; Object.assign(o, preZeroSnapshot.priceOverride[i]); });
     minOverride.forEach((o, i) => { for (const k in o) delete o[k]; Object.assign(o, (preZeroSnapshot.minOverride || [])[i] || {}); });
@@ -6771,6 +6839,7 @@ document.getElementById('devVariance').addEventListener('change', e => {
     hostBlocked.forEach((s, i) => { s.clear(); preZeroSnapshot.hostBlocked[i].forEach(di => s.add(di)); });
     monthBlocked.forEach((s, i) => { s.clear(); preZeroSnapshot.monthBlocked[i].forEach(di => s.add(di)); });
   }
+  if (_tierN != null) { syncTierBack(HOST_N.pro); loadTier(_tierN); recomputeDerived(); rebuildBookedSet(); }
   rebuildSettingsGrids();
   if (typeof clearSelection === 'function') clearSelection(); // drop any selection + the action panel (rule sets are gone)
 });
@@ -7084,41 +7153,51 @@ function computeSuggestions() {
   const items = []; const N = allDays.length;
   const varianceOn = !!(document.getElementById('devVariance') && document.getElementById('devVariance').checked);
   if (!varianceOn) {
-    // SETUP mode: the calendar is a flat baseline (Price variance off) — there's nothing to tweak,
-    // so the opportunities INTRODUCE the foundational settings, grouped across listings by date.
+    // SETUP mode: the calendar is a flat baseline (Price variance off) — everything still sits at base
+    // rate, so the plays are the same modes as always: price UP through the next high-demand run, price
+    // DOWN through the next lull, and a last-minute discount for the open week.
     for (let li = 0; li < LISTINGS.length; li++) {
       const dem = monthlyDemand[li], city = listingCity[li];
-      // seasonal pricing — anchored on the listing's NEXT high-demand month
-      if (!seasonalitySet(li)) {
+      // price up — the listing's NEXT high-demand month is still at base rate
+      {
         let a = -1, b = -1;
         for (let k = Math.max(0, todayDi); k < N; k++) {
           const m = allDays[k].getMonth();
           if (dem[m] >= 78) { a = k; b = k; while (b + 1 < N && allDays[b + 1].getMonth() === m) b++; break; }
         }
         if (a >= 0) {
-          const hi = Math.max.apply(null, dem), lo = Math.min.apply(null, dem);
-          const up = Math.max(5, Math.round((hi - 60) / 2)), dn = Math.max(3, Math.round((70 - lo) / 2));
-          items.push({ li, a, b, intent: 'earn', type: 'seasonal', up, dn, pct: up / 100,
-            title: 'Set seasonal pricing',
-            why: cityLabel(city) + "'s demand swings hard by season and your rates don't yet — +" + up + "% in the high runs, −" + dn + "% through the lulls." });
+          const hi = Math.max.apply(null, dem);
+          const up = Math.max(0.08, Math.min(0.20, Math.round((hi - 60) / 2) / 100));
+          const b2 = Math.min(b, a + 13), p0 = getPrice(li, a); // cap to ~2 weeks so the play stays digestible
+          items.push({ li, a, b: b2, intent: 'earn', type: 'raise', pct: up, curPrice: p0, newPrice: Math.round(p0 * (1 + up)),
+            title: 'Raise price ' + Math.round(up * 100) + '%',
+            why: cityLabel(city) + "'s high season and you're still at base rate — comparable stays nearby booked these nights at a premium." });
         }
       }
-      // weekend pricing — glows the next weekend
-      if (!pct(weekendVals[li])) {
-        let a = -1;
-        for (let k = Math.max(0, todayDi); k < N; k++) { if (allDays[k].getDay() === 5) { a = k; break; } }
-        if (a >= 0) items.push({ li, a, b: Math.min(N - 1, a + 2), intent: 'earn', type: 'weekend', pct: 0.15,
-          title: 'Add weekend pricing',
-          why: 'Fri–Sun nights book at a premium and yours are flat — +15% on weekends is the standard first move.' });
+      // price down — the next LOW-demand month is also flat; lower it before it sits empty
+      {
+        let a = -1, b = -1;
+        for (let k = Math.max(0, todayDi); k < N; k++) {
+          const m = allDays[k].getMonth();
+          if (dem[m] <= 49) { a = k; b = k; while (b + 1 < N && allDays[b + 1].getMonth() === m) b++; break; }
+        }
+        if (a >= 0) {
+          const lo = Math.min.apply(null, dem);
+          const dn = Math.max(0.06, Math.min(0.18, Math.round((60 - lo) / 2) / 100));
+          const b2 = Math.min(b, a + 13), p0 = getPrice(li, a);
+          items.push({ li, a, b: b2, intent: 'fill', type: 'drop', pct: dn, curPrice: p0, newPrice: Math.round(p0 * (1 - dn)),
+            title: 'Lower price ' + Math.round(dn * 100) + '%',
+            why: cityLabel(city) + "'s slow season at full price rarely books — the nearby stays that filled these nights priced under base." });
+        }
       }
-      // last-minute — open nights within the week and no last-minute rate set
+      // add discount — open nights within the week and no last-minute rate set
       {
         let s0 = -1, e0 = -1;
         for (let k = Math.max(0, todayDi); k <= Math.min(N - 1, todayDi + NEAR_DAYS); k++) { if (isOpenNight(li, k)) { if (s0 < 0) s0 = k; e0 = k; } }
         if (s0 >= 0 && lastMinuteVals[li] == null) {
           const p0 = getPrice(li, s0);
-          items.push({ li, a: s0, b: e0, intent: 'fill', type: 'lastmin', pct: 0.15, curPrice: p0, newPrice: Math.round(p0 * 0.85),
-            title: 'Turn on last-minute pricing',
+          items.push({ li, a: s0, b: e0, intent: 'fill', type: 'discount', pct: 0.15, curPrice: p0, newPrice: Math.round(p0 * 0.85),
+            title: 'Add a last-minute discount',
             why: 'Open nights within the week and no last-minute discount set — a -15% rate for stays booked \u22647 days out wins the guests deciding right now.' });
         }
       }
@@ -7139,8 +7218,8 @@ function computeSuggestions() {
       if (s0 >= 0 && !tuned) {
         const p0 = getPrice(li, s0);
         if (lastMinuteVals[li] == null) {
-          items.push({ li, a: s0, b: e0, intent: 'fill', type: 'lastmin', pct: 0.15, curPrice: p0, newPrice: Math.round(p0 * 0.85),
-            title: 'Turn on last-minute pricing',
+          items.push({ li, a: s0, b: e0, intent: 'fill', type: 'discount', pct: 0.15, curPrice: p0, newPrice: Math.round(p0 * 0.85),
+            title: 'Add a last-minute discount',
             why: 'Open nights within the week and no last-minute discount set — a -15% rate for stays booked \u22647 days out wins the guests deciding right now.' });
         } else {
           const dn = 0.10;
@@ -7164,6 +7243,10 @@ function computeSuggestions() {
           why: 'A ' + L + '-night gap sits between two bookings, but your ' + minN + '-night minimum makes it unbookable. Drop the minimum just here so a guest can grab it.' });
         continue;
       }
+      // longer gap still shorter than the minimum → whatever price play we suggest below also RIDES a
+      // min-night change (curMin/minTo on the item), so one Apply fixes both the price and the block
+      const minRide = (a > 0 && booked.has(a - 1) && b < N - 1 && booked.has(b + 1) && L < minN) ? L : 0;
+      const segStart = items.length;
       let s0 = a;
       while (s0 <= b) {
         const m = allDays[s0].getMonth(); let e0 = s0; while (e0 + 1 <= b && allDays[e0 + 1].getMonth() === m) e0++;
@@ -7198,6 +7281,7 @@ function computeSuggestions() {
         }
         s0 = e0 + 1;
       }
+      if (minRide) for (let ii = segStart; ii < items.length; ii++) { items[ii].curMin = minN; items[ii].minTo = minRide; }
     }
   }
   // GROUP BY DATE: the same play on an overlapping window -> one opportunity across every affected listing
@@ -7217,45 +7301,62 @@ function computeSuggestions() {
   });
   return groups;
 }
-function buildFlags(groups) {
+function buildFlags(groups) { // only the groups passed in glow — the focus model hands us ONE at a time
   const m = new Map();
-  groups.forEach(g => g.items.forEach(it => { for (let k = it.a; k <= it.b; k++) m.set(it.li + ':' + k, { id: g.id, intent: g.intent }); }));
+  groups.forEach(g => g.items.forEach(it => {
+    const min = it.type === 'minnight' ? { cur: it.curMin, to: it.newMin }
+              : it.minTo != null       ? { cur: it.curMin, to: it.minTo } : null; // min-night rider on a price play
+    for (let k = it.a; k <= it.b; k++) m.set(it.li + ':' + k, { id: g.id, intent: g.intent, min });
+  }));
   window.__opt.flags = m;
 }
 function repaintOptGlows() { // re-apply glow classes to currently-mounted cells (off-screen cells get theirs on next mount)
   document.querySelectorAll('#gridRows > .price-row').forEach(row => {
     const li = +row.dataset.li;
+    const gapSet = gapExceptionNights(li);
     row.querySelectorAll('.price-card').forEach(card => {
-      const f = card.classList.contains('booked') ? null : optFlagFor(li, +card.dataset.di);
-      card.classList.remove('opt-flag', 'opt-fill', 'opt-earn');
+      const di = +card.dataset.di;
+      const f = card.classList.contains('booked') ? null : optFlagFor(li, di);
+      const hadMin = card.classList.contains('opt-min');
+      card.classList.remove('opt-flag', 'opt-fill', 'opt-earn', 'opt-min');
       if (f) { card.classList.add('opt-flag', 'opt-' + f.intent); card.dataset.sugg = f.id; } else delete card.dataset.sugg;
+      // min-night change: strike the current minimum, suggested nights beside it (badge force-shown via .opt-min)
+      const badge = card.querySelector('.min-badge');
+      if (badge) {
+        if (f && f.min) { card.classList.add('opt-min'); badge.innerHTML = 'min <s>' + f.min.cur + '</s> ' + f.min.to; }
+        else if (hadMin) badge.innerHTML = minBadgeHTML(li, gapSet.has(di), di); // restore the normal badge on de-focus
+      }
     });
   });
 }
-function shortTitle(g) {
+function shortTitle(g) { // the five modes: price up / price down / add promotion / add discount / change min nights
   if (g.type === 'raise') return 'Raise ' + Math.round(g.pct * 100) + '%';
   if (g.type === 'drop')  return 'Lower ' + Math.round(g.pct * 100) + '%';
   if (g.type === 'promo') return Math.round(g.pct * 100) + '% promo';
-  if (g.type === 'lastmin') return 'Last-minute −' + Math.round(g.pct * 100) + '%';
-  if (g.type === 'seasonal') return 'Seasonal pricing';
-  if (g.type === 'weekend') return 'Weekends +15%';
+  if (g.type === 'discount') return 'Last-minute −' + Math.round(g.pct * 100) + '%';
   return 'Min → ' + (g.items ? g.items[0].newMin : g.newMin);
 }
 function shortChange(g) {
   const it = g.items ? g.items[0] : g;
   const multi = g.lis && g.lis.length > 1;
-  if (g.type === 'promo') return Math.round(g.pct * 100) + '% off' + (multi ? ' · ' + g.lis.length + ' listings' : ' · from $' + it.newPrice);
+  const ride = it.minTo != null ? ' · min <s>' + it.curMin + '</s> ' + it.minTo : ''; // riding min-night change
+  if (g.type === 'promo') return Math.round(g.pct * 100) + '% off' + (multi ? ' · ' + g.lis.length + ' listings' : ' · from $' + it.newPrice) + ride;
   if (g.type === 'minnight') return 'min <s>' + it.curMin + '</s> ' + it.newMin + ' night' + (it.newMin > 1 ? 's' : '');
-  if (g.type === 'lastmin') return 'for stays ≤7 days out';
-  if (g.type === 'seasonal') { const it2 = g.items ? g.items[0] : g; return '+' + it2.up + '% high · −' + it2.dn + '% low'; }
-  if (g.type === 'weekend') return 'Fri–Sun nights';
-  return multi ? ((g.intent === 'earn' ? '+' : '−') + Math.round(g.pct * 100) + '% · ' + g.lis.length + ' listings')
-               : ('<s>$' + it.curPrice + '</s> → $' + it.newPrice);
+  if (g.type === 'discount') return 'for stays ≤7 days out';
+  return (multi ? ((g.intent === 'earn' ? '+' : '−') + Math.round(g.pct * 100) + '% · ' + g.lis.length + ' listings')
+               : ('<s>$' + it.curPrice + '</s> → $' + it.newPrice)) + ride;
+}
+// The wand as its real layers — base PNG + the PNG's own 3 stars back in place (idle: identical to
+// wand.png; scanning: the stars flash). Shared by the idle circle and the scanning loader.
+function wandHTML() {
+  return '<span class="magic-wandwrap"><img class="magic-wand" src="img/wand-base.png" alt="">' +
+    '<img class="wand-star ws1" src="img/wand-star1.png" alt=""><img class="wand-star ws2" src="img/wand-star2.png" alt="">' +
+    '<img class="wand-star ws3" src="img/wand-star3.png" alt=""></span>';
 }
 function renderMagicPill() {
   const pill = document.getElementById('magicPill'); if (!pill) return;
   const o = window.__opt; pill.className = 'magic-pill';
-  if (o.state === 'scanning') { pill.innerHTML = '<span class="magic-scan"><span class="magic-wandwrap"><img class="magic-wand" src="img/wand.png" alt=""><i class="mspark s1">\u2726</i><i class="mspark s2">\u2726</i><i class="mspark s3">\u2726</i></span></span>'; return; } // the sparkling wand IS the loader
+  if (o.state === 'scanning') { pill.className = 'magic-pill is-scan'; pill.innerHTML = '<span class="magic-scan">' + wandHTML() + '</span>'; return; } // the wand's own flashing stars ARE the loader; is-scan centres it in the circle
   if (o.state === 'done')     { pill.innerHTML = '<span class="magic-scan"><span class="magic-spark">✓</span>Applied</span>'; return; }
   if (o.state === 'results') {
     const n = o.suggs.length;
@@ -7278,14 +7379,14 @@ function renderMagicPill() {
       '</div>';
     return;
   }
-  pill.innerHTML = '<button class="magic-cta" data-magic="go"><img class="magic-wand" src="img/wand.png" alt="">Opportunities</button>'; // idle: icon + label, fully static
+  pill.innerHTML = '<button class="magic-cta" data-magic="go">' + wandHTML() + '<span class="magic-label">Opportunities</span></button>'; // idle: a 72\u00d772 wand circle; hover unfurls the label
 }
 window.updateMagicPill = function () {
   const el = document.getElementById('magicAction'); if (!el) return;
   const inCal = !document.body.classList.contains('settings-mode') && !document.body.classList.contains('avail-mode') && (typeof calendarView === 'undefined' || calendarView !== 'month');
   const optimizing = document.body.classList.contains('optimize-mode');
   const hasSel = (typeof selected !== 'undefined') && selected.size > 0;
-  const show = inCal && (optimizing || !hasSel);
+  const show = inCal && !document.body.classList.contains('grouping-busy') && (optimizing || !hasSel); // tucked away during the Automate-group flow
   el.classList.toggle('show', show);
   document.body.classList.toggle('magic-active', show);          // scroll safety: bottom room while the pill is up
   if (typeof updateVSync === 'function') requestAnimationFrame(updateVSync); // scroll range changed → re-sync the thumbnails
@@ -7315,44 +7416,87 @@ function scrollToOpportunity(s, cb) {
 function startOptimize() {
   if (typeof clearSelection === 'function') clearSelection(); // drop any selection; optimize owns the grid
   document.body.classList.add('optimize-mode');
-  if (!document.getElementById('optSweep')) { const sw = document.createElement('div'); sw.id = 'optSweep'; sw.className = 'opt-sweep'; document.querySelector('.cal').appendChild(sw); }
-  document.body.classList.add('opt-scanning');            // the green wave sweeps the cells while we think
+  updateBookingDim(); // guest pills step back to the grey edit-mode look for the whole session
+  // stagger each cell's stroke pulse by its on-screen x → the wave sweeps left → right (800px/s)
+  const swBase = gridWrap.scrollLeft;
+  document.querySelectorAll('#gridRows .price-card').forEach(c => {
+    c.style.setProperty('--swd', Math.max(0, (c.parentElement.offsetLeft - swBase) / 800) + 's');
+  });
+  document.body.classList.add('opt-scanning');
+  // pill → circle morph: pin the idle width, swap to the wand-only content, then shrink to 72px —
+  // both edges converge on the centre (the container flex is centred) while the wand GLIDES there
+  const pillEl = document.getElementById('magicPill');
+  const wandBefore = pillEl.querySelector('.magic-wand') ? pillEl.querySelector('.magic-wand').getBoundingClientRect() : null;
+  pillEl.style.width = pillEl.getBoundingClientRect().width + 'px';
   window.__opt.state = 'scanning'; renderMagicPill(); window.updateMagicPill();
+  const wrap = pillEl.querySelector('.magic-wandwrap');
+  if (wandBefore && wrap) {
+    const dx = wandBefore.left - wrap.getBoundingClientRect().left;
+    wrap.style.transition = 'none'; wrap.style.transform = 'translateX(' + dx + 'px)';
+  }
+  requestAnimationFrame(() => {
+    if (wrap) { wrap.style.transition = 'transform .5s cubic-bezier(.22,.9,.3,1)'; wrap.style.transform = ''; }
+    pillEl.style.width = '72px'; // width = height → a perfect circle, wand centred
+  });
   setTimeout(() => {
     const suggs = computeSuggestions().sort((x, y) => x.a - y.a); // ordered by date so ‹ › steps chronologically
-    window.__opt.suggs = suggs; buildFlags(suggs); repaintOptGlows();
+    window.__opt.suggs = suggs; buildFlags(suggs.slice(0, 1)); // ONE at a time: only the first opportunity glows
+    document.body.classList.add('glow-hold'); // flags paint now, but the glow waits for the camera to settle
+    repaintOptGlows();
     document.body.classList.remove('opt-scanning');       // scan done → the sweep stops
     window.__opt.cur = 0; window.__opt.state = 'results'; renderMagicPill();
-    if (suggs.length) scrollToOpportunity(suggs[0]); // fly to the first; its info now lives in the pill
-  }, 1400);
+    // circle → results morph: measure the natural size, pin back to the circle, then grow out to it;
+    // the info fades in as the surface lands (is-growing holds it at opacity 0)
+    pillEl.classList.add('is-growing');
+    pillEl.style.transition = 'none'; pillEl.style.width = ''; pillEl.style.height = '';
+    const target = pillEl.getBoundingClientRect();
+    pillEl.style.width = '72px'; pillEl.style.height = '72px';
+    void pillEl.offsetWidth;
+    pillEl.style.transition = '';
+    requestAnimationFrame(() => {
+      pillEl.style.width = target.width + 'px'; pillEl.style.height = target.height + 'px';
+      setTimeout(() => pillEl.classList.remove('is-growing'), 400); // info fades in over the morph's tail
+      setTimeout(() => { pillEl.style.width = ''; pillEl.style.height = ''; }, 560); // release once landed
+    });
+    if (suggs.length) {
+      scrollToOpportunity(suggs[0], () =>                            // fly to the first opportunity…
+        setTimeout(() => document.body.classList.remove('glow-hold'), 180)); // …and once still, bloom the glow
+    } else {
+      document.body.classList.remove('glow-hold');
+    }
+  }, 5000);
 }
 function exitOptimize() {
   closeOptCard();
-  document.body.classList.remove('optimize-mode', 'opt-scanning');
+  document.body.classList.remove('optimize-mode', 'opt-scanning', 'glow-hold');
+  const mp = document.getElementById('magicPill'); if (mp) { mp.style.width = ''; mp.style.height = ''; mp.classList.remove('is-growing'); }
   window.__opt.flags = new Map(); window.__opt.suggs = []; window.__opt.state = 'idle';
   repaintOptGlows(); renderMagicPill(); window.updateMagicPill();
+  updateBookingDim(); // optimize-mode is off again → guest pills come back (unless a selection holds them)
 }
 function applySuggestion(s) { // one per-listing item (groups apply every item)
-  if (s.type === 'lastmin') { lastMinuteVals[s.li] = '-15%'; return; } // introduces the last-minute setting itself
-  if (s.type === 'seasonal') { highSeasonVals[s.li] = '+' + s.up + '%'; lowSeasonVals[s.li] = '-' + s.dn + '%'; return; } // introduces seasonality
-  if (s.type === 'weekend') { weekendVals[s.li] = '+15%'; return; } // introduces weekend pricing
+  if (s.type === 'discount') { lastMinuteVals[s.li] = '-15%'; return; } // introduces the last-minute discount setting
   for (let k = s.a; k <= s.b; k++) {
     if (s.type === 'raise')      priceOverride[s.li][k] = Math.round(getPrice(s.li, k) * (1 + s.pct));
     else if (s.type === 'drop')  priceOverride[s.li][k] = Math.round(getPrice(s.li, k) * (1 - s.pct));
     else if (s.type === 'promo') promoVals[s.li][k] = s.pct;
     else if (s.type === 'minnight') minOverride[s.li][k] = s.newMin;
+    if (s.minTo != null) minOverride[s.li][k] = s.minTo; // riding min-night change lands with the price play
   }
 }
 function applyGroup(g) { g.items.forEach(applySuggestion); }
-function clearGroupFlags(g, flags) { g.items.forEach(it => { for (let k = it.a; k <= it.b; k++) flags.delete(it.li + ':' + k); }); }
-function applyOne(id) {
-  const o = window.__opt; const s = o.suggs.find(x => x.id === id); if (!s) return;
-  applySuggestion(s);
-  o.suggs = o.suggs.filter(x => x.id !== id);
-  for (let k = s.a; k <= s.b; k++) o.flags.delete(s.li + ':' + k);
-  refreshCalendarPrices(); repaintOptGlows(); closeOptCard();
-  if (o.suggs.length === 0) { o.state = 'done'; renderMagicPill(); setTimeout(exitOptimize, 1000); }
-  else { renderMagicPill(); }
+// ONE opportunity at a time: only the current group's cells glow. Focusing clears the old glow
+// instantly, flies to the new window, and blooms its glow (and min-badge) once the camera is still.
+function focusOpportunity() {
+  const o = window.__opt; const g = o.suggs[o.cur]; if (!g) return;
+  buildFlags([g]);
+  document.body.classList.add('glow-hold');
+  repaintOptGlows();
+  scrollToOpportunity(g, () => setTimeout(() => document.body.classList.remove('glow-hold'), 180));
+}
+function applyOne(id) { // the suggestion card's Apply → same flow as the pill's
+  const o = window.__opt; const i = o.suggs.findIndex(x => x.id === id); if (i < 0) return;
+  o.cur = i; closeOptCard(); applyCurrent();
 }
 function applyAllSuggestions() {
   const o = window.__opt;
@@ -7362,28 +7506,31 @@ function applyAllSuggestions() {
   o.state = 'done'; renderMagicPill();
   setTimeout(exitOptimize, 1100);
 }
-// Step left/right through opportunities — the pill updates + the grid flies to the current one.
+// Step left/right through opportunities — the pill updates + the focus (glow + camera) moves with it.
 function optNav(dir) {
   const o = window.__opt; const n = o.suggs.length; if (!n) return;
   o.cur = ((o.cur || 0) + dir + n) % n; // wraps around
-  renderMagicPill(); scrollToOpportunity(o.suggs[o.cur]);
+  renderMagicPill(); focusOpportunity();
 }
-// Apply the opportunity currently shown in the pill, then advance to the next one.
+// Apply the opportunity currently shown in the pill, then advance the focus to the next one.
 function applyCurrent() {
   const o = window.__opt; const g = o.suggs[o.cur]; if (!g) return;
-  applyGroup(g); clearGroupFlags(g, o.flags);
+  applyGroup(g); closeOptCard();
   const wasCur = o.cur; o.suggs.splice(wasCur, 1);
-  refreshCalendarPrices(); repaintOptGlows();
-  if (!o.suggs.length) { o.state = 'done'; renderMagicPill(); setTimeout(exitOptimize, 900); return; }
+  refreshCalendarPrices();
+  if (!o.suggs.length) { o.flags = new Map(); repaintOptGlows(); o.state = 'done'; renderMagicPill(); setTimeout(exitOptimize, 900); return; }
   o.cur = wasCur % o.suggs.length; // land on the next one (or wrap)
-  renderMagicPill(); scrollToOpportunity(o.suggs[o.cur]);
+  renderMagicPill(); focusOpportunity();
 }
 // The suggestion card
 function changeHTML(s) {
   const L = s.b - s.a + 1;
-  if (s.type === 'promo') return '<div class="opt-card-change">' + Math.round(s.pct * 100) + '% off<span class="arrow">→</span>from $' + s.newPrice + '/night</div>';
+  const it = s.items ? s.items[0] : s;
+  const ride = it.minTo != null ? '<div class="opt-card-change">min <s>' + it.curMin + '</s><span class="arrow">→</span>' + it.minTo + ' night' + (it.minTo > 1 ? 's' : '') + '</div>' : '';
+  if (s.type === 'promo') return '<div class="opt-card-change">' + Math.round(s.pct * 100) + '% off<span class="arrow">→</span>from $' + s.newPrice + '/night</div>' + ride;
+  if (s.type === 'discount') return '<div class="opt-card-change">' + Math.round(s.pct * 100) + '% off<span class="arrow">→</span>stays booked within 7 days</div>';
   if (s.type === 'minnight') return '<div class="opt-card-change">min <s>' + s.curMin + '</s><span class="arrow">→</span>' + s.newMin + ' night' + (s.newMin > 1 ? 's' : '') + '</div>';
-  return '<div class="opt-card-change"><s>$' + s.curPrice + '</s><span class="arrow">→</span>$' + s.newPrice + '<span style="font-weight:400;color:#717171;">&nbsp;· ' + L + ' night' + (L > 1 ? 's' : '') + '</span></div>';
+  return '<div class="opt-card-change"><s>$' + s.curPrice + '</s><span class="arrow">→</span>$' + s.newPrice + '<span style="font-weight:400;color:#717171;">&nbsp;· ' + L + ' night' + (L > 1 ? 's' : '') + '</span></div>' + ride;
 }
 function openOptCard(id, anchor) {
   const s = window.__opt.suggs.find(x => x.id === id); if (!s) return;
@@ -7496,10 +7643,22 @@ function buildSmallHost() {
   recomputeDerived();
   BOOKINGS.length = 0; generateBookings().forEach(b => BOOKINGS.push(b));
 }
-// "Pro Host" — a generated 24-listing portfolio spread across every city in the demand model.
-function buildProHost() {
+// ═══ ONE host, three sizes ═══════════════════════════════════════════════════════════════════
+// Small (5) ⊂ Medium (12) ⊂ Pro (32) are the SAME host at different points in their growth — the
+// first N listings of one 32-listing MASTER portfolio. Same guest pills, same pricing/availability
+// inputs, same edits: the tools and the jobs don't change with more listings, the calendar just gets
+// denser. Switching size tweens the density, swaps how much inventory is on screen, and syncs edits
+// back into the master prefix so they persist at every size.
+const HOST_N = { small: 5, big: 12, pro: 32 };
+let MASTER = null;
+function buildUnifiedHost() {
+  const C = captureHostState();  // the boot 12-listing arrays: their rows 0–6 become master listings 5–11
+  buildSmallHost();              // working arrays ← the small five (master listings 0–4)
+  _HOST_P.forEach((a, i) => C.p[i].slice(0, 7).forEach(x => a.push(x))); // classic rows ride behind the five
+  C.o[0].slice(0, 7).forEach(l => LISTINGS.push(JSON.parse(JSON.stringify(l))));
+  // …then grow to 32 with a deterministic generated tail (stable across reloads)
   const cities = ['Aspen', 'Lake Tahoe', 'Palm Springs', 'Los Angeles', 'San Diego', 'Malibu', 'Santa Barbara', 'Big Bear', 'Joshua Tree'];
-  const photos = [ // reuse the verified Unsplash pool, cycled
+  const photos = [
     'photo-1542718610-a1d656d1884c', 'photo-1449158743715-0a90ebb6d2d8', 'photo-1449844908441-8829872d2607',
     'photo-1512917774080-9991f1c4c750', 'photo-1580587771525-78b9dba3b914', 'photo-1600585154340-be6161a56a0c',
     'photo-1601918774946-25832a4be0d6', 'photo-1531971589569-0d9370cbe1e5', 'photo-1595877244574-e90ce41ce089',
@@ -7510,66 +7669,105 @@ function buildProHost() {
   ];
   const NAMES1 = ['Canyon', 'Vista', 'Meadow', 'Summit', 'Harbor', 'Cedar', 'Juniper', 'Solstice', 'Alpine', 'Coastal', 'Golden', 'Willow'];
   const NAMES2 = ['Retreat', 'House', 'Lodge', 'Cottage', 'Villa', 'Hideaway', 'Bungalow', 'Cabin'];
-  const N = 24;
-  const setA = (a, v) => { a.length = 0; v.forEach(x => a.push(x)); };
-  const gen = (fn) => Array.from({ length: N }, (_, i) => fn(i));
-  setA(LISTINGS, gen(i => ({
-    img: 'https://images.unsplash.com/' + photos[i % photos.length] + '?w=160&h=160&fit=crop',
-    base: 180 + ((i * 47) % 420),
-    name: NAMES1[i % NAMES1.length] + ' ' + NAMES2[(i * 5) % NAMES2.length],
-    city: cities[i % cities.length],
-  })));
-  setA(weekendVals, gen(i => ['+10%', '+15%', '+18%'][i % 3]));
-  setA(highSeasonVals, gen(i => ['+15%', '+22%', '+28%', '+35%'][i % 4]));
-  setA(lowSeasonVals, gen(i => ['-10%', '-15%', '-20%', '-25%'][i % 4]));
-  setA(earlyBirdVals, gen(i => i % 3 === 0 ? null : ['-12%', '-18%'][i % 2]));
-  setA(lastMinuteVals, gen(i => i % 4 === 0 ? null : ['-10%', '-15%', '-20%'][i % 3]));
-  setA(tripWeekly, gen(i => ['-8%', '-10%', '-12%'][i % 3]));
-  setA(tripMonthly, gen(i => ['-18%', '-22%', '-25%'][i % 3]));
-  setA(customDiscount, gen(() => ''));
-  setA(cleaningFees, gen(i => '$' + (50 + (i * 13) % 100)));
-  setA(extraGuestFees, gen(i => i % 3 === 2 ? null : '$' + (15 + (i * 7) % 25)));
-  setA(minNightsVals, gen(i => [2, 3, 4, 5][i % 4]));
-  setA(bookingWinVals, gen(i => ['90 days', '180 days', '365 days'][i % 3]));
-  setA(advNoticeVals, gen(i => ['Same day', '1 day', '2 days'][i % 3]));
-  setA(prepTimeVals, gen(i => ['None', '1 night', '2 nights'][i % 3]));
-  setA(gapVals, gen(i => [1, 2, 3][i % 3]));
-  setA(maxNightsVals, gen(i => [14, 21, 28, 30][i % 4]));
-  setA(restrictedCheckinVals, gen(() => 'None'));
-  setA(restrictedCheckoutVals, gen(() => 'None'));
-  setA(reqExceptionVals, gen(() => false));
-  setA(DEFAULT_MIN, minNightsVals.slice());
-  const clearObj = a => { a.length = 0; for (let i = 0; i < N; i++) a.push({}); };
-  clearObj(priceOverride); clearObj(promoVals); clearObj(minOverride); clearObj(ruleSetCell);
-  [hostBlocked, autoBlockedByMin, monthBlocked].forEach(a => { a.length = 0; for (let i = 0; i < N; i++) a.push(new Set()); });
+  for (let i = 0; i < 20; i++) {
+    LISTINGS.push({
+      img: 'https://images.unsplash.com/' + photos[i % photos.length] + '?w=160&h=160&fit=crop',
+      base: 180 + ((i * 47) % 420),
+      name: NAMES1[i % NAMES1.length] + ' ' + NAMES2[(i * 5) % NAMES2.length],
+      city: cities[i % cities.length],
+    });
+    weekendVals.push(['+10%', '+15%', '+18%'][i % 3]);
+    highSeasonVals.push(['+15%', '+22%', '+28%', '+35%'][i % 4]);
+    lowSeasonVals.push(['-10%', '-15%', '-20%', '-25%'][i % 4]);
+    earlyBirdVals.push(i % 3 === 0 ? null : ['-12%', '-18%'][i % 2]);
+    lastMinuteVals.push(i % 4 === 0 ? null : ['-10%', '-15%', '-20%'][i % 3]);
+    tripWeekly.push(['-8%', '-10%', '-12%'][i % 3]);
+    tripMonthly.push(['-18%', '-22%', '-25%'][i % 3]);
+    customDiscount.push('');
+    cleaningFees.push('$' + (50 + (i * 13) % 100));
+    extraGuestFees.push(i % 3 === 2 ? null : '$' + (15 + (i * 7) % 25));
+    minNightsVals.push([2, 3, 4, 5][i % 4]);
+    bookingWinVals.push(['90 days', '180 days', '365 days'][i % 3]);
+    advNoticeVals.push(['Same day', '1 day', '2 days'][i % 3]);
+    prepTimeVals.push(['None', '1 night', '2 nights'][i % 3]);
+    gapVals.push([1, 2, 3][i % 3]);
+    maxNightsVals.push([14, 21, 28, 30][i % 4]);
+    restrictedCheckinVals.push('None');
+    restrictedCheckoutVals.push('None');
+    reqExceptionVals.push(false);
+  }
+  DEFAULT_MIN.length = 0; minNightsVals.forEach(x => DEFAULT_MIN.push(x));
+  const M = LISTINGS.length;
+  [priceOverride, promoVals, minOverride, ruleSetCell].forEach(a => { a.length = 0; for (let i = 0; i < M; i++) a.push({}); });
+  [hostBlocked, autoBlockedByMin, monthBlocked].forEach(a => { a.length = 0; for (let i = 0; i < M; i++) a.push(new Set()); });
   ruleSets.length = 0; groups.length = 0; customMinListings.clear();
   recomputeDerived();
-  BOOKINGS.length = 0; generateBookings().forEach(b => BOOKINGS.push(b));
+  BOOKINGS.length = 0; generateBookings().forEach(b => BOOKINGS.push(b)); // ONE seeded pass over all 32 → identical guests at every size
+  MASTER = captureHostState();
+}
+// Load the first n master listings into the working arrays (the visible tier).
+function loadTier(n) {
+  const M = MASTER;
+  _HOST_P.forEach((a, i) => { a.length = 0; M.p[i].slice(0, n).forEach(x => a.push(x)); });
+  [0, 1, 2, 3, 4].forEach(oi => { const a = _HOST_O[oi]; a.length = 0; M.o[oi].slice(0, n).forEach(x => a.push(JSON.parse(JSON.stringify(x)))); });
+  ruleSets.length = 0; M.o[5].forEach(r => ruleSets.push(JSON.parse(JSON.stringify(r))));
+  groups.length = 0; M.o[6].forEach(g => { const c = JSON.parse(JSON.stringify(g)); c.members = (c.members || []).filter(x => x < n); groups.push(c); });
+  BOOKINGS.length = 0; M.o[7].forEach(b => { if (b.listing < n) BOOKINGS.push(JSON.parse(JSON.stringify(b))); });
+  _HOST_SET.forEach((a, i) => { a.length = 0; M.set[i].slice(0, n).forEach(arr => a.push(new Set(arr))); });
+  customMinListings.clear(); M.customMin.forEach(x => { if (x < n) customMinListings.add(x); });
+}
+// Write the working tier's edits back into the master prefix, so they persist at every size.
+function syncTierBack(n) {
+  const M = MASTER;
+  _HOST_P.forEach((a, i) => { for (let j = 0; j < n; j++) M.p[i][j] = a[j]; });
+  [0, 1, 2, 3, 4].forEach(oi => { const a = _HOST_O[oi]; for (let j = 0; j < n; j++) M.o[oi][j] = JSON.parse(JSON.stringify(a[j])); });
+  M.o[5] = JSON.parse(JSON.stringify(ruleSets));
+  M.o[6] = JSON.parse(JSON.stringify(groups)); // (a group saved at a smaller size keeps only the members visible there)
+  M.o[7] = [...JSON.parse(JSON.stringify(BOOKINGS)), ...M.o[7].filter(b => b.listing >= n)];
+  _HOST_SET.forEach((a, i) => { for (let j = 0; j < n; j++) M.set[i][j] = [...a[j]]; });
+  M.customMin = [...customMinListings].concat(M.customMin.filter(x => x >= n));
 }
 let activeHost = 'big';
-const hostStore = { big: null, small: null, pro: null };
 function updateHostToggleUI() { document.querySelectorAll('#hostToggle .host-opt').forEach(o => o.classList.toggle('active', o.dataset.host === activeHost)); }
-function switchHost(key) {
-  if (key === activeHost) return;
-  if (document.body.classList.contains('optimize-mode') && typeof exitOptimize === 'function') exitOptimize();
-  if (typeof clearSelection === 'function') clearSelection();
-  hostStore[activeHost] = captureHostState();          // save the host we're leaving
-  if (hostStore[key]) restoreHostState(hostStore[key]); // seen before → restore its edits
-  else if (key === 'small') buildSmallHost();           // first time → build the distinct small host
-  else if (key === 'pro') buildProHost();               // first time → generate the 24-listing pro portfolio
-  activeHost = key;
-  document.body.classList.toggle('host-small', key === 'small'); // small host uses roomier 80px rows + bigger photos
+function finishHostSwitch() {
   recomputeDerived(); rebuildBookedSet();
-  listingOrder = LISTINGS.map((_, i) => i);  // row order matches the new host's listing count (stale extra indices faked an empty "More" group)
-  groups.forEach(g => { g.members = g.members.filter(i => i >= 0 && i < LISTINGS.length); }); // drop any stale member indices
-  if (typeof rebuildSettingsGrids === 'function') rebuildSettingsGrids(); // rebuilds Pricing + Availability + the calendar
+  listingOrder = LISTINGS.map((_, i) => i);
+  if (typeof rebuildSettingsGrids === 'function') rebuildSettingsGrids();
   else if (typeof render === 'function') render(true);
   if (typeof renderGroups === 'function') renderGroups();
   if (typeof applyGroupsToCalendar === 'function') applyGroupsToCalendar();
   if (typeof refreshCalendarPrices === 'function') refreshCalendarPrices();
   if (typeof updateMagicPill === 'function') updateMagicPill();
+  if (typeof loadPlacesPhotos === 'function') loadPlacesPhotos();
+  document.body.classList.add('hosts-settling'); // rows fade back in over the fresh density
+  clearTimeout(finishHostSwitch._t);
+  finishHostSwitch._t = setTimeout(() => document.body.classList.remove('hosts-settling'), 380);
+}
+function switchHost(key, instant) {
+  if (key === activeHost) return;
+  if (document.body.classList.contains('optimize-mode') && typeof exitOptimize === 'function') exitOptimize();
+  if (typeof clearSelection === 'function') clearSelection();
+  if (!MASTER) buildUnifiedHost(); else syncTierBack(HOST_N[activeHost]);
+  loadTier(HOST_N[key]);
+  recomputeDerived(); rebuildBookedSet(); // derived state tracks the new tier even before the rebuild lands
+  activeHost = key;
   updateHostToggleUI();
-  if (typeof loadPlacesPhotos === 'function') loadPlacesPhotos(); // real per-city photos when a Places key is set
+  if (instant) { // boot: no morph, just land on the tier
+    document.body.classList.toggle('host-small', key === 'small');
+    document.body.classList.toggle('host-pro', key === 'pro');
+    finishHostSwitch();
+    return;
+  }
+  // density morph: flip the tier classes FIRST so the rows already on screen tween to the new
+  // height (96 ↔ 56 ↔ 48)… then the inventory delta swaps in once the density has landed.
+  document.body.classList.add('hosts-morph');
+  document.body.classList.toggle('host-small', key === 'small');
+  document.body.classList.toggle('host-pro', key === 'pro');
+  clearTimeout(switchHost._t);
+  switchHost._t = setTimeout(() => {
+    document.body.classList.remove('hosts-morph');
+    finishHostSwitch();
+  }, 470);
 }
 document.getElementById('hostToggle').addEventListener('click', e => { const b = e.target.closest('[data-host]'); if (b) switchHost(b.dataset.host); });
 
@@ -7609,7 +7807,7 @@ window.addEventListener('load', () => loadPlacesPhotos());
 // 3–5 Listings is now the primary host → open on it (after the big host has finished its initial build).
 // Then apply the dev flags' unselected boot state: bookings hidden + flat baseline pricing.
 window.addEventListener('load', () => {
-  switchHost('small');
+  switchHost('small', true);
   ['devBookings', 'devVariance'].forEach(id => {
     const cb = document.getElementById(id);
     if (cb && !cb.checked) cb.dispatchEvent(new Event('change'));
