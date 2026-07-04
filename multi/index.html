@@ -1935,6 +1935,12 @@ body.hosts-morph #gridRows, body.hosts-morph #listingThumbsInner { pointer-event
   white-space: nowrap;
 }
 body.no-min .min-badge { display: none; } /* "No Min" dev switch — hide the "min N" text under every price */
+.price-card .disc-badge { /* last-min / early-bird "% off" — EXACTLY the min badge's type, always on */
+  font-size: 11px;
+  line-height: 1;
+  color: #6C6C6C;
+  white-space: nowrap;
+}
 /* Opportunity min-night change: the badge force-shows JUST on the focused dates (even when hidden by
    default under "No Min") and slides in after the glow bloom — current minimum struck, suggested
    nights beside it ("min 7̶ 5"). glow-hold keeps it back until the camera is still, like the glow. */
@@ -2997,6 +3003,12 @@ function getPrice(listingIdx, dayIdx) {
 }
 
 // Which lead-time discount (if any) applies to this night, given the current values.
+// Secondary "% off" line under the price (styled like the min badge) — the discount dots are retired.
+function discBadgeText(li, di) {
+  const t = discountType(li, di); if (!t) return '';
+  const v = t === 'early' ? earlyBirdVals[li] : lastMinuteVals[li];
+  return v ? String(v).replace('-', '') + ' off' : '';
+}
 function discountType(listingIdx, dayIdx) {
   const d = allDays[dayIdx];
   if (!d) return null;
@@ -3072,6 +3084,10 @@ function blockType(li, di) {
 // Add / update / remove the corner badge. Priority: X (adv/prep block) >
 // G (gap-night exception) > green discount dot. Never a discount dot on striped cells.
 function setCellBadge(card, li, di, gapSet) {
+  // Corner dots are RETIRED: blocks read as the centered X (+ whole-cell tooltip) and discounts as
+  // the "% off" line under the price. This now just clears any legacy badge off a recycled cell.
+  const legacy = card.querySelector('.discount-badge'); if (legacy) legacy.remove(); return;
+  /* eslint-disable no-unreachable */
   let badge = card.querySelector('.discount-badge');
   const blocked = card.classList.contains('booked') || card.classList.contains('past');
   const block = blocked ? null : blockType(li, di);
@@ -3170,6 +3186,10 @@ function refreshCalendarPrices() {
       if (valEl) valEl.textContent = '$' + getPrice(li, di);
       const badge = card.querySelector('.min-badge');
       if (badge) badge.innerHTML = minBadgeHTML(li, gapSet.has(di), di);
+      let db = card.querySelector('.disc-badge');
+      const dtxt = card.classList.contains('unavailable') ? '' : discBadgeText(li, di);
+      if (dtxt) { if (!db) { db = document.createElement('span'); db.className = 'disc-badge'; (badge || card).after ? (badge ? badge.after(db) : card.appendChild(db)) : card.appendChild(db); } db.textContent = dtxt; }
+      else if (db) db.remove();
       if (!card.classList.contains('past')) card.classList.toggle('unavailable', unavail.has(di));
       card.classList.toggle('blocked', hostBlocked[li].has(di)); // reflect host blocks (incl. min-override auto-blocks)
       // Rule-set color: a top-left corner dot (hover → name) + the full-cell tint. The dot also previews LIVE
@@ -3661,7 +3681,8 @@ function buildPriceCell(li, di, booked, unavail, gapSet) {
   if (isSel(li, di)) card.classList.add('selected');
   const _of = !isBooked ? optFlagFor(li, di) : null; // Optimize glow (model-driven, survives virtualization)
   if (_of) { card.classList.add('opt-flag', 'opt-' + _of.intent); if (_of.min) card.classList.add('opt-min'); card.dataset.sugg = _of.id; }
-  card.innerHTML = isBooked ? '' : `<span class="price-val">$${getPrice(li, di)}</span><span class="min-badge">${_of && _of.min ? `min <s>${_of.min.cur}</s> ${_of.min.to}` : minBadgeHTML(li, gapSet.has(di), di)}</span><span class="cell-date">${d.getDate()}</span>${_bt ? `<span class="block-tip">${_bt === 'adv' ? 'Adv notice' : 'Prep time'}</span>` : ''}`;
+  const _dtxt = (isBooked || unavailable) ? '' : discBadgeText(li, di);
+  card.innerHTML = isBooked ? '' : `<span class="price-val">$${getPrice(li, di)}</span><span class="min-badge">${_of && _of.min ? `min <s>${_of.min.cur}</s> ${_of.min.to}` : minBadgeHTML(li, gapSet.has(di), di)}</span>${_dtxt ? `<span class="disc-badge">${_dtxt}</span>` : ''}<span class="cell-date">${d.getDate()}</span>${_bt ? `<span class="block-tip">${_bt === 'adv' ? 'Adv notice' : 'Prep time'}</span>` : ''}`;
   setCellBadge(card, li, di, gapSet);
   const rsIdx = ruleSetCell[li][di]; // persist the rule-set color tint + corner dot across re-renders
   if (!isBooked && rsIdx != null && ruleSets[rsIdx]) {
