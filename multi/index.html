@@ -1062,11 +1062,12 @@ body.opt-scanning #gridRows .price-card .price-val { color: var(--grey-400); } /
 .magic-exit:hover { background: rgba(255,255,255,0.28); }
 /* Opportunity review: WHITE pill mimicking the QA pill — the affected listings' photo stack on the
    left, info in the middle, Apply actions right, ‹ › steppers, and the QA-style floating X. */
-.magic-pill.is-opp { height: auto; border-radius: 999px; padding: 24px; align-items: center;
+.magic-pill.is-opp { height: auto; border-radius: 999px; padding: 16px; align-items: center;
   background: #000; color: #fff; } /* the REVIEW rides DARK (QA-pill mode); centered anchor → grows from the center out */
-/* ONE row: [photos over count] → the story (head + reasoning) → Apply. */
+/* ONE row: [triangular photo deck] → the story (head + reasoning) → Apply. */
 .mopp-pill { position: relative; display: inline-flex; align-items: center; gap: 12px; }
-.mopp-left { display: flex; flex-direction: column; align-items: center; gap: 8px; } /* count sits UNDER the dancing pictures */
+.mopp-deck { position: relative; flex-shrink: 0; } /* 2 pictures on top, +N centred under — a slight triangle */
+.mopp-deck .ma-photo { margin-top: 0; } /* deck children position by inline top/left, not the QA row centering */
 .mopp-whywrap { display: flex; flex-direction: column; gap: 2px; max-width: 440px; padding: 0 2px; margin-right: 4px; } /* +12 row gap = 16px to Apply, always */
 .mopp-head { font: 600 14px/18px 'Cereal', sans-serif; color: #fff; white-space: normal; } /* the card's NAME — "Labor Day weekend", "August peak season" */
 .mopp-why { font: 400 13px/18px 'Cereal', sans-serif; color: #B0B0B0;
@@ -7545,9 +7546,19 @@ function renderMagicPill() {
     const name = lis.length === 1 ? LISTINGS[lis[0]].name : lis.length + ' listings';
     const imgs = lis.map(li => LISTINGS[li].img);
     pill.className = 'magic-pill is-opp';
+    // the opp deck: 2 tilted pictures on top, the "+N" chip centre-aligned underneath — a slight
+    // triangle/circle cluster (the QA pill keeps its own in-row stack; this layout is opp-only)
+    const t = imgs.length;
+    const ph = (u, l, tp, rot, z) => '<div class="ma-photo" style="left:' + l + 'px;top:' + tp + 'px;transform:rotate(' + rot + 'deg);background-image:url(\'' + u + '\');z-index:' + z + '"></div>';
+    let deckW = 48, deckH = 48, deckEls = '';
+    if (t === 1) deckEls = ph(imgs[0], 0, 0, 0, 1);
+    else if (t === 2) { deckW = 88; deckEls = ph(imgs[0], 0, 0, -8, 2) + ph(imgs[1], 40, 0, 8, 1); }
+    else { deckW = 88; deckH = 92;
+      deckEls = ph(imgs[0], 0, 0, -8, 3) + ph(imgs[1], 40, 0, 8, 2) +
+        '<div class="ma-photo ma-photo-more" style="left:20px;top:44px;z-index:1">+' + (t - 2) + '</div>'; }
     pill.innerHTML =
       '<div class="mopp-pill">' +
-        '<div class="mopp-left"><div class="ma-photos" style="width:' + photoStackWidth(imgs.length) + 'px">' + photoStackHTML(imgs) + '</div><span class="mopp-name">' + name + '</span></div>' +
+        '<div class="mopp-deck" style="width:' + deckW + 'px;height:' + deckH + 'px">' + deckEls + '</div>' +
         '<div class="mopp-whywrap"><span class="mopp-head">' + (g.head || '') + '</span><span class="mopp-why">' + g.why + '</span></div>' +
         '<button class="mopp-apply" data-magic="apply">Apply</button>' +
         '<button class="bp-close magic-close" data-magic="exit" aria-label="Exit">✕</button>' +
