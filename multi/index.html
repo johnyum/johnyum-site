@@ -424,7 +424,7 @@ body.row-reordering .thumb-row { cursor: grabbing; }
 .cal-group-label {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   font-family: 'Cereal', sans-serif;
   font-size: 18px;
   line-height: 22px;
@@ -1928,13 +1928,22 @@ body.glow-hold .price-card.opt-min .min-badge { animation: none; opacity: 0; }
 @keyframes minReveal { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .price-card.selected .min-badge { color: var(--grey-700); } /* "min N" secondary type = grey-700 on the light selected cell */
 .price-card.unavailable {
-  background: repeating-linear-gradient(45deg, #F5F5F5, #F5F5F5 4px, #EFEFEF 4px, #EFEFEF 8px);
-  border-color: #E8E8E8;
+  background: var(--grey-200);   /* flat — the diagonal stripes are retired */
+  border-color: var(--grey-200);
   color: #6C6C6C;
   cursor: not-allowed;
 }
-.price-card.unavailable .min-badge { color: #6C6C6C; }
-.price-card.unavailable:hover { border-color: #E8E8E8; background: repeating-linear-gradient(45deg, #F5F5F5, #F5F5F5 4px, #EFEFEF 4px, #EFEFEF 8px); }
+/* closed-by-settings (advance notice / prep time / booking window): no price, no corner mark —
+   just one centered X (~12px) on the flat grey cell. SC2's own smaller X overrides via specificity. */
+.price-card.unavailable .price-val, .price-card.unavailable .min-badge,
+.price-card.unavailable .discount-badge { display: none; }
+.price-card.unavailable:not(.booked)::before, .price-card.unavailable:not(.booked)::after {
+  content: ''; position: absolute; top: 50%; left: 50%; width: 16px; height: 1.5px; border-radius: 2px;
+  background: var(--grey-600); /* 16px bars rotated 45° → a ~12×12 X */
+}
+.price-card.unavailable:not(.booked)::before { transform: translate(-50%, -50%) rotate(45deg); }
+.price-card.unavailable:not(.booked)::after { transform: translate(-50%, -50%) rotate(-45deg); }
+.price-card.unavailable:hover { border-color: var(--grey-200); background: var(--grey-200); }
 /* Host-BLOCKED night: the cell is left exactly as-is — ONLY the price is struck through. It stays
    selectable (it's not .unavailable) so the host can re-open it; the struck price persists after the
    action panel closes (deselected). Selection (black, white text) still applies normally. */
@@ -2010,14 +2019,14 @@ body.glow-hold .price-card.opt-min .min-badge { animation: none; opacity: 0; }
 .price-card.holiday-affected { border-color: #222222; background: #EBEBEB; }
 .price-card.unavailable.holiday-affected {
   border-color: #222222;
-  background: repeating-linear-gradient(45deg, #EDEDED, #EDEDED 4px, #E0E0E0 4px, #E0E0E0 8px);
+  background: var(--grey-300); /* flat (stripes retired) */
 }
 .price-card.holiday-priced { background: #E6F2E9; border-color: #E6F2E9; } /* green FILL + green type (below); border matches the fill → NO visible stroke once closed */
 .price-card.holiday-priced .price-val { color: #038026; }
 .price-card.holiday-priced.holiday-editing { border-color: #038026; } /* green STROKE shows only WHILE the modal is open */
 .price-card.unavailable.holiday-priced {
   border-color: #038026;
-  background: repeating-linear-gradient(45deg, #E6F2E9, #E6F2E9 4px, #CFE6D6 4px, #CFE6D6 8px);
+  background: #DCEDE1; /* flat (stripes retired) — midway between the two old stripe greens */
 }
 /* Selection ALWAYS wins over the holiday states — a selected cell is solid black with white type,
    exactly like every other selected cell (green/affected cells included). Placed last so it beats
