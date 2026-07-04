@@ -1971,6 +1971,13 @@ body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.se
   width: calc(100% + 14px); height: 1.5px; background: currentColor; border-radius: 1px; pointer-events: none;
 }
 .price-card.unavailable:hover { border-color: var(--grey-200); background: var(--grey-200); } /* hover feedback: one grey step darker */
+/* the WHOLE closed cell is hoverable: the old circular grey pill ("Prep time" / "Adv notice")
+   floats centre-aligned 4px above the cell */
+.price-card.unavailable.closed-rule { position: relative; cursor: default; }
+.block-tip { position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+  display: none; background: #E8E8E8; color: #484848; font: 500 13px/1 'Cereal', sans-serif;
+  white-space: nowrap; padding: 5px 10px; border-radius: 999px; z-index: 10; pointer-events: none; }
+.price-card.unavailable.closed-rule:hover .block-tip { display: block; }
 /* Host-BLOCKED night: the cell is left exactly as-is — ONLY the price is struck through. It stays
    selectable (it's not .unavailable) so the host can re-open it; the struck price persists after the
    action panel closes (deselected). Selection (black, white text) still applies normally. */
@@ -3648,12 +3655,13 @@ function buildPriceCell(li, di, booked, unavail, gapSet) {
   cell.style.left = morphing ? cellLeftCalc(di) : rowOffsets[di] + 'px'; // calc(var) → follows the animated geometry
 
   const card = document.createElement('div');
-  card.className = 'price-card' + (isPast ? ' past' : '') + (unavailable ? ' unavailable' + (blockType(li, di) ? ' closed-rule' : ' closed-window') : '') + (isBlocked ? ' blocked' : '') + (isBooked ? ' booked' : '') + (!isBooked && !unavailable && holidaySurcharge[di] > 0 ? ' holiday-priced' : '');
+  const _bt = unavailable ? blockType(li, di) : null; // 'adv' | 'prep' | null (null → beyond the booking window)
+  card.className = 'price-card' + (isPast ? ' past' : '') + (unavailable ? ' unavailable' + (_bt ? ' closed-rule' : ' closed-window') : '') + (isBlocked ? ' blocked' : '') + (isBooked ? ' booked' : '') + (!isBooked && !unavailable && holidaySurcharge[di] > 0 ? ' holiday-priced' : '');
   card.dataset.di = di;
   if (isSel(li, di)) card.classList.add('selected');
   const _of = !isBooked ? optFlagFor(li, di) : null; // Optimize glow (model-driven, survives virtualization)
   if (_of) { card.classList.add('opt-flag', 'opt-' + _of.intent); if (_of.min) card.classList.add('opt-min'); card.dataset.sugg = _of.id; }
-  card.innerHTML = isBooked ? '' : `<span class="price-val">$${getPrice(li, di)}</span><span class="min-badge">${_of && _of.min ? `min <s>${_of.min.cur}</s> ${_of.min.to}` : minBadgeHTML(li, gapSet.has(di), di)}</span><span class="cell-date">${d.getDate()}</span>`;
+  card.innerHTML = isBooked ? '' : `<span class="price-val">$${getPrice(li, di)}</span><span class="min-badge">${_of && _of.min ? `min <s>${_of.min.cur}</s> ${_of.min.to}` : minBadgeHTML(li, gapSet.has(di), di)}</span><span class="cell-date">${d.getDate()}</span>${_bt ? `<span class="block-tip">${_bt === 'adv' ? 'Adv notice' : 'Prep time'}</span>` : ''}`;
   setCellBadge(card, li, di, gapSet);
   const rsIdx = ruleSetCell[li][di]; // persist the rule-set color tint + corner dot across re-renders
   if (!isBooked && rsIdx != null && ruleSets[rsIdx]) {
