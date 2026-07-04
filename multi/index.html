@@ -1006,7 +1006,7 @@ body.magic-active #gridRows, body.magic-active #listingThumbsInner, body.magic-a
   background: #fff; color: #111; border-radius: 999px; white-space: nowrap;
   box-shadow: 0 0 0 1px rgba(0,0,0,0.06), 0 4px 8px rgba(0,0,0,0.08), 0 12px 30px rgba(0,0,0,0.14); /* Figma spec: S1 ring + Y12/B30 */
   font-family: 'Cereal', sans-serif;
-  transition: width .5s cubic-bezier(.22,.9,.3,1), height .5s cubic-bezier(.22,.9,.3,1); /* JS pins explicit px → the pill MORPHS between its states (circle ⇄ results) instead of snapping */
+  transition: width .5s cubic-bezier(.22,.9,.3,1), height .5s cubic-bezier(.22,.9,.3,1), background-color .5s cubic-bezier(.22,.9,.3,1); /* JS pins explicit px → the pill MORPHS between its states (circle ⇄ results); the surface fades white ⇄ dark with it */
 }
 /* scanning: the pill has collapsed into a perfect 72px circle (width = height, radius already 999px)
    with the wand dead-centre; the container flex is centred so both edges converge inward */
@@ -1062,17 +1062,21 @@ body.opt-scanning #gridRows .price-card .price-val { color: var(--grey-400); } /
 .magic-exit:hover { background: rgba(255,255,255,0.28); }
 /* Opportunity review: WHITE pill mimicking the QA pill — the affected listings' photo stack on the
    left, info in the middle, Apply actions right, ‹ › steppers, and the QA-style floating X. */
-.magic-pill.is-opp { height: auto; border-radius: 999px; padding: 24px; align-items: center; } /* centered anchor → padding change grows from the center out */
-/* ONE row: photos → name/dates (QA type) → the REASONING inline → Apply pinned right. */
+.magic-pill.is-opp { height: auto; border-radius: 999px; padding: 24px; align-items: center;
+  background: #000; color: #fff; } /* the REVIEW rides DARK (QA-pill mode); centered anchor → grows from the center out */
+/* ONE row: [photos over count] → the story (head + reasoning) → Apply. */
 .mopp-pill { position: relative; display: inline-flex; align-items: center; gap: 12px; }
-.mopp-whywrap { display: flex; flex-direction: column; gap: 2px; max-width: 440px; padding: 0 2px; }
-.mopp-head { font: 600 14px/18px 'Cereal', sans-serif; color: #222; white-space: normal; } /* the card's NAME — "Labor Day weekend", "August peak season" */
-.mopp-why { font: 400 13px/18px 'Cereal', sans-serif; color: var(--grey-600);
-  white-space: normal; } /* the pill is nowrap — this block is the one thing that WRAPS (\u22642 lines) */
-/* name + dates stacked exactly like the QA pill's meta (14/18, 600 over 400) — dark-surface colors inverted */
-.mopp-meta { display: flex; flex-direction: column; gap: 1px; }
-.mopp-name { font: 600 14px/18px 'Cereal', sans-serif; color: #222; white-space: nowrap; }
-.mopp-dates { font: 400 14px/18px 'Cereal', sans-serif; color: var(--grey-600); white-space: nowrap; }
+.mopp-left { display: flex; flex-direction: column; align-items: center; gap: 8px; } /* count sits UNDER the dancing pictures */
+.mopp-whywrap { display: flex; flex-direction: column; gap: 2px; max-width: 440px; padding: 0 2px; margin-right: 4px; } /* +12 row gap = 16px to Apply, always */
+.mopp-head { font: 600 14px/18px 'Cereal', sans-serif; color: #fff; white-space: normal; } /* the card's NAME — "Labor Day weekend", "August peak season" */
+.mopp-why { font: 400 13px/18px 'Cereal', sans-serif; color: #B0B0B0;
+  white-space: normal; text-wrap: balance;              /* even line lengths — no long first line over an orphan */
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; } /* HARD max 2 lines */
+.mopp-name { font: 600 14px/18px 'Cereal', sans-serif; color: #fff; white-space: nowrap; }
+/* LIGHT variant — the previous all-white review, kept for later (.magic-pill.is-opp.opp-light) */
+.magic-pill.is-opp.opp-light { background: #fff; color: #111; }
+.opp-light .mopp-head, .opp-light .mopp-name { color: #222; }
+.opp-light .mopp-why { color: var(--grey-600); }
 .mopp-tag { font: 600 12px 'Cereal', sans-serif; padding: 5px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
 .mopp-tag.earn { background: #FBEEDF; color: #B85C0A; }
 .mopp-tag.fill { background: #E6F2E9; color: #038026; }
@@ -1080,24 +1084,29 @@ body.opt-scanning #gridRows .price-card .price-val { color: var(--grey-400); } /
 .mopp-change s { color: var(--grey-400); }
 .mopp-count { font: 400 14px 'Cereal', sans-serif; color: var(--grey-500); white-space: nowrap; padding-left: 4px; }
 /* Apply = the QA modals' primary button (bp-save), verbatim */
-.mopp-apply { background: #222; color: #fff; border: 0; border-radius: 999px; padding: 12px 22px;
-  font: 500 14px 'Cereal', sans-serif; cursor: pointer; flex-shrink: 0; margin-left: auto; }
-.mopp-apply:hover { background: #000; }
+.mopp-apply { background: #fff; color: #111; border: 0; border-radius: 999px; padding: 12px 22px;
+  font: 500 14px 'Cereal', sans-serif; cursor: pointer; flex-shrink: 0; }
+.mopp-apply:hover { background: var(--grey-200); }
+.magic-pill.opp-light .mopp-apply { background: #222; color: #fff; }
+.magic-pill.opp-light .mopp-apply:hover { background: #000; }
 .mopp-allbtn { background: transparent; color: var(--grey-700); border: 0; font: 500 12px 'Cereal', sans-serif;
   cursor: pointer; text-decoration: underline; padding: 0 2px; flex-shrink: 0; }
 .mopp-allbtn:hover { color: #222; }
-/* photo stack on the WHITE surface: white card strokes; the "+N" chip backs grey-200 with dark type */
+/* photo stack on the DARK surface: dark card strokes + the QA "+N" chip (light values live in .opp-light) */
 .mopp-pill .ma-photos { margin-right: 0; }
-.mopp-pill .ma-photo { border-color: #fff; }
-.mopp-pill .ma-photo-more { background: var(--grey-200); color: #222; }
+.mopp-pill .ma-photo { border-color: #000; }
+.mopp-pill .ma-photo-more { background: #202020; color: #fff; }
+.opp-light .mopp-pill .ma-photo, .magic-pill.opp-light .ma-photo { border-color: #fff; }
+.magic-pill.opp-light .ma-photo-more { background: var(--grey-200); color: #222; }
 /* ‹ › live OUTSIDE the pill: 72px white circles, 8px off each side, same elevation as the pill.
    They only exist in the results state (nav-ready) and fade in once the grow morph has landed. */
 .multi-action-inner.nav-ready { gap: 8px; }
 .mnav-out { width: 72px; height: 72px; border-radius: 50%; background: #fff; color: #222; border: 0;
-  cursor: pointer; font-size: 24px; line-height: 1; display: none; align-items: center; justify-content: center;
-  flex-shrink: 0; padding: 0 0 2px 0;
+  cursor: pointer; display: none; align-items: center; justify-content: center;
+  flex-shrink: 0; padding: 0;
   box-shadow: 0 0 0 1px rgba(0,0,0,0.06), 0 4px 8px rgba(0,0,0,0.08), 0 12px 30px rgba(0,0,0,0.14);
   opacity: 0; transition: opacity .3s ease; pointer-events: auto; }
+.mnav-out svg { display: block; width: 24px; height: 24px; }
 .mnav-out:hover { background: var(--grey-100); }
 .multi-action-inner.nav-ready .mnav-out { display: inline-flex; }
 .multi-action-inner.nav-ready:not(:has(.is-growing)) .mnav-out { opacity: 1; }
@@ -7538,8 +7547,7 @@ function renderMagicPill() {
     pill.className = 'magic-pill is-opp';
     pill.innerHTML =
       '<div class="mopp-pill">' +
-        '<div class="ma-photos" style="width:' + photoStackWidth(imgs.length) + 'px">' + photoStackHTML(imgs) + '</div>' +
-        '<div class="mopp-meta"><span class="mopp-name">' + name + '</span><span class="mopp-dates">' + fmtRange(g.a, g.b) + '</span></div>' +
+        '<div class="mopp-left"><div class="ma-photos" style="width:' + photoStackWidth(imgs.length) + 'px">' + photoStackHTML(imgs) + '</div><span class="mopp-name">' + name + '</span></div>' +
         '<div class="mopp-whywrap"><span class="mopp-head">' + (g.head || '') + '</span><span class="mopp-why">' + g.why + '</span></div>' +
         '<button class="mopp-apply" data-magic="apply">Apply</button>' +
         '<button class="bp-close magic-close" data-magic="exit" aria-label="Exit">✕</button>' +
@@ -7723,10 +7731,11 @@ function closeOptCard() { const c = document.getElementById('optCard'); if (c) c
 // Wiring
 (function buildOuterNavs() { // ‹ › as SIBLINGS of the pill inside .multi-action-inner
   const pill = document.getElementById('magicPill'); if (!pill) return;
-  const mk = (dir, glyph, label) => { const b = document.createElement('button'); b.className = 'mnav-out ' + dir;
-    b.dataset.magic = dir; b.setAttribute('aria-label', label); b.textContent = glyph; return b; };
-  pill.parentElement.insertBefore(mk('prev', '‹', 'Previous opportunity'), pill);
-  pill.parentElement.appendChild(mk('next', '›', 'Next opportunity'));
+  const chev = pts => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="' + pts + '"/></svg>'; // the month-callout chevron, 24\u00d724
+  const mk = (dir, pts, label) => { const b = document.createElement('button'); b.className = 'mnav-out ' + dir;
+    b.dataset.magic = dir; b.setAttribute('aria-label', label); b.innerHTML = chev(pts); return b; };
+  pill.parentElement.insertBefore(mk('prev', '15 6 9 12 15 18', 'Previous opportunity'), pill);
+  pill.parentElement.appendChild(mk('next', '9 6 15 12 9 18', 'Next opportunity'));
 })();
 document.getElementById('magicAction').addEventListener('click', e => {
   const b = e.target.closest('[data-magic]'); if (!b) return;
