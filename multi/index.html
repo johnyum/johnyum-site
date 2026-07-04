@@ -7687,6 +7687,7 @@ const HOST_N = { small: 5, big: 12, pro: 32 };
 let MASTER = null;
 function buildUnifiedHost() {
   const C = captureHostState();  // the boot 12-listing arrays: their rows 0–6 become master listings 5–11
+  const bootGroups = JSON.parse(JSON.stringify(groups)); // persisted grouping (localStorage) — must survive the rebuild; master listing order is deterministic, so saved member indices stay valid
   buildSmallHost();              // working arrays ← the small five (master listings 0–4)
   _HOST_P.forEach((a, i) => C.p[i].slice(0, 7).forEach(x => a.push(x))); // classic rows ride behind the five
   C.o[0].slice(0, 7).forEach(l => LISTINGS.push(JSON.parse(JSON.stringify(l))));
@@ -7735,6 +7736,7 @@ function buildUnifiedHost() {
   [priceOverride, promoVals, minOverride, ruleSetCell].forEach(a => { a.length = 0; for (let i = 0; i < M; i++) a.push({}); });
   [hostBlocked, autoBlockedByMin, monthBlocked].forEach(a => { a.length = 0; for (let i = 0; i < M; i++) a.push(new Set()); });
   ruleSets.length = 0; groups.length = 0; customMinListings.clear();
+  bootGroups.forEach(g => { if (g.members && g.members.length) groups.push(g); }); // re-seed the saved grouping
   recomputeDerived();
   BOOKINGS.length = 0; generateBookings().forEach(b => BOOKINGS.push(b)); // ONE seeded pass over all 32 → identical guests at every size
   MASTER = captureHostState();
@@ -7767,6 +7769,18 @@ function loadTier(n) {
       if (!hit && isCity && ng.members.length < 3) hit = groups.find(x => x.name === CITY_DEST[ng.name]);
       if (hit) { hit.members.push(...ng.members); hit.members.sort((a, z) => a - z); }
       else groups.push(ng);
+    });
+    // HEAL: saved groupings from older runs may hold homes in a destination bucket while their
+    // city's own group exists (San Diego homes stranded in "Coast") — move every such home home.
+    groups.forEach(g => {
+      if (!g.members) return;
+      g.members = g.members.filter(li => {
+        const city = LISTINGS[li] && LISTINGS[li].city;
+        if (!city || g.name === city) return true;
+        const home = groups.find(x => x !== g && x.name === city && x.members && x.members.length);
+        if (home) { home.members.push(li); home.members.sort((a, z) => a - z); return false; }
+        return true;
+      });
     });
   }
   BOOKINGS.length = 0; M.o[7].forEach(b => { if (b.listing < n) BOOKINGS.push(JSON.parse(JSON.stringify(b))); });
