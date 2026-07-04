@@ -1064,9 +1064,13 @@ body.opt-scanning #gridRows .price-card .price-val { color: var(--grey-400); } /
 .magic-exit:hover { background: rgba(255,255,255,0.28); }
 /* Opportunity review: WHITE pill mimicking the QA pill — the affected listings' photo stack on the
    left, info in the middle, Apply actions right, ‹ › steppers, and the QA-style floating X. */
-.magic-pill.is-opp { height: 88px; border-radius: 999px; padding: 0 20px 0 24px; align-items: center; }
-/* ONE clean inline row: photos → name/dates (QA type) → tag → change → count → Apply. */
-.mopp-pill { position: relative; display: inline-flex; align-items: center; gap: 12px; height: 100%; }
+.magic-pill.is-opp { height: auto; border-radius: 999px; padding: 16px 20px 16px 24px; align-items: center; }
+/* Row 1: photos → name/dates (QA type) → tag → impact → count → Apply. Row 2: the REASONING —
+   one plain sentence that makes the incentive obvious before anyone taps Apply. */
+.mopp-pill { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+.mopp-row { display: inline-flex; align-items: center; gap: 12px; }
+.mopp-why { font: 400 13px/18px 'Cereal', sans-serif; color: var(--grey-600); max-width: 640px; padding: 0 2px;
+  white-space: normal; } /* the pill is nowrap — the reasoning is the one thing that WRAPS */
 /* name + dates stacked exactly like the QA pill's meta (14/18, 600 over 400) — dark-surface colors inverted */
 .mopp-meta { display: flex; flex-direction: column; gap: 1px; }
 .mopp-name { font: 600 14px/18px 'Cereal', sans-serif; color: #222; white-space: nowrap; }
@@ -7350,32 +7354,54 @@ function computeSuggestions() {
   }
   // (1) HOLIDAY PREMIUM — one card per holiday, across every listing & city (national driver)
   const cards = [], holBy = {}, seasonBy = {}, staysItems = [], setupItems = [];
+  const nearItems = [];
   items.forEach(it => {
     if (it.hol) { (holBy[it.hol] = holBy[it.hol] || []).push(it); return; }
     if (it.type === 'minnight') { staysItems.push(it); return; }                      // (4) aggregate below
     if (it.type === 'discount') { setupItems.push(it); return; }                      // (5) aggregate below
+    if (it.a <= todayDi + NEAR_DAYS) { nearItems.push(it); return; }                  // this week = URGENCY, its own card
     // (2)+(3) SEASON UP / DOWN / PROMOTE — merge only same-play + same-month windows
     const key = it.type + '|' + allDays[it.a].getMonth();
     (seasonBy[key] = seasonBy[key] || []).push(it);
   });
+  if (nearItems.length) {
+    const pct = nearItems.reduce((s, x) => s + x.pct, 0) / nearItems.length;
+    cards.push({ bucket: 'near', type: 'drop', intent: 'fill', pct,
+      a: Math.min(...nearItems.map(x => x.a)), b: Math.max(...nearItems.map(x => x.b)), items: nearItems,
+      title: 'Fill this week',
+      why: 'These nights are days away and still open \u2014 every one that passes empty earns nothing. A small cut this close is the difference between booked and empty.' });
+  }
+  // Reasoning lines are CARD-level and cluster-aware: plain language, the value up front.
+  const _MONF = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const wherePhrase = its => {
+    const cs = [...new Set(its.map(x => listingCity[x.li]))];
+    return cs.length === 1 ? 'in ' + cs[0] : cs.length === 2 ? 'in ' + cs[0] + ' and ' + cs[1] : 'across ' + cs.length + ' cities';
+  };
   Object.keys(holBy).forEach(h => {
     const its = holBy[h];
     cards.push({ bucket: 'holiday', type: 'raise', intent: 'earn', pct: its[0].pct, hol: h,
       a: Math.min(...its.map(x => x.a)), b: Math.max(...its.map(x => x.b)), items: its,
-      title: h + ': raise ' + Math.round(its[0].pct * 100) + '%', why: its[0].why });
+      title: h + ': raise ' + Math.round(its[0].pct * 100) + '%',
+      why: h + ' lifts demand in every market you\u2019re in, and these nights are still at everyday prices. Guests expect a holiday premium \u2014 capture it before the dates book cheap.' });
   });
   if (eventCard) {
     eventCard.title = 'Coachella: raise 40%';
-    eventCard.why = 'Coachella weekends — Palm Springs books out at multiples, and these nights are still at your normal rate.';
+    eventCard.why = 'Coachella books Palm Springs out months ahead \u2014 nearby stays charge multiples for these two weekends. Yours are still at the normal rate.';
     cards.push(eventCard);
   }
   Object.keys(seasonBy).forEach(key => {
     const its = seasonBy[key], t = its[0].type;
     const pct = its.reduce((s, x) => s + x.pct, 0) / its.length;
+    const mon = _MONF[allDays[its[0].a].getMonth()], where = wherePhrase(its);
     cards.push({ bucket: t === 'raise' ? 'season-up' : t === 'drop' ? 'season-down' : 'promo',
       type: t, intent: its[0].intent, pct,
       a: Math.min(...its.map(x => x.a)), b: Math.max(...its.map(x => x.b)), items: its,
-      title: its[0].title, why: its[0].why });
+      title: its[0].title,
+      why: t === 'raise'
+        ? mon + ' is peak season ' + where + ' and you\u2019re still at base rate. These nights book either way \u2014 price them like the demand they get.'
+        : t === 'drop'
+        ? mon + ' is the slow season ' + where + '. The stays that do fill price under base \u2014 a small cut now beats empty nights later.'
+        : 'A slow ' + mon + ' stretch ' + where + '. A promotion clears it without touching your base price \u2014 guests see a deal, and search ranks promoted listings higher.' });
   });
   // (4) UNLOCK STAYS — every stranded gap on the calendar as ONE mass action
   if (staysItems.length) {
@@ -7383,7 +7409,7 @@ function computeSuggestions() {
     cards.push({ bucket: 'stays', type: 'minnight', intent: 'fill',
       a: Math.min(...staysItems.map(x => x.a)), b: Math.max(...staysItems.map(x => x.b)), items: staysItems,
       title: 'Unlock ' + tot + ' stranded night' + (tot > 1 ? 's' : ''),
-      why: 'Gaps between bookings shorter than your minimums are unbookable. Allow shorter stays on just these dates and they can fill.' });
+      why: 'These gaps between bookings are shorter than your minimum stay, so nobody can book them. Allowing shorter stays on just these dates turns dead nights into found money.' });
   }
   // (5) SMART DISCOUNTS (setup lane) — last-minute + early-bird as ONE switch card; shows only while off
   LISTINGS.forEach((l, li) => {
@@ -7393,7 +7419,7 @@ function computeSuggestions() {
     cards.push({ bucket: 'setup', type: 'discount', intent: 'fill', pct: 0.15,
       a: Math.min(...setupItems.map(x => x.a)), b: Math.max(...setupItems.map(x => x.b)), items: setupItems,
       title: 'Turn on smart discounts',
-      why: 'Last-minute and early-bird discounts win the guests deciding right now and the planners booking far ahead — set once, they run themselves.' });
+      why: 'Deal-seekers filter for discounts: last-minute wins the guests deciding this week, early-bird locks in the planners months out. Turn them on once \u2014 they run themselves.' });
   }
   // Estimated $ impact per card → biggest first. The number on the card is what justifies mass action.
   cards.forEach(c => {
@@ -7452,6 +7478,7 @@ function repaintOptGlows() { // re-apply glow classes to currently-mounted cells
   });
 }
 function shortTitle(g) { // tag = the bucket, in its own words
+  if (g.bucket === 'near')    return 'This week \u2212' + Math.round(g.pct * 100) + '%';
   if (g.bucket === 'event')   return g.evName + ' +' + Math.round(g.pct * 100) + '%';
   if (g.bucket === 'holiday') return g.hol + ' +' + Math.round(g.pct * 100) + '%';
   if (g.bucket === 'stays')   return 'Unlock stays';
@@ -7485,13 +7512,16 @@ function renderMagicPill() {
     pill.className = 'magic-pill is-opp';
     pill.innerHTML =
       '<div class="mopp-pill">' +
-        '<div class="ma-photos" style="width:' + photoStackWidth(imgs.length) + 'px">' + photoStackHTML(imgs) + '</div>' +
-        '<div class="mopp-meta"><span class="mopp-name">' + name + '</span><span class="mopp-dates">' + fmtRange(g.a, g.b) + '</span></div>' +
-        '<span class="mopp-tag ' + g.intent + '">' + shortTitle(g) + '</span>' +
-        '<span class="mopp-change">' + impactStr(g) + '</span>' +
-        '<span class="mopp-count">' + (i + 1) + ' / ' + n + '</span>' +
-        '<button class="mopp-apply" data-magic="apply">Apply</button>' +
-        '<button class="mopp-allbtn" data-magic="all">Apply all</button>' +
+        '<div class="mopp-row">' +
+          '<div class="ma-photos" style="width:' + photoStackWidth(imgs.length) + 'px">' + photoStackHTML(imgs) + '</div>' +
+          '<div class="mopp-meta"><span class="mopp-name">' + name + '</span><span class="mopp-dates">' + fmtRange(g.a, g.b) + '</span></div>' +
+          '<span class="mopp-tag ' + g.intent + '">' + shortTitle(g) + '</span>' +
+          '<span class="mopp-change">' + impactStr(g) + '</span>' +
+          '<span class="mopp-count">' + (i + 1) + ' / ' + n + '</span>' +
+          '<button class="mopp-apply" data-magic="apply">Apply</button>' +
+          '<button class="mopp-allbtn" data-magic="all">Apply all</button>' +
+        '</div>' +
+        '<div class="mopp-why">' + g.why + '</div>' +
         '<button class="bp-close magic-close" data-magic="exit" aria-label="Exit">✕</button>' +
       '</div>';
     return;
