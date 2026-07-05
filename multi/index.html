@@ -1045,6 +1045,8 @@ body.magic-active #gridRows, body.magic-active #listingThumbsInner, body.magic-a
    grey-200 → relaxes, staggered left → right (--swd is set per cell on scan start). */
 body.opt-scanning #gridRows .price-card:not(.booked) { animation: strokeSweep 2.2s ease-in-out infinite; animation-delay: var(--swd, 0s); }
 body.opt-scanning #gridRows .price-card .price-val { color: var(--grey-400); } /* prices step right back while the scanner reads */
+/* in optimize mode, the UNaffected prices (no wavy ring) recede to grey-700 so the opportunity cells lead */
+body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.booked):not(.blocked):not(.unavailable):not(.past) .price-val { color: var(--grey-700); }
 @keyframes strokeSweep {
   0%, 34%, 100% { background-color: #fff; border-color: #fff; }
   10%, 22% { background-color: var(--grey-100); border-color: var(--grey-100); }
@@ -3710,6 +3712,7 @@ function renderWindow() {
   winEnd = Math.min(allDays.length, visHi + WIN_BUFFER);
   document.querySelectorAll('#gridRows > .price-row').forEach(row => fillRowCells(row, +row.dataset.li));
   updateDateHeaders();
+  if (document.body.classList.contains('optimize-mode') && typeof sweepStrayOdometers === 'function') sweepStrayOdometers(); // late-mounting cells must never carry a stale split
 }
 let winRaf = false;
 function scheduleWindow() { if (!winRaf) { winRaf = true; requestAnimationFrame(() => { winRaf = false; renderWindow(); }); } }
@@ -7836,6 +7839,17 @@ function makeOdometer(card, li, di) {
   card.appendChild(ps); ensureCheck(card); card.classList.add('has-odo');
 }
 function removeOdometer(card) { if (!card) return; const ps = card.querySelector(':scope > .pstack'); if (ps) ps.remove(); card.classList.remove('has-odo'); }
+// Safety net: any cell that is NOT a live opportunity cell must show its plain, CENTERED price — no
+// leftover split stuck at the top slot. Kills stray pstacks/rings when a card switches, applies, or exits.
+function sweepStrayOdometers() {
+  document.querySelectorAll('#gridRows .price-card:not(.opt-flag)').forEach(c => {
+    const ps = c.querySelector(':scope > .pstack'); if (ps) ps.remove();
+    const wr = c.querySelector(':scope > .wring'); if (wr) { if (_wRO) _wRO.unobserve(wr); wr.remove(); }
+    const sr = c.querySelector(':scope > .subreveal'); if (sr) sr.remove();
+    const ap = c.querySelector(':scope > .apcheck'); if (ap) ap.remove();
+    if (c.classList.contains('has-odo')) c.classList.remove('has-odo');
+  });
+}
 // Promo / last-min / early-bird / min cells: the price stays put; the recommendation (discount % or
 // the new minimum) slides in beneath it — same reveal timing as the odometer, so every type is one system.
 function makeSub(card, li, di) {
@@ -7903,6 +7917,7 @@ function repaintOptGlows() { // re-apply glow classes to currently-mounted cells
       }
     });
   });
+  sweepStrayOdometers(); // guarantee: no unflagged cell keeps a stuck-at-top split
 }
 function shortTitle(g) { // tag = the bucket, in its own words
   if (g.bucket === 'near')    return 'This week \u2212' + Math.round(g.pct * 100) + '%';
