@@ -1206,10 +1206,22 @@ body.opt-beat .price-card.opt-flag .pstack .dgreel { animation: none !important;
 .price-card.opt-applied .apcheck { animation: apCheckIn .5s ease-out forwards; }
 .price-card.opt-applied .pstack .pold, .price-card.opt-applied .subreveal { opacity: 0; transition: opacity .25s ease; }
 .price-card.opt-applied .pstack .prec { animation: apPricePop .45s ease-out; }
+/* apPricePop replaces odoRec on the animation shorthand → the held 600 would drop to base Book;
+   pin the applied/checked price to SemiBold explicitly so it STAYS 600 in checked mode. */
+.price-card.opt-applied .pstack .prec, .price-card.opt-applied .pstack .prec .dgreel, .price-card.opt-applied .pstack .prec .dg i { font-weight: 600; }
 .price-card.opt-applied.has-sub .price-val { animation: apPricePop .45s ease-out; }
 .price-card.opt-applied .wring .wpath { stroke: var(--grey-400) !important; transition: stroke .4s ease; }
 @keyframes apCheckIn { 0% { opacity: 0; transform: scale(.5); } 55% { opacity: 1; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
 @keyframes apPricePop { 0% { transform: scale(1); } 45% { transform: scale(1.14); } 100% { transform: scale(1); } }
+/* ── Exit: leaving opportunities mode, every suggested/applied price EASES from SemiBold back to Book
+   (the number itself is unchanged — only the weight relaxes). Cancel the odometer's held 600, then
+   transition to 400; the reels inherit it. JS keeps the odometer mounted ~.45s so this plays before
+   the plain (Book) price-val takes over — seamless, no snap. ── */
+body.opt-exiting .price-card.opt-flag .pstack .prec,
+body.opt-exiting .price-card.opt-flag .pstack .prec .dgreel,
+body.opt-exiting .price-card.opt-flag .pstack .prec .dg i {
+  animation: none !important; font-weight: 400 !important; transition: font-weight .4s ease; }
+body.opt-exiting .price-card.opt-flag.has-sub .price-val { font-weight: 400 !important; transition: font-weight .4s ease; }
 /* the pill's Applied confirmation (replaces the Apply button, ‹ › still step on) */
 .mopp-applied { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; color: #fff;
   background: #038026; border-radius: 999px; padding: 12px 20px; font: 500 14px 'Cereal', sans-serif; }
@@ -7935,12 +7947,17 @@ function startOptimize() {
 }
 function exitOptimize() {
   closeOptCard();
+  document.body.classList.add('opt-exiting'); // suggested/applied prices ease SemiBold → Book while the odometer is still mounted
   document.body.classList.remove('optimize-mode', 'opt-scanning', 'glow-hold', 'opt-beat');
   const mp = document.getElementById('magicPill'); if (mp) { mp.style.width = ''; mp.style.height = ''; mp.classList.remove('is-growing'); }
   window.__opt.flags = new Map(); window.__opt.suggs = []; window.__opt.state = 'idle';
-  repaintOptGlows(); renderMagicPill(); window.updateMagicPill();
+  renderMagicPill(); window.updateMagicPill();
   updateBookingDim(); // optimize-mode is off again → guest pills come back (unless a selection holds them)
-  clearTimeout(exitOptimize._sz); exitOptimize._sz = setTimeout(() => { document.body.classList.remove('opt-sizing'); updateVSync(); }, 450); // let the shrink finish, then disarm + resync at the SETTLED 48px height
+  // hold the odometer/rings ~.45s so the weight relaxes to Book, THEN strip the overlay (plain Book price-val takes over — no snap)
+  clearTimeout(exitOptimize._sz); exitOptimize._sz = setTimeout(() => {
+    document.body.classList.remove('opt-sizing', 'opt-exiting');
+    repaintOptGlows(); updateVSync(); // now clear the pstack/rings and resync thumbnails at the settled 48px height
+  }, 450);
   if (typeof updateVSync === 'function') requestAnimationFrame(updateVSync); // row heights changed → resync thumbnails
 }
 function applySuggestion(s) { // one per-listing item (groups apply every item)
