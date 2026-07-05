@@ -1149,30 +1149,35 @@ body.optimize-mode:not(.host-small):not(.settings-mode):not(.avail-mode):not(.su
    ADDITIVE: the .pstack overlay exists only on a FOCUSED raise/drop opportunity cell; idle cells
    and every non-opportunity cell keep their plain .price-val untouched. ═══ */
 .price-card.opt-flag .pstack { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-.price-card.opt-flag.has-odo .price-val { visibility: hidden; }
+/* the plain price hides ONLY after the camera settles — during the fly it stays visible, so the
+   odometer's first frame (both lines stacked at centre showing the old value) swaps in seamlessly. */
+body:not(.glow-hold):not(.opt-scanning) .price-card.opt-flag.has-odo .price-val { visibility: hidden; }
 .price-card.opt-flag .pstack .prec, .price-card.opt-flag .pstack .pold {
   position: absolute; left: 0; right: 0; text-align: center; height: 16px; line-height: 16px;
   font: 400 14px 'Cereal', sans-serif; }
+/* prec (the NEW value): starts at centre showing the old digits, RISES to the top slot while its
+   reels roll to the recommended number, landing green/bold. pold (a COPY of the old): starts at the
+   same centre, SINKS to the bottom slot and strikes through. Both begin exactly where the plain
+   price was → the split reads as the living number lifting off, not a fade in/out. */
 .price-card.opt-flag .pstack .prec { top: calc(50% - 17px); display: flex; justify-content: center; color: #222;
-  animation: odoRec 2.2s ease-in-out 1 forwards; }
+  animation: odoRec 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
 .price-card.opt-flag .pstack .pold { top: calc(50% + 1px); color: #222; text-decoration: line-through;
-  text-decoration-color: transparent; animation: odoOld 2.2s ease-in-out 1 forwards; }
-@keyframes odoRec { 0%,14% { transform: translateY(8px); opacity: 0; color: #222; font-weight: 400; }
-  20% { opacity: 1; } 34% { transform: translateY(0); }
-  58%,100% { transform: translateY(0); opacity: 1; color: var(--odoc, #222); font-weight: 600; } }
-@keyframes odoOld { 0%,14% { transform: translateY(-8px); color: #222; text-decoration-color: transparent; }
-  34% { transform: translateY(0); color: #8C8C8C; }
-  38%,100% { color: #8C8C8C; text-decoration-color: #8C8C8C; } }
+  text-decoration-color: transparent; animation: odoOld 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
+@keyframes odoRec { 0%,18% { transform: translateY(9px); color: #222; font-weight: 400; }
+  72%,100% { transform: translateY(0); color: var(--odoc, #222); font-weight: 600; } }
+@keyframes odoOld { 0%,18% { transform: translateY(-9px); color: #222; text-decoration-color: transparent; }
+  48% { color: #8C8C8C; } 72%,100% { transform: translateY(0); color: #8C8C8C; text-decoration-color: #8C8C8C; } }
 .price-card.opt-flag .pstack .dg { display: inline-block; height: 16px; overflow: hidden; vertical-align: top; }
 .price-card.opt-flag .pstack .dgreel { display: block; }
 .price-card.opt-flag .pstack .dg i { display: block; height: 16px; line-height: 16px; font-style: normal; }
-.price-card.opt-flag .pstack .dgreel.r-up { animation: odoRollUp1 2.2s ease-in-out 1 forwards; }
-.price-card.opt-flag .pstack .dgreel.r-dn { animation: odoRollDn1 2.2s ease-in-out 1 forwards; }
+.price-card.opt-flag .pstack .dgreel.r-up { animation: odoRollUp1 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
+.price-card.opt-flag .pstack .dgreel.r-dn { animation: odoRollDn1 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
 /* hold the roll back until the camera settles (same gate as the ring + min badge) */
+body.glow-hold .price-card.opt-flag .pstack, body.opt-scanning .price-card.opt-flag .pstack { opacity: 0; }
 body.glow-hold .price-card.opt-flag .pstack .prec, body.glow-hold .price-card.opt-flag .pstack .pold,
 body.glow-hold .price-card.opt-flag .pstack .dgreel,
 body.opt-scanning .price-card.opt-flag .pstack .prec, body.opt-scanning .price-card.opt-flag .pstack .pold,
-body.opt-scanning .price-card.opt-flag .pstack .dgreel { animation: none !important; opacity: 0; }
+body.opt-scanning .price-card.opt-flag .pstack .dgreel { animation: none !important; }
 
 /* The suggestion card (opens on tapping a glow) */
 .opt-card { position: fixed; display: none; width: 304px; background: #fff; border-radius: 20px; padding: 20px;
@@ -7612,14 +7617,19 @@ function makeWring(card) {
   const fill = document.createElementNS(_WNS, 'path'); fill.setAttribute('class', 'wfill');
   const path = document.createElementNS(_WNS, 'path'); path.setAttribute('class', 'wpath'); path.setAttribute('stroke-width', '2');
   svg.appendChild(fill); svg.appendChild(path); card.insertBefore(svg, card.firstChild);
+  // amplitude ramp: a cell mounted while the group is already revealed shows the full wave at once;
+  // cells present at reveal start STRAIGHT (amp 0) and ripple out when startWaveRamps() fires.
+  const revealed = document.body.classList.contains('optimize-mode') && !document.body.classList.contains('glow-hold') && !document.body.classList.contains('opt-scanning');
+  svg._amp = revealed ? 2 : 0; svg._ampGo = revealed;
   measureWring(svg); if (_wRO) _wRO.observe(svg);
 }
+function startWaveRamps() { document.querySelectorAll('.price-card.opt-flag > .wring').forEach(sv => { sv._amp = 0; sv._ampGo = true; }); }
 function removeWring(card) { const sv = card && card.querySelector(':scope > .wring'); if (sv) { if (_wRO) _wRO.unobserve(sv); sv.remove(); } }
 // ── split-odometer: per-distance roll keyframes (16px step), injected once ──
 (function(){ let kf = '';
   for (let n = 1; n <= 9; n++) {
-    kf += '@keyframes odoRollUp' + n + ' { 0%,36% { transform: translateY(0); } 58%,100% { transform: translateY(' + (-n*16) + 'px); } }\n'
-        + '@keyframes odoRollDn' + n + ' { 0%,36% { transform: translateY(' + (-n*16) + 'px); } 58%,100% { transform: translateY(0); } }\n'
+    kf += '@keyframes odoRollUp' + n + ' { 0%,18% { transform: translateY(0); } 72%,100% { transform: translateY(' + (-n*16) + 'px); } }\n'
+        + '@keyframes odoRollDn' + n + ' { 0%,18% { transform: translateY(' + (-n*16) + 'px); } 72%,100% { transform: translateY(0); } }\n'
         + '.price-card.opt-flag .pstack .dgreel.r-up.n' + n + ' { animation-name: odoRollUp' + n + '; }\n'
         + '.price-card.opt-flag .pstack .dgreel.r-dn.n' + n + ' { animation-name: odoRollDn' + n + '; }\n';
   }
@@ -7663,9 +7673,12 @@ let _wPhase = 0, _wLast = 0; const _wSpeed = 2.6; // calmed from 5 → a slow br
   const cache = {};
   document.querySelectorAll('.price-card.opt-flag > .wring').forEach(sv => {
     if (!sv._w) { measureWring(sv); if (!sv._w) return; }
+    if (sv._amp == null) sv._amp = 2;
+    if (sv._ampGo && sv._amp < 2) sv._amp = Math.min(2, sv._amp + dt * 6); // straight → full wave in ~0.35s
+    const amp = sv._amp;
     const ccw = sv.parentElement.classList.contains('opt-fill');   // drop/min = CCW, raise = CW
-    const key = sv._w + 'x' + sv._h + 'x' + sv._N + (ccw ? 'D' : 'U');
-    const d = cache[key] || (cache[key] = sineRingPath(sv._w, sv._h, 2, ccw ? _wPhase : -_wPhase, sv._N));
+    const key = sv._w + 'x' + sv._h + 'x' + sv._N + (ccw ? 'D' : 'U') + 'a' + Math.round(amp * 20);
+    const d = cache[key] || (cache[key] = sineRingPath(sv._w, sv._h, amp, ccw ? _wPhase : -_wPhase, sv._N));
     sv.querySelectorAll('path').forEach(p => p.setAttribute('d', d));
   });
   requestAnimationFrame(wLoop);
@@ -7824,7 +7837,7 @@ function startOptimize() {
     });
     if (suggs.length) {
       scrollToOpportunity(suggs[0], () =>                            // fly to the first opportunity…
-        setTimeout(() => document.body.classList.remove('glow-hold'), 180)); // …and once still, bloom the glow
+        setTimeout(() => { document.body.classList.remove('glow-hold'); startWaveRamps(); }, 180)); // …and once still, ripple the rings in + roll the prices
     } else {
       document.body.classList.remove('glow-hold');
     }
@@ -7859,7 +7872,7 @@ function focusOpportunity() {
   buildFlags([g]);
   document.body.classList.add('glow-hold');
   repaintOptGlows();
-  scrollToOpportunity(g, () => setTimeout(() => document.body.classList.remove('glow-hold'), 180));
+  scrollToOpportunity(g, () => setTimeout(() => { document.body.classList.remove('glow-hold'); startWaveRamps(); }, 180));
 }
 function applyOne(id) { // the suggestion card's Apply → same flow as the pill's
   const o = window.__opt; const i = o.suggs.findIndex(x => x.id === id); if (i < 0) return;
