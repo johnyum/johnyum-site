@@ -1164,13 +1164,14 @@ body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-
   animation: odoRec 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
 .price-card.opt-flag .pstack .pold { top: calc(50% + 1px); color: #222; text-decoration: line-through;
   text-decoration-color: transparent; animation: odoOld 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
-@keyframes odoRec { 0%,18% { transform: translateY(9px); color: #222; }
-  72%,100% { transform: translateY(0); color: var(--odoc, #222); } }
+@keyframes odoRec { 0%,18% { transform: translateY(9px); color: #222; font-weight: 400; }
+  55% { font-weight: 400; } /* stay Book through the overlap + the split */
+  72%,100% { transform: translateY(0); color: var(--odoc, #222); font-weight: 600; } } /* thicken to SemiBold as it lands */
 @keyframes odoOld { 0%,18% { transform: translateY(-9px); color: #222; text-decoration-color: transparent; }
   48% { color: #8C8C8C; } 72%,100% { transform: translateY(0); color: #8C8C8C; text-decoration-color: #8C8C8C; } }
 /* Promo / min sub-line: on settle the price nudges up and the recommendation slides in beneath it. */
-body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-sub .price-val { transform: translateY(-8px); }
-.price-card.opt-flag.has-sub .price-val { font-weight: 600; } /* promo/min top price = SemiBold, same as the price-up cell */
+body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-sub .price-val { transform: translateY(-8px); font-weight: 600; } /* revealed: SemiBold, matches the price-up cell */
+.price-card.opt-flag.has-sub .price-val { font-weight: 400; transition: transform .5s cubic-bezier(.4,0,.2,1), font-weight .3s ease .2s; } /* Book at rest; goes SemiBold on reveal (below) */
 .price-card.opt-flag.has-sub .price-val { transition: transform .5s cubic-bezier(.4,0,.2,1); }
 .price-card.opt-flag .subreveal { position: absolute; left: 0; right: 0; top: calc(50% + 6px); text-align: center;
   font: 400 14px 'Cereal', sans-serif; color: #038026; white-space: nowrap; pointer-events: none; z-index: 2;
@@ -1180,8 +1181,8 @@ body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-
 @keyframes subIn { 0%,22% { max-height: 0; opacity: 0; transform: translateY(-4px); }
   60%,100% { max-height: 16px; opacity: 1; transform: translateY(0); } }
 body.glow-hold .price-card.opt-flag .subreveal, body.opt-scanning .price-card.opt-flag .subreveal, body.opt-beat .price-card.opt-flag .subreveal { animation: none !important; opacity: 0; }
-.price-card.opt-flag .pstack, .price-card.opt-flag .pstack .pold { font-weight: 400 !important; } /* struck old = Book */
-.price-card.opt-flag .pstack .prec, .price-card.opt-flag .pstack .prec .dg, .price-card.opt-flag .pstack .prec .dg i { font-weight: 600 !important; } /* the SUGGESTED price (top) = SemiBold 600, constant (no flash) */
+.price-card.opt-flag .pstack .pold, .price-card.opt-flag .pstack .pold * { font-weight: 400 !important; } /* struck old = Book, always */
+/* the suggested price (prec + its reels) is animated Book → SemiBold by odoRec — the reels inherit it */
 .price-card.opt-flag .pstack .dg { display: inline-block; height: 16px; overflow: hidden; vertical-align: top; }
 .price-card.opt-flag .pstack .dgreel { display: block; }
 .price-card.opt-flag .pstack .dg i { display: block; height: 16px; line-height: 16px; font-style: normal; }
@@ -7858,6 +7859,7 @@ window.updateMagicPill = function () {
 // After scanning, fly the grid to an opportunity (horizontal → its dates, vertical → its listing row),
 // then run cb once the cells have mounted so its card can anchor to a real glowing cell.
 function scrollToOpportunity(s, cb) {
+  updateVSync(); // rows grew to 72px on entry → refresh the thumbnail scroll-sync range BEFORE we fly, or the pictures drift
   const row = document.querySelector('#gridRows > .price-row[data-li="' + s.li + '"]');
   const vw = gridWrap.clientWidth || window.innerWidth;
   const left = Math.max(0, (rowOffsets[s.a] || 0) - Math.round(vw * 0.28)); // sit the opportunity ~28% from the left
@@ -7938,7 +7940,7 @@ function exitOptimize() {
   window.__opt.flags = new Map(); window.__opt.suggs = []; window.__opt.state = 'idle';
   repaintOptGlows(); renderMagicPill(); window.updateMagicPill();
   updateBookingDim(); // optimize-mode is off again → guest pills come back (unless a selection holds them)
-  clearTimeout(exitOptimize._sz); exitOptimize._sz = setTimeout(() => document.body.classList.remove('opt-sizing'), 450); // let the shrink finish, then disarm
+  clearTimeout(exitOptimize._sz); exitOptimize._sz = setTimeout(() => { document.body.classList.remove('opt-sizing'); updateVSync(); }, 450); // let the shrink finish, then disarm + resync at the SETTLED 48px height
   if (typeof updateVSync === 'function') requestAnimationFrame(updateVSync); // row heights changed → resync thumbnails
 }
 function applySuggestion(s) { // one per-listing item (groups apply every item)
