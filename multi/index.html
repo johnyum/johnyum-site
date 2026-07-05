@@ -3064,6 +3064,33 @@ function getPrice(listingIdx, dayIdx) {
   return Math.round(price);
 }
 
+// ── MARKET RATE ─────────────────────────────────────────────────────────────────────────────────
+// What a night SHOULD earn from DEMAND alone — independent of what the host has set. This is the
+// ground truth every price suggestion points at: the recommended price IS the market rate, so the
+// odometer rolls to a real number and each night differs (Fri ≠ Tue, holiday ≠ ordinary).
+const EVENT_BUMP = [ ['Palm Springs', 3, 10, 19, 42] ]; // [city, month(0-idx), dayFrom, dayTo, +demand] — Coachella, mid-April
+function nightDemandScore(li, di) {
+  const d = allDays[di]; if (!d) return 62;
+  const city = listingCity[li];
+  let s = (CITY_DEMAND[city] || CITY_DEMAND['Los Angeles'])[d.getMonth()]; // 0–100 monthly baseline
+  const dow = d.getDay();
+  if (dow === 5 || dow === 6) s += 10;          // Fri/Sat command a weekend premium
+  else if (dow === 0) s += 3;                    // Sun mild
+  else if (dow === 2 || dow === 3) s -= 5;       // Tue/Wed are the softest nights
+  if (holidaySurcharge[di]) s += 14;             // holiday night
+  for (let e = 0; e < EVENT_BUMP.length; e++) {  // event compression (e.g. Coachella)
+    const ev = EVENT_BUMP[e];
+    if (city === ev[0] && d.getMonth() === ev[1] && d.getDate() >= ev[2] && d.getDate() <= ev[3]) s += ev[4];
+  }
+  return s;
+}
+function marketRate(li, di) {
+  const base = LISTINGS[li].base;
+  const s = nightDemandScore(li, di);
+  const mult = Math.max(0.72, Math.min(1.55, 1 + (s - 62) * 0.008)); // 62 = par; peak → ~+40%, trough → ~−26%
+  return Math.round(base * mult / 2) * 2; // even dollars
+}
+
 // Which lead-time discount (if any) applies to this night, given the current values.
 // Secondary "% off" line under the price (styled like the min badge) — the discount dots are retired.
 function discBadgeText(li, di) {
@@ -7395,7 +7422,7 @@ function computeSuggestions() {
             why: 'Open nights within the week and no last-minute discount set — a -15% rate for stays booked \u22647 days out wins the guests deciding right now.' });
         } else {
           const dn = 0.10;
-          items.push({ li, a: s0, b: e0, intent: 'fill', type: 'drop', pct: dn, curPrice: p0, newPrice: Math.round(p0 * (1 - dn)),
+          items.push({ li, a: s0, b: e0, intent: 'fill', type: 'drop', pct: dn, near: true, curPrice: p0, newPrice: Math.round(p0 * (1 - dn)),
             title: 'Lower price ' + Math.round(dn * 100) + '%',
             why: 'These nights are days away — a small extra drop on top of your last-minute discount lifts the odds they fill instead of going empty.' });
         }
@@ -7427,27 +7454,30 @@ function computeSuggestions() {
           const segL = e0 - s0 + 1, demand = dem[m], mon = _MON3[m];
           let holK = -1, hol = null; for (let k = s0; k <= e0; k++) { const h = holidayFor(allDays[k]); if (h) { hol = h; holK = k; break; } }
           const p0 = getPrice(li, s0);
+          // gap = market rate vs the host's current price → only flag genuinely mis-priced nights.
           if (hol) {
             const ca = Math.max(s0, holK - 2), cb = Math.min(e0, holK + 2);
-            const up = 0.18, pc = getPrice(li, ca);
-            items.push({ li, a: ca, b: cb, intent: 'earn', type: 'raise', pct: up, curPrice: pc, newPrice: Math.round(pc * (1 + up)), hol: hol.name,
-              title: 'Raise price ' + Math.round(up * 100) + '%',
-              why: hol.name + ' is open and still at your base rate. Demand spikes on holidays — nudge it up before it books cheap.' });
+            const pc = getPrice(li, ca), mk = marketRate(li, ca);
+            if (mk > pc + 4) { const up = (mk - pc) / pc;
+              items.push({ li, a: ca, b: cb, intent: 'earn', type: 'raise', pct: up, curPrice: pc, newPrice: mk, hol: hol.name,
+                title: 'Raise for ' + hol.name, why: hol.name + ' spikes demand and these nights are below what the market is paying.' });
+            }
           } else if (demand >= 74) {
-            const up = Math.max(0.10, Math.min(0.20, Math.round((demand - 60) / 2) / 100 + 0.06));
-            const e2 = Math.min(e0, s0 + 13); // cap a peak-raise window to ~2 weeks
-            items.push({ li, a: s0, b: e2, intent: 'earn', type: 'raise', pct: up, curPrice: p0, newPrice: Math.round(p0 * (1 + up)),
-              title: 'Raise price ' + Math.round(up * 100) + '%',
-              why: 'Peak-demand nights in ' + mon + ' — ' + cityLabel(city) + "'s busy season — still at base price. Guests book at a premium here; capture it." });
+            const pc = getPrice(li, s0), mk = marketRate(li, s0);
+            if (mk > pc + 4) { const up = (mk - pc) / pc; const e2 = Math.min(e0, s0 + 13);
+              items.push({ li, a: s0, b: e2, intent: 'earn', type: 'raise', pct: up, curPrice: pc, newPrice: mk,
+                title: 'Raise price', why: mon + ' is peak season ' + cityLabel(city) + ' and these nights sit below market.' });
+            }
           } else if (demand <= 49 && segL >= 2) {
-            if (segL >= 6) { const pr = 0.12;
-              items.push({ li, a: s0, b: e0, intent: 'fill', type: 'promo', pct: pr, curPrice: p0, newPrice: Math.round(p0 * (1 - pr)),
-                title: 'Add a ' + Math.round(pr * 100) + '% promotion',
-                why: segL + ' empty nights across ' + mon + ", " + cityLabel(city) + "'s slow season. A promotion is the strongest nudge to clear a long low-season gap." });
-            } else { const dn = Math.max(0.08, Math.min(0.18, Math.round((60 - demand) / 2) / 100 + 0.04));
-              items.push({ li, a: s0, b: e0, intent: 'fill', type: 'drop', pct: dn, curPrice: p0, newPrice: Math.round(p0 * (1 - dn)),
-                title: 'Lower price ' + Math.round(dn * 100) + '%',
-                why: segL + ' open night' + (segL > 1 ? 's' : '') + ' in ' + mon + ', ' + cityLabel(city) + "'s low season. Hosts who fill these usually price under base — lower it to lift your booking odds." });
+            const pc = getPrice(li, s0), mk = marketRate(li, s0);
+            if (mk < pc - 4) { const dn = (pc - mk) / pc;
+              if (segL >= 6) {
+                items.push({ li, a: s0, b: e0, intent: 'fill', type: 'promo', pct: Math.min(0.25, dn), curPrice: pc, newPrice: mk,
+                  title: 'Add a promotion', why: segL + ' quiet nights in ' + mon + ' — a promotion clears them and lifts search rank.' });
+              } else {
+                items.push({ li, a: s0, b: e0, intent: 'fill', type: 'drop', pct: dn, curPrice: pc, newPrice: mk,
+                  title: 'Lower price', why: mon + ' runs quiet ' + cityLabel(city) + ' — these nights are priced above market.' });
+              }
             }
           }
         }
@@ -7664,7 +7694,13 @@ function makeOdometer(card, li, di) {
   const f = optFlagFor(li, di); if (!f || !f.roll) { removeOdometer(card); return; }
   if (card.querySelector(':scope > .pstack')) return;               // already built (idempotent)
   const cur = getPrice(li, di);
-  const neu = f.roll.dir === 'up' ? Math.round(cur * (1 + f.roll.pct)) : Math.round(cur * (1 - f.roll.pct));
+  let neu;
+  if (f.roll.market !== false && typeof marketRate === 'function') {
+    neu = marketRate(li, di);
+    neu = f.roll.dir === 'up' ? Math.max(neu, cur + 2) : Math.min(neu, cur - 2); // hold the card's direction
+  } else { // fill-urgency (this week): a fixed discount, not the market rate
+    neu = Math.round(cur * (1 - f.roll.pct));
+  }
   const oldS = '$' + cur, newS = '$' + neu;
   const ps = document.createElement('div'); ps.className = 'pstack';
   ps.style.setProperty('--odoc', f.roll.dir === 'up' ? '#038026' : '#222');
@@ -7710,7 +7746,7 @@ function buildFlags(groups) { // only the groups passed in glow — the focus mo
   groups.forEach(g => g.items.forEach(it => {
     const min = it.type === 'minnight' ? { cur: it.curMin, to: it.newMin }
               : it.minTo != null       ? { cur: it.curMin, to: it.minTo } : null; // min-night rider on a price play
-    const roll = it.type === 'raise' ? { dir: 'up', pct: it.pct } : it.type === 'drop' ? { dir: 'dn', pct: it.pct } : null;
+    const roll = it.type === 'raise' ? { dir: 'up', pct: it.pct, market: true } : it.type === 'drop' ? { dir: 'dn', pct: it.pct, market: !it.near } : null;
     const disc = it.type === 'promo' ? '\u2212' + Math.round(it.pct * 100) + '%'
                : it.type === 'discount' ? '\u221215%' : it.type === 'earlybird' ? '\u221212%' : null;
     for (let k = it.a; k <= it.b; k++) m.set(it.li + ':' + k, { id: g.id, intent: g.intent, min, roll, disc });
@@ -7880,8 +7916,11 @@ function applySuggestion(s) { // one per-listing item (groups apply every item)
   if (s.type === 'discount') { lastMinuteVals[s.li] = '-15%'; return; } // introduces the last-minute discount setting
   if (s.type === 'earlybird') { earlyBirdVals[s.li] = '-12%'; return; } // introduces the early-bird discount setting
   for (let k = s.a; k <= s.b; k++) {
-    if (s.type === 'raise')      priceOverride[s.li][k] = Math.round(getPrice(s.li, k) * (1 + s.pct));
-    else if (s.type === 'drop')  priceOverride[s.li][k] = Math.round(getPrice(s.li, k) * (1 - s.pct));
+    if (s.type === 'raise' || s.type === 'drop') {
+      const cur = getPrice(s.li, k);
+      if (s.near) { priceOverride[s.li][k] = Math.round(cur * (1 - s.pct)); } // fill-urgency drop
+      else { let m = marketRate(s.li, k); m = s.type === 'raise' ? Math.max(m, cur + 2) : Math.min(m, cur - 2); priceOverride[s.li][k] = m; }
+    }
     else if (s.type === 'promo') promoVals[s.li][k] = s.pct;
     else if (s.type === 'minnight') minOverride[s.li][k] = s.newMin;
     if (s.minTo != null) minOverride[s.li][k] = s.minTo; // riding min-night change lands with the price play
