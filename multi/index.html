@@ -8378,25 +8378,21 @@ function loadTier(n) {
   [0, 1, 2, 3, 4].forEach(oi => { const a = _HOST_O[oi]; a.length = 0; M.o[oi].slice(0, n).forEach(x => a.push(JSON.parse(JSON.stringify(x)))); });
   ruleSets.length = 0; M.o[5].forEach(r => ruleSets.push(JSON.parse(JSON.stringify(r))));
   groups.length = 0; M.o[6].forEach(g => { const c = JSON.parse(JSON.stringify(g)); c.members = (c.members || []).filter(x => x < n); groups.push(c); });
-  // growing into a bigger tier: newly-visible listings join an existing group that matches their
-  // city (or their destination — Mountains/Desert/Coast) instead of piling up ungrouped below.
-  // "The Palm Springs homes should be in Palm Springs."
+  // growing into a bigger tier: newly-visible listings join the existing group that matches their
+  // city instead of piling up ungrouped below. "The Palm Springs homes should be in Palm Springs."
+  // (location-only rule — destination pooling retired with CITY_DEST)
   if (groups.some(g => g.members && g.members.length)) {
     const inG = new Set(); groups.forEach(g => g.members.forEach(x => inG.add(x)));
     const orphans = []; for (let i = 0; i < n; i++) if (!inG.has(i)) orphans.push(i);
-    // FIRST: anyone whose CITY already has a group joins it — a Palm Springs home never sits in
-    // "Desert" while a "Palm Springs" group exists.
+    // anyone whose CITY already has a group joins it…
     const rest = [];
     orphans.forEach(i => {
       const g = groups.find(x => x.name === LISTINGS[i].city);
       if (g) { g.members.push(i); g.members.sort((a, z) => a - z); } else rest.push(i);
     });
-    // THEN: bucket the true leftovers by the smart rule and merge each bucket into an existing group
-    // (exact name, or the lone-city bucket's destination) — or create it. NOTHING lands in "More".
+    // …the true leftovers get their city's group created. NOTHING lands in "More".
     if (rest.length) smartGroupsFor(rest).forEach(ng => {
-      const isCity = !!CITY_DEST[ng.name];
-      let hit = groups.find(x => x.name === ng.name);
-      if (!hit && isCity && ng.members.length < 3) hit = groups.find(x => x.name === CITY_DEST[ng.name]);
+      const hit = groups.find(x => x.name === ng.name);
       if (hit) { hit.members.push(...ng.members); hit.members.sort((a, z) => a - z); }
       else groups.push(ng);
     });
