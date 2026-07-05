@@ -1164,15 +1164,13 @@ body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-
   animation: odoRec 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
 .price-card.opt-flag .pstack .pold { top: calc(50% + 1px); color: #222; text-decoration: line-through;
   text-decoration-color: transparent; animation: odoOld 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
-@keyframes odoRec { 0%,18% { transform: translateY(9px); color: #222; font-weight: 400; }
-  55% { font-weight: 400; } /* stay Book through the overlap + the split */
-  72%,100% { transform: translateY(0); color: var(--odoc, #222); font-weight: 600; } } /* thicken to SemiBold as it lands */
+@keyframes odoRec { 0%,18% { transform: translateY(9px); color: #222; }
+  72%,100% { transform: translateY(0); color: var(--odoc, #222); } } /* Book throughout — the top number never thickens */
 @keyframes odoOld { 0%,18% { transform: translateY(-9px); color: #222; text-decoration-color: transparent; }
   48% { color: #8C8C8C; } 72%,100% { transform: translateY(0); color: #8C8C8C; text-decoration-color: #8C8C8C; } }
 /* Promo / min sub-line: on settle the price nudges up and the recommendation slides in beneath it. */
-body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-sub .price-val { transform: translateY(-8px); font-weight: 600; } /* revealed: SemiBold, matches the price-up cell */
-.price-card.opt-flag.has-sub .price-val { font-weight: 400; transition: transform .5s cubic-bezier(.4,0,.2,1), font-weight .3s ease .2s; } /* Book at rest; goes SemiBold on reveal (below) */
-.price-card.opt-flag.has-sub .price-val { transition: transform .5s cubic-bezier(.4,0,.2,1); }
+body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-sub .price-val { transform: translateY(-8px); } /* revealed: nudges up, stays Book */
+.price-card.opt-flag.has-sub .price-val { font-weight: 400; transition: transform .5s cubic-bezier(.4,0,.2,1); } /* Book, always */
 .price-card.opt-flag .subreveal { position: absolute; left: 0; right: 0; top: calc(50% + 6px); text-align: center;
   font: 400 14px 'Cereal', sans-serif; color: #038026; white-space: nowrap; pointer-events: none; z-index: 2;
   max-height: 0; opacity: 0; overflow: hidden; animation: subIn 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
@@ -1182,7 +1180,7 @@ body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-
   60%,100% { max-height: 16px; opacity: 1; transform: translateY(0); } }
 body.glow-hold .price-card.opt-flag .subreveal, body.opt-scanning .price-card.opt-flag .subreveal, body.opt-beat .price-card.opt-flag .subreveal { animation: none !important; opacity: 0; }
 .price-card.opt-flag .pstack .pold, .price-card.opt-flag .pstack .pold * { font-weight: 400 !important; } /* struck old = Book, always */
-/* the suggested price (prec + its reels) is animated Book → SemiBold by odoRec — the reels inherit it */
+/* the suggested price (prec + its reels) stays Book throughout — the reels inherit it */
 .price-card.opt-flag .pstack .dg { display: inline-block; height: 16px; overflow: hidden; vertical-align: top; }
 .price-card.opt-flag .pstack .dgreel { display: block; }
 .price-card.opt-flag .pstack .dg i { display: block; height: 16px; line-height: 16px; font-style: normal; }
@@ -1206,22 +1204,10 @@ body.opt-beat .price-card.opt-flag .pstack .dgreel { animation: none !important;
 .price-card.opt-applied .apcheck { animation: apCheckIn .5s ease-out forwards; }
 .price-card.opt-applied .pstack .pold, .price-card.opt-applied .subreveal { opacity: 0; transition: opacity .25s ease; }
 .price-card.opt-applied .pstack .prec { animation: apPricePop .45s ease-out; }
-/* apPricePop replaces odoRec on the animation shorthand → the held 600 would drop to base Book;
-   pin the applied/checked price to SemiBold explicitly so it STAYS 600 in checked mode. */
-.price-card.opt-applied .pstack .prec, .price-card.opt-applied .pstack .prec .dgreel, .price-card.opt-applied .pstack .prec .dg i { font-weight: 600; }
 .price-card.opt-applied.has-sub .price-val { animation: apPricePop .45s ease-out; }
 .price-card.opt-applied .wring .wpath { stroke: var(--grey-400) !important; transition: stroke .4s ease; }
 @keyframes apCheckIn { 0% { opacity: 0; transform: scale(.5); } 55% { opacity: 1; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
 @keyframes apPricePop { 0% { transform: scale(1); } 45% { transform: scale(1.14); } 100% { transform: scale(1); } }
-/* ── Exit: leaving opportunities mode, every suggested/applied price EASES from SemiBold back to Book
-   (the number itself is unchanged — only the weight relaxes). Cancel the odometer's held 600, then
-   transition to 400; the reels inherit it. JS keeps the odometer mounted ~.45s so this plays before
-   the plain (Book) price-val takes over — seamless, no snap. ── */
-body.opt-exiting .price-card.opt-flag .pstack .prec,
-body.opt-exiting .price-card.opt-flag .pstack .prec .dgreel,
-body.opt-exiting .price-card.opt-flag .pstack .prec .dg i {
-  animation: none !important; font-weight: 400 !important; transition: font-weight .4s ease; }
-body.opt-exiting .price-card.opt-flag.has-sub .price-val { font-weight: 400 !important; transition: font-weight .4s ease; }
 /* the pill's Applied confirmation (replaces the Apply button, ‹ › still step on) */
 .mopp-applied { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; color: #fff;
   background: #038026; border-radius: 999px; padding: 12px 20px; font: 500 14px 'Cereal', sans-serif; }
@@ -7947,17 +7933,12 @@ function startOptimize() {
 }
 function exitOptimize() {
   closeOptCard();
-  document.body.classList.add('opt-exiting'); // suggested/applied prices ease SemiBold → Book while the odometer is still mounted
   document.body.classList.remove('optimize-mode', 'opt-scanning', 'glow-hold', 'opt-beat');
   const mp = document.getElementById('magicPill'); if (mp) { mp.style.width = ''; mp.style.height = ''; mp.classList.remove('is-growing'); }
   window.__opt.flags = new Map(); window.__opt.suggs = []; window.__opt.state = 'idle';
-  renderMagicPill(); window.updateMagicPill();
+  repaintOptGlows(); renderMagicPill(); window.updateMagicPill();
   updateBookingDim(); // optimize-mode is off again → guest pills come back (unless a selection holds them)
-  // hold the odometer/rings ~.45s so the weight relaxes to Book, THEN strip the overlay (plain Book price-val takes over — no snap)
-  clearTimeout(exitOptimize._sz); exitOptimize._sz = setTimeout(() => {
-    document.body.classList.remove('opt-sizing', 'opt-exiting');
-    repaintOptGlows(); updateVSync(); // now clear the pstack/rings and resync thumbnails at the settled 48px height
-  }, 450);
+  clearTimeout(exitOptimize._sz); exitOptimize._sz = setTimeout(() => { document.body.classList.remove('opt-sizing'); updateVSync(); }, 450); // let the shrink finish, then disarm + resync at the SETTLED 48px height
   if (typeof updateVSync === 'function') requestAnimationFrame(updateVSync); // row heights changed → resync thumbnails
 }
 function applySuggestion(s) { // one per-listing item (groups apply every item)
