@@ -1070,8 +1070,10 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
 .mopp-pill { position: relative; display: inline-flex; align-items: center; gap: 12px; }
 .mopp-whywrap { display: flex; flex-direction: column; gap: 2px; max-width: 440px; padding: 0 2px; margin-right: 4px; } /* +12 row gap = 16px to Apply, always */
 .mopp-head { font: 600 14px/18px 'Cereal', sans-serif; color: #fff; white-space: normal; } /* the card's NAME — "Labor Day weekend", "August peak season" */
-/* step counter — onboarding is a finite checklist; the quiet overline sits on the same left grid line */
-.mopp-step { font: 400 12px/16px 'Cereal', sans-serif; color: #888888; white-space: nowrap; }
+/* step counter — onboarding is a finite checklist. Its own column LEFT of the story block, at the
+   CTA's type size, 12px of air on both sides (the row's 12px flex gap; the arrow's +4 is cancelled). */
+.mopp-step { font: 500 14px/18px 'Cereal', sans-serif; color: #888888; white-space: nowrap; flex-shrink: 0; align-self: center; }
+.mnav-in.prev:has(+ .mopp-step) { margin-right: 0; } /* 12px gap to the counter, not the 16px content inset */
 /* MAGNITUDE — the "how much / to what" the card was missing. Its own tier between the name and the reason. */
 .mopp-mag { font: 600 13px/16px 'Cereal', sans-serif; white-space: nowrap; }
 .mopp-mag.up { color: #FF9F0A; }   /* raise = amber (earn) */
@@ -6702,31 +6704,14 @@ document.body.classList.add('no-min');
 { const dg = document.getElementById('devGroups'); if (dg) dg.addEventListener('change', e => autoGroupByCity(e.target.checked)); } // Groups switch retired from the dev bar; autoGroupByCity stays callable
 
 // "Automate group": the rows under the header rule fade OUT, three dots think for 2s, then the
-// listings — SMART-grouped — fade back in subtly from the bottom.
-// Smart rule: a city with 3+ homes is its own group (Palm Springs homes live in "Palm Springs");
-// smaller cities pool into a DESTINATION group (Mountains / Desert / Coast) — but a destination
-// bucket holding just one city keeps the city's name (no lonely "Mountains" for one Tahoe cabin).
+// listings — grouped by LOCATION — fade back in subtly from the bottom.
+// Rule (simplified per design direction): one group per city, named after the city. No destination
+// pooling ("Coast"/"Mountains" retired) until told otherwise.
 const hasRealGroups = () => groups.some(g => g.members && g.members.length);
-const CITY_DEST = {
-  'Aspen': 'Mountains', 'Lake Tahoe': 'Mountains', 'Big Bear': 'Mountains',
-  'Palm Springs': 'Desert', 'Joshua Tree': 'Desert',
-  'Malibu': 'Coast', 'Santa Barbara': 'Coast', 'San Diego': 'Coast', 'Los Angeles': 'Coast',
-};
 function smartGroupsFor(idxs) {
   const byCity = {};
   idxs.forEach(i => { const c = LISTINGS[i].city; (byCity[c] = byCity[c] || []).push(i); });
-  const out = [], buckets = {};
-  Object.keys(byCity).forEach(city => {
-    const m = byCity[city];
-    if (m.length >= 3) { out.push({ name: city, members: m }); return; }
-    const d = CITY_DEST[city] || 'More destinations';
-    (buckets[d] = buckets[d] || { cities: [], members: [] });
-    buckets[d].cities.push(city); buckets[d].members.push(...m);
-  });
-  Object.keys(buckets).forEach(d => {
-    const b = buckets[d];
-    out.push({ name: b.cities.length > 1 ? d : b.cities[0], members: b.members.sort((a, z) => a - z) });
-  });
+  const out = Object.keys(byCity).map(city => ({ name: city, members: byCity[city].sort((a, z) => a - z) }));
   out.sort((a, z) => z.members.length - a.members.length);   // biggest group first
   return out;
 }
@@ -7995,8 +7980,9 @@ function renderMagicPill() {
     pill.innerHTML =
       '<div class="mopp-pill">' +
         '<button class="mnav-in prev" data-magic="prev" aria-label="Previous opportunity">' + CHEV_PREV + '</button>' +
+        stepLine +
         oppIconHTML(g) +
-        '<div class="mopp-whywrap">' + stepLine + '<span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + '</span>' : '') + '<span class="mopp-why">' + g.why + '</span></div>' +
+        '<div class="mopp-whywrap"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + '</span>' : '') + '<span class="mopp-why">' + g.why + '</span></div>' +
         (g.applied ? '<span class="mopp-applied">Applied \u2713</span>' : '<button class="mopp-apply" data-magic="apply">' + (g.ctaIcon === 'layers' ? LAYERS : '') + (g.cta || 'Apply') + '</button>') +
         '<button class="mnav-in next" data-magic="next" aria-label="Next opportunity">' + CHEV_NEXT + '</button>' +
         '<button class="bp-close magic-close" data-magic="exit" aria-label="Exit">✕</button>' +
