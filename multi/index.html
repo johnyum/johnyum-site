@@ -1196,14 +1196,19 @@ body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-
    same centre, SINKS to the bottom slot and strikes through. Both begin exactly where the plain
    price was → the split reads as the living number lifting off, not a fade in/out. */
 .price-card.opt-flag .pstack .prec { top: calc(50% - 17px); display: flex; justify-content: center; color: #222;
-  animation: odoRec 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
+  animation: odoRec 2.2s ease-in-out 1 forwards; }
 .price-card.opt-flag .pstack .pold { top: calc(50% + 1px); color: #222; text-decoration: line-through;
-  text-decoration-color: transparent; animation: odoOld 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
-@keyframes odoRec { 0%,18% { transform: translateY(9px); color: #222; }
-  72%,100% { transform: translateY(0); color: var(--odoc, #222); } } /* Book throughout — the top number never thickens */
+  text-decoration-color: transparent; animation: odoOld 2.2s ease-in-out 1 forwards; }
+/* study timing (pRec): fades in @20%, RISES to the top slot by 34%, colour settles @58% — Book throughout (never thickens) */
+@keyframes odoRec { 0%,14% { transform: translateY(8px); opacity: 0; color: #222; }
+  20% { opacity: 1; }
+  34% { transform: translateY(0); color: #222; }
+  58%,100% { transform: translateY(0); opacity: 1; color: var(--odoc, #222); } }
 .price-card.opt-fill .pstack .prec { --odoc: #038026; } /* price DOWN: the suggested price lands GREEN */
-@keyframes odoOld { 0%,18% { transform: translateY(-9px); color: #222; text-decoration-color: transparent; }
-  48% { color: #8C8C8C; } 72%,100% { transform: translateY(0); color: #8C8C8C; text-decoration-color: #8C8C8C; } }
+/* study timing (pOld): SINKS to the bottom slot by 34%, greys, strike appears @38% */
+@keyframes odoOld { 0%,14% { transform: translateY(-8px); color: #222; text-decoration-color: transparent; }
+  34% { transform: translateY(0); color: #8C8C8C; text-decoration-color: transparent; }
+  38%,100% { transform: translateY(0); color: #8C8C8C; text-decoration-color: #8C8C8C; } }
 /* Promo / min sub-line: on settle the price nudges up and the recommendation slides in beneath it. */
 body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-sub .price-val { transform: translateY(-8px); } /* revealed: nudges up, stays Book */
 .price-card.opt-flag.has-sub .price-val { font-weight: 400; transition: transform .5s cubic-bezier(.4,0,.2,1); } /* Book, always */
@@ -1220,8 +1225,8 @@ body.glow-hold .price-card.opt-flag .subreveal, body.opt-scanning .price-card.op
 .price-card.opt-flag .pstack .dg { display: inline-block; height: 16px; overflow: hidden; vertical-align: top; }
 .price-card.opt-flag .pstack .dgreel { display: block; }
 .price-card.opt-flag .pstack .dg i { display: block; height: 16px; line-height: 16px; font-style: normal; }
-.price-card.opt-flag .pstack .dgreel.r-up { animation: odoRollUp1 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
-.price-card.opt-flag .pstack .dgreel.r-dn { animation: odoRollDn1 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
+.price-card.opt-flag .pstack .dgreel.r-up { animation: odoRollUp1 2.2s ease-in-out 1 forwards; }
+.price-card.opt-flag .pstack .dgreel.r-dn { animation: odoRollDn1 2.2s ease-in-out 1 forwards; }
 /* hold the roll back until the camera settles (same gate as the ring + min badge) */
 body.glow-hold .price-card.opt-flag .pstack, body.opt-scanning .price-card.opt-flag .pstack, body.opt-beat .price-card.opt-flag .pstack { opacity: 0; }
 body.glow-hold .price-card.opt-flag .pstack .prec, body.glow-hold .price-card.opt-flag .pstack .pold,
@@ -7792,8 +7797,8 @@ function removeWring(card) { const sv = card && card.querySelector(':scope > .wr
 // ── split-odometer: per-distance roll keyframes (16px step), injected once ──
 (function(){ let kf = '';
   for (let n = 1; n <= 9; n++) {
-    kf += '@keyframes odoRollUp' + n + ' { 0%,18% { transform: translateY(0); } 72%,100% { transform: translateY(' + (-n*16) + 'px); } }\n'
-        + '@keyframes odoRollDn' + n + ' { 0%,18% { transform: translateY(' + (-n*16) + 'px); } 72%,100% { transform: translateY(0); } }\n'
+    kf += '@keyframes odoRollUp' + n + ' { 0%,36% { transform: translateY(0); } 58%,100% { transform: translateY(' + (-n*16) + 'px); } }\n'
+        + '@keyframes odoRollDn' + n + ' { 0%,36% { transform: translateY(' + (-n*16) + 'px); } 58%,100% { transform: translateY(0); } }\n'
         + '.price-card.opt-flag .pstack .dgreel.r-up.n' + n + ' { animation-name: odoRollUp' + n + '; }\n'
         + '.price-card.opt-flag .pstack .dgreel.r-dn.n' + n + ' { animation-name: odoRollDn' + n + '; }\n';
   }
@@ -7967,7 +7972,7 @@ function renderMagicPill() {
       '</div>';
     return;
   }
-  pill.innerHTML = '<button class="magic-cta" data-magic="go">' + wandHTML() + '<span class="magic-label">' + (isOnboarding() ? 'Set up your pricing' : 'Opportunities') + '</span></button>'; // idle: wand + label — onboarding reads as setup, busy reads as optimization
+  pill.innerHTML = '<button class="magic-cta" data-magic="go">' + wandHTML() + '<span class="magic-label">' + (isOnboarding() ? 'Get started' : 'Opportunities') + '</span></button>'; // idle: wand + label — onboarding reads as setup, busy reads as optimization
 }
 window.updateMagicPill = function () {
   const el = document.getElementById('magicAction'); if (!el) return;
