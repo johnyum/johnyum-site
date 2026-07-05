@@ -1133,6 +1133,34 @@ body.opt-scanning #gridRows .price-card .price-val { color: var(--grey-400); } /
 .price-card.opt-flag .price-val, .price-card.opt-flag .min-badge, .price-card.opt-flag .cell-date { position: relative; z-index: 1; }
 /* hold the wave back during scan / fly-to (matches the old glow-hold) */
 body.glow-hold .price-card.opt-flag .wring, body.opt-scanning .price-card.opt-flag .wring { opacity: 0; }
+/* ═══ Opportunity cell INFO reveal — split-odometer price roll (ported from the glow study).
+   ADDITIVE: the .pstack overlay exists only on a FOCUSED raise/drop opportunity cell; idle cells
+   and every non-opportunity cell keep their plain .price-val untouched. ═══ */
+.price-card.opt-flag .pstack { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.price-card.opt-flag.has-odo .price-val { visibility: hidden; }
+.price-card.opt-flag .pstack .prec, .price-card.opt-flag .pstack .pold {
+  position: absolute; left: 0; right: 0; text-align: center; height: 16px; line-height: 16px;
+  font: 400 14px 'Cereal', sans-serif; }
+.price-card.opt-flag .pstack .prec { top: calc(50% - 17px); display: flex; justify-content: center; color: #222;
+  animation: odoRec 2.2s ease-in-out 1 forwards; }
+.price-card.opt-flag .pstack .pold { top: calc(50% + 1px); color: #222; text-decoration: line-through;
+  text-decoration-color: transparent; animation: odoOld 2.2s ease-in-out 1 forwards; }
+@keyframes odoRec { 0%,14% { transform: translateY(8px); opacity: 0; color: #222; font-weight: 400; }
+  20% { opacity: 1; } 34% { transform: translateY(0); }
+  58%,100% { transform: translateY(0); opacity: 1; color: var(--odoc, #222); font-weight: 600; } }
+@keyframes odoOld { 0%,14% { transform: translateY(-8px); color: #222; text-decoration-color: transparent; }
+  34% { transform: translateY(0); color: #8C8C8C; }
+  38%,100% { color: #8C8C8C; text-decoration-color: #8C8C8C; } }
+.price-card.opt-flag .pstack .dg { display: inline-block; height: 16px; overflow: hidden; vertical-align: top; }
+.price-card.opt-flag .pstack .dgreel { display: block; }
+.price-card.opt-flag .pstack .dg i { display: block; height: 16px; line-height: 16px; font-style: normal; }
+.price-card.opt-flag .pstack .dgreel.r-up { animation: odoRollUp1 2.2s ease-in-out 1 forwards; }
+.price-card.opt-flag .pstack .dgreel.r-dn { animation: odoRollDn1 2.2s ease-in-out 1 forwards; }
+/* hold the roll back until the camera settles (same gate as the ring + min badge) */
+body.glow-hold .price-card.opt-flag .pstack .prec, body.glow-hold .price-card.opt-flag .pstack .pold,
+body.glow-hold .price-card.opt-flag .pstack .dgreel,
+body.opt-scanning .price-card.opt-flag .pstack .prec, body.opt-scanning .price-card.opt-flag .pstack .pold,
+body.opt-scanning .price-card.opt-flag .pstack .dgreel { animation: none !important; opacity: 0; }
 
 /* The suggestion card (opens on tapping a glow) */
 .opt-card { position: fixed; display: none; width: 304px; background: #fff; border-radius: 20px; padding: 20px;
@@ -3692,7 +3720,7 @@ function buildPriceCell(li, di, booked, unavail, gapSet) {
   const _tip = _bt ? (_bt === 'adv' ? 'Adv notice' : 'Prep time') : _dk ? (_dk === 'early' ? 'Early bird' : 'Last minute') : '';
   card.innerHTML = isBooked ? '' : `<span class="price-val">$${getPrice(li, di)}</span><span class="min-badge">${_of && _of.min ? `min <s>${_of.min.cur}</s> ${_of.min.to}` : minBadgeHTML(li, gapSet.has(di), di)}</span>${_dtxt ? `<span class="disc-badge">${_dtxt}</span>` : ''}<span class="cell-date">${d.getDate()}</span>${_tip ? `<span class="block-tip">${_tip}</span>` : ''}`;
   setCellBadge(card, li, di, gapSet);
-  if (_of) makeWring(card); // wavy opportunity ring (replaces the glow)
+  if (_of) { makeWring(card); makeOdometer(card, li, di); } // wavy ring + split-odometer price roll
   const rsIdx = ruleSetCell[li][di]; // persist the rule-set color tint + corner dot across re-renders
   if (!isBooked && rsIdx != null && ruleSets[rsIdx]) {
     const rc = CZ_COLORS[ruleSets[rsIdx].ci];
@@ -7575,6 +7603,42 @@ function makeWring(card) {
   measureWring(svg); if (_wRO) _wRO.observe(svg);
 }
 function removeWring(card) { const sv = card && card.querySelector(':scope > .wring'); if (sv) { if (_wRO) _wRO.unobserve(sv); sv.remove(); } }
+// ── split-odometer: per-distance roll keyframes (16px step), injected once ──
+(function(){ let kf = '';
+  for (let n = 1; n <= 9; n++) {
+    kf += '@keyframes odoRollUp' + n + ' { 0%,36% { transform: translateY(0); } 58%,100% { transform: translateY(' + (-n*16) + 'px); } }\n'
+        + '@keyframes odoRollDn' + n + ' { 0%,36% { transform: translateY(' + (-n*16) + 'px); } 58%,100% { transform: translateY(0); } }\n'
+        + '.price-card.opt-flag .pstack .dgreel.r-up.n' + n + ' { animation-name: odoRollUp' + n + '; }\n'
+        + '.price-card.opt-flag .pstack .dgreel.r-dn.n' + n + ' { animation-name: odoRollDn' + n + '; }\n';
+  }
+  document.head.insertAdjacentHTML('beforeend', '<style>' + kf + '</style>');
+})();
+function _odoRollHtml(oldS, newS, dir) {
+  let out = '';
+  for (let i = 0; i < Math.max(oldS.length, newS.length); i++) {
+    const o = oldS[i] != null ? oldS[i] : '', n = newS[i] != null ? newS[i] : '';
+    const ch = c => c === ' ' ? '&nbsp;' : c;
+    if (o === n) { out += '<span class="dg"><span class="dgreel"><i>' + ch(o) + '</i></span></span>'; continue; }
+    let seq = [o];
+    if (/\d/.test(o) && /\d/.test(n)) { let d = +o; while (d !== +n) { d = (d + (dir === 'up' ? 1 : 9)) % 10; seq.push(String(d)); } }
+    else seq.push(n);
+    if (dir === 'dn') seq = seq.slice().reverse();
+    out += '<span class="dg"><span class="dgreel r-' + dir + ' n' + (seq.length - 1) + '">' + seq.map(c => '<i>' + ch(c) + '</i>').join('') + '</span></span>';
+  }
+  return out;
+}
+function makeOdometer(card, li, di) {
+  const f = optFlagFor(li, di); if (!f || !f.roll) { removeOdometer(card); return; }
+  if (card.querySelector(':scope > .pstack')) return;               // already built (idempotent)
+  const cur = getPrice(li, di);
+  const neu = f.roll.dir === 'up' ? Math.round(cur * (1 + f.roll.pct)) : Math.round(cur * (1 - f.roll.pct));
+  const oldS = '$' + cur, newS = '$' + neu;
+  const ps = document.createElement('div'); ps.className = 'pstack';
+  ps.style.setProperty('--odoc', f.roll.dir === 'up' ? '#038026' : '#222');
+  ps.innerHTML = '<div class="prec">' + _odoRollHtml(oldS, newS, f.roll.dir) + '</div><div class="pold">' + oldS + '</div>';
+  card.appendChild(ps); card.classList.add('has-odo');
+}
+function removeOdometer(card) { if (!card) return; const ps = card.querySelector(':scope > .pstack'); if (ps) ps.remove(); card.classList.remove('has-odo'); }
 let _wPhase = 0, _wLast = 0; const _wSpeed = 5;
 (function wLoop(now) {
   const dt = _wLast ? Math.min(0.05, (now - _wLast) / 1000) : 0; _wLast = now; _wPhase += _wSpeed * dt;
@@ -7594,7 +7658,8 @@ function buildFlags(groups) { // only the groups passed in glow — the focus mo
   groups.forEach(g => g.items.forEach(it => {
     const min = it.type === 'minnight' ? { cur: it.curMin, to: it.newMin }
               : it.minTo != null       ? { cur: it.curMin, to: it.minTo } : null; // min-night rider on a price play
-    for (let k = it.a; k <= it.b; k++) m.set(it.li + ':' + k, { id: g.id, intent: g.intent, min });
+    const roll = it.type === 'raise' ? { dir: 'up', pct: it.pct } : it.type === 'drop' ? { dir: 'dn', pct: it.pct } : null;
+    for (let k = it.a; k <= it.b; k++) m.set(it.li + ':' + k, { id: g.id, intent: g.intent, min, roll });
   }));
   window.__opt.flags = m;
 }
@@ -7607,7 +7672,7 @@ function repaintOptGlows() { // re-apply glow classes to currently-mounted cells
       const f = card.classList.contains('booked') ? null : optFlagFor(li, di);
       const hadMin = card.classList.contains('opt-min');
       card.classList.remove('opt-flag', 'opt-fill', 'opt-earn', 'opt-min');
-      if (f) { card.classList.add('opt-flag', 'opt-' + f.intent); card.dataset.sugg = f.id; makeWring(card); } else { delete card.dataset.sugg; removeWring(card); }
+      if (f) { card.classList.add('opt-flag', 'opt-' + f.intent); card.dataset.sugg = f.id; makeWring(card); makeOdometer(card, li, di); } else { delete card.dataset.sugg; removeWring(card); removeOdometer(card); }
       // min-night change: strike the current minimum, suggested nights beside it (badge force-shown via .opt-min)
       const badge = card.querySelector('.min-badge');
       if (badge) {
