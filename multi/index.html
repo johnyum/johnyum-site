@@ -4088,6 +4088,15 @@ function updateVSync() {
   const gli = document.getElementById('groupLabelInner'); // query fresh — grid rebuilds can replace the node
   if (gli) gli.style.setProperty('--vmax', vmax); // group labels ride the SAME native scroll timeline — no JS mirror, no jank
 }
+// After a grid REBUILD (host switch), the scroll-driven animation can stall at its old output until
+// the next real scroll — the thumbnails/labels sit offset by exactly scrollTop. Restart the binding.
+function resyncVSync() {
+  updateVSync();
+  [thumbsInner, document.getElementById('groupLabelInner')].forEach(el => {
+    if (!el) return;
+    el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; // re-bind to the timeline at the CURRENT scroll offset
+  });
+}
 // The left column can't scroll itself, so forward wheel gestures over it to the grid.
 thumbsEl.addEventListener('wheel', (e) => {
   gridWrap.scrollTop += e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY; // lines → px
@@ -8434,6 +8443,7 @@ function finishHostSwitch(enterFrom) {
   else if (typeof render === 'function') render(true);
   if (typeof renderGroups === 'function') renderGroups();
   if (typeof applyGroupsToCalendar === 'function') applyGroupsToCalendar();
+  if (typeof resyncVSync === 'function') requestAnimationFrame(resyncVSync); // rebuilt grid → restart the scroll-timeline binding or the thumbnails sit offset by scrollTop
   if (typeof refreshCalendarPrices === 'function') refreshCalendarPrices();
   if (typeof updateMagicPill === 'function') updateMagicPill();
   if (window.__opt && window.__opt.state === 'idle' && typeof renderMagicPill === 'function') renderMagicPill(); // refresh the idle count for the new tier
@@ -8468,6 +8478,9 @@ function switchHost(key, instant) {
   document.body.classList.add('hosts-morph');
   document.body.classList.toggle('host-small', key === 'small');
   document.body.classList.toggle('host-pro', key === 'pro');
+  // rows tween height for 470ms → scrollHeight changes EVERY frame; keep the thumbnails' scroll-timeline
+  // range (--vmax) exact each frame or the pictures slide out of alignment during the morph.
+  (function tick() { if (document.body.classList.contains('hosts-morph')) { updateVSync(); requestAnimationFrame(tick); } })();
   clearTimeout(switchHost._t);
   switchHost._t = setTimeout(() => {
     document.body.classList.remove('hosts-morph');
