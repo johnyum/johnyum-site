@@ -7571,9 +7571,9 @@ function computeSuggestions() {
     const nearLis = new Set(nearItems.map(x => x.li)).size;
     cards.push({ bucket: 'near', type: 'drop', intent: 'fill', pct,
       a: Math.min(...nearItems.map(x => x.a)), b: Math.max(...nearItems.map(x => x.b)), items: nearItems,
-      head: 'Lower prices to get bookings', cta: 'Lower prices',
+      head: 'Let’s fill these empty nights', cta: 'Lower prices',
       title: 'Fill this week',
-      why: nearLis + ' listing' + (nearLis > 1 ? 's have' : ' has') + ' empty nights in the next 7 days — a small cut wins the last-minute guest before they pass.' });
+      why: nearLis + ' listing' + (nearLis > 1 ? 's sit' : ' sits') + ' open this week. A nudge down wins the guests booking right now — before they slip away.' });
   }
   // Reasoning lines are CARD-level and cluster-aware: plain language, the value up front.
   const _MONF = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -7586,14 +7586,14 @@ function computeSuggestions() {
     const ha = Math.min(...its.map(x => x.a)), hb = Math.max(...its.map(x => x.b));
     cards.push({ bucket: 'holiday', type: 'raise', intent: 'earn', pct: its[0].pct, hol: h,
       a: ha, b: hb, items: its,
-      head: 'Raise prices for ' + h, cta: 'Raise prices',
+      head: 'Make the most of ' + h, cta: 'Raise prices',
       title: h + ': raise ' + Math.round(its[0].pct * 100) + '%',
-      why: 'Demand jumps everywhere you host over ' + h + ', but these nights are still at everyday rates.' });
+      why: 'Everywhere you host gets busy over ' + h + ', but you’ve left these nights at everyday prices. Let’s catch the bump.' });
   });
   if (eventCard) {
-    eventCard.head = 'Raise prices for Coachella'; eventCard.cta = 'Raise prices';
+    eventCard.head = 'Cash in on Coachella'; eventCard.cta = 'Raise prices';
     eventCard.title = 'Coachella: raise 40%';
-    eventCard.why = 'Coachella sells Palm Springs out months ahead at a premium — your festival nights are priced like any other.';
+    eventCard.why = 'Coachella books Palm Springs out months ahead, and at a premium — yet your festival nights are priced like any other week.';
     cards.push(eventCard);
   }
   Object.keys(seasonBy).forEach(key => {
@@ -7604,23 +7604,23 @@ function computeSuggestions() {
     cards.push({ bucket: t === 'raise' ? 'season-up' : t === 'drop' ? 'season-down' : 'promo',
       type: t, intent: its[0].intent, pct,
       a: Math.min(...its.map(x => x.a)), b: Math.max(...its.map(x => x.b)), items: its,
-      head: (t === 'raise' ? 'Raise prices for peak season' : t === 'drop' ? 'Lower prices for the slow season' : 'Add a promotion to fill the gap'),
+      head: (t === 'raise' ? 'Lean into peak season' : t === 'drop' ? 'Keep pace in the slow season' : 'Tempt guests into a quiet stretch'),
       cta: (t === 'raise' ? 'Raise prices' : t === 'drop' ? 'Lower prices' : 'Add promotion'),
       title: its[0].title,
       why: t === 'raise'
-        ? mon + ' is your busiest month ' + where + ', and ' + nL + ' listing' + (nL > 1 ? 's are' : ' is') + ' still at base rate.'
+        ? mon + ' is your busiest month ' + where + ', yet ' + nL + ' listing' + (nL > 1 ? 's are' : ' is') + ' still sitting at base rate.'
         : t === 'drop'
-        ? mon + ' runs quiet ' + where + ' — comparable stays are booking below your base rate.'
-        : 'A quiet stretch ' + where + ' — a promotion clears these nights and lifts your search rank, base price untouched.' });
+        ? mon + ' is quiet ' + where + ' — booked stays are going below your rate, so a small trim keeps you in the mix.'
+        : 'It’s slow ' + where + ' — a limited promo clears these nights and lifts you in search, base price untouched.' });
   });
   // (4) UNLOCK STAYS — every stranded gap on the calendar as ONE mass action
   if (staysItems.length) {
     const tot = staysItems.reduce((s, x) => s + (x.b - x.a + 1), 0);
     cards.push({ bucket: 'stays', type: 'minnight', intent: 'fill',
       a: Math.min(...staysItems.map(x => x.a)), b: Math.max(...staysItems.map(x => x.b)), items: staysItems,
-      head: 'Shorten minimums to unlock gaps', cta: 'Change minimum',
+      head: 'Free up these stranded nights', cta: 'Change minimum',
       title: 'Unlock ' + tot + ' stranded night' + (tot > 1 ? 's' : ''),
-      why: tot + ' night' + (tot > 1 ? 's fall' : ' falls') + ' in gaps too short for your minimums, so guests can’t book them at all.' });
+      why: tot + ' night' + (tot > 1 ? 's are' : ' is') + ' wedged in gaps too short for your minimums, so no one can book them. Open them up just here.' });
   }
   // (5) SMART DISCOUNTS (setup lane) — last-minute + early-bird as ONE switch card; shows only while off
   LISTINGS.forEach((l, li) => {
@@ -7629,9 +7629,9 @@ function computeSuggestions() {
   if (setupItems.length) {
     cards.push({ bucket: 'setup', type: 'discount', intent: 'fill', pct: 0.15,
       a: Math.min(...setupItems.map(x => x.a)), b: Math.max(...setupItems.map(x => x.b)), items: setupItems,
-      head: 'Turn on discounts to win bookings', cta: 'Turn on',
+      head: 'Let discounts do the work', cta: 'Turn on',
       title: 'Turn on smart discounts',
-      why: new Set(setupItems.map(x => x.li)).size + ' listings have last-minute and early-bird discounts off — both pull in bookings you’re missing.' });
+      why: new Set(setupItems.map(x => x.li)).size + ' listings have last-minute and early-bird off. Flip them on once and they quietly bring in the bookings you’re missing.' });
   }
   // Estimated $ impact per card → biggest first. The number on the card is what justifies mass action.
   cards.forEach(c => {
