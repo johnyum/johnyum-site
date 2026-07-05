@@ -6250,6 +6250,9 @@ function applyGroupsToCalendar() {
 // Calendar mode: draw each group name in the overlay, left-aligned to the page
 // edge and free to extend over the grid. Vertical position is taken from the
 // (invisible) in-column anchor label so it inherits the exact 24px/48px spacing.
+// The inner's CURRENT rendered translate (compositor timeline output). Anchoring labels against this —
+// not against scrollTop — makes them sit EXACTLY on their divider no matter what the timeline is doing.
+function _glTy(inner) { const t = getComputedStyle(inner).transform; if (!t || t === 'none') return 0; const m = t.match(/matrix\(([^)]+)\)/); return m ? parseFloat(m[1].split(',')[5]) || 0 : 0; }
 function buildGroupLabelOverlay() {
   const inner = document.getElementById('groupLabelInner');
   if (!inner) return;
@@ -6258,7 +6261,7 @@ function buildGroupLabelOverlay() {
     && !document.body.classList.contains('avail-mode');
   if (!inCalendar) return;                       // Pricing/Availability use the in-column label
   const calTop = document.querySelector('.cal').getBoundingClientRect().top;
-  const scrollTop = gridWrap.scrollTop;
+  const ty = _glTy(inner);
   document.querySelectorAll('#listingThumbsInner > .group-divider').forEach(div => {
     const anchor = div.querySelector('.group-divider-name');
     if (!anchor) return;
@@ -6266,29 +6269,62 @@ function buildGroupLabelOverlay() {
     const collapsed = div.classList.contains('collapsed');
     const lbl = document.createElement('div');
     lbl.className = 'cal-group-label';
-    lbl.dataset.gi = gi; // so repositionGroupLabels() can re-find this label's divider during the morph
+    lbl.dataset.gi = gi;
+    lbl.dataset.col = collapsed ? '1' : '0'; // the sync loop heals structure when this goes stale
     fillGroupLabel(lbl, anchor.querySelector('.gname-text')?.textContent || '', gi, collapsed);
-    // stable position in scroll-content space (independent of current scroll)
-    lbl.style.top = (anchor.getBoundingClientRect().top - calTop + scrollTop) + 'px';
+    // content-space top such that (top + translate) === the anchor's live rendered position
+    lbl.style.top = (anchor.getBoundingClientRect().top - calTop - ty) + 'px';
     inner.appendChild(lbl);
   });
   updateVSync(); // translate comes from the --vsync scroll timeline — keep its range fresh on every rebuild
 }
-// Lightweight re-position of the EXISTING group-name labels to their live anchor rects — called every
-// frame of the Week↔Month morph so the names slide in lockstep with the rows (no snap/lag at the end).
-function repositionGroupLabels() {
-  const inner = document.getElementById('groupLabelInner');
-  if (!inner || !inner.children.length) return;
+// (kept for callers) — one manual pass of the same geometry the sync loop runs every frame
+function repositionGroupLabels() { _groupLabelSyncPass(); }
+// ═══ SELF-HEALING GROUP-LABEL SYNC ═══════════════════════════════════════════════════════════════
+// One permanent rAF loop keeps the overlay CORRECT BY CONSTRUCTION instead of relying on every
+// feature (host morphs, opt-sizing, month morph, collapse, automate-group, edit modes…) to remember
+// to rebuild/re-anchor it:
+//   STRUCTURE — the label set must mirror the divider set (count, order, collapse state); rebuild if not.
+//   GEOMETRY  — each label's content-space top is derived from its divider's LIVE rect and the overlay's
+//               CURRENT rendered translate, so (top + translate) always lands exactly on the divider.
+//               During pure scroll the tops stay constant (the compositor timeline does the moving — zero
+//               lag); during any layout tween the loop corrects within a frame.
+//   RANGE     — --vmax refreshes whenever the scroll range changes (any row-height tween), keeping the
+//               thumbnails' translate math exact too.
+function _groupLabelSyncPass() {
+  const inner = document.getElementById('groupLabelInner'); if (!inner) return;
+  const vmax = (gridWrap.scrollHeight - gridWrap.clientHeight) + 'px'; // read before any writes
+  const inCalendar = !document.body.classList.contains('settings-mode') && !document.body.classList.contains('avail-mode');
+  if (!inCalendar) { // labels live only in Calendar, but the thumbs still ride the timeline everywhere
+    if (thumbsInner && thumbsInner.style.getPropertyValue('--vmax') !== vmax) thumbsInner.style.setProperty('--vmax', vmax);
+    return;
+  }
+  const divs = [...document.querySelectorAll('#listingThumbsInner > .group-divider')];
+  const labels = [...inner.children];
+  let stale = divs.length !== labels.length;
+  if (!stale) for (let i = 0; i < divs.length; i++) {
+    if (labels[i].dataset.gi !== divs[i].dataset.gi ||
+        (labels[i].dataset.col === '1') !== divs[i].classList.contains('collapsed')) { stale = true; break; }
+  }
+  if (stale) { buildGroupLabelOverlay(); return; } // structure heals → geometry lands next frame
+  if (!labels.length) { // still keep the thumbs' range fresh when there are no groups
+    if (thumbsInner && thumbsInner.style.getPropertyValue('--vmax') !== vmax) thumbsInner.style.setProperty('--vmax', vmax);
+    return;
+  }
   const calEl = document.querySelector('.cal'); if (!calEl) return;
   const calTop = calEl.getBoundingClientRect().top;
-  const scrollTop = gridWrap.scrollTop;
-  Array.from(inner.children).forEach(lbl => {
-    const div = document.querySelector(`#listingThumbsInner > .group-divider[data-gi="${lbl.dataset.gi}"]`);
-    const anchor = div && div.querySelector('.group-divider-name');
-    if (anchor) lbl.style.top = (anchor.getBoundingClientRect().top - calTop + scrollTop) + 'px';
+  const ty = _glTy(inner);
+  const tops = divs.map(d => { const a = d.querySelector('.group-divider-name'); return a ? (a.getBoundingClientRect().top - calTop - ty) : null; });
+  // writes last, and only on change
+  if (thumbsInner && thumbsInner.style.getPropertyValue('--vmax') !== vmax) thumbsInner.style.setProperty('--vmax', vmax);
+  if (inner.style.getPropertyValue('--vmax') !== vmax) inner.style.setProperty('--vmax', vmax);
+  labels.forEach((l, i) => {
+    if (tops[i] == null) return;
+    const t = Math.round(tops[i] * 2) / 2 + 'px'; // half-px grid: stable, no per-frame churn
+    if (l.style.top !== t) l.style.top = t;
   });
-  updateVSync(); // row heights are tweening → keep the scroll-timeline range exact each frame
 }
+(function groupLabelSyncLoop() { _groupLabelSyncPass(); requestAnimationFrame(groupLabelSyncLoop); })();
 // Keep the collapse/expand toggle glued to the header rule (bottom of .left-header). It lives at .cal
 // level for stacking, so its vertical spot is set here; called on render, every morph frame, and settle.
 function positionLeftToggle() {
@@ -8478,10 +8514,7 @@ function switchHost(key, instant) {
   document.body.classList.add('hosts-morph');
   document.body.classList.toggle('host-small', key === 'small');
   document.body.classList.toggle('host-pro', key === 'pro');
-  // rows tween height for 470ms → scrollHeight changes EVERY frame; keep the thumbnails' scroll-timeline
-  // range (--vmax) exact each frame or the pictures slide out of alignment during the morph.
-  (function tick() { if (document.body.classList.contains('hosts-morph')) { updateVSync(); requestAnimationFrame(tick); } })();
-  clearTimeout(switchHost._t);
+  clearTimeout(switchHost._t); // (--vmax tracks the tweening rows via the permanent group-label sync loop)
   switchHost._t = setTimeout(() => {
     document.body.classList.remove('hosts-morph');
     finishHostSwitch(newN > prevN ? prevN : null);
