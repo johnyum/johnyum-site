@@ -7404,6 +7404,8 @@ const NEAR_DAYS = 7;
 function computeSuggestions() {
   const items = []; const N = allDays.length;
   const varianceOn = !!(document.getElementById('devVariance') && document.getElementById('devVariance').checked);
+  const bookingsOn = !!(document.getElementById('devBookings') && document.getElementById('devBookings').checked);
+  const onboarding = !varianceOn && !bookingsOn; // fresh host: only a base price, no bookings, no variance → SETUP voice (holidays, events, seasons, discounts as first-time setup, not optimization nudges)
   if (!varianceOn) {
     // SETUP mode: the calendar is a flat baseline (Price variance off) — everything still sits at base
     // rate, so the plays are the same modes as always: price UP through the next high-demand run, price
@@ -7451,6 +7453,18 @@ function computeSuggestions() {
           items.push({ li, a: s0, b: e0, intent: 'fill', type: 'discount', pct: 0.15, curPrice: p0, newPrice: Math.round(p0 * 0.85),
             title: 'Add a last-minute discount',
             why: 'Open nights within the week and no last-minute discount set — a -15% rate for stays booked \u22647 days out wins the guests deciding right now.' });
+        }
+      }
+      // holidays — premium dates travelers book months ahead. Fresh host = none set yet, so surface the
+      // next couple to price for the year (they bucket into ONE national card per holiday, all listings).
+      {
+        const seen = new Set();
+        for (let k = Math.max(0, todayDi); k < N && seen.size < 2; k++) {
+          const h = holidayFor(allDays[k]); if (!h || seen.has(h.name)) continue;
+          seen.add(h.name);
+          const ha = Math.max(0, k - 2), hb = Math.min(N - 1, k + 2), p0 = getPrice(li, k), pct = 0.20;
+          items.push({ li, a: ha, b: hb, intent: 'earn', type: 'raise', pct, hol: h.name, curPrice: p0, newPrice: Math.round(p0 * (1 + pct)),
+            title: 'Raise for ' + h.name, why: '' });
         }
       }
     }
@@ -7572,7 +7586,7 @@ function computeSuggestions() {
     if (it.hol) { (holBy[it.hol] = holBy[it.hol] || []).push(it); return; }
     if (it.type === 'minnight') { staysItems.push(it); return; }                      // (4) aggregate below
     if (it.type === 'discount') { setupItems.push(it); return; }                      // (5) aggregate below
-    if (it.a <= todayDi + NEAR_DAYS && it.intent === 'fill') { nearItems.push(it); return; } // this week = FILL urgency, its own card (raises stay with their season/holiday bucket)
+    if (!onboarding && it.a <= todayDi + NEAR_DAYS && it.intent === 'fill') { nearItems.push(it); return; } // this week = FILL urgency, its own card (raises stay with their season/holiday bucket). Onboarding has no "this week" card — fills fold into their season bucket.
     // (2)+(3) SEASON UP / DOWN / PROMOTE — merge only same-play + same-month windows
     const key = it.type + '|' + allDays[it.a].getMonth();
     (seasonBy[key] = seasonBy[key] || []).push(it);
@@ -7597,14 +7611,20 @@ function computeSuggestions() {
     const ha = Math.min(...its.map(x => x.a)), hb = Math.max(...its.map(x => x.b));
     cards.push({ bucket: 'holiday', type: 'raise', intent: 'earn', pct: its[0].pct, hol: h,
       a: ha, b: hb, items: its,
-      head: 'Make the most of ' + h, cta: 'Raise prices',
+      head: onboarding ? 'Price for ' + h : 'Make the most of ' + h,
+      cta: onboarding ? 'Set holiday pricing' : 'Raise prices',
       title: h + ': raise ' + Math.round(its[0].pct * 100) + '%',
-      why: 'Everywhere you host gets busy over ' + h + ', but you’ve left these nights at everyday prices. Let’s catch the bump.' });
+      why: onboarding
+        ? 'Travelers book ' + h + ' months ahead and pay a premium. Set it once and you’re covered every year.'
+        : 'Everywhere you host gets busy over ' + h + ', but you’ve left these nights at everyday prices. Let’s catch the bump.' });
   });
   if (eventCard) {
-    eventCard.head = 'Cash in on Coachella'; eventCard.cta = 'Raise prices';
+    eventCard.head = onboarding ? 'Price for Coachella' : 'Cash in on Coachella';
+    eventCard.cta = onboarding ? 'Set event pricing' : 'Raise prices';
     eventCard.title = 'Coachella: raise 40%';
-    eventCard.why = 'Coachella books Palm Springs out months ahead, and at a premium — yet your festival nights are priced like any other week.';
+    eventCard.why = onboarding
+      ? 'Coachella fills Palm Springs every April — homes charge well above their normal rate. Set it once for every festival.'
+      : 'Coachella books Palm Springs out months ahead, and at a premium — yet your festival nights are priced like any other week.';
     cards.push(eventCard);
   }
   Object.keys(seasonBy).forEach(key => {
@@ -7615,14 +7635,24 @@ function computeSuggestions() {
     cards.push({ bucket: t === 'raise' ? 'season-up' : t === 'drop' ? 'season-down' : 'promo',
       type: t, intent: its[0].intent, pct,
       a: Math.min(...its.map(x => x.a)), b: Math.max(...its.map(x => x.b)), items: its,
-      head: (t === 'raise' ? 'Lean into peak season' : t === 'drop' ? 'Keep pace in the slow season' : 'Tempt guests into a quiet stretch'),
-      cta: (t === 'raise' ? 'Raise prices' : t === 'drop' ? 'Lower prices' : 'Add promotion'),
+      head: onboarding
+        ? (t === 'raise' ? 'Set your high-season prices' : t === 'drop' ? 'Set your low-season prices' : 'Set a slow-season promotion')
+        : (t === 'raise' ? 'Lean into peak season' : t === 'drop' ? 'Keep pace in the slow season' : 'Tempt guests into a quiet stretch'),
+      cta: onboarding
+        ? (t === 'promo' ? 'Add promotion' : 'Set prices')
+        : (t === 'raise' ? 'Raise prices' : t === 'drop' ? 'Lower prices' : 'Add promotion'),
       title: its[0].title,
-      why: t === 'raise'
-        ? mon + ' is your busiest month ' + where + ', yet ' + nL + ' listing' + (nL > 1 ? 's are' : ' is') + ' still sitting at base rate.'
-        : t === 'drop'
-        ? mon + ' is quiet ' + where + ' — booked stays are going below your rate, so a small trim keeps you in the mix.'
-        : 'It’s slow ' + where + ' — a limited promo clears these nights and lifts you in search, base price untouched.' });
+      why: onboarding
+        ? (t === 'raise'
+            ? mon + ' is peak season ' + where + '. Homes like yours book above base rate — set it once and it applies every year.'
+            : t === 'drop'
+            ? mon + ' is quiet ' + where + '. A lower rate keeps you booked when demand dips — set once, repeats each year.'
+            : 'A quiet stretch ' + where + '. A promotion fills it and lifts your search rank, base price untouched.')
+        : (t === 'raise'
+            ? mon + ' is your busiest month ' + where + ', yet ' + nL + ' listing' + (nL > 1 ? 's are' : ' is') + ' still sitting at base rate.'
+            : t === 'drop'
+            ? mon + ' is quiet ' + where + ' — booked stays are going below your rate, so a small trim keeps you in the mix.'
+            : 'It’s slow ' + where + ' — a limited promo clears these nights and lifts you in search, base price untouched.') });
   });
   // (4) UNLOCK STAYS — every stranded gap on the calendar as ONE mass action
   if (staysItems.length) {
@@ -7640,9 +7670,11 @@ function computeSuggestions() {
   if (setupItems.length) {
     cards.push({ bucket: 'setup', type: 'discount', intent: 'fill', pct: 0.15,
       a: Math.min(...setupItems.map(x => x.a)), b: Math.max(...setupItems.map(x => x.b)), items: setupItems,
-      head: 'Let discounts do the work', cta: 'Turn on',
+      head: onboarding ? 'Turn on smart discounts' : 'Let discounts do the work', cta: 'Turn on',
       title: 'Turn on smart discounts',
-      why: new Set(setupItems.map(x => x.li)).size + ' listings have last-minute and early-bird off. Flip them on once and they quietly bring in the bookings you’re missing.' });
+      why: onboarding
+        ? 'Early-bird wins the planners; last-minute fills the gaps. Turn them on once and they work every booking, all year.'
+        : new Set(setupItems.map(x => x.li)).size + ' listings have last-minute and early-bird off. Flip them on once and they quietly bring in the bookings you’re missing.' });
   }
   // Estimated $ impact per card → biggest first. The number on the card is what justifies mass action.
   cards.forEach(c => {
@@ -7663,7 +7695,10 @@ function computeSuggestions() {
   {
     const seen = new Set(), lead = [], rest = [];
     cards.forEach(c => { if (!seen.has(c.bucket)) { seen.add(c.bucket); lead.push(c); } else rest.push(c); });
-    const picked = lead.concat(rest).slice(0, 8).sort((x, y) => x.a - y.a); // step chronologically (‹ › move one way through the calendar)
+    const SEQ = ['season-up', 'season-down', 'holiday', 'event', 'promo', 'setup']; // onboarding: a guided SETUP order (broad seasons → specific dates → tools), not chronological
+    const picked = lead.concat(rest).slice(0, 8).sort(onboarding
+      ? (x, y) => (SEQ.indexOf(x.bucket) - SEQ.indexOf(y.bucket)) || (x.a - y.a)
+      : (x, y) => x.a - y.a); // busy: step chronologically (‹ › move one way through the calendar)
     cards.length = 0; picked.forEach(c => cards.push(c));
   }
   cards.forEach((g, i) => {
@@ -7865,6 +7900,10 @@ function oppIconHTML(g) {
   else                                               { key = 'down';  kind = 'trend'; } // near/season-down/drop
   return '<div class="mopp-ic ' + kind + '"><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="' + _OPP_ICONS[key] + '"/></svg></div>';
 }
+function isOnboarding() { // fresh host: no bookings + no price variance → the flow is first-time SETUP, not optimization
+  const v = document.getElementById('devVariance'), b = document.getElementById('devBookings');
+  return !(v && v.checked) && !(b && b.checked);
+}
 function renderMagicPill() {
   const pill = document.getElementById('magicPill'); if (!pill) return;
   const o = window.__opt; pill.className = 'magic-pill';
@@ -7892,7 +7931,7 @@ function renderMagicPill() {
       '</div>';
     return;
   }
-  pill.innerHTML = '<button class="magic-cta" data-magic="go">' + wandHTML() + '<span class="magic-label">Opportunities</span></button>'; // idle: wand + label, open by default
+  pill.innerHTML = '<button class="magic-cta" data-magic="go">' + wandHTML() + '<span class="magic-label">' + (isOnboarding() ? 'Set up your pricing' : 'Opportunities') + '</span></button>'; // idle: wand + label — onboarding reads as setup, busy reads as optimization
 }
 window.updateMagicPill = function () {
   const el = document.getElementById('magicAction'); if (!el) return;
