@@ -1045,8 +1045,8 @@ body.magic-active #gridRows, body.magic-active #listingThumbsInner, body.magic-a
    grey-200 → relaxes, staggered left → right (--swd is set per cell on scan start). */
 body.opt-scanning #gridRows .price-card:not(.booked) { animation: strokeSweep 2.2s ease-in-out infinite; animation-delay: var(--swd, 0s); }
 body.opt-scanning #gridRows .price-card .price-val { color: var(--grey-400); } /* prices step right back while the scanner reads */
-/* in optimize mode, the UNaffected prices (no wavy ring) recede to grey-700 so the opportunity cells lead */
-body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.booked):not(.blocked):not(.unavailable):not(.past) .price-val { color: var(--grey-700); }
+/* in optimize mode, the UNaffected prices (no wavy ring) recede to grey-600 so the opportunity cells lead */
+body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.booked):not(.blocked):not(.unavailable):not(.past) .price-val { color: var(--grey-600); }
 @keyframes strokeSweep {
   0%, 34%, 100% { background-color: #fff; border-color: #fff; }
   10%, 22% { background-color: var(--grey-100); border-color: var(--grey-100); }
@@ -1070,6 +1070,8 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
 .mopp-pill { position: relative; display: inline-flex; align-items: center; gap: 12px; }
 .mopp-whywrap { display: flex; flex-direction: column; gap: 2px; max-width: 440px; padding: 0 2px; margin-right: 4px; } /* +12 row gap = 16px to Apply, always */
 .mopp-head { font: 600 14px/18px 'Cereal', sans-serif; color: #fff; white-space: normal; } /* the card's NAME — "Labor Day weekend", "August peak season" */
+/* step counter — onboarding is a finite checklist; the quiet overline sits on the same left grid line */
+.mopp-step { font: 400 12px/16px 'Cereal', sans-serif; color: #888888; white-space: nowrap; }
 /* MAGNITUDE — the "how much / to what" the card was missing. Its own tier between the name and the reason. */
 .mopp-mag { font: 600 13px/16px 'Cereal', sans-serif; white-space: nowrap; }
 .mopp-mag.up { color: #FF9F0A; }   /* raise = amber (earn) */
@@ -1093,9 +1095,10 @@ body.opp-hide-icon .mopp-ic { display: none; } /* one-line switch to drop the di
 .mopp-count { font: 400 14px 'Cereal', sans-serif; color: var(--grey-500); white-space: nowrap; padding-left: 4px; }
 /* Apply = the QA modals' primary button (bp-save), verbatim */
 .mopp-apply { color: #fff; border-radius: 999px; height: 48px; padding: 0 22px; border: 0;
-  display: inline-flex; align-items: center; justify-content: center;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   background: #333333;
   font: 500 14px 'Cereal', sans-serif; cursor: pointer; flex-shrink: 0; transition: background .2s ease; }
+.mopp-apply svg { display: block; flex-shrink: 0; } /* CTA glyph (e.g. the Automate layers) rides LEFT of the label */
 .mopp-apply:hover { background: #444444; }
 .magic-pill.opp-light .mopp-apply { background: #222; color: #fff; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .magic-pill.opp-light .mopp-apply:hover { background: #000; }
@@ -7717,10 +7720,20 @@ function computeSuggestions() {
     });
     c.impact = Math.max(10, Math.round(sum / 10) * 10);
   });
+  // GROUPING — onboarding step 1 (before any pricing): auto-group the portfolio so every later
+  // apply covers whole groups. No cells to flag; Apply runs the staged Automate-group flow.
+  if (onboarding && typeof hasRealGroups === 'function' && !hasRealGroups()) {
+    cards.push({ bucket: 'grouping', type: 'grouping', intent: 'fill', items: [],
+      a: Math.max(0, todayDi), b: Math.max(0, todayDi),
+      head: 'Set grouping', cta: 'Automate', ctaIcon: 'layers',
+      title: 'Automate grouping',
+      why: 'We’ll group listings that belong together — same building, same neighborhood — so one edit covers all of them.' });
+  }
   // MAGNITUDE — the missing "how much / to what". Optimization leans on the $ upside that justifies
   // acting; onboarding leans on the market-relative % (a fresh host has no $ history to point at).
   const _money = n => '$' + Math.round(n).toLocaleString('en-US');
   cards.forEach(c => {
+    if (c.bucket === 'grouping') { c.mag = ''; return; } // structural step — no % / $ to claim
     const p = Math.round((c.pct || 0) * 100);
     c.magKind = c.intent === 'earn' ? 'up' : 'down'; // accent: amber up, green down/savings
     if (onboarding) {
@@ -7738,14 +7751,14 @@ function computeSuggestions() {
   {
     const seen = new Set(), lead = [], rest = [];
     cards.forEach(c => { if (!seen.has(c.bucket)) { seen.add(c.bucket); lead.push(c); } else rest.push(c); });
-    const SEQ = ['season-up', 'season-down', 'holiday', 'event', 'promo', 'setup']; // onboarding: a guided SETUP order (broad seasons → specific dates → tools), not chronological
+    const SEQ = ['grouping', 'season-up', 'season-down', 'holiday', 'event', 'promo', 'setup']; // onboarding: a guided SETUP order (structure → broad seasons → specific dates → tools), not chronological
     const picked = lead.concat(rest).slice(0, 8).sort(onboarding
       ? (x, y) => (SEQ.indexOf(x.bucket) - SEQ.indexOf(y.bucket)) || (x.a - y.a)
       : (x, y) => x.a - y.a); // busy: step chronologically (‹ › move one way through the calendar)
     cards.length = 0; picked.forEach(c => cards.push(c));
   }
   cards.forEach((g, i) => {
-    g.id = 'g' + i; g.li = g.items[0].li;
+    g.id = 'g' + i; g.li = g.items.length ? g.items[0].li : 0;
     g.lis = [...new Set(g.items.map(x => x.li))];
   });
   return cards;
@@ -7976,12 +7989,15 @@ function renderMagicPill() {
     document.body.classList.toggle('opp-hide-icon', isOnboarding()); // icon earns its slot as fast triage in the busy stream; in the guided onboarding sequence it's decoration → drop it (flip to `false` to keep everywhere)
     const CHEV_PREV = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 6 9 12 15 18"/></svg>';
     const CHEV_NEXT = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 6 15 12 9 18"/></svg>';
+    const LAYERS = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M15 9.75L8 15L1 9.75M8 1L1.5 6L8 11L14.5 6L8 1Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>'; // the Automate-group layers glyph
+    const done = o.done || 0, total = o.total || (o.done || 0) + n; // fixed session total \u2014 completed steps advance the numerator, never shrink the denominator
+    const stepLine = isOnboarding() ? '<span class="mopp-step">' + (done + i + 1) + ' of ' + total + '</span>' : ''; // onboarding is FINITE \u2014 show where you are
     pill.innerHTML =
       '<div class="mopp-pill">' +
         '<button class="mnav-in prev" data-magic="prev" aria-label="Previous opportunity">' + CHEV_PREV + '</button>' +
         oppIconHTML(g) +
-        '<div class="mopp-whywrap"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + '</span>' : '') + '<span class="mopp-why">' + g.why + '</span></div>' +
-        (g.applied ? '<span class="mopp-applied">Applied \u2713</span>' : '<button class="mopp-apply" data-magic="apply">' + (g.cta || 'Apply') + '</button>') +
+        '<div class="mopp-whywrap">' + stepLine + '<span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + '</span>' : '') + '<span class="mopp-why">' + g.why + '</span></div>' +
+        (g.applied ? '<span class="mopp-applied">Applied \u2713</span>' : '<button class="mopp-apply" data-magic="apply">' + (g.ctaIcon === 'layers' ? LAYERS : '') + (g.cta || 'Apply') + '</button>') +
         '<button class="mnav-in next" data-magic="next" aria-label="Next opportunity">' + CHEV_NEXT + '</button>' +
         '<button class="bp-close magic-close" data-magic="exit" aria-label="Exit">✕</button>' +
       '</div>';
@@ -8002,6 +8018,7 @@ window.updateMagicPill = function () {
 // After scanning, fly the grid to an opportunity (horizontal → its dates, vertical → its listing row),
 // then run cb once the cells have mounted so its card can anchor to a real glowing cell.
 function scrollToOpportunity(s, cb) {
+  if (s && s.bucket === 'grouping') { if (cb) cb(null); return; } // structural step — no cells to fly to
   updateVSync(); // rows grew to 72px on entry → refresh the thumbnail scroll-sync range BEFORE we fly, or the pictures drift
   const row = document.querySelector('#gridRows > .price-row[data-li="' + s.li + '"]');
   const vw = gridWrap.clientWidth || window.innerWidth;
@@ -8050,7 +8067,8 @@ function startOptimize() {
   });
   setTimeout(() => {
     const suggs = computeSuggestions(); // pre-sorted by estimated $ impact — biggest opportunity leads
-    window.__opt.suggs = suggs; buildFlags(suggs.slice(0, 1)); // ONE at a time: only the first opportunity glows
+    window.__opt.suggs = suggs; window.__opt.total = suggs.length; window.__opt.done = 0; // fixed step total for the "N of M" counter
+    buildFlags(suggs.slice(0, 1)); // ONE at a time: only the first opportunity glows
     document.body.classList.add('glow-hold', 'opt-beat'); // flags paint now; rings wait for the camera, the INSIDE waits for a beat after
     repaintOptGlows();
     document.body.classList.remove('opt-scanning');       // scan done → the sweep stops
@@ -8126,7 +8144,7 @@ function applyAllSuggestions() {
 function optNav(dir) {
   const o = window.__opt; let n = o.suggs.length; if (!n) return;
   if (o.suggs[o.cur] && o.suggs[o.cur].applied) {           // stepping off an applied card → drop it
-    o.suggs.splice(o.cur, 1); n = o.suggs.length;
+    o.suggs.splice(o.cur, 1); n = o.suggs.length; o.done = (o.done || 0) + 1; // one more step completed
     if (!n) { o.flags = new Map(); repaintOptGlows(); o.state = 'done'; renderMagicPill(); setTimeout(exitOptimize, 900); return; }
     o.cur = dir > 0 ? (o.cur % n) : ((o.cur - 1 + n) % n);
   } else {
@@ -8137,6 +8155,11 @@ function optNav(dir) {
 // Apply the opportunity currently shown in the pill, then advance the focus to the next one.
 function applyCurrent() {
   const o = window.__opt; const g = o.suggs[o.cur]; if (!g || g.applied) return;
+  if (g.bucket === 'grouping') { // step 1's Automate → the staged auto-group flow (pill fades out, dots think, grouped rows fade up)
+    g.applied = true; closeOptCard(); renderMagicPill();
+    animateGroupsByCity();
+    return;
+  }
   applyGroup(g); closeOptCard(); g.applied = true;
   // the current card's mounted cells settle to applied — a green check pops, the ring eases to grey,
   // the struck old / discount clears. The card STAYS focused; the user decides when to step on.
