@@ -1152,7 +1152,7 @@ body.optimize-mode:not(.host-small):not(.settings-mode):not(.avail-mode):not(.su
 .price-card.opt-flag .pstack { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 /* the plain price hides ONLY after the camera settles — during the fly it stays visible, so the
    odometer's first frame (both lines stacked at centre showing the old value) swaps in seamlessly. */
-body:not(.glow-hold):not(.opt-scanning) .price-card.opt-flag.has-odo .price-val { visibility: hidden; }
+body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-odo .price-val { visibility: hidden; }
 .price-card.opt-flag .pstack .prec, .price-card.opt-flag .pstack .pold {
   position: absolute; left: 0; right: 0; text-align: center; height: 16px; line-height: 16px;
   font: 400 14px 'Cereal', sans-serif; }
@@ -1169,7 +1169,7 @@ body:not(.glow-hold):not(.opt-scanning) .price-card.opt-flag.has-odo .price-val 
 @keyframes odoOld { 0%,18% { transform: translateY(-9px); color: #222; text-decoration-color: transparent; }
   48% { color: #8C8C8C; } 72%,100% { transform: translateY(0); color: #8C8C8C; text-decoration-color: #8C8C8C; } }
 /* Promo / min sub-line: on settle the price nudges up and the recommendation slides in beneath it. */
-body:not(.glow-hold):not(.opt-scanning) .price-card.opt-flag.has-sub .price-val { transform: translateY(-8px); }
+body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-sub .price-val { transform: translateY(-8px); }
 .price-card.opt-flag.has-sub .price-val { transition: transform .5s cubic-bezier(.4,0,.2,1); }
 .price-card.opt-flag .subreveal { position: absolute; left: 0; right: 0; top: calc(50% + 6px); text-align: center;
   font: 400 12px 'Cereal', sans-serif; color: #038026; white-space: nowrap; pointer-events: none; z-index: 2;
@@ -1178,7 +1178,7 @@ body:not(.glow-hold):not(.opt-scanning) .price-card.opt-flag.has-sub .price-val 
 .price-card.opt-flag .subreveal.is-min s { color: var(--grey-500); }
 @keyframes subIn { 0%,22% { max-height: 0; opacity: 0; transform: translateY(-4px); }
   60%,100% { max-height: 16px; opacity: 1; transform: translateY(0); } }
-body.glow-hold .price-card.opt-flag .subreveal, body.opt-scanning .price-card.opt-flag .subreveal { animation: none !important; opacity: 0; }
+body.glow-hold .price-card.opt-flag .subreveal, body.opt-scanning .price-card.opt-flag .subreveal, body.opt-beat .price-card.opt-flag .subreveal { animation: none !important; opacity: 0; }
 .price-card.opt-flag .pstack, .price-card.opt-flag .pstack .prec, .price-card.opt-flag .pstack .pold, .price-card.opt-flag .pstack .dg, .price-card.opt-flag .pstack .dg i { font-weight: 400 !important; } /* Book everywhere in the odometer, always */
 .price-card.opt-flag .pstack .dg { display: inline-block; height: 16px; overflow: hidden; vertical-align: top; }
 .price-card.opt-flag .pstack .dgreel { display: block; }
@@ -1186,11 +1186,13 @@ body.glow-hold .price-card.opt-flag .subreveal, body.opt-scanning .price-card.op
 .price-card.opt-flag .pstack .dgreel.r-up { animation: odoRollUp1 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
 .price-card.opt-flag .pstack .dgreel.r-dn { animation: odoRollDn1 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
 /* hold the roll back until the camera settles (same gate as the ring + min badge) */
-body.glow-hold .price-card.opt-flag .pstack, body.opt-scanning .price-card.opt-flag .pstack { opacity: 0; }
+body.glow-hold .price-card.opt-flag .pstack, body.opt-scanning .price-card.opt-flag .pstack, body.opt-beat .price-card.opt-flag .pstack { opacity: 0; }
 body.glow-hold .price-card.opt-flag .pstack .prec, body.glow-hold .price-card.opt-flag .pstack .pold,
 body.glow-hold .price-card.opt-flag .pstack .dgreel,
 body.opt-scanning .price-card.opt-flag .pstack .prec, body.opt-scanning .price-card.opt-flag .pstack .pold,
-body.opt-scanning .price-card.opt-flag .pstack .dgreel { animation: none !important; }
+body.opt-scanning .price-card.opt-flag .pstack .dgreel,
+body.opt-beat .price-card.opt-flag .pstack .prec, body.opt-beat .price-card.opt-flag .pstack .pold,
+body.opt-beat .price-card.opt-flag .pstack .dgreel { animation: none !important; }
 
 /* The suggestion card (opens on tapping a glow) */
 .opt-card { position: fixed; display: none; width: 304px; background: #fff; border-radius: 20px; padding: 20px;
@@ -1998,6 +2000,8 @@ body.hosts-morph #gridRows, body.hosts-morph #listingThumbsInner { pointer-event
   white-space: nowrap;
 }
 body.no-min .min-badge { display: none; } /* "No Min" dev switch — hide the "min N" text under every price */
+body.optimize-mode .price-card:not(.opt-flag) .disc-badge { animation: discAway .35s ease forwards; } /* clear pre-existing discount lines during opportunity mode → clean $ cells */
+@keyframes discAway { from { opacity: 1; max-height: 16px; margin-top: 2px; } to { opacity: 0; max-height: 0; margin-top: 0; } }
 .price-card .disc-badge { /* last-min / early-bird "-N%" — priced-sized type, GREEN */
   font-size: 14px;
   line-height: 1;
@@ -7613,7 +7617,7 @@ function computeSuggestions() {
   {
     const seen = new Set(), lead = [], rest = [];
     cards.forEach(c => { if (!seen.has(c.bucket)) { seen.add(c.bucket); lead.push(c); } else rest.push(c); });
-    const picked = lead.concat(rest).slice(0, 8).sort((x, y) => y.impact - x.impact);
+    const picked = lead.concat(rest).slice(0, 8).sort((x, y) => x.a - y.a); // step chronologically (‹ › move one way through the calendar)
     cards.length = 0; picked.forEach(c => cards.push(c));
   }
   cards.forEach((g, i) => {
@@ -7880,7 +7884,7 @@ function startOptimize() {
   setTimeout(() => {
     const suggs = computeSuggestions(); // pre-sorted by estimated $ impact — biggest opportunity leads
     window.__opt.suggs = suggs; buildFlags(suggs.slice(0, 1)); // ONE at a time: only the first opportunity glows
-    document.body.classList.add('glow-hold'); // flags paint now, but the glow waits for the camera to settle
+    document.body.classList.add('glow-hold', 'opt-beat'); // flags paint now; rings wait for the camera, the INSIDE waits for a beat after
     repaintOptGlows();
     document.body.classList.remove('opt-scanning');       // scan done → the sweep stops
     window.__opt.cur = 0; window.__opt.state = 'results'; renderMagicPill();
@@ -7899,7 +7903,7 @@ function startOptimize() {
     });
     if (suggs.length) {
       scrollToOpportunity(suggs[0], () =>                            // fly to the first opportunity…
-        setTimeout(() => { document.body.classList.remove('glow-hold'); startWaveRamps(); }, 180)); // …and once still, ripple the rings in + roll the prices
+        setTimeout(() => { document.body.classList.remove('glow-hold'); startWaveRamps(); setTimeout(() => document.body.classList.remove('opt-beat'), 550); }, 180)); // camera still → rings ripple → BEAT (digest) → the inside animates
     } else {
       document.body.classList.remove('glow-hold');
     }
@@ -7907,7 +7911,7 @@ function startOptimize() {
 }
 function exitOptimize() {
   closeOptCard();
-  document.body.classList.remove('optimize-mode', 'opt-scanning', 'glow-hold');
+  document.body.classList.remove('optimize-mode', 'opt-scanning', 'glow-hold', 'opt-beat');
   const mp = document.getElementById('magicPill'); if (mp) { mp.style.width = ''; mp.style.height = ''; mp.classList.remove('is-growing'); }
   window.__opt.flags = new Map(); window.__opt.suggs = []; window.__opt.state = 'idle';
   repaintOptGlows(); renderMagicPill(); window.updateMagicPill();
@@ -7935,9 +7939,9 @@ function applyGroup(g) { g.items.forEach(applySuggestion); }
 function focusOpportunity() {
   const o = window.__opt; const g = o.suggs[o.cur]; if (!g) return;
   buildFlags([g]);
-  document.body.classList.add('glow-hold');
+  document.body.classList.add('glow-hold', 'opt-beat');
   repaintOptGlows();
-  scrollToOpportunity(g, () => setTimeout(() => { document.body.classList.remove('glow-hold'); startWaveRamps(); }, 180));
+  scrollToOpportunity(g, () => setTimeout(() => { document.body.classList.remove('glow-hold'); startWaveRamps(); setTimeout(() => document.body.classList.remove('opt-beat'), 550); }, 180));
 }
 function applyOne(id) { // the suggestion card's Apply → same flow as the pill's
   const o = window.__opt; const i = o.suggs.findIndex(x => x.id === id); if (i < 0) return;
