@@ -1133,6 +1133,11 @@ body.opt-scanning #gridRows .price-card .price-val { color: var(--grey-400); } /
 .price-card.opt-flag .price-val, .price-card.opt-flag .min-badge, .price-card.opt-flag .cell-date { position: relative; z-index: 1; }
 /* hold the wave back during scan / fly-to (matches the old glow-hold) */
 body.glow-hold .price-card.opt-flag .wring, body.opt-scanning .price-card.opt-flag .wring { opacity: 0; }
+/* Opportunities mode gives Medium & Pro rows more room (72px) so the odometer/ring breathe; Small
+   keeps its roomy 96px, Month (SC2) untouched. body.opt-sizing arms the grow/shrink transition. */
+body.opt-sizing .price-row, body.opt-sizing .thumb-row { transition: height .4s cubic-bezier(.4,0,.2,1); }
+body.optimize-mode:not(.host-small):not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .price-row,
+body.optimize-mode:not(.host-small):not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .thumb-row { height: 72px; }
 /* ═══ Opportunity cell INFO reveal — split-odometer price roll (ported from the glow study).
    ADDITIVE: the .pstack overlay exists only on a FOCUSED raise/drop opportunity cell; idle cells
    and every non-opportunity cell keep their plain .price-val untouched. ═══ */
@@ -7759,6 +7764,7 @@ function scrollToOpportunity(s, cb) {
   })();
 }
 function startOptimize() {
+  document.body.classList.add('opt-sizing');   // arm the cell grow/shrink for Medium & Pro
   if (typeof clearSelection === 'function') clearSelection(); // drop any selection; optimize owns the grid
   document.body.classList.add('optimize-mode');
   updateBookingDim(); // guest pills step back to the grey edit-mode look for the whole session
@@ -7818,6 +7824,8 @@ function exitOptimize() {
   window.__opt.flags = new Map(); window.__opt.suggs = []; window.__opt.state = 'idle';
   repaintOptGlows(); renderMagicPill(); window.updateMagicPill();
   updateBookingDim(); // optimize-mode is off again → guest pills come back (unless a selection holds them)
+  clearTimeout(exitOptimize._sz); exitOptimize._sz = setTimeout(() => document.body.classList.remove('opt-sizing'), 450); // let the shrink finish, then disarm
+  if (typeof updateVSync === 'function') requestAnimationFrame(updateVSync); // row heights changed → resync thumbnails
 }
 function applySuggestion(s) { // one per-listing item (groups apply every item)
   if (s.type === 'discount') { lastMinuteVals[s.li] = '-15%'; return; } // introduces the last-minute discount setting
