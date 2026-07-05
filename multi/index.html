@@ -171,7 +171,7 @@ body {
 .today-btn:hover { background: #e8e8e8; }
 /* Prev/next calendar paging — white circles with a grey stroke (no fill); calendar mode only */
 /* Today (grey pill) with the prev/next arrow circles OUTSIDE it, in a plain flex group. */
-.cal-nav-group { display: flex; align-items: center; gap: 8px; margin-right: 16px; } /* ← Today → 8px apart; +16 margin + the bar's 8px gap = 24px to Week */
+.cal-nav-group { display: flex; align-items: center; gap: 8px; margin-right: 32px; } /* ← Today → 8px apart; +32 margin + the bar's 8px gap = 40px to Week (was 24) */
 body.settings-mode .cal-nav-group, body.avail-mode .cal-nav-group, body.settings-mode .today-btn, body.avail-mode .today-btn { display: none; }
 /* Week / Month toggle (tb-left) — narrower than the tab toggle since the labels are short; hidden outside Calendar */
 #wmToggle { display: none !important; } /* retired — the Week/Month switch now lives in the top-right dropdown pill */
@@ -1118,15 +1118,21 @@ body.opt-scanning #gridRows .price-card .price-val { color: var(--grey-400); } /
 
 /* (No dimming in optimize mode — the calendar keeps its normal look; only the glows are added.) */
 /* The glow itself — a pulsing ring in the intent colour; contiguous cells' rings merge into a band */
-.price-card.opt-flag { cursor: pointer; position: relative; z-index: 3; }
-/* NO glow in opportunities mode — a clean 2px ring in the intent colour, nothing radiating.
-   The ring still FADES in (glowIn*), and body.glow-hold still holds it back until the fly-to
-   scroll has settled — removing the class restarts the entrance. */
-.price-card.opt-fill { box-shadow: 0 0 0 2px #038026; animation: glowInFill .4s ease-out; }
-.price-card.opt-earn { box-shadow: 0 0 0 2px #E07912; animation: glowInEarn .4s ease-out; }
-body.glow-hold .price-card.opt-fill, body.glow-hold .price-card.opt-earn { box-shadow: none; animation: none; }
-@keyframes glowInFill { from { box-shadow: 0 0 0 0 rgba(3,128,38,0); } to { box-shadow: 0 0 0 2px #038026; } }
-@keyframes glowInEarn { from { box-shadow: 0 0 0 0 rgba(224,121,18,0); } to { box-shadow: 0 0 0 2px #E07912; } }
+.price-card.opt-flag { cursor: pointer; position: relative; z-index: 3; box-shadow: none; border-color: transparent; }
+/* ── WAVY RING (ported from the glow study) — a generated travelling sine-wave stroke replaces the
+   box-shadow glow. Paths are drawn by the wave engine JS. Colour rule: earn(raise)=green+CW,
+   fill(drop)=black+CCW. A faint fill blooms inside the wave. ── */
+.price-card.opt-flag .wring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: visible; }
+.price-card.opt-flag .wring .wpath { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke: var(--grey-400); transition: stroke .35s ease; }
+.price-card.opt-flag .wring .wfill { stroke: none; fill: transparent; transition: fill .35s ease; }
+.price-card.opt-earn .wring .wpath { stroke: #038026; }   /* raise = green */
+.price-card.opt-fill .wring .wpath { stroke: #222222; }   /* drop / min = black */
+.price-card.opt-earn .wring .wfill { fill: rgba(3,128,38,.10); }
+.price-card.opt-fill .wring .wfill { fill: var(--grey-100); }
+/* keep the price + date above the ring */
+.price-card.opt-flag .price-val, .price-card.opt-flag .min-badge, .price-card.opt-flag .cell-date { position: relative; z-index: 1; }
+/* hold the wave back during scan / fly-to (matches the old glow-hold) */
+body.glow-hold .price-card.opt-flag .wring, body.opt-scanning .price-card.opt-flag .wring { opacity: 0; }
 
 /* The suggestion card (opens on tapping a glow) */
 .opt-card { position: fixed; display: none; width: 304px; background: #fff; border-radius: 20px; padding: 20px;
@@ -3686,6 +3692,7 @@ function buildPriceCell(li, di, booked, unavail, gapSet) {
   const _tip = _bt ? (_bt === 'adv' ? 'Adv notice' : 'Prep time') : _dk ? (_dk === 'early' ? 'Early bird' : 'Last minute') : '';
   card.innerHTML = isBooked ? '' : `<span class="price-val">$${getPrice(li, di)}</span><span class="min-badge">${_of && _of.min ? `min <s>${_of.min.cur}</s> ${_of.min.to}` : minBadgeHTML(li, gapSet.has(di), di)}</span>${_dtxt ? `<span class="disc-badge">${_dtxt}</span>` : ''}<span class="cell-date">${d.getDate()}</span>${_tip ? `<span class="block-tip">${_tip}</span>` : ''}`;
   setCellBadge(card, li, di, gapSet);
+  if (_of) makeWring(card); // wavy opportunity ring (replaces the glow)
   const rsIdx = ruleSetCell[li][di]; // persist the rule-set color tint + corner dot across re-renders
   if (!isBooked && rsIdx != null && ruleSets[rsIdx]) {
     const rc = CZ_COLORS[ruleSets[rsIdx].ci];
@@ -7526,6 +7533,62 @@ function computeSuggestions() {
   });
   return cards;
 }
+// ═══ WAVY OPPORTUNITY RING (ported from glow-study) ═══════════════════════════════════════════
+// A generated SVG sine-wave stroke that travels around each flagged cell (raise=CW, drop/min=CCW).
+// Wave count N is fixed per ring (resize-safe: ripples stretch, never a count-jump). One rAF loop
+// paints every mounted `.wring`; a ResizeObserver keeps each ring's px size + viewBox current.
+const _WNS = 'http://www.w3.org/2000/svg';
+function _ringPerim(w, h) { const i = 2, rc = 11; const sh = (w - 2 * i) - 2 * rc, sv = (h - 2 * i) - 2 * rc, qa = Math.PI * rc / 2; return 2 * sh + 2 * sv + 4 * qa; }
+function _waveCount(w, h, wl) { return Math.max(6, Math.round(_ringPerim(w, h) / wl)); }
+function sineRingPath(w, h, amp, phase, N) {
+  const inset = 2, rc = 11, W = w - 2 * inset, H = h - 2 * inset;
+  const sh = W - 2 * rc, sv = H - 2 * rc, qa = Math.PI * rc / 2, P = 2 * sh + 2 * sv + 4 * qa;
+  const k = N * 2 * Math.PI / P;
+  const pt = s => {
+    if (s < sh) return [inset + rc + s, inset, 0, -1]; s -= sh;
+    if (s < qa) { const a = -Math.PI / 2 + s / rc, cx = w - inset - rc, cy = inset + rc; return [cx + rc * Math.cos(a), cy + rc * Math.sin(a), Math.cos(a), Math.sin(a)]; } s -= qa;
+    if (s < sv) return [w - inset, inset + rc + s, 1, 0]; s -= sv;
+    if (s < qa) { const a = s / rc, cx = w - inset - rc, cy = h - inset - rc; return [cx + rc * Math.cos(a), cy + rc * Math.sin(a), Math.cos(a), Math.sin(a)]; } s -= qa;
+    if (s < sh) return [w - inset - rc - s, h - inset, 0, 1]; s -= sh;
+    if (s < qa) { const a = Math.PI / 2 + s / rc, cx = inset + rc, cy = h - inset - rc; return [cx + rc * Math.cos(a), cy + rc * Math.sin(a), Math.cos(a), Math.sin(a)]; } s -= qa;
+    if (s < sv) return [inset, h - inset - rc - s, -1, 0]; s -= sv;
+    const a = Math.PI + s / rc, cx = inset + rc, cy = inset + rc; return [cx + rc * Math.cos(a), cy + rc * Math.sin(a), Math.cos(a), Math.sin(a)];
+  };
+  let d = ''; const step = 2, n = Math.ceil(P / step);
+  for (let i = 0; i <= n; i++) { const s = Math.min(i * step, P - 0.01); const [x, y, nx, ny] = pt(s); const o = amp * Math.sin(k * s + phase); d += (i ? 'L' : 'M') + (x + nx * o).toFixed(1) + ' ' + (y + ny * o).toFixed(1); }
+  return d + 'Z';
+}
+const _wRO = window.ResizeObserver ? new ResizeObserver(es => es.forEach(e => measureWring(e.target))) : null;
+function measureWring(sv) {
+  const r = sv.getBoundingClientRect();
+  if (r.width < 8 || r.height < 8) return;   // not laid out yet — locking N here gives 6 blobs; wait for the RO
+  const w = Math.round(r.width), h = Math.round(r.height);
+  if (w === sv._w && h === sv._h) return;
+  sv._w = w; sv._h = h; if (sv._N == null) sv._N = _waveCount(w, h, 12); sv.setAttribute('viewBox', `0 0 ${w} ${h}`);
+}
+function makeWring(card) {
+  if (!card || card.querySelector(':scope > .wring')) return;
+  const svg = document.createElementNS(_WNS, 'svg'); svg.setAttribute('class', 'wring'); svg.setAttribute('aria-hidden', 'true');
+  const fill = document.createElementNS(_WNS, 'path'); fill.setAttribute('class', 'wfill');
+  const path = document.createElementNS(_WNS, 'path'); path.setAttribute('class', 'wpath'); path.setAttribute('stroke-width', '2');
+  svg.appendChild(fill); svg.appendChild(path); card.insertBefore(svg, card.firstChild);
+  measureWring(svg); if (_wRO) _wRO.observe(svg);
+}
+function removeWring(card) { const sv = card && card.querySelector(':scope > .wring'); if (sv) { if (_wRO) _wRO.unobserve(sv); sv.remove(); } }
+let _wPhase = 0, _wLast = 0; const _wSpeed = 5;
+(function wLoop(now) {
+  const dt = _wLast ? Math.min(0.05, (now - _wLast) / 1000) : 0; _wLast = now; _wPhase += _wSpeed * dt;
+  const cache = {};
+  document.querySelectorAll('.price-card.opt-flag > .wring').forEach(sv => {
+    if (!sv._w) { measureWring(sv); if (!sv._w) return; }
+    const ccw = sv.parentElement.classList.contains('opt-fill');   // drop/min = CCW, raise = CW
+    const key = sv._w + 'x' + sv._h + 'x' + sv._N + (ccw ? 'D' : 'U');
+    const d = cache[key] || (cache[key] = sineRingPath(sv._w, sv._h, 2, ccw ? _wPhase : -_wPhase, sv._N));
+    sv.querySelectorAll('path').forEach(p => p.setAttribute('d', d));
+  });
+  requestAnimationFrame(wLoop);
+})(0);
+
 function buildFlags(groups) { // only the groups passed in glow — the focus model hands us ONE at a time
   const m = new Map();
   groups.forEach(g => g.items.forEach(it => {
@@ -7544,7 +7607,7 @@ function repaintOptGlows() { // re-apply glow classes to currently-mounted cells
       const f = card.classList.contains('booked') ? null : optFlagFor(li, di);
       const hadMin = card.classList.contains('opt-min');
       card.classList.remove('opt-flag', 'opt-fill', 'opt-earn', 'opt-min');
-      if (f) { card.classList.add('opt-flag', 'opt-' + f.intent); card.dataset.sugg = f.id; } else delete card.dataset.sugg;
+      if (f) { card.classList.add('opt-flag', 'opt-' + f.intent); card.dataset.sugg = f.id; makeWring(card); } else { delete card.dataset.sugg; removeWring(card); }
       // min-night change: strike the current minimum, suggested nights beside it (badge force-shown via .opt-min)
       const badge = card.querySelector('.min-badge');
       if (badge) {
