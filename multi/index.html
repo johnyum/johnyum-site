@@ -1068,6 +1068,13 @@ body.opt-scanning #gridRows .price-card .price-val { color: var(--grey-400); } /
 .mopp-pill { position: relative; display: inline-flex; align-items: center; gap: 12px; }
 .mopp-whywrap { display: flex; flex-direction: column; gap: 2px; max-width: 440px; padding: 0 2px; margin-right: 4px; } /* +12 row gap = 16px to Apply, always */
 .mopp-head { font: 600 14px/18px 'Cereal', sans-serif; color: #fff; white-space: normal; } /* the card's NAME — "Labor Day weekend", "August peak season" */
+/* MAGNITUDE — the "how much / to what" the card was missing. Its own tier between the name and the reason. */
+.mopp-mag { font: 600 13px/16px 'Cereal', sans-serif; white-space: nowrap; }
+.mopp-mag.up { color: #FF9F0A; }   /* raise = amber (earn) */
+.mopp-mag.down { color: #34C759; } /* drop / savings = green */
+.magic-pill.opp-light .mopp-mag.up { color: #B26B00; }
+.magic-pill.opp-light .mopp-mag.down { color: #038026; }
+body.opp-hide-icon .mopp-ic { display: none; } /* one-line switch to drop the direction glyph (see icon eval) */
 .mopp-why { font: 400 12px/16px 'Cereal', sans-serif; color: #B0B0B0;
   white-space: normal; text-wrap: balance;              /* even line lengths — no long first line over an orphan */
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; } /* HARD max 2 lines */
@@ -7702,6 +7709,21 @@ function computeSuggestions() {
     });
     c.impact = Math.max(10, Math.round(sum / 10) * 10);
   });
+  // MAGNITUDE — the missing "how much / to what". Optimization leans on the $ upside that justifies
+  // acting; onboarding leans on the market-relative % (a fresh host has no $ history to point at).
+  const _money = n => '$' + Math.round(n).toLocaleString('en-US');
+  cards.forEach(c => {
+    const p = Math.round((c.pct || 0) * 100);
+    c.magKind = c.intent === 'earn' ? 'up' : 'down'; // accent: amber up, green down/savings
+    if (onboarding) {
+      c.mag = c.bucket === 'setup' ? 'Up to −15% off'
+            : c.intent === 'earn' ? '~' + p + '% higher'
+            : c.bucket === 'promo' ? '~' + p + '% off'
+            : '~' + p + '% lower';
+    } else {
+      c.mag = '≈ +' + _money(c.impact);
+    }
+  });
   cards.sort((x, y) => y.impact - x.impact);
   // digestible set of 8 — but bucket-DIVERSE: the best card of every bucket makes the cut before
   // any bucket doubles up, so Unlock stays / Smart discounts never get crowded out by big price plays
@@ -7931,13 +7953,14 @@ function renderMagicPill() {
     const name = lis.length === 1 ? LISTINGS[lis[0]].name : lis.length + ' listings';
     const imgs = lis.map(li => LISTINGS[li].img);
     pill.className = 'magic-pill is-opp';
+    document.body.classList.toggle('opp-hide-icon', isOnboarding()); // icon earns its slot as fast triage in the busy stream; in the guided onboarding sequence it's decoration → drop it (flip to `false` to keep everywhere)
     const CHEV_PREV = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 6 9 12 15 18"/></svg>';
     const CHEV_NEXT = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 6 15 12 9 18"/></svg>';
     pill.innerHTML =
       '<div class="mopp-pill">' +
         '<button class="mnav-in prev" data-magic="prev" aria-label="Previous opportunity">' + CHEV_PREV + '</button>' +
         oppIconHTML(g) +
-        '<div class="mopp-whywrap"><span class="mopp-head">' + (g.head || '') + '</span><span class="mopp-why">' + g.why + '</span></div>' +
+        '<div class="mopp-whywrap"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + '</span>' : '') + '<span class="mopp-why">' + g.why + '</span></div>' +
         (g.applied ? '<span class="mopp-applied">Applied \u2713</span>' : '<button class="mopp-apply" data-magic="apply">' + (g.cta || 'Apply') + '</button>') +
         '<button class="mnav-in next" data-magic="next" aria-label="Next opportunity">' + CHEV_NEXT + '</button>' +
         '<button class="bp-close magic-close" data-magic="exit" aria-label="Exit">✕</button>' +
