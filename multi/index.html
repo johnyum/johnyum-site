@@ -1136,6 +1136,11 @@ body.glow-hold .price-card.opt-flag .wring, body.opt-scanning .price-card.opt-fl
 /* Opportunities mode gives Medium & Pro rows more room (72px) so the odometer/ring breathe; Small
    keeps its roomy 96px, Month (SC2) untouched. body.opt-sizing arms the grow/shrink transition. */
 body.opt-sizing .price-row, body.opt-sizing .thumb-row { transition: height .4s cubic-bezier(.4,0,.2,1); }
+/* Opportunity cells never show the default grey hover outline; hovering any one fills the WHOLE
+   focused group grey-200 in unison (they're all the same opportunity). */
+.price-card.opt-flag { transition: background .2s ease; }
+.price-card.opt-flag:hover { border-color: transparent; background: transparent; }
+body.opt-grouphover .price-card.opt-flag { background: var(--grey-200); }
 body.optimize-mode:not(.host-small):not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .price-row,
 body.optimize-mode:not(.host-small):not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .thumb-row { height: 72px; }
 /* ═══ Opportunity cell INFO reveal — split-odometer price roll (ported from the glow study).
@@ -7645,6 +7650,12 @@ function makeOdometer(card, li, di) {
 }
 function removeOdometer(card) { if (!card) return; const ps = card.querySelector(':scope > .pstack'); if (ps) ps.remove(); card.classList.remove('has-odo'); }
 let _wPhase = 0, _wLast = 0; const _wSpeed = 5;
+(function(){ // group-unison hover for opportunity cells
+  const gw = (typeof gridWrap !== 'undefined') ? gridWrap : document.getElementById('gridWrap');
+  if (!gw) return;
+  gw.addEventListener('mouseover', e => { const c = e.target.closest('.price-card.opt-flag'); document.body.classList.toggle('opt-grouphover', !!c); });
+  gw.addEventListener('mouseleave', () => document.body.classList.remove('opt-grouphover'));
+})();
 (function wLoop(now) {
   const dt = _wLast ? Math.min(0.05, (now - _wLast) / 1000) : 0; _wLast = now; _wPhase += _wSpeed * dt;
   const cache = {};
