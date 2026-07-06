@@ -1079,6 +1079,8 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
 .mopp-mag { font: 600 13px/16px 'Cereal', sans-serif; white-space: nowrap; }
 .mopp-mag.up { color: #FF9F0A; }   /* raise = amber (earn) */
 .mopp-mag.down { color: #34C759; } /* drop / savings = green */
+.mopp-mag.flat { color: #B0B0B0; } /* structural steps (grouping / discounts) — no direction to sell */
+.mopp-undo { color: #888888; font-weight: 400; } /* the quiet "reversible" reassurance riding the number line */
 .magic-pill.opp-light .mopp-mag.up { color: #B26B00; }
 .magic-pill.opp-light .mopp-mag.down { color: #038026; }
 body.opp-hide-icon .mopp-ic { display: none; } /* one-line switch to drop the direction glyph (see icon eval) */
@@ -7700,19 +7702,19 @@ function computeSuggestions() {
     const ha = Math.min(...its.map(x => x.a)), hb = Math.max(...its.map(x => x.b));
     cards.push({ bucket: 'holiday', type: 'raise', intent: 'earn', pct: its[0].pct, hol: h,
       a: ha, b: hb, items: its,
-      head: onboarding ? 'Price for ' + h : 'Make the most of ' + h,
-      cta: onboarding ? 'Set holiday pricing' : 'Raise prices',
+      head: onboarding ? h + ' premium, ready' : 'Make the most of ' + h,
+      cta: onboarding ? 'Apply' : 'Raise prices',
       title: h + ': raise ' + Math.round(its[0].pct * 100) + '%',
       why: onboarding
-        ? 'Travelers book ' + h + ' months ahead and pay a premium. Set it once and you’re covered every year.'
+        ? ''
         : 'Everywhere you host gets busy over ' + h + ', but you’ve left these nights at everyday prices. Let’s catch the bump.' });
   });
   if (eventCard) {
-    eventCard.head = onboarding ? 'Price for Coachella' : 'Cash in on Coachella';
-    eventCard.cta = onboarding ? 'Set event pricing' : 'Raise prices';
+    eventCard.head = onboarding ? 'Coachella pricing, ready' : 'Cash in on Coachella';
+    eventCard.cta = onboarding ? 'Apply' : 'Raise prices';
     eventCard.title = 'Coachella: raise 40%';
     eventCard.why = onboarding
-      ? 'Coachella fills Palm Springs every April — homes charge well above their normal rate. Set it once for every festival.'
+      ? ''
       : 'Coachella books Palm Springs out months ahead, and at a premium — yet your festival nights are priced like any other week.';
     cards.push(eventCard);
   }
@@ -7725,18 +7727,14 @@ function computeSuggestions() {
       type: t, intent: its[0].intent, pct,
       a: Math.min(...its.map(x => x.a)), b: Math.max(...its.map(x => x.b)), items: its,
       head: onboarding
-        ? (t === 'raise' ? 'Set your high-season prices' : t === 'drop' ? 'Set your low-season prices' : 'Set a slow-season promotion')
+        ? (t === 'raise' ? mon + ' peak pricing, ready' : t === 'drop' ? mon + ' slow-season rates, ready' : mon + ' promotion, ready')
         : (t === 'raise' ? 'Lean into peak season' : t === 'drop' ? 'Keep pace in the slow season' : 'Tempt guests into a quiet stretch'),
       cta: onboarding
-        ? (t === 'promo' ? 'Add promotion' : 'Set prices')
+        ? 'Apply'
         : (t === 'raise' ? 'Raise prices' : t === 'drop' ? 'Lower prices' : 'Add promotion'),
       title: its[0].title,
       why: onboarding
-        ? (t === 'raise'
-            ? mon + ' is peak season ' + where + '. Homes like yours book above base rate — set it once and it applies every year.'
-            : t === 'drop'
-            ? mon + ' is quiet ' + where + '. A lower rate keeps you booked when demand dips — set once, repeats each year.'
-            : 'A quiet stretch ' + where + '. A promotion fills it and lifts your search rank, base price untouched.')
+        ? ''
         : (t === 'raise'
             ? mon + ' is your busiest month ' + where + ', yet ' + nL + ' listing' + (nL > 1 ? 's are' : ' is') + ' still sitting at base rate.'
             : t === 'drop'
@@ -7759,10 +7757,11 @@ function computeSuggestions() {
   if (setupItems.length) {
     cards.push({ bucket: 'setup', type: 'discount', intent: 'fill', pct: 0.15,
       a: Math.min(...setupItems.map(x => x.a)), b: Math.max(...setupItems.map(x => x.b)), items: setupItems,
-      head: onboarding ? 'Turn on smart discounts' : 'Let discounts do the work', cta: 'Turn on',
+      head: onboarding ? 'Smart discounts, ready' : 'Let discounts do the work',
+      cta: onboarding ? 'Apply' : 'Turn on',
       title: 'Turn on smart discounts',
       why: onboarding
-        ? 'Early-bird wins the planners; last-minute fills the gaps. Turn them on once and they work every booking, all year.'
+        ? ''
         : new Set(setupItems.map(x => x.li)).size + ' listings have last-minute and early-bird off. Flip them on once and they quietly bring in the bookings you’re missing.' });
   }
   // Estimated $ impact per card → biggest first. The number on the card is what justifies mass action.
@@ -7783,23 +7782,26 @@ function computeSuggestions() {
   if (onboarding && typeof hasRealGroups === 'function' && !hasRealGroups()) {
     cards.push({ bucket: 'grouping', type: 'grouping', intent: 'fill', items: [],
       a: Math.max(0, todayDi), b: Math.max(0, todayDi),
-      head: 'Set grouping', cta: 'Automate', ctaIcon: 'layers',
+      head: 'City groups, ready', cta: 'Apply', ctaIcon: 'layers',
       title: 'Automate grouping',
-      why: 'We’ll group your listings by location, so one edit covers them all.' });
+      why: '' });
   }
   // MAGNITUDE — the missing "how much / to what". Optimization leans on the $ upside that justifies
   // acting; onboarding leans on the market-relative % (a fresh host has no $ history to point at).
   const _money = n => '$' + Math.round(n).toLocaleString('en-US');
   cards.forEach(c => {
-    if (c.bucket === 'grouping') { c.mag = ''; return; } // structural step — no % / $ to claim
     const p = Math.round((c.pct || 0) * 100);
     c.magKind = c.intent === 'earn' ? 'up' : 'down'; // accent: amber up, green down/savings
     if (onboarding) {
-      c.mag = c.bucket === 'setup' ? 'Up to −15% off'
-            : c.intent === 'earn' ? '~' + p + '% higher'
-            : c.bucket === 'promo' ? '~' + p + '% off'
-            : '~' + p + '% lower';
+      // "just say yes": the decision is MADE — one concrete number line, same Apply everywhere, undo visible
+      const it = c.items[0];
+      if (c.bucket === 'grouping') { c.mag = new Set(LISTINGS.map(l => l.city)).size + ' groups'; c.magKind = 'flat'; }
+      else if (c.bucket === 'setup') { c.mag = 'Early-bird −12% · Last-minute −15%'; c.magKind = 'flat'; }
+      else if (it && it.curPrice && it.newPrice) { c.mag = '$' + it.curPrice + ' → ~$' + it.newPrice + ' a night'; }
+      else { c.mag = c.intent === 'earn' ? '~' + p + '% higher' : '~' + p + '% lower'; }
+      c.magUndo = true;
     } else {
+      if (c.bucket === 'grouping') { c.mag = ''; return; } // structural step — no % / $ to claim
       c.mag = '≈ +' + _money(c.impact);
     }
   });
@@ -8055,7 +8057,7 @@ function renderMagicPill() {
         '<button class="mnav-in prev" data-magic="prev" aria-label="Previous opportunity">' + CHEV_PREV + '</button>' +
         stepLine +
         oppIconHTML(g) +
-        '<div class="mopp-whywrap"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + '</span>' : '') + '<span class="mopp-why">' + g.why + '</span></div>' +
+        '<div class="mopp-whywrap"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + (g.magUndo ? '<span class="mopp-undo"> · undo anytime</span>' : '') + '</span>' : '') + (g.why ? '<span class="mopp-why">' + g.why + '</span>' : '') + '</div>' +
         (g.applied ? '<span class="mopp-applied">Applied \u2713</span>' : '<button class="mopp-apply" data-magic="apply">' + (g.ctaIcon === 'layers' ? LAYERS : '') + (g.cta || 'Apply') + '</button>') +
         '<button class="mnav-in next" data-magic="next" aria-label="Next opportunity">' + CHEV_NEXT + '</button>' +
         '<button class="bp-close magic-close" data-magic="exit" aria-label="Exit">✕</button>' +
