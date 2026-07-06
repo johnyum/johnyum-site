@@ -6849,8 +6849,35 @@ function animateGroupsByCity() {
 })();
 
 // Dev "Reset": hide bookings, zero out price variance, and re-enable the shift-education coach tip.
+// Dev "Reset" → the NEW-LISTING state: every price back to $200, no bookings, no groupings — the pill
+// reads "Get started" and the onboarding flow leads. Wipes ALL tiers (via the 32-listing master) but
+// never changes which host persona is on screen.
 document.getElementById('devReset').addEventListener('click', () => {
-  setDataMode('none');                                                             // clean fresh sheet: no bookings, flat baseline
+  if (document.body.classList.contains('optimize-mode') && typeof exitOptimize === 'function') exitOptimize();
+  setDataMode('none'); // bookings off + variance off (fires the host-wide flatten when they were on)
+  // Even when the flags were ALREADY off, edits applied through onboarding (price sets, discounts,
+  // min changes) survive the segment — wipe them back to the untouched baseline across all 32.
+  const _tierN = (typeof MASTER !== 'undefined' && MASTER) ? HOST_N[activeHost] : null;
+  if (_tierN != null) { syncTierBack(_tierN); loadTier(HOST_N.pro); }
+  applyZeroValues();
+  ruleSets.length = 0; appliedRuleSetIdx = null; // in place — MASTER aliases this array via _HOST_O
+  ruleSetCell.forEach(o => { for (const k in o) delete o[k]; });
+  priceOverride.forEach(o => { for (const k in o) delete o[k]; });
+  minOverride.forEach(o => { for (const k in o) delete o[k]; });
+  promoVals.forEach(o => { for (const k in o) delete o[k]; });
+  customMinListings.clear();
+  autoBlockedByMin.forEach(s => s.clear()); hostBlocked.forEach(s => s.clear()); monthBlocked.forEach(s => s.clear());
+  // groupings gone → "Set grouping" leads the Get-started sequence again
+  groups.length = 0; groups.push({ name: 'Group 1', members: [] });
+  try { localStorage.removeItem('mhc_groups'); } catch (e) {}
+  if (_tierN != null) { syncTierBack(HOST_N.pro); loadTier(_tierN); recomputeDerived(); rebuildBookedSet(); } // back to the SAME persona, now clean
+  if (typeof renderGroups === 'function') renderGroups();
+  if (typeof applyGroupsToCalendar === 'function') applyGroupsToCalendar();
+  rebuildSettingsGrids();
+  if (typeof clearSelection === 'function') clearSelection();
+  window.__opt.suggs = []; window.__opt.flags = new Map(); window.__opt.state = 'idle';
+  if (typeof renderMagicPill === 'function') renderMagicPill(); // idle pill → "Get started"
+  if (typeof updateMagicPill === 'function') updateMagicPill();
   try { localStorage.removeItem('mhc_shift_taught'); } catch (e) {}                 // shift education can show again
 });
 
