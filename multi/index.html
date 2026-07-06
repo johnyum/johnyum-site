@@ -7845,7 +7845,7 @@ function computeSuggestions() {
     const ha = Math.min(...its.map(x => x.a)), hb = Math.max(...its.map(x => x.b));
     cards.push({ bucket: 'holiday', type: 'raise', intent: 'earn', pct: its[0].pct, hol: h,
       a: ha, b: hb, items: its,
-      head: onboarding ? h + ' premium, ready' : 'Make the most of ' + h,
+      head: onboarding ? 'Set ' + h + ' prices' : 'Make the most of ' + h,
       cta: onboarding ? 'Apply' : 'Raise prices',
       title: h + ': raise ' + Math.round(its[0].pct * 100) + '%',
       why: onboarding
@@ -7853,7 +7853,7 @@ function computeSuggestions() {
         : 'Everywhere you host gets busy over ' + h + ', but you’ve left these nights at everyday prices. Let’s catch the bump.' });
   });
   if (eventCard) {
-    eventCard.head = onboarding ? 'Coachella pricing, ready' : 'Cash in on Coachella';
+    eventCard.head = onboarding ? 'Set Coachella prices' : 'Cash in on Coachella';
     eventCard.cta = onboarding ? 'Apply' : 'Raise prices';
     eventCard.title = 'Coachella: raise 40%';
     eventCard.why = onboarding
@@ -7937,28 +7937,33 @@ function computeSuggestions() {
     const p = Math.round((c.pct || 0) * 100);
     c.magKind = c.intent === 'earn' ? 'up' : 'down'; // accent: amber up, green down/savings
     if (onboarding) {
-      // "just say yes": the decision is MADE — one concrete number line, same Apply everywhere
+      // "just say yes": the decision is MADE — one concrete number line, same Apply everywhere.
+      // Every dated price card shares ONE sub format: city · dates · REAL % range (min–max of
+      // marketRate vs base across the window — weekdays land lower, Fri/Sat higher).
       const it = c.items[0];
+      const magLine = (step, word) => {
+        let lo = Infinity, hi = -Infinity;
+        c.items.forEach(x => { const base = LISTINGS[x.li].base || 200;
+          for (let k = x.a; k <= x.b; k += step) { const d = Math.abs(marketRate(x.li, k) - base) / base; if (d < lo) lo = d; if (d > hi) hi = d; } });
+        const loP = Math.max(1, Math.round(lo * 100)), hiP = Math.max(loP, Math.round(hi * 100));
+        const _M3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const dA = allDays[c.a], dB = allDays[c.b];
+        const dates = c.a === c.b ? _M3[dA.getMonth()] + ' ' + dA.getDate()
+          : _M3[dA.getMonth()] + ' ' + dA.getDate() + ' – ' + _M3[dB.getMonth()] + ' ' + dB.getDate();
+        const cities = [...new Set(c.items.map(x => listingCity[x.li]))];
+        const cityStr = cities.length > 3 ? cities.slice(0, 3).join(', ') + ' +' + (cities.length - 3) : cities.join(', ');
+        const range = (loP === hiP ? loP + '%' : loP + '% – ' + hiP + '%') + ' ' + word;
+        c.mag = cityStr + ' · ' + dates + ' · <span class="hl' + (c.intent === 'fill' ? ' lo' : '') + '">' + range + '</span>';
+        c.magKind = 'flat';
+      };
       if (c.bucket === 'grouping') { c.mag = 'Groups alike listings automatically. Edit anytime.'; c.magKind = 'flat'; return; }
       else if (c.bucket === 'setup') { c.mag = 'Early-bird −12% · Last-minute −15%'; c.magKind = 'flat'; }
       else if (c.bucket === 'season-up' || c.bucket === 'season-down') {
-        // the REAL premium range rides the HEAD (green); the sub carries the exact dates + the
-        // cities sharing this window. Prices come from marketRate per night (weekdays land lower,
-        // Fri/Sat higher), so the range quoted is the true min–max vs base.
-        let lo = Infinity, hi = -Infinity;
-        c.items.forEach(x => { const base = LISTINGS[x.li].base || 200;
-          for (let k = x.a; k <= x.b; k += 2) { const d = Math.abs(marketRate(x.li, k) - base) / base; if (d < lo) lo = d; if (d > hi) hi = d; } });
-        const loP = Math.max(1, Math.round(lo * 100)), hiP = Math.max(loP, Math.round(hi * 100));
-        const range = loP + '% – ' + hiP + '% ' + (c.intent === 'earn' ? 'premium' : 'lower');
-        const _M3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-        const dA = allDays[c.a], dB = allDays[c.b];
-        const dates = _M3[dA.getMonth()] + ' ' + dA.getDate() + ' – ' + _M3[dB.getMonth()] + ' ' + dB.getDate();
-        const cities = [...new Set(c.items.map(x => listingCity[x.li]))];
-        const cityStr = cities.length > 3 ? cities.slice(0, 3).join(', ') + ' +' + (cities.length - 3) : cities.join(', ');
-        // action head up top; city · dates · range (green) below.
         c.head = c.intent === 'earn' ? 'Set peak season prices' : 'Set low season prices';
-        c.mag = cityStr + ' · ' + dates + ' · <span class="hl' + (c.intent === 'fill' ? ' lo' : '') + '">' + range + '</span>';
-        c.magKind = 'flat';
+        magLine(2, c.intent === 'earn' ? 'premium' : 'lower'); // long windows — every-other-night sample
+      }
+      else if (c.bucket === 'holiday' || c.bucket === 'event') {
+        magLine(1, 'premium'); // heads set at the builders: "Set Labor Day prices" / "Set Coachella prices"
       }
       else if (it && it.curPrice && it.newPrice) { c.mag = '$' + it.curPrice + ' → ~$' + it.newPrice + ' a night'; }
       else { c.mag = c.intent === 'earn' ? '~' + p + '% higher' : '~' + p + '% lower'; }
