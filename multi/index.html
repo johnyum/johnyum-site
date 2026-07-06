@@ -1270,20 +1270,22 @@ body.opt-beat .price-card.opt-flag .pstack .dgreel { animation: none !important;
 .price-card.is-settled.opt-min .min-badge {
   animation-duration: 0s !important; animation-delay: 0s !important; }
 
-/* ── Apply → the TAPPED state: no checkmark, no pops. The cell simply lights up green — ring stroke
-   green, 10% green wash, the price re-centred in green type. Cells light up column by column to the
-   right like piano keys (pianoApply), the calendar gliding along under the wavefront. ── */
+/* ── Apply → the TAPPED state: no checkmark, no pops. The two rows merge gracefully into ONE green
+   row: the struck old fades first, then (a beat later) the new price glides down to centre and takes
+   the applied colour; ring stroke + wash light up. Cells play in the piano sweep (pianoApply). ── */
 .price-card .apcheck { display: none; }
-.price-card.opt-applied .pstack, .price-card.opt-applied .subreveal { display: none; }
 .price-card.opt-applied .wring .wpath { stroke: var(--green-700) !important; transition: stroke .2s ease; }
 .price-card.opt-applied .wring .wfill { fill: rgba(48,209,88,0.10); }
-.price-card.opt-applied .price-val { color: var(--green-700) !important; }
+.price-card.opt-applied .pstack .pold { opacity: 0; transition: opacity .35s ease; }
+.price-card.opt-applied .pstack .prec { animation: none; transform: translateY(9px); color: var(--green-700);
+  transition: transform .5s cubic-bezier(.4,0,.2,1) .15s, color .45s ease .15s; } /* the old clears, a beat, then the merge */
+.price-card.opt-applied .subreveal { animation: none; opacity: 0; transition: opacity .35s ease; }
+.price-card.opt-applied.has-sub .price-val { color: var(--green-700); transition: transform .5s cubic-bezier(.4,0,.2,1) .15s, color .45s ease .15s; }
+body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.opt-applied.has-sub .price-val { transform: none; }
 /* low season (price DOWN / fill intent): the tapped state lights up ORANGE instead */
 .price-card.opt-fill.opt-applied .wring .wpath { stroke: #FF831E !important; }
 .price-card.opt-fill.opt-applied .wring .wfill { fill: rgba(255,131,30,0.10); }
-.price-card.opt-fill.opt-applied .price-val { color: #FF831E !important; }
-body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.opt-applied.has-odo .price-val { visibility: visible; }
-body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.opt-applied.has-sub .price-val { transform: none; }
+.price-card.opt-fill.opt-applied .pstack .prec, .price-card.opt-fill.opt-applied.has-sub .price-val { color: #FF831E; }
 /* the pill's Applied state (replaces Apply): the green check ANIMATES in, and the whole thing is a
    button — tap to UNDO. One behavior across every opps flow (onboarding + optimization). */
 .mopp-applied { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0; color: #fff;
@@ -8439,27 +8441,30 @@ function applyCurrent() {
   refreshCalendarPrices();
   pianoApply(g, () => { g.thinking = false; g.applied = true; renderMagicPill(); });
 }
-// The tapped state sweeps in like piano keys: column by column to the right, rows rippling down a
-// beat apart. When the wavefront nears the right edge of the view, the calendar starts gliding
-// along underneath it and keeps going until the card's whole window has lit up.
+// The tapped state sweeps in like piano keys: the first 8 columns play one by one to the right
+// (rows rippling down a beat apart), then the REST of the window lands together. The view never
+// scrolls — the sweep plays where you are; off-screen cells dress applied as they mount.
 function pianoApply(g, done) {
-  const STEP = 50, ROWBEAT = 24, EDGE = 260; // ms per column · ms per row within a column · chase margin px
-  let di = g.a;
+  const STEP = 110, ROWBEAT = 32, LEADCOLS = 8; // deliberate lead-in, then the chord
+  let di = g.a, played = 0;
   clearInterval(pianoApply._t);
   pianoApply._t = setInterval(() => {
     if (window.__opt.suggs[window.__opt.cur] !== g) { // stepped away mid-sweep → land the rest instantly
       clearInterval(pianoApply._t); g._sweepDi = null;
       g.thinking = false; g.applied = true; repaintOptGlows(); renderMagicPill(); return;
     }
-    if (di > g.b) { clearInterval(pianoApply._t); g._sweepDi = null; done(); return; }
+    if (played >= LEADCOLS || di > g.b) { // the tail lands as one chord
+      clearInterval(pianoApply._t);
+      g._sweepDi = g.b;
+      document.querySelectorAll('#gridRows .price-card.opt-flag[data-sugg="' + g.id + '"]:not(.opt-applied)')
+        .forEach(c => c.classList.add('opt-applied'));
+      setTimeout(() => { g._sweepDi = null; done(); }, 700); // let the rows finish merging before the check lands
+      return;
+    }
     g._sweepDi = di;
     const cells = document.querySelectorAll('#gridRows .price-card.opt-flag[data-sugg="' + g.id + '"][data-di="' + di + '"]');
     cells.forEach((c, r) => setTimeout(() => c.classList.add('opt-applied'), r * ROWBEAT));
-    const lead = cells[0];
-    if (lead) { // chase: hold the wavefront just inside the right edge
-      const gw = gridWrap.getBoundingClientRect(), cr = lead.getBoundingClientRect();
-      if (cr.right > gw.right - EDGE) gridWrap.scrollLeft += cr.right - (gw.right - EDGE);
-    }
+    if (cells.length) played++;
     di++;
   }, STEP);
 }
