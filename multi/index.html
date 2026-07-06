@@ -1080,14 +1080,13 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
 /* ONE row: [dancing photo stack] → the story (head + reasoning) → Apply. */
 .mopp-pill { position: relative; display: inline-flex; align-items: center; gap: 12px; }
 .mopp-whywrap { display: flex; flex-direction: column; gap: 2px; max-width: 440px; padding: 0 2px; margin-right: 168px; } /* +12 row gap = 180px to Apply, always */
-/* Set grouping variant: bigger title, content stacked underneath */
-.mopp-whywrap.is-group .mopp-head { font: 600 16px/20px 'Cereal', sans-serif; }
+/* Set grouping variant: the longer subhead may wrap */
 .mopp-whywrap.is-group .mopp-mag { white-space: normal; text-wrap: balance; }
 /* the layers glyph between the ‹ arrow and the Create groups head — 40×40, centre-aligned */
 .mopp-glyph { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;
   color: #fff; flex-shrink: 0; align-self: center; }
 .mopp-glyph svg { display: block; width: 40px; height: 40px; }
-.mopp-head { font: 600 14px/18px 'Cereal', sans-serif; color: #fff; white-space: normal; } /* the card's NAME — "Labor Day weekend", "August peak season" */
+.mopp-head { font: 600 16px/20px 'Cereal', sans-serif; color: #fff; white-space: normal; } /* the card's NAME — same treatment on every card */
 /* MAGNITUDE — the "how much / to what" the card was missing. Its own tier between the name and the reason. */
 .mopp-mag { font: 400 12px/16px 'Cereal', sans-serif; color: var(--grey-500); white-space: nowrap; } /* secondary line: 12/16 Book, grey-500 */
 .mopp-mag.up, .mopp-mag.down { color: #30D158; } /* ONE green for every price move — the dark-surface sibling of #038026, legible on black. No orange. */
@@ -1285,10 +1284,12 @@ body.opt-beat .price-card.opt-flag .pstack .dgreel { animation: none !important;
 .mopp-applied:hover { background: rgba(255,255,255,0.12); }
 .mopp-applied .apck { width: 16px; height: 16px; display: block; flex-shrink: 0;
   animation: apCkIn .45s cubic-bezier(.34,1.4,.5,1) both; } /* the check pops in on apply */
-/* grouping's finished state: JUST the check, centred — green glyph, green stroke (#30D158). Width holds
-   through Automate → dots → check so the button never jumps. */
-.mopp-applied.is-check { min-width: 112px; padding: 0; border-color: #30D158; color: #30D158; }
-.mopp-applied.is-check .apck { width: 20px; height: 20px; }
+/* the finished state (EVERY card): JUST the check, centred — green glyph + stroke on a glassy green
+   fill. Width holds through CTA → dots → check so the button never jumps. Tap = undo. */
+.mopp-applied.is-check { min-width: 112px; padding: 0; border-color: #30D158; color: #30D158;
+  background: rgba(48, 209, 88, 0.14); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.mopp-applied.is-check:hover { background: rgba(48, 209, 88, 0.22); }
+.mopp-applied.is-check .apck { width: 24px; height: 24px; }
 @keyframes apCkIn { 0% { opacity: 0; transform: scale(.4); } 100% { opacity: 1; transform: scale(1); } }
 /* The suggestion card (opens on tapping a glow) */
 .opt-card { position: fixed; display: none; width: 304px; background: #fff; border-radius: 20px; padding: 20px;
@@ -6806,11 +6807,7 @@ function automateGroupingStaged(g) { // tap → dots pulse IN the button while t
   automateGroupingStaged._t = setTimeout(() => {
     g.thinking = false; g.applied = true; renderMagicPill(); // finish: just the green check, centred, green stroke
   }, total);
-  // once the groupings LAND, give it 2s, then auto-step to the next opportunity (High season leads the sequence)
-  automateGroupingStaged._adv = setTimeout(() => {
-    const o = window.__opt;
-    if (document.body.classList.contains('optimize-mode') && o.state === 'results' && o.suggs[o.cur] === g && g.applied) optNav(1);
-  }, total + 2000);
+  // NO auto-advance — the card stays put; the user steps on with ‹ › when ready
 }
 function setGroupsLive(target) { // FLIP the rows to ANY group arrangement (apply and undo ride the same animation)
   const rows = [...document.querySelectorAll('#gridRows > .price-row, #listingThumbsInner > .thumb-row')];
@@ -8206,8 +8203,7 @@ function renderMagicPill() {
         oppIconHTML(g) +
         '<div class="mopp-whywrap' + (g.bucket === 'grouping' ? ' is-group' : '') + '"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + '</span>' : '') + (g.why ? '<span class="mopp-why">' + g.why + '</span>' : '') + '</div>' +
         (g.thinking ? '<button class="mopp-apply is-thinking" disabled aria-label="Working"><span class="thinkdots"><i></i><i></i><i></i></span></button>'
-          : g.applied && g.bucket === 'grouping' ? '<button class="mopp-applied is-check" data-magic="undo" title="Undo" aria-label="Applied — tap to undo"><svg class="apck" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg></button>'
-          : g.applied ? '<button class="mopp-applied" data-magic="undo" title="Undo"><svg class="apck" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>Applied</button>'
+          : g.applied ? '<button class="mopp-applied is-check" data-magic="undo" title="Undo" aria-label="Applied — tap to undo"><svg class="apck" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg></button>'
           : '<button class="mopp-apply" data-magic="apply">' + (g.ctaIcon === 'layers' ? LAYERS : '') + (g.cta || 'Apply') + '</button>') +
         '<button class="mnav-in next" data-magic="next" aria-label="Next opportunity">' + CHEV_NEXT + '</button>' +
         '<button class="bp-close magic-close" data-magic="exit" aria-label="Exit">✕</button>' +
@@ -8308,7 +8304,7 @@ function startOptimize() {
 function exitOptimize() {
   closeOptCard();
   document.body.classList.remove('optimize-mode', 'opt-scanning', 'group-scanning', 'glow-hold', 'opt-beat');
-  clearTimeout(automateGroupingStaged._t); clearTimeout(automateGroupingStaged._adv); // pending automate/auto-advance never fire into a closed session
+  clearTimeout(automateGroupingStaged._t); clearTimeout(automateGroupingStaged._adv); clearTimeout(applyCurrent._t); // pending finishes never fire into a closed session
   const mp = document.getElementById('magicPill'); if (mp) { mp.style.width = ''; mp.style.height = ''; mp.classList.remove('is-growing'); }
   window.__opt.flags = new Map(); window.__opt.suggs = []; window.__opt.state = 'idle';
   repaintOptGlows(); renderMagicPill(); window.updateMagicPill();
@@ -8400,12 +8396,14 @@ function applyCurrent() {
     automateGroupingStaged(g);
     return;
   }
-  applyGroup(g); closeOptCard(); g.applied = true;
-  // the current card's mounted cells settle to applied — a green check pops, the ring eases to grey,
-  // the struck old / discount clears. The card STAYS focused; the user decides when to step on.
+  // SAME lifecycle as Create groups on every card: tap → dots pulse in the button while the cells
+  // settle → finish on the centred green check. The card STAYS focused; the user steps on with ‹ ›.
+  g.thinking = true; renderMagicPill();
+  applyGroup(g); closeOptCard();
   setTimeout(() => document.querySelectorAll('#gridRows .price-card.opt-flag[data-sugg="' + g.id + '"]').forEach(c => c.classList.add('opt-applied')), 60);
   refreshCalendarPrices();
-  renderMagicPill();
+  clearTimeout(applyCurrent._t);
+  applyCurrent._t = setTimeout(() => { g.thinking = false; g.applied = true; renderMagicPill(); }, 1000);
 }
 // The suggestion card
 function changeHTML(s) {
