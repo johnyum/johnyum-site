@@ -1095,12 +1095,18 @@ body.opp-hide-icon .mopp-ic { display: none; } /* one-line switch to drop the di
 .mopp-change s { color: var(--grey-400); }
 .mopp-count { font: 400 14px 'Cereal', sans-serif; color: var(--grey-500); white-space: nowrap; padding-left: 4px; }
 /* Apply = the QA modals' primary button (bp-save), verbatim */
-.mopp-apply { color: #fff; border-radius: 999px; height: 48px; padding: 0 22px; border: 0;
+.mopp-apply { color: #fff; border-radius: 999px; height: 48px; padding: 0 22px;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  background: #333333;
+  background: transparent; border: 1px solid #fff; /* outlined — white stroke, no fill */
   font: 500 14px 'Cereal', sans-serif; cursor: pointer; flex-shrink: 0; transition: background .2s ease; }
 .mopp-apply svg { display: block; flex-shrink: 0; } /* CTA glyph (e.g. the Automate layers) rides LEFT of the label */
-.mopp-apply:hover { background: #444444; }
+.mopp-apply:hover { background: rgba(255,255,255,0.12); }
+/* the pencil (customize groups) — same outlined language as Apply, 8px to its left */
+.mopp-edit { width: 48px; height: 48px; border-radius: 50%; background: transparent; border: 1px solid #fff; color: #fff;
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0; cursor: pointer; transition: background .2s ease; }
+.mopp-edit:hover { background: rgba(255,255,255,0.12); }
+.mopp-edit svg { width: 20px; height: 20px; display: block; }
+.mopp-edit + .mopp-apply { margin-left: -4px; } /* 12px flex gap − 4 = 8px pencil → Apply */
 .magic-pill.opp-light .mopp-apply { background: #222; color: #fff; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .magic-pill.opp-light .mopp-apply:hover { background: #000; }
 .mopp-allbtn { background: transparent; color: var(--grey-700); border: 0; font: 500 12px 'Cereal', sans-serif;
@@ -1150,7 +1156,7 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
 .mnav-in:hover { background: #444444; }
 .mnav-in svg { display: block; width: 24px; height: 24px; }
 .mnav-in.prev { margin-right: 4px; } /* 12px flex gap + 4px = 16px to the content */
-.mnav-in.next { margin-left: 4px; }
+.mnav-in.next { margin-left: -4px; } /* 12px flex gap − 4 = 8px Apply → arrow */
 /* rides .bp-close, but DARK and pushed further out: .mopp-pill is inset by the 24px pill padding,
    so -48 puts the X 24px beyond the pill's bounding box — the same clear float off the rounded
    corner the QA pill gets, scaled for this taller surface. */
@@ -6760,6 +6766,37 @@ function smartGroupsFor(idxs) {
   return out;
 }
 function smartGroups() { return smartGroupsFor(LISTINGS.map((_, i) => i)); }
+// The onboarding Apply: group IN PLACE, on stage. Rows FLIP-glide from their old spots to their new
+// grouped order while the pill stays up; the group headers fade in once the rows land. Contrast with
+// animateGroupsByCity (the ⋯-menu flow), which blacks the grid out behind thinking dots.
+function applyGroupingLive() {
+  const rows = [...document.querySelectorAll('#gridRows > .price-row, #listingThumbsInner > .thumb-row')];
+  const before = new Map(rows.map(r => [r, r.getBoundingClientRect().top]));
+  const sg = smartGroups();
+  groups.length = 0; sg.forEach(g => groups.push(g));       // mutate IN PLACE — host snapshots alias this array
+  saveGroups(); renderGroups(); applyGroupsToCalendar();
+  // headers hold back while the rows travel
+  const divs = [...document.querySelectorAll('#gridRows > .group-divider, #listingThumbsInner > .group-divider')];
+  const clip = document.getElementById('groupLabelClip');
+  divs.forEach(d => { d.style.opacity = '0'; });
+  if (clip) clip.style.opacity = '0';
+  // FLIP: pin every surviving row at its OLD position, then release to its new one
+  rows.forEach(r => {
+    if (!document.contains(r)) return;
+    const dy = (before.get(r) || 0) - r.getBoundingClientRect().top;
+    if (!dy) return;
+    r.style.transition = 'none'; r.style.transform = 'translateY(' + dy + 'px)';
+  });
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    rows.forEach(r => { if (!document.contains(r)) return; r.style.transition = 'transform .55s cubic-bezier(.4,0,.2,1)'; r.style.transform = ''; });
+    setTimeout(() => {
+      rows.forEach(r => { r.style.transition = ''; });
+      divs.forEach(d => { d.style.transition = 'opacity .4s ease'; d.style.opacity = '1'; });
+      if (clip) { clip.style.transition = 'opacity .4s ease'; clip.style.opacity = '1'; }
+      setTimeout(() => { divs.forEach(d => { d.style.transition = ''; d.style.opacity = ''; }); if (clip) { clip.style.transition = ''; clip.style.opacity = ''; } }, 450);
+    }, 580);
+  }));
+}
 function animateGroupsByCity() {
   let dots = document.getElementById('groupingDots');
   if (!dots) {
@@ -7778,7 +7815,7 @@ function computeSuggestions() {
   if (onboarding && typeof hasRealGroups === 'function' && !hasRealGroups()) {
     cards.push({ bucket: 'grouping', type: 'grouping', intent: 'fill', items: [],
       a: Math.max(0, todayDi), b: Math.max(0, todayDi),
-      head: 'Automate grouping', cta: 'Apply', ctaIcon: 'layers',
+      head: 'Set grouping', cta: 'Apply', ctaIcon: 'layers',
       title: 'Automate grouping',
       why: '' });
   }
@@ -7791,7 +7828,7 @@ function computeSuggestions() {
     if (onboarding) {
       // "just say yes": the decision is MADE — one concrete number line, same Apply everywhere, undo visible
       const it = c.items[0];
-      if (c.bucket === 'grouping') { c.mag = 'By location — one edit covers them all'; c.magKind = 'flat'; c.magUndo = 'edit anytime'; return; }
+      if (c.bucket === 'grouping') { c.mag = 'Automate by location, or customize it yourself'; c.magKind = 'flat'; return; }
       else if (c.bucket === 'setup') { c.mag = 'Early-bird −12% · Last-minute −15%'; c.magKind = 'flat'; }
       else if (it && it.curPrice && it.newPrice) { c.mag = '$' + it.curPrice + ' → ~$' + it.newPrice + ' a night'; }
       else { c.mag = c.intent === 'earn' ? '~' + p + '% higher' : '~' + p + '% lower'; }
@@ -8051,6 +8088,7 @@ function renderMagicPill() {
         '<button class="mnav-in prev" data-magic="prev" aria-label="Previous opportunity">' + CHEV_PREV + '</button>' +
         oppIconHTML(g) +
         '<div class="mopp-whywrap"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + (g.magUndo ? '<span class="mopp-undo"> · ' + (g.magUndo === true ? 'undo anytime' : g.magUndo) + '</span>' : '') + '</span>' : '') + (g.why ? '<span class="mopp-why">' + g.why + '</span>' : '') + '</div>' +
+        (g.bucket === 'grouping' && !g.applied ? '<button class="mopp-edit" data-magic="editgroups" aria-label="Customize groups"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M11.395 4.59764L15.4037 8.60639L6.25 17.7601C6.01375 17.9964 5.7 18.1264 5.36625 18.1264H1.875V14.6351C1.875 14.3064 2.00812 13.9839 2.24125 13.7514L11.395 4.59764ZM17.6294 2.37201C17.0974 1.84113 16.3766 1.54297 15.625 1.54297C14.8734 1.54297 14.1526 1.84113 13.6206 2.37201L12.7206 3.27201L16.73 7.28014L17.6294 6.38076C18.1603 5.8488 18.4584 5.12794 18.4584 4.37639C18.4584 3.62484 18.1603 2.90398 17.6294 2.37201Z" fill="currentColor"/></svg></button>' : '') +
         (g.applied ? '<span class="mopp-applied">Applied \u2713</span>' : '<button class="mopp-apply" data-magic="apply">' + (g.ctaIcon === 'layers' ? LAYERS : '') + (g.cta || 'Apply') + '</button>') +
         '<button class="mnav-in next" data-magic="next" aria-label="Next opportunity">' + CHEV_NEXT + '</button>' +
         '<button class="bp-close magic-close" data-magic="exit" aria-label="Exit">✕</button>' +
@@ -8209,9 +8247,9 @@ function optNav(dir) {
 // Apply the opportunity currently shown in the pill, then advance the focus to the next one.
 function applyCurrent() {
   const o = window.__opt; const g = o.suggs[o.cur]; if (!g || g.applied) return;
-  if (g.bucket === 'grouping') { // step 1's Automate → the staged auto-group flow (pill fades out, dots think, grouped rows fade up)
+  if (g.bucket === 'grouping') { // Apply = VISIBLE action: rows glide into their groups in place, headers fade in — no blackout, no thinking dots
     g.applied = true; closeOptCard(); renderMagicPill();
-    animateGroupsByCity();
+    applyGroupingLive();
     return;
   }
   applyGroup(g); closeOptCard(); g.applied = true;
@@ -8267,6 +8305,10 @@ document.getElementById('magicAction').addEventListener('click', e => {
   else if (act === 'prev') optNav(-1);
   else if (act === 'next') optNav(1);
   else if (act === 'apply') applyCurrent();
+  else if (act === 'editgroups') { // the pencil → the drag-and-drop groups editor
+    if (typeof clearSelection === 'function') clearSelection();
+    renderGroups(); document.getElementById('groupsOverlay').classList.add('visible');
+  }
 });
 document.getElementById('optCard').addEventListener('click', e => {
   const b = e.target.closest('[data-apply]'); if (b) applyOne(b.dataset.apply);
