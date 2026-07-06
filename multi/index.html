@@ -1044,8 +1044,10 @@ body.magic-active #gridRows, body.magic-active #listingThumbsInner, body.magic-a
 /* the calendar "scanning" sweep — NO strokes, just grey FILLS doing the work: every cell drops its
    border (border-color tracks the fill) and each column's face washes white → grey-100 → crests
    grey-200 → relaxes, staggered left → right (--swd is set per cell on scan start). */
-body.opt-scanning #gridRows .price-card:not(.booked) { animation: strokeSweep 2.2s ease-in-out infinite; animation-delay: var(--swd, 0s); }
-body.opt-scanning #gridRows .price-card .price-val { color: var(--grey-400); } /* prices step right back while the scanner reads */
+body.opt-scanning #gridRows .price-card:not(.booked),
+body.group-scanning #gridRows .price-card:not(.booked) { animation: strokeSweep 2.2s ease-in-out infinite; animation-delay: var(--swd, 0s); } /* group-scanning = the same shimmer, staggered by ROW so it sweeps DOWN */
+body.opt-scanning #gridRows .price-card .price-val,
+body.group-scanning #gridRows .price-card .price-val { color: var(--grey-400); } /* prices step right back while the scanner reads */
 /* in optimize mode, the UNaffected prices (no wavy ring) recede to grey-600 so the opportunity cells lead */
 body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.booked):not(.blocked):not(.unavailable):not(.past) .price-val { color: var(--grey-600); }
 @keyframes strokeSweep {
@@ -6775,6 +6777,22 @@ function smartGroups() { return smartGroupsFor(LISTINGS.map((_, i) => i)); }
 // grouped order while the pill stays up; the group headers fade in once the rows land. Contrast with
 // animateGroupsByCity (the ⋯-menu flow), which blacks the grid out behind thinking dots.
 function applyGroupingLive() { setGroupsLive(smartGroups()); }
+// Automate (the onboarding grouping card): the scan shimmer sweeps DOWN the rows while it "thinks"
+// (~3s), then the grid rearranges itself — rows FLIP into their groups, the spacing opens up, and
+// only THEN do the headers fade in. All on stage; nothing blacks out.
+function automateGroupingStaged() {
+  const base = gridWrap.scrollTop;
+  document.querySelectorAll('#gridRows > .price-row').forEach(row => {
+    const d = Math.max(0, (row.offsetTop - base) / 400) + 's'; // stagger by Y → the wave travels downward
+    row.querySelectorAll('.price-card').forEach(c => c.style.setProperty('--swd', d));
+  });
+  document.body.classList.add('group-scanning');
+  clearTimeout(automateGroupingStaged._t);
+  automateGroupingStaged._t = setTimeout(() => {
+    document.body.classList.remove('group-scanning');
+    applyGroupingLive();
+  }, 3000);
+}
 function setGroupsLive(target) { // FLIP the rows to ANY group arrangement (apply and undo ride the same animation)
   const rows = [...document.querySelectorAll('#gridRows > .price-row, #listingThumbsInner > .thumb-row')];
   const before = new Map(rows.map(r => [r, r.getBoundingClientRect().top]));
@@ -6912,6 +6930,7 @@ document.getElementById('devReset').addEventListener('click', () => {
   groups.length = 0; groups.push({ name: 'Group 1', members: [] });
   try { localStorage.removeItem('mhc_groups'); } catch (e) {}
   if (_tierN != null) { syncTierBack(HOST_N.pro); loadTier(_tierN); recomputeDerived(); rebuildBookedSet(); } // back to the SAME persona, now clean
+  listingOrder = mixedListingOrder(); // fresh sheet = cities interleaved (grouping will visibly tidy it)
   if (typeof renderGroups === 'function') renderGroups();
   if (typeof applyGroupsToCalendar === 'function') applyGroupsToCalendar();
   rebuildSettingsGrids();
@@ -8194,7 +8213,8 @@ function startOptimize() {
 }
 function exitOptimize() {
   closeOptCard();
-  document.body.classList.remove('optimize-mode', 'opt-scanning', 'glow-hold', 'opt-beat');
+  document.body.classList.remove('optimize-mode', 'opt-scanning', 'group-scanning', 'glow-hold', 'opt-beat');
+  clearTimeout(automateGroupingStaged._t); // a pending automate never fires into a closed session
   const mp = document.getElementById('magicPill'); if (mp) { mp.style.width = ''; mp.style.height = ''; mp.classList.remove('is-growing'); }
   window.__opt.flags = new Map(); window.__opt.suggs = []; window.__opt.state = 'idle';
   repaintOptGlows(); renderMagicPill(); window.updateMagicPill();
@@ -8269,6 +8289,10 @@ function _snapshotUndo(g) {
 }
 function undoCurrent() { // tap "Applied" → revert this card and hand the Apply button back
   const o = window.__opt; const g = o.suggs[o.cur]; if (!g || !g.applied) return;
+  if (document.body.classList.contains('group-scanning')) { // undone mid-think → cancel the pending automate; nothing has changed yet
+    clearTimeout(automateGroupingStaged._t); document.body.classList.remove('group-scanning');
+    g._undo = null; g.applied = false; renderMagicPill(); return;
+  }
   if (g._undo) g._undo(); g._undo = null; g.applied = false;
   document.querySelectorAll('#gridRows .price-card.opt-applied').forEach(c => c.classList.remove('opt-applied')); // cells return to their SUGGESTED look (ring colors back, struck old returns)
   refreshCalendarPrices();
@@ -8277,9 +8301,9 @@ function undoCurrent() { // tap "Applied" → revert this card and hand the Appl
 function applyCurrent() {
   const o = window.__opt; const g = o.suggs[o.cur]; if (!g || g.applied) return;
   g._undo = _snapshotUndo(g); // capture BEFORE anything mutates
-  if (g.bucket === 'grouping') { // Apply = VISIBLE action: rows glide into their groups in place, headers fade in — no blackout, no thinking dots
+  if (g.bucket === 'grouping') { // Automate = VISIBLE action: shimmer sweeps down while thinking, rows glide into groups, headers fade in
     g.applied = true; closeOptCard(); renderMagicPill();
-    applyGroupingLive();
+    automateGroupingStaged();
     return;
   }
   applyGroup(g); closeOptCard(); g.applied = true;
@@ -8567,9 +8591,18 @@ function syncTierBack(n) {
 }
 let activeHost = 'big';
 function updateHostToggleUI() { document.querySelectorAll('#hostToggle .host-opt').forEach(o => o.classList.toggle('active', o.dataset.host === activeHost)); }
+// Default (ungrouped) row order: cities INTERLEAVED round-robin, so the fresh portfolio reads mixed —
+// grouping is then a visible act of tidying. Deterministic (no shuffle jitter between renders).
+function mixedListingOrder() {
+  const byCity = new Map();
+  LISTINGS.forEach((l, i) => { if (!byCity.has(l.city)) byCity.set(l.city, []); byCity.get(l.city).push(i); });
+  const pools = [...byCity.values()], out = [];
+  for (let k = 0; out.length < LISTINGS.length; k++) pools.forEach(p => { if (p[k] != null) out.push(p[k]); });
+  return out;
+}
 function finishHostSwitch(enterFrom) {
   recomputeDerived(); rebuildBookedSet();
-  listingOrder = LISTINGS.map((_, i) => i);
+  listingOrder = mixedListingOrder();
   if (typeof rebuildSettingsGrids === 'function') rebuildSettingsGrids();
   else if (typeof render === 'function') render(true);
   if (typeof renderGroups === 'function') renderGroups();
