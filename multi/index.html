@@ -1266,23 +1266,19 @@ body.opt-beat .price-card.opt-flag .pstack .dgreel { animation: none !important;
    every reveal animation jumps straight to its end frame, so nothing ever replays until the card changes. */
 .price-card.is-settled .pstack .prec, .price-card.is-settled .pstack .pold,
 .price-card.is-settled .pstack .dgreel, .price-card.is-settled .subreveal,
-.price-card.is-settled.opt-min .min-badge, .price-card.is-settled .apcheck,
-.price-card.is-settled.opt-applied .pstack .prec, .price-card.is-settled.opt-applied.has-sub .price-val {
+.price-card.is-settled.opt-min .min-badge {
   animation-duration: 0s !important; animation-delay: 0s !important; }
 
-/* ── Apply → completion: a green check pops, the ring eases to grey, the old value/discount clears,
-   the suggested price settles with a small pop. Fires per cell on .opt-applied. ── */
-.price-card.opt-flag .apcheck { position: absolute; left: 50%; top: calc(50% + 1px); width: 15px; height: 15px;
-  margin-left: -7.5px; opacity: 0; z-index: 4; pointer-events: none; }
-.price-card.opt-flag .apcheck svg { width: 100%; height: 100%; display: block; }
-.price-card.opt-flag .apcheck path { fill: #038026; }
-.price-card.opt-applied .apcheck { animation: apCheckIn .5s ease-out forwards; }
-.price-card.opt-applied .pstack .pold, .price-card.opt-applied .subreveal { opacity: 0; transition: opacity .25s ease; }
-.price-card.opt-applied .pstack .prec { animation: apPricePop .45s ease-out; }
-.price-card.opt-applied.has-sub .price-val { animation: apPricePop .45s ease-out; }
-.price-card.opt-applied .wring .wpath { stroke: var(--grey-400) !important; transition: stroke .4s ease; }
-@keyframes apCheckIn { 0% { opacity: 0; transform: scale(.5); } 55% { opacity: 1; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
-@keyframes apPricePop { 0% { transform: scale(1); } 45% { transform: scale(1.14); } 100% { transform: scale(1); } }
+/* ── Apply → the TAPPED state: no checkmark, no pops. The cell simply lights up green — ring stroke
+   green, 10% green wash, the price re-centred in green type. Cells light up column by column to the
+   right like piano keys (pianoApply), the calendar gliding along under the wavefront. ── */
+.price-card .apcheck { display: none; }
+.price-card.opt-applied .pstack, .price-card.opt-applied .subreveal { display: none; }
+.price-card.opt-applied .wring .wpath { stroke: #30D158 !important; transition: stroke .2s ease; }
+.price-card.opt-applied .wring .wfill { fill: rgba(48,209,88,0.10); }
+.price-card.opt-applied .price-val { color: #30D158 !important; }
+body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.opt-applied.has-odo .price-val { visibility: visible; }
+body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.opt-applied.has-sub .price-val { transform: none; }
 /* the pill's Applied state (replaces Apply): the green check ANIMATES in, and the whole thing is a
    button — tap to UNDO. One behavior across every opps flow (onboarding + optimization). */
 .mopp-applied { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0; color: #fff;
@@ -7954,10 +7950,9 @@ function computeSuggestions() {
         const dates = _M3[dA.getMonth()] + ' ' + dA.getDate() + ' – ' + _M3[dB.getMonth()] + ' ' + dB.getDate();
         const cities = [...new Set(c.items.map(x => listingCity[x.li]))];
         const cityStr = cities.length > 3 ? cities.slice(0, 3).join(', ') + ' +' + (cities.length - 3) : cities.join(', ');
-        // clean label up top; dates + range (green) below. No city.
-        void cityStr;
-        c.head = c.intent === 'earn' ? 'High season' : 'Low season';
-        c.mag = dates + ' · <span class="hl">' + range + '</span>';
+        // action head up top; city · dates · range (green) below.
+        c.head = c.intent === 'earn' ? 'Set peak season prices' : 'Set low season prices';
+        c.mag = cityStr + ' · ' + dates + ' · <span class="hl">' + range + '</span>';
         c.magKind = 'flat';
       }
       else if (it && it.curPrice && it.newPrice) { c.mag = '$' + it.curPrice + ' → ~$' + it.newPrice + ' a night'; }
@@ -8040,7 +8035,8 @@ function optRevealDone() { const b = document.body.classList;
   return b.contains('optimize-mode') && !b.contains('glow-hold') && !b.contains('opt-scanning') && !b.contains('opt-beat'); }
 function dressOptState(card, f) {
   const g = window.__opt.suggs.find(s => s.id === f.id);
-  if (g && g.applied) card.classList.add('opt-applied');
+  // applied — or already behind the piano wavefront (cells mounting mid-sweep as the calendar chases)
+  if (g && (g.applied || (g._sweepDi != null && +card.dataset.di <= g._sweepDi))) card.classList.add('opt-applied');
   if (optRevealDone()) card.classList.add('is-settled');
 }
 // ── split-odometer: per-distance roll keyframes (16px step), injected once ──
@@ -8069,8 +8065,13 @@ function _odoRollHtml(oldS, newS, dir) {
 }
 function makeOdometer(card, li, di) {
   const f = optFlagFor(li, di); if (!f || !f.roll) { removeOdometer(card); return; }
-  if (card.querySelector(':scope > .pstack')) return;               // already built (idempotent)
-  const cur = getPrice(li, di);
+  // "old" price = what the guest saw BEFORE this card: during a piano sweep the live price has
+  // already changed, so cells ahead of the wavefront read the pre-apply snapshot instead.
+  const g = window.__opt.suggs.find(s => s.id === f.id);
+  const cur = (g && g._sweepDi != null && g._pre && g._pre.has(li + ':' + di)) ? g._pre.get(li + ':' + di) : getPrice(li, di);
+  const old = card.querySelector(':scope > .pstack');
+  if (old && +old.dataset.cur === cur) return;   // fresh — keep (idempotent)
+  if (old) old.remove();                         // stale baseline (e.g. after undo) — rebuild, self-healing
   let neu;
   if (f.roll.market !== false && typeof marketRate === 'function') {
     neu = marketRate(li, di);
@@ -8079,10 +8080,10 @@ function makeOdometer(card, li, di) {
     neu = Math.round(cur * (1 - f.roll.pct));
   }
   const oldS = '$' + cur, newS = '$' + neu;
-  const ps = document.createElement('div'); ps.className = 'pstack';
+  const ps = document.createElement('div'); ps.className = 'pstack'; ps.dataset.cur = cur;
   ps.style.setProperty('--odoc', f.roll.dir === 'up' ? '#038026' : '#222');
   ps.innerHTML = '<div class="prec">' + _odoRollHtml(oldS, newS, f.roll.dir) + '</div><div class="pold">' + oldS + '</div>';
-  card.appendChild(ps); ensureCheck(card); card.classList.add('has-odo');
+  card.appendChild(ps); card.classList.add('has-odo');
 }
 function removeOdometer(card) { if (!card) return; const ps = card.querySelector(':scope > .pstack'); if (ps) ps.remove(); card.classList.remove('has-odo'); }
 // Safety net: any cell that is NOT a live opportunity cell must show its plain, CENTERED price — no
@@ -8103,13 +8104,9 @@ function makeSub(card, li, di) {
   if (card.querySelector(':scope > .subreveal')) return;
   const sub = document.createElement('div'); sub.className = 'subreveal' + (f.min ? ' is-min' : ' is-disc');
   sub.innerHTML = f.min ? ('min <s>' + f.min.cur + '</s> ' + f.min.to) : f.disc;
-  card.appendChild(sub); ensureCheck(card); card.classList.add('has-sub');
+  card.appendChild(sub); card.classList.add('has-sub');
 }
 function removeSub(card) { if (!card) return; const s = card.querySelector(':scope > .subreveal'); if (s) s.remove(); card.classList.remove('has-sub'); }
-function ensureCheck(card) { if (card.querySelector(':scope > .apcheck')) return;
-  const c = document.createElement('span'); c.className = 'apcheck';
-  c.innerHTML = '<svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>';
-  card.appendChild(c); }
 let _wPhase = 0, _wLast = 0; const _wSpeed = 3.2; // a hair faster than 2.6, still a calm drift
 (function(){ // group-unison hover for opportunity cells
   const gw = (typeof gridWrap !== 'undefined') ? gridWrap : document.getElementById('gridWrap');
@@ -8411,6 +8408,7 @@ function undoCurrent() { // tap "Applied" → revert this card and hand the Appl
   if (g._undo) g._undo(); g._undo = null; g.applied = false;
   document.querySelectorAll('#gridRows .price-card.opt-applied').forEach(c => c.classList.remove('opt-applied')); // cells return to their SUGGESTED look (ring colors back, struck old returns)
   refreshCalendarPrices();
+  repaintOptGlows(); // heal any pstack whose baseline was baked while prices were applied
   renderMagicPill();
 }
 function applyCurrent() {
@@ -8421,14 +8419,39 @@ function applyCurrent() {
     automateGroupingStaged(g);
     return;
   }
-  // SAME lifecycle as Create groups on every card: tap → dots pulse in the button while the cells
-  // settle → finish on the centred green check. The card STAYS focused; the user steps on with ‹ ›.
+  // SAME lifecycle as Create groups on every card: tap → dots pulse in the button while the green
+  // tapped state lights up cell by cell to the right (piano sweep) → the button lands on the centred
+  // green check. The card STAYS focused; the user steps on with ‹ ›.
   g.thinking = true; renderMagicPill();
+  g._pre = new Map(); // pre-apply prices — cells mounting ahead of the wavefront still show the true old→new roll
+  g.items.forEach(x => { for (let di = x.a; di <= x.b; di++) g._pre.set(x.li + ':' + di, getPrice(x.li, di)); });
   applyGroup(g); closeOptCard();
-  setTimeout(() => document.querySelectorAll('#gridRows .price-card.opt-flag[data-sugg="' + g.id + '"]').forEach(c => c.classList.add('opt-applied')), 60);
   refreshCalendarPrices();
-  clearTimeout(applyCurrent._t);
-  applyCurrent._t = setTimeout(() => { g.thinking = false; g.applied = true; renderMagicPill(); }, 1000);
+  pianoApply(g, () => { g.thinking = false; g.applied = true; renderMagicPill(); });
+}
+// The tapped state sweeps in like piano keys: column by column to the right, rows rippling down a
+// beat apart. When the wavefront nears the right edge of the view, the calendar starts gliding
+// along underneath it and keeps going until the card's whole window has lit up.
+function pianoApply(g, done) {
+  const STEP = 50, ROWBEAT = 24, EDGE = 260; // ms per column · ms per row within a column · chase margin px
+  let di = g.a;
+  clearInterval(pianoApply._t);
+  pianoApply._t = setInterval(() => {
+    if (window.__opt.suggs[window.__opt.cur] !== g) { // stepped away mid-sweep → land the rest instantly
+      clearInterval(pianoApply._t); g._sweepDi = null;
+      g.thinking = false; g.applied = true; repaintOptGlows(); renderMagicPill(); return;
+    }
+    if (di > g.b) { clearInterval(pianoApply._t); g._sweepDi = null; done(); return; }
+    g._sweepDi = di;
+    const cells = document.querySelectorAll('#gridRows .price-card.opt-flag[data-sugg="' + g.id + '"][data-di="' + di + '"]');
+    cells.forEach((c, r) => setTimeout(() => c.classList.add('opt-applied'), r * ROWBEAT));
+    const lead = cells[0];
+    if (lead) { // chase: hold the wavefront just inside the right edge
+      const gw = gridWrap.getBoundingClientRect(), cr = lead.getBoundingClientRect();
+      if (cr.right > gw.right - EDGE) gridWrap.scrollLeft += cr.right - (gw.right - EDGE);
+    }
+    di++;
+  }, STEP);
 }
 // The suggestion card
 function changeHTML(s) {
