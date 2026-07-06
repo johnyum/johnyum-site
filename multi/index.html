@@ -1261,9 +1261,15 @@ body.opt-beat .price-card.opt-flag .pstack .dgreel { animation: none !important;
 .price-card.opt-applied .wring .wpath { stroke: var(--grey-400) !important; transition: stroke .4s ease; }
 @keyframes apCheckIn { 0% { opacity: 0; transform: scale(.5); } 55% { opacity: 1; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
 @keyframes apPricePop { 0% { transform: scale(1); } 45% { transform: scale(1.14); } 100% { transform: scale(1); } }
-/* the pill's Applied confirmation (replaces the Apply button, ‹ › still step on) */
-.mopp-applied { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; color: #fff;
-  background: #038026; border-radius: 999px; padding: 12px 20px; font: 500 14px 'Cereal', sans-serif; }
+/* the pill's Applied state (replaces Apply): the green check ANIMATES in, and the whole thing is a
+   button — tap to UNDO. One behavior across every opps flow (onboarding + optimization). */
+.mopp-applied { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0; color: #fff;
+  background: #038026; border: 1px solid #038026; border-radius: 999px; height: 48px; padding: 0 20px;
+  font: 500 14px 'Cereal', sans-serif; cursor: pointer; transition: background .2s ease, border-color .2s ease; }
+.mopp-applied:hover { background: #026A1F; border-color: #026A1F; }
+.mopp-applied .apck { width: 16px; height: 16px; display: block; flex-shrink: 0;
+  animation: apCkIn .45s cubic-bezier(.34,1.4,.5,1) both; } /* the check pops in on apply */
+@keyframes apCkIn { 0% { opacity: 0; transform: scale(.4); } 100% { opacity: 1; transform: scale(1); } }
 /* The suggestion card (opens on tapping a glow) */
 .opt-card { position: fixed; display: none; width: 304px; background: #fff; border-radius: 20px; padding: 20px;
   box-shadow: 0 16px 50px rgba(0,0,0,0.24); font-family: 'Cereal', sans-serif; z-index: 240; }
@@ -6769,10 +6775,11 @@ function smartGroups() { return smartGroupsFor(LISTINGS.map((_, i) => i)); }
 // The onboarding Apply: group IN PLACE, on stage. Rows FLIP-glide from their old spots to their new
 // grouped order while the pill stays up; the group headers fade in once the rows land. Contrast with
 // animateGroupsByCity (the ⋯-menu flow), which blacks the grid out behind thinking dots.
-function applyGroupingLive() {
+function applyGroupingLive() { setGroupsLive(smartGroups()); }
+function setGroupsLive(target) { // FLIP the rows to ANY group arrangement (apply and undo ride the same animation)
   const rows = [...document.querySelectorAll('#gridRows > .price-row, #listingThumbsInner > .thumb-row')];
   const before = new Map(rows.map(r => [r, r.getBoundingClientRect().top]));
-  const sg = smartGroups();
+  const sg = target;
   groups.length = 0; sg.forEach(g => groups.push(g));       // mutate IN PLACE — host snapshots alias this array
   saveGroups(); renderGroups(); applyGroupsToCalendar();
   // headers hold back while the rows travel
@@ -8089,7 +8096,7 @@ function renderMagicPill() {
         oppIconHTML(g) +
         '<div class="mopp-whywrap"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + (g.magUndo ? '<span class="mopp-undo"> · ' + (g.magUndo === true ? 'undo anytime' : g.magUndo) + '</span>' : '') + '</span>' : '') + (g.why ? '<span class="mopp-why">' + g.why + '</span>' : '') + '</div>' +
         (g.bucket === 'grouping' && !g.applied ? '<button class="mopp-edit" data-magic="editgroups" aria-label="Customize groups"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M11.395 4.59764L15.4037 8.60639L6.25 17.7601C6.01375 17.9964 5.7 18.1264 5.36625 18.1264H1.875V14.6351C1.875 14.3064 2.00812 13.9839 2.24125 13.7514L11.395 4.59764ZM17.6294 2.37201C17.0974 1.84113 16.3766 1.54297 15.625 1.54297C14.8734 1.54297 14.1526 1.84113 13.6206 2.37201L12.7206 3.27201L16.73 7.28014L17.6294 6.38076C18.1603 5.8488 18.4584 5.12794 18.4584 4.37639C18.4584 3.62484 18.1603 2.90398 17.6294 2.37201Z" fill="currentColor"/></svg></button>' : '') +
-        (g.applied ? '<span class="mopp-applied">Applied \u2713</span>' : '<button class="mopp-apply" data-magic="apply">' + (g.ctaIcon === 'layers' ? LAYERS : '') + (g.cta || 'Apply') + '</button>') +
+        (g.applied ? '<button class="mopp-applied" data-magic="undo" title="Undo"><svg class="apck" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>Applied</button>' : '<button class="mopp-apply" data-magic="apply">' + (g.ctaIcon === 'layers' ? LAYERS : '') + (g.cta || 'Apply') + '</button>') +
         '<button class="mnav-in next" data-magic="next" aria-label="Next opportunity">' + CHEV_NEXT + '</button>' +
         '<button class="bp-close magic-close" data-magic="exit" aria-label="Exit">✕</button>' +
       '</div>';
@@ -8245,8 +8252,32 @@ function optNav(dir) {
   renderMagicPill(); focusOpportunity();
 }
 // Apply the opportunity currently shown in the pill, then advance the focus to the next one.
+// Capture exactly what applying this card will touch, returning a closure that reverts it —
+// the "Applied" button IS an undo button, consistently across every opps flow.
+function _snapshotUndo(g) {
+  if (g.bucket === 'grouping') {
+    const prev = JSON.parse(JSON.stringify(groups));
+    return () => setGroupsLive(prev); // rows FLIP back out of their groups — same animation, reversed
+  }
+  const snap = [...new Set(g.items.map(it => it.li))].map(li => ({ li,
+    po: JSON.parse(JSON.stringify(priceOverride[li])), pr: JSON.parse(JSON.stringify(promoVals[li])),
+    mo: JSON.parse(JSON.stringify(minOverride[li])), lm: lastMinuteVals[li], eb: earlyBirdVals[li] }));
+  return () => snap.forEach(s => {
+    const restore = (obj, prev) => { for (const k in obj) delete obj[k]; Object.assign(obj, prev); };
+    restore(priceOverride[s.li], s.po); restore(promoVals[s.li], s.pr); restore(minOverride[s.li], s.mo);
+    lastMinuteVals[s.li] = s.lm; earlyBirdVals[s.li] = s.eb;
+  });
+}
+function undoCurrent() { // tap "Applied" → revert this card and hand the Apply button back
+  const o = window.__opt; const g = o.suggs[o.cur]; if (!g || !g.applied) return;
+  if (g._undo) g._undo(); g._undo = null; g.applied = false;
+  document.querySelectorAll('#gridRows .price-card.opt-applied').forEach(c => c.classList.remove('opt-applied')); // cells return to their SUGGESTED look (ring colors back, struck old returns)
+  refreshCalendarPrices();
+  renderMagicPill();
+}
 function applyCurrent() {
   const o = window.__opt; const g = o.suggs[o.cur]; if (!g || g.applied) return;
+  g._undo = _snapshotUndo(g); // capture BEFORE anything mutates
   if (g.bucket === 'grouping') { // Apply = VISIBLE action: rows glide into their groups in place, headers fade in — no blackout, no thinking dots
     g.applied = true; closeOptCard(); renderMagicPill();
     applyGroupingLive();
@@ -8305,6 +8336,7 @@ document.getElementById('magicAction').addEventListener('click', e => {
   else if (act === 'prev') optNav(-1);
   else if (act === 'next') optNav(1);
   else if (act === 'apply') applyCurrent();
+  else if (act === 'undo') undoCurrent();
   else if (act === 'editgroups') { // the pencil → the drag-and-drop groups editor
     if (typeof clearSelection === 'function') clearSelection();
     renderGroups(); document.getElementById('groupsOverlay').classList.add('visible');
