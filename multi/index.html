@@ -6820,28 +6820,56 @@ function setGroupsLive(target) { // FLIP the rows to ANY group arrangement (appl
   const divG = new Map(divs.map(d => [d, parseFloat(getComputedStyle(d.parentElement).rowGap) || 0])); // each container's flex gap — a divider injects one even at height 0
   divs.forEach(d => { d.style.display = 'none'; d.style.opacity = '0'; }); // NO space at all → the mix runs on the true compact grid
   if (clip) clip.style.opacity = '0';
-  // PHASE 1 — puzzle mix: pin every surviving row at its OLD compact slot, release in WAVES (a few
-  // slide, then one, then a few more). Wave membership hashes the listing, so a grid row and its
-  // thumbnail always travel together; compact→compact means every dy is a whole row slot.
-  rows.forEach(r => {
-    if (!document.contains(r)) return;
-    const dy = (before.get(r) || 0) - r.getBoundingClientRect().top;
-    if (!dy) return;
-    r.style.transition = 'none'; r.style.transform = 'translateY(' + dy + 'px)';
-    r.dataset.flip = '1';
+  // PHASE 1 — EXCHANGES: the reorder resolves as rounds of disjoint SWAPS. When a piece moves to a
+  // slot, the slot's occupant moves at the SAME moment — tiles trading places, round by round, every
+  // landing on an exact compact slot. A grid row and its thumbnail always trade together (keyed by li).
+  const conts = [
+    { byLi: new Map(), rows: [...document.querySelectorAll('#gridRows > .price-row')] },
+    { byLi: new Map(), rows: [...document.querySelectorAll('#listingThumbsInner > .thumb-row')] }
+  ];
+  conts.forEach(c => {
+    c.rows = c.rows.filter(r => document.contains(r));
+    c.rows.forEach(r => c.byLi.set(+r.dataset.li, r));
+    c.finalTop = new Map(c.rows.map(r => [r, r.getBoundingClientRect().top]));
+    c.slots = c.rows.map(r => c.finalTop.get(r)).sort((a, b) => a - b); // the compact slot grid
   });
-  const WAVE_GAP = 0.22, WAVES = 4;
+  const g = conts[0];
+  const oldOrder = g.rows.slice().sort((a, b) => (before.get(a) || 0) - (before.get(b) || 0)).map(r => +r.dataset.li);
+  const newOrder = g.rows.slice().sort((a, b) => g.finalTop.get(a) - g.finalTop.get(b)).map(r => +r.dataset.li);
+  // decompose the permutation into ROUNDS of disjoint transpositions (each swap seats ≥1 piece)
+  let cur = oldOrder.slice(); const plan = [];
+  while (cur.join() !== newOrder.join()) {
+    const used = new Set(), moves = [];
+    for (let p = 0; p < cur.length; p++) {
+      if (used.has(p) || cur[p] === newOrder[p]) continue;
+      const q = cur.indexOf(newOrder[p]);
+      if (used.has(q)) continue;
+      moves.push({ li: cur[p], to: q }, { li: cur[q], to: p });
+      used.add(p); used.add(q);
+      const t = cur[p]; cur[p] = cur[q]; cur[q] = t;
+    }
+    if (!moves.length) break; // safety — permutation can't stall, but never loop forever
+    plan.push(moves);
+  }
+  // seat every row at its OLD compact slot (transform-relative to its final position)
+  conts.forEach(c => oldOrder.forEach((li, i) => {
+    const r = c.byLi.get(li); if (!r) return;
+    const dy = c.slots[i] - c.finalTop.get(r);
+    r.style.transition = 'none'; r.style.transform = 'translateY(' + dy + 'px)'; r.dataset.flip = '1';
+  }));
+  const DUR = 0.42, GAP = 0.14;
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    rows.forEach(r => {
-      if (!document.contains(r) || !r.dataset.flip) return;
-      const li = +r.dataset.li || 0;
-      const wave = (li * 7 + 3) % WAVES;                 // uneven bucket sizes → irregular, "thinking" cadence
-      const dur = 0.38 + (li % 3) * 0.06;                // quick, efficient switches — slight per-piece variance
-      r.style.transition = 'transform ' + dur + 's cubic-bezier(.4,0,.2,1) ' + (wave * WAVE_GAP) + 's';
-      r.style.transform = '';
+    plan.forEach((moves, ri) => {
+      setTimeout(() => moves.forEach(m => conts.forEach(c => {
+        const r = c.byLi.get(m.li); if (!r) return;
+        const dy = c.slots[m.to] - c.finalTop.get(r);
+        r.style.transition = 'transform ' + DUR + 's cubic-bezier(.4,0,.2,1)';
+        r.style.transform = 'translateY(' + dy + 'px)'; // lands EXACTLY on its trade partner's slot
+      })), ri * (DUR + GAP) * 1000);
     });
-    const mixDone = ((WAVES - 1) * WAVE_GAP + 0.52) * 1000; // last wave's delay + longest duration
+    const mixDone = plan.length ? ((plan.length - 1) * (DUR + GAP) + DUR + 0.1) * 1000 : 50;
     setTimeout(() => {
+      rows.forEach(r => { r.style.transform = ''; }); // everyone is at dy 0 by construction — release cleanly
       rows.forEach(r => { r.style.transition = ''; delete r.dataset.flip; });
       // PHASE 2 — the spacing opens: each divider re-enters at ZERO total space (height 0, and a
       // negative top margin cancelling the flex gap it injects), then eases to its natural size.
