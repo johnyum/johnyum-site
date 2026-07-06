@@ -1087,6 +1087,7 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
   color: #fff; flex-shrink: 0; align-self: center; }
 .mopp-glyph svg { display: block; width: 40px; height: 40px; }
 .mopp-head { font: 600 16px/20px 'Cereal', sans-serif; color: #fff; white-space: normal; } /* the card's NAME — same treatment on every card */
+.mopp-head .hl { color: #30D158; } /* the premium range rides the head in the system green */
 /* MAGNITUDE — the "how much / to what" the card was missing. Its own tier between the name and the reason. */
 .mopp-mag { font: 400 12px/16px 'Cereal', sans-serif; color: var(--grey-500); white-space: nowrap; } /* secondary line: 12/16 Book, grey-500 */
 .mopp-mag.up, .mopp-mag.down { color: #30D158; } /* ONE green for every price move — the dark-surface sibling of #038026, legible on black. No orange. */
@@ -7934,16 +7935,22 @@ function computeSuggestions() {
       if (c.bucket === 'grouping') { c.mag = 'Groups alike listings automatically. Edit anytime.'; c.magKind = 'flat'; return; }
       else if (c.bucket === 'setup') { c.mag = 'Early-bird −12% · Last-minute −15%'; c.magKind = 'flat'; }
       else if (c.bucket === 'season-up' || c.bucket === 'season-down') {
-        // months span + the REAL premium range: applied prices come from marketRate per night
-        // (weekdays land lower, Fri/Sat higher), so the card quotes the true min–max vs base.
-        const _M3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-        const mA = _M3[allDays[c.a].getMonth()], mB = _M3[allDays[c.b].getMonth()];
-        const span = mA === mB ? mA : mA + ' – ' + mB;
+        // the REAL premium range rides the HEAD (green); the sub carries the exact dates + the
+        // cities sharing this window. Prices come from marketRate per night (weekdays land lower,
+        // Fri/Sat higher), so the range quoted is the true min–max vs base.
         let lo = Infinity, hi = -Infinity;
         c.items.forEach(x => { const base = LISTINGS[x.li].base || 200;
           for (let k = x.a; k <= x.b; k += 2) { const d = Math.abs(marketRate(x.li, k) - base) / base; if (d < lo) lo = d; if (d > hi) hi = d; } });
         const loP = Math.max(1, Math.round(lo * 100)), hiP = Math.max(loP, Math.round(hi * 100));
-        c.mag = span + ' · ' + loP + '% – ' + hiP + '% ' + (c.intent === 'earn' ? 'premium' : 'lower');
+        const range = loP + '% – ' + hiP + '% ' + (c.intent === 'earn' ? 'premium' : 'lower');
+        c.head = (c.intent === 'earn' ? 'Set High season' : 'Set Low season') + ' · <span class="hl">' + range + '</span>';
+        const _M3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const dA = allDays[c.a], dB = allDays[c.b];
+        const dates = _M3[dA.getMonth()] + ' ' + dA.getDate() + ' – ' + _M3[dB.getMonth()] + ' ' + dB.getDate();
+        const cities = [...new Set(c.items.map(x => listingCity[x.li]))];
+        const cityStr = cities.length > 3 ? cities.slice(0, 3).join(', ') + ' +' + (cities.length - 3) : cities.join(', ');
+        c.mag = dates + ' · ' + cityStr;
+        c.magKind = 'flat';
       }
       else if (it && it.curPrice && it.newPrice) { c.mag = '$' + it.curPrice + ' → ~$' + it.newPrice + ' a night'; }
       else { c.mag = c.intent === 'earn' ? '~' + p + '% higher' : '~' + p + '% lower'; }
