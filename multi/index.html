@@ -1071,10 +1071,6 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
 .mopp-pill { position: relative; display: inline-flex; align-items: center; gap: 12px; }
 .mopp-whywrap { display: flex; flex-direction: column; gap: 2px; max-width: 440px; padding: 0 2px; margin-right: 4px; } /* +12 row gap = 16px to Apply, always */
 .mopp-head { font: 600 14px/18px 'Cereal', sans-serif; color: #fff; white-space: normal; } /* the card's NAME — "Labor Day weekend", "August peak season" */
-/* step counter — onboarding is a finite checklist. Its own column LEFT of the story block, at the
-   CTA's type size, 12px of air on both sides (the row's 12px flex gap; the arrow's +4 is cancelled). */
-.mopp-step { font: 500 14px/18px 'Cereal', sans-serif; color: #888888; white-space: nowrap; flex-shrink: 0; align-self: center; }
-.mnav-in.prev:has(+ .mopp-step) { margin-right: 0; } /* 12px gap to the counter, not the 16px content inset */
 /* MAGNITUDE — the "how much / to what" the card was missing. Its own tier between the name and the reason. */
 .mopp-mag { font: 600 13px/16px 'Cereal', sans-serif; white-space: nowrap; }
 .mopp-mag.up { color: #FF9F0A; }   /* raise = amber (earn) */
@@ -8050,16 +8046,9 @@ function renderMagicPill() {
     const CHEV_PREV = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 6 9 12 15 18"/></svg>';
     const CHEV_NEXT = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 6 15 12 9 18"/></svg>';
     const LAYERS = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M15 9.75L8 15L1 9.75M8 1L1.5 6L8 11L14.5 6L8 1Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>'; // the Automate-group layers glyph
-    const _nonGroup = x => x.bucket !== 'grouping';
-    const done = o.done || 0, total = o.total || done + o.suggs.filter(_nonGroup).length; // fixed session total \u2014 completed steps advance the numerator, never shrink the denominator
-    const stepIdx = done + o.suggs.slice(0, i).filter(_nonGroup).length + 1; // position among PRICING steps only
-    const stepLine = !isOnboarding() ? ''
-      : g.bucket === 'grouping' ? '<span class="mopp-step">First</span>' // the FOUNDATION \u2014 hierarchy, not a cell edit; un-numbered
-      : '<span class="mopp-step">' + stepIdx + ' of ' + total + '</span>'; // onboarding is FINITE \u2014 show where you are
     pill.innerHTML =
       '<div class="mopp-pill">' +
         '<button class="mnav-in prev" data-magic="prev" aria-label="Previous opportunity">' + CHEV_PREV + '</button>' +
-        stepLine +
         oppIconHTML(g) +
         '<div class="mopp-whywrap"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + (g.magUndo ? '<span class="mopp-undo"> · undo anytime</span>' : '') + '</span>' : '') + (g.why ? '<span class="mopp-why">' + g.why + '</span>' : '') + '</div>' +
         (g.applied ? '<span class="mopp-applied">Applied \u2713</span>' : '<button class="mopp-apply" data-magic="apply">' + (g.ctaIcon === 'layers' ? LAYERS : '') + (g.cta || 'Apply') + '</button>') +
@@ -8132,7 +8121,7 @@ function startOptimize() {
   });
   setTimeout(() => {
     const suggs = computeSuggestions(); // pre-sorted by estimated $ impact — biggest opportunity leads
-    window.__opt.suggs = suggs; window.__opt.total = suggs.filter(g => g.bucket !== 'grouping').length; window.__opt.done = 0; // fixed step total for the "N of M" counter — grouping is the FOUNDATION, not a step
+    window.__opt.suggs = suggs;
     buildFlags(suggs.slice(0, 1)); // ONE at a time: only the first opportunity glows
     document.body.classList.add('glow-hold', 'opt-beat'); // flags paint now; rings wait for the camera, the INSIDE waits for a beat after
     repaintOptGlows();
@@ -8209,9 +8198,7 @@ function applyAllSuggestions() {
 function optNav(dir) {
   const o = window.__opt; let n = o.suggs.length; if (!n) return;
   if (o.suggs[o.cur] && o.suggs[o.cur].applied) {           // stepping off an applied card → drop it
-    const _dropped = o.suggs[o.cur];
     o.suggs.splice(o.cur, 1); n = o.suggs.length;
-    if (_dropped && _dropped.bucket !== 'grouping') o.done = (o.done || 0) + 1; // one more step completed (the grouping foundation isn't counted)
     if (!n) { o.flags = new Map(); repaintOptGlows(); o.state = 'done'; renderMagicPill(); setTimeout(exitOptimize, 900); return; }
     o.cur = dir > 0 ? (o.cur % n) : ((o.cur - 1 + n) % n);
   } else {
