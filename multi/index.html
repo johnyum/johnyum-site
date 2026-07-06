@@ -1110,12 +1110,13 @@ body.opp-hide-icon .mopp-ic { display: none; } /* one-line switch to drop the di
   font: 500 14px 'Cereal', sans-serif; cursor: pointer; flex-shrink: 0; transition: background .2s ease; }
 .mopp-apply svg { display: block; flex-shrink: 0; } /* CTA glyph rides LEFT of the label */
 .mopp-apply:hover { background: rgba(255,255,255,0.12); }
-/* the pencil (customize groups) — same outlined language as Apply, 8px to its left */
-.mopp-edit { width: 48px; height: 48px; border-radius: 50%; background: transparent; border: 1px solid var(--grey-700); color: #fff;
-  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0; cursor: pointer; transition: background .2s ease; }
-.mopp-edit:hover { background: rgba(255,255,255,0.12); }
-.mopp-edit svg { width: 16px; height: 16px; display: block; }
-.mopp-edit + .mopp-apply { margin-left: -4px; } /* 12px flex gap − 4 = 8px pencil → Apply */
+/* thinking state — the Automate button holds its outline and pulses three dots while it works */
+.mopp-apply.is-thinking { min-width: 112px; cursor: default; }
+.mopp-apply .thinkdots { display: inline-flex; gap: 6px; }
+.mopp-apply .thinkdots i { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: thinkPulse 1s ease-in-out infinite; }
+.mopp-apply .thinkdots i:nth-child(2) { animation-delay: .2s; }
+.mopp-apply .thinkdots i:nth-child(3) { animation-delay: .4s; }
+@keyframes thinkPulse { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
 .magic-pill.opp-light .mopp-apply { background: #222; color: #fff; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .magic-pill.opp-light .mopp-apply:hover { background: #000; }
 .mopp-allbtn { background: transparent; color: var(--grey-700); border: 0; font: 500 12px 'Cereal', sans-serif;
@@ -1273,9 +1274,9 @@ body.opt-beat .price-card.opt-flag .pstack .dgreel { animation: none !important;
 /* the pill's Applied state (replaces Apply): the green check ANIMATES in, and the whole thing is a
    button — tap to UNDO. One behavior across every opps flow (onboarding + optimization). */
 .mopp-applied { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0; color: #fff;
-  background: #038026; border: 1px solid #038026; border-radius: 999px; height: 48px; padding: 0 20px;
-  font: 500 14px 'Cereal', sans-serif; cursor: pointer; transition: background .2s ease, border-color .2s ease; }
-.mopp-applied:hover { background: #026A1F; border-color: #026A1F; }
+  background: transparent; border: 1px solid var(--grey-700); border-radius: 999px; height: 48px; padding: 0 20px; /* same outline as the untapped button */
+  font: 500 14px 'Cereal', sans-serif; cursor: pointer; transition: background .2s ease; }
+.mopp-applied:hover { background: rgba(255,255,255,0.12); }
 .mopp-applied .apck { width: 16px; height: 16px; display: block; flex-shrink: 0;
   animation: apCkIn .45s cubic-bezier(.34,1.4,.5,1) both; } /* the check pops in on apply */
 @keyframes apCkIn { 0% { opacity: 0; transform: scale(.4); } 100% { opacity: 1; transform: scale(1); } }
@@ -6785,21 +6786,14 @@ function smartGroups() { return smartGroupsFor(LISTINGS.map((_, i) => i)); }
 // grouped order while the pill stays up; the group headers fade in once the rows land. Contrast with
 // animateGroupsByCity (the ⋯-menu flow), which blacks the grid out behind thinking dots.
 function applyGroupingLive() { setGroupsLive(smartGroups()); }
-// Automate (the onboarding grouping card): the scan shimmer sweeps DOWN the rows while it "thinks"
-// (~3s), then the grid rearranges itself — rows FLIP into their groups, the spacing opens up, and
-// only THEN do the headers fade in. All on stage; nothing blacks out.
-function automateGroupingStaged() {
-  const base = gridWrap.scrollTop;
-  document.querySelectorAll('#gridRows > .price-row').forEach(row => {
-    const d = Math.max(0, (row.offsetTop - base) / 400) + 's'; // stagger by Y → the wave travels downward
-    row.querySelectorAll('.price-card').forEach(c => c.style.setProperty('--swd', d));
-    const tr = document.querySelector('#listingThumbsInner > .thumb-row[data-li="' + row.dataset.li + '"]');
-    if (tr) tr.style.setProperty('--swd', d); // the left bar's pulse rides the SAME wave, row for row
-  });
-  document.body.classList.add('group-scanning');
+// Automate (the onboarding grouping card): the button itself THINKS — three pulsing dots in place
+// of the label (~3s) — then the grid rearranges on stage (exchange mix → spacing → headers) and the
+// button lands on "✓ Applied". No shimmer, no blackout.
+function automateGroupingStaged(g) {
+  g.thinking = true; renderMagicPill();
   clearTimeout(automateGroupingStaged._t);
   automateGroupingStaged._t = setTimeout(() => {
-    document.body.classList.remove('group-scanning');
+    g.thinking = false; g.applied = true; renderMagicPill(); // the check pops as the pieces start trading
     applyGroupingLive();
   }, 3000);
 }
@@ -6857,7 +6851,7 @@ function setGroupsLive(target) { // FLIP the rows to ANY group arrangement (appl
     const dy = c.slots[i] - c.finalTop.get(r);
     r.style.transition = 'none'; r.style.transform = 'translateY(' + dy + 'px)'; r.dataset.flip = '1';
   }));
-  const DUR = 0.42, GAP = 0.14;
+  const DUR = 0.48, GAP = 0.18; // a touch slower — each exchange reads clearly
   requestAnimationFrame(() => requestAnimationFrame(() => {
     plan.forEach((moves, ri) => {
       setTimeout(() => moves.forEach(m => conts.forEach(c => {
@@ -7926,7 +7920,7 @@ function computeSuggestions() {
     if (onboarding) {
       // "just say yes": the decision is MADE — one concrete number line, same Apply everywhere, undo visible
       const it = c.items[0];
-      if (c.bucket === 'grouping') { c.mag = 'Automate by location, or customize it yourself'; c.magKind = 'flat'; return; }
+      if (c.bucket === 'grouping') { c.mag = 'Automate by location'; c.magKind = 'flat'; return; }
       else if (c.bucket === 'setup') { c.mag = 'Early-bird −12% · Last-minute −15%'; c.magKind = 'flat'; }
       else if (it && it.curPrice && it.newPrice) { c.mag = '$' + it.curPrice + ' → ~$' + it.newPrice + ' a night'; }
       else { c.mag = c.intent === 'earn' ? '~' + p + '% higher' : '~' + p + '% lower'; }
@@ -8186,8 +8180,9 @@ function renderMagicPill() {
         '<button class="mnav-in prev" data-magic="prev" aria-label="Previous opportunity">' + CHEV_PREV + '</button>' +
         oppIconHTML(g) +
         '<div class="mopp-whywrap"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + (g.magUndo ? '<span class="mopp-undo"> · ' + (g.magUndo === true ? 'undo anytime' : g.magUndo) + '</span>' : '') + '</span>' : '') + (g.why ? '<span class="mopp-why">' + g.why + '</span>' : '') + '</div>' +
-        (g.bucket === 'grouping' && !g.applied ? '<button class="mopp-edit" data-magic="editgroups" aria-label="Customize groups"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M11.395 4.59764L15.4037 8.60639L6.25 17.7601C6.01375 17.9964 5.7 18.1264 5.36625 18.1264H1.875V14.6351C1.875 14.3064 2.00812 13.9839 2.24125 13.7514L11.395 4.59764ZM17.6294 2.37201C17.0974 1.84113 16.3766 1.54297 15.625 1.54297C14.8734 1.54297 14.1526 1.84113 13.6206 2.37201L12.7206 3.27201L16.73 7.28014L17.6294 6.38076C18.1603 5.8488 18.4584 5.12794 18.4584 4.37639C18.4584 3.62484 18.1603 2.90398 17.6294 2.37201Z" fill="currentColor"/></svg></button>' : '') +
-        (g.applied ? '<button class="mopp-applied" data-magic="undo" title="Undo"><svg class="apck" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>Applied</button>' : '<button class="mopp-apply" data-magic="apply">' + (g.ctaIcon === 'layers' ? LAYERS : '') + (g.cta || 'Apply') + '</button>') +
+        (g.thinking ? '<button class="mopp-apply is-thinking" disabled aria-label="Working"><span class="thinkdots"><i></i><i></i><i></i></span></button>'
+          : g.applied ? '<button class="mopp-applied" data-magic="undo" title="Undo"><svg class="apck" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>Applied</button>'
+          : '<button class="mopp-apply" data-magic="apply">' + (g.ctaIcon === 'layers' ? LAYERS : '') + (g.cta || 'Apply') + '</button>') +
         '<button class="mnav-in next" data-magic="next" aria-label="Next opportunity">' + CHEV_NEXT + '</button>' +
         '<button class="bp-close magic-close" data-magic="exit" aria-label="Exit">✕</button>' +
       '</div>';
@@ -8362,9 +8357,9 @@ function _snapshotUndo(g) {
 }
 function undoCurrent() { // tap "Applied" → revert this card and hand the Apply button back
   const o = window.__opt; const g = o.suggs[o.cur]; if (!g || !g.applied) return;
-  if (document.body.classList.contains('group-scanning')) { // undone mid-think → cancel the pending automate; nothing has changed yet
-    clearTimeout(automateGroupingStaged._t); document.body.classList.remove('group-scanning');
-    g._undo = null; g.applied = false; renderMagicPill(); return;
+  if (g.thinking) { // undone mid-think → cancel the pending automate; nothing has changed yet
+    clearTimeout(automateGroupingStaged._t);
+    g.thinking = false; g._undo = null; g.applied = false; renderMagicPill(); return;
   }
   if (g._undo) g._undo(); g._undo = null; g.applied = false;
   document.querySelectorAll('#gridRows .price-card.opt-applied').forEach(c => c.classList.remove('opt-applied')); // cells return to their SUGGESTED look (ring colors back, struck old returns)
@@ -8374,9 +8369,9 @@ function undoCurrent() { // tap "Applied" → revert this card and hand the Appl
 function applyCurrent() {
   const o = window.__opt; const g = o.suggs[o.cur]; if (!g || g.applied) return;
   g._undo = _snapshotUndo(g); // capture BEFORE anything mutates
-  if (g.bucket === 'grouping') { // Automate = VISIBLE action: shimmer sweeps down while thinking, rows glide into groups, headers fade in
-    g.applied = true; closeOptCard(); renderMagicPill();
-    automateGroupingStaged();
+  if (g.bucket === 'grouping') { // Automate: dots think IN the button, then rows exchange into groups on stage
+    closeOptCard();
+    automateGroupingStaged(g);
     return;
   }
   applyGroup(g); closeOptCard(); g.applied = true;
