@@ -1075,7 +1075,7 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
 .magic-exit:hover { background: rgba(255,255,255,0.28); }
 /* Opportunity review: WHITE pill mimicking the QA pill — the affected listings' photo stack on the
    left, info in the middle, Apply actions right, ‹ › steppers, and the QA-style floating X. */
-.magic-pill.is-opp { height: auto; border-radius: 999px; padding: 20px 24px 20px 28px; align-items: center; /* 20 top/bottom, 24 right, LEFT = the QA pill's 24px photo inset + 4 */
+.magic-pill.is-opp { height: auto; border-radius: 999px; padding: 20px; align-items: center; /* 20px all around — either side of the modal included */
   background: #000; color: #fff; } /* the REVIEW rides DARK (QA-pill mode); centered anchor → grows from the center out */
 /* ONE row: [dancing photo stack] → the story (head + reasoning) → Apply. */
 .mopp-pill { position: relative; display: inline-flex; align-items: center; gap: 12px; }
@@ -1083,9 +1083,7 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
 .mopp-head { font: 600 14px/18px 'Cereal', sans-serif; color: #fff; white-space: normal; } /* the card's NAME — "Labor Day weekend", "August peak season" */
 /* MAGNITUDE — the "how much / to what" the card was missing. Its own tier between the name and the reason. */
 .mopp-mag { font: 400 12px/16px 'Cereal', sans-serif; color: var(--grey-500); white-space: nowrap; } /* secondary line: 12/16 Book, grey-500 */
-.mopp-mag.up { color: #FF9F0A; }   /* raise = amber (earn) */
-.mopp-mag.down { color: #34C759; } /* drop / savings = green */
-.mopp-undo { color: var(--grey-700); font-weight: 400; } /* the quiet "reversible" reassurance riding the number line */
+.mopp-mag.up, .mopp-mag.down { color: #30D158; } /* ONE green for every price move — the dark-surface sibling of #038026, legible on black. No orange. */
 .magic-pill.opp-light .mopp-mag.up { color: #B26B00; }
 .magic-pill.opp-light .mopp-mag.down { color: #038026; }
 body.opp-hide-icon .mopp-ic { display: none; } /* one-line switch to drop the direction glyph (see icon eval) */
@@ -6785,14 +6783,20 @@ function smartGroups() { return smartGroupsFor(LISTINGS.map((_, i) => i)); }
 // The onboarding Apply: group IN PLACE, on stage. Rows FLIP-glide from their old spots to their new
 // grouped order while the pill stays up; the group headers fade in once the rows land. Contrast with
 // animateGroupsByCity (the ⋯-menu flow), which blacks the grid out behind thinking dots.
-function applyGroupingLive() { setGroupsLive(smartGroups()); }
+function applyGroupingLive() { return setGroupsLive(smartGroups()); }
 // Automate (the onboarding grouping card): the button itself THINKS — three pulsing dots in place
 // of the label (~3s) — then the grid rearranges on stage (exchange mix → spacing → headers) and the
 // button lands on "✓ Applied". No shimmer, no blackout.
 function automateGroupingStaged(g) { // no think delay — the exchange starts the moment Automate is tapped
   clearTimeout(automateGroupingStaged._t);
   g.thinking = false; g.applied = true; renderMagicPill(); // ✓ Applied pops as the pieces start trading
-  applyGroupingLive();
+  const total = applyGroupingLive() || 2400;
+  // once the groupings LAND, give it 2s, then auto-step to the next opportunity (High season leads the sequence)
+  clearTimeout(automateGroupingStaged._adv);
+  automateGroupingStaged._adv = setTimeout(() => {
+    const o = window.__opt;
+    if (document.body.classList.contains('optimize-mode') && o.state === 'results' && o.suggs[o.cur] === g && g.applied) optNav(1);
+  }, total + 2000);
 }
 function setGroupsLive(target) { // FLIP the rows to ANY group arrangement (apply and undo ride the same animation)
   const rows = [...document.querySelectorAll('#gridRows > .price-row, #listingThumbsInner > .thumb-row')];
@@ -6884,6 +6888,7 @@ function setGroupsLive(target) { // FLIP the rows to ANY group arrangement (appl
       }, 430);
     }, mixDone);
   }));
+  return (plan.length ? ((plan.length - 1) * (DUR + GAP) + DUR + 0.1) * 1000 : 50) + 880; // total: mix + spacing + headers
 }
 function animateGroupsByCity() {
   let dots = document.getElementById('groupingDots');
@@ -7625,36 +7630,27 @@ function computeSuggestions() {
     // DOWN through the next lull, and a last-minute discount for the open week.
     for (let li = 0; li < LISTINGS.length; li++) {
       const dem = monthlyDemand[li], city = listingCity[li];
-      // price up — the listing's NEXT high-demand month is still at base rate
+      // SEASONS — full contiguous runs, straight from the city's REAL demand curve (CITY_DEMAND is
+      // built on actual market seasonality: Aspen skis Dec–Mar and peaks again for summer festivals,
+      // Palm Springs runs Nov–Apr and empties in the heat, Joshua Tree spikes spring + fall, the
+      // SoCal coast runs May–Sep…). EVERY high month is covered — not one clipped 2-week slice —
+      // so Aspen's card spans its whole season, and different cities get their own real windows.
+      // Applied prices go through marketRate → weekdays land lower, Fri/Sat higher, per night.
       {
-        let a = -1, b = -1;
-        for (let k = Math.max(0, todayDi); k < N; k++) {
+        let k = Math.max(0, todayDi);
+        while (k < N) {
           const m = allDays[k].getMonth();
-          if (dem[m] >= 78) { a = k; b = k; while (b + 1 < N && allDays[b + 1].getMonth() === m) b++; break; }
-        }
-        if (a >= 0) {
-          const hi = Math.max.apply(null, dem);
-          const up = Math.max(0.08, Math.min(0.20, Math.round((hi - 60) / 2) / 100));
-          const b2 = Math.min(b, a + 13), p0 = getPrice(li, a); // cap to ~2 weeks so the play stays digestible
-          items.push({ li, a, b: b2, intent: 'earn', type: 'raise', pct: up, curPrice: p0, newPrice: Math.round(p0 * (1 + up)),
-            title: 'Raise price ' + Math.round(up * 100) + '%',
-            why: cityLabel(city) + "'s high season and you're still at base rate — comparable stays nearby booked these nights at a premium." });
-        }
-      }
-      // price down — the next LOW-demand month is also flat; lower it before it sits empty
-      {
-        let a = -1, b = -1;
-        for (let k = Math.max(0, todayDi); k < N; k++) {
-          const m = allDays[k].getMonth();
-          if (dem[m] <= 49) { a = k; b = k; while (b + 1 < N && allDays[b + 1].getMonth() === m) b++; break; }
-        }
-        if (a >= 0) {
-          const lo = Math.min.apply(null, dem);
-          const dn = Math.max(0.06, Math.min(0.18, Math.round((60 - lo) / 2) / 100));
-          const b2 = Math.min(b, a + 13), p0 = getPrice(li, a);
-          items.push({ li, a, b: b2, intent: 'fill', type: 'drop', pct: dn, curPrice: p0, newPrice: Math.round(p0 * (1 - dn)),
-            title: 'Lower price ' + Math.round(dn * 100) + '%',
-            why: cityLabel(city) + "'s slow season at full price rarely books — the nearby stays that filled these nights priced under base." });
+          if (dem[m] >= 78) {          // HIGH-season run (threshold on the real curve)
+            const a = k; while (k < N && dem[allDays[k].getMonth()] >= 78) k++;
+            const b = k - 1, p0 = getPrice(li, a);
+            items.push({ li, a, b, intent: 'earn', type: 'raise', pct: 0.18, curPrice: p0, newPrice: marketRate(li, a),
+              title: 'Raise price', why: cityLabel(city) + "'s high season and you're still at base rate." });
+          } else if (dem[m] <= 49) {   // LOW-season run
+            const a = k; while (k < N && dem[allDays[k].getMonth()] <= 49) k++;
+            const b = k - 1, p0 = getPrice(li, a);
+            items.push({ li, a, b, intent: 'fill', type: 'drop', pct: 0.14, curPrice: p0, newPrice: marketRate(li, a),
+              title: 'Lower price', why: cityLabel(city) + "'s slow season at full price rarely books." });
+          } else k++;
         }
       }
       // add discount — open nights within the week and no last-minute rate set
@@ -7801,7 +7797,9 @@ function computeSuggestions() {
     if (it.type === 'discount') { setupItems.push(it); return; }                      // (5) aggregate below
     if (!onboarding && it.a <= todayDi + NEAR_DAYS && it.intent === 'fill') { nearItems.push(it); return; } // this week = FILL urgency, its own card (raises stay with their season/holiday bucket). Onboarding has no "this week" card — fills fold into their season bucket.
     // (2)+(3) SEASON UP / DOWN / PROMOTE — merge only same-play + same-month windows
-    const key = it.type + '|' + allDays[it.a].getMonth();
+    const key = onboarding
+      ? it.type + '|' + allDays[it.a].getMonth() + '-' + allDays[it.b].getMonth() // full-season runs merge ONLY when the whole window matches (Aspen+Tahoe Dec–Mar yes; SD May–Sep stays its own)
+      : it.type + '|' + allDays[it.a].getMonth();
     (seasonBy[key] = seasonBy[key] || []).push(it);
   });
   if (nearItems.length) {
@@ -7845,11 +7843,12 @@ function computeSuggestions() {
     const pct = its.reduce((s, x) => s + x.pct, 0) / its.length;
     const mon = _MONF[allDays[its[0].a].getMonth()], where = wherePhrase(its);
     const nL = new Set(its.map(x => x.li)).size;
+    const cityList = [...new Set(its.map(x => listingCity[x.li]))].slice(0, 3).join(', '); // up to 3 cities in the head
     cards.push({ bucket: t === 'raise' ? 'season-up' : t === 'drop' ? 'season-down' : 'promo',
       type: t, intent: its[0].intent, pct,
       a: Math.min(...its.map(x => x.a)), b: Math.max(...its.map(x => x.b)), items: its,
       head: onboarding
-        ? (t === 'raise' ? mon + ' peak pricing, ready' : t === 'drop' ? mon + ' slow-season rates, ready' : mon + ' promotion, ready')
+        ? (t === 'raise' ? 'High season · ' + cityList : t === 'drop' ? 'Slow season · ' + cityList : mon + ' promotion, ready')
         : (t === 'raise' ? 'Lean into peak season' : t === 'drop' ? 'Keep pace in the slow season' : 'Tempt guests into a quiet stretch'),
       cta: onboarding
         ? 'Apply'
@@ -7915,13 +7914,24 @@ function computeSuggestions() {
     const p = Math.round((c.pct || 0) * 100);
     c.magKind = c.intent === 'earn' ? 'up' : 'down'; // accent: amber up, green down/savings
     if (onboarding) {
-      // "just say yes": the decision is MADE — one concrete number line, same Apply everywhere, undo visible
+      // "just say yes": the decision is MADE — one concrete number line, same Apply everywhere
       const it = c.items[0];
       if (c.bucket === 'grouping') { c.mag = 'Automate by location'; c.magKind = 'flat'; return; }
       else if (c.bucket === 'setup') { c.mag = 'Early-bird −12% · Last-minute −15%'; c.magKind = 'flat'; }
+      else if (c.bucket === 'season-up' || c.bucket === 'season-down') {
+        // months span + the REAL premium range: applied prices come from marketRate per night
+        // (weekdays land lower, Fri/Sat higher), so the card quotes the true min–max vs base.
+        const _M3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const mA = _M3[allDays[c.a].getMonth()], mB = _M3[allDays[c.b].getMonth()];
+        const span = mA === mB ? mA : mA + ' – ' + mB;
+        let lo = Infinity, hi = -Infinity;
+        c.items.forEach(x => { const base = LISTINGS[x.li].base || 200;
+          for (let k = x.a; k <= x.b; k += 2) { const d = Math.abs(marketRate(x.li, k) - base) / base; if (d < lo) lo = d; if (d > hi) hi = d; } });
+        const loP = Math.max(1, Math.round(lo * 100)), hiP = Math.max(loP, Math.round(hi * 100));
+        c.mag = span + ' · ' + loP + '% – ' + hiP + '% ' + (c.intent === 'earn' ? 'premium' : 'lower');
+      }
       else if (it && it.curPrice && it.newPrice) { c.mag = '$' + it.curPrice + ' → ~$' + it.newPrice + ' a night'; }
       else { c.mag = c.intent === 'earn' ? '~' + p + '% higher' : '~' + p + '% lower'; }
-      c.magUndo = true;
     } else {
       if (c.bucket === 'grouping') { c.mag = ''; return; } // structural step — no % / $ to claim
       c.mag = '≈ +' + _money(c.impact);
@@ -8176,7 +8186,7 @@ function renderMagicPill() {
       '<div class="mopp-pill">' +
         '<button class="mnav-in prev" data-magic="prev" aria-label="Previous opportunity">' + CHEV_PREV + '</button>' +
         oppIconHTML(g) +
-        '<div class="mopp-whywrap"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + (g.magUndo ? '<span class="mopp-undo"> · ' + (g.magUndo === true ? 'undo anytime' : g.magUndo) + '</span>' : '') + '</span>' : '') + (g.why ? '<span class="mopp-why">' + g.why + '</span>' : '') + '</div>' +
+        '<div class="mopp-whywrap"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + '</span>' : '') + (g.why ? '<span class="mopp-why">' + g.why + '</span>' : '') + '</div>' +
         (g.thinking ? '<button class="mopp-apply is-thinking" disabled aria-label="Working"><span class="thinkdots"><i></i><i></i><i></i></span></button>'
           : g.applied ? '<button class="mopp-applied" data-magic="undo" title="Undo"><svg class="apck" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>Applied</button>'
           : '<button class="mopp-apply" data-magic="apply">' + (g.ctaIcon === 'layers' ? LAYERS : '') + (g.cta || 'Apply') + '</button>') +
@@ -8279,7 +8289,7 @@ function startOptimize() {
 function exitOptimize() {
   closeOptCard();
   document.body.classList.remove('optimize-mode', 'opt-scanning', 'group-scanning', 'glow-hold', 'opt-beat');
-  clearTimeout(automateGroupingStaged._t); // a pending automate never fires into a closed session
+  clearTimeout(automateGroupingStaged._t); clearTimeout(automateGroupingStaged._adv); // pending automate/auto-advance never fire into a closed session
   const mp = document.getElementById('magicPill'); if (mp) { mp.style.width = ''; mp.style.height = ''; mp.classList.remove('is-growing'); }
   window.__opt.flags = new Map(); window.__opt.suggs = []; window.__opt.state = 'idle';
   repaintOptGlows(); renderMagicPill(); window.updateMagicPill();
