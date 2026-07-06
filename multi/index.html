@@ -1048,6 +1048,14 @@ body.opt-scanning #gridRows .price-card:not(.booked),
 body.group-scanning #gridRows .price-card:not(.booked) { animation: strokeSweep 2.2s ease-in-out infinite; animation-delay: var(--swd, 0s); } /* group-scanning = the same shimmer, staggered by ROW so it sweeps DOWN */
 body.opt-scanning #gridRows .price-card .price-val,
 body.group-scanning #gridRows .price-card .price-val { color: var(--grey-400); } /* prices step right back while the scanner reads */
+/* the left listings bar pulses IN STEP with the downward shimmer — a cell-height square behind each
+   row (open or collapsed alike), 16px off the left edge, same radius and rhythm as the cells */
+body.group-scanning #listingThumbsInner > .thumb-row { position: relative; }
+body.group-scanning #listingThumbsInner > .thumb-row::before {
+  content: ''; position: absolute; left: 16px; top: 0; height: 100%; aspect-ratio: 1 / 1;
+  border-radius: 12px; pointer-events: none;
+  animation: strokeSweep 2.2s ease-in-out infinite; animation-delay: var(--swd, 0s);
+}
 /* in optimize mode, the UNaffected prices (no wavy ring) recede to grey-600 so the opportunity cells lead */
 body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.booked):not(.blocked):not(.unavailable):not(.past) .price-val { color: var(--grey-600); }
 @keyframes strokeSweep {
@@ -6785,6 +6793,8 @@ function automateGroupingStaged() {
   document.querySelectorAll('#gridRows > .price-row').forEach(row => {
     const d = Math.max(0, (row.offsetTop - base) / 400) + 's'; // stagger by Y → the wave travels downward
     row.querySelectorAll('.price-card').forEach(c => c.style.setProperty('--swd', d));
+    const tr = document.querySelector('#listingThumbsInner > .thumb-row[data-li="' + row.dataset.li + '"]');
+    if (tr) tr.style.setProperty('--swd', d); // the left bar's pulse rides the SAME wave, row for row
   });
   document.body.classList.add('group-scanning');
   clearTimeout(automateGroupingStaged._t);
@@ -6804,21 +6814,33 @@ function setGroupsLive(target) { // FLIP the rows to ANY group arrangement (appl
   const clip = document.getElementById('groupLabelClip');
   divs.forEach(d => { d.style.opacity = '0'; });
   if (clip) clip.style.opacity = '0';
-  // FLIP: pin every surviving row at its OLD position, then release to its new one
+  // FLIP: pin every surviving row at its OLD position, then release it to its new one — in WAVES,
+  // like puzzle pieces being placed: a few slide, then one, then a few more. Wave membership is a
+  // deterministic hash of the listing, so the grid row and its thumbnail always travel TOGETHER.
   rows.forEach(r => {
     if (!document.contains(r)) return;
     const dy = (before.get(r) || 0) - r.getBoundingClientRect().top;
     if (!dy) return;
     r.style.transition = 'none'; r.style.transform = 'translateY(' + dy + 'px)';
+    r.dataset.flip = '1';
   });
+  const WAVE_GAP = 0.26, WAVES = 4;
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    rows.forEach(r => { if (!document.contains(r)) return; r.style.transition = 'transform .55s cubic-bezier(.4,0,.2,1)'; r.style.transform = ''; });
+    rows.forEach(r => {
+      if (!document.contains(r) || !r.dataset.flip) return;
+      const li = +r.dataset.li || 0;
+      const wave = (li * 7 + 3) % WAVES;                 // uneven bucket sizes → irregular, "thinking" cadence
+      const dur = 0.46 + (li % 3) * 0.08;                // slight per-piece speed variance
+      r.style.transition = 'transform ' + dur + 's cubic-bezier(.4,0,.2,1) ' + (wave * WAVE_GAP) + 's';
+      r.style.transform = '';
+    });
+    const settle = ((WAVES - 1) * WAVE_GAP + 0.62) * 1000; // last wave's delay + longest duration
     setTimeout(() => {
-      rows.forEach(r => { r.style.transition = ''; });
+      rows.forEach(r => { r.style.transition = ''; delete r.dataset.flip; });
       divs.forEach(d => { d.style.transition = 'opacity .4s ease'; d.style.opacity = '1'; });
       if (clip) { clip.style.transition = 'opacity .4s ease'; clip.style.opacity = '1'; }
       setTimeout(() => { divs.forEach(d => { d.style.transition = ''; d.style.opacity = ''; }); if (clip) { clip.style.transition = ''; clip.style.opacity = ''; } }, 450);
-    }, 580);
+    }, settle);
   }));
 }
 function animateGroupsByCity() {
@@ -8209,7 +8231,7 @@ function startOptimize() {
     } else {
       document.body.classList.remove('glow-hold');
     }
-  }, 5000);
+  }, 4000);
 }
 function exitOptimize() {
   closeOptCard();
