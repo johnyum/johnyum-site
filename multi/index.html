@@ -1087,7 +1087,7 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
   color: #fff; flex-shrink: 0; align-self: center; }
 .mopp-glyph svg { display: block; width: 40px; height: 40px; }
 .mopp-head { font: 600 16px/20px 'Cereal', sans-serif; color: #fff; white-space: normal; } /* the card's NAME — same treatment on every card */
-.mopp-head .hl { color: #30D158; } /* the premium range rides the head in the system green */
+.mopp-head .hl, .mopp-mag .hl { color: #30D158; } /* the premium range keeps the system green wherever it rides */
 /* MAGNITUDE — the "how much / to what" the card was missing. Its own tier between the name and the reason. */
 .mopp-mag { font: 400 12px/16px 'Cereal', sans-serif; color: var(--grey-500); white-space: nowrap; } /* secondary line: 12/16 Book, grey-500 */
 .mopp-mag.up, .mopp-mag.down { color: #30D158; } /* ONE green for every price move — the dark-surface sibling of #038026, legible on black. No orange. */
@@ -7943,13 +7943,15 @@ function computeSuggestions() {
           for (let k = x.a; k <= x.b; k += 2) { const d = Math.abs(marketRate(x.li, k) - base) / base; if (d < lo) lo = d; if (d > hi) hi = d; } });
         const loP = Math.max(1, Math.round(lo * 100)), hiP = Math.max(loP, Math.round(hi * 100));
         const range = loP + '% – ' + hiP + '% ' + (c.intent === 'earn' ? 'premium' : 'lower');
-        c.head = (c.intent === 'earn' ? 'High season' : 'Low season') + ' · <span class="hl">' + range + '</span>'; // label + stat — the Apply button carries the verb
         const _M3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         const dA = allDays[c.a], dB = allDays[c.b];
         const dates = _M3[dA.getMonth()] + ' ' + dA.getDate() + ' – ' + _M3[dB.getMonth()] + ' ' + dB.getDate();
         const cities = [...new Set(c.items.map(x => listingCity[x.li]))];
         const cityStr = cities.length > 3 ? cities.slice(0, 3).join(', ') + ' +' + (cities.length - 3) : cities.join(', ');
-        c.mag = dates + ' · ' + cityStr;
+        // WHAT + WHEN identify the card (the dates are what differ between season cards, and they
+        // point at the ringed cells on screen); HOW MUCH + WHERE support it below, range in green.
+        c.head = (c.intent === 'earn' ? 'High season' : 'Low season') + ' · ' + dates;
+        c.mag = '<span class="hl">' + range + '</span> · ' + cityStr;
         c.magKind = 'flat';
       }
       else if (it && it.curPrice && it.newPrice) { c.mag = '$' + it.curPrice + ' → ~$' + it.newPrice + ' a night'; }
