@@ -4319,6 +4319,15 @@ window.addEventListener('resize', updateVSync); // keep the scroll-sync range co
 // Listing-photo hover pill (name-on-hover) removed — the ⋯ options menu covers listing actions now.
 
 // Today button
+// ← / → on the keyboard = the header's prev/next arrows (unless you're typing somewhere)
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  const btn = document.getElementById(e.key === 'ArrowLeft' ? 'calPrev' : 'calNext');
+  if (btn && btn.offsetParent) { e.preventDefault(); btn.click(); }
+});
 document.getElementById('todayBtn').addEventListener('click', () => {
   if (document.body.classList.contains('super-collapse-2')) { goToMonthPage(monthStartOf(todayDi), true); return; } // month pager → today's month
   if (calendarView === 'month') { gridWrap.scrollTo({ left: 0, behavior: 'smooth' }); return; }
