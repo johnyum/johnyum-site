@@ -1241,7 +1241,7 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
 .price-card.opt-flag:not(.opt-focus):not(.opt-applied) .wring .wpath { stroke: var(--grey-400); }
 body.optimize-mode:not(.opt-scanning) .price-card.opt-flag:not(.opt-focus):not(.opt-applied) .price-val { color: var(--grey-600); }
 /* hold the wave back during scan / fly-to (matches the old glow-hold) */
-body.glow-hold .price-card.opt-flag.opt-focus .wring, body.opt-scanning .price-card.opt-flag .wring { opacity: 0; }
+body.opt-scanning .price-card.opt-flag .wring { opacity: 0; } /* rings only hide during the initial scan — focusing NEVER blanks them */
 /* Opportunities mode gives Medium & Pro rows more room (72px) so the odometer/ring breathe; Small
    keeps its roomy 96px, Month (SC2) untouched. body.opt-sizing arms the grow/shrink transition. */
 body.opt-sizing .price-row, body.opt-sizing .thumb-row { transition: height .4s cubic-bezier(.4,0,.2,1); }
@@ -5270,7 +5270,7 @@ function startDrag(e) {
         o.cur = idx; renderMagicPill();
         document.body.classList.add('glow-hold', 'opt-beat');
         repaintOptGlows(); replayFocusedType(o.suggs[idx]);
-        setTimeout(() => { document.body.classList.remove('glow-hold'); startWaveRamps('.opt-focus');
+        setTimeout(() => { document.body.classList.remove('glow-hold');
           setTimeout(() => document.body.classList.remove('opt-beat'), 500); }, 120);
       }
     }
@@ -8538,8 +8538,7 @@ function makeWring(card) {
   // amplitude ramp: a cell mounted while the group is already revealed shows the full wave at once;
   // cells present at reveal start STRAIGHT (amp 0) and ripple out when startWaveRamps() fires.
   const b = document.body.classList;
-  const gated = b.contains('opt-scanning') || (b.contains('glow-hold') && card.classList.contains('opt-focus'));
-  const revealed = b.contains('optimize-mode') && !gated;
+  const revealed = b.contains('optimize-mode') && !b.contains('opt-scanning');
   svg._amp = revealed ? 2 : 0; svg._ampGo = revealed;
   measureWring(svg); if (_wRO) _wRO.observe(svg);
 }
@@ -9030,7 +9029,7 @@ function focusOpportunity() {
   document.body.classList.add('glow-hold', 'opt-beat');
   repaintOptGlows();       // moves .opt-focus to this card; everything else stays put, settled
   replayFocusedType(g);    // this section's type re-animates on arrival
-  scrollToOpportunity(g, () => setTimeout(() => { document.body.classList.remove('glow-hold'); setTimeout(() => startWaveRamps('.opt-focus'), 200); setTimeout(() => document.body.classList.remove('opt-beat'), 750); }, 180));
+  scrollToOpportunity(g, () => setTimeout(() => { document.body.classList.remove('glow-hold'); setTimeout(() => document.body.classList.remove('opt-beat'), 750); }, 180)); // rings stay put — they recolour + wake in place; only the TYPE re-reveals
 }
 function applyOne(id) { // the suggestion card's Apply → same flow as the pill's
   const o = window.__opt; const i = o.suggs.findIndex(x => x.id === id); if (i < 0) return;
