@@ -381,14 +381,8 @@ body.row-reordering .thumb-row { cursor: grabbing; }
   transition: opacity .12s ease;
 }
 .thumb-row.row-dragging { cursor: grabbing; }
-/* ── GROUPS MODE: a drag handle slides in left of every thumbnail (24×24, on the page's left rail,
-   12px to the picture). Dragging it lifts the whole listing; dropping on another listing groups
-   them live. ── */
-.thumb-row .drag-handle { flex: 0 0 auto; width: 0; margin-right: 0; opacity: 0; overflow: hidden;
-  display: inline-flex; align-items: center; justify-content: center; height: 24px; cursor: grab;
-  touch-action: none; transition: width .3s cubic-bezier(.4,0,.2,1), margin-right .3s cubic-bezier(.4,0,.2,1), opacity .25s ease; }
-body.groups-mode .thumb-row .drag-handle { width: 24px; margin-right: 12px; opacity: 1; }
-.thumb-row .drag-handle svg { width: 24px; height: 24px; display: block; flex: 0 0 auto; }
+/* ── GROUPS MODE: the whole listing row (picture + name) is the drag surface. Dragging lifts the
+   listing; dropping on another listing's middle groups them live, gaps just reorder. ── */
 .thumb-row.group-dragging { opacity: 1; z-index: 30; background: #fff; border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.16); cursor: grabbing; }
 .price-row.group-dragging-grid { opacity: .35; transition: opacity .12s ease; }
@@ -3966,7 +3960,6 @@ function render(preserveScroll) {
     row.className = 'thumb-row';
     row.dataset.li = i;
     row.innerHTML = `
-      <span class="drag-handle" aria-label="Drag to group"><svg viewBox="0 -960 960 960" width="24" height="24" fill="#1F1F1F"><path d="M160-360v-80h640v80H160Zm0-160v-80h640v80H160Z"/></svg></span>
       <div class="thumb-img"><img src="${listing.img}" alt="" loading="lazy"></div>
       <div class="thumb-info">
         <div class="thumb-name">${listing.name}</div>
@@ -6577,7 +6570,6 @@ function positionLeftToggle() {
 
   inner.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
-    if (e.target.closest('.drag-handle')) return;  // the handle runs the drop-to-GROUP flow instead
     const row = e.target.closest('.thumb-row');
     if (!row) return;                          // group dividers / labels aren't draggable rows
     li = +row.dataset.li; rowEl = row; startY = curY = e.clientY;
@@ -6655,10 +6647,10 @@ function positionLeftToggle() {
   let target = null, insBefore = null, indicator = null, tip = null;
   const rows = () => [...inner.querySelectorAll('.thumb-row')].filter(r => r !== rowEl);
   inner.addEventListener('pointerdown', e => {
-    const h = e.target.closest('.drag-handle');
-    if (!h || e.button !== 0 || !document.body.classList.contains('groups-mode')) return;
+    if (e.button !== 0 || !document.body.classList.contains('groups-mode')) return;
+    const row = e.target.closest('.thumb-row'); if (!row) return;
     e.preventDefault(); e.stopPropagation();   // capture phase — the plain reorder flow never sees it
-    rowEl = h.closest('.thumb-row'); li = +rowEl.dataset.li; startY = e.clientY; started = false;
+    rowEl = row; li = +rowEl.dataset.li; startY = e.clientY; started = false;
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp, { once: true });
   }, true);
