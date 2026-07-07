@@ -8361,9 +8361,13 @@ function computeSuggestions() {
       title: 'Unlock ' + tot + ' stranded night' + (tot > 1 ? 's' : ''),
       why: tot + ' night' + (tot > 1 ? 's are' : ' is') + ' wedged in gaps too short for your minimums, so no one can book them. Open them up just here.' });
   }
-  // (5) SMART DISCOUNTS (setup lane) — last-minute + early-bird as ONE switch card; shows only while off
+  // (5) SMART DISCOUNTS (setup lane) — last-minute + early-bird as ONE switch card; shows only while off.
+  // EARLY-BIRD skips any listing already getting a low-season price CUT in this stream — a night
+  // shouldn't take a seasonal cut and a lead-time discount back to back. Last-minute stays for
+  // everyone (it fills a different, near-term window).
+  const _dropLis = new Set(cards.filter(c => c.type === 'drop').flatMap(c => c.items.map(x => x.li)));
   LISTINGS.forEach((l, li) => {
-    if (earlyBirdVals[li] == null) setupItems.push({ li, a: Math.max(0, todayDi), b: Math.min(N - 1, todayDi + NEAR_DAYS), intent: 'fill', type: 'earlybird' });
+    if (earlyBirdVals[li] == null && !_dropLis.has(li)) setupItems.push({ li, a: Math.max(0, todayDi), b: Math.min(N - 1, todayDi + NEAR_DAYS), intent: 'fill', type: 'earlybird' });
   });
   if (setupItems.length) {
     cards.push({ bucket: 'setup', type: 'discount', intent: 'fill', pct: 0.15,
@@ -8427,7 +8431,7 @@ function computeSuggestions() {
         c.magKind = 'flat';
       };
       if (c.bucket === 'grouping') { c.mag = 'Groups alike listings automatically. Edit anytime.'; c.magKind = 'flat'; return; }
-      else if (c.bucket === 'setup') { c.mag = 'Early-bird −12% · Last-minute −15%'; c.magKind = 'flat'; }
+      else if (c.bucket === 'setup') { c.mag = c.items.some(x => x.type === 'earlybird') ? 'Early-bird −12% · Last-minute −15%' : 'Last-minute −15%'; c.magKind = 'flat'; }
       else if (c.bucket === 'season-up' || c.bucket === 'season-down') {
         c.head = c.intent === 'earn' ? 'Set high season prices' : 'Set low season prices';
         magLine(2, c.intent === 'earn' ? 'premium' : 'lower'); // long windows — every-other-night sample
