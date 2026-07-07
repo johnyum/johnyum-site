@@ -1291,6 +1291,9 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
 .mnav-in svg { display: block; width: 24px; height: 24px; }
 .mnav-in.prev { margin-right: 4px; } /* 12px flex gap + 4px = 16px to the content */
 .mnav-in.next { margin-left: -4px; } /* 12px flex gap − 4 = 8px Apply → arrow */
+/* the month header carries NO chevrons: the title's ⌄ and the round › listing-names toggle are gone */
+.month-title svg { display: none !important; }
+.left-toggle { display: none !important; }
 /* rides .bp-close, DARK skin */
 .bp-close.magic-close { top: -44px; right: -44px; /* its offset box is inset 20px from the pill edge → −44 here = the QA pill's exact −24 float */ background: #000; color: #fff; box-shadow: 0 0 0 1px rgba(255,255,255,0.16), 0 4px 14px rgba(0,0,0,0.32); } /* IDENTICAL float to the QA pill's X (−24/−24 off the pill corner) — every modal shares one X spacing */
 
@@ -2259,6 +2262,7 @@ body.optimize-mode .price-card.opt-flag .disc-badge { display: none; } /* a FLAG
   white-space: nowrap;
   margin-top: 2px;
 }
+.price-card .min-badge s { margin-right: 4px; } /* "min 4̶ 1" — the struck old minimum never touches the new one */
 /* Opportunity min-night change: the badge force-shows JUST on the focused dates (even when hidden by
    default under "No Min") and slides in after the glow bloom — current minimum struck, suggested
    nights beside it ("min 7̶ 5"). glow-hold keeps it back until the camera is still, like the glow. */
@@ -4127,7 +4131,7 @@ function render(preserveScroll) {
     hdr.querySelectorAll('.date-cell').forEach(dc => {
       const dd = allDays[+dc.dataset.di]; if (!dd) return;
       const dow = dd.getDay();
-      if (!(dow === 5 || dow === 6 || dow === 0) || holidayFor(dd)) return; // a primary holiday icon owns the slot
+      if (!(dow === 5 || dow === 6 || dow === 0) || holidayFor(dd) || secondaryHolidayFor(dd)) return; // ANY holiday icon (primary or secondary) owns the slot — no dot underneath
       const dot = document.createElement('span'); dot.className = 'wknd-dot';
       dot.style.left = (dc.offsetLeft + dc.offsetWidth / 2) + 'px';
       wrap.appendChild(dot);
@@ -8564,7 +8568,7 @@ function computeSuggestions() {
   });
   // GROUPING — onboarding step 1 (before any pricing): auto-group the portfolio so every later
   // apply covers whole groups. No cells to flag; Apply runs the staged Automate-group flow.
-  if (onboarding && typeof hasRealGroups === 'function' && !hasRealGroups()) {
+  if (typeof hasRealGroups === 'function' && !hasRealGroups()) { // EVERY surface: no groups → offer Automate first
     cards.push({ bucket: 'grouping', type: 'grouping', intent: 'fill', items: [],
       a: Math.max(0, todayDi), b: Math.max(0, todayDi),
       head: 'Create groups', cta: 'Automate',
@@ -8813,7 +8817,11 @@ function buildFlags(groups) { // only the groups passed in glow — the focus mo
     const roll = it.type === 'raise' ? { dir: 'up', pct: it.pct, market: true } : it.type === 'drop' ? { dir: 'dn', pct: it.pct, market: !it.near } : null;
     const disc = it.type === 'promo' ? '\u2212' + Math.round(it.pct * 100) + '%'
                : it.type === 'discount' ? '\u221215%' : it.type === 'earlybird' ? '\u221212%' : null;
-    for (let k = it.a; k <= it.b; k++) { const key = it.li + ':' + k; if (!m.has(key)) m.set(key, { id: g.id, intent: g.intent, min, roll, disc }); }
+    const unavail = min == null ? computeUnavailable(it.li) : null; // price plays skip unsellable nights; min plays TARGET them
+    for (let k = it.a; k <= it.b; k++) {
+      if (unavail && unavail.has(k) && !(hostBlocked[it.li] && hostBlocked[it.li].has(k))) continue;
+      const key = it.li + ':' + k; if (!m.has(key)) m.set(key, { id: g.id, intent: g.intent, min, roll, disc });
+    }
   }));
   window.__opt.flags = m;
 }
@@ -9442,6 +9450,21 @@ function _searchDayRanges(expr, lis) {
   e = e.replace(/\s+months?$/, '').replace(/^the\s+/, ''); // "summer months" → "summer"
   const inYear = d => year == null || d.getFullYear() === year;
   if (!e && year != null) return _searchRuns(d => d.getFullYear() === year); // "select 2027" — the whole year
+  // "august and nov" / "june, july & sept" — a LIST selects exactly those parts (union), nothing
+  // between. Split the RAW string — the cleanup below folds commas into spaces and would glue parts.
+  const eRaw = (ym ? expr.replace(ym[0], '') : expr).trim();
+  if (/(?:,|\band\b|&|\+)/.test(eRaw)) {
+    const parts = eRaw.split(/\s*(?:,|\band\b|&|\+)\s*/).filter(Boolean);
+    if (parts.length >= 2) {
+      const all = [];
+      for (const p of parts) {
+        const r = _searchDayRanges(p + (year != null ? ' ' + year : ''), lis);
+        if (!Array.isArray(r) || !r.length) { all.length = 0; break; } // EVERY part must resolve or it's not a list
+        all.push(...r);
+      }
+      if (all.length) return all.sort((x, y) => x.a - y.a);
+    }
+  }
   // "weekends / weekdays (in july / in summer)" — weekend = Fri+Sat+Sun (the rule-dot trio); weekday = Mon–Thu
   const wm = e.match(/^(weekends?|weekdays?)(?:\s+(?:in|of)\s+(.+))?$/);
   if (wm) {
@@ -9497,8 +9520,9 @@ function _searchDayRanges(expr, lis) {
     return _searchRuns(d => inYear(d) && lis.some(li => { const dm = monthlyDemand[li][d.getMonth()];
       return high ? dm >= 74 : dm <= 49; }));
   }
-  // a plain month → the whole month (every occurrence unless a year narrows it)
-  const mi = _searchMonthIdx(e);
+  // a plain month → the whole month (every occurrence unless a year narrows it).
+  // SINGLE word only — "august to nov" must fall through to the range parser, not match August.
+  const mi = e.includes(' ') ? -1 : _searchMonthIdx(e);
   if (mi >= 0) return _searchRuns(d => inYear(d) && d.getMonth() === mi);
   // "holidays" → EVERY holiday's banded window on the calendar
   if (/^holidays?$/.test(e)) {
@@ -9696,14 +9720,33 @@ function searchCalendar(raw, after) {
   // Two parseable dates around a dash/"to" select the whole span; SINGLE dates stay navigation.
   {
     const rm = ql.match(/^(.+?)\s+(?:[-–—]|to|through|thru)\s+(.+)$/) || ql.match(/^([^-–—]+)[-–—]([^-–—]+)$/);
-    if (rm && /\d/.test(rm[1]) && /\d/.test(rm[2])) {
-      let a = _searchParseDayIdx(rm[1], null);
-      let b = a >= 0 ? _searchParseDayIdx(rm[2], a) : -1;
+    const _partOk = p => /\d/.test(p) || _searchMonthIdx(p.trim()) >= 0;
+    // a month-name part resolves to the month's FIRST day as a start, LAST day as an end
+    const _parsePart = (p, afterDi, isEnd) => {
+      p = p.trim();
+      if (!/\d/.test(p)) {
+        const mi = _searchMonthIdx(p);
+        if (mi < 0) return -1;
+        const hits = []; allDays.forEach((d, k) => { if (d.getMonth() === mi) hits.push(k); });
+        if (!hits.length) return -1;
+        if (!isEnd) { const st = hits.filter(k => allDays[k].getDate() === 1 && k >= (afterDi ?? Math.max(0, todayDi)));
+          return st.length ? st[0] : (hits.find(k => k >= (afterDi ?? Math.max(0, todayDi))) ?? hits[0]); }
+        const past = hits.filter(k => k >= (afterDi ?? 0));
+        if (!past.length) return -1;
+        const mEnd = []; past.forEach(k => { const d = allDays[k]; const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+          if (d.getDate() === last || k === allDays.length - 1) mEnd.push(k); });
+        return mEnd.length ? mEnd[0] : past[past.length - 1];
+      }
+      return _searchParseDayIdx(p, afterDi);
+    };
+    if (rm && _partOk(rm[1]) && _partOk(rm[2])) {
+      let a = _parsePart(rm[1], null, false);
+      let b = a >= 0 ? _parsePart(rm[2], a, true) : -1;
       // "July 4 – Aug 15" typed three days after July 4 means THIS summer, not next year's:
       // if the start just passed but the range would still be running, prefer the in-progress one
       if (a > Math.max(0, todayDi)) {
-        const a0 = _searchParseDayIdx(rm[1], 0);
-        if (a0 >= 0 && a0 < a) { const b0 = _searchParseDayIdx(rm[2], a0);
+        const a0 = _parsePart(rm[1], 0, false);
+        if (a0 >= 0 && a0 < a) { const b0 = _parsePart(rm[2], a0, true);
           if (b0 >= Math.max(0, todayDi)) { a = a0; b = b0; } }
       }
       if (a >= 0 && b >= 0) {
@@ -10007,6 +10050,15 @@ function searchCalendar(raw, after) {
         const hit = gs.find(b => b.start + b.nights - 1 >= minDi) || gs[gs.length - 1];
         if (hit) { const ok = searchGoto(hit.start, hit.listing); _searchHint += ' \u00b7 ' + hit.guest; return ok; }
       }
+    }
+  }
+  // a LIST — "august and nov": fly to the first part, offer one-tap Select for the union
+  if (/(?:,|\band\b|&|\+)/.test(ql)) {
+    const rg = (() => { try { return _searchDayRanges(ql, LISTINGS.map((_, i) => i)); } catch (err) { return null; } })();
+    if (Array.isArray(rg) && rg.length) {
+      const run = rg.find(r => r.b >= minDi) || rg[0];
+      _searchCanSelect = true;
+      return searchGoto(Math.max(run.a, run.b >= minDi ? minDi : run.a), null, true);
     }
   }
   // a real date, LAST — "Mar 13, 2024", "3/13/2027": exact day if in range, else that month+day
