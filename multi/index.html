@@ -6748,20 +6748,25 @@ function buildGroupEventIcons() {
     DEMAND_EVENTS.slice().sort((x, y) => y[4] - x[4]).forEach(ev => {
       const [name, city, sIso, eIso, boost, icon, sec, status] = ev;
       if (!cities.has(city) || !icon) return;
-      const [w0, w1] = eventTravelWindow(new Date(sIso + 'T00:00'), new Date(eIso + 'T00:00'));
-      const days = [];
+      const s0 = new Date(sIso + 'T00:00'), e0 = new Date(eIso + 'T00:00');
+      const [w0, w1] = eventTravelWindow(s0, e0);
+      const sKey = _evDayKey(s0);
+      let days = [];
       for (let x = new Date(w0); x <= w1; x.setDate(x.getDate() + 1)) {
-        const di = diBy.get(_evDayKey(x)); if (di != null) days.push(di);
+        const di = diBy.get(_evDayKey(x)); if (di != null) days.push({ di, primary: _evDayKey(x) === sKey });
       }
       if (!days.length) return;
-      const runCap = (days.length > 14) ? 7 : days.length; // long ambient runs: a week of accents, then quiet
-      days.slice(0, runCap).forEach((di, i) => {
+      if (days.length > 14) { // long ambient runs: the headline day + a week, then quiet
+        const pi = Math.max(0, days.findIndex(d => d.primary));
+        days = days.slice(pi, pi + 7);
+      }
+      days.forEach(({ di, primary }) => {
         if (taken.has(di)) return;
-        const src = i === 0 ? icon : sec;
-        if (!src) { if (i === 0) return; return; } // no secondary art → primary only
+        const src = primary ? icon : sec;
+        if (!src) return; // no secondary art → primary only (single-day events)
         taken.add(di);
         const img = document.createElement('img');
-        img.className = 'gev ' + (i === 0 ? 'gev-primary' : 'gev-secondary') + (status === 'estimated' ? ' gev-tentative' : '');
+        img.className = 'gev ' + (primary ? 'gev-primary' : 'gev-secondary') + (status === 'estimated' ? ' gev-tentative' : '');
         img.src = src; img.alt = name; img.loading = 'lazy';
         img.style.left = (rowOffsets[di] + cellW / 2) + 'px';
         img.style.top = cy + 'px';
