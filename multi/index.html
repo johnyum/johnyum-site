@@ -8604,9 +8604,14 @@ function _gmHintHide(learned) {
   document.getElementById('groupHint')?.remove();
   document.querySelectorAll('.gm-hint-row').forEach(r => r.classList.remove('gm-hint-row'));
 }
-function _gmHintShow() {
-  if (window._gmHintDone || document.getElementById('groupHint')) return;
-  try { if (localStorage.getItem('mhc_dragedu') === '1') { window._gmHintDone = true; return; } } catch (err) {}
+function _gmHintShow(force) {
+  // the grouping card ("Get started") ALWAYS coaches — force skips the learned flag;
+  // the ambient default-calendar coach retires forever after the first real drag.
+  if (document.getElementById('groupHint')) return;
+  if (!force) {
+    if (window._gmHintDone) return;
+    try { if (localStorage.getItem('mhc_dragedu') === '1') { window._gmHintDone = true; return; } } catch (err) {}
+  }
   if (!document.querySelector('#listingThumbsInner .thumb-row')) return;
   const hint = document.createElement('div'); hint.id = 'groupHint'; hint.className = 'show';
   hint.innerHTML = '<span class="kbd">Drag and drop</span>listings to group<span class="shift-x" role="button" aria-label="Dismiss"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1.875 1.875L6 6M6 6L10.125 10.125M6 6L10.125 1.875M6 6L1.875 10.125" stroke="white" stroke-width="1.5"/></svg></span>';
@@ -8624,7 +8629,7 @@ function setGroupsMode(on) {
   document.body.classList.toggle('groups-mode', on);
   if (!on) _gmHintHide(false);
   if (on) {
-    requestAnimationFrame(_gmHintShow); // after the panel opens, so the text edge is measured expanded
+    requestAnimationFrame(() => _gmHintShow(true)); // the guided moment always coaches; placed after the panel opens
     _gmPrevExpanded = document.body.classList.contains('listings-expanded'); setListingsExpanded(true);
     // everything opens: any collapsed group (incl. "More") expands so every row is on the table
     let woke = false;
