@@ -9505,6 +9505,21 @@ function _searchDayRanges(expr, lis) {
       ? (d.getDay() === 5 || d.getDay() === 6 || d.getDay() === 0)
       : (d.getDay() >= 1 && d.getDay() <= 4)));
   }
+  // "blocked" · "all blocked dates" · "blocked dates in jan" — the host-blocked nights (per listing)
+  {
+    const blm = e.match(/^(?:all\s+)?blocked(?:\s+(?:dates?|nights?|days?))?(?:\s+(?:in|of)\s+(.+))?$/);
+    if (blm) {
+      let within = () => true;
+      if (blm[1]) {
+        const w = blm[1].trim(), mi2 = _searchMonthIdx(w);
+        const s2 = Object.keys(_SEASON_MONTHS).find(x => _fuzzyWord(x, w));
+        if (mi2 >= 0) within = d => d.getMonth() === mi2;
+        else if (s2) within = d => _SEASON_MONTHS[s2].includes(d.getMonth());
+        else return null;
+      }
+      return { perLi: li => _searchRuns((d, k) => inYear(d) && within(d) && hostBlocked[li] && hostBlocked[li].has(k)) };
+    }
+  }
   if (/^(?:first\s+|next\s+)?open\s+weekends?$/.test(e))
     return { perLi: li => { const rs = []; for (let k = 0; k + 1 < allDays.length; k++) {
       if (allDays[k].getDay() === 5 && isOpenNight(li, k) && isOpenNight(li, k + 1) && inYear(allDays[k])) rs.push({ a: k, b: k + 1 }); } return rs; } };
@@ -10295,10 +10310,6 @@ function searchCalendar(raw, after) {
         if (best) { const n = best.b - best.a + 1;
           _searchHint = '→ ' + n + ' open night' + (n > 1 ? 's' : '') + ' · ' + LISTINGS[best.li].name; return searchGoto(best.a, best.li); }
       }
-    }
-    if (/^(?:next )?blocked$/.test(ql)) {
-      for (let k = minDi; k < N2; k++) for (let li = 0; li < LISTINGS.length; li++)
-        if (hostBlocked[li] && hostBlocked[li].has(k)) return searchGoto(k, li);
     }
     if (/^empty week$/.test(ql)) {
       for (let k = minDi; k < N2 - 6; k++) for (let li = 0; li < LISTINGS.length; li++) {
