@@ -1071,6 +1071,15 @@ body.magic-active #gridRows, body.magic-active #listingThumbsInner, body.magic-a
 /* where the search landed: the date-header column pulses once */
 .date-cell.search-hit { animation: searchHitPulse 2s ease; border-radius: 12px; }
 @keyframes searchHitPulse { 0%, 30% { background: var(--grey-100); } 100% { background: transparent; } }
+/* result hint — a small white pill floating above the search pill after every Enter:
+   "→ Sep 7, 2026 · Labor Day", "→ 16 nights · 2 listings", "No match". Enter again cycles. */
+.sp-hint {
+  position: absolute; bottom: calc(100% + 8px); left: 0;
+  background: #fff; color: #222; font: 400 12px 'Cereal', sans-serif; white-space: nowrap;
+  padding: 6px 12px; border-radius: 999px; box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+  opacity: 0; transition: opacity .2s ease; pointer-events: none; z-index: 2;
+}
+.sp-hint.show { opacity: 1; }
 .magic-pill { /* idle: a 72×72 white CIRCLE (just the wand); hover unfurls the label, states morph from here */
   display: inline-flex; align-items: center; height: 72px; padding: 0;
   background: #fff; color: #111; border-radius: 999px; white-space: nowrap;
@@ -2903,8 +2912,9 @@ body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.se
      flies the calendar to whatever it names (month, year, date, event, holiday, guest, $price). -->
 <div class="multi-action magic-action" id="magicAction">
   <div class="multi-action-inner">
+    <span class="sp-hint" id="searchPillHint"></span>
     <div class="search-pill" id="searchPill">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="#222" stroke-width="2"/><path d="M15.5 15.5L21 21" stroke="#222" stroke-width="2" stroke-linecap="round"/></svg>
+      <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M20.666 20.6641L30.666 30.6641" stroke="#222222" stroke-width="2"/><path d="M24.0007 12.6653C24.0007 18.9246 18.9266 23.9987 12.6673 23.9987C6.40808 23.9987 1.33398 18.9246 1.33398 12.6653C1.33398 6.40613 6.40808 1.33203 12.6673 1.33203C18.9266 1.33203 24.0007 6.40613 24.0007 12.6653Z" stroke="#222222" stroke-width="2"/></svg>
       <input id="searchPillInput" type="text" placeholder="Search calendar" autocomplete="off" spellcheck="false">
     </div>
     <div class="magic-pill" id="magicPill"></div>
@@ -9356,9 +9366,133 @@ const _fuzzyName = (name, q) => {
   const qw = String(q).split(/[^a-z0-9]+/).filter(Boolean);
   return qw.length > 0 && qw.every(x => nw.some(w => _fuzzyWord(w, x)));
 };
+const _MONTHS_FULL = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+const _SEASON_MONTHS = { summer: [5, 6, 7], winter: [11, 0, 1], spring: [2, 3, 4], fall: [8, 9, 10], autumn: [8, 9, 10] };
+// month-name matcher shared by navigation and the Select grammar (typo-tolerant, "septmeebr" hits)
+function _searchMonthIdx(w) {
+  if (!w || /\d/.test(w)) return -1;
+  return _MONTHS_FULL.findIndex(mn => mn.startsWith(w) || w.startsWith(mn)
+    || (w.length >= 4 && mn.slice(0, 4) === w.slice(0, 4))
+    || (w.length >= 5 && _levDist(mn, w) <= 2));
+}
+// contiguous day-index runs where pred(day, di) holds
+function _searchRuns(pred) {
+  const rs = []; let s = -1;
+  for (let k = 0; k < allDays.length; k++) {
+    if (pred(allDays[k], k)) { if (s < 0) s = k; }
+    else if (s >= 0) { rs.push({ a: s, b: k - 1 }); s = -1; }
+  }
+  if (s >= 0) rs.push({ a: s, b: allDays.length - 1 });
+  return rs;
+}
+// Resolve a TIME EXPRESSION to day ranges: seasons ("summer"), months ("july"), "weekends (in …)",
+// "high/low season" (the scoped listings' demand curves), holidays, events (every instance).
+// Returns [{a, b, city?}] or null; an event range carries its city so the caller can auto-scope.
+function _searchDayRanges(expr, lis) {
+  const ym = expr.match(/\b(19|20)\d{2}\b/); const year = ym ? +ym[0] : null;
+  let e = (ym ? expr.replace(ym[0], '') : expr).replace(/[,\s]+/g, ' ').trim();
+  e = e.replace(/\s+months?$/, '').replace(/^the\s+/, ''); // "summer months" → "summer"
+  const inYear = d => year == null || d.getFullYear() === year;
+  // "weekends (in july / in summer)" — Fri+Sat nights within the qualifier
+  const wm = e.match(/^weekends?(?:\s+(?:in|of)\s+(.+))?$/);
+  if (wm) {
+    let within = () => true;
+    if (wm[1]) {
+      const w = wm[1].trim(), mi = _searchMonthIdx(w);
+      const sea = Object.keys(_SEASON_MONTHS).find(s => _fuzzyWord(s, w));
+      if (mi >= 0) within = d => d.getMonth() === mi;
+      else if (sea) within = d => _SEASON_MONTHS[sea].includes(d.getMonth());
+      else return null;
+    }
+    return _searchRuns(d => inYear(d) && within(d) && (d.getDay() === 5 || d.getDay() === 6));
+  }
+  // "gaps" / "open nights" (optionally "in <month|season>") — PER-LISTING runs: a gap is an open
+  // run bounded by bookings on both sides; windowing intersects each run afterwards
+  const om = e.match(/^(gaps?|open(?:\s+nights?)?|unbooked(?:\s+nights?)?)(?:\s+(?:in\s+|of\s+)?(.+))?$/);
+  if (om) {
+    let within = () => true;
+    if (om[2]) {
+      const w = om[2].trim(), mi2 = _searchMonthIdx(w);
+      const sea2 = Object.keys(_SEASON_MONTHS).find(s => _fuzzyWord(s, w));
+      if (mi2 >= 0) within = d => d.getMonth() === mi2;
+      else if (sea2) within = d => _SEASON_MONTHS[sea2].includes(d.getMonth());
+      else return null;
+    }
+    const wantGap = /^gap/.test(om[1]);
+    return { perLi: li => {
+      const bk = bookedDays(li);
+      const runs = _searchRuns((d, k) => isOpenNight(li, k));
+      const use = wantGap ? runs.filter(r => r.a > 0 && bk.has(r.a - 1) && r.b < allDays.length - 1 && bk.has(r.b + 1)) : runs;
+      const out = [];
+      use.forEach(r => { let s = -1;
+        for (let k = r.a; k <= r.b; k++) {
+          const ok2 = within(allDays[k]) && inYear(allDays[k]);
+          if (ok2 && s < 0) s = k;
+          if (s >= 0 && (!ok2 || k === r.b)) { out.push({ a: s, b: ok2 ? k : k - 1 }); s = -1; }
+        } });
+      return out;
+    } };
+  }
+  // quarters — "q3", "q1 2027"
+  const qm2 = e.match(/^q([1-4])$/);
+  if (qm2) return _searchRuns(d => inYear(d) && Math.floor(d.getMonth() / 3) === qm2[1] - 1);
+  // a season → every day of its months, EVERY in-range occurrence ("all summer months")
+  const sea = e.split(' ').length === 1 && Object.keys(_SEASON_MONTHS).find(s => _fuzzyWord(s, e));
+  if (sea) return _searchRuns(d => inYear(d) && _SEASON_MONTHS[sea].includes(d.getMonth()));
+  // high/low season — a month qualifies when ANY scoped listing's demand curve says so
+  if (/^(?:high|peak|busy)(?: season)?$/.test(e) || /^(?:low|slow|quiet)(?: season)?$/.test(e)) {
+    const high = /^(?:high|peak|busy)/.test(e);
+    return _searchRuns(d => inYear(d) && lis.some(li => { const dm = monthlyDemand[li][d.getMonth()];
+      return high ? dm >= 74 : dm <= 49; }));
+  }
+  // a plain month → the whole month (every occurrence unless a year narrows it)
+  const mi = _searchMonthIdx(e);
+  if (mi >= 0) return _searchRuns(d => inYear(d) && d.getMonth() === mi);
+  // a holiday → its banded window(s) (the same offsets the calendar marks)
+  const hol = HOLIDAYS.find(h => _fuzzyName(h.name, e));
+  if (hol) {
+    const rs = [];
+    [...new Set(allDays.map(d => d.getFullYear()))].forEach(y => {
+      if (year != null && y !== year) return;
+      const hd = holidayDateInYear(hol, y);
+      const k = allDays.findIndex(d => d.toDateString() === hd.toDateString());
+      if (k < 0) return;
+      const offs = hol.secOffsets || secondaryOffsets(hd.getDay());
+      rs.push({ a: Math.max(0, k + Math.min(0, ...offs)), b: Math.min(allDays.length - 1, k + Math.max(0, ...offs)) });
+    });
+    return rs.length ? rs : null;
+  }
+  // an event → every instance's travel window (Coachella = BOTH weekends), tagged with its city
+  const rs = [];
+  DEMAND_EVENTS.forEach(ev => {
+    const [name, city, sIso, eIso] = ev;
+    if (!_fuzzyName(name, e)) return;
+    const s0 = new Date(sIso + 'T00:00'), e0 = new Date(eIso + 'T00:00');
+    if (year != null && s0.getFullYear() !== year) return;
+    const [w0, w1] = eventWindowFor(name, s0, e0);
+    let a = -1, b = -1;
+    allDays.forEach((d, k) => { if (d >= w0 && d <= w1) { if (a < 0) a = k; b = k; } });
+    if (a >= 0) rs.push({ a, b, city });
+  });
+  return rs.length ? rs : null;
+}
+let _searchHint = '';       // set by whichever branch matched; searchGoto fills a date default
+let _searchLastQ = '';      // Enter on the SAME query cycles to the next match
+let _searchLastDi = -1;
+// vertical-only: centre a listing's row without moving the dates (bare city/listing/group queries)
+function _searchRow(li) {
+  const row = document.querySelector('#gridRows > .price-row[data-li="' + li + '"]');
+  if (!row) return false;
+  const rr = row.getBoundingClientRect(), wr = gridWrap.getBoundingClientRect();
+  gridWrap.scrollTo({ top: Math.max(0, gridWrap.scrollTop + (rr.top - wr.top) - (gridWrap.clientHeight / 2 - rr.height / 2)), behavior: 'smooth' });
+  return true;
+}
 // fly the grid to a date column (and optionally centre a listing row), then pulse the date header
 function searchGoto(di, li) {
   di = Math.max(0, Math.min(allDays.length - 1, di));
+  _searchLastDi = di;
+  if (!_searchHint) { const d = allDays[di];
+    _searchHint = '→ ' + _MONTHS_FULL[d.getMonth()].replace(/^./, c => c.toUpperCase()).slice(0, 3) + ' ' + d.getDate() + ', ' + d.getFullYear(); }
   const vw = gridWrap.clientWidth || window.innerWidth;
   const left = Math.max(0, (rowOffsets[di] || 0) - Math.round(vw * 0.28));
   let top = gridWrap.scrollTop;
@@ -9378,17 +9512,248 @@ function searchGoto(di, li) {
   })();
   return true;
 }
-function searchCalendar(raw) {
+function searchCalendar(raw, after) {
   const q = String(raw || '').trim(); if (!q) return false;
-  const ql = q.toLowerCase();
+  _searchHint = '';
+  let ql = q.toLowerCase().replace(/\s+/g, ' ');
+  // everyday synonyms land on what the calendar calls them
+  const SYN = { 'xmas': 'christmas', 'nye': 'new years', 'new years eve': 'new years',
+    'turkey day': 'thanksgiving', '4th of july': 'july 4', 'fourth of july': 'july 4', 'the 4th': 'july 4' };
+  ql = SYN[ql] || ql;
   const N2 = allDays.length;
+  // Enter on the SAME query again = cycle: matches are picked strictly PAST the last landing
+  const minDi = (after != null && after >= 0) ? Math.min(N2 - 1, Math.max(Math.max(0, todayDi), after + 1)) : Math.max(0, todayDi);
+  // ── "Select …": search as a COMMAND — verb + time expression + optional "in <place>" scope.
+  // "Select all summer months in Aspen" → a REAL multi-select (the bulk-edit pill pops) + fly there.
+  const vm = ql.match(/^(?:select|highlight|grab|pick|choose)\s+(?:all\s+)?(.+)$/);
+  if (vm) {
+    let expr = vm[1].trim();
+    let lis = LISTINGS.map((_, i) => i);
+    // a trailing "in <place>" is a SCOPE only when it names a city or group on the board — otherwise
+    // it stays in the time expression. Greedy prefix binds the LAST "in", so
+    // "weekends in september in san diego" scopes to San Diego and keeps "weekends in september".
+    const sm = expr.match(/^(.+)\s+(?:in|for|across)\s+([a-z0-9 .'-]+)$/);
+    if (sm) {
+      const place = sm[2].trim();
+      const city = [...new Set(LISTINGS.map(l => l.city))].find(c => _fuzzyName(c, place));
+      const grp = typeof groups !== 'undefined' && groups.find(g => g.members && g.members.length && g.name && _fuzzyName(g.name, place));
+      if (city) { lis = LISTINGS.map((l, i) => l.city === city ? i : -1).filter(i => i >= 0); expr = sm[1].trim(); }
+      else if (grp) { lis = grp.members.slice(); expr = sm[1].trim(); }
+    }
+    const ranges = _searchDayRanges(expr, lis);
+    if (!ranges || !lis.length) return false;
+    const shared = Array.isArray(ranges); // gaps/open-nights resolve PER LISTING instead
+    // an event range knows its city — unscoped queries narrow to that city's rows automatically
+    if (shared && ranges[0].city && lis.length === LISTINGS.length) {
+      const evLis = LISTINGS.map((l, i) => ranges.some(r => r.city === l.city) ? i : -1).filter(i => i >= 0);
+      if (evLis.length) lis = evLis;
+    }
+    if (typeof clearSelection === 'function') clearSelection(); // drop any previous selection/pill first
+    selClear();
+    let first = null;
+    lis.forEach(li => (shared ? ranges : ranges.perLi(li)).forEach(r => {
+      if (r.city && LISTINGS[li].city !== r.city) return;
+      for (let k = r.a; k <= r.b; k++) if (isSelectable(li, k)) { setSel(li, k, true); if (!first || k < first.di) first = { li, di: k }; }
+    }));
+    if (!first) return false; // everything in range was past/booked
+    paintSelection(); updateClearBtn(); updateDateHeaders();
+    const selLis = new Set(selList().map(x => x.li));
+    _searchHint = '→ ' + selCount() + ' night' + (selCount() > 1 ? 's' : '') + ' · ' + selLis.size + ' listing' + (selLis.size > 1 ? 's' : '');
+    return searchGoto(first.di, first.li);
+  }
   // ($) price — "$270", "270 dollars": the next cell charging exactly that
   const pm = ql.match(/^\$\s*(\d+)$/) || ql.match(/^(\d+)\s*(?:dollars?|bucks)$/);
   if (pm) {
     const amt = +pm[1];
     const scan = (from, to) => { for (let k = from; k < to; k++) for (let li = 0; li < LISTINGS.length; li++)
       if (getPrice(li, k) === amt) return searchGoto(k, li); return false; };
-    return scan(Math.max(0, todayDi), N2) || scan(0, Math.max(0, todayDi));
+    return scan(minDi, N2) || scan(0, minDi); // Enter again → the next cell at that price (wraps)
+  }
+  // ── price comparators & superlatives: "under $250", "over 300", "between $200 and $300",
+  // "cheapest", "most expensive", "discounted"/"promo" ──
+  {
+    let cmp = null;
+    let m3 = ql.match(/^(?:under|below|less than|cheaper than)\s*\$?(\d+)$/);
+    if (m3) cmp = p => p < +m3[1];
+    if (!cmp) { m3 = ql.match(/^(?:over|above|more than)\s*\$?(\d+)$/); if (m3) cmp = p => p > +m3[1]; }
+    if (!cmp) { m3 = ql.match(/^between\s*\$?(\d+)\s*(?:and|to|[-–])\s*\$?(\d+)$/); if (m3) cmp = p => p >= +m3[1] && p <= +m3[2]; }
+    if (cmp) {
+      const scan = (from, to) => { for (let k = from; k < to; k++) for (let li = 0; li < LISTINGS.length; li++)
+        if (cmp(getPrice(li, k))) { _searchHint = '→ $' + getPrice(li, k); return searchGoto(k, li); } return false; };
+      return scan(minDi, N2) || scan(Math.max(0, todayDi), minDi);
+    }
+    if (/^(?:cheapest|lowest price)$/.test(ql) || /^(?:most expensive|highest price|priciest)$/.test(ql)) {
+      const hi = /expensive|highest|priciest/.test(ql);
+      let best = null;
+      for (let k = Math.max(0, todayDi); k < N2; k++) for (let li = 0; li < LISTINGS.length; li++) {
+        const p = getPrice(li, k);
+        if (!best || (hi ? p > best.p : p < best.p)) best = { p, k, li };
+      }
+      if (best) { _searchHint = '→ $' + best.p + (hi ? ' · highest' : ' · lowest'); return searchGoto(best.k, best.li); }
+    }
+    if (/^(?:discounted|discounts?|promos?|promotions?)$/.test(ql)) {
+      for (let k = minDi; k < N2; k++) for (let li = 0; li < LISTINGS.length; li++)
+        if (promoVals[li] && promoVals[li][k]) { _searchHint = '→ ' + Math.round(promoVals[li][k] * 100) + '% promo'; return searchGoto(k, li); }
+    }
+  }
+  // ── booking & availability states ──
+  {
+    const bkOf = li => BOOKINGS.filter(b => b.listing === li);
+    if (/^next (?:booking|check ?in|guest)$/.test(ql)) {
+      let best = null;
+      BOOKINGS.forEach(b => { if (b.start >= minDi && (!best || b.start < best.start)) best = b; });
+      if (best) { _searchHint = '→ ' + best.guest + ' · ' + best.nights + ' nights'; return searchGoto(best.start, best.listing); }
+    }
+    if (/^next check ?out$/.test(ql)) {
+      let best = null;
+      BOOKINGS.forEach(b => { const e2 = b.start + b.nights; if (e2 >= minDi && (!best || e2 < best.e)) best = { e: e2, b }; });
+      if (best) { _searchHint = '→ ' + best.b.guest + ' checks out'; return searchGoto(Math.min(N2 - 1, best.e), best.b.listing); }
+    }
+    if (/^longest (?:stay|booking)$/.test(ql)) {
+      let best = null;
+      BOOKINGS.forEach(b => { if (b.start + b.nights - 1 >= todayDi && (!best || b.nights > best.nights)) best = b; });
+      if (best) { _searchHint = '→ ' + best.guest + ' · ' + best.nights + ' nights'; return searchGoto(best.start, best.listing); }
+    }
+    // "gaps" · "next gap" · "open nights" · "gaps in october" · "unbooked august"
+    if (/^(?:next\s+)?(?:gaps?\b|open\b|unbooked\b)/.test(ql)) {
+      const rg = _searchDayRanges(ql.replace(/^next\s+/, ''), LISTINGS.map((_, i) => i));
+      if (rg && rg.perLi) {
+        const cand = [];
+        LISTINGS.forEach((_, li) => rg.perLi(li).forEach(r => cand.push({ a: r.a, b: r.b, li })));
+        cand.sort((x, y) => x.a - y.a);
+        // cycling steps to the next RUN (a fresh gap), never the next day of the same one;
+        // a first search still lands inside a run already in progress
+        const best = cand.find(r => r.a >= minDi)
+          || (after == null ? cand.filter(r => r.b >= minDi).map(r => ({ ...r, a: Math.max(r.a, minDi) }))[0] : null);
+        if (best) { const n = best.b - best.a + 1;
+          _searchHint = '→ ' + n + ' open night' + (n > 1 ? 's' : '') + ' · ' + LISTINGS[best.li].name; return searchGoto(best.a, best.li); }
+      }
+    }
+    if (/^(?:next )?blocked$/.test(ql)) {
+      for (let k = minDi; k < N2; k++) for (let li = 0; li < LISTINGS.length; li++)
+        if (hostBlocked[li] && hostBlocked[li].has(k)) return searchGoto(k, li);
+    }
+    if (/^empty week$/.test(ql)) {
+      for (let k = minDi; k < N2 - 6; k++) for (let li = 0; li < LISTINGS.length; li++) {
+        let ok2 = true; for (let j = k; j < k + 7; j++) if (!isOpenNight(li, j)) { ok2 = false; break; }
+        if (ok2) return searchGoto(k, li);
+      }
+    }
+    // "opportunities" — hand off to the wand
+    if (/^opportunit|^optimi[sz]e$/.test(ql)) {
+      if (window.__opt && window.__opt.state === 'idle' && typeof startOptimize === 'function') {
+        startOptimize(); _searchHint = '→ scanning your calendar'; return true;
+      }
+    }
+    // quarters & week numbers — "q3", "q1 2027", "week 32"
+    let m3 = ql.match(/^q([1-4])(?:\s+((?:19|20)\d{2}))?$/);
+    if (m3) {
+      const qi = +m3[1] - 1, y2 = m3[2] ? +m3[2] : null;
+      const hits = []; allDays.forEach((d, k) => { if (Math.floor(d.getMonth() / 3) === qi && (y2 == null || d.getFullYear() === y2)) hits.push(k); });
+      const di = hits.find(k => k >= minDi) ?? hits[0];
+      if (di != null) return searchGoto(di);
+    }
+    m3 = ql.match(/^week\s+(\d{1,2})(?:\s+((?:19|20)\d{2}))?$/);
+    if (m3) {
+      const wn = +m3[1], y2 = m3[2] ? +m3[2] : null;
+      const isoWeek = d => { const t = new Date(d); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() + 3 - (t.getDay() + 6) % 7);
+        const w1 = new Date(t.getFullYear(), 0, 4); return 1 + Math.round(((t - w1) / 864e5 - 3 + (w1.getDay() + 6) % 7) / 7); };
+      const hits = []; allDays.forEach((d, k) => { if (isoWeek(d) === wn && (y2 == null || d.getFullYear() === y2)) hits.push(k); });
+      const di = hits.find(k => k >= minDi) ?? hits[0];
+      if (di != null) { _searchHint = '→ week ' + wn; return searchGoto(di); }
+    }
+    // "first saturday of october" · "last friday in june"
+    m3 = ql.match(/^(first|second|third|fourth|last)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+(?:of|in)\s+([a-z]+)(?:\s+((?:19|20)\d{2}))?$/);
+    if (m3) {
+      const nth = ['first', 'second', 'third', 'fourth'].indexOf(m3[1]);
+      const wd = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'].indexOf(m3[2]);
+      const mi3 = _searchMonthIdx(m3[3]), y2 = m3[4] ? +m3[4] : null;
+      if (mi3 >= 0) {
+        const hits = [];
+        allDays.forEach((d, k) => { if (d.getMonth() !== mi3 || d.getDay() !== wd || (y2 != null && d.getFullYear() !== y2)) return;
+          const nthOf = Math.floor((d.getDate() - 1) / 7);
+          const lastOf = d.getDate() + 7 > new Date(d.getFullYear(), mi3 + 1, 0).getDate();
+          if (m3[1] === 'last' ? lastOf : nthOf === nth) hits.push(k); });
+        const di = hits.find(k => k >= minDi) ?? hits[0];
+        if (di != null) return searchGoto(di);
+      }
+    }
+  }
+  // ── relative time & concepts: "today", "in 2 weeks", "in a month", "next weekend", "next friday",
+  // "end of july", "mid september", "next event/holiday", "summer", "high season" ──
+  {
+    const t0 = Math.max(0, todayDi), day0 = allDays[t0];
+    if (ql === 'today' || ql === 'now') return searchGoto(t0);
+    if (ql === 'tomorrow') return searchGoto(Math.min(N2 - 1, t0 + 1));
+    if (ql === 'yesterday') return searchGoto(Math.max(0, t0 - 1));
+    // "in 2 weeks" · "in a month" · "a few days (out)" · "3 weeks from now"
+    let m2 = ql.match(/^(?:in\s+)?(\d+|an?|a\s+couple(?:\s+of)?|a\s+few|couple(?:\s+of)?|few)\s+(day|week|month)s?(?:\s+(?:from\s+now|out|later|away))?$/);
+    if (m2) {
+      const qty = /^\d+$/.test(m2[1]) ? +m2[1] : /few/.test(m2[1]) ? 3 : /couple/.test(m2[1]) ? 2 : 1;
+      if (m2[2] === 'month') { const d2 = new Date(day0); d2.setMonth(d2.getMonth() + qty);
+        const k = allDays.findIndex(d => d >= d2); return searchGoto(k >= 0 ? k : N2 - 1); }
+      return searchGoto(Math.min(N2 - 1, t0 + qty * (m2[2] === 'week' ? 7 : 1)));
+    }
+    // "this/next week · weekend · month · friday …"
+    m2 = ql.match(/^(this|next)\s+(week|weekend|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/);
+    if (m2) {
+      const nxt = m2[1] === 'next', w = m2[2];
+      if (w === 'month') { const d2 = new Date(day0.getFullYear(), day0.getMonth() + (nxt ? 1 : 0), 1);
+        const k = allDays.findIndex(d => d >= d2); return searchGoto(k >= 0 ? k : N2 - 1); }
+      if (w === 'week') return searchGoto(nxt ? Math.min(N2 - 1, t0 + ((8 - day0.getDay()) % 7 || 7)) : t0);
+      if (w === 'weekend') { let k = t0; while (k < N2 && allDays[k].getDay() !== 5) k++;
+        if (nxt) { k++; while (k < N2 && allDays[k].getDay() !== 5) k++; } return searchGoto(Math.min(k, N2 - 1)); }
+      const wd = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'].indexOf(w);
+      let k = t0 + 1; while (k < N2 && allDays[k].getDay() !== wd) k++;
+      return searchGoto(Math.min(k, N2 - 1));
+    }
+    // "early august" · "mid september" · "end of july" · "late fall"
+    m2 = ql.match(/^(early|mid|late|end(?:\s+of)?|start(?:\s+of)?|beginning(?:\s+of)?)\s+([a-z]+)(?:\s+((?:19|20)\d{2}))?$/);
+    if (m2) {
+      const part = m2[1], y2 = m2[3] ? +m2[3] : null;
+      const mi2 = _searchMonthIdx(m2[2]);
+      const sea2 = Object.keys(_SEASON_MONTHS).find(s => _fuzzyWord(s, m2[2]));
+      const months = mi2 >= 0 ? [mi2] : sea2 ? _SEASON_MONTHS[sea2] : null;
+      if (months) {
+        const hs = new Set(); allDays.forEach((d, k) => { if (months.includes(d.getMonth()) && (y2 == null || d.getFullYear() === y2)) hs.add(k); });
+        if (hs.size) {
+          const h0 = [...hs].find(k => k >= t0) ?? [...hs][0];
+          let a = h0, b = h0; while (hs.has(a - 1)) a--; while (hs.has(b + 1)) b++;
+          const di = /early|start|beginning/.test(part) ? a : part === 'mid' ? Math.floor((a + b) / 2) : b;
+          return searchGoto(di);
+        }
+      }
+    }
+    // "next event" / "next holiday"
+    if (ql === 'next holiday') {
+      let best = -1;
+      const years2 = [...new Set(allDays.map(d => d.getFullYear()))];
+      HOLIDAYS.forEach(h => years2.forEach(y => { const hd = holidayDateInYear(h, y);
+        const k = allDays.findIndex(d => d.toDateString() === hd.toDateString());
+        if (k >= t0 && (best < 0 || k < best)) best = k; }));
+      if (best >= 0) return searchGoto(best);
+    }
+    if (ql === 'next event') {
+      const cities2 = new Set(LISTINGS.map(l => l.city));
+      let best = null;
+      DEMAND_EVENTS.forEach(ev => { const [name, city, sIso] = ev; if (!cities2.has(city)) return;
+        const k = allDays.findIndex(d => d.toDateString() === new Date(sIso + 'T00:00').toDateString());
+        if (k >= t0 && (!best || k < best.k)) best = { k, li: LISTINGS.findIndex(l => l.city === city) }; });
+      if (best) return searchGoto(best.k, best.li);
+    }
+    // bare "summer" / "high season" / "slow season" → fly to where the next one starts
+    {
+      const sea2 = !ql.includes(' ') && Object.keys(_SEASON_MONTHS).find(s => _fuzzyWord(s, ql));
+      const hi2 = /^(?:high|peak|busy)(?:\s+season)?$/.test(ql), lo2 = /^(?:low|slow|quiet)(?:\s+season)?$/.test(ql);
+      if (sea2 || hi2 || lo2) {
+        const pred = sea2 ? (d => _SEASON_MONTHS[sea2].includes(d.getMonth()))
+          : d => { for (let li = 0; li < LISTINGS.length; li++) { const dm = monthlyDemand[li][d.getMonth()];
+              if (hi2 ? dm >= 74 : dm <= 49) return true; } return false; };
+        const runs = _searchRuns(pred);
+        const run = runs.find(r => r.b >= t0) || runs[0];
+        if (run) return searchGoto(Math.max(run.a, t0));
+      }
+    }
   }
   // pull an explicit year out of the query ("2027", "coachella 2027", "july 2027")
   const ym = ql.match(/\b(19|20)\d{2}\b/);
@@ -9399,15 +9764,12 @@ function searchCalendar(raw) {
     return di >= 0 && searchGoto(di);
   }
   // month name (typo-tolerant), optionally with the year
-  const MONTHS_FULL = ['january','february','march','april','may','june','july','august','september','october','november','december'];
   if (rest && !/\d/.test(rest) && !rest.includes(' ')) {
-    const mi = MONTHS_FULL.findIndex(mn => mn.startsWith(rest) || rest.startsWith(mn)
-      || (rest.length >= 4 && mn.slice(0, 4) === rest.slice(0, 4))            // garbled tails ("septmeebr")
-      || (rest.length >= 5 && _levDist(mn, rest) <= 2));
+    const mi = _searchMonthIdx(rest);
     if (mi >= 0) {
       const hits = []; allDays.forEach((d, k) => { if (d.getMonth() === mi && d.getDate() === 1 && (year == null || d.getFullYear() === year)) hits.push(k); });
       if (!hits.length) allDays.forEach((d, k) => { if (d.getMonth() === mi && (year == null || d.getFullYear() === year)) hits.push(k); });
-      const di = hits.find(k => k >= todayDi) ?? hits[0];
+      const di = hits.find(k => k >= minDi) ?? hits[0];
       if (di != null) return searchGoto(di);
     }
   }
@@ -9417,10 +9779,21 @@ function searchCalendar(raw) {
     const allYears = [...new Set(allDays.map(d => d.getFullYear()))];
     const diFor = ys => { const hits = ys.map(y => { const hd = holidayDateInYear(hol, y);
       return allDays.findIndex(d => d.toDateString() === hd.toDateString()); }).filter(k => k >= 0);
-      return hits.find(k => k >= todayDi) ?? hits[0]; };
+      return hits.find(k => k >= minDi) ?? hits[0]; };
     // asked-for year first; a year the calendar doesn't reach falls back to the one it does
     const di = diFor(allYears.filter(y => year == null || y === year)) ?? diFor(allYears);
-    if (di != null) return searchGoto(di);
+    if (di != null) { const ok = searchGoto(di); _searchHint += ' \u00b7 ' + hol.name; return ok; }
+  }
+  // a bare CITY / GROUP / LISTING name — centre those rows vertically, dates stay put
+  // (checked before events so "san diego" means the section, not the County Fair)
+  {
+    const city = [...new Set(LISTINGS.map(l => l.city))].find(c => _fuzzyName(c, ql));
+    if (city) { const li = LISTINGS.findIndex(l => l.city === city);
+      if (li >= 0 && _searchRow(li)) { _searchHint = '→ ' + city; return true; } }
+    const grp = typeof groups !== 'undefined' && groups.find(g => g.members && g.members.length && g.name && _fuzzyName(g.name, ql));
+    if (grp && _searchRow(grp.members[0])) { _searchHint = '→ ' + grp.name; return true; }
+    const lni = LISTINGS.findIndex(l => l.name && _fuzzyName(l.name, ql));
+    if (lni >= 0 && _searchRow(lni)) { _searchHint = '→ ' + LISTINGS[lni].name; return true; }
   }
   // events — "cochella", "comic con 2027" (only cities that are actually on the board)
   {
@@ -9431,31 +9804,45 @@ function searchCalendar(raw) {
       if (!cities.has(city) || !_fuzzyName(name, rest)) return;
       const s0 = new Date(sIso + 'T00:00');
       const di = allDays.findIndex(d => d.toDateString() === s0.toDateString());
-      if (di >= 0) hits.push({ di, li: LISTINGS.findIndex(l => l.city === city), y: s0.getFullYear() });
+      if (di >= 0) hits.push({ di, li: LISTINGS.findIndex(l => l.city === city), y: s0.getFullYear(), name });
     });
     hits.sort((x, y) => x.di - y.di);
     const inYear = year == null ? hits : hits.filter(h => h.y === year);
     const pool = inYear.length ? inYear : hits; // a year the calendar doesn't reach falls back
-    const hit = pool.find(h => h.di >= todayDi) || pool[0];
-    if (hit) return searchGoto(hit.di, hit.li >= 0 ? hit.li : null);
+    const hit = pool.find(h => h.di >= minDi) || pool[0];
+    if (hit) { const ok = searchGoto(hit.di, hit.li >= 0 ? hit.li : null); _searchHint += ' \u00b7 ' + hit.name; return ok; }
   }
   // guest names — "Olivia": the next stay by that guest (falls back to the latest past one)
   {
     const gs = BOOKINGS.filter(b => _fuzzyName(b.guest, ql)).sort((x, y) => x.start - y.start);
-    const hit = gs.find(b => b.start + b.nights - 1 >= todayDi) || gs[gs.length - 1];
-    if (hit) return searchGoto(hit.start, hit.listing);
+    const hit = gs.find(b => b.start + b.nights - 1 >= minDi) || gs[gs.length - 1];
+    if (hit) { const ok = searchGoto(hit.start, hit.listing); _searchHint += ' \u00b7 ' + hit.guest + ' \u00b7 ' + hit.nights + ' nights'; return ok; }
+  }
+  // "<guest> in <month>" \u2014 "amelia in march": that guest's stay overlapping the month
+  {
+    const gm = ql.match(/^([a-z]+)\s+in\s+([a-z]+)$/);
+    if (gm) {
+      const mi3 = _searchMonthIdx(gm[2]);
+      if (mi3 >= 0) {
+        const gs = BOOKINGS.filter(b => _fuzzyName(b.guest, gm[1])
+          && (() => { for (let k = b.start; k < b.start + b.nights; k++) if (allDays[k] && allDays[k].getMonth() === mi3) return true; return false; })())
+          .sort((x, y) => x.start - y.start);
+        const hit = gs.find(b => b.start + b.nights - 1 >= minDi) || gs[gs.length - 1];
+        if (hit) { const ok = searchGoto(hit.start, hit.listing); _searchHint += ' \u00b7 ' + hit.guest; return ok; }
+      }
+    }
   }
   // a real date, LAST — "Mar 13, 2024", "3/13/2027": exact day if in range, else that month+day
   // in range. Runs after the name matchers because Chrome's lenient Date.parse would happily read
   // "thanksgiving 2027" as Jan 1 2027.
-  if (/\d/.test(q)) {
-    const t = Date.parse(q);
+  if (/\d/.test(ql)) { // ql, not q — synonyms may have introduced the digits ("nye" → "december 31")
+    const t = Date.parse(ql);
     if (!isNaN(t)) {
       const d0 = new Date(t);
       let di = allDays.findIndex(d => d.getFullYear() === d0.getFullYear() && d.getMonth() === d0.getMonth() && d.getDate() === d0.getDate());
       if (di < 0) { // out-of-range year → same month+day inside the calendar, nearest upcoming first
         const hits = []; allDays.forEach((d, k) => { if (d.getMonth() === d0.getMonth() && d.getDate() === d0.getDate()) hits.push(k); });
-        di = hits.find(k => k >= todayDi) ?? (hits.length ? hits[0] : -1);
+        di = hits.find(k => k >= minDi) ?? (hits.length ? hits[0] : -1);
       }
       if (di >= 0) return searchGoto(di);
     }
@@ -9467,11 +9854,20 @@ function searchCalendar(raw) {
   if (!pill || !input) return;
   pill.addEventListener('click', e => { if (!pill.classList.contains('open')) { pill.classList.add('open'); input.focus(); } });
   input.addEventListener('blur', () => { if (!input.value.trim()) pill.classList.remove('open'); });
+  const hint = document.getElementById('searchPillHint');
+  let hintT = null;
+  const showHint = (txt, ms) => { if (!hint) return; hint.textContent = txt; hint.classList.add('show');
+    clearTimeout(hintT); hintT = setTimeout(() => hint.classList.remove('show'), ms); };
   input.addEventListener('keydown', e => {
     e.stopPropagation(); // the grid's own key handlers never see search typing
-    if (e.key === 'Escape') { input.value = ''; input.blur(); pill.classList.remove('open'); return; }
+    if (e.key === 'Escape') { input.value = ''; input.blur(); pill.classList.remove('open'); _searchLastQ = ''; return; }
     if (e.key !== 'Enter') return;
-    if (!searchCalendar(input.value)) { pill.classList.remove('shake'); void pill.offsetWidth; pill.classList.add('shake'); }
+    const v = input.value;
+    const cycling = !!v.trim() && v === _searchLastQ; // same query again → step to the NEXT match
+    const ok = searchCalendar(v, cycling ? _searchLastDi : null);
+    _searchLastQ = v;
+    if (!ok) { pill.classList.remove('shake'); void pill.offsetWidth; pill.classList.add('shake'); showHint('No match', 1600); return; }
+    if (_searchHint) showHint(_searchHint + (cycling ? ' · next' : ''), 2600);
   });
 })();
 const _HOST_O = [LISTINGS, priceOverride, promoVals, minOverride, ruleSetCell, ruleSets, groups, BOOKINGS]; // deep-copyable (plain objects)
