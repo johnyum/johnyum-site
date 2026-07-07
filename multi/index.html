@@ -393,6 +393,7 @@ body.groups-mode .thumb-row .drag-handle { width: 24px; margin-right: 12px; opac
   box-shadow: 0 8px 24px rgba(0,0,0,0.16); cursor: grabbing; }
 .price-row.group-dragging-grid { opacity: .35; transition: opacity .12s ease; }
 .thumb-row.group-drop-target { background: var(--grey-100); border-radius: 12px; }
+.holiday-tip.group-drop-tip { z-index: 400; pointer-events: none; } /* the drag's "Create group" pill — same white holiday pill, above everything */
 .row-drop-indicator {
   position: absolute;
   left: 12px;
@@ -6640,14 +6641,19 @@ function positionLeftToggle() {
   }
 })();
 
-// ── GROUPS MODE: drag a row BY ITS HANDLE onto another listing → group them, LIVE ─────────
-// Drop A onto B: B's existing group adopts A, or a fresh "Group N" forms at the TOP; everything
-// ungrouped falls into "More" automatically. The regroup rides the same staged exchange
-// animation as Automate (setGroupsLive).
+// ── GROUPS MODE: drag a row BY ITS HANDLE ─────────────────────────────────────────────────
+// Two drop semantics, decided by where the pointer hovers:
+//   · over another listing's MIDDLE band → GROUP them ("Create group" pill rides above the row;
+//     B's existing group adopts A, or a fresh "Group N" forms at the TOP; the rest falls into
+//     "More"). The regroup rides the same staged exchange animation as Automate.
+//   · over a GAP between listings → plain REORDER to that slot (the drop-indicator line shows it);
+//     no grouping happens.
 (function setupGroupDrop() {
   const inner = document.getElementById('listingThumbsInner');
   if (!inner) return;
-  let li = null, rowEl = null, gridRowEl = null, startY = 0, started = false, target = null;
+  let li = null, rowEl = null, gridRowEl = null, startY = 0, started = false;
+  let target = null, insBefore = null, indicator = null, tip = null;
+  const rows = () => [...inner.querySelectorAll('.thumb-row')].filter(r => r !== rowEl);
   inner.addEventListener('pointerdown', e => {
     const h = e.target.closest('.drag-handle');
     if (!h || e.button !== 0 || !document.body.classList.contains('groups-mode')) return;
@@ -6663,23 +6669,48 @@ function positionLeftToggle() {
     rowEl.classList.add('group-dragging');
     gridRowEl = document.querySelector('#gridRows .price-row[data-li="' + li + '"]');
     gridRowEl?.classList.add('group-dragging-grid');
+    indicator = document.createElement('div'); indicator.className = 'row-drop-indicator'; indicator.style.display = 'none';
+    inner.appendChild(indicator);
+    tip = document.createElement('div'); tip.className = 'holiday-tip group-drop-tip';
+    document.body.appendChild(tip);
   }
   function onMove(e) {
     if (!started) { if (Math.abs(e.clientY - startY) < 5) return; begin(); }
     rowEl.style.transform = 'translateY(' + (e.clientY - startY) + 'px)';
-    const t = [...inner.querySelectorAll('.thumb-row')].find(r => {
-      if (r === rowEl) return false; const rc = r.getBoundingClientRect();
-      return e.clientY >= rc.top && e.clientY <= rc.bottom; }) || null;
+    // over a row's MIDDLE band (60%) → group; otherwise → insertion slot
+    let t = null;
+    for (const r of rows()) { const rc = r.getBoundingClientRect();
+      if (Math.abs(e.clientY - (rc.top + rc.height / 2)) <= rc.height * 0.3) { t = r; break; } }
     if (t !== target) { target?.classList.remove('group-drop-target'); target = t; target?.classList.add('group-drop-target'); }
+    if (target) {
+      insBefore = null; indicator.style.display = 'none';
+      const rc = target.getBoundingClientRect(), host = groups.find(g => g.members.includes(+target.dataset.li));
+      tip.textContent = host ? 'Add to ' + host.name : 'Create group';
+      tip.style.display = 'block';
+      tip.style.left = (rc.left + rc.width / 2) + 'px';
+      tip.style.top = (rc.top - 38) + 'px';
+    } else {
+      tip.style.display = 'none';
+      insBefore = null;
+      for (const r of rows()) { const rc = r.getBoundingClientRect();
+        if (e.clientY < rc.top + rc.height / 2) { insBefore = r; break; } }
+      const innerRect = inner.getBoundingClientRect(), all = rows();
+      const y = insBefore ? insBefore.getBoundingClientRect().top
+        : (all.length ? all[all.length - 1].getBoundingClientRect().bottom : innerRect.top);
+      indicator.style.display = '';
+      indicator.style.top = (y - innerRect.top) + 'px';
+    }
   }
   function onUp() {
     window.removeEventListener('pointermove', onMove);
     document.body.classList.remove('row-reordering');
     if (rowEl) { rowEl.classList.remove('group-dragging'); rowEl.style.transform = ''; }
     gridRowEl?.classList.remove('group-dragging-grid'); gridRowEl = null;
+    indicator?.remove(); indicator = null; tip?.remove(); tip = null;
     const t = target; target?.classList.remove('group-drop-target'); target = null;
     if (started && t) groupByDrop(li, +t.dataset.li);
-    li = null; rowEl = null; started = false;
+    else if (started) reorderByDrop(li, insBefore ? +insBefore.dataset.li : null);
+    li = null; rowEl = null; started = false; insBefore = null;
   }
   function groupByDrop(a, b) {
     if (a === b || Number.isNaN(a) || Number.isNaN(b)) return;
@@ -6688,6 +6719,21 @@ function positionLeftToggle() {
     if (host) host.members.push(a);
     else next.unshift({ name: 'Group ' + (next.filter(g => g.members.length).length + 1), members: [b, a] });
     setGroupsLive(next.filter(g => g.members.length));
+  }
+  function reorderByDrop(a, beforeLi) { // drop into a GAP → move to that slot, join the slot's section
+    const next = groups.map(g => ({ name: g.name, members: g.members.filter(l => l !== a), collapsed: !!g.collapsed })).filter(g => g.members.length);
+    const assigned = new Set(next.flatMap(g => g.members));
+    const ung = listingOrder.filter(l => !assigned.has(l) && l !== a);
+    if (beforeLi != null && assigned.has(beforeLi)) {
+      const host = next.find(g => g.members.includes(beforeLi));
+      host.members.splice(host.members.indexOf(beforeLi), 0, a);
+    } else if (beforeLi != null) {
+      const at = ung.indexOf(beforeLi); ung.splice(at < 0 ? ung.length : at, 0, a);
+    } else ung.push(a);
+    groups.length = 0; next.forEach(g => groups.push(g));
+    listingOrder = next.flatMap(g => g.members).concat(ung);
+    saveGroups(); if (typeof saveRowOrder === 'function') saveRowOrder();
+    applyGroupsToCalendar();
   }
 })();
 
