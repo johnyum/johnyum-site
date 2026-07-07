@@ -460,6 +460,14 @@ body.row-reordering .thumb-row { cursor: grabbing; }
 /* the hinted (first) listing wears the SAME lifted card the drag shows — soft shadow, no stroke */
 .thumb-row.gm-hint-row::before { content: ''; position: absolute; left: 12px; right: 4px; top: -4px; bottom: -4px;
   background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.10); border-radius: 12px; pointer-events: none; z-index: -1; }
+/* ── Event icons in the GROUP BAND: each city group's demand events ride its header band —
+   the primary icon opens the run over its first date column, small secondary accents carry the
+   rest; every icon is centred to its column and to the header type's centreline. ── */
+#gridRows .group-divider { position: relative; }
+.gev { position: absolute; pointer-events: none; transform: translate(-50%, -50%); }
+.gev.gev-primary { width: 30px; height: 30px; }
+.gev.gev-secondary { width: 18px; height: 18px; }
+.gev.gev-tentative { opacity: .55; } /* estimated dates read as tentative */
 /* collapse is RETIRED for GROUPS: no up/down chevrons anywhere — groups are always open.
    The left panel's own grey-circle chevron stays: names can still collapse/expand. */
 .group-toggle { display: none; }
@@ -3239,71 +3247,72 @@ function getPrice(listingIdx, dayIdx) {
 // Tiers: 35+ mega festival · 20–30 big weekend spike · 12–18 notable draw · ≤10 ambient
 // season-long run (colours the market rate but never gets its own card — the season play covers it).
 const DEMAND_EVENTS = [
-  ['Coachella', 'Palm Springs', '2026-04-10', '2026-04-12', 42],
-  ['Coachella', 'Palm Springs', '2026-04-17', '2026-04-19', 42],
-  ['Coachella', 'Palm Springs', '2027-04-09', '2027-04-11', 42],
-  ['Coachella', 'Palm Springs', '2027-04-16', '2027-04-18', 42],
-  ['Stagecoach', 'Palm Springs', '2026-04-24', '2026-04-26', 38],
-  ['Stagecoach', 'Palm Springs', '2027-04-23', '2027-04-25', 38],
-  ['BNP Paribas Open', 'Palm Springs', '2026-03-04', '2026-03-15', 16],
-  ['BNP Paribas Open', 'Palm Springs', '2027-02-28', '2027-03-14', 16],
-  ['The American Express', 'Palm Springs', '2026-01-22', '2026-01-25', 14],
-  ['The American Express', 'Palm Springs', '2027-01-18', '2027-01-24', 14],
-  ['Modernism Week', 'Palm Springs', '2026-02-12', '2026-02-22', 18],
-  ['Modernism Week', 'Palm Springs', '2027-02-11', '2027-02-21', 18],
-  ['Splash House', 'Palm Springs', '2026-08-07', '2026-08-09', 24],
-  ['Splash House', 'Palm Springs', '2026-08-14', '2026-08-16', 24],
-  ['Palm Springs Pride', 'Palm Springs', '2026-11-06', '2026-11-08', 20],
-  ['The Dinah', 'Palm Springs', '2026-09-30', '2026-10-04', 22],
-  ['The Dinah', 'Palm Springs', '2027-03-31', '2027-04-04', 22],
-  ['Comic-Con', 'San Diego', '2026-07-23', '2026-07-26', 40],
-  ['Comic-Con', 'San Diego', '2027-07-22', '2027-07-26', 40],
-  ['Del Mar racing', 'San Diego', '2026-07-17', '2026-09-07', 8],
-  ['County Fair', 'San Diego', '2026-06-10', '2026-07-05', 8],
-  ['Farmers Open', 'San Diego', '2026-01-29', '2026-02-01', 14],
-  ['The Sentry', 'San Diego', '2027-01-27', '2027-01-30', 14],
-  ['San Diego Pride', 'San Diego', '2026-07-18', '2026-07-19', 22],
-  ['Food & Wine Classic', 'Aspen', '2026-06-19', '2026-06-21', 36],
-  ['Food & Wine Classic', 'Aspen', '2027-06-18', '2027-06-20', 36],
-  ['X Games', 'Aspen', '2026-01-23', '2026-01-25', 30],
-  ['Ideas Festival', 'Aspen', '2026-06-25', '2026-07-01', 20],
-  ['Ideas Festival', 'Aspen', '2027-06-24', '2027-06-30', 20],
-  ['Music Festival', 'Aspen', '2026-07-01', '2026-08-23', 10],
-  ['Music Festival', 'Aspen', '2027-06-30', '2027-08-22', 10],
-  ['Gay Ski Week', 'Aspen', '2026-01-11', '2026-01-17', 24],
-  ['Gay Ski Week', 'Aspen', '2027-01-17', '2027-01-24', 24],
-  ['American Century golf', 'Lake Tahoe', '2026-07-08', '2026-07-12', 26],
-  ['American Century golf', 'Lake Tahoe', '2027-07-07', '2027-07-11', 26],
-  ['Harveys concerts', 'Lake Tahoe', '2026-06-11', '2026-09-19', 6],
-  ['Tahoe Triathlon', 'Lake Tahoe', '2026-08-29', '2026-08-30', 16],
-  ['the Grammys', 'Los Angeles', '2026-02-01', '2026-02-01', 22],
-  ['the Grammys', 'Los Angeles', '2027-02-07', '2027-02-07', 22],
-  ['the Oscars', 'Los Angeles', '2026-03-15', '2026-03-15', 22],
-  ['the Oscars', 'Los Angeles', '2027-03-14', '2027-03-14', 22],
-  ['Anime Expo', 'Los Angeles', '2026-07-02', '2026-07-05', 28],
-  ['Los Angeles Marathon', 'Los Angeles', '2026-03-08', '2026-03-08', 16],
-  ['Los Angeles Marathon', 'Los Angeles', '2027-03-07', '2027-03-07', 16],
-  ['Rose Bowl', 'Los Angeles', '2026-01-01', '2026-01-01', 24],
-  ['Rose Bowl', 'Los Angeles', '2027-01-01', '2027-01-01', 24],
-  ['Los Angeles Pride', 'Los Angeles', '2026-06-14', '2026-06-14', 16],
-  ['Los Angeles Pride', 'Los Angeles', '2027-06-17', '2027-06-17', 16],
-  ['WeHo Pride', 'Los Angeles', '2026-06-05', '2026-06-07', 16],
-  ['Fiesta', 'Santa Barbara', '2026-08-05', '2026-08-09', 26],
-  ['Fiesta', 'Santa Barbara', '2027-07-28', '2027-08-01', 26],
-  ['Santa Barbara Film Festival', 'Santa Barbara', '2026-02-04', '2026-02-14', 16],
-  ['Santa Barbara Film Festival', 'Santa Barbara', '2027-02-03', '2027-02-13', 16],
-  ['UCSB Commencement', 'Santa Barbara', '2026-06-11', '2026-06-14', 22],
-  ['UCSB Commencement', 'Santa Barbara', '2027-06-10', '2027-06-13', 22],
-  ['Summer Solstice', 'Santa Barbara', '2026-06-19', '2026-06-21', 18],
-  ['Summer Solstice', 'Santa Barbara', '2027-06-18', '2027-06-20', 18],
-  ['Santa Barbara Bowl season', 'Santa Barbara', '2026-03-28', '2026-10-17', 4],
-  ['Santa Barbara Pride', 'Santa Barbara', '2026-08-22', '2026-08-22', 14],
-  ['Oktoberfest', 'Big Bear', '2026-09-05', '2026-11-08', 8],
-  ['Chili Cook-Off', 'Malibu', '2026-09-04', '2026-09-07', 18],
-  ['Malibu Triathlon', 'Malibu', '2026-09-19', '2026-09-20', 14],
-  ['Joshua Tree Music Festival', 'Joshua Tree', '2026-05-14', '2026-05-17', 26],
-  ['Joshua Tree Music Festival', 'Joshua Tree', '2027-05-13', '2027-05-16', 26],
-  ['Joshua Tree Music Festival', 'Joshua Tree', '2026-10-08', '2026-10-11', 26],
+// [shortName, city, startISO, endISO, boost, iconPath, secondaryIconPath, status]
+  ['Coachella', 'Palm Springs', '2026-04-10', '2026-04-12', 42, 'event_icons/coachella-flower-crown.png', 'event_icons/sec-daisy.png', 'confirmed'],
+  ['Coachella', 'Palm Springs', '2026-04-17', '2026-04-19', 42, 'event_icons/coachella-flower-crown.png', 'event_icons/sec-daisy.png', 'confirmed'],
+  ['Coachella', 'Palm Springs', '2027-04-09', '2027-04-11', 42, 'event_icons/coachella-flower-crown.png', 'event_icons/sec-daisy.png', 'confirmed'],
+  ['Coachella', 'Palm Springs', '2027-04-16', '2027-04-18', 42, 'event_icons/coachella-flower-crown.png', 'event_icons/sec-daisy.png', 'confirmed'],
+  ['Stagecoach', 'Palm Springs', '2026-04-24', '2026-04-26', 38, 'event_icons/cowboy-hat.png', 'event_icons/sec-sheriff-star.png', 'confirmed'],
+  ['Stagecoach', 'Palm Springs', '2027-04-23', '2027-04-25', 38, 'event_icons/cowboy-hat.png', 'event_icons/sec-sheriff-star.png', 'confirmed'],
+  ['BNP Paribas Open', 'Palm Springs', '2026-03-04', '2026-03-15', 16, 'event_icons/tennis-racquet.png', 'event_icons/sec-tennis-balls.png', 'confirmed'],
+  ['BNP Paribas Open', 'Palm Springs', '2027-02-28', '2027-03-14', 16, 'event_icons/tennis-racquet.png', 'event_icons/sec-tennis-balls.png', 'confirmed'],
+  ['The American Express', 'Palm Springs', '2026-01-22', '2026-01-25', 14, 'event_icons/golf-badge.png', 'event_icons/sec-golf-flag.png', 'confirmed'],
+  ['The American Express', 'Palm Springs', '2027-01-18', '2027-01-24', 14, 'event_icons/golf-badge.png', 'event_icons/sec-golf-flag.png', 'confirmed'],
+  ['Modernism Week', 'Palm Springs', '2026-02-12', '2026-02-22', 18, 'event_icons/eames-chair.png', 'event_icons/sec-atomic-starburst.png', 'confirmed'],
+  ['Modernism Week', 'Palm Springs', '2027-02-11', '2027-02-21', 18, 'event_icons/eames-chair.png', 'event_icons/sec-atomic-starburst.png', 'confirmed'],
+  ['Splash House', 'Palm Springs', '2026-08-07', '2026-08-09', 24, 'event_icons/flamingo-float.png', 'event_icons/sec-sunglasses.png', 'confirmed'],
+  ['Splash House', 'Palm Springs', '2026-08-14', '2026-08-16', 24, 'event_icons/flamingo-float.png', 'event_icons/sec-sunglasses.png', 'confirmed'],
+  ['Palm Springs Pride', 'Palm Springs', '2026-11-06', '2026-11-08', 20, 'event_icons/pride-rainbow.png', 'event_icons/sec-rainbow-heart.png', 'confirmed'],
+  ['The Dinah', 'Palm Springs', '2026-09-30', '2026-10-04', 22, 'event_icons/pride-rainbow.png', 'event_icons/sec-rainbow-heart.png', 'confirmed'],
+  ['The Dinah', 'Palm Springs', '2027-03-31', '2027-04-04', 22, 'event_icons/pride-rainbow.png', 'event_icons/sec-rainbow-heart.png', 'estimated'],
+  ['Comic-Con', 'San Diego', '2026-07-23', '2026-07-26', 40, 'event_icons/superhero-mask.png', 'event_icons/sec-star.png', 'confirmed'],
+  ['Comic-Con', 'San Diego', '2027-07-22', '2027-07-26', 40, 'event_icons/superhero-mask.png', 'event_icons/sec-star.png', 'estimated'],
+  ['Del Mar racing', 'San Diego', '2026-07-17', '2026-09-07', 8, 'event_icons/jockey-helmet.png', 'event_icons/sec-horseshoe.png', 'confirmed'],
+  ['County Fair', 'San Diego', '2026-06-10', '2026-07-05', 8, 'event_icons/carousel-horse.png', 'event_icons/sec-ticket.png', 'confirmed'],
+  ['Farmers Open', 'San Diego', '2026-01-29', '2026-02-01', 14, 'event_icons/golf-badge.png', 'event_icons/sec-golf-flag.png', 'confirmed'],
+  ['The Sentry', 'San Diego', '2027-01-27', '2027-01-30', 14, 'event_icons/golf-badge.png', 'event_icons/sec-golf-flag.png', 'confirmed'],
+  ['San Diego Pride', 'San Diego', '2026-07-18', '2026-07-19', 22, 'event_icons/pride-rainbow.png', 'event_icons/sec-rainbow-heart.png', 'confirmed'],
+  ['Food & Wine Classic', 'Aspen', '2026-06-19', '2026-06-21', 36, 'event_icons/wine-glass.png', 'event_icons/sec-grapes.png', 'confirmed'],
+  ['Food & Wine Classic', 'Aspen', '2027-06-18', '2027-06-20', 36, 'event_icons/wine-glass.png', 'event_icons/sec-grapes.png', 'confirmed'],
+  ['X Games', 'Aspen', '2026-01-23', '2026-01-25', 30, 'event_icons/x-games-badge.png', 'event_icons/sec-snowflake.png', 'confirmed'],
+  ['Ideas Festival', 'Aspen', '2026-06-25', '2026-07-01', 20, 'event_icons/lightbulb.png', 'event_icons/sec-sparkle.png', 'confirmed'],
+  ['Ideas Festival', 'Aspen', '2027-06-24', '2027-06-30', 20, 'event_icons/lightbulb.png', 'event_icons/sec-sparkle.png', 'estimated'],
+  ['Music Festival', 'Aspen', '2026-07-01', '2026-08-23', 10, 'event_icons/french-horn.png', 'event_icons/sec-music-note.png', 'confirmed'],
+  ['Music Festival', 'Aspen', '2027-06-30', '2027-08-22', 10, 'event_icons/french-horn.png', 'event_icons/sec-music-note.png', 'estimated'],
+  ['Gay Ski Week', 'Aspen', '2026-01-11', '2026-01-17', 24, 'event_icons/pride-rainbow.png', 'event_icons/sec-rainbow-heart.png', 'confirmed'],
+  ['Gay Ski Week', 'Aspen', '2027-01-17', '2027-01-24', 24, 'event_icons/pride-rainbow.png', 'event_icons/sec-rainbow-heart.png', 'confirmed'],
+  ['American Century golf', 'Lake Tahoe', '2026-07-08', '2026-07-12', 26, 'event_icons/golf-badge.png', 'event_icons/sec-golf-flag.png', 'confirmed'],
+  ['American Century golf', 'Lake Tahoe', '2027-07-07', '2027-07-11', 26, 'event_icons/golf-badge.png', 'event_icons/sec-golf-flag.png', 'confirmed'],
+  ['Harveys concerts', 'Lake Tahoe', '2026-06-11', '2026-09-19', 6, 'event_icons/electric-guitar.png', 'event_icons/sec-music-note.png', 'confirmed'],
+  ['Tahoe Triathlon', 'Lake Tahoe', '2026-08-29', '2026-08-30', 16, 'event_icons/swim-goggles.png', 'event_icons/sec-water-drop.png', 'confirmed'],
+  ['the Grammys', 'Los Angeles', '2026-02-01', '2026-02-01', 22, 'event_icons/gramophone.png', '', 'confirmed'],
+  ['the Grammys', 'Los Angeles', '2027-02-07', '2027-02-07', 22, 'event_icons/gramophone.png', '', 'confirmed'],
+  ['the Oscars', 'Los Angeles', '2026-03-15', '2026-03-15', 22, 'event_icons/award-statuette.png', '', 'confirmed'],
+  ['the Oscars', 'Los Angeles', '2027-03-14', '2027-03-14', 22, 'event_icons/award-statuette.png', '', 'confirmed'],
+  ['Anime Expo', 'Los Angeles', '2026-07-02', '2026-07-05', 28, 'event_icons/manga.png', 'event_icons/sec-star.png', 'confirmed'],
+  ['Los Angeles Marathon', 'Los Angeles', '2026-03-08', '2026-03-08', 16, 'event_icons/running-shoe.png', '', 'confirmed'],
+  ['Los Angeles Marathon', 'Los Angeles', '2027-03-07', '2027-03-07', 16, 'event_icons/running-shoe.png', '', 'confirmed'],
+  ['Rose Bowl', 'Los Angeles', '2026-01-01', '2026-01-01', 24, 'event_icons/rose.png', '', 'confirmed'],
+  ['Rose Bowl', 'Los Angeles', '2027-01-01', '2027-01-01', 24, 'event_icons/rose.png', '', 'confirmed'],
+  ['Los Angeles Pride', 'Los Angeles', '2026-06-14', '2026-06-14', 16, 'event_icons/pride-rainbow.png', 'event_icons/sec-rainbow-heart.png', 'confirmed'],
+  ['Los Angeles Pride', 'Los Angeles', '2027-06-17', '2027-06-17', 16, 'event_icons/pride-rainbow.png', 'event_icons/sec-rainbow-heart.png', 'confirmed'],
+  ['WeHo Pride', 'Los Angeles', '2026-06-05', '2026-06-07', 16, 'event_icons/pride-rainbow.png', 'event_icons/sec-rainbow-heart.png', 'confirmed'],
+  ['Fiesta', 'Santa Barbara', '2026-08-05', '2026-08-09', 26, 'event_icons/maracas.png', 'event_icons/sec-paper-flower.png', 'confirmed'],
+  ['Fiesta', 'Santa Barbara', '2027-07-28', '2027-08-01', 26, 'event_icons/maracas.png', 'event_icons/sec-paper-flower.png', 'estimated'],
+  ['Santa Barbara Film Festival', 'Santa Barbara', '2026-02-04', '2026-02-14', 16, 'event_icons/clapperboard.png', 'event_icons/sec-film-reel.png', 'confirmed'],
+  ['Santa Barbara Film Festival', 'Santa Barbara', '2027-02-03', '2027-02-13', 16, 'event_icons/clapperboard.png', 'event_icons/sec-film-reel.png', 'confirmed'],
+  ['UCSB Commencement', 'Santa Barbara', '2026-06-11', '2026-06-14', 22, 'event_icons/graduation-cap.png', 'event_icons/sec-diploma.png', 'confirmed'],
+  ['UCSB Commencement', 'Santa Barbara', '2027-06-10', '2027-06-13', 22, 'event_icons/graduation-cap.png', 'event_icons/sec-diploma.png', 'confirmed'],
+  ['Summer Solstice', 'Santa Barbara', '2026-06-19', '2026-06-21', 18, 'event_icons/sun.png', 'event_icons/sec-butterfly.png', 'confirmed'],
+  ['Summer Solstice', 'Santa Barbara', '2027-06-18', '2027-06-20', 18, 'event_icons/sun.png', 'event_icons/sec-butterfly.png', 'estimated'],
+  ['Santa Barbara Bowl season', 'Santa Barbara', '2026-03-28', '2026-10-17', 4, 'event_icons/microphone.png', 'event_icons/sec-music-note.png', 'confirmed'],
+  ['Santa Barbara Pride', 'Santa Barbara', '2026-08-22', '2026-08-22', 14, 'event_icons/pride-rainbow.png', 'event_icons/sec-rainbow-heart.png', 'confirmed'],
+  ['Oktoberfest', 'Big Bear', '2026-09-05', '2026-11-08', 8, 'event_icons/beer-stein.png', 'event_icons/sec-pretzel.png', 'estimated'],
+  ['Chili Cook-Off', 'Malibu', '2026-09-04', '2026-09-07', 18, 'event_icons/chili-pepper.png', 'event_icons/sec-flame.png', 'confirmed'],
+  ['Malibu Triathlon', 'Malibu', '2026-09-19', '2026-09-20', 14, 'event_icons/bicycle.png', 'event_icons/sec-water-drop.png', 'confirmed'],
+  ['Joshua Tree Music Festival', 'Joshua Tree', '2026-05-14', '2026-05-17', 26, 'event_icons/joshua-tree.png', 'event_icons/sec-music-note.png', 'confirmed'],
+  ['Joshua Tree Music Festival', 'Joshua Tree', '2027-05-13', '2027-05-16', 26, 'event_icons/joshua-tree.png', 'event_icons/sec-music-note.png', 'estimated'],
+  ['Joshua Tree Music Festival', 'Joshua Tree', '2026-10-08', '2026-10-11', 26, 'event_icons/joshua-tree.png', 'event_icons/sec-music-note.png', 'confirmed'],
 ];
 const EVENT_CARD_MIN_BOOST = 18; // spikes get cards; ambient runs just ride the curve
 let _evMap = null; // city|Y-M-D → strongest active event that night
@@ -6714,6 +6723,53 @@ function positionLeftToggle() {
   }
 })();
 
+// ── Event icons on the group bands: one pass, derived fresh from DEMAND_EVENTS + the live
+// dividers each time grouping re-applies. Primary icon on the run's first column, secondary
+// accents on the rest (runs >14 days: primary + one week of accents, then quiet). Icons are
+// centred to their date column and to the group header type's centreline.
+function buildGroupEventIcons() {
+  document.querySelectorAll('#gridRows .gev').forEach(e => e.remove());
+  if (!hasRealGroups() || !allDays.length || typeof rowOffsets === 'undefined' || !rowOffsets.length) return;
+  const diBy = new Map(allDays.map((d, i) => [_evDayKey(d), i]));
+  const _c0 = document.querySelector('#gridRows .price-card');
+  const cellW = _c0 ? _c0.offsetWidth : ((rowOffsets[1] || 8) - (rowOffsets[0] || 0) - 8); // centre on the CELL, not the stride (stride carries the flex gap)
+  document.querySelectorAll('#gridRows > .group-divider').forEach(div => {
+    const gi = div.dataset.gi;
+    const members = gi === 'more'
+      ? listingOrder.filter(li => !groups.some(g => g.members.includes(li)))
+      : (groups[+gi] ? groups[+gi].members : []);
+    const cities = new Set(members.map(li => listingCity[li]));
+    if (!cities.size) return;
+    const tAnchor = document.querySelector('#listingThumbsInner > .group-divider[data-gi="' + gi + '"] .group-divider-name');
+    let cy = div.offsetHeight / 2;
+    if (tAnchor) { const ar = tAnchor.getBoundingClientRect(), dr = div.getBoundingClientRect();
+      cy = ar.top + ar.height / 2 - dr.top; } // the header TYPE's centreline (the overlay label mirrors this anchor)
+    const taken = new Set(); // one icon per column per band — first (higher-boost sorted) wins
+    DEMAND_EVENTS.slice().sort((x, y) => y[4] - x[4]).forEach(ev => {
+      const [name, city, sIso, eIso, boost, icon, sec, status] = ev;
+      if (!cities.has(city) || !icon) return;
+      const [w0, w1] = eventTravelWindow(new Date(sIso + 'T00:00'), new Date(eIso + 'T00:00'));
+      const days = [];
+      for (let x = new Date(w0); x <= w1; x.setDate(x.getDate() + 1)) {
+        const di = diBy.get(_evDayKey(x)); if (di != null) days.push(di);
+      }
+      if (!days.length) return;
+      const runCap = (days.length > 14) ? 7 : days.length; // long ambient runs: a week of accents, then quiet
+      days.slice(0, runCap).forEach((di, i) => {
+        if (taken.has(di)) return;
+        const src = i === 0 ? icon : sec;
+        if (!src) { if (i === 0) return; return; } // no secondary art → primary only
+        taken.add(di);
+        const img = document.createElement('img');
+        img.className = 'gev ' + (i === 0 ? 'gev-primary' : 'gev-secondary') + (status === 'estimated' ? ' gev-tentative' : '');
+        img.src = src; img.alt = name; img.loading = 'lazy';
+        img.style.left = (rowOffsets[di] + cellW / 2) + 'px';
+        img.style.top = cy + 'px';
+        div.appendChild(img);
+      });
+    });
+  });
+}
 // ── GROUPS MODE: drag a row BY ITS HANDLE ─────────────────────────────────────────────────
 // Two drop semantics, decided by where the pointer hovers:
 //   · over another listing's MIDDLE band → GROUP them ("Create group" pill rides above the row;
@@ -7113,6 +7169,14 @@ function smartGroups() { return smartGroupsFor(LISTINGS.map((_, i) => i)); }
 // grouped order while the pill stays up; the group headers fade in once the rows land. Contrast with
 // animateGroupsByCity (the ⋯-menu flow), which blacks the grid out behind thinking dots.
 function applyGroupingLive() { return setGroupsLive(smartGroups()); }
+// grouping re-applied → re-derive the band icons (kept out of applyGroupsToCalendar's body: this
+// wrapper is the single chokepoint every caller already uses)
+(function () {
+  const _agc = applyGroupsToCalendar;
+  applyGroupsToCalendar = function () { const r = _agc.apply(this, arguments);
+    if (typeof buildGroupEventIcons === 'function') { try { buildGroupEventIcons(); } catch (err) {} }
+    return r; };
+})();
 // Automate (the onboarding grouping card): the button itself THINKS — three pulsing dots in place
 // of the label (~3s) — then the grid rearranges on stage (exchange mix → spacing → headers) and the
 // button lands on "✓ Applied". No shimmer, no blackout.
