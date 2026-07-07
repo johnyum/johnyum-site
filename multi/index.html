@@ -3308,14 +3308,27 @@ const DEMAND_EVENTS = [
 const EVENT_CARD_MIN_BOOST = 18; // spikes get cards; ambient runs just ride the curve
 let _evMap = null; // city|Y-M-D → strongest active event that night
 function _evDayKey(d) { return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+// The TRAVEL WINDOW around an event: guests arrive early and ride the weekend — 2 shoulder days
+// before (stepped back off a weekend onto Friday's eve) through 1 after (ridden out to Sunday).
+function eventTravelWindow(s0, e0) {
+  const a = new Date(s0); a.setDate(a.getDate() - 2);
+  while (a.getDay() === 0 || a.getDay() === 6) a.setDate(a.getDate() - 1);
+  const b = new Date(e0); b.setDate(b.getDate() + 1);
+  while (b.getDay() === 5 || b.getDay() === 6) b.setDate(b.getDate() + 1);
+  return [a, b];
+}
 function eventAt(city, d) {
   if (!_evMap) {
     _evMap = new Map();
     DEMAND_EVENTS.forEach(ev => {
       const [name, ct, s, e, boost] = ev;
-      for (let x = new Date(s + 'T00:00'), end = new Date(e + 'T00:00'); x <= end; x.setDate(x.getDate() + 1)) {
+      const s0 = new Date(s + 'T00:00'), e0 = new Date(e + 'T00:00');
+      const [w0, w1] = eventTravelWindow(s0, e0);
+      for (let x = new Date(w0); x <= w1; x.setDate(x.getDate() + 1)) {
+        const onEvent = x >= s0 && x <= e0;
+        const bst = onEvent ? boost : Math.round(boost * 0.4); // shoulder nights carry a partial compression
         const k = ct + '|' + _evDayKey(x), cur = _evMap.get(k);
-        if (!cur || boost > cur.boost) _evMap.set(k, { name, boost });
+        if (!cur || bst > cur.boost) _evMap.set(k, { name, boost: bst });
       }
     });
   }
@@ -8093,12 +8106,13 @@ function computeSuggestions() {
   const eventCards = [];
   {
     const diBy = new Map(allDays.map((d, i) => [_evDayKey(d), i]));
-    const diOf = iso => { const v = diBy.get(_evDayKey(new Date(iso + 'T00:00'))); return v == null ? -1 : v; };
+    const diOfD = d => { const v = diBy.get(_evDayKey(d)); return v == null ? -1 : v; };
     const wins = {}; // 'city|name' → [{a,b,boost}]
     DEMAND_EVENTS.forEach(ev => {
       const [name, city, sIso, eIso, boost] = ev;
       if (boost < EVENT_CARD_MIN_BOOST) return;
-      let a = diOf(sIso), b = diOf(eIso);
+      const [w0, w1] = eventTravelWindow(new Date(sIso + 'T00:00'), new Date(eIso + 'T00:00'));
+      let a = diOfD(w0), b = diOfD(w1);
       if (a < 0 && b < 0) return;                       // fully outside the calendar
       if (a < 0) a = 0; if (b < 0) b = N - 1;           // clamp a spanning edge
       if (b < todayDi) return;                          // already over
@@ -8164,8 +8178,15 @@ function computeSuggestions() {
     const cs = [...new Set(its.map(x => listingCity[x.li]))];
     return cs.length === 1 ? 'in ' + cs[0] : cs.length === 2 ? 'in ' + cs[0] + ' and ' + cs[1] : 'across ' + cs.length + ' cities';
   };
+  const _diByH = new Map(allDays.map((d, i) => [_evDayKey(d), i]));
   Object.keys(holBy).forEach(h => {
     const its = holBy[h];
+    its.forEach(x => { // stretch each play to the holiday's travel window (shoulders + the weekend)
+      const [w0, w1] = eventTravelWindow(allDays[x.a], allDays[x.b]);
+      const na = _diByH.get(_evDayKey(w0)), nb = _diByH.get(_evDayKey(w1));
+      if (na != null) x.a = Math.max(todayDi, na);
+      if (nb != null) x.b = Math.min(N - 1, nb);
+    });
     const ha = Math.min(...its.map(x => x.a)), hb = Math.max(...its.map(x => x.b));
     cards.push({ bucket: 'holiday', type: 'raise', intent: 'earn', pct: its[0].pct, hol: h,
       a: ha, b: hb, items: its,
