@@ -1076,7 +1076,7 @@ body.optimize-mode .search-pill, body.multi-active .search-pill {
 /* one-tap "Select" pill — appears after a NAV result that maps to days ("June", "2027", a date):
    24px tall, 12px type, fully rounded, 12px side padding, 8px left of the X */
 .sp-select {
-  display: none; align-items: center; height: 32px; padding: 0 12px; flex-shrink: 0;
+  display: none; align-items: center; height: 32px; padding: 0 16px; flex-shrink: 0; /* 12 + 4 extra either side */
   margin: 20px 0 20px auto; border: 0; border-radius: 999px;
   background: #222; color: #fff; font: 600 12px 'Cereal', sans-serif; cursor: pointer;
 }
@@ -2367,8 +2367,10 @@ body.optimize-mode .price-card.opt-flag.unavailable { background: transparent; }
   background: var(--grey-100);
   border-color: #222;
 }
-/* Shift-hover RANGE PREVIEW: dashed ghost fill showing what a shift-click would select (not committed). */
-.price-card.range-preview:not(.selected):not(.booked) {
+/* Shift-hover RANGE PREVIEW: dashed ghost fill showing what a shift-click would select (not committed).
+   .search-ghost is the SEARCH twin — same look, but persistent (only Select / tap / query change clears it). */
+.price-card.range-preview:not(.selected):not(.booked),
+.price-card.search-ghost:not(.selected):not(.booked) {
   border: 2px dashed #8C8C8C;
   background: var(--grey-100);
 }
@@ -4213,7 +4215,7 @@ function buildPriceCell(li, di, booked, unavail, gapSet) {
   card.className = 'price-card' + (isPast ? ' past' : '') + (unavailable ? ' unavailable' + (_bt ? ' closed-rule' : ' closed-window') : '') + (isBlocked ? ' blocked' : '') + (isBooked ? ' booked' : '') + (!isBooked && !unavailable && holidaySurcharge[di] > 0 ? ' holiday-priced' : '');
   card.dataset.di = di;
   if (isSel(li, di)) card.classList.add('selected');
-  if (window._searchGhostSet && window._searchGhostSet.has(li + ':' + di)) card.classList.add('range-preview'); // search ghost preview survives virtualization
+  if (window._searchGhostSet && window._searchGhostSet.has(li + ':' + di)) card.classList.add('search-ghost'); // search ghost preview survives virtualization
   const _of = !isBooked ? optFlagFor(li, di) : null; // Optimize glow (model-driven, survives virtualization)
   if (_of) { card.classList.add('opt-flag', 'opt-' + _of.intent); if (_of.min) card.classList.add('opt-min'); card.dataset.sugg = _of.id; dressOptState(card, _of); }
   const _dk = (isBooked || unavailable) ? null : discountType(li, di); // 'early' | 'last' | null
@@ -5393,6 +5395,9 @@ function startDrag(e) {
   const li = row ? +row.dataset.li : null, di = +card.dataset.di;
   // Shift-click → select the rectangle from the anchor to this cell (no drag). Falls back to a plain
   // click if there's no anchor yet.
+  // tapping a SEARCH GHOST commits the whole previewed selection (same as the Select pill)
+  if (window._searchGhostSet && li != null && window._searchGhostSet.has(li + ':' + di)
+    && typeof window._searchCommitGhosts === 'function' && window._searchCommitGhosts()) return;
   if (e.shiftKey && selAnchor && li != null) { selectRange(selAnchor, { li, di }); if (typeof _shiftTapDone === 'function') _shiftTapDone(); return; }
   if (li != null) selAnchor = { li, di }; // this cell is the anchor for the next shift-click
   const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -9857,12 +9862,12 @@ window._searchPaintGhosts = function () {
   document.querySelectorAll('#gridRows > .price-row').forEach(row => {
     const li = +row.dataset.li;
     row.querySelectorAll('.price-card[data-di]').forEach(card =>
-      card.classList.toggle('range-preview', window._searchGhostSet.has(li + ':' + card.dataset.di)));
+      card.classList.toggle('search-ghost', window._searchGhostSet.has(li + ':' + card.dataset.di)));
   });
 };
 window._searchClearGhosts = function () {
   window._searchGhostSet = null;
-  document.querySelectorAll('#gridRows .price-card.range-preview').forEach(x => x.classList.remove('range-preview'));
+  document.querySelectorAll('#gridRows .price-card.search-ghost').forEach(x => x.classList.remove('search-ghost'));
 };
 let _searchHint = '';       // set by whichever branch matched; searchGoto fills a date default
 let _searchCanSelect = false; // the last NAV result maps to selectable days → surface the Select pill
@@ -10573,13 +10578,28 @@ function searchCalendar(raw, after) {
     e.stopPropagation(); // the pill's own click handler must not immediately reopen it
     input.value = ''; _searchLastQ = ''; input.blur(); pill.classList.remove('open'); setCanSelect(false); window._searchClearGhosts();
   });
-  // one-tap "Select": converts the just-searched date/month/year into a real selection
+  // COMMIT the ghost preview → real selection + QA pill (shared by the Select pill AND ghost taps)
+  window._searchCommitGhosts = () => {
+    const set = window._searchGhostSet; if (!set || !set.size) return false;
+    if (typeof clearSelection === 'function') clearSelection();
+    selClear(); let first = null;
+    set.forEach(key => { const [li2, di2] = key.split(':').map(Number);
+      if (isSelectable(li2, di2)) { setSel(li2, di2, true); if (!first) first = { li: li2, di: di2 }; } });
+    window._searchClearGhosts(); setCanSelect(false);
+    if (!selCount()) return false;
+    paintSelection(); updateClearBtn(); updateDateHeaders();
+    const nLis = new Set(selList().map(x => x.li)).size;
+    showHint('→ ' + selCount() + ' nights · ' + nLis + ' listing' + (nLis > 1 ? 's' : ''), 2600);
+    input.value = ''; _searchLastQ = ''; input.blur(); pill.classList.remove('open');
+    return true;
+  };
+  // one-tap "Select": commits the ghosts when present, else re-runs the query as a select
   const selBtn = document.getElementById('searchPillSelect');
   if (selBtn) selBtn.addEventListener('click', e => {
     e.stopPropagation();
+    if (window._searchCommitGhosts()) return;
     const q = (_searchLastQ || input.value).trim(); if (!q) return;
     _searchHint = '';
-    window._searchClearGhosts(); // the ghost becomes the REAL selection
     if (searchCalendar(/^(?:select|highlight|grab|pick|choose)\b/.test(q.toLowerCase()) ? q : 'select ' + q)) {
       setCanSelect(false);
       if (typeof selCount === 'function' && selCount() > 0) {
