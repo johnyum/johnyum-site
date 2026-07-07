@@ -2222,6 +2222,14 @@ body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.se
 }
 /* Deselected (default) blocked cell: light-grey backing + grey #6C6C6C price & strike (::after uses currentColor) */
 .price-card.blocked:not(.selected) { background: #F2F2F2; border-color: #E8E8E8; }
+/* BLOCKED + opportunity cell: the grey backing fills the WAVE (not the square), and the suggested
+   price is struck too — same custom rule as a normal blocked price, in the suggestion's own color */
+.price-card.blocked.opt-flag:not(.selected) { background: transparent; border-color: transparent; }
+.price-card.blocked.opt-flag .wring .wfill { fill: #F2F2F2; }
+.price-card.blocked.opt-flag .pstack .prow { position: relative; display: inline-flex; }
+.price-card.blocked.opt-flag .pstack .prow::after { content: ''; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%); width: calc(100% + 14px); height: 1.5px; background: currentColor;
+  border-radius: 1px; pointer-events: none; }
 .price-card.blocked:not(.selected) .price-val { color: #6C6C6C; }
 /* Selected blocked cell → same treatment as any tapped cell: light grey-100 fill + 2px black stroke
    (the struck price + "min N" read as "blocked" on the light backing). Deselected blocked stays the
@@ -8566,7 +8574,7 @@ function makeOdometer(card, li, di) {
   const oldS = '$' + cur, newS = '$' + neu;
   const ps = document.createElement('div'); ps.className = 'pstack'; ps.dataset.cur = cur;
   ps.style.setProperty('--odoc', f.roll.dir === 'up' ? '#038026' : '#222');
-  ps.innerHTML = '<div class="prec">' + _odoRollHtml(oldS, newS, f.roll.dir) + '</div><div class="pold">' + oldS + '</div>';
+  ps.innerHTML = '<div class="prec"><span class="prow">' + _odoRollHtml(oldS, newS, f.roll.dir) + '</span></div><div class="pold">' + oldS + '</div>';
   card.appendChild(ps); card.classList.add('has-odo');
 }
 function removeOdometer(card) { if (!card) return; const ps = card.querySelector(':scope > .pstack'); if (ps) ps.remove(); card.classList.remove('has-odo'); }
