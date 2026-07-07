@@ -1048,14 +1048,21 @@ body.magic-active #gridRows, body.magic-active #listingThumbsInner, body.magic-a
    nights worth tuning. Green glow = "fill it" (drop price / promo / lower min); amber = "earn more"
    (raise on peak/holiday). Tapping a glow opens its suggestion card. */
 .magic-action { z-index: 201; bottom: 124px; } /* anchored on the QA pill's CENTER line (80 + 88/2) */
-.magic-action .multi-action-inner { transform: translateY(50%); align-items: center; gap: 12px; } /* pill centres on that line → height changes grow outward on all sides; the search pill rides 12px left */
+.magic-action .multi-action-inner { transform: translateY(50%); align-items: center; } /* pill centres on that line → height changes grow outward on all sides */
 /* ── Search pill: idle = a 72px magnifier circle (the Opportunities pill's white twin); click
    unfurls it into an input. Enter flies to the match; a miss shakes the pill. ── */
 .search-pill {
   display: inline-flex; align-items: center; height: 72px; width: 72px; flex-shrink: 0;
+  margin-right: 12px; /* the gap to Opportunities lives HERE so hiding collapses it too */
   background: #fff; border-radius: 999px; overflow: hidden; cursor: pointer;
   box-shadow: 0 0 0 1px rgba(0,0,0,0.06), 0 4px 8px rgba(0,0,0,0.08), 0 12px 30px rgba(0,0,0,0.14); /* same spec as .magic-pill */
-  transition: width .5s cubic-bezier(.22,.9,.3,1);
+  transition: width .5s cubic-bezier(.22,.9,.3,1), margin-right .5s cubic-bezier(.22,.9,.3,1),
+    opacity .3s ease, transform .5s cubic-bezier(.22,.9,.3,1);
+}
+/* Opportunities (scan + results) and QA multi-select own the stage: the search pill folds away —
+   width and gap collapse to 0 so the wand circle lands DEAD CENTRE — and unfolds when they end */
+body.optimize-mode .search-pill, body.multi-active .search-pill {
+  width: 0 !important; margin-right: 0 !important; opacity: 0; transform: scale(.7); pointer-events: none;
 }
 .search-pill svg { flex-shrink: 0; margin: 0 24px; } /* 24 + 24 + 24 = the 72px idle circle, magnifier dead-centre */
 .search-pill input {
@@ -1065,7 +1072,28 @@ body.magic-active #gridRows, body.magic-active #listingThumbsInner, body.magic-a
 }
 .search-pill input::placeholder { color: var(--grey-500); }
 .search-pill.open { width: 320px; cursor: text; }
-.search-pill.open input { width: 228px; opacity: 1; margin-left: -8px; } /* 24+24+16(icon gap trim)+228+20 right pad ≈ 320 */
+.search-pill.open input { width: 180px; opacity: 1; margin-left: -8px; } /* 24+24+16(icon trim)+180+12 gap+24 X+24 right = 320 */
+/* one-tap "Select" pill — appears after a NAV result that maps to days ("June", "2027", a date):
+   24px tall, 12px type, fully rounded, 12px side padding, 8px left of the X */
+.sp-select {
+  display: none; align-items: center; height: 24px; padding: 0 12px; flex-shrink: 0;
+  margin: 24px 0 24px auto; border: 0; border-radius: 999px;
+  background: #222; color: #fff; font: 600 12px 'Cereal', sans-serif; cursor: pointer;
+}
+.sp-select:hover { background: #000; }
+.search-pill.can-select .sp-select { display: inline-flex; }
+.search-pill.can-select .sp-close { margin-left: 8px; }
+.search-pill.open.can-select { width: 380px; } /* room for the Select pill without squeezing the input */
+/* clear X — 16px glyph in a 24px grey-200 disc, pinned right with a perfect 24px ring of padding
+   (24 top + 24 box + 24 bottom = the 72px pill) */
+.search-pill .sp-close {
+  display: none; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 24px; height: 24px; margin: 24px 24px 24px auto;
+  border: 0; padding: 0; border-radius: 999px;
+  background: var(--grey-200); color: var(--grey-700); cursor: pointer;
+}
+.search-pill.open .sp-close { display: inline-flex; }
+.search-pill .sp-close svg { display: block; }
 .search-pill.shake { animation: searchShake .4s ease; }
 @keyframes searchShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 50% { transform: translateX(6px); } 75% { transform: translateX(-4px); } }
 /* where the search landed: the date-header column pulses once */
@@ -1098,21 +1126,28 @@ body.magic-active #gridRows, body.magic-active #listingThumbsInner, body.magic-a
 .magic-pill.is-growing .mopp-pill, .magic-pill.is-growing .magic-results { opacity: 0; }
 .magic-pill.is-opp { background: #fff; color: #111; height: auto; } /* the review rides the same WHITE surface */
 .magic-cta { display: inline-flex; align-items: center; background: none; border: 0; color: #111;
-  font: 600 16px 'Cereal', sans-serif; cursor: pointer; height: 72px; padding: 0 16px; border-radius: 999px; } /* 16 + 40 wand + 16 = a perfect 72×72 circle */
+  font: 400 16px 'Cereal', sans-serif; cursor: pointer; height: 72px; padding: 0 16px 0 20px; border-radius: 999px; } /* Book weight; +4px of air left of the wand */
 /* the label rides OPEN by default — "N Opportunities" with 12px after the wand and 16px of air on
    its right; tapping still collapses the whole pill into the 72px scanning circle */
-.magic-label { padding-left: 12px; padding-right: 16px; white-space: nowrap; }
+.magic-label { padding-left: 12px; padding-right: 16px; white-space: nowrap; display: inline-block; overflow: hidden; max-width: 240px;
+  transition: max-width .4s cubic-bezier(.22,.9,.3,1), opacity .3s ease, padding .4s cubic-bezier(.22,.9,.3,1); }
+/* search OPEN → the wand pill tucks its label away (20 + 36 wand + 16 = a perfect 72px circle);
+   hovering the circle animates "Opportunities" back out */
+.search-pill.open ~ .magic-pill .magic-label { max-width: 0; opacity: 0; padding-left: 0; padding-right: 0; }
+.search-pill.open ~ .magic-pill:hover .magic-label { max-width: 240px; opacity: 1; padding-left: 12px; padding-right: 16px; }
 .magic-spark { font-size: 18px; line-height: 1; display: inline-block; }
 .magic-spark.spin { animation: magicSpin 1s linear infinite; }
 /* the wand, split into its real layers: the base PNG + the PNG's own three stars, overlaid in place.
    Idle they sit exactly where they're drawn (looks identical to wand.png); scanning they FLASH —
    the original stars ARE the loader, nothing added. */
-.magic-wand { width: 40px; height: 40px; display: block; object-fit: contain; }
-.magic-wandwrap { position: relative; display: inline-block; width: 40px; height: 40px; }
+.magic-wand { width: 36px; height: 36px; display: block; object-fit: contain; }
+.magic-wandwrap { position: relative; display: inline-block; width: 36px; height: 36px; }
 .wand-star { position: absolute; pointer-events: none; }
-.wand-star.ws1 { left: 15.4px; top: 2.7px; width: 8.3px; height: 8.5px; }
-.wand-star.ws2 { left: 29.8px; top: 2.7px; width: 8.3px; height: 8.5px; }
-.wand-star.ws3 { left: 29.8px; top: 17.1px; width: 8.3px; height: 8.3px; }
+/* star positions in % of the wrap (measured on the 40px original: 15.4/2.7/8.3…) — the split
+   layers stay registered to the base PNG at ANY wand size */
+.wand-star.ws1 { left: 38.5%; top: 6.75%; width: 20.75%; height: 21.25%; }
+.wand-star.ws2 { left: 74.5%; top: 6.75%; width: 20.75%; height: 21.25%; }
+.wand-star.ws3 { left: 74.5%; top: 42.75%; width: 20.75%; height: 20.75%; }
 .magic-pill.is-scan .wand-star { animation: starFlash 1.4s ease-in-out infinite; }
 .magic-pill.is-scan .wand-star.ws2 { animation-delay: .45s; }
 .magic-pill.is-scan .wand-star.ws3 { animation-delay: .9s; }
@@ -1256,12 +1291,8 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
 .mnav-in svg { display: block; width: 24px; height: 24px; }
 .mnav-in.prev { margin-right: 4px; } /* 12px flex gap + 4px = 16px to the content */
 .mnav-in.next { margin-left: -4px; } /* 12px flex gap − 4 = 8px Apply → arrow */
-/* rides .bp-close, but DARK and pushed further out: .mopp-pill is inset by the 24px pill padding,
-   so -48 puts the X 24px beyond the pill's bounding box — the same clear float off the rounded
-   corner the QA pill gets, scaled for this taller surface. */
-/* identical to the QA action pill's close (#multiActionClose): dark skin, −32/−32 off the PILL's edge.
-   .mopp-pill is inset by the modal's 20px padding, so −52 here = −32 from the pill's outer corner. */
-.bp-close.magic-close { top: -52px; right: -52px; background: #000; color: #fff; box-shadow: 0 0 0 1px rgba(255,255,255,0.16), 0 4px 14px rgba(0,0,0,0.32); }
+/* rides .bp-close, DARK skin */
+.bp-close.magic-close { top: -44px; right: -44px; /* its offset box is inset 20px from the pill edge → −44 here = the QA pill's exact −24 float */ background: #000; color: #fff; box-shadow: 0 0 0 1px rgba(255,255,255,0.16), 0 4px 14px rgba(0,0,0,0.32); } /* IDENTICAL float to the QA pill's X (−24/−24 off the pill corner) — every modal shares one X spacing */
 
 /* (No dimming in optimize mode — the calendar keeps its normal look; only the glows are added.) */
 /* The glow itself — a pulsing ring in the intent colour; contiguous cells' rings merge into a band */
@@ -2005,6 +2036,7 @@ body.super-collapse-2 .min-badge { position: absolute; opacity: 0; pointer-event
 body.super-collapse-2 .price-card:not(.booked):not(.past):not(.unavailable) .price-val {
   position: relative; opacity: 1; font-size: 12px; line-height: 14px; /* relative so the blocked ::after strike centers on the price */
 }
+body.super-collapse-2 .price-card .disc-badge { font-size: 12px; line-height: 14px; margin-top: 0; } /* month type: every cell line rides the mode's 12px */
 /* Tapped cell keeps week's 2px stroke but a TRANSPARENT fill in month — the grey-100 fill would paint over
    the price (which overflows these narrow cells) and blank it out. Transparent → the price stays visible. */
 body.super-collapse-2 .price-card.selected,
@@ -2211,13 +2243,14 @@ body:not(.optimize-mode):not(.super-collapse-2) .price-card .disc-badge {
   position: absolute; left: 0; right: 0; text-align: center;
   opacity: 0; transition: opacity .18s ease; pointer-events: none;
 }
-body:not(.optimize-mode):not(.super-collapse-2) .price-card .min-badge { top: calc(50% + 12px); }
-body:not(.optimize-mode):not(.super-collapse-2) .price-card .disc-badge { top: calc(50% + 26px); }
+body:not(.optimize-mode):not(.super-collapse-2) .price-card .min-badge { top: min(calc(50% + 12px), calc(100% - 30px)); } /* min() clamps INSIDE the cell on short rows */
+body:not(.optimize-mode):not(.super-collapse-2) .price-card .disc-badge { top: min(calc(50% + 26px), calc(100% - 16px)); }
 body:not(.optimize-mode):not(.super-collapse-2) .price-card:hover .min-badge,
 body:not(.optimize-mode):not(.super-collapse-2) .price-card:hover .disc-badge,
 body:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .min-badge,
 body:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .disc-badge { opacity: 1; }
 body.optimize-mode .price-card:not(.opt-flag) .disc-badge { animation: discAway .35s ease forwards; } /* clear pre-existing discount lines during opportunity mode → clean $ cells */
+body.optimize-mode .price-card.opt-flag .disc-badge { display: none; } /* a FLAGGED cell shows ONLY its card's treatment (odometer / subreveal) — never a pre-existing badge underneath (type-on-type) */
 @keyframes discAway { from { opacity: 1; max-height: 16px; margin-top: 2px; } to { opacity: 0; max-height: 0; margin-top: 0; } }
 .price-card .disc-badge { /* last-min / early-bird "-N%" — priced-sized type, GREEN */
   font-size: 14px;
@@ -2916,6 +2949,8 @@ body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.se
     <div class="search-pill" id="searchPill">
       <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M20.666 20.6641L30.666 30.6641" stroke="#222222" stroke-width="2"/><path d="M24.0007 12.6653C24.0007 18.9246 18.9266 23.9987 12.6673 23.9987C6.40808 23.9987 1.33398 18.9246 1.33398 12.6653C1.33398 6.40613 6.40808 1.33203 12.6673 1.33203C18.9266 1.33203 24.0007 6.40613 24.0007 12.6653Z" stroke="#222222" stroke-width="2"/></svg>
       <input id="searchPillInput" type="text" placeholder="Search calendar" autocomplete="off" spellcheck="false">
+      <button class="sp-select" id="searchPillSelect" type="button">Select</button>
+      <button class="sp-close" id="searchPillClose" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2L10 10M10 2L2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
     </div>
     <div class="magic-pill" id="magicPill"></div>
   </div>
@@ -3017,9 +3052,9 @@ body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.se
   <!-- centre: flags · 16px · / · 16px · hosts — one mid-aligned cluster -->
   <div class="dev-center">
     <div class="dev-hostwrap" id="hostToggle">
-      <button class="host-opt active" data-host="small" type="button">Small Host</button>
-      <button class="host-opt" data-host="big" type="button">Medium Host</button>
-      <button class="host-opt" data-host="pro" type="button">Property Management</button>
+      <button class="host-opt active" data-host="small" type="button">6 Listings</button>
+      <button class="host-opt" data-host="big" type="button">12 Listings</button>
+      <button class="host-opt" data-host="pro" type="button">32 Listings</button>
     </div>
     <span class="dev-slash">/</span>
     <div class="dev-hostwrap" id="dataToggle">
@@ -3174,7 +3209,7 @@ function generateBookings() {
   for (let m = 1; m <= PAST_MONTHS; m++) pastDays += new Date(_t.getFullYear(), _t.getMonth() - m + 1, 0).getDate();
   const todayIndex = pastDays + _t.getDate() - 1;
   let SPAN = 0;
-  for (let m = -PAST_MONTHS; m < 12; m++) SPAN += new Date(_t.getFullYear(), _t.getMonth() + m + 1, 0).getDate();
+  for (let m = -PAST_MONTHS; m < 18; m++) SPAN += new Date(_t.getFullYear(), _t.getMonth() + m + 1, 0).getDate(); // bookings seed the FULL 18-month span
   const out = [];
   let photoN = 0; // running counter → unique photo per booking
   for (let li = 0; li < LISTINGS.length; li++) {
@@ -3345,7 +3380,7 @@ const DEMAND_EVENTS = [
   ['The Dinah queer festival', 'Palm Springs', '2027-03-31', '2027-04-04', 22, 'event_icons/pride-rainbow.png', 'event_icons/sec-rainbow-heart.png', 'estimated'],
   ['Comic-Con convention', 'San Diego', '2026-07-23', '2026-07-26', 40, 'event_icons/comic-pow.png', 'event_icons/sec-star.png', 'confirmed'],
   ['Comic-Con convention', 'San Diego', '2027-07-22', '2027-07-26', 40, 'event_icons/comic-pow.png', 'event_icons/sec-star.png', 'estimated'],
-  ['Del Mar horse racing season', 'San Diego', '2026-07-17', '2026-09-07', 8, 'event_icons/jockey-helmet.png', 'event_icons/sec-horseshoe.png', 'confirmed'],
+  ['Del Mar horse racing season', 'San Diego', '2026-07-17', '2026-07-19', 8, 'event_icons/jockey-helmet.png', 'event_icons/sec-horseshoe.png', 'confirmed'], // opening weekend only — the window rides out to Mon Jul 20
   ['San Diego County Fair', 'San Diego', '2026-06-10', '2026-07-05', 8, 'event_icons/carousel-horse.png', 'event_icons/sec-ticket.png', 'confirmed'],
   ['Farmers Insurance Open golf', 'San Diego', '2026-01-29', '2026-02-01', 14, 'event_icons/golf-badge.png', 'event_icons/sec-golf-flag.png', 'confirmed'],
   ['The Sentry PGA golf', 'San Diego', '2027-01-27', '2027-01-30', 14, 'event_icons/golf-badge.png', 'event_icons/sec-golf-flag.png', 'confirmed'],
@@ -3355,8 +3390,6 @@ const DEMAND_EVENTS = [
   ['X Games action sports', 'Aspen', '2026-01-23', '2026-01-25', 30, 'event_icons/x-games-badge.png', 'event_icons/sec-snowflake.png', 'confirmed'],
   ['Aspen Ideas Festival', 'Aspen', '2026-06-25', '2026-07-01', 20, 'event_icons/lightbulb.png', 'event_icons/sec-sparkle.png', 'confirmed'],
   ['Aspen Ideas Festival', 'Aspen', '2027-06-24', '2027-06-30', 20, 'event_icons/lightbulb.png', 'event_icons/sec-sparkle.png', 'estimated'],
-  ['Aspen classical music festival', 'Aspen', '2026-07-01', '2026-08-23', 10, 'event_icons/french-horn.png', 'event_icons/sec-music-note.png', 'confirmed'],
-  ['Aspen classical music festival', 'Aspen', '2027-06-30', '2027-08-22', 10, 'event_icons/french-horn.png', 'event_icons/sec-music-note.png', 'estimated'],
   ['Gay Ski Week', 'Aspen', '2026-01-11', '2026-01-17', 24, 'event_icons/pride-rainbow.png', 'event_icons/sec-rainbow-heart.png', 'confirmed'],
   ['Gay Ski Week', 'Aspen', '2027-01-17', '2027-01-24', 24, 'event_icons/pride-rainbow.png', 'event_icons/sec-rainbow-heart.png', 'confirmed'],
   ['American Century golf tournament', 'Lake Tahoe', '2026-07-08', '2026-07-12', 26, 'event_icons/golf-badge.png', 'event_icons/sec-golf-flag.png', 'confirmed'],
@@ -4035,10 +4068,11 @@ function render(preserveScroll) {
   const titleEl = document.getElementById('monthTitle');
   titleEl.childNodes[0].textContent = MONTHS[month] + ' ';
 
-  // Build the day range: PAST_MONTHS before the current month + 12 months forward (past is scrollable to the left).
+  // Build the day range: PAST_MONTHS before the current month + 18 months forward (past is scrollable
+  // to the left; 18 forward keeps "next-year" months like July 2027 real, not clamped to the range end).
   allDays = [];
   const days = allDays;
-  for (let m = -PAST_MONTHS; m < 12; m++) {
+  for (let m = -PAST_MONTHS; m < 18; m++) {
     const daysInMonth = new Date(year, month + m + 1, 0).getDate();
     for (let d = 1; d <= daysInMonth; d++) days.push(new Date(year, month + m, d));
   }
@@ -6880,20 +6914,16 @@ function buildGroupEventIcons() {
       // days stay in the PRICING window but get no icon), secondaries carry the rest.
       const p0 = eventPrimaryDay(s0, w0, w1);
       const pKey = _evDayKey(p0);
-      // SPIKES (boost ≥ 18) own their whole travel window: icons cover every priced night, with
-      // secondaries on the shoulder days BEFORE the headline too — the band always agrees with the
-      // event's opportunity card (Comic-Con's Tue/Wed shoulders wear stars, not Del Mar's horseshoes).
-      // Ambient runs still open on their primary day. Coachella overrides with exactly ONE lead day —
-      // the arrival Thursday wears the daisy.
-      let i0 = new Date(p0);
-      if (/coachella/i.test(name)) i0.setDate(i0.getDate() - 1);
-      else if (boost >= 18) i0 = new Date(w0);
+      // EVERY event's icons cover its WHOLE travel window — each priced night wears an icon
+      // (secondaries on the shoulder days before the headline too), so the band always agrees
+      // with the event's opportunity card, ambient runs included.
+      const i0 = new Date(w0);
       let days = [];
       for (let x = new Date(Math.max(i0, w0)); x <= w1; x.setDate(x.getDate() + 1)) {
         const di = diBy.get(_evDayKey(x)); if (di != null) days.push({ di, primary: _evDayKey(x) === pKey });
       }
       if (!days.length) return;
-      if (days.length > 14) { const pi = Math.max(0, days.findIndex(d => d.primary)); days = days.slice(pi, pi + 7); }
+      if (days.length > 14) { const pi = Math.max(0, days.findIndex(d => d.primary)); days = days.slice(0, pi + 7); } // long ambient runs: shoulders + headline week, then quiet — every PRICED shoulder night keeps its icon
       days.forEach(({ di, primary }) => {
         if (taken.has(di)) return;
         const src = primary ? icon : sec;
@@ -7524,6 +7554,8 @@ function animateGroupsByCity() {
 // reads "Get started" and the onboarding flow leads. Wipes ALL tiers (via the 32-listing master) but
 // never changes which host persona is on screen.
 document.getElementById('devReset').addEventListener('click', () => {
+  if (typeof clearSelection === 'function') clearSelection(); // selection + QA pill go back to default
+  if (typeof window._resetSearchPill === 'function') window._resetSearchPill(); // query cleared, pill collapsed
   if (document.body.classList.contains('optimize-mode') && typeof exitOptimize === 'function') exitOptimize();
   setDataMode('none'); // bookings off + variance off (fires the host-wide flatten when they were on)
   // Even when the flags were ALREADY off, edits applied through onboarding (price sets, discounts,
@@ -7568,7 +7600,9 @@ function setSuperCollapse(on) {
   document.body.classList.toggle('super-collapse-2', on);
   document.body.classList.toggle('sc-any', on);
   render(true);
-  requestAnimationFrame(() => { updateVSync(); syncCalTitle(); updateSc2MonthLabels(); buildGroupLabelOverlay(); positionLeftToggle(); }); // rebuild the group-name overlay: row heights changed, so its anchors moved
+  requestAnimationFrame(() => { updateVSync(); syncCalTitle(); updateSc2MonthLabels(); buildGroupLabelOverlay(); positionLeftToggle();
+    if (typeof buildGroupEventIcons === 'function') { try { buildGroupEventIcons(); } catch (err) {} } // new mode, new offsets → re-hang the band icons
+  });
 }
 
 // The Week↔Month morph — PER-ELEMENT (no scaling, so nothing stretches): each cell/pill follows the
@@ -7641,7 +7675,9 @@ function finishMorph() {
   document.body.classList.add('morph-settling');
   clearTimeout(settleTimer);
   settleTimer = setTimeout(() => document.body.classList.remove('morph-settling'), 360);
-  requestAnimationFrame(() => { updateVSync(); syncCalTitle(); updateSc2MonthLabels(); buildGroupLabelOverlay(); positionLeftToggle(); }); // rebuild the group-name overlay: row heights changed, so its anchors moved
+  requestAnimationFrame(() => { updateVSync(); syncCalTitle(); updateSc2MonthLabels(); buildGroupLabelOverlay(); positionLeftToggle();
+    if (typeof buildGroupEventIcons === 'function') { try { buildGroupEventIcons(); } catch (err) {} } // week↔month changed every column's pitch — re-hang the band icons on the NEW offsets
+  });
 }
 document.getElementById('devSuperCollapse2')?.addEventListener('change', e => setSuperCollapse(e.target.checked));
 
@@ -8998,7 +9034,7 @@ function renderMagicPill() {
         oppIconHTML(g) +
         '<div class="mopp-whywrap' + (g.bucket === 'grouping' ? ' is-group' : '') + '"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + '</span>' : '') + (g.why ? '<span class="mopp-why">' + g.why + '</span>' : '') + '</div>' +
         (g.thinking ? '<button class="mopp-apply is-thinking" disabled aria-label="Working"><span class="thinkdots"><i></i><i></i><i></i></span></button>'
-          : g.applied ? '<button class="mopp-applied is-check' + (g.type === 'drop' || g.type === 'promo' ? ' is-lo' : '') + '" data-magic="undo" title="Undo" aria-label="Applied — tap to undo"><svg class="apck" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg></button>'
+          : g.applied ? '<button class="mopp-applied is-check' + (g.intent === 'fill' ? ' is-lo' : '') + '" data-magic="undo" title="Undo" aria-label="Applied — tap to undo"><svg class="apck" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg></button>'
           : '<button class="mopp-apply" data-magic="apply">' + (g.bucket === 'grouping' ? '<svg class=\'cta-wand\' width=\'24\' height=\'24\' viewBox=\'0 0 16 16\' fill=\'none\' aria-hidden=\'true\'><path fill=\'#fff\' d=\'M12.2069 2.85859L13.1411 3.79285C13.5317 4.18339 13.5317 4.81662 13.1411 5.2071L3.20689 15.1413C2.81636 15.532 2.18313 15.532 1.79265 15.1414L0.858273 14.2071C0.467808 13.8166 0.467808 13.1834 0.858316 12.7929L10.7926 2.85853C11.1832 2.46807 11.8163 2.46807 12.2069 2.85859ZM8.49893 6.84769L1.84792 13.4997L2.49942 14.1512L9.15043 7.49919L8.49893 6.84769Z\'/><path class=\'wstar\' d=\'M13.9997 7L14.4997 8L15.4997 8.5L14.4997 9L13.9997 10L13.4997 9L12.4997 8.5L13.4997 8L13.9997 7Z\'/><path class=\'wstar wstar2\' d=\'M7.49974 0.5L7.99974 1.5L8.99974 2L7.99974 2.5L7.49974 3.5L6.99974 2.5L5.99974 2L6.99974 1.5L7.49974 0.5Z\'/><path class=\'wstar wstar3\' d=\'M14.4997 0L14.9997 1L15.9997 1.5L14.9997 2L14.4997 3L13.9997 2L12.9997 1.5L13.9997 1L14.4997 0Z\'/></svg>' : '') + (g.cta || 'Apply') + '</button>') +
         '<button class="mnav-in next" data-magic="next" aria-label="Next opportunity">' + CHEV_NEXT + '</button>' +
         '<button class="bp-close magic-close" data-magic="exit" aria-label="Exit">✕</button>' +
@@ -9361,6 +9397,18 @@ function _levDist(a, b) {
 // a query word hits a name word on prefix either way (3+ letters — "s" from "New Year's" must
 // never prefix-match everything), or a small typo (2 edits needs a 5+ letter word)
 const _fuzzyWord = (w, q) => w.startsWith(q) || (w.length >= 3 && q.startsWith(w)) || (Math.min(w.length, q.length) >= 5 && _levDist(w, q) <= 2);
+const _fuzzyPlaceWord = (w, q) => {
+  if (w.startsWith(q) || q.startsWith(w)) return true;
+  const n = Math.min(w.length, q.length), d = _levDist(w, q);
+  return (n >= 4 && d <= 1) || (n >= 5 && d <= 2) || (w.slice(0, 3) === q.slice(0, 3) && n >= 4 && d <= 3);
+};
+// PLACE names (cities / listings / groups) fuzz LOOSER than the general matcher:
+// "palem spren" → Palm Springs, "gaslmp" → Gaslamp. Shared-3-prefix buys 3 edits.
+const _fuzzyPlace = (name, q) => {
+  const nw = name.toLowerCase().split(/[^a-z0-9]+/).filter(x => x.length >= 2);
+  const qw = String(q).split(/[^a-z0-9]+/).filter(Boolean);
+  return qw.length > 0 && qw.every(x => nw.some(w => _fuzzyPlaceWord(w, x)));
+};
 const _fuzzyName = (name, q) => {
   const nw = name.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 2);
   const qw = String(q).split(/[^a-z0-9]+/).filter(Boolean);
@@ -9393,22 +9441,26 @@ function _searchDayRanges(expr, lis) {
   let e = (ym ? expr.replace(ym[0], '') : expr).replace(/[,\s]+/g, ' ').trim();
   e = e.replace(/\s+months?$/, '').replace(/^the\s+/, ''); // "summer months" → "summer"
   const inYear = d => year == null || d.getFullYear() === year;
-  // "weekends (in july / in summer)" — Fri+Sat nights within the qualifier
-  const wm = e.match(/^weekends?(?:\s+(?:in|of)\s+(.+))?$/);
+  if (!e && year != null) return _searchRuns(d => d.getFullYear() === year); // "select 2027" — the whole year
+  // "weekends / weekdays (in july / in summer)" — weekend = Fri+Sat+Sun (the rule-dot trio); weekday = Mon–Thu
+  const wm = e.match(/^(weekends?|weekdays?)(?:\s+(?:in|of)\s+(.+))?$/);
   if (wm) {
     let within = () => true;
-    if (wm[1]) {
-      const w = wm[1].trim(), mi = _searchMonthIdx(w);
+    if (wm[2]) {
+      const w = wm[2].trim(), mi = _searchMonthIdx(w);
       const sea = Object.keys(_SEASON_MONTHS).find(s => _fuzzyWord(s, w));
       if (mi >= 0) within = d => d.getMonth() === mi;
       else if (sea) within = d => _SEASON_MONTHS[sea].includes(d.getMonth());
       else return null;
     }
-    return _searchRuns(d => inYear(d) && within(d) && (d.getDay() === 5 || d.getDay() === 6));
+    const wknd = /^weekend/.test(wm[1]);
+    return _searchRuns(d => inYear(d) && within(d) && (wknd
+      ? (d.getDay() === 5 || d.getDay() === 6 || d.getDay() === 0)
+      : (d.getDay() >= 1 && d.getDay() <= 4)));
   }
   // "gaps" / "open nights" (optionally "in <month|season>") — PER-LISTING runs: a gap is an open
   // run bounded by bookings on both sides; windowing intersects each run afterwards
-  const om = e.match(/^(gaps?|open(?:\s+nights?)?|unbooked(?:\s+nights?)?)(?:\s+(?:in\s+|of\s+)?(.+))?$/);
+  const om = e.match(/^(gaps?(?:\s+nights?)?|open(?:\s+nights?)?|unbooked(?:\s+nights?)?)(?:\s+(?:in\s+|of\s+)?(.+))?$/);
   if (om) {
     let within = () => true;
     if (om[2]) {
@@ -9448,6 +9500,37 @@ function _searchDayRanges(expr, lis) {
   // a plain month → the whole month (every occurrence unless a year narrows it)
   const mi = _searchMonthIdx(e);
   if (mi >= 0) return _searchRuns(d => inYear(d) && d.getMonth() === mi);
+  // "holidays" → EVERY holiday's banded window on the calendar
+  if (/^holidays?$/.test(e)) {
+    const rs = [];
+    [...new Set(allDays.map(d => d.getFullYear()))].forEach(y => {
+      if (year != null && y !== year) return;
+      HOLIDAYS.forEach(h => {
+        const hd = holidayDateInYear(h, y);
+        const k = allDays.findIndex(d => d.toDateString() === hd.toDateString());
+        if (k < 0) return;
+        const offs = h.secOffsets || secondaryOffsets(hd.getDay());
+        rs.push({ a: Math.max(0, k + Math.min(0, ...offs)), b: Math.min(allDays.length - 1, k + Math.max(0, ...offs)) });
+      });
+    });
+    return rs.length ? rs : null;
+  }
+  // "events" → every event instance's travel window, each on ITS city's rows
+  if (/^events?$/.test(e)) {
+    const cities3 = new Set(LISTINGS.map(l => l.city));
+    const rs = [];
+    DEMAND_EVENTS.forEach(ev => {
+      const [name, city, sIso, eIso] = ev;
+      if (!cities3.has(city)) return;
+      const s0 = new Date(sIso + 'T00:00'), e0 = new Date(eIso + 'T00:00');
+      if (year != null && s0.getFullYear() !== year) return;
+      const [w0, w1] = eventWindowFor(name, s0, e0);
+      let a = -1, b = -1;
+      allDays.forEach((d, k) => { if (d >= w0 && d <= w1) { if (a < 0) a = k; b = k; } });
+      if (a >= 0) rs.push({ a, b, city });
+    });
+    return rs.length ? rs : null;
+  }
   // a holiday → its banded window(s) (the same offsets the calendar marks)
   const hol = HOLIDAYS.find(h => _fuzzyName(h.name, e));
   if (hol) {
@@ -9474,9 +9557,32 @@ function _searchDayRanges(expr, lis) {
     allDays.forEach((d, k) => { if (d >= w0 && d <= w1) { if (a < 0) a = k; b = k; } });
     if (a >= 0) rs.push({ a, b, city });
   });
-  return rs.length ? rs : null;
+  if (rs.length) return rs;
+  // a single DATE — "select mar 13", "select 7/8/26" → that one column
+  const dd = _searchParseDayIdx(expr, null);
+  return dd >= 0 ? [{ a: dd, b: dd }] : null;
+}
+// parse ONE date-ish string to a day index: "7/8", "7/8/26", "July 4", "Aug 15 2027".
+// No year → the next in-range occurrence at/after `afterDi` (so ranges read forward).
+function _searchParseDayIdx(str, afterDi) {
+  str = String(str).trim();
+  if (!str || !/\d/.test(str)) return -1;
+  let d0 = null;
+  const m = str.match(/^(\d{1,2})[\/.](\d{1,2})(?:[\/.](\d{2,4}))?$/); // M/D(/Y) beats Date.parse's 2001 default
+  if (m) {
+    const y = m[3] ? (+m[3] < 100 ? 2000 + +m[3] : +m[3]) : null;
+    if (y) d0 = new Date(y, +m[1] - 1, +m[2]);
+    else { const hits = []; allDays.forEach((d, k) => { if (d.getMonth() === +m[1] - 1 && d.getDate() === +m[2]) hits.push(k); });
+      return hits.find(k => k >= (afterDi != null ? afterDi : Math.max(0, todayDi))) ?? (hits.length ? hits[0] : -1); }
+  } else { const t = Date.parse(str); if (!isNaN(t)) d0 = new Date(t); }
+  if (!d0 || isNaN(+d0)) return -1;
+  let di = allDays.findIndex(d => d.getFullYear() === d0.getFullYear() && d.getMonth() === d0.getMonth() && d.getDate() === d0.getDate());
+  if (di < 0) { const hits = []; allDays.forEach((d, k) => { if (d.getMonth() === d0.getMonth() && d.getDate() === d0.getDate()) hits.push(k); });
+    di = hits.find(k => k >= (afterDi != null ? afterDi : Math.max(0, todayDi))) ?? (hits.length ? hits[0] : -1); }
+  return di;
 }
 let _searchHint = '';       // set by whichever branch matched; searchGoto fills a date default
+let _searchCanSelect = false; // the last NAV result maps to selectable days → surface the Select pill
 let _searchLastQ = '';      // Enter on the SAME query cycles to the next match
 let _searchLastDi = -1;
 // vertical-only: centre a listing's row without moving the dates (bare city/listing/group queries)
@@ -9488,13 +9594,15 @@ function _searchRow(li) {
   return true;
 }
 // fly the grid to a date column (and optionally centre a listing row), then pulse the date header
-function searchGoto(di, li) {
+function searchGoto(di, li, alignLeft) {
   di = Math.max(0, Math.min(allDays.length - 1, di));
   _searchLastDi = di;
   if (!_searchHint) { const d = allDays[di];
     _searchHint = '→ ' + _MONTHS_FULL[d.getMonth()].replace(/^./, c => c.toUpperCase()).slice(0, 3) + ' ' + d.getDate() + ', ' + d.getFullYear(); }
   const vw = gridWrap.clientWidth || window.innerWidth;
-  const left = Math.max(0, (rowOffsets[di] || 0) - Math.round(vw * 0.28));
+  // month/year queries land their 1st flush at the viewport's LEFT edge ("August" puts August top-left);
+  // everything else sits ~28% in so there's context either side
+  const left = Math.max(0, (rowOffsets[di] || 0) - (alignLeft ? GRID_GUTTER : Math.round(vw * 0.28)));
   let top = gridWrap.scrollTop;
   if (li != null) {
     const row = document.querySelector('#gridRows > .price-row[data-li="' + li + '"]');
@@ -9514,7 +9622,7 @@ function searchGoto(di, li) {
 }
 function searchCalendar(raw, after) {
   const q = String(raw || '').trim(); if (!q) return false;
-  _searchHint = '';
+  _searchHint = ''; _searchCanSelect = false;
   let ql = q.toLowerCase().replace(/\s+/g, ' ');
   // everyday synonyms land on what the calendar calls them
   const SYN = { 'xmas': 'christmas', 'nye': 'new years', 'new years eve': 'new years',
@@ -9535,7 +9643,9 @@ function searchCalendar(raw, after) {
     || (_w0.length >= 4 && _w0[0] === 's' && _levDist(_w0, 'select') <= 2);
   const vm = _isSelVerb && ql.includes(' ')
     ? [null, ql.slice(_w0.length + 1).replace(/^(?:all\s+)?(?:of\s+)?(?:the\s+)?/, '')] : null;
+  let _selIntent = false; // a select-verb query that falls through keeps its intent (date ranges)
   cmd: if (vm) {
+    _selIntent = true;
     let expr = vm[1].trim();
     let lis = LISTINGS.map((_, i) => i);
     // a trailing "in <place>" is a SCOPE only when it names a city or group on the board — otherwise
@@ -9544,13 +9654,25 @@ function searchCalendar(raw, after) {
     const sm = expr.match(/^(.+)\s+(?:in|for|across)\s+([a-z0-9 .'-]+)$/);
     if (sm) {
       const place = sm[2].trim();
-      const city = [...new Set(LISTINGS.map(l => l.city))].find(c => _fuzzyName(c, place));
-      const grp = typeof groups !== 'undefined' && groups.find(g => g.members && g.members.length && g.name && _fuzzyName(g.name, place));
+      const city = [...new Set(LISTINGS.map(l => l.city))].find(c => _fuzzyPlace(c, place));
+      const grp = typeof groups !== 'undefined' && groups.find(g => g.members && g.members.length && g.name && _fuzzyPlace(g.name, place));
       if (city) { lis = LISTINGS.map((l, i) => l.city === city ? i : -1).filter(i => i >= 0); expr = sm[1].trim(); }
       else if (grp) { lis = grp.members.slice(); expr = sm[1].trim(); }
     }
-    const ranges = _searchDayRanges(expr, lis);
-    if (!ranges || !lis.length) break cmd; // not a time expression — treat the query as plain search
+    // a PLACE resolves FIRST: "select all of san diego" means the CITY's rows (even though an
+    // event shares the name), "select all of Desert Palm Villa" / "slect gaslamp" a listing's —
+    // every selectable night from today on. Fuzzy like everything else.
+    let ranges = null;
+    {
+      const city2 = [...new Set(LISTINGS.map(l => l.city))].find(c => _fuzzyPlace(c, expr));
+      const grp2 = !city2 && typeof groups !== 'undefined' && groups.find(g => g.members && g.members.length && g.name && _fuzzyPlace(g.name, expr));
+      const li2 = !city2 && !grp2 ? LISTINGS.findIndex(l => l.name && _fuzzyPlace(l.name, expr)) : -1;
+      const nameLis = city2 ? LISTINGS.map((l, i) => l.city === city2 ? i : -1).filter(i => i >= 0)
+        : grp2 ? grp2.members.slice() : li2 >= 0 ? [li2] : null;
+      if (nameLis && nameLis.length) { lis = nameLis; ranges = [{ a: Math.max(0, todayDi), b: N2 - 1 }]; }
+    }
+    if (!ranges) ranges = _searchDayRanges(expr, lis);
+    if (!ranges || !lis.length) { ql = expr; break cmd; } // plain search takes the verb-less query from here
     const shared = Array.isArray(ranges); // gaps/open-nights resolve PER LISTING instead
     // an event range knows its city — unscoped queries narrow to that city's rows automatically
     if (shared && ranges[0].city && lis.length === LISTINGS.length) {
@@ -9564,11 +9686,49 @@ function searchCalendar(raw, after) {
       if (r.city && LISTINGS[li].city !== r.city) return;
       for (let k = r.a; k <= r.b; k++) if (isSelectable(li, k)) { setSel(li, k, true); if (!first || k < first.di) first = { li, di: k }; }
     }));
-    if (!first) break cmd; // everything in range was past/booked — plain search may still land it
+    if (!first) { ql = expr; break cmd; } // everything past/booked — plain search may still land it
     paintSelection(); updateClearBtn(); updateDateHeaders();
     const selLis = new Set(selList().map(x => x.li));
     _searchHint = '→ ' + selCount() + ' night' + (selCount() > 1 ? 's' : '') + ' · ' + selLis.size + ' listing' + (selLis.size > 1 ? 's' : '');
     return searchGoto(first.di, first.li);
+  }
+  // ── DATE-RANGE = SELECTION intent: "July 4 – Aug 15", "7/8/26 - 8/8/26", "7/8 to 8/6".
+  // Two parseable dates around a dash/"to" select the whole span; SINGLE dates stay navigation.
+  {
+    const rm = ql.match(/^(.+?)\s+(?:[-–—]|to|through|thru)\s+(.+)$/) || ql.match(/^([^-–—]+)[-–—]([^-–—]+)$/);
+    if (rm && /\d/.test(rm[1]) && /\d/.test(rm[2])) {
+      let a = _searchParseDayIdx(rm[1], null);
+      let b = a >= 0 ? _searchParseDayIdx(rm[2], a) : -1;
+      // "July 4 – Aug 15" typed three days after July 4 means THIS summer, not next year's:
+      // if the start just passed but the range would still be running, prefer the in-progress one
+      if (a > Math.max(0, todayDi)) {
+        const a0 = _searchParseDayIdx(rm[1], 0);
+        if (a0 >= 0 && a0 < a) { const b0 = _searchParseDayIdx(rm[2], a0);
+          if (b0 >= Math.max(0, todayDi)) { a = a0; b = b0; } }
+      }
+      if (a >= 0 && b >= 0) {
+        const lo = Math.min(a, b), hi = Math.max(a, b);
+        if (_selIntent) { // "select july 4 - aug 15" (or the Select pill) commits the selection
+          if (typeof clearSelection === 'function') clearSelection();
+          selClear();
+          let first = null;
+          for (let li = 0; li < LISTINGS.length; li++) for (let k = lo; k <= hi; k++)
+            if (isSelectable(li, k)) { setSel(li, k, true); if (!first || k < first.di) first = { li, di: k }; }
+          if (first) {
+            paintSelection(); updateClearBtn(); updateDateHeaders();
+            const rLis = new Set(selList().map(x => x.li));
+            _searchHint = '→ ' + selCount() + ' nights · ' + rLis.size + ' listing' + (rLis.size > 1 ? 's' : '');
+            return searchGoto(first.di, first.li);
+          }
+        }
+        // typed bare: NAVIGATE to the range start and offer the one-tap Select pill instead
+        _searchCanSelect = true;
+        const fA = allDays[Math.max(lo, Math.max(0, todayDi))], fB = allDays[hi];
+        _searchHint = '→ ' + _MONTHS_FULL[fA.getMonth()].replace(/^./, c => c.toUpperCase()).slice(0, 3) + ' ' + fA.getDate()
+          + ' – ' + _MONTHS_FULL[fB.getMonth()].replace(/^./, c => c.toUpperCase()).slice(0, 3) + ' ' + fB.getDate();
+        return searchGoto(Math.max(lo, Math.max(0, todayDi)));
+      }
+    }
   }
   // ($) price — "$270", "270 dollars": the next cell charging exactly that
   const pm = ql.match(/^\$\s*(\d+)$/) || ql.match(/^(\d+)\s*(?:dollars?|bucks)$/);
@@ -9622,6 +9782,14 @@ function searchCalendar(raw, after) {
       let best = null;
       BOOKINGS.forEach(b => { if (b.start + b.nights - 1 >= todayDi && (!best || b.nights > best.nights)) best = b; });
       if (best) { _searchHint = '→ ' + best.guest + ' · ' + best.nights + ' nights'; return searchGoto(best.start, best.listing); }
+    }
+    // "weekends in jan" · "weekdays in august" · bare "weekends" — fly to the first one
+    if (/^week(?:ends?|days?)\b/.test(ql)) {
+      const rg = _searchDayRanges(ql, LISTINGS.map((_, i) => i));
+      if (Array.isArray(rg) && rg.length) {
+        const run = rg.find(r => r.b >= minDi) || rg[0];
+        if (run) return searchGoto(Math.max(run.a, minDi > run.b ? run.a : minDi));
+      }
     }
     // "gaps" · "next gap" · "open nights" · "gaps in october" · "unbooked august"
     if (/^(?:next\s+)?(?:gaps?\b|open\b|unbooked\b)/.test(ql)) {
@@ -9770,7 +9938,7 @@ function searchCalendar(raw, after) {
   const rest = ym ? ql.replace(ym[0], '').replace(/[,\s]+/g, ' ').trim() : ql;
   if (year != null && !rest) {
     const di = allDays.findIndex(d => d.getFullYear() === year);
-    return di >= 0 && searchGoto(di);
+    return di >= 0 && searchGoto(di, null, true);
   }
   // month name (typo-tolerant), optionally with the year
   if (rest && !/\d/.test(rest) && !rest.includes(' ')) {
@@ -9779,7 +9947,7 @@ function searchCalendar(raw, after) {
       const hits = []; allDays.forEach((d, k) => { if (d.getMonth() === mi && d.getDate() === 1 && (year == null || d.getFullYear() === year)) hits.push(k); });
       if (!hits.length) allDays.forEach((d, k) => { if (d.getMonth() === mi && (year == null || d.getFullYear() === year)) hits.push(k); });
       const di = hits.find(k => k >= minDi) ?? hits[0];
-      if (di != null) return searchGoto(di);
+      if (di != null) return searchGoto(di, null, true);
     }
   }
   // holidays — "labor day", "thanksgiving"
@@ -9796,12 +9964,12 @@ function searchCalendar(raw, after) {
   // a bare CITY / GROUP / LISTING name — centre those rows vertically, dates stay put
   // (checked before events so "san diego" means the section, not the County Fair)
   {
-    const city = [...new Set(LISTINGS.map(l => l.city))].find(c => _fuzzyName(c, ql));
+    const city = [...new Set(LISTINGS.map(l => l.city))].find(c => _fuzzyPlace(c, ql));
     if (city) { const li = LISTINGS.findIndex(l => l.city === city);
       if (li >= 0 && _searchRow(li)) { _searchHint = '→ ' + city; return true; } }
-    const grp = typeof groups !== 'undefined' && groups.find(g => g.members && g.members.length && g.name && _fuzzyName(g.name, ql));
+    const grp = typeof groups !== 'undefined' && groups.find(g => g.members && g.members.length && g.name && _fuzzyPlace(g.name, ql));
     if (grp && _searchRow(grp.members[0])) { _searchHint = '→ ' + grp.name; return true; }
-    const lni = LISTINGS.findIndex(l => l.name && _fuzzyName(l.name, ql));
+    const lni = LISTINGS.findIndex(l => l.name && _fuzzyPlace(l.name, ql));
     if (lni >= 0 && _searchRow(lni)) { _searchHint = '→ ' + LISTINGS[lni].name; return true; }
   }
   // events — "cochella", "comic con 2027" (only cities that are actually on the board)
@@ -9863,20 +10031,51 @@ function searchCalendar(raw, after) {
   if (!pill || !input) return;
   pill.addEventListener('click', e => { if (!pill.classList.contains('open')) { pill.classList.add('open'); input.focus(); } });
   input.addEventListener('blur', () => { if (!input.value.trim()) pill.classList.remove('open'); });
+  const setCanSelect = on => pill.classList.toggle('can-select', !!on);
+  const xBtn = document.getElementById('searchPillClose');
+  if (xBtn) xBtn.addEventListener('click', e => {
+    e.stopPropagation(); // the pill's own click handler must not immediately reopen it
+    input.value = ''; _searchLastQ = ''; input.blur(); pill.classList.remove('open'); setCanSelect(false);
+  });
+  // one-tap "Select": converts the just-searched date/month/year into a real selection
+  const selBtn = document.getElementById('searchPillSelect');
+  if (selBtn) selBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const q = (_searchLastQ || input.value).trim(); if (!q) return;
+    _searchHint = '';
+    if (searchCalendar(/^(?:select|highlight|grab|pick|choose)\b/.test(q.toLowerCase()) ? q : 'select ' + q)) {
+      setCanSelect(false);
+      if (typeof selCount === 'function' && selCount() > 0) {
+        if (_searchHint) showHint(_searchHint, 2600);
+        input.value = ''; _searchLastQ = ''; input.blur(); pill.classList.remove('open');
+      }
+    }
+  });
+  input.addEventListener('input', () => setCanSelect(false));
+  window._resetSearchPill = () => { input.value = ''; _searchLastQ = ''; _searchLastDi = -1; setCanSelect(false);
+    pill.classList.remove('open', 'shake'); if (hint) hint.classList.remove('show'); }; // dev Reset wipes the search too
   const hint = document.getElementById('searchPillHint');
   let hintT = null;
   const showHint = (txt, ms) => { if (!hint) return; hint.textContent = txt; hint.classList.add('show');
     clearTimeout(hintT); hintT = setTimeout(() => hint.classList.remove('show'), ms); };
   input.addEventListener('keydown', e => {
-    e.stopPropagation(); // the grid's own key handlers never see search typing
-    if (e.key === 'Escape') { input.value = ''; input.blur(); pill.classList.remove('open'); _searchLastQ = ''; return; }
+    if (e.key !== 'Shift') e.stopPropagation(); // grid key handlers never see typing — but Shift MUST reach the document tracker or the shift-range ghosts won't arm while the input holds focus
+    if (e.key === 'Escape') { input.value = ''; input.blur(); pill.classList.remove('open'); _searchLastQ = ''; setCanSelect(false); return; }
     if (e.key !== 'Enter') return;
     const v = input.value;
     const cycling = !!v.trim() && v === _searchLastQ; // same query again → step to the NEXT match
     const ok = searchCalendar(v, cycling ? _searchLastDi : null);
     _searchLastQ = v;
-    if (!ok) { pill.classList.remove('shake'); void pill.offsetWidth; pill.classList.add('shake'); showHint('No match', 1600); return; }
+    if (!ok) { pill.classList.remove('shake'); void pill.offsetWidth; pill.classList.add('shake'); return; }
     if (_searchHint) showHint(_searchHint + (cycling ? ' · next' : ''), 2600);
+    if (typeof selCount === 'function' && selCount() > 0) { // selection made → the QA pill owns it now
+      input.value = ''; _searchLastQ = ''; input.blur(); pill.classList.remove('open'); setCanSelect(false);
+    } else { // NAV result — offer one-tap Select when the query maps to a span of days
+      let can = _searchCanSelect; // date-range navigations flag themselves
+      if (!can) try { const r = _searchDayRanges(v.trim().toLowerCase(), LISTINGS.map((_, i) => i));
+        can = Array.isArray(r) ? r.length > 0 : !!(r && r.perLi); } catch (err) {}
+      setCanSelect(can);
+    }
   });
 })();
 const _HOST_O = [LISTINGS, priceOverride, promoVals, minOverride, ruleSetCell, ruleSets, groups, BOOKINGS]; // deep-copyable (plain objects)
