@@ -463,11 +463,14 @@ body.row-reordering .thumb-row { cursor: grabbing; }
 /* ── Event icons in the GROUP BAND: each city group's demand events ride its header band —
    the primary icon opens the run over its first date column, small secondary accents carry the
    rest; every icon is centred to its column and to the header type's centreline. ── */
-.gev { position: absolute; left: 50%; transform: translateX(-50%); pointer-events: auto; cursor: default;
-  transition: transform 0.32s ease; z-index: 10; } /* rides the date-header rule like a holiday icon */
+#gridRows .group-divider { position: relative; } /* the band is the icons' coordinate space */
+.gev { position: absolute; transform: translateX(-50%); pointer-events: auto; cursor: default;
+  transition: transform 0.32s ease; z-index: 10; } /* left set inline to the column centre (rowOffsets) */
 .gev:hover { transform: translateX(-50%) scale(1.5); z-index: 12; }
-.gev.gev-primary { width: 30px; height: 30px; bottom: -32px; }   /* centre lands on the rule (-17px) */
-.gev.gev-secondary { width: 18px; height: 18px; bottom: -26px; }
+/* group-name centreline = 27px above the band's bottom edge (16px below-name + 11px half-name) —
+   same in the 62px band and the 38px .first band, so one pair of offsets centres both sizes on it */
+.gev.gev-primary { width: 30px; height: 30px; bottom: 12px; }
+.gev.gev-secondary { width: 18px; height: 18px; bottom: 18px; }
 .gev.gev-tentative { opacity: 1; } /* estimated dates render SOLID — the hover pill carries the "(estimated)" caveat */
 /* collapse is RETIRED for GROUPS: no up/down chevrons anywhere — groups are always open.
    The left panel's own grey-circle chevron stays: names can still collapse/expand. */
@@ -4086,7 +4089,7 @@ function render(preserveScroll) {
 
   applyGroupsToCalendar(); // render() rebuilds thumbs + grid rows from scratch, so re-apply grouping
   if (typeof _gmHintShow === 'function') { _gmHintShow(); if (typeof _gmHintPlace === 'function') _gmHintPlace(); } // drag-to-group coach (default ability) — until first drag
-  if (typeof buildGroupEventIcons === 'function') { try { buildGroupEventIcons(); } catch (err) {} } // event icons ride the fresh date header
+  if (typeof buildGroupEventIcons === 'function') { try { buildGroupEventIcons(); } catch (err) {} } // fresh grid → re-hang the group-band event icons (offsets may have changed mode)
   if (calendarView === 'month') renderMonthView(); // keep the month grid in sync after a full re-render
   positionLeftToggle();    // place the collapse toggle on the header rule (it lives at .cal level now)
   applyHeaderPageMargins(); // page-align the date header when the month pager is active
@@ -6575,6 +6578,7 @@ function applyGroupsToCalendar() {
   apply(document.getElementById('availRows'),     '.settings-row', false);
 
   buildGroupLabelOverlay();
+  if (typeof buildGroupEventIcons === 'function') { try { buildGroupEventIcons(); } catch (err) {} } // bands were just recreated → re-hang their event icons
   // Content height changed (groups/collapse) → the browser may clamp scrollTop on the next reflow. Re-run
   // after that settles so the overlay's translate + label tops re-sync (otherwise the labels lag the scroll
   // and the group headers land on top of listing rows).
@@ -6797,42 +6801,54 @@ function positionLeftToggle() {
   }
 })();
 
-// ── Event icons ride the TOP strip (the date header, same rule line the holiday icons own).
-// Holidays stay true to their dates and always win the slot; events fill the rest — primary icon
+// ── Event icons ride each GROUP's header band in the grid — a city group's demand events show on
+// ITS band only, never on the date-header rule (that line belongs to the holidays). Primary icon
 // on the headline day, small secondary accents across the window (long ambient runs: a week, then
-// quiet). One icon per date; higher-boost events win collisions. Cities without listings don't show.
+// quiet). One icon per date PER BAND; higher-boost events win collisions. No bands (no groups yet)
+// → no event icons. Icons sit at rowOffsets column centres, so they scroll with the dates natively.
 function buildGroupEventIcons() {
-  document.querySelectorAll('#dateHeader .gev').forEach(e => e.remove());
+  document.querySelectorAll('.gev').forEach(e => e.remove());
   if (!allDays.length) return;
-  const cities = new Set(LISTINGS.map(l => l.city));
+  const dividers = document.querySelectorAll('#gridRows > .group-divider');
+  if (!dividers.length) return;
   const diBy = new Map(allDays.map((d, i) => [_evDayKey(d), i]));
-  const cells = new Map();
-  document.querySelectorAll('#dateHeader .date-cell').forEach(c => cells.set(+c.dataset.di, c));
-  const taken = new Set();
-  DEMAND_EVENTS.slice().sort((x, y) => y[4] - x[4]).forEach(ev => {
-    const [name, city, sIso, eIso, boost, icon, sec, status] = ev;
-    if (!cities.has(city) || !icon) return;
-    const s0 = new Date(sIso + 'T00:00'), e0 = new Date(eIso + 'T00:00');
-    const [w0, w1] = eventWindowFor(name, s0, e0);
-    const pKey = _evDayKey(eventPrimaryDay(s0, w0, w1));
-    let days = [];
-    for (let x = new Date(w0); x <= w1; x.setDate(x.getDate() + 1)) {
-      const di = diBy.get(_evDayKey(x)); if (di != null) days.push({ di, primary: _evDayKey(x) === pKey });
-    }
-    if (!days.length) return;
-    if (days.length > 14) { const pi = Math.max(0, days.findIndex(d => d.primary)); days = days.slice(pi, pi + 7); }
-    days.forEach(({ di, primary }) => {
-      if (taken.has(di)) return;
-      const cell = cells.get(di); if (!cell) return;
-      if (cell.querySelector('.holiday-icon')) return; // the holiday owns its date
-      const src = primary ? icon : sec;
-      if (!src) return;
-      taken.add(di);
-      const img = document.createElement('img');
-      img.className = 'gev ' + (primary ? 'gev-primary' : 'gev-secondary') + (status === 'estimated' ? ' gev-tentative' : '');
-      img.src = src; img.alt = name; img.loading = 'lazy';
-      img.dataset.hname = name;
-      cell.appendChild(img);
+  const cw = gridCell().w;
+  const grouped = new Set(groups.flatMap(g => g.members));
+  dividers.forEach(div => {
+    const gi = div.dataset.gi;
+    const members = gi === 'more'
+      ? LISTINGS.map((_, i) => i).filter(i => !grouped.has(i))
+      : (groups[+gi] ? groups[+gi].members : []);
+    const cities = new Set(members.map(i => LISTINGS[i].city));
+    if (!cities.size) return;
+    const taken = new Set();
+    DEMAND_EVENTS.slice().sort((x, y) => y[4] - x[4]).forEach(ev => {
+      const [name, city, sIso, eIso, boost, icon, sec, status] = ev;
+      if (!cities.has(city) || !icon) return;
+      const s0 = new Date(sIso + 'T00:00'), e0 = new Date(eIso + 'T00:00');
+      const [w0, w1] = eventWindowFor(name, s0, e0);
+      // The PRIMARY icon opens the run: icons start on the headline day (the pre-event shoulder
+      // days stay in the PRICING window but get no icon), secondaries carry the rest.
+      const p0 = eventPrimaryDay(s0, w0, w1);
+      const pKey = _evDayKey(p0);
+      let days = [];
+      for (let x = new Date(Math.max(p0, w0)); x <= w1; x.setDate(x.getDate() + 1)) {
+        const di = diBy.get(_evDayKey(x)); if (di != null) days.push({ di, primary: _evDayKey(x) === pKey });
+      }
+      if (!days.length) return;
+      if (days.length > 14) { const pi = Math.max(0, days.findIndex(d => d.primary)); days = days.slice(pi, pi + 7); }
+      days.forEach(({ di, primary }) => {
+        if (taken.has(di)) return;
+        const src = primary ? icon : sec;
+        if (!src) return;
+        taken.add(di);
+        const img = document.createElement('img');
+        img.className = 'gev ' + (primary ? 'gev-primary' : 'gev-secondary') + (status === 'estimated' ? ' gev-tentative' : '');
+        img.src = src; img.alt = name; img.loading = 'lazy';
+        img.dataset.hname = name;
+        img.style.left = ((rowOffsets[di] || 0) + cw / 2) + 'px';
+        div.appendChild(img);
+      });
     });
   });
 }
@@ -7056,7 +7072,7 @@ function buildGroupEventIcons() {
   // Pill shows ONLY when over an icon itself (the icons section) — never over the date /
   // day-of-week text. A short hide delay bridges the gaps when moving between adjacent icons.
   hdr.addEventListener('mouseover', e => {
-    const icon = e.target.closest('.holiday-icon, .gev');
+    const icon = e.target.closest('.holiday-icon');
     if (!icon) return;
     clearTimeout(hideTimer);
     tip.textContent = icon.dataset.hname || '';
@@ -7067,7 +7083,7 @@ function buildGroupEventIcons() {
     tip.style.top = (r.top - r.height * 0.25 - tip.offsetHeight - 4) + 'px';
   });
   hdr.addEventListener('mouseout', e => {
-    const icon = e.target.closest('.holiday-icon, .gev');
+    const icon = e.target.closest('.holiday-icon');
     if (icon && !icon.contains(e.relatedTarget)) hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 90);
   });
   // Event icons in the group bands (.gev) hover EXACTLY like holiday icons — same pill, same zoom.
