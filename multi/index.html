@@ -3193,7 +3193,93 @@ function getPrice(listingIdx, dayIdx) {
 // What a night SHOULD earn from DEMAND alone — independent of what the host has set. This is the
 // ground truth every price suggestion points at: the recommended price IS the market rate, so the
 // odometer rolls to a real number and each night differs (Fri ≠ Tue, holiday ≠ ordinary).
-const EVENT_BUMP = [ ['Palm Springs', 3, 10, 19, 42] ]; // [city, month(0-idx), dayFrom, dayTo, +demand] — Coachella, mid-April
+// ── REAL demand-driving events (curated from demand_events.json — dated instances only).
+// [shortName, city, startISO, endISO, boost] · boost = +demand points on those exact nights.
+// Tiers: 35+ mega festival · 20–30 big weekend spike · 12–18 notable draw · ≤10 ambient
+// season-long run (colours the market rate but never gets its own card — the season play covers it).
+const DEMAND_EVENTS = [
+  ['Coachella', 'Palm Springs', '2026-04-10', '2026-04-12', 42],
+  ['Coachella', 'Palm Springs', '2026-04-17', '2026-04-19', 42],
+  ['Coachella', 'Palm Springs', '2027-04-09', '2027-04-11', 42],
+  ['Coachella', 'Palm Springs', '2027-04-16', '2027-04-18', 42],
+  ['Stagecoach', 'Palm Springs', '2026-04-24', '2026-04-26', 38],
+  ['Stagecoach', 'Palm Springs', '2027-04-23', '2027-04-25', 38],
+  ['BNP Paribas Open', 'Palm Springs', '2026-03-04', '2026-03-15', 16],
+  ['BNP Paribas Open', 'Palm Springs', '2027-02-28', '2027-03-14', 16],
+  ['The American Express', 'Palm Springs', '2026-01-22', '2026-01-25', 14],
+  ['The American Express', 'Palm Springs', '2027-01-18', '2027-01-24', 14],
+  ['Modernism Week', 'Palm Springs', '2026-02-12', '2026-02-22', 18],
+  ['Modernism Week', 'Palm Springs', '2027-02-11', '2027-02-21', 18],
+  ['Splash House', 'Palm Springs', '2026-08-07', '2026-08-09', 24],
+  ['Splash House', 'Palm Springs', '2026-08-14', '2026-08-16', 24],
+  ['PS Pride', 'Palm Springs', '2026-11-06', '2026-11-08', 20],
+  ['The Dinah', 'Palm Springs', '2026-09-30', '2026-10-04', 22],
+  ['The Dinah', 'Palm Springs', '2027-03-31', '2027-04-04', 22],
+  ['Comic-Con', 'San Diego', '2026-07-23', '2026-07-26', 40],
+  ['Comic-Con', 'San Diego', '2027-07-22', '2027-07-26', 40],
+  ['Del Mar racing', 'San Diego', '2026-07-17', '2026-09-07', 8],
+  ['County Fair', 'San Diego', '2026-06-10', '2026-07-05', 8],
+  ['Farmers Open', 'San Diego', '2026-01-29', '2026-02-01', 14],
+  ['The Sentry', 'San Diego', '2027-01-27', '2027-01-30', 14],
+  ['SD Pride', 'San Diego', '2026-07-18', '2026-07-19', 22],
+  ['Food & Wine Classic', 'Aspen', '2026-06-19', '2026-06-21', 36],
+  ['Food & Wine Classic', 'Aspen', '2027-06-18', '2027-06-20', 36],
+  ['X Games', 'Aspen', '2026-01-23', '2026-01-25', 30],
+  ['Ideas Festival', 'Aspen', '2026-06-25', '2026-07-01', 20],
+  ['Ideas Festival', 'Aspen', '2027-06-24', '2027-06-30', 20],
+  ['Music Festival', 'Aspen', '2026-07-01', '2026-08-23', 10],
+  ['Music Festival', 'Aspen', '2027-06-30', '2027-08-22', 10],
+  ['Gay Ski Week', 'Aspen', '2026-01-11', '2026-01-17', 24],
+  ['Gay Ski Week', 'Aspen', '2027-01-17', '2027-01-24', 24],
+  ['American Century golf', 'Lake Tahoe', '2026-07-08', '2026-07-12', 26],
+  ['American Century golf', 'Lake Tahoe', '2027-07-07', '2027-07-11', 26],
+  ['Harveys concerts', 'Lake Tahoe', '2026-06-11', '2026-09-19', 6],
+  ['Tahoe Triathlon', 'Lake Tahoe', '2026-08-29', '2026-08-30', 16],
+  ['the Grammys', 'Los Angeles', '2026-02-01', '2026-02-01', 22],
+  ['the Grammys', 'Los Angeles', '2027-02-07', '2027-02-07', 22],
+  ['the Oscars', 'Los Angeles', '2026-03-15', '2026-03-15', 22],
+  ['the Oscars', 'Los Angeles', '2027-03-14', '2027-03-14', 22],
+  ['Anime Expo', 'Los Angeles', '2026-07-02', '2026-07-05', 28],
+  ['LA Marathon', 'Los Angeles', '2026-03-08', '2026-03-08', 16],
+  ['LA Marathon', 'Los Angeles', '2027-03-07', '2027-03-07', 16],
+  ['Rose Bowl', 'Los Angeles', '2026-01-01', '2026-01-01', 24],
+  ['Rose Bowl', 'Los Angeles', '2027-01-01', '2027-01-01', 24],
+  ['LA Pride', 'Los Angeles', '2026-06-14', '2026-06-14', 16],
+  ['LA Pride', 'Los Angeles', '2027-06-17', '2027-06-17', 16],
+  ['WeHo Pride', 'Los Angeles', '2026-06-05', '2026-06-07', 16],
+  ['Fiesta', 'Santa Barbara', '2026-08-05', '2026-08-09', 26],
+  ['Fiesta', 'Santa Barbara', '2027-07-28', '2027-08-01', 26],
+  ['SB Film Festival', 'Santa Barbara', '2026-02-04', '2026-02-14', 16],
+  ['SB Film Festival', 'Santa Barbara', '2027-02-03', '2027-02-13', 16],
+  ['UCSB Commencement', 'Santa Barbara', '2026-06-11', '2026-06-14', 22],
+  ['UCSB Commencement', 'Santa Barbara', '2027-06-10', '2027-06-13', 22],
+  ['Summer Solstice', 'Santa Barbara', '2026-06-19', '2026-06-21', 18],
+  ['Summer Solstice', 'Santa Barbara', '2027-06-18', '2027-06-20', 18],
+  ['SB Bowl season', 'Santa Barbara', '2026-03-28', '2026-10-17', 4],
+  ['SB Pride', 'Santa Barbara', '2026-08-22', '2026-08-22', 14],
+  ['Oktoberfest', 'Big Bear', '2026-09-05', '2026-11-08', 8],
+  ['Chili Cook-Off', 'Malibu', '2026-09-04', '2026-09-07', 18],
+  ['Malibu Triathlon', 'Malibu', '2026-09-19', '2026-09-20', 14],
+  ['JT Music Festival', 'Joshua Tree', '2026-05-14', '2026-05-17', 26],
+  ['JT Music Festival', 'Joshua Tree', '2027-05-13', '2027-05-16', 26],
+  ['JT Music Festival', 'Joshua Tree', '2026-10-08', '2026-10-11', 26],
+];
+const EVENT_CARD_MIN_BOOST = 18; // spikes get cards; ambient runs just ride the curve
+let _evMap = null; // city|Y-M-D → strongest active event that night
+function _evDayKey(d) { return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+function eventAt(city, d) {
+  if (!_evMap) {
+    _evMap = new Map();
+    DEMAND_EVENTS.forEach(ev => {
+      const [name, ct, s, e, boost] = ev;
+      for (let x = new Date(s + 'T00:00'), end = new Date(e + 'T00:00'); x <= end; x.setDate(x.getDate() + 1)) {
+        const k = ct + '|' + _evDayKey(x), cur = _evMap.get(k);
+        if (!cur || boost > cur.boost) _evMap.set(k, { name, boost });
+      }
+    });
+  }
+  return _evMap.get(city + '|' + _evDayKey(d)) || null;
+}
 function nightDemandScore(li, di) {
   const d = allDays[di]; if (!d) return 62;
   const city = listingCity[li];
@@ -3203,10 +3289,7 @@ function nightDemandScore(li, di) {
   else if (dow === 0) s += 3;                    // Sun mild
   else if (dow === 2 || dow === 3) s -= 5;       // Tue/Wed are the softest nights
   if (holidaySurcharge[di]) s += 14;             // holiday night
-  for (let e = 0; e < EVENT_BUMP.length; e++) {  // event compression (e.g. Coachella)
-    const ev = EVENT_BUMP[e];
-    if (city === ev[0] && d.getMonth() === ev[1] && d.getDate() >= ev[2] && d.getDate() <= ev[3]) s += ev[4];
-  }
+  const ev = eventAt(city, d); if (ev) s += ev.boost; // event compression, real dates (Coachella, Comic-Con, …)
   return s;
 }
 function marketRate(li, di) {
@@ -7797,27 +7880,54 @@ function computeSuggestions() {
   // is shared: holidays are national (one card, every city); an event owns its city; seasonality
   // merges only listings whose window is the same month (desert winter never merges with ski
   // winter just because both say "high season"). Cards then sort by estimated $ impact.
-  // (0) EVENT — Coachella: hand-placed compression for Palm Springs, the two April festival
-  // weekends. The event OWNS those nights: season/promo plays are clipped off them first.
-  let eventCard = null;
+  // (0) EVENTS — real demand spikes from DEMAND_EVENTS. Only true spikes (boost ≥ 18) get a card;
+  // ambient season-long runs already colour the market rate and ride the season play. An event OWNS
+  // its nights: season/promo plays are clipped off them first. Multi-weekend runs of the same event
+  // (Coachella W1+W2, Splash House) merge into one card when ≤ 10 nights apart.
+  const eventCards = [];
   {
-    const psLis = LISTINGS.map((l, i) => l.city === 'Palm Springs' ? i : -1).filter(i => i >= 0);
-    let ea = -1;
-    for (let k = Math.max(0, todayDi); k < N; k++) { const d = allDays[k]; if (d.getMonth() === 3 && d.getDate() === 10) { ea = k; break; } }
-    if (psLis.length && ea >= 0) {
-      const eb = Math.min(N - 1, ea + 9);
-      eventCard = { bucket: 'event', type: 'raise', intent: 'earn', pct: 0.40, a: ea, b: eb, evName: 'Coachella',
-        items: psLis.map(li => { const p0 = getPrice(li, ea); return { li, a: ea, b: eb, intent: 'earn', type: 'raise', pct: 0.40,
-          curPrice: p0, newPrice: Math.round(p0 * 1.4) }; }) };
-      const evSet = new Set(psLis);
-      for (let ii = items.length - 1; ii >= 0; ii--) {
-        const it = items[ii];
-        if (!evSet.has(it.li) || it.b < ea || it.a > eb) continue;
-        if (it.a >= ea && it.b <= eb) { items.splice(ii, 1); continue; }
-        const leftL = ea - it.a, rightL = it.b - eb;               // partial overlap → keep the larger remainder
-        if (leftL >= rightL) it.b = ea - 1; else it.a = eb + 1;
-      }
-    }
+    const diBy = new Map(allDays.map((d, i) => [_evDayKey(d), i]));
+    const diOf = iso => { const v = diBy.get(_evDayKey(new Date(iso + 'T00:00'))); return v == null ? -1 : v; };
+    const wins = {}; // 'city|name' → [{a,b,boost}]
+    DEMAND_EVENTS.forEach(ev => {
+      const [name, city, sIso, eIso, boost] = ev;
+      if (boost < EVENT_CARD_MIN_BOOST) return;
+      let a = diOf(sIso), b = diOf(eIso);
+      if (a < 0 && b < 0) return;                       // fully outside the calendar
+      if (a < 0) a = 0; if (b < 0) b = N - 1;           // clamp a spanning edge
+      if (b < todayDi) return;                          // already over
+      a = Math.max(a, todayDi);
+      (wins[city + '|' + name] = wins[city + '|' + name] || []).push({ a, b, boost });
+    });
+    Object.keys(wins).forEach(key => {
+      const [city, name] = key.split('|');
+      const lis = LISTINGS.map((l, i) => l.city === city ? i : -1).filter(i => i >= 0);
+      if (!lis.length) return;
+      const runs = wins[key].sort((x, y) => x.a - y.a);
+      const merged = [];
+      runs.forEach(r => { const m = merged[merged.length - 1];
+        if (m && r.a - m.b <= 10) { m.b = Math.max(m.b, r.b); } else merged.push({ ...r }); });
+      merged.forEach(w => {
+        // truth check: the event must actually move the market on its nights (vs current prices)
+        let hi = 0;
+        lis.forEach(li => { const base = getPrice(li, w.a);
+          for (let k = w.a; k <= w.b; k++) { if (!eventAt(city, allDays[k])) continue;
+            hi = Math.max(hi, (marketRate(li, k) - getPrice(li, k)) / (getPrice(li, k) || 1)); } });
+        if (hi < 0.08) return; // no real premium left to set — skip the card
+        const pct = Math.round(w.boost * 0.008 * 100) / 100;
+        eventCards.push({ bucket: 'event', type: 'raise', intent: 'earn', pct, a: w.a, b: w.b, evName: name, evCity: city,
+          items: lis.map(li => { const p0 = getPrice(li, w.a); return { li, a: w.a, b: w.b, intent: 'earn', type: 'raise', pct,
+            curPrice: p0, newPrice: Math.round(p0 * (1 + pct)) }; }) });
+        const evSet = new Set(lis);
+        for (let ii = items.length - 1; ii >= 0; ii--) {
+          const it = items[ii];
+          if (!evSet.has(it.li) || it.b < w.a || it.a > w.b) continue;
+          if (it.a >= w.a && it.b <= w.b) { items.splice(ii, 1); continue; }
+          const leftL = w.a - it.a, rightL = it.b - w.b;             // partial overlap → keep the larger remainder
+          if (leftL >= rightL) it.b = w.a - 1; else it.a = w.b + 1;
+        }
+      });
+    });
   }
   // (1) HOLIDAY PREMIUM — one card per holiday, across every listing & city (national driver)
   const cards = [], holBy = {}, seasonBy = {}, staysItems = [], setupItems = [];
@@ -7860,15 +7970,15 @@ function computeSuggestions() {
         ? ''
         : 'Everywhere you host gets busy over ' + h + ', but you’ve left these nights at everyday prices. Let’s catch the bump.' });
   });
-  if (eventCard) {
-    eventCard.head = onboarding ? 'Set Coachella prices' : 'Cash in on Coachella';
-    eventCard.cta = onboarding ? 'Apply' : 'Raise prices';
-    eventCard.title = 'Coachella: raise 40%';
-    eventCard.why = onboarding
+  eventCards.forEach(ec => {
+    ec.head = onboarding ? 'Set ' + ec.evName + ' prices' : 'Cash in on ' + ec.evName;
+    ec.cta = onboarding ? 'Apply' : 'Raise prices';
+    ec.title = ec.evName + ': raise ' + Math.round(ec.pct * 100) + '%';
+    ec.why = onboarding
       ? ''
-      : 'Coachella books Palm Springs out months ahead, and at a premium — yet your festival nights are priced like any other week.';
-    cards.push(eventCard);
-  }
+      : ec.evName + ' fills ' + ec.evCity + ' months ahead, and at a premium — yet your event nights are priced like any other week.';
+    cards.push(ec);
+  });
   Object.keys(seasonBy).forEach(key => {
     const its = seasonBy[key], t = its[0].type;
     const pct = its.reduce((s, x) => s + x.pct, 0) / its.length;
@@ -7952,7 +8062,10 @@ function computeSuggestions() {
       const magLine = (step, word) => {
         let lo = Infinity, hi = -Infinity;
         c.items.forEach(x => { const base = LISTINGS[x.li].base || 200;
-          for (let k = x.a; k <= x.b; k += step) { const d = Math.abs(marketRate(x.li, k) - base) / base; if (d < lo) lo = d; if (d > hi) hi = d; } });
+          for (let k = x.a; k <= x.b; k += step) {
+            if (c.bucket === 'event' && !eventAt(listingCity[x.li], allDays[k])) continue; // quote the spike, not the gap days
+            const d = Math.abs(marketRate(x.li, k) - base) / base; if (d < lo) lo = d; if (d > hi) hi = d; } });
+        if (lo === Infinity) { lo = hi = (c.pct || 0); }
         const loP = Math.max(1, Math.round(lo * 100)), hiP = Math.max(loP, Math.round(hi * 100));
         const _M3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         const dA = allDays[c.a], dB = allDays[c.b];
@@ -7984,10 +8097,20 @@ function computeSuggestions() {
   // digestible set of 8 — but bucket-DIVERSE: the best card of every bucket makes the cut before
   // any bucket doubles up, so Unlock stays / Smart discounts never get crowded out by big price plays
   {
+    // events are non-fungible dates: the SOONEST spike always leads (urgency), plus the top two
+    // by impact — Comic-Con in three weeks matters even when 2027 Coachella out-earns it.
+    const evs = cards.filter(c => c.bucket === 'event'), evPick = new Set();
+    if (evs.length) {
+      evPick.add(evs.reduce((m, c) => c.a < m.a ? c : m));
+      evs.slice().sort((x, y) => y.impact - x.impact).forEach(c => { if (evPick.size < 3) evPick.add(c); });
+    }
     const seen = new Set(), lead = [], rest = [];
-    cards.forEach(c => { if (!seen.has(c.bucket)) { seen.add(c.bucket); lead.push(c); } else rest.push(c); });
+    cards.forEach(c => {
+      if (c.bucket === 'event') { (evPick.has(c) ? lead : rest).push(c); return; }
+      if (!seen.has(c.bucket)) { seen.add(c.bucket); lead.push(c); } else rest.push(c);
+    });
     const SEQ = ['grouping', 'season-up', 'season-down', 'holiday', 'event', 'promo', 'setup']; // onboarding: a guided SETUP order (structure → broad seasons → specific dates → tools), not chronological
-    const picked = lead.concat(rest).slice(0, 8).sort(onboarding
+    const picked = lead.concat(rest).slice(0, 10).sort(onboarding
       ? (x, y) => (SEQ.indexOf(x.bucket) - SEQ.indexOf(y.bucket)) || (x.a - y.a)
       : (x, y) => x.a - y.a); // busy: step chronologically (‹ › move one way through the calendar)
     cards.length = 0; picked.forEach(c => cards.push(c));
