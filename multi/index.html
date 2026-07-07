@@ -452,6 +452,9 @@ body.row-reordering .thumb-row { cursor: grabbing; }
 }
 .group-toggle svg { display: block; transition: transform 0.18s ease; }
 .group-toggle.collapsed svg { transform: rotate(180deg); }
+/* the hinted (first) listing's picture breathes calmly — tappable, not alarmed */
+@keyframes gmBreath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+body.groups-mode .thumb-row.gm-hint-row .thumb-img { animation: gmBreath 1.8s ease-in-out infinite; }
 /* OPPS MODE (incl. groups mode): everything stays open — no collapsing affordances while the
    cards are on stage */
 body.optimize-mode .group-toggle, body.optimize-mode .left-toggle { display: none; }
@@ -2239,20 +2242,20 @@ body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.se
 /* First-run coach tip teaching shift-click ranges. */
 /* Shift coach tip — built to the Figma spec: 56px-tall pill (16px radius, fill #222), padding L16/T8/R8/B8,
    12px gap between the grey 40px "⬆ Shift" chip and the label. */
-#shiftTip {
+#shiftTip, #groupHint {
   position: fixed; z-index: 3000; display: none; box-sizing: border-box; align-items: center; gap: 12px;
   background: #222; color: #fff; font-family: 'Cereal', sans-serif; font-size: 12px; font-weight: 500;
   padding: 4px 16px 4px 4px; border-radius: 16px; white-space: nowrap; /* 40px pill: 4px inset around the chip (L/T/B), 16px to the end after the close X */
   box-shadow: 0 6px 20px rgba(0,0,0,0.3); pointer-events: none;
 }
-#shiftTip.show { display: flex; }
-#shiftTip .kbd { display: inline-flex; align-items: center; gap: 4px; height: 32px; box-sizing: border-box;
+#shiftTip.show, #groupHint.show { display: flex; }
+#shiftTip .kbd, #groupHint .kbd { display: inline-flex; align-items: center; gap: 4px; height: 32px; box-sizing: border-box;
   background: #515151; border-radius: 12px; padding: 0 16px;
   font-size: 12px; font-weight: 600; } /* grey chip #515151: 32px tall, 12px corners, 4px arrow↔label gap */
-#shiftTip .kbd svg { display: block; }
-#shiftTip .shift-x { display: inline-flex; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer; opacity: .85; } /* 12×12 close X; 12px from label via the pill gap, 16px to the pill end */
-#shiftTip .shift-x:hover { opacity: 1; }
-#shiftTip .shift-x svg { display: block; }
+#shiftTip .kbd svg, #groupHint .kbd svg { display: block; }
+#shiftTip .shift-x, #groupHint .shift-x { display: inline-flex; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer; opacity: .85; } /* 12×12 close X; 12px from label via the pill gap, 16px to the pill end */
+#shiftTip .shift-x:hover, #groupHint .shift-x:hover { opacity: 1; }
+#shiftTip .shift-x svg, #groupHint .shift-x svg { display: block; }
 /* ── Opportunity continuation cues: shiftTip-voiced black chips counting the focused card's
    off-screen extent ("12 more dates →"). Recounted live as you scroll; they melt to nothing
    when everything is on stage. ── */
@@ -6662,6 +6665,7 @@ function positionLeftToggle() {
   }, true);
   function begin() {
     started = true;
+    if (typeof _gmHintHide === 'function') _gmHintHide(true); // they've got it — the coach retires
     document.body.classList.add('row-reordering'); // shared grabbing cursor + selection guard
     document.getElementById('thumbHoverPill')?.classList.remove('show');
     rowEl.classList.add('group-dragging');
@@ -8529,10 +8533,46 @@ function setListingsExpanded(open) {
   document.body.classList.toggle('listings-expanded', open);
   requestAnimationFrame(() => { if (typeof updateVSync === 'function') updateVSync(); if (typeof buildGroupLabelOverlay === 'function') buildGroupLabelOverlay(); });
 }
+// Drag education (the shiftTip voice): sits right of the FIRST listing's name, centred to the row;
+// its picture breathes. Gone the moment the user drags once (or taps ✕), never nags again this session.
+function _gmHintPlace() {
+  const hint = document.getElementById('groupHint'); if (!hint) return;
+  const row = document.querySelector('#listingThumbsInner .thumb-row'); if (!row) return;
+  document.querySelectorAll('.gm-hint-row').forEach(r => r.classList.remove('gm-hint-row'));
+  row.classList.add('gm-hint-row');
+  let right = 0;
+  ['.thumb-name', '.thumb-loc'].forEach(sel => { const el = row.querySelector(sel);
+    if (!el || !el.firstChild) return; const rg = document.createRange(); rg.selectNodeContents(el);
+    right = Math.max(right, rg.getBoundingClientRect().right); });
+  if (!right) right = row.querySelector('.thumb-img').getBoundingClientRect().right;
+  const rr = row.getBoundingClientRect();
+  hint.style.left = Math.round(right + 8) + 'px';
+  hint.style.top = Math.round(rr.top + rr.height / 2 - hint.offsetHeight / 2) + 'px';
+}
+function _gmHintHide(learned) {
+  if (learned) window._gmHintDone = true;
+  document.getElementById('groupHint')?.remove();
+  document.querySelectorAll('.gm-hint-row').forEach(r => r.classList.remove('gm-hint-row'));
+}
+function _gmHintShow() {
+  if (window._gmHintDone || document.getElementById('groupHint')) return;
+  const hint = document.createElement('div'); hint.id = 'groupHint'; hint.className = 'show';
+  hint.innerHTML = '<span class="kbd"><svg width="12" height="12" viewBox="0 -960 960 960" fill="white"><path d="M160-360v-80h640v80H160Zm0-160v-80h640v80H160Z"/></svg>Drag</span>drop on another listing to group<span class="shift-x" role="button" aria-label="Dismiss"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1.875 1.875L6 6M6 6L10.125 10.125M6 6L10.125 1.875M6 6L1.875 10.125" stroke="white" stroke-width="1.5"/></svg></span>';
+  hint.style.pointerEvents = 'none';
+  document.body.appendChild(hint);
+  hint.querySelector('.shift-x').style.pointerEvents = 'auto';
+  hint.querySelector('.shift-x').addEventListener('click', e => { e.stopPropagation(); _gmHintHide(true); });
+  _gmHintPlace();
+  setTimeout(_gmHintPlace, 500); // re-measure once the panel's width transition has finished
+}
+document.addEventListener('scroll', () => _gmHintPlace(), true);
+window.addEventListener('resize', () => _gmHintPlace());
 function setGroupsMode(on) {
   if (document.body.classList.contains('groups-mode') === on) return;
   document.body.classList.toggle('groups-mode', on);
+  if (!on) _gmHintHide(false);
   if (on) {
+    requestAnimationFrame(_gmHintShow); // after the panel opens, so the text edge is measured expanded
     _gmPrevExpanded = document.body.classList.contains('listings-expanded'); setListingsExpanded(true);
     // everything opens: any collapsed group (incl. "More") expands so every row is on the table
     let woke = false;
