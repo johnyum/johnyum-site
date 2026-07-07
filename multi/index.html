@@ -8446,23 +8446,20 @@ function computeSuggestions() {
   // digestible set of 8 — but bucket-DIVERSE: the best card of every bucket makes the cut before
   // any bucket doubles up, so Unlock stays / Smart discounts never get crowded out by big price plays
   {
-    // events are non-fungible dates: the SOONEST spike always leads (urgency), plus the top two
-    // by impact — Comic-Con in three weeks matters even when 2027 Coachella out-earns it.
-    const evs = cards.filter(c => c.bucket === 'event'), evPick = new Set();
-    if (evs.length) {
-      evPick.add(evs.reduce((m, c) => c.a < m.a ? c : m));
-      evs.slice().sort((x, y) => y.impact - x.impact).forEach(c => { if (evPick.size < 3) evPick.add(c); });
-    }
+    // EVERY event + holiday card rides — any section highlighted on the calendar must be
+    // steppable with ‹ ›, never skipped. The digestible cap applies only to the rest
+    // (seasons, tools), which are fungible.
+    const dated = cards.filter(c => c.bucket === 'event' || c.bucket === 'holiday');
     const seen = new Set(), lead = [], rest = [];
     cards.forEach(c => {
-      if (c.bucket === 'event') { (evPick.has(c) ? lead : rest).push(c); return; }
+      if (c.bucket === 'event' || c.bucket === 'holiday') return;
       if (!seen.has(c.bucket)) { seen.add(c.bucket); lead.push(c); } else rest.push(c);
     });
     // onboarding: structure first, then ONE chronological sweep of every price RAISE (seasons,
     // holidays, events interleaved by date — fill the year month by month), then the lower-prices
     // pass, tools last.
     const phase = c => c.bucket === 'grouping' ? 0 : c.bucket === 'setup' ? 3 : c.type === 'raise' ? 1 : 2;
-    const picked = lead.concat(rest).slice(0, 10).sort(onboarding
+    const picked = lead.concat(rest).slice(0, 10).concat(dated).sort(onboarding
       ? (x, y) => (phase(x) - phase(y)) || (x.a - y.a)
       : (x, y) => x.a - y.a); // busy: step chronologically (‹ › move one way through the calendar)
     cards.length = 0; picked.forEach(c => cards.push(c));
