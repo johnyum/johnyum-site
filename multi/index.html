@@ -1291,6 +1291,14 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
 .mnav-in svg { display: block; width: 24px; height: 24px; }
 .mnav-in.prev { margin-right: 4px; } /* 12px flex gap + 4px = 16px to the content */
 .mnav-in.next { margin-left: -4px; } /* 12px flex gap − 4 = 8px Apply → arrow */
+/* season demand ribbon: the focused season card's market curve, drawn in each group band.
+   Peak pills name the spikes; tap one to fly there. Icons (z10) ride above the ribbon (z1). */
+.season-ribbon .ribbon-peak {
+  position: absolute; top: -14px; transform: translateX(-50%); pointer-events: auto; cursor: pointer;
+  font: 600 11px 'Cereal', sans-serif; color: #038026; background: #fff;
+  border: 1px solid rgba(3,128,38,0.35); border-radius: 999px; padding: 2px 8px; white-space: nowrap; z-index: 3;
+}
+.season-ribbon .ribbon-peak.lo { color: #BE4900; border-color: rgba(190,73,0,0.35); }
 /* the month header carries NO chevrons: the title's ⌄ and the round › listing-names toggle are gone */
 .month-title svg { display: none !important; }
 .left-toggle { display: none !important; }
@@ -4184,6 +4192,7 @@ function render(preserveScroll) {
   applyGroupsToCalendar(); // render() rebuilds thumbs + grid rows from scratch, so re-apply grouping
   if (typeof _gmHintShow === 'function') { _gmHintShow(); if (typeof _gmHintPlace === 'function') _gmHintPlace(); } // drag-to-group coach (default ability) — until first drag
   if (typeof buildGroupEventIcons === 'function') { try { buildGroupEventIcons(); } catch (err) {} } // fresh grid → re-hang the group-band event icons (offsets may have changed mode)
+  if (typeof updateSeasonRibbon === 'function') { try { updateSeasonRibbon(); } catch (err) {} }
   if (calendarView === 'month') renderMonthView(); // keep the month grid in sync after a full re-render
   positionLeftToggle();    // place the collapse toggle on the header rule (it lives at .cal level now)
   applyHeaderPageMargins(); // page-align the date header when the month pager is active
@@ -6677,6 +6686,7 @@ function applyGroupsToCalendar() {
 
   buildGroupLabelOverlay();
   if (typeof buildGroupEventIcons === 'function') { try { buildGroupEventIcons(); } catch (err) {} } // bands were just recreated → re-hang their event icons
+  if (typeof updateSeasonRibbon === 'function') { try { updateSeasonRibbon(); } catch (err) {} }
   // Content height changed (groups/collapse) → the browser may clamp scrollTop on the next reflow. Re-run
   // after that settles so the overlay's translate + label tops re-sync (otherwise the labels lag the scroll
   // and the group headers land on top of listing rows).
@@ -7617,6 +7627,7 @@ function setSuperCollapse(on) {
   render(true);
   requestAnimationFrame(() => { updateVSync(); syncCalTitle(); updateSc2MonthLabels(); buildGroupLabelOverlay(); positionLeftToggle();
     if (typeof buildGroupEventIcons === 'function') { try { buildGroupEventIcons(); } catch (err) {} } // new mode, new offsets → re-hang the band icons
+  if (typeof updateSeasonRibbon === 'function') { try { updateSeasonRibbon(); } catch (err) {} }
   });
 }
 
@@ -7692,6 +7703,7 @@ function finishMorph() {
   settleTimer = setTimeout(() => document.body.classList.remove('morph-settling'), 360);
   requestAnimationFrame(() => { updateVSync(); syncCalTitle(); updateSc2MonthLabels(); buildGroupLabelOverlay(); positionLeftToggle();
     if (typeof buildGroupEventIcons === 'function') { try { buildGroupEventIcons(); } catch (err) {} } // week↔month changed every column's pitch — re-hang the band icons on the NEW offsets
+  if (typeof updateSeasonRibbon === 'function') { try { updateSeasonRibbon(); } catch (err) {} }
   });
 }
 document.getElementById('devSuperCollapse2')?.addEventListener('change', e => setSuperCollapse(e.target.checked));
@@ -8613,7 +8625,18 @@ function computeSuggestions() {
       else if (c.bucket === 'setup') { c.mag = c.items.some(x => x.type === 'earlybird') ? 'Early-bird −12% · Last-minute −15%' : 'Last-minute −15%'; c.magKind = 'flat'; }
       else if (c.bucket === 'season-up' || c.bucket === 'season-down') {
         c.head = c.intent === 'earn' ? 'Set high season prices' : 'Set low season prices';
-        magLine(2, c.intent === 'earn' ? 'premium' : 'lower'); // long windows — every-other-night sample
+        // narrated: dates · avg ±N% · peak/softest — the ribbon's story in one line
+        const vals = _seasonSeries(c);
+        const nz = vals.filter(v => v > 0.005);
+        const avg = nz.length ? nz.reduce((a2, v) => a2 + v, 0) / nz.length : 0;
+        const pk = _seasonPeaks(vals, 1)[0];
+        const _M3b = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const dates = _M3b[allDays[c.a].getMonth()] + ' – ' + _M3b[allDays[c.b].getMonth()];
+        const sign = c.intent === 'earn' ? '+' : '\u2212';
+        const cls = c.intent === 'fill' ? ' lo' : '';
+        c.mag = dates + ' · <span class="hl' + cls + '">avg ' + sign + Math.round(avg * 100) + '%</span>'
+          + (pk ? ' · ' + (c.intent === 'earn' ? 'peak: ' : 'softest: ') + '<span class="hl' + cls + '">' + _peakLabel(c, pk) + '</span>' : '');
+        c.magKind = 'flat';
       }
       else if (c.bucket === 'holiday' || c.bucket === 'event') {
         magLine(1, 'premium'); // heads set at the builders: "Set Labor Day prices" / "Set Coachella prices"
@@ -8814,6 +8837,78 @@ let _wPhase = 0, _wLast = 0; const _wSpeed = 3.2; // a hair faster than 2.6, sti
   requestAnimationFrame(wLoop);
 })(0);
 
+// ═══ SEASON DEMAND RIBBON ════════════════════════════════════════════════════════════════════
+// A focused season card draws its market curve as a thin ribbon in each group band — you SEE the
+// peaks instead of reading a hundred odometers. Cells keep their odometers untouched.
+function _seasonSeries(g) { // per-day avg premium (earn) / discount depth (fill) across the card's listings
+  const lis = g.lis && g.lis.length ? g.lis : [...new Set(g.items.map(x => x.li))];
+  const up = g.intent === 'earn';
+  const vals = [];
+  for (let k = g.a; k <= g.b; k++) {
+    let s2 = 0, n = 0;
+    lis.forEach(li => { const p = getPrice(li, k) || 0; if (!p) return;
+      const m = marketRate(li, k); s2 += Math.max(0, up ? (m - p) / p : (p - m) / p); n++; });
+    vals.push(n ? s2 / n : 0);
+  }
+  return vals;
+}
+function _seasonPeaks(vals, count) { // top clusters, ≥10 days apart, chronological
+  const idx = vals.map((v, i) => [v, i]).sort((a2, b2) => b2[0] - a2[0]);
+  const picked = [];
+  for (const [v, i] of idx) { if (v <= 0.02) break;
+    if (picked.every(p => Math.abs(p.i - i) > 10)) picked.push({ i, v });
+    if (picked.length >= count) break; }
+  return picked.sort((a2, b2) => a2.i - b2.i);
+}
+function _peakLabel(g, p) { // "Thanksgiving +24%" / "Dec 31 +42%" — a holiday names its own peak
+  const d = allDays[g.a + p.i];
+  const hol = holidayFor(d) || secondaryHolidayFor(d);
+  const pct = (g.intent === 'earn' ? '+' : '\u2212') + Math.round(p.v * 100) + '%';
+  const _M3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return (hol ? hol.name : _M3[d.getMonth()] + ' ' + d.getDate()) + ' ' + pct;
+}
+function updateSeasonRibbon() {
+  document.querySelectorAll('.season-ribbon').forEach(x => x.remove());
+  const o = window.__opt;
+  if (!o || o.state !== 'results') return;
+  const g = o.suggs[o.cur];
+  if (!g || (g.bucket !== 'season-up' && g.bucket !== 'season-down')) return;
+  const up = g.intent === 'earn';
+  const vals = _seasonSeries(g);
+  const mx = Math.max(...vals, 0.001);
+  const cw = gridCell().w, H = 30;
+  const stroke = up ? '#038026' : '#BE4900';
+  const fill = up ? 'rgba(3,128,38,0.13)' : 'rgba(190,73,0,0.12)';
+  const gLis = new Set(g.lis && g.lis.length ? g.lis : g.items.map(x => x.li));
+  document.querySelectorAll('#gridRows > .group-divider').forEach(div => {
+    const gi = div.dataset.gi;
+    const grouped = new Set(groups.flatMap(g2 => g2.members));
+    const members = gi === 'more' ? LISTINGS.map((_, i) => i).filter(i => !grouped.has(i))
+      : (groups[+gi] ? groups[+gi].members : []);
+    if (!members.some(li => gLis.has(li))) return;
+    const x0 = rowOffsets[g.a] || 0;
+    const W = ((rowOffsets[g.b] || 0) + cw) - x0;
+    if (W <= 0) return;
+    let d = 'M0 ' + H;
+    vals.forEach((v, i) => { const x = ((rowOffsets[g.a + i] || 0) + cw / 2) - x0;
+      const y = H - 3 - (v / mx) * (H - 7); d += ' L' + x.toFixed(1) + ' ' + y.toFixed(1); });
+    d += ' L' + W.toFixed(1) + ' ' + H + ' Z';
+    const wrap = document.createElement('div');
+    wrap.className = 'season-ribbon';
+    wrap.style.cssText = 'position:absolute;bottom:2px;left:' + x0 + 'px;width:' + W + 'px;height:' + H + 'px;pointer-events:none;z-index:1;';
+    wrap.innerHTML = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="display:block"><path d="' + d + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    _seasonPeaks(vals, 3).forEach(p => {
+      const lbl = document.createElement('div');
+      lbl.className = 'ribbon-peak' + (up ? '' : ' lo');
+      lbl.style.left = (((rowOffsets[g.a + p.i] || 0) + cw / 2) - x0) + 'px';
+      lbl.textContent = (up ? '\u25b2 ' : '\u25bc ') + _peakLabel(g, p);
+      lbl.addEventListener('click', ev => { ev.stopPropagation();
+        gridWrap.scrollTo({ left: Math.max(0, (rowOffsets[g.a + p.i] || 0) - Math.round((gridWrap.clientWidth || 1200) * 0.4)), behavior: 'smooth' }); });
+      wrap.appendChild(lbl);
+    });
+    div.appendChild(wrap);
+  });
+}
 function buildFlags(groups) { // only the groups passed in glow — the focus model hands us ONE at a time
   const m = new Map();
   groups.forEach(g => g.items.forEach(it => {
@@ -9021,6 +9116,7 @@ function setGroupsMode(on) {
   else if (_gmPrevExpanded != null) { setListingsExpanded(_gmPrevExpanded); _gmPrevExpanded = null; }
 }
 function renderMagicPill() {
+  requestAnimationFrame(() => { if (typeof updateSeasonRibbon === 'function') { try { updateSeasonRibbon(); } catch (err) {} } }); // the season ribbon tracks whatever card is focused
   if (window._oppMoreSync) window._oppMoreSync();
   { const og = window.__opt, gg = og && og.suggs && og.suggs[og.cur || 0];
     setGroupsMode(!!(document.body.classList.contains('optimize-mode') && og && og.state === 'results' && gg && gg.bucket === 'grouping')); }
