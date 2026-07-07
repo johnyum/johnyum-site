@@ -889,11 +889,10 @@ body.morph-settling:not(.super-collapse-2) .min-badge { animation: morph-fadein 
   transition: transform 0.32s ease; /* gradual (slow) zoom in/out on hover */
 }
 .holiday-icon svg { pointer-events: none; } /* let the icon box catch the events */
-/* weekend marker: 5×5 ink dot centered on the column AND on the header's bottom rule under every
-   Fri/Sat/Sun. The rule = the wrap's 1px border: its PIXEL CENTER is +16.5px below the cell
-   (16px padding + half the border), so the dot's center lands at -16.5 → bottom -19. The icons'
-   -17 anchor is half a pixel low — invisible at 32px, visible on a 5px dot. */
-.wknd-dot { position: absolute; left: 50%; bottom: -19px; width: 5px; height: 5px; margin-left: -2.5px;
+/* weekend marker: 5×5 ink dot under every Fri/Sat/Sun, a child of .date-header-wrap itself so it
+   anchors to the SAME border-box edge that paints the grey rule. bottom: -2px → dot centre =
+   the 1px rule's pixel centre, exactly, by construction. left set inline per column. */
+.wknd-dot { position: absolute; bottom: -3px; width: 5px; height: 5px; margin-left: -2.5px; /* -2 to centre + 1 for the border the padding-box anchor excludes */
   border-radius: 50%; background: #222; z-index: 10; pointer-events: none; }
 /* Hover: zoom 1.5x from center (keep the translateX(-50%) that centers it on the column), lift above siblings */
 .holiday-icon:hover { transform: translateX(-50%) scale(calc(var(--fit, 1) * 1.5)); z-index: 12; }
@@ -3913,10 +3912,7 @@ function render(preserveScroll) {
       ? `<div class="holiday-icon secondary holiday-star12"${hAttrs}><svg viewBox="0 0 16 16" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="${STAR12_PATH}" stroke="${sec.color}" stroke-width="1" stroke-linejoin="miter" stroke-miterlimit="10"/></svg></div>`
       : `<div class="holiday-icon secondary holiday-circle${sec.lightCircle ? ' light' : ''}"${hAttrs} style="--c:${secondaryColor(d, sec)}"></div>`;
     const dowName = document.body.classList.contains('super-collapse-2') ? DAYS_SHORT[dow] : DAYS[dow];
-    // weekend marker (Fri/Sat/Sun): a 5×5 dot on the header rule — a less-special holiday icon.
-    // A primary holiday icon owns the slot when present.
-    const wkndHTML = (!hol && (dow === 5 || dow === 6 || dow === 0)) ? '<span class="wknd-dot"></span>' : '';
-    cell.innerHTML = `<div class="date-top"><span class="day-name">${dowName}</span><span class="day-num ${numCls}">${d.getDate()}</span></div>${holHTML}${wkndHTML}`;
+    cell.innerHTML = `<div class="date-top"><span class="day-name">${dowName}</span><span class="day-num ${numCls}">${d.getDate()}</span></div>${holHTML}`;
     // Column-select starts only on the date/day-of-week text — NOT the lower icon zone.
     cell.querySelector('.date-top').addEventListener('mousedown', e => {
       e.preventDefault();
@@ -3927,6 +3923,25 @@ function render(preserveScroll) {
     cell.addEventListener('mouseenter', () => { if (dateDragging) extendDateDrag(di); });
     hdr.appendChild(cell);
   });
+
+  // Weekend dots (Fri/Sat/Sun): 5×5 ink dots living on the WRAP itself, anchored to the same
+  // border-box edge that paints the grey rule — centred by CONSTRUCTION (bottom: -2px → dot centre
+  // = the 1px rule's pixel centre). No padding/height math between them, so nothing to drift
+  // across modes, personas, or browser zoom. X re-derived from the laid-out cells; a
+  // ResizeObserver rebuilds them whenever the header re-flows.
+  (window._buildWkndDots = function () {
+    const wrap = hdr.parentElement;
+    wrap.querySelectorAll('.wknd-dot').forEach(e => e.remove());
+    hdr.querySelectorAll('.date-cell').forEach(dc => {
+      const dd = allDays[+dc.dataset.di]; if (!dd) return;
+      const dow = dd.getDay();
+      if (!(dow === 5 || dow === 6 || dow === 0) || holidayFor(dd)) return; // a primary holiday icon owns the slot
+      const dot = document.createElement('span'); dot.className = 'wknd-dot';
+      dot.style.left = (dc.offsetLeft + dc.offsetWidth / 2) + 'px';
+      wrap.appendChild(dot);
+    });
+  })();
+  if (!window._wkndRO) { window._wkndRO = new ResizeObserver(() => window._buildWkndDots && window._buildWkndDots()); window._wkndRO.observe(hdr); }
 
   buildSc2Months();
 
