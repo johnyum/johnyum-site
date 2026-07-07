@@ -1076,8 +1076,8 @@ body.optimize-mode .search-pill, body.multi-active .search-pill {
 /* one-tap "Select" pill — appears after a NAV result that maps to days ("June", "2027", a date):
    24px tall, 12px type, fully rounded, 12px side padding, 8px left of the X */
 .sp-select {
-  display: none; align-items: center; height: 24px; padding: 0 12px; flex-shrink: 0;
-  margin: 24px 0 24px auto; border: 0; border-radius: 999px;
+  display: none; align-items: center; height: 32px; padding: 0 12px; flex-shrink: 0;
+  margin: 20px 0 20px auto; border: 0; border-radius: 999px;
   background: #222; color: #fff; font: 600 12px 'Cereal', sans-serif; cursor: pointer;
 }
 .sp-select:hover { background: #000; }
@@ -1088,7 +1088,7 @@ body.optimize-mode .search-pill, body.multi-active .search-pill {
    (24 top + 24 box + 24 bottom = the 72px pill) */
 .search-pill .sp-close {
   display: none; align-items: center; justify-content: center; flex-shrink: 0;
-  width: 24px; height: 24px; margin: 24px 24px 24px auto;
+  width: 32px; height: 32px; margin: 20px 20px 20px auto;
   border: 0; padding: 0; border-radius: 999px;
   background: var(--grey-200); color: var(--grey-700); cursor: pointer;
 }
@@ -1102,7 +1102,7 @@ body.optimize-mode .search-pill, body.multi-active .search-pill {
 /* result hint — a small white pill floating above the search pill after every Enter:
    "→ Sep 7, 2026 · Labor Day", "→ 16 nights · 2 listings", "No match". Enter again cycles. */
 .sp-hint {
-  position: absolute; bottom: calc(100% + 8px); left: 0;
+  position: absolute; bottom: calc(100% + 8px); left: 0; transform: translateX(-50%); /* JS pins left to the search bar's centre */
   background: #fff; color: #222; font: 400 12px 'Cereal', sans-serif; white-space: nowrap;
   padding: 6px 12px; border-radius: 999px; box-shadow: 0 2px 10px rgba(0,0,0,0.18);
   opacity: 0; transition: opacity .2s ease; pointer-events: none; z-index: 2;
@@ -1126,7 +1126,7 @@ body.optimize-mode .search-pill, body.multi-active .search-pill {
 .magic-pill.is-growing .mopp-pill, .magic-pill.is-growing .magic-results { opacity: 0; }
 .magic-pill.is-opp { background: #fff; color: #111; height: auto; } /* the review rides the same WHITE surface */
 .magic-cta { display: inline-flex; align-items: center; background: none; border: 0; color: #111;
-  font: 400 16px 'Cereal', sans-serif; cursor: pointer; height: 72px; padding: 0 16px 0 20px; border-radius: 999px; } /* Book weight; +4px of air left of the wand */
+  font: 500 16px 'Cereal', sans-serif; cursor: pointer; height: 72px; padding: 0 16px 0 20px; border-radius: 999px; } /* Medium weight; +4px of air left of the wand */
 /* the label rides OPEN by default — "N Opportunities" with 12px after the wand and 16px of air on
    its right; tapping still collapses the whole pill into the 72px scanning circle */
 .magic-label { padding-left: 12px; padding-right: 16px; white-space: nowrap; display: inline-block; overflow: hidden; max-width: 240px;
@@ -1207,7 +1207,7 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
 .mopp-mag.up, .mopp-mag.down { color: #30D158; } /* ONE green for every price move — the dark-surface sibling of #038026, legible on black. No orange. */
 .magic-pill.opp-light .mopp-mag.up { color: #B26B00; }
 .magic-pill.opp-light .mopp-mag.down { color: #038026; }
-body.opp-hide-icon .mopp-ic { display: none; } /* one-line switch to drop the direction glyph (see icon eval) */
+.mopp-ic { display: none !important; } /* the direction glyph is retired — ONE pill anatomy everywhere */
 .mopp-why { font: 400 12px/16px 'Cereal', sans-serif; color: #B0B0B0;
   white-space: normal; text-wrap: balance;              /* even line lengths — no long first line over an orphan */
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; } /* HARD max 2 lines */
@@ -2325,7 +2325,12 @@ body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.se
 /* BLOCKED + opportunity cell: the grey backing fills the WAVE (not the square), and the suggested
    price is struck too — same custom rule as a normal blocked price, in the suggestion's own color */
 .price-card.blocked.opt-flag:not(.selected) { background: transparent; border-color: transparent; }
-.price-card.blocked.opt-flag .wring .wfill { fill: #F2F2F2; }
+.price-card.blocked.opt-flag .wring .wfill,
+.price-card.past.opt-flag .wring .wfill,
+.price-card.unavailable.opt-flag .wring .wfill { fill: #F2F2F2; }
+body.optimize-mode .price-card.opt-flag.blocked,
+body.optimize-mode .price-card.opt-flag.past,
+body.optimize-mode .price-card.opt-flag.unavailable { background: transparent; } /* the rect never paints outside the wave */
 .price-card.blocked.opt-flag .pstack .prow { position: relative; display: inline-flex; }
 .price-card.blocked.opt-flag .pstack .prow::after { content: ''; position: absolute; top: 50%; left: 50%;
   transform: translate(-50%, -50%); width: calc(100% + 14px); height: 1.5px; background: currentColor;
@@ -4208,6 +4213,7 @@ function buildPriceCell(li, di, booked, unavail, gapSet) {
   card.className = 'price-card' + (isPast ? ' past' : '') + (unavailable ? ' unavailable' + (_bt ? ' closed-rule' : ' closed-window') : '') + (isBlocked ? ' blocked' : '') + (isBooked ? ' booked' : '') + (!isBooked && !unavailable && holidaySurcharge[di] > 0 ? ' holiday-priced' : '');
   card.dataset.di = di;
   if (isSel(li, di)) card.classList.add('selected');
+  if (window._searchGhostSet && window._searchGhostSet.has(li + ':' + di)) card.classList.add('range-preview'); // search ghost preview survives virtualization
   const _of = !isBooked ? optFlagFor(li, di) : null; // Optimize glow (model-driven, survives virtualization)
   if (_of) { card.classList.add('opt-flag', 'opt-' + _of.intent); if (_of.min) card.classList.add('opt-min'); card.dataset.sugg = _of.id; dressOptState(card, _of); }
   const _dk = (isBooked || unavailable) ? null : discountType(li, di); // 'early' | 'last' | null
@@ -8443,7 +8449,7 @@ function computeSuggestions() {
     const nearLis = new Set(nearItems.map(x => x.li)).size;
     cards.push({ bucket: 'near', type: 'drop', intent: 'fill', pct,
       a: Math.min(...nearItems.map(x => x.a)), b: Math.max(...nearItems.map(x => x.b)), items: nearItems,
-      head: 'Let’s fill these empty nights', cta: 'Lower prices',
+      head: 'Let’s fill these empty nights', cta: 'Apply',
       title: 'Fill this week',
       why: nearLis + ' listing' + (nearLis > 1 ? 's sit' : ' sits') + ' open this week. A nudge down wins the guests booking right now — before they slip away.' });
   }
@@ -8486,20 +8492,16 @@ function computeSuggestions() {
     const ha = Math.min(...its.map(x => x.a)), hb = Math.max(...its.map(x => x.b));
     cards.push({ bucket: 'holiday', type: 'raise', intent: 'earn', pct: its[0].pct, hol: h,
       a: ha, b: hb, items: its,
-      head: onboarding ? 'Set ' + h + ' prices' : 'Make the most of ' + h,
-      cta: onboarding ? 'Apply' : 'Raise prices',
+      head: 'Set ' + h + ' prices',
+      cta: 'Apply',
       title: h + ': raise ' + Math.round(its[0].pct * 100) + '%',
-      why: onboarding
-        ? ''
-        : 'Everywhere you host gets busy over ' + h + ', but you’ve left these nights at everyday prices. Let’s catch the bump.' });
+      why: '' });
   });
   eventCards.forEach(ec => {
-    ec.head = onboarding ? ec.evName : 'Cash in on ' + ec.evName;
-    ec.cta = onboarding ? 'Apply' : 'Raise prices';
+    ec.head = ec.evName; // the event IS the head — no "Cash in on"
+    ec.cta = 'Apply';
     ec.title = ec.evName + ': raise ' + Math.round(ec.pct * 100) + '%';
-    ec.why = onboarding
-      ? ''
-      : ec.evName + ' fills ' + ec.evCity + ' months ahead, and at a premium — yet your event nights are priced like any other week.';
+    ec.why = '';
     cards.push(ec);
   });
   Object.keys(seasonBy).forEach(key => {
@@ -8514,9 +8516,7 @@ function computeSuggestions() {
       head: onboarding
         ? (t === 'raise' ? 'High season · ' + cityList : t === 'drop' ? 'Slow season · ' + cityList : mon + ' promotion, ready')
         : (t === 'raise' ? 'Lean into peak season' : t === 'drop' ? 'Keep pace in the slow season' : 'Tempt guests into a quiet stretch'),
-      cta: onboarding
-        ? 'Apply'
-        : (t === 'raise' ? 'Raise prices' : t === 'drop' ? 'Lower prices' : 'Add promotion'),
+      cta: 'Apply',
       title: its[0].title,
       why: onboarding
         ? ''
@@ -8531,7 +8531,7 @@ function computeSuggestions() {
     const tot = staysItems.reduce((s, x) => s + (x.b - x.a + 1), 0);
     cards.push({ bucket: 'stays', type: 'minnight', intent: 'fill',
       a: Math.min(...staysItems.map(x => x.a)), b: Math.max(...staysItems.map(x => x.b)), items: staysItems,
-      head: 'Free up these stranded nights', cta: 'Change minimum',
+      head: 'Free up these stranded nights', cta: 'Apply',
       title: 'Unlock ' + tot + ' stranded night' + (tot > 1 ? 's' : ''),
       why: tot + ' night' + (tot > 1 ? 's are' : ' is') + ' wedged in gaps too short for your minimums, so no one can book them. Open them up just here.' });
   }
@@ -8546,12 +8546,10 @@ function computeSuggestions() {
   if (setupItems.length) {
     cards.push({ bucket: 'setup', type: 'discount', intent: 'fill', pct: 0.15,
       a: Math.min(...setupItems.map(x => x.a)), b: Math.max(...setupItems.map(x => x.b)), items: setupItems,
-      head: onboarding ? 'Smart discounts, ready' : 'Let discounts do the work',
-      cta: onboarding ? 'Apply' : 'Turn on',
+      head: 'Smart discounts, ready',
+      cta: 'Apply',
       title: 'Turn on smart discounts',
-      why: onboarding
-        ? ''
-        : new Set(setupItems.map(x => x.li)).size + ' listings have last-minute and early-bird off. Flip them on once and they quietly bring in the bookings you’re missing.' });
+      why: '' });
   }
   // Estimated $ impact per card → biggest first. The number on the card is what justifies mass action.
   cards.forEach(c => {
@@ -8581,7 +8579,8 @@ function computeSuggestions() {
   cards.forEach(c => {
     const p = Math.round((c.pct || 0) * 100);
     c.magKind = c.intent === 'earn' ? 'up' : 'down'; // accent: amber up, green down/savings
-    if (onboarding) {
+    c.why = ''; // the persuasion paragraph is retired — head + the number line say it all
+    if (true) { // ONE system for every persona — the simple onboarding language everywhere
       // "just say yes": the decision is MADE — one concrete number line, same Apply everywhere.
       // Every dated price card shares ONE sub format: city · dates · REAL % range (min–max of
       // marketRate vs base across the window — weekdays land lower, Fri/Sat higher).
@@ -8605,6 +8604,7 @@ function computeSuggestions() {
         c.magKind = 'flat';
       };
       if (c.bucket === 'grouping') { c.mag = 'Groups alike listings automatically. Edit anytime.'; c.magKind = 'flat'; return; }
+      else if (c.bucket === 'stays') { c.mag = [...new Set(c.items.map(x => x.li))].length + ' listings · min-night unlock'; c.magKind = 'flat'; }
       else if (c.bucket === 'setup') { c.mag = c.items.some(x => x.type === 'earlybird') ? 'Early-bird −12% · Last-minute −15%' : 'Last-minute −15%'; c.magKind = 'flat'; }
       else if (c.bucket === 'season-up' || c.bucket === 'season-down') {
         c.head = c.intent === 'earn' ? 'Set high season prices' : 'Set low season prices';
@@ -9042,7 +9042,7 @@ function renderMagicPill() {
         oppIconHTML(g) +
         '<div class="mopp-whywrap' + (g.bucket === 'grouping' ? ' is-group' : '') + '"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + '</span>' : '') + (g.why ? '<span class="mopp-why">' + g.why + '</span>' : '') + '</div>' +
         (g.thinking ? '<button class="mopp-apply is-thinking" disabled aria-label="Working"><span class="thinkdots"><i></i><i></i><i></i></span></button>'
-          : g.applied ? '<button class="mopp-applied is-check' + (g.intent === 'fill' ? ' is-lo' : '') + '" data-magic="undo" title="Undo" aria-label="Applied — tap to undo"><svg class="apck" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg></button>'
+          : g.applied ? '<button class="mopp-applied is-check' + (g.intent === 'fill' && g.bucket !== 'grouping' ? ' is-lo' : '') + '" data-magic="undo" title="Undo" aria-label="Applied — tap to undo"><svg class="apck" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg></button>'
           : '<button class="mopp-apply" data-magic="apply">' + (g.bucket === 'grouping' ? '<svg class=\'cta-wand\' width=\'24\' height=\'24\' viewBox=\'0 0 16 16\' fill=\'none\' aria-hidden=\'true\'><path fill=\'#fff\' d=\'M12.2069 2.85859L13.1411 3.79285C13.5317 4.18339 13.5317 4.81662 13.1411 5.2071L3.20689 15.1413C2.81636 15.532 2.18313 15.532 1.79265 15.1414L0.858273 14.2071C0.467808 13.8166 0.467808 13.1834 0.858316 12.7929L10.7926 2.85853C11.1832 2.46807 11.8163 2.46807 12.2069 2.85859ZM8.49893 6.84769L1.84792 13.4997L2.49942 14.1512L9.15043 7.49919L8.49893 6.84769Z\'/><path class=\'wstar\' d=\'M13.9997 7L14.4997 8L15.4997 8.5L14.4997 9L13.9997 10L13.4997 9L12.4997 8.5L13.4997 8L13.9997 7Z\'/><path class=\'wstar wstar2\' d=\'M7.49974 0.5L7.99974 1.5L8.99974 2L7.99974 2.5L7.49974 3.5L6.99974 2.5L5.99974 2L6.99974 1.5L7.49974 0.5Z\'/><path class=\'wstar wstar3\' d=\'M14.4997 0L14.9997 1L15.9997 1.5L14.9997 2L14.4997 3L13.9997 2L12.9997 1.5L13.9997 1L14.4997 0Z\'/></svg>' : '') + (g.cta || 'Apply') + '</button>') +
         '<button class="mnav-in next" data-magic="next" aria-label="Next opportunity">' + CHEV_NEXT + '</button>' +
         '<button class="bp-close magic-close" data-magic="exit" aria-label="Exit">✕</button>' +
@@ -9481,6 +9481,12 @@ function _searchDayRanges(expr, lis) {
       ? (d.getDay() === 5 || d.getDay() === 6 || d.getDay() === 0)
       : (d.getDay() >= 1 && d.getDay() <= 4)));
   }
+  if (/^(?:first\s+|next\s+)?open\s+weekends?$/.test(e))
+    return { perLi: li => { const rs = []; for (let k = 0; k + 1 < allDays.length; k++) {
+      if (allDays[k].getDay() === 5 && isOpenNight(li, k) && isOpenNight(li, k + 1) && inYear(allDays[k])) rs.push({ a: k, b: k + 1 }); } return rs; } };
+  if (/^(?:next\s+)?open\s+week$/.test(e))
+    return { perLi: li => { const rs = []; let run = 0; for (let k = 0; k < allDays.length; k++) {
+      run = isOpenNight(li, k) ? run + 1 : 0; if (run >= 7 && inYear(allDays[k])) { rs.push({ a: k - 6, b: k }); run = 0; } } return rs; } };
   // "gaps" / "open nights" (optionally "in <month|season>") — PER-LISTING runs: a gap is an open
   // run bounded by bookings on both sides; windowing intersects each run afterwards
   const om = e.match(/^(gaps?(?:\s+nights?)?|open(?:\s+nights?)?|unbooked(?:\s+nights?)?)(?:\s+(?:in\s+|of\s+)?(.+))?$/);
@@ -9511,6 +9517,195 @@ function _searchDayRanges(expr, lis) {
   // quarters — "q3", "q1 2027"
   const qm2 = e.match(/^q([1-4])$/);
   if (qm2) return _searchRuns(d => inYear(d) && Math.floor(d.getMonth() / 3) === qm2[1] - 1);
+  // weekday PATTERNS — "fridays", "every friday", "saturdays in august"
+  {
+    const dm = e.match(/^(?:every\s+)?(sun|mon|tues?|wednes|thurs?|fri|satur)days?(?:\s+(?:in|of)\s+(.+))?$/);
+    if (dm) {
+      const wd = { sun: 0, mon: 1, tue: 2, tues: 2, wednes: 3, thur: 4, thurs: 4, fri: 5, satur: 6 }[dm[1]];
+      let within = () => true;
+      if (dm[2]) {
+        const w = dm[2].trim(), mi2 = _searchMonthIdx(w);
+        const s2 = Object.keys(_SEASON_MONTHS).find(x => _fuzzyWord(x, w));
+        if (mi2 >= 0) within = d => d.getMonth() === mi2;
+        else if (s2) within = d => _SEASON_MONTHS[s2].includes(d.getMonth());
+        else return null;
+      }
+      return _searchRuns(d => inYear(d) && within(d) && d.getDay() === wd);
+    }
+  }
+  // NAMED cultural seasons — ski / snowbird / wedding / spring break / holiday season
+  {
+    const NS = { 'ski season': { m: [11, 0, 1, 2, 3] }, 'snowbird season': { m: [10, 11, 0, 1, 2] },
+      'wedding season': { m: [4, 5, 6, 7, 8, 9] }, 'spring break': { span: [[2, 10], [3, 20]] },
+      'holiday season': { span: [[10, 20], [0, 5]] } };
+    const key = Object.keys(NS).find(k => k === e || (_levDist(k, e) <= 2 && e.length >= 8));
+    if (key) {
+      const cfg = NS[key];
+      if (cfg.m) return _searchRuns(d => inYear(d) && cfg.m.includes(d.getMonth()));
+      const [[m1, d1], [m2, d2]] = cfg.span;
+      const ord = d => d.getMonth() * 100 + d.getDate();
+      const lo = m1 * 100 + d1, hi = m2 * 100 + d2;
+      return _searchRuns(d => inYear(d) && (lo <= hi ? (ord(d) >= lo && ord(d) <= hi) : (ord(d) >= lo || ord(d) <= hi)));
+    }
+  }
+  // "first|second|third|last week of august" · "week of july 20"
+  {
+    const fm = e.match(/^(first|second|third|last)\s+week\s+of\s+(?:the\s+)?([a-z]+)$/);
+    if (fm) {
+      const mi2 = fm[2] === 'year' ? (fm[1] === 'last' ? 11 : 0) : _searchMonthIdx(fm[2]);
+      if (mi2 >= 0) {
+        const hits = []; allDays.forEach((d, k) => { if (d.getMonth() === mi2 && (year == null || d.getFullYear() === year)) hits.push(k); });
+        const h0 = hits.find(k => k >= Math.max(0, todayDi)) ?? hits[0];
+        if (h0 != null) {
+          let a = h0; while (hits.includes(a - 1)) a--; let b = a; while (hits.includes(b + 1)) b++;
+          const off = { first: 0, second: 7, third: 14 }[fm[1]];
+          return off != null ? [{ a: Math.min(a + off, b), b: Math.min(a + off + 6, b) }] : [{ a: Math.max(a, b - 6), b }];
+        }
+      }
+    }
+    const wo = e.match(/^week\s+of\s+(.+)$/);
+    if (wo) {
+      const dd = _searchParseDayIdx(wo[1], null);
+      if (dd >= 0) { const dow = (allDays[dd].getDay() + 6) % 7; // Monday-based
+        return [{ a: Math.max(0, dd - dow), b: Math.min(allDays.length - 1, dd - dow + 6) }]; }
+    }
+  }
+  // rolling windows — "next 30 days", "next 6 weeks", "rest of the year", "until christmas"
+  {
+    const nm = e.match(/^next\s+(\d+)\s+(days?|weeks?|months?)$/);
+    const t0 = Math.max(0, todayDi);
+    if (nm) { const n = +nm[1] * (nm[2][0] === 'w' ? 7 : nm[2][0] === 'm' ? 30 : 1);
+      return [{ a: t0, b: Math.min(allDays.length - 1, t0 + n - 1) }]; }
+    if (/^rest of (?:the )?year$/.test(e)) {
+      const y0 = allDays[t0].getFullYear();
+      let b = t0; while (b + 1 < allDays.length && allDays[b + 1].getFullYear() === y0) b++;
+      return [{ a: t0, b }];
+    }
+    const um = e.match(/^(?:until|through|up to)\s+(.+)$/);
+    if (um) {
+      const w = um[1].trim();
+      let end = -1;
+      const hol2 = HOLIDAYS.find(h => _fuzzyName(h.name, w));
+      if (hol2) { for (const y of [...new Set(allDays.map(d => d.getFullYear()))]) {
+          const k = allDays.findIndex(d => d.toDateString() === holidayDateInYear(hol2, y).toDateString());
+          if (k >= t0) { end = k; break; } } }
+      else if (_searchMonthIdx(w) >= 0) { const mi2 = _searchMonthIdx(w);
+        const hits = []; allDays.forEach((d, k) => { if (d.getMonth() === mi2 && k >= t0) hits.push(k); });
+        end = hits.length ? hits[hits.length && hits[0] != null ? 0 : 0] : -1; }
+      else end = _searchParseDayIdx(w, t0);
+      if (end >= t0) return [{ a: t0, b: end }];
+    }
+  }
+  // "long weekends" — every holiday's banded window that touches a weekend and runs 3+ days
+  if (/^(?:long|3-?day) weekends?$/.test(e)) {
+    const rs = [];
+    [...new Set(allDays.map(d => d.getFullYear()))].forEach(y => {
+      if (year != null && y !== year) return;
+      HOLIDAYS.forEach(h => {
+        const hd = holidayDateInYear(h, y);
+        const k = allDays.findIndex(d => d.toDateString() === hd.toDateString());
+        if (k < 0) return;
+        const offs = h.secOffsets || secondaryOffsets(hd.getDay());
+        const a = Math.max(0, k + Math.min(0, ...offs)), b = Math.min(allDays.length - 1, k + Math.max(0, ...offs));
+        let touches = false; for (let x = a; x <= b; x++) { const dw = allDays[x].getDay(); if (dw === 6 || dw === 0) touches = true; }
+        if (touches && b - a >= 2) rs.push({ a, b });
+      });
+    });
+    return rs.length ? rs.sort((x, y) => x.a - y.a) : null;
+  }
+  // demand × weekday — "peak weekends", "slow fridays", "soft sundays"; plus "shoulder season"
+  {
+    const pm2 = e.match(/^(peak|busy|slow|soft|quiet)\s+(weekends?|sun|mon|tues?|wednes|thurs?|fri|satur)(?:days?)?$/);
+    if (pm2) {
+      const hot = pm2[1] === 'peak' || pm2[1] === 'busy';
+      const wd = pm2[2].startsWith('weekend') ? null : { sun: 0, mon: 1, tue: 2, tues: 2, wednes: 3, thur: 4, thurs: 4, fri: 5, satur: 6 }[pm2[2]];
+      return _searchRuns(d => inYear(d)
+        && (wd == null ? (d.getDay() === 5 || d.getDay() === 6 || d.getDay() === 0) : d.getDay() === wd)
+        && lis.some(li => hot ? monthlyDemand[li][d.getMonth()] >= 74 : monthlyDemand[li][d.getMonth()] <= 49));
+    }
+    if (/^shoulder(?:\s+season)?$/.test(e))
+      return _searchRuns(d => inYear(d) && lis.some(li => { const dm2 = monthlyDemand[li][d.getMonth()]; return dm2 >= 50 && dm2 <= 73; }));
+  }
+  // "compression nights" — an event AND (weekend or holiday) stack on the same night
+  if (/^compression(?:\s+nights?)?$/.test(e)) {
+    return { perLi: li => _searchRuns(d => inYear(d) && !!eventAt(LISTINGS[li].city, d)
+      && ((d.getDay() === 5 || d.getDay() === 6 || d.getDay() === 0) || !!holidayFor(d) || !!secondaryHolidayFor(d))) };
+  }
+  // market comparisons — "above market", "below market" / "underpriced"; "overridden prices"
+  if (/^(?:above|over)\s+market$/.test(e))
+    return { perLi: li => _searchRuns((d, k) => inYear(d) && k >= Math.max(0, todayDi) && isOpenNight(li, k) && getPrice(li, k) > marketRate(li, k) + 4) };
+  if (/^(?:below|under)\s+market$|^underpriced$/.test(e))
+    return { perLi: li => _searchRuns((d, k) => inYear(d) && k >= Math.max(0, todayDi) && isOpenNight(li, k) && getPrice(li, k) < marketRate(li, k) - 4) };
+  if (/^(?:overridden|custom(?:ized)?|edited)\s+prices?$/.test(e))
+    return { perLi: li => _searchRuns((d, k) => inYear(d) && priceOverride[li] && priceOverride[li][k] != null) };
+  // "$300+ weekends" / "$250+ weekdays" / bare "$300+"
+  {
+    const cm2 = e.match(/^\$?(\d+)\s*\+\s*(weekends?|weekdays?)?$/);
+    if (cm2) {
+      const amt = +cm2[1], wk = cm2[2];
+      return { perLi: li => _searchRuns((d, k) => inYear(d) && getPrice(li, k) >= amt
+        && (!wk || (wk.startsWith('weekend') ? (d.getDay() === 5 || d.getDay() === 6 || d.getDay() === 0) : (d.getDay() >= 1 && d.getDay() <= 4)))) };
+    }
+  }
+  // "events in april" / "events in san diego" — scoped event sweeps
+  {
+    const em2 = e.match(/^events?\s+(?:in|of)\s+(.+)$/);
+    if (em2) {
+      const w = em2[1].trim();
+      const mi2 = _searchMonthIdx(w);
+      const city2 = [...new Set(LISTINGS.map(l => l.city))].find(c => _fuzzyPlace(c, w));
+      if (mi2 >= 0 || city2) {
+        const cities3 = new Set(LISTINGS.map(l => l.city));
+        const rs = [];
+        DEMAND_EVENTS.forEach(ev => {
+          const [name, city, sIso, eIso] = ev;
+          if (!cities3.has(city) || (city2 && city !== city2)) return;
+          const s0 = new Date(sIso + 'T00:00'), e0 = new Date(eIso + 'T00:00');
+          if (year != null && s0.getFullYear() !== year) return;
+          if (mi2 >= 0 && s0.getMonth() !== mi2 && e0.getMonth() !== mi2) return;
+          const [w0, w1] = eventWindowFor(name, s0, e0);
+          let a = -1, b = -1;
+          allDays.forEach((d, k) => { if (d >= w0 && d <= w1) { if (a < 0) a = k; b = k; } });
+          if (a >= 0) rs.push({ a, b, city });
+        });
+        return rs.length ? rs.sort((x, y) => x.a - y.a) : null;
+      }
+    }
+  }
+  // "between coachella weekends" — the quiet gap between an event's instances
+  {
+    const bm2 = e.match(/^between\s+(.+?)\s+weekends?$/);
+    if (bm2 && !/\$/.test(bm2[1])) {
+      const insts = [];
+      DEMAND_EVENTS.forEach(ev => {
+        const [name, city, sIso, eIso] = ev;
+        if (!_fuzzyName(name, bm2[1])) return;
+        const s0 = new Date(sIso + 'T00:00'), e0 = new Date(eIso + 'T00:00');
+        const [w0, w1] = eventWindowFor(name, s0, e0);
+        let a = -1, b = -1;
+        allDays.forEach((d, k) => { if (d >= w0 && d <= w1) { if (a < 0) a = k; b = k; } });
+        if (a >= 0) insts.push({ a, b });
+      });
+      insts.sort((x, y) => x.a - y.a);
+      const rs = [];
+      for (let i = 0; i + 1 < insts.length; i++) if (insts[i + 1].a - insts[i].b > 1 && insts[i + 1].a - insts[i].b <= 12)
+        rs.push({ a: insts[i].b + 1, b: insts[i + 1].a - 1 });
+      return rs.length ? rs : null;
+    }
+  }
+  // availability shapes — "open weekends", "open week"; "orphan nights"; "booked (in august)"
+  if (/^orphan(?:ed)?(?:\s+nights?)?$/.test(e))
+    return { perLi: li => { const bk = bookedDays(li), minN = minNightsVals[li] || 1;
+      return _searchRuns((d, k) => isOpenNight(li, k)).filter(r => r.a > 0 && bk.has(r.a - 1) && r.b < allDays.length - 1 && bk.has(r.b + 1) && (r.b - r.a + 1) < minN); } };
+  {
+    const km = e.match(/^(?:booked|bookings)(?:\s+(?:in|of)\s+(.+))?$/);
+    if (km) {
+      let within = () => true;
+      if (km[1]) { const w = km[1].trim(), mi2 = _searchMonthIdx(w);
+        if (mi2 >= 0) within = d => d.getMonth() === mi2; else return null; }
+      return { perLi: li => { const bk = bookedDays(li); return _searchRuns((d, k) => inYear(d) && within(d) && bk.has(k)); } };
+    }
+  }
   // a season → every day of its months, EVERY in-range occurrence ("all summer months")
   const sea = e.split(' ').length === 1 && Object.keys(_SEASON_MONTHS).find(s => _fuzzyWord(s, e));
   if (sea) return _searchRuns(d => inYear(d) && _SEASON_MONTHS[sea].includes(d.getMonth()));
@@ -9605,6 +9800,31 @@ function _searchParseDayIdx(str, afterDi) {
     di = hits.find(k => k >= (afterDi != null ? afterDi : Math.max(0, todayDi))) ?? (hits.length ? hits[0] : -1); }
   return di;
 }
+// resolve any time/concept expression to per-listing {li, ranges} rows (shared ranges fan out to all)
+function _searchResolveCells(expr) {
+  const lis = LISTINGS.map((_, i) => i);
+  let r = null;
+  try { r = _searchDayRanges(expr, lis); } catch (err) { r = null; }
+  if (!r) { const dd = _searchParseDayIdx(expr, null); if (dd < 0) return null;
+    return lis.map(li => ({ li, ranges: [{ a: dd, b: dd }] })); }
+  return lis.map(li => ({ li, ranges: Array.isArray(r) ? r : (r.perLi ? r.perLi(li) : []) }));
+}
+let _searchPendingRanges = null; // the span a NAV result would select — drives the ghost preview
+// GHOST PREVIEW: the would-be selection wears the shift-hover ghost (.range-preview) until
+// Select commits it or the query changes. Survives virtualization via the model Set below.
+window._searchGhostSet = null;
+window._searchPaintGhosts = function () {
+  if (!window._searchGhostSet) return;
+  document.querySelectorAll('#gridRows > .price-row').forEach(row => {
+    const li = +row.dataset.li;
+    row.querySelectorAll('.price-card[data-di]').forEach(card =>
+      card.classList.toggle('range-preview', window._searchGhostSet.has(li + ':' + card.dataset.di)));
+  });
+};
+window._searchClearGhosts = function () {
+  window._searchGhostSet = null;
+  document.querySelectorAll('#gridRows .price-card.range-preview').forEach(x => x.classList.remove('range-preview'));
+};
 let _searchHint = '';       // set by whichever branch matched; searchGoto fills a date default
 let _searchCanSelect = false; // the last NAV result maps to selectable days → surface the Select pill
 let _searchLastQ = '';      // Enter on the SAME query cycles to the next match
@@ -9618,8 +9838,10 @@ function _searchRow(li) {
   return true;
 }
 // fly the grid to a date column (and optionally centre a listing row), then pulse the date header
+let _searchNavHist = []; // landing history — "back" walks it
 function searchGoto(di, li, alignLeft) {
   di = Math.max(0, Math.min(allDays.length - 1, di));
+  if (_searchNavHist[_searchNavHist.length - 1] !== di) { _searchNavHist.push(di); if (_searchNavHist.length > 24) _searchNavHist.shift(); }
   _searchLastDi = di;
   if (!_searchHint) { const d = allDays[di];
     _searchHint = '→ ' + _MONTHS_FULL[d.getMonth()].replace(/^./, c => c.toUpperCase()).slice(0, 3) + ' ' + d.getDate() + ', ' + d.getFullYear(); }
@@ -9646,7 +9868,7 @@ function searchGoto(di, li, alignLeft) {
 }
 function searchCalendar(raw, after) {
   const q = String(raw || '').trim(); if (!q) return false;
-  _searchHint = ''; _searchCanSelect = false;
+  _searchHint = ''; _searchCanSelect = false; _searchPendingRanges = null;
   let ql = q.toLowerCase().replace(/\s+/g, ' ');
   // everyday synonyms land on what the calendar calls them
   const SYN = { 'xmas': 'christmas', 'nye': 'new years', 'new years eve': 'new years',
@@ -9655,6 +9877,206 @@ function searchCalendar(raw, after) {
   const N2 = allDays.length;
   // Enter on the SAME query again = cycle: matches are picked strictly PAST the last landing
   const minDi = (after != null && after >= 0) ? Math.min(N2 - 1, Math.max(Math.max(0, todayDi), after + 1)) : Math.max(0, todayDi);
+  // ── META: views, tabs, start/end/back, help ──
+  {
+    if (/^(?:month|week)\s*view$/.test(ql)) { const b2 = document.getElementById(ql.startsWith('month') ? 'wmMonth' : 'wmWeek');
+      if (b2) { b2.click(); _searchHint = '→ ' + (ql.startsWith('month') ? 'Month' : 'Week') + ' view'; return true; } }
+    if (/^(?:pricing|availability|calendar)(?:\s+tab)?$/.test(ql)) {
+      const name = ql.split(' ')[0];
+      const tab = [...document.querySelectorAll('button, [role=tab], .tab, .seg-btn, .tb-tab')].find(el =>
+        el.textContent.trim().toLowerCase() === name);
+      if (tab) { tab.click(); _searchHint = '→ ' + name[0].toUpperCase() + name.slice(1); return true; }
+    }
+    if (ql === 'start' || ql === 'beginning') return searchGoto(Math.max(0, todayDi), null, true);
+    if (ql === 'end') return searchGoto(N2 - 1);
+    if (ql === 'back') {
+      if (_searchNavHist.length >= 2) { _searchNavHist.pop(); const p = _searchNavHist.pop(); return searchGoto(p); }
+      return false;
+    }
+    if (ql === 'help' || ql === '?') {
+      _searchHint = "Try: gaps in october · select weekends · $300+ · next event · who's here friday · average price in september";
+      return true;
+    }
+  }
+  // ── SELECTION ALGEBRA: add / deselect / only / invert / everything but / same dates shifted ──
+  {
+    const paintDone = () => { paintSelection(); updateClearBtn(); updateDateHeaders(); };
+    let m3 = ql.match(/^(?:add|also(?:\s+select)?|plus|include)\s+(.+)$/);
+    if (m3) {
+      const cells = _searchResolveCells(m3[1]);
+      if (cells) {
+        const n0 = selCount(); let first = null;
+        cells.forEach(({ li, ranges }) => ranges.forEach(r => { if (r.city && LISTINGS[li].city !== r.city) return;
+          for (let k = r.a; k <= r.b; k++) if (isSelectable(li, k)) { setSel(li, k, true); if (!first) first = { li, di: k }; } }));
+        if (selCount() > n0) { paintDone(); _searchHint = '→ +' + (selCount() - n0) + ' nights · ' + selCount() + ' selected';
+          return first ? searchGoto(first.di, first.li) : true; }
+      }
+    }
+    m3 = ql.match(/^(?:deselect|remove|exclude|minus)\s+(.+)$/);
+    if (m3 && selCount()) {
+      const cells = _searchResolveCells(m3[1]);
+      if (cells) {
+        const n0 = selCount();
+        cells.forEach(({ li, ranges }) => ranges.forEach(r => { for (let k = r.a; k <= r.b; k++) setSel(li, k, false); }));
+        if (selCount() < n0) { paintDone(); _searchHint = '→ −' + (n0 - selCount()) + ' nights · ' + selCount() + ' left'; return true; }
+      }
+    }
+    m3 = ql.match(/^(?:only|keep only|just)\s+(.+)$/);
+    if (m3 && selCount()) {
+      const cells = _searchResolveCells(m3[1]);
+      if (cells) {
+        const keep = new Set();
+        cells.forEach(({ li, ranges }) => ranges.forEach(r => { for (let k = r.a; k <= r.b; k++) keep.add(li * 1000 + k); }));
+        const n0 = selCount();
+        selList().forEach(({ li, di }) => { if (!keep.has(li * 1000 + di)) setSel(li, di, false); });
+        paintDone(); _searchHint = '→ kept ' + selCount() + ' of ' + n0; return true;
+      }
+    }
+    if (/^invert(?:\s+selection)?$/.test(ql) && selCount()) {
+      const cur = new Set(selList().map(x => x.li * 1000 + x.di));
+      selClear(); let first = null;
+      for (let li = 0; li < LISTINGS.length; li++) for (let k = Math.max(0, todayDi); k < N2; k++)
+        if (isSelectable(li, k) && !cur.has(li * 1000 + k)) { setSel(li, k, true); if (!first) first = { li, di: k }; }
+      paintDone(); _searchHint = '→ inverted · ' + selCount() + ' nights'; return first ? searchGoto(first.di, first.li) : true;
+    }
+    m3 = ql.match(/^(?:select\s+)?(?:everything|all)\s+(?:but|except)\s+(.+)$/);
+    if (m3) {
+      const cells = _searchResolveCells(m3[1]);
+      if (cells) {
+        const skip = new Set();
+        cells.forEach(({ li, ranges }) => ranges.forEach(r => { for (let k = r.a; k <= r.b; k++) skip.add(li * 1000 + k); }));
+        if (typeof clearSelection === 'function') clearSelection(); selClear(); let first = null;
+        for (let li = 0; li < LISTINGS.length; li++) for (let k = Math.max(0, todayDi); k < N2; k++)
+          if (!skip.has(li * 1000 + k) && isSelectable(li, k)) { setSel(li, k, true); if (!first) first = { li, di: k }; }
+        if (first) { paintDone(); _searchHint = '→ ' + selCount() + ' nights · except ' + m3[1]; return searchGoto(first.di, first.li); }
+      }
+    }
+    m3 = ql.match(/^select\s+same\s+dates\s+next\s+(month|year)$/);
+    if (m3 && selCount()) {
+      const cur = selList(); selClear(); let first = null;
+      cur.forEach(({ li, di }) => { const d = allDays[di]; const nd = new Date(d);
+        if (m3[1] === 'month') nd.setMonth(nd.getMonth() + 1); else nd.setFullYear(nd.getFullYear() + 1);
+        const k = allDays.findIndex(x => x.toDateString() === nd.toDateString());
+        if (k >= 0 && isSelectable(li, k)) { setSel(li, k, true); if (!first) first = { li, di: k }; } });
+      paintDone(); _searchHint = '→ shifted · ' + selCount() + ' nights'; return first ? searchGoto(first.di, first.li) : true;
+    }
+  }
+  // ── ACTIONS: "raise september", "block christmas", "set min 3 on weekends" — select the target
+  // and point at the right QA tool (never auto-apply)
+  {
+    let m3 = ql.match(/^(?:raise|increase|bump|lower|drop)\s+(.+?)(?:\s+(?:by\s+)?\d+\s*%?)?$/);
+    let tool = m3 ? 'Price' : null, tgt = m3 && m3[1];
+    if (!tool) { m3 = ql.match(/^(?:block|close|open up|unblock)\s+(.+)$/); if (m3) { tool = 'Availability'; tgt = m3[1]; } }
+    if (!tool) { m3 = ql.match(/^set\s+min(?:imum)?\s+\d+(?:\s+(?:nights?\s+)?(?:on|for|in)\s+(.+))?$/); if (m3) { tool = 'Min nights'; tgt = m3[1] || 'next 30 days'; } }
+    if (tool && tgt && !/^market$/.test(tgt.trim())) {
+      const ok2 = searchCalendar('select ' + tgt.trim());
+      if (ok2 && typeof selCount === 'function' && selCount() > 0) { _searchHint += ' · tap ' + tool; return true; }
+    }
+  }
+  // ── ANSWERS: the hint pill becomes a readout ──
+  {
+    const scopeRs = q2 => { if (!q2) return [{ a: Math.max(0, todayDi), b: N2 - 1 }];
+      try { const r = _searchDayRanges(q2.trim(), LISTINGS.map((_, i) => i)); return Array.isArray(r) && r.length ? r : null; } catch (err) { return null; } };
+    let m3 = ql.match(/^(?:average|avg)\s+(?:nightly\s+)?prices?(?:\s+(?:in|of|for)\s+(.+))?$/);
+    if (m3) { const rs = scopeRs(m3[1]);
+      if (rs) { let sum = 0, n = 0;
+        rs.forEach(r => { for (let k = Math.max(r.a, todayDi); k <= r.b; k++) for (let li = 0; li < LISTINGS.length; li++)
+          if (isOpenNight(li, k)) { sum += getPrice(li, k); n++; } });
+        if (n) { _searchHint = '→ $' + Math.round(sum / n) + ' avg open night' + (m3[1] ? ' · ' + m3[1] : ''); return searchGoto(Math.max(rs[0].a, todayDi)); } } }
+    m3 = ql.match(/^occupancy(?:\s+(?:in|of|for)\s+(.+))?$/);
+    if (m3) { const rs = scopeRs(m3[1]);
+      if (rs) { let bkd = 0, tot = 0;
+        rs.forEach(r => { for (let k = Math.max(r.a, todayDi); k <= r.b; k++) for (let li = 0; li < LISTINGS.length; li++) {
+          if (bookedDays(li).has(k)) { bkd++; tot++; } else if (isOpenNight(li, k)) tot++; } });
+        if (tot) { _searchHint = '→ ' + Math.round(bkd / tot * 100) + '% booked' + (m3[1] ? ' · ' + m3[1] : ''); return searchGoto(Math.max(rs[0].a, todayDi)); } } }
+    m3 = ql.match(/^(?:revenue|earnings)(?:\s+(?:in|of|for)\s+(.+))?$/);
+    if (m3) { const rs = scopeRs(m3[1]);
+      if (rs) { let sum = 0;
+        rs.forEach(r => { for (let k = r.a; k <= r.b; k++) for (let li = 0; li < LISTINGS.length; li++)
+          if (bookedDays(li).has(k)) sum += getPrice(li, k); });
+        _searchHint = '→ $' + sum.toLocaleString('en-US') + ' booked' + (m3[1] ? ' · ' + m3[1] : ''); return searchGoto(Math.max(rs[0].a, todayDi)); } }
+    if (/^busiest month$/.test(ql) || /^(?:quietest|slowest) month$/.test(ql)) {
+      const hot = ql.startsWith('busiest');
+      let best = -1, bestV = hot ? -1 : 1e9;
+      for (let m2 = 0; m2 < 12; m2++) { const v = LISTINGS.reduce((a2, _, li) => a2 + monthlyDemand[li][m2], 0) / LISTINGS.length;
+        if (hot ? v > bestV : v < bestV) { bestV = v; best = m2; } }
+      const hits = []; allDays.forEach((d, k) => { if (d.getMonth() === best && d.getDate() === 1) hits.push(k); });
+      const di2 = hits.find(k => k >= todayDi) ?? hits[0];
+      if (di2 != null) { _searchHint = '→ ' + _MONTHS_FULL[best].replace(/^./, c => c.toUpperCase()) + ' · ' + (hot ? 'busiest' : 'quietest'); return searchGoto(di2, null, true); }
+    }
+    if (/^weekend premium$/.test(ql)) {
+      let we = 0, wen = 0, wd = 0, wdn = 0;
+      for (let k = Math.max(0, todayDi); k < Math.min(N2, todayDi + 90); k++) for (let li = 0; li < LISTINGS.length; li++) {
+        const dw = allDays[k].getDay(); const p = getPrice(li, k);
+        if (dw === 5 || dw === 6) { we += p; wen++; } else if (dw >= 1 && dw <= 4) { wd += p; wdn++; }
+      }
+      if (wen && wdn) { _searchHint = '→ weekends run ' + Math.round((we / wen) / (wd / wdn) * 100 - 100) + '% above weekdays (next 90 days)'; return true; }
+    }
+  }
+  // ── BOOKING OPERATIONS: checkouts / arrivals / stay lengths / turnovers / prep / who's here ──
+  {
+    const dayOf = w => { if (!w) return Math.max(0, todayDi);
+      const wds = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+      const wi = wds.findIndex(x => x.startsWith(w) || (w.length >= 4 && _levDist(x, w) <= 2));
+      if (wi >= 0) { let k = Math.max(0, todayDi); while (k < N2 && allDays[k].getDay() !== wi) k++; return k; }
+      if (w === 'today') return Math.max(0, todayDi);
+      if (w === 'tomorrow') return Math.min(N2 - 1, Math.max(0, todayDi) + 1);
+      return _searchParseDayIdx(w, null);
+    };
+    let m3 = ql.match(/^who(?:'s| is)?\s+(?:here|staying|checked in)(?:\s+(?:on\s+)?(.+))?$/);
+    if (m3) { const k = dayOf(m3[1] && m3[1].trim());
+      if (k >= 0) { const bs = BOOKINGS.filter(b => b.start <= k && k < b.start + b.nights);
+        if (bs.length) { _searchHint = '→ ' + bs.slice(0, 3).map(b => b.guest).join(', ') + (bs.length > 3 ? ' +' + (bs.length - 3) : '') + ' · ' + bs.length + ' stay' + (bs.length > 1 ? 's' : '');
+          return searchGoto(k, bs[0].listing); }
+        _searchHint = '→ nobody staying'; return searchGoto(k); } }
+    m3 = ql.match(/^check\s?outs?(?:\s+(?:on\s+)?(.+))?$/);
+    if (m3) { const k0 = m3[1] ? dayOf(m3[1].trim()) : -1;
+      const pick = exact => { let best = null;
+        BOOKINGS.forEach(b => { const e2 = b.start + b.nights; if (e2 < Math.max(minDi, exact ? k0 : 0)) return;
+          if (exact && e2 !== k0) return; if (!best || e2 < best.e) best = { e: e2, b }; });
+        return best; };
+      const best = (k0 >= 0 ? pick(true) : null) || pick(false);
+      if (best) { _searchHint = '→ ' + best.b.guest + ' checks out' + (k0 >= 0 && best.e !== k0 ? ' (next one)' : '');
+        return searchGoto(Math.min(N2 - 1, best.e), best.b.listing); } }
+    m3 = ql.match(/^(?:arrivals?|check\s?ins?)(?:\s+(?:on\s+)?(.+))?$/);
+    if (m3) { const k0 = m3[1] ? dayOf(m3[1].trim()) : -1;
+      const pick = exact => { let best = null;
+        BOOKINGS.forEach(b => { if (b.start < Math.max(minDi, exact ? k0 : 0)) return;
+          if (exact && b.start !== k0) return; if (!best || b.start < best.start) best = b; });
+        return best; };
+      const best = (k0 >= 0 ? pick(true) : null) || pick(false);
+      if (best) { _searchHint = '→ ' + best.guest + ' arrives · ' + best.nights + ' nights' + (k0 >= 0 && best.start !== k0 ? ' (next one)' : '');
+        return searchGoto(best.start, best.listing); } }
+    m3 = ql.match(/^stays?\s+(?:over|longer than|>)\s*(\d+)(?:\s+nights?)?$/);
+    if (m3) { const n = +m3[1];
+      const bs = BOOKINGS.filter(b => b.nights > n && b.start + b.nights - 1 >= minDi).sort((x, y) => x.start - y.start);
+      if (bs.length) { _searchHint = '→ ' + bs[0].guest + ' · ' + bs[0].nights + ' nights'; return searchGoto(bs[0].start, bs[0].listing); } }
+    m3 = ql.match(/^(?:short stays|stays?\s+under\s+(\d+)(?:\s+nights?)?)$/);
+    if (m3) { const n = m3[1] ? +m3[1] : 3;
+      const bs = BOOKINGS.filter(b => b.nights < n && b.start + b.nights - 1 >= minDi).sort((x, y) => x.start - y.start);
+      if (bs.length) { _searchHint = '→ ' + bs[0].guest + ' · ' + bs[0].nights + ' night' + (bs[0].nights > 1 ? 's' : ''); return searchGoto(bs[0].start, bs[0].listing); } }
+    if (/^turnovers?(?:\s+this\s+week)?$|^back\s?to\s?back$/.test(ql)) {
+      const lim = /this week/.test(ql) ? Math.max(0, todayDi) + 7 : N2;
+      let best = null;
+      for (let li = 0; li < LISTINGS.length; li++) { const bs = BOOKINGS.filter(b => b.listing === li).sort((x, y) => x.start - y.start);
+        for (let i = 0; i + 1 < bs.length; i++) { const e2 = bs[i].start + bs[i].nights;
+          if (e2 === bs[i + 1].start && e2 >= minDi && e2 < lim && (!best || e2 < best.k)) best = { k: e2, li }; } }
+      if (best) { _searchHint = '→ same-day turnover'; return searchGoto(best.k, best.li); } }
+    if (/^prep\s+(?:days?|time|nights?)$/.test(ql)) {
+      for (let k = minDi; k < N2; k++) for (let li = 0; li < LISTINGS.length; li++) {
+        const un = computeUnavailable(li);
+        if (un.has(k) && !bookedDays(li).has(k) && !(hostBlocked[li] && hostBlocked[li].has(k))
+          && (bookedDays(li).has(k - 1) || bookedDays(li).has(k + 1))) { _searchHint = '→ prep buffer'; return searchGoto(k, li); } } }
+    if (/^repeat guests?$/.test(ql)) {
+      const byName = {}; BOOKINGS.forEach(b => (byName[b.guest] = byName[b.guest] || []).push(b));
+      const reps = Object.entries(byName).filter(([, v]) => v.length >= 2).flatMap(([, v]) => v)
+        .filter(b => b.start + b.nights - 1 >= minDi).sort((x, y) => x.start - y.start);
+      if (reps.length) { const b = reps[0]; _searchHint = '→ ' + b.guest + ' · ' + byName[b.guest].length + ' stays'; return searchGoto(b.start, b.listing); } }
+    m3 = ql.match(/^([a-z]+)'s\s+next\s+stay$/);
+    if (m3) { const gs = BOOKINGS.filter(b => _fuzzyName(b.guest, m3[1])).sort((x, y) => x.start - y.start);
+      const hit = gs.find(b => b.start + b.nights - 1 >= minDi) || gs[gs.length - 1];
+      if (hit) { const ok2 = searchGoto(hit.start, hit.listing); _searchHint += ' · ' + hit.guest; return ok2; } }
+  }
   // ── "Select …": search as a COMMAND — verb + time expression + optional "in <place>" scope.
   // "Select all summer months in Aspen" → a REAL multi-select (the bulk-edit pill pops) + fly there.
   // the VERB is typo-tolerant too: "selc comicon", "slect july" still command a selection.
@@ -9766,6 +10188,7 @@ function searchCalendar(raw, after) {
         }
         // typed bare: NAVIGATE to the range start and offer the one-tap Select pill instead
         _searchCanSelect = true;
+        _searchPendingRanges = [{ a: lo, b: hi }];
         const fA = allDays[Math.max(lo, Math.max(0, todayDi))], fB = allDays[hi];
         _searchHint = '→ ' + _MONTHS_FULL[fA.getMonth()].replace(/^./, c => c.toUpperCase()).slice(0, 3) + ' ' + fA.getDate()
           + ' – ' + _MONTHS_FULL[fB.getMonth()].replace(/^./, c => c.toUpperCase()).slice(0, 3) + ' ' + fB.getDate();
@@ -9859,10 +10282,26 @@ function searchCalendar(raw, after) {
         if (ok2) return searchGoto(k, li);
       }
     }
-    // "opportunities" — hand off to the wand
-    if (/^opportunit|^optimi[sz]e$/.test(ql)) {
-      if (window.__opt && window.__opt.state === 'idle' && typeof startOptimize === 'function') {
-        startOptimize(); _searchHint = '→ scanning your calendar'; return true;
+    // "opportunities" / "opportunities in october" — hand off to the wand (and step to the month)
+    {
+      const om3 = ql.match(/^opportunit\w*(?:\s+(?:in|for)\s+(.+))?$/) || (/^optimi[sz]e$/.test(ql) ? [ql, null] : null);
+      if (om3 && window.__opt && window.__opt.state === 'idle' && typeof startOptimize === 'function') {
+        startOptimize(); _searchHint = '→ scanning your calendar';
+        const mi3 = om3[1] ? _searchMonthIdx(om3[1].trim()) : -1;
+        if (mi3 >= 0) {
+          _searchHint += ' · stepping to ' + om3[1].trim();
+          let steps = 0;
+          const t = setInterval(() => {
+            const o = window.__opt;
+            if (++steps > 90) return clearInterval(t);
+            if (o.state !== 'results') return;
+            const idx = o.suggs.findIndex(s2 => allDays[s2.a] && allDays[s2.a].getMonth() === mi3);
+            if (idx < 0 || o.cur >= idx) return clearInterval(t);
+            const nxt = document.querySelector('.mnav-in.next');
+            if (nxt) nxt.click(); else clearInterval(t);
+          }, 800);
+        }
+        return true;
       }
     }
     // quarters & week numbers — "q3", "q1 2027", "week 32"
@@ -10052,13 +10491,23 @@ function searchCalendar(raw, after) {
       }
     }
   }
-  // a LIST — "august and nov": fly to the first part, offer one-tap Select for the union
-  if (/(?:,|\band\b|&|\+)/.test(ql)) {
+  // GENERIC concept fallback — anything the range resolver understands ("open weekends",
+  // "$300+ weekends", "long weekends", "ski season", "august and nov", …) navigates to its
+  // first upcoming match and offers one-tap Select.
+  {
     const rg = (() => { try { return _searchDayRanges(ql, LISTINGS.map((_, i) => i)); } catch (err) { return null; } })();
     if (Array.isArray(rg) && rg.length) {
       const run = rg.find(r => r.b >= minDi) || rg[0];
-      _searchCanSelect = true;
+      _searchCanSelect = true; _searchPendingRanges = rg;
       return searchGoto(Math.max(run.a, run.b >= minDi ? minDi : run.a), null, true);
+    }
+    if (rg && rg.perLi) {
+      let best = null;
+      LISTINGS.forEach((_, li) => rg.perLi(li).forEach(r => {
+        const a2 = Math.max(r.a, minDi);
+        if (r.b >= minDi && (!best || a2 < best.a)) best = { a: a2, li };
+      }));
+      if (best) { _searchCanSelect = true; _searchPendingRanges = rg; return searchGoto(best.a, best.li); }
     }
   }
   // a real date, LAST — "Mar 13, 2024", "3/13/2027": exact day if in range, else that month+day
@@ -10087,7 +10536,7 @@ function searchCalendar(raw, after) {
   const xBtn = document.getElementById('searchPillClose');
   if (xBtn) xBtn.addEventListener('click', e => {
     e.stopPropagation(); // the pill's own click handler must not immediately reopen it
-    input.value = ''; _searchLastQ = ''; input.blur(); pill.classList.remove('open'); setCanSelect(false);
+    input.value = ''; _searchLastQ = ''; input.blur(); pill.classList.remove('open'); setCanSelect(false); window._searchClearGhosts();
   });
   // one-tap "Select": converts the just-searched date/month/year into a real selection
   const selBtn = document.getElementById('searchPillSelect');
@@ -10095,6 +10544,7 @@ function searchCalendar(raw, after) {
     e.stopPropagation();
     const q = (_searchLastQ || input.value).trim(); if (!q) return;
     _searchHint = '';
+    window._searchClearGhosts(); // the ghost becomes the REAL selection
     if (searchCalendar(/^(?:select|highlight|grab|pick|choose)\b/.test(q.toLowerCase()) ? q : 'select ' + q)) {
       setCanSelect(false);
       if (typeof selCount === 'function' && selCount() > 0) {
@@ -10103,16 +10553,18 @@ function searchCalendar(raw, after) {
       }
     }
   });
-  input.addEventListener('input', () => setCanSelect(false));
-  window._resetSearchPill = () => { input.value = ''; _searchLastQ = ''; _searchLastDi = -1; setCanSelect(false);
+  input.addEventListener('input', () => { setCanSelect(false); window._searchClearGhosts(); });
+  window._resetSearchPill = () => { input.value = ''; _searchLastQ = ''; _searchLastDi = -1; setCanSelect(false); window._searchClearGhosts();
     pill.classList.remove('open', 'shake'); if (hint) hint.classList.remove('show'); }; // dev Reset wipes the search too
   const hint = document.getElementById('searchPillHint');
   let hintT = null;
-  const showHint = (txt, ms) => { if (!hint) return; hint.textContent = txt; hint.classList.add('show');
+  const showHint = (txt, ms) => { if (!hint) return; hint.textContent = txt;
+    hint.style.left = (pill.offsetLeft + pill.offsetWidth / 2) + 'px'; // centred over the search bar
+    hint.classList.add('show');
     clearTimeout(hintT); hintT = setTimeout(() => hint.classList.remove('show'), ms); };
   input.addEventListener('keydown', e => {
     if (e.key !== 'Shift') e.stopPropagation(); // grid key handlers never see typing — but Shift MUST reach the document tracker or the shift-range ghosts won't arm while the input holds focus
-    if (e.key === 'Escape') { input.value = ''; input.blur(); pill.classList.remove('open'); _searchLastQ = ''; setCanSelect(false); return; }
+    if (e.key === 'Escape') { input.value = ''; input.blur(); pill.classList.remove('open'); _searchLastQ = ''; setCanSelect(false); window._searchClearGhosts(); return; }
     if (e.key !== 'Enter') return;
     const v = input.value;
     const cycling = !!v.trim() && v === _searchLastQ; // same query again → step to the NEXT match
@@ -10121,12 +10573,26 @@ function searchCalendar(raw, after) {
     if (!ok) { pill.classList.remove('shake'); void pill.offsetWidth; pill.classList.add('shake'); return; }
     if (_searchHint) showHint(_searchHint + (cycling ? ' · next' : ''), 2600);
     if (typeof selCount === 'function' && selCount() > 0) { // selection made → the QA pill owns it now
-      input.value = ''; _searchLastQ = ''; input.blur(); pill.classList.remove('open'); setCanSelect(false);
+      input.value = ''; _searchLastQ = ''; input.blur(); pill.classList.remove('open'); setCanSelect(false); window._searchClearGhosts();
     } else { // NAV result — offer one-tap Select when the query maps to a span of days
       let can = _searchCanSelect; // date-range navigations flag themselves
+      let src = _searchPendingRanges;
       if (!can) try { const r = _searchDayRanges(v.trim().toLowerCase(), LISTINGS.map((_, i) => i));
-        can = Array.isArray(r) ? r.length > 0 : !!(r && r.perLi); } catch (err) {}
+        if (Array.isArray(r) ? r.length > 0 : !!(r && r.perLi)) { can = true; src = src || r; } } catch (err) {}
       setCanSelect(can);
+      // GHOST the would-be selection: dashed previews on every cell Select would commit
+      window._searchClearGhosts();
+      if (can) {
+        let cells = null;
+        if (src) cells = LISTINGS.map((_, li) => ({ li, ranges: Array.isArray(src) ? src : src.perLi(li) }));
+        else { try { cells = _searchResolveCells(v.trim().toLowerCase()); } catch (err) {} }
+        if (cells) {
+          const set = new Set();
+          cells.forEach(({ li, ranges }) => (ranges || []).forEach(r => { if (r.city && LISTINGS[li].city !== r.city) return;
+            for (let k = r.a; k <= r.b; k++) if (isSelectable(li, k)) set.add(li + ':' + k); }));
+          if (set.size) { window._searchGhostSet = set; window._searchPaintGhosts(); }
+        }
+      }
     }
   });
 })();
