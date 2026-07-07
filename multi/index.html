@@ -1045,7 +1045,29 @@ body.magic-active #gridRows, body.magic-active #listingThumbsInner, body.magic-a
    nights worth tuning. Green glow = "fill it" (drop price / promo / lower min); amber = "earn more"
    (raise on peak/holiday). Tapping a glow opens its suggestion card. */
 .magic-action { z-index: 201; bottom: 124px; } /* anchored on the QA pill's CENTER line (80 + 88/2) */
-.magic-action .multi-action-inner { transform: translateY(50%); } /* pill centres on that line → height changes grow outward on all sides */
+.magic-action .multi-action-inner { transform: translateY(50%); align-items: center; gap: 12px; } /* pill centres on that line → height changes grow outward on all sides; the search pill rides 12px left */
+/* ── Search pill: idle = a 72px magnifier circle (the Opportunities pill's white twin); click
+   unfurls it into an input. Enter flies to the match; a miss shakes the pill. ── */
+.search-pill {
+  display: inline-flex; align-items: center; height: 72px; width: 72px; flex-shrink: 0;
+  background: #fff; border-radius: 999px; overflow: hidden; cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.06), 0 4px 8px rgba(0,0,0,0.08), 0 12px 30px rgba(0,0,0,0.14); /* same spec as .magic-pill */
+  transition: width .5s cubic-bezier(.22,.9,.3,1);
+}
+.search-pill svg { flex-shrink: 0; margin: 0 24px; } /* 24 + 24 + 24 = the 72px idle circle, magnifier dead-centre */
+.search-pill input {
+  border: 0; outline: none; background: transparent; padding: 0;
+  font: 400 16px 'Cereal', sans-serif; color: #222;
+  width: 0; opacity: 0; transition: width .5s cubic-bezier(.22,.9,.3,1), opacity .3s ease;
+}
+.search-pill input::placeholder { color: var(--grey-500); }
+.search-pill.open { width: 320px; cursor: text; }
+.search-pill.open input { width: 228px; opacity: 1; margin-left: -8px; } /* 24+24+16(icon gap trim)+228+20 right pad ≈ 320 */
+.search-pill.shake { animation: searchShake .4s ease; }
+@keyframes searchShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 50% { transform: translateX(6px); } 75% { transform: translateX(-4px); } }
+/* where the search landed: the date-header column pulses once */
+.date-cell.search-hit { animation: searchHitPulse 2s ease; border-radius: 12px; }
+@keyframes searchHitPulse { 0%, 30% { background: var(--grey-100); } 100% { background: transparent; } }
 .magic-pill { /* idle: a 72×72 white CIRCLE (just the wand); hover unfurls the label, states morph from here */
   display: inline-flex; align-items: center; height: 72px; padding: 0;
   background: #fff; color: #111; border-radius: 999px; white-space: nowrap;
@@ -1293,12 +1315,14 @@ body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-
 @keyframes odoOld { 0%,14% { transform: translateY(-9px); color: #222; text-decoration-color: transparent; }
   34% { transform: translateY(0); color: #8C8C8C; text-decoration-color: transparent; }
   38%,100% { transform: translateY(0); color: #8C8C8C; text-decoration-color: #8C8C8C; } }
-/* Promo / min sub-line: on settle the price nudges up and the recommendation slides in beneath it. */
-body:not(.opt-scanning) .price-card.opt-flag.has-sub:not(.opt-focus) .price-val { transform: translateY(-8px); }
-body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-sub.opt-focus .price-val { transform: translateY(-8px); } /* revealed: nudges up, stays Book */
+/* Promo / min sub-line: on settle the price nudges up and the recommendation slides in beneath it.
+   Line geometry MATCHES the odometer stack exactly (price top 50%-17px, sub-line top 50%+1px) so the
+   two-line cells share one vertical rhythm: -9px nudge puts the 16px price box at 50%-17. */
+body:not(.opt-scanning) .price-card.opt-flag.has-sub:not(.opt-focus) .price-val { transform: translateY(-9px); }
+body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-sub.opt-focus .price-val { transform: translateY(-9px); } /* revealed: nudges up, stays Book */
 .price-card.opt-flag.has-sub .price-val { font-weight: 400; transition: transform .5s cubic-bezier(.4,0,.2,1); } /* Book, always */
-.price-card.opt-flag .subreveal { position: absolute; left: 0; right: 0; top: calc(50% + 6px); text-align: center;
-  font: 400 14px 'Cereal', sans-serif; color: #038026; white-space: nowrap; pointer-events: none; z-index: 2;
+.price-card.opt-flag .subreveal { position: absolute; left: 0; right: 0; top: calc(50% + 1px); text-align: center;
+  font: 400 14px 'Cereal', sans-serif; color: var(--grey-700); white-space: nowrap; pointer-events: none; z-index: 2;
   max-height: 0; opacity: 0; overflow: hidden; animation: subIn 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
 .price-card.opt-flag .subreveal.is-min { color: #222; }
 .price-card.opt-flag .subreveal.is-min s { color: var(--grey-500); }
@@ -2871,9 +2895,15 @@ body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.se
     <button class="bp-close multi-action-close" id="multiActionClose" aria-label="Close">✕</button>
   </div>
 </div>
-<!-- Optimize ("magic") pill — bottom-centred, same slot/animation as the quick-action pill -->
+<!-- Optimize ("magic") pill — bottom-centred, same slot/animation as the quick-action pill.
+     The SEARCH pill rides its left: an idle magnifier circle that unfurls into an input; Enter
+     flies the calendar to whatever it names (month, year, date, event, holiday, guest, $price). -->
 <div class="multi-action magic-action" id="magicAction">
   <div class="multi-action-inner">
+    <div class="search-pill" id="searchPill">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="#222" stroke-width="2"/><path d="M15.5 15.5L21 21" stroke="#222" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="searchPillInput" type="text" placeholder="Search calendar" autocomplete="off" spellcheck="false">
+    </div>
     <div class="magic-pill" id="magicPill"></div>
   </div>
 </div>
@@ -3349,7 +3379,7 @@ const DEMAND_EVENTS = [
   ['Joshua Tree Music Festival', 'Joshua Tree', '2027-05-13', '2027-05-16', 26, 'event_icons/joshua-tree.png', 'event_icons/sec-music-note.png', 'estimated'],
   ['Joshua Tree Music Festival', 'Joshua Tree', '2026-10-08', '2026-10-11', 26, 'event_icons/joshua-tree.png', 'event_icons/sec-music-note.png', 'confirmed'],
 ];
-const EVENT_CARD_MIN_BOOST = 18; // spikes get cards; ambient runs just ride the curve
+const EVENT_CARD_MIN_BOOST = 8; // every real demand driver gets a card — ambient season runs (Del Mar) included; the ≥8% market-premium truth check still gates weak ones
 let _evMap = null; // city|Y-M-D → strongest active event that night
 function _evDayKey(d) { return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
 // The TRAVEL WINDOW around an event: guests arrive early and ride the weekend — 2 shoulder days
@@ -3680,15 +3710,15 @@ const STAR12_PATH = star12Path(8, 8, 7, 3.6); // viewBox 16, center 8 (inner rad
 // Without it the busier, more-padded art (Juneteenth ~58% fill, July 4 ~64%) rendered tiny & muddy.
 const HOLIDAYS = [
   { name: "New Year's Day",   file: 'new-years.png',       month: 0,  day: 1,                color: '#E6B422', fit: 1.24, secondaryFile: 'sec-new-years.png', peakPct: 25 }, // NYE travel/parties — highest
-  { name: 'MLK Jr. Day',      file: 'mlk-jr-day.png',      month: 0,  weekday: 1, nth: 3,     color: '#9AA1A9', fit: 1.14, secondaryFile: 'sec-mlk-jr-day.png', secFit: 1.1, peakPct: 15 }, // winter ski long weekend
-  { name: "Presidents' Day",  file: 'presidents-day.png',  month: 1,  weekday: 1, nth: 3,     color: '#B0987A', fit: 1.02, secondaryFile: 'sec-presidents-day.png', secFit: 1.25, peakPct: 16 }, // peak ski long weekend
-  { name: 'Memorial Day',     file: 'memorial-day.png',    month: 4,  weekday: 1, last: true, color: '#2B3A67', fit: 1.03, secondaryFile: 'sec-memorial-day.png', secFit: 1.25, peakPct: 18 }, // start-of-summer long weekend
-  { name: 'Juneteenth',       file: 'juneteenth.png',      month: 5,  day: 19,                color: '#DB2A3F', fit: 1.41, secondaryFile: 'sec-juneteenth.png', secFit: 1.16, peakPct: 12 }, // 12-pointed star outline; modest demand
+  { name: 'MLK Jr. Day',      file: 'mlk-jr-day.png',      month: 0,  weekday: 1, nth: 3,     color: '#9AA1A9', fit: 1.14, secondaryFile: 'sec-mlk-jr-day.png', peakPct: 15 }, // winter ski long weekend
+  { name: "Presidents' Day",  file: 'presidents-day.png',  month: 1,  weekday: 1, nth: 3,     color: '#B0987A', fit: 1.02, secondaryFile: 'sec-presidents-day.png', peakPct: 16 }, // peak ski long weekend
+  { name: 'Memorial Day',     file: 'memorial-day.png',    month: 4,  weekday: 1, last: true, color: '#2B3A67', fit: 1.03, secondaryFile: 'sec-memorial-day.png', peakPct: 18 }, // start-of-summer long weekend
+  { name: 'Juneteenth',       file: 'juneteenth.png',      month: 5,  day: 19,                color: '#DB2A3F', fit: 1.41, secondaryFile: 'sec-juneteenth.png', peakPct: 12 }, // 12-pointed star outline; modest demand
   { name: 'Independence Day', file: 'july-4th.png',        month: 6,  day: 4,                 color: '#E0394B', fit: 1.19, secondaryFile: 'sec-july-4th.png', peakPct: 22 }, // summer peak, beach/lake
-  { name: 'Labor Day',        file: 'labor-day.png',       month: 8,  weekday: 1, nth: 1,     color: '#D14836', fit: 1.34, secondaryFile: 'sec-labor-day.png', secFit: 1.12, peakPct: 18 }, // end-of-summer long weekend
-  { name: 'Veterans Day',     file: 'veterans-day.png',    month: 10, day: 11,                color: '#2B3A67', fit: 1.09, secondaryFile: 'sec-veterans-day.png', secFit: 1.33, peakPct: 10 }, // blue secondary circle; lowest travel bump
-  { name: 'Thanksgiving',     file: 'thanksgiving.png',    month: 10, weekday: 4, nth: 4,     color: '#C8742A', fit: 1.0, secondaryFile: 'thanksgiving2.png', secFit: 1.12, peakPct: 20 }, // heavy travel
-  { name: 'Christmas',        file: 'christmas.png',       month: 11, day: 25,                color: '#2E7D32', fit: 1.04, secOffsets: [-3, -2, -1, 1, 2], altColors: ['#C8102E', '#2E7D32'], altFiles: ['sec-christmas-red.png', 'sec-christmas-green.png'], secFit: 1.08, peakPct: 22 }, // family/ski travel; Dec 22–27 alternate red/green balls
+  { name: 'Labor Day',        file: 'labor-day.png',       month: 8,  weekday: 1, nth: 1,     color: '#D14836', fit: 1.34, secondaryFile: 'sec-labor-day.png', peakPct: 18 }, // end-of-summer long weekend; secondary = tape measure
+  { name: 'Veterans Day',     file: 'veterans-day.png',    month: 10, day: 11,                color: '#2B3A67', fit: 1.09, secondaryFile: 'sec-veterans-day.png', peakPct: 10 }, // blue secondary circle; lowest travel bump
+  { name: 'Thanksgiving',     file: 'thanksgiving.png',    month: 10, weekday: 4, nth: 4,     color: '#C8742A', fit: 1.0, secondaryFile: 'thanksgiving2.png', peakPct: 20 }, // heavy travel
+  { name: 'Christmas',        file: 'christmas.png',       month: 11, day: 25,                color: '#2E7D32', fit: 1.04, secOffsets: [-3, -2, -1, 1, 2], altColors: ['#C8102E', '#2E7D32'], altFiles: ['sec-christmas-red.png', 'sec-christmas-green.png'], peakPct: 22 }, // family/ski travel; Dec 22–27 alternate red/green balls
 ];
 // The holiday falling on date d (or null). Handles fixed, nth-weekday, and last-weekday rules.
 function holidayFor(d) {
@@ -6837,9 +6867,14 @@ function buildGroupEventIcons() {
       // days stay in the PRICING window but get no icon), secondaries carry the rest.
       const p0 = eventPrimaryDay(s0, w0, w1);
       const pKey = _evDayKey(p0);
-      // Coachella: the arrival THURSDAY (day before each weekend's opening Friday) wears the
-      // daisy too — its run starts one shoulder day early; every other event opens on its primary.
-      const i0 = new Date(p0); if (/coachella/i.test(name)) i0.setDate(i0.getDate() - 1);
+      // SPIKES (boost ≥ 18) own their whole travel window: icons cover every priced night, with
+      // secondaries on the shoulder days BEFORE the headline too — the band always agrees with the
+      // event's opportunity card (Comic-Con's Tue/Wed shoulders wear stars, not Del Mar's horseshoes).
+      // Ambient runs still open on their primary day. Coachella overrides with exactly ONE lead day —
+      // the arrival Thursday wears the daisy.
+      let i0 = new Date(p0);
+      if (/coachella/i.test(name)) i0.setDate(i0.getDate() - 1);
+      else if (boost >= 18) i0 = new Date(w0);
       let days = [];
       for (let x = new Date(Math.max(i0, w0)); x <= w1; x.setDate(x.getDate() + 1)) {
         const di = diBy.get(_evDayKey(x)); if (di != null) days.push({ di, primary: _evDayKey(x) === pKey });
@@ -8270,6 +8305,8 @@ function computeSuggestions() {
   // its nights: season/promo plays are clipped off them first. Multi-weekend runs of the same event
   // (Coachella W1+W2, Splash House) merge into one card when ≤ 10 nights apart.
   const eventCards = [];
+  const claimed = {}; // city → [{a,b}] windows carded by an event — events own their nights, so
+                      // holiday windows re-derived later must stay off them too (hoisted for that)
   {
     const diBy = new Map(allDays.map((d, i) => [_evDayKey(d), i]));
     const diOfD = d => { const v = diBy.get(_evDayKey(d)); return v == null ? -1 : v; };
@@ -8285,7 +8322,11 @@ function computeSuggestions() {
       a = Math.max(a, todayDi);
       (wins[city + '|' + name] = wins[city + '|' + name] || []).push({ a, b, boost });
     });
-    Object.keys(wins).forEach(key => {
+    // process by boost DESC: spikes card their nights first, then longer ambient runs (Del Mar)
+    // card what's left — a lower-boost run YIELDS its overlap nights to the spike that owns them
+    // (the horses keep their season card; the Comic-Con week stays Comic-Con's).
+    Object.keys(wins).sort((x, y) =>
+      Math.max(...wins[y].map(r => r.boost)) - Math.max(...wins[x].map(r => r.boost))).forEach(key => {
       const [city, name] = key.split('|');
       const lis = LISTINGS.map((l, i) => l.city === city ? i : -1).filter(i => i >= 0);
       if (!lis.length) return;
@@ -8294,16 +8335,31 @@ function computeSuggestions() {
       runs.forEach(r => { const m = merged[merged.length - 1];
         if (m && r.a - m.b <= 10) { m.b = Math.max(m.b, r.b); } else merged.push({ ...r }); });
       merged.forEach(w => {
-        // truth check: the event must actually move the market on its nights (vs current prices)
+        // subtract every higher-boost window → the run may survive as SEGMENTS around the spikes;
+        // items carry the segments so flags/apply never touch a night that isn't this card's
+        let segs = [{ a: w.a, b: w.b }];
+        (claimed[city] || []).forEach(c => {
+          segs = segs.flatMap(s => {
+            if (c.b < s.a || c.a > s.b) return [s];
+            const out = [];
+            if (c.a > s.a) out.push({ a: s.a, b: c.a - 1 });
+            if (c.b < s.b) out.push({ a: c.b + 1, b: s.b });
+            return out;
+          });
+        });
+        if (!segs.length) return; // fully inside a bigger spike — no card
+        // truth check: the event must actually move the market on its (surviving) nights
         let hi = 0;
-        lis.forEach(li => { const base = getPrice(li, w.a);
-          for (let k = w.a; k <= w.b; k++) { if (!eventAt(city, allDays[k])) continue;
-            hi = Math.max(hi, (marketRate(li, k) - getPrice(li, k)) / (getPrice(li, k) || 1)); } });
+        lis.forEach(li => segs.forEach(s => {
+          for (let k = s.a; k <= s.b; k++) { if (!eventAt(city, allDays[k])) continue;
+            hi = Math.max(hi, (marketRate(li, k) - getPrice(li, k)) / (getPrice(li, k) || 1)); } }));
         if (hi < 0.08) return; // no real premium left to set — skip the card
         const pct = Math.round(w.boost * 0.008 * 100) / 100;
-        eventCards.push({ bucket: 'event', type: 'raise', intent: 'earn', pct, a: w.a, b: w.b, evName: name, evCity: city,
-          items: lis.map(li => { const p0 = getPrice(li, w.a); return { li, a: w.a, b: w.b, intent: 'earn', type: 'raise', pct,
-            curPrice: p0, newPrice: Math.round(p0 * (1 + pct)) }; }) });
+        eventCards.push({ bucket: 'event', type: 'raise', intent: 'earn', pct,
+          a: segs[0].a, b: segs[segs.length - 1].b, evName: name, evCity: city,
+          items: lis.flatMap(li => segs.map(s => { const p0 = getPrice(li, s.a); return { li, a: s.a, b: s.b, intent: 'earn', type: 'raise', pct,
+            curPrice: p0, newPrice: Math.round(p0 * (1 + pct)) }; })) });
+        (claimed[city] = claimed[city] || []).push({ a: w.a, b: w.b });
         const evSet = new Set(lis);
         for (let ii = items.length - 1; ii >= 0; ii--) {
           const it = items[ii];
@@ -8344,20 +8400,10 @@ function computeSuggestions() {
     const cs = [...new Set(its.map(x => listingCity[x.li]))];
     return cs.length === 1 ? 'in ' + cs[0] : cs.length === 2 ? 'in ' + cs[0] + ' and ' + cs[1] : 'across ' + cs.length + ' cities';
   };
-  const _diByH = new Map(allDays.map((d, i) => [_evDayKey(d), i]));
-  // A holiday's travel window is its OWN weekend block — never the weekend before a mid-week
-  // holiday: Mon holiday → [Fri before, Mon] · Sat/Sun → [Fri before, Sun] · Tue–Fri → [holiday,
-  // the Sunday after]. (Veterans Day, a Wednesday, prices Wed→Sun — not the prior weekend.)
-  function holidayTravelWindow(d0) {
-    const a = new Date(d0), b = new Date(d0), dow = d0.getDay();
-    if (dow === 1) { a.setDate(a.getDate() - 3); }                    // Monday: the long weekend behind it
-    else if (dow === 0) { a.setDate(a.getDate() - 2); }               // Sunday: back to Friday
-    else if (dow === 6) { a.setDate(a.getDate() - 1); b.setDate(b.getDate() + 1); } // Saturday: Fri–Sun
-    if (dow >= 2 && dow <= 5) { while (b.getDay() !== 0) b.setDate(b.getDate() + 1); } // Tue–Fri: ride to Sunday
-    return [a, b];
-  }
+  // A holiday card's window = the days the BAND marks (holiday + its secondary-icon offsets), one
+  // shared definition so calendar icons and priced cells always agree.
   Object.keys(holBy).forEach(h => {
-    const its = holBy[h];
+    let its = holBy[h];
     its.forEach(x => {
       // the holiday's actual date sits inside (or near) the detected cluster
       let holDi = -1;
@@ -8365,11 +8411,25 @@ function computeSuggestions() {
         const hf = holidayFor(allDays[k]); if (hf && hf.name === h) { holDi = k; break; }
       }
       if (holDi < 0) return; // can't anchor — leave the detected span alone
-      const [w0, w1] = holidayTravelWindow(allDays[holDi]);
-      const na = _diByH.get(_evDayKey(w0)), nb = _diByH.get(_evDayKey(w1));
-      if (na != null) x.a = Math.max(todayDi, na);
-      if (nb != null) x.b = Math.min(N - 1, nb);
+      // the card prices EXACTLY the days the band marks: the holiday + its secondary-icon offsets
+      // (one definition for both — the Tuesday after a Monday holiday is marked, so it's priced too)
+      const hObj = HOLIDAYS.find(o => o.name === h);
+      const offs = (hObj && hObj.secOffsets) || secondaryOffsets(allDays[holDi].getDay());
+      x.a = Math.max(todayDi, Math.max(0, holDi + Math.min(0, ...offs)));
+      x.b = Math.min(N - 1, holDi + Math.max(0, ...offs));
+      // …but an EVENT still owns its nights: the re-derived window backs off any carded event in
+      // this listing's city (Del Mar runs through Labor Day — San Diego stays the horses', Palm
+      // Springs keeps the holiday). Fully-covered items drop below.
+      (claimed[listingCity[x.li]] || []).forEach(c => {
+        if (c.b < x.a || c.a > x.b) return;
+        if (x.a >= c.a && x.b <= c.b) { x._drop = true; return; }
+        const leftL = c.a - x.a, rightL = x.b - c.b; // keep the larger remainder
+        if (leftL >= rightL) x.b = c.a - 1; else x.a = c.b + 1;
+      });
     });
+    its = its.filter(x => !x._drop);
+    if (!its.length) return; // every night belongs to an event card — no holiday card left
+    holBy[h] = its;
     const ha = Math.min(...its.map(x => x.a)), hb = Math.max(...its.map(x => x.b));
     cards.push({ bucket: 'holiday', type: 'raise', intent: 'earn', pct: its[0].pct, hol: h,
       a: ha, b: hb, items: its,
@@ -8997,11 +9057,14 @@ function startOptimize() {
   setTimeout(() => {
     const suggs = computeSuggestions(); // pre-sorted by estimated $ impact — biggest opportunity leads
     window.__opt.suggs = suggs;
+    window.__opt.cur = 0; window.__opt.state = 'results'; // MUST land before the repaint below — dressOptState
+    // reads suggs[cur] to decide focus; a stale cur from the last session used to dress the WRONG card as
+    // focused, so a fresh entry whose first-card cells were already mounted needed a tap to light up
     buildFlags(suggs); // the WHOLE board lights: every opportunity is pre-wavy from the first reveal
     document.body.classList.add('glow-hold', 'opt-beat'); // flags paint now; rings wait for the camera, the INSIDE waits for a beat after
     repaintOptGlows();
     document.body.classList.remove('opt-scanning');       // scan done → the sweep stops
-    window.__opt.cur = 0; window.__opt.state = 'results'; renderMagicPill();
+    renderMagicPill();
     // circle → results morph: measure the natural size, pin back to the circle, then grow out to it;
     // the info fades in as the surface lands (is-growing holds it at opacity 0)
     pillEl.classList.add('is-growing');
@@ -9028,7 +9091,7 @@ function exitOptimize() {
   document.body.classList.remove('optimize-mode', 'opt-scanning', 'group-scanning', 'glow-hold', 'opt-beat');
   clearTimeout(automateGroupingStaged._t); clearTimeout(automateGroupingStaged._adv); clearTimeout(applyCurrent._t); // pending finishes never fire into a closed session
   const mp = document.getElementById('magicPill'); if (mp) { mp.style.width = ''; mp.style.height = ''; mp.classList.remove('is-growing'); }
-  window.__opt.flags = new Map(); window.__opt.suggs = []; window.__opt.state = 'idle';
+  window.__opt.flags = new Map(); window.__opt.suggs = []; window.__opt.state = 'idle'; window.__opt.cur = 0; // cur resets too — a stale index must never dress the next session's focus
   repaintOptGlows(); renderMagicPill(); window.updateMagicPill();
   updateBookingDim(); // optimize-mode is off again → guest pills come back (unless a selection holds them)
   clearTimeout(exitOptimize._sz); exitOptimize._sz = setTimeout(() => { document.body.classList.remove('opt-sizing'); updateVSync(); }, 450); // let the shrink finish, then disarm + resync at the SETTLED 48px height
@@ -9267,6 +9330,147 @@ const SMALL_HOST = {
 };
 // Arrays that constitute a host's state (swapped in place so their const bindings never change).
 const _HOST_P = [weekendVals, highSeasonVals, lowSeasonVals, earlyBirdVals, lastMinuteVals, tripWeekly, tripMonthly, customDiscount, cleaningFees, extraGuestFees, minNightsVals, bookingWinVals, advNoticeVals, prepTimeVals, gapVals, maxNightsVals, restrictedCheckinVals, restrictedCheckoutVals, reqExceptionVals, DEFAULT_MIN];
+// ═══ CALENDAR SEARCH ══════════════════════════════════════════════════════════════════════════
+// The pill left of Opportunities: one input that understands anything ON the calendar — months
+// ("July", typo-tolerant), years ("2027"), dates ("Mar 13, 2024"), events ("cochella"), holidays
+// ("labor day"), guest names ("Olivia") and $ prices ("$270") — and flies the grid there.
+function _levDist(a, b) {
+  const m = a.length, n = b.length;
+  if (Math.abs(m - n) > 3) return 9;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[n];
+}
+// a query word hits a name word on prefix either way (3+ letters — "s" from "New Year's" must
+// never prefix-match everything), or a small typo (2 edits needs a 5+ letter word)
+const _fuzzyWord = (w, q) => w.startsWith(q) || (w.length >= 3 && q.startsWith(w)) || (Math.min(w.length, q.length) >= 5 && _levDist(w, q) <= 2);
+const _fuzzyName = (name, q) => {
+  const nw = name.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 2);
+  const qw = String(q).split(/[^a-z0-9]+/).filter(Boolean);
+  return qw.length > 0 && qw.every(x => nw.some(w => _fuzzyWord(w, x)));
+};
+// fly the grid to a date column (and optionally centre a listing row), then pulse the date header
+function searchGoto(di, li) {
+  di = Math.max(0, Math.min(allDays.length - 1, di));
+  const vw = gridWrap.clientWidth || window.innerWidth;
+  const left = Math.max(0, (rowOffsets[di] || 0) - Math.round(vw * 0.28));
+  let top = gridWrap.scrollTop;
+  if (li != null) {
+    const row = document.querySelector('#gridRows > .price-row[data-li="' + li + '"]');
+    if (row) { const rr = row.getBoundingClientRect(), wr = gridWrap.getBoundingClientRect();
+      top = Math.max(0, gridWrap.scrollTop + (rr.top - wr.top) - (gridWrap.clientHeight / 2 - rr.height / 2)); }
+  }
+  gridWrap.scrollTo({ left, top, behavior: 'smooth' });
+  // pulse the landing column's header once it exists (virtualization mounts it during the fly)
+  let tries = 0;
+  (function pulse() {
+    const cell = document.querySelector('#dateHeader .date-cell[data-di="' + di + '"]');
+    if (cell) { cell.classList.remove('search-hit'); void cell.offsetWidth; cell.classList.add('search-hit');
+      setTimeout(() => cell.classList.remove('search-hit'), 2000); return; }
+    if (++tries < 90) requestAnimationFrame(pulse);
+  })();
+  return true;
+}
+function searchCalendar(raw) {
+  const q = String(raw || '').trim(); if (!q) return false;
+  const ql = q.toLowerCase();
+  const N2 = allDays.length;
+  // ($) price — "$270", "270 dollars": the next cell charging exactly that
+  const pm = ql.match(/^\$\s*(\d+)$/) || ql.match(/^(\d+)\s*(?:dollars?|bucks)$/);
+  if (pm) {
+    const amt = +pm[1];
+    const scan = (from, to) => { for (let k = from; k < to; k++) for (let li = 0; li < LISTINGS.length; li++)
+      if (getPrice(li, k) === amt) return searchGoto(k, li); return false; };
+    return scan(Math.max(0, todayDi), N2) || scan(0, Math.max(0, todayDi));
+  }
+  // pull an explicit year out of the query ("2027", "coachella 2027", "july 2027")
+  const ym = ql.match(/\b(19|20)\d{2}\b/);
+  const year = ym ? +ym[0] : null;
+  const rest = ym ? ql.replace(ym[0], '').replace(/[,\s]+/g, ' ').trim() : ql;
+  if (year != null && !rest) {
+    const di = allDays.findIndex(d => d.getFullYear() === year);
+    return di >= 0 && searchGoto(di);
+  }
+  // month name (typo-tolerant), optionally with the year
+  const MONTHS_FULL = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+  if (rest && !/\d/.test(rest) && !rest.includes(' ')) {
+    const mi = MONTHS_FULL.findIndex(mn => mn.startsWith(rest) || rest.startsWith(mn)
+      || (rest.length >= 4 && mn.slice(0, 4) === rest.slice(0, 4))            // garbled tails ("septmeebr")
+      || (rest.length >= 5 && _levDist(mn, rest) <= 2));
+    if (mi >= 0) {
+      const hits = []; allDays.forEach((d, k) => { if (d.getMonth() === mi && d.getDate() === 1 && (year == null || d.getFullYear() === year)) hits.push(k); });
+      if (!hits.length) allDays.forEach((d, k) => { if (d.getMonth() === mi && (year == null || d.getFullYear() === year)) hits.push(k); });
+      const di = hits.find(k => k >= todayDi) ?? hits[0];
+      if (di != null) return searchGoto(di);
+    }
+  }
+  // holidays — "labor day", "thanksgiving"
+  const hol = HOLIDAYS.find(h => _fuzzyName(h.name, rest));
+  if (hol) {
+    const allYears = [...new Set(allDays.map(d => d.getFullYear()))];
+    const diFor = ys => { const hits = ys.map(y => { const hd = holidayDateInYear(hol, y);
+      return allDays.findIndex(d => d.toDateString() === hd.toDateString()); }).filter(k => k >= 0);
+      return hits.find(k => k >= todayDi) ?? hits[0]; };
+    // asked-for year first; a year the calendar doesn't reach falls back to the one it does
+    const di = diFor(allYears.filter(y => year == null || y === year)) ?? diFor(allYears);
+    if (di != null) return searchGoto(di);
+  }
+  // events — "cochella", "comic con 2027" (only cities that are actually on the board)
+  {
+    const cities = new Set(LISTINGS.map(l => l.city));
+    const hits = [];
+    DEMAND_EVENTS.forEach(ev => {
+      const [name, city, sIso] = ev;
+      if (!cities.has(city) || !_fuzzyName(name, rest)) return;
+      const s0 = new Date(sIso + 'T00:00');
+      const di = allDays.findIndex(d => d.toDateString() === s0.toDateString());
+      if (di >= 0) hits.push({ di, li: LISTINGS.findIndex(l => l.city === city), y: s0.getFullYear() });
+    });
+    hits.sort((x, y) => x.di - y.di);
+    const inYear = year == null ? hits : hits.filter(h => h.y === year);
+    const pool = inYear.length ? inYear : hits; // a year the calendar doesn't reach falls back
+    const hit = pool.find(h => h.di >= todayDi) || pool[0];
+    if (hit) return searchGoto(hit.di, hit.li >= 0 ? hit.li : null);
+  }
+  // guest names — "Olivia": the next stay by that guest (falls back to the latest past one)
+  {
+    const gs = BOOKINGS.filter(b => _fuzzyName(b.guest, ql)).sort((x, y) => x.start - y.start);
+    const hit = gs.find(b => b.start + b.nights - 1 >= todayDi) || gs[gs.length - 1];
+    if (hit) return searchGoto(hit.start, hit.listing);
+  }
+  // a real date, LAST — "Mar 13, 2024", "3/13/2027": exact day if in range, else that month+day
+  // in range. Runs after the name matchers because Chrome's lenient Date.parse would happily read
+  // "thanksgiving 2027" as Jan 1 2027.
+  if (/\d/.test(q)) {
+    const t = Date.parse(q);
+    if (!isNaN(t)) {
+      const d0 = new Date(t);
+      let di = allDays.findIndex(d => d.getFullYear() === d0.getFullYear() && d.getMonth() === d0.getMonth() && d.getDate() === d0.getDate());
+      if (di < 0) { // out-of-range year → same month+day inside the calendar, nearest upcoming first
+        const hits = []; allDays.forEach((d, k) => { if (d.getMonth() === d0.getMonth() && d.getDate() === d0.getDate()) hits.push(k); });
+        di = hits.find(k => k >= todayDi) ?? (hits.length ? hits[0] : -1);
+      }
+      if (di >= 0) return searchGoto(di);
+    }
+  }
+  return false;
+}
+(function setupSearchPill() {
+  const pill = document.getElementById('searchPill'), input = document.getElementById('searchPillInput');
+  if (!pill || !input) return;
+  pill.addEventListener('click', e => { if (!pill.classList.contains('open')) { pill.classList.add('open'); input.focus(); } });
+  input.addEventListener('blur', () => { if (!input.value.trim()) pill.classList.remove('open'); });
+  input.addEventListener('keydown', e => {
+    e.stopPropagation(); // the grid's own key handlers never see search typing
+    if (e.key === 'Escape') { input.value = ''; input.blur(); pill.classList.remove('open'); return; }
+    if (e.key !== 'Enter') return;
+    if (!searchCalendar(input.value)) { pill.classList.remove('shake'); void pill.offsetWidth; pill.classList.add('shake'); }
+  });
+})();
 const _HOST_O = [LISTINGS, priceOverride, promoVals, minOverride, ruleSetCell, ruleSets, groups, BOOKINGS]; // deep-copyable (plain objects)
 const _HOST_SET = [hostBlocked, autoBlockedByMin, monthBlocked]; // arrays of Set
 function captureHostState() {
