@@ -8172,7 +8172,7 @@ function computeSuggestions() {
         : 'Everywhere you host gets busy over ' + h + ', but you’ve left these nights at everyday prices. Let’s catch the bump.' });
   });
   eventCards.forEach(ec => {
-    ec.head = onboarding ? 'Set ' + ec.evName + ' prices' : 'Cash in on ' + ec.evName;
+    ec.head = onboarding ? ec.evName : 'Cash in on ' + ec.evName;
     ec.cta = onboarding ? 'Apply' : 'Raise prices';
     ec.title = ec.evName + ': raise ' + Math.round(ec.pct * 100) + '%';
     ec.why = onboarding
@@ -8310,9 +8310,12 @@ function computeSuggestions() {
       if (c.bucket === 'event') { (evPick.has(c) ? lead : rest).push(c); return; }
       if (!seen.has(c.bucket)) { seen.add(c.bucket); lead.push(c); } else rest.push(c);
     });
-    const SEQ = ['grouping', 'season-up', 'season-down', 'holiday', 'event', 'promo', 'setup']; // onboarding: a guided SETUP order (structure → broad seasons → specific dates → tools), not chronological
+    // onboarding: structure first, then ONE chronological sweep of every price RAISE (seasons,
+    // holidays, events interleaved by date — fill the year month by month), then the lower-prices
+    // pass, tools last.
+    const phase = c => c.bucket === 'grouping' ? 0 : c.bucket === 'setup' ? 3 : c.type === 'raise' ? 1 : 2;
     const picked = lead.concat(rest).slice(0, 10).sort(onboarding
-      ? (x, y) => (SEQ.indexOf(x.bucket) - SEQ.indexOf(y.bucket)) || (x.a - y.a)
+      ? (x, y) => (phase(x) - phase(y)) || (x.a - y.a)
       : (x, y) => x.a - y.a); // busy: step chronologically (‹ › move one way through the calendar)
     cards.length = 0; picked.forEach(c => cards.push(c));
   }
