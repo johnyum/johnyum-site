@@ -3634,16 +3634,16 @@ const STAR12_PATH = star12Path(8, 8, 7, 3.6); // viewBox 16, center 8 (inner rad
 // min(0.887/contentFracH, 1/contentFracW) — match turkey's height fill but never overflow the box width.
 // Without it the busier, more-padded art (Juneteenth ~58% fill, July 4 ~64%) rendered tiny & muddy.
 const HOLIDAYS = [
-  { name: "New Year's Day",   file: 'new-years.png',       month: 0,  day: 1,                color: '#E6B422', fit: 1.24, peakPct: 25 }, // NYE travel/parties — highest
-  { name: 'MLK Jr. Day',      file: 'mlk-jr-day.png',      month: 0,  weekday: 1, nth: 3,     color: '#9AA1A9', fit: 1.14, peakPct: 15 }, // winter ski long weekend
-  { name: "Presidents' Day",  file: 'presidents-day.png',  month: 1,  weekday: 1, nth: 3,     color: '#B0987A', fit: 1.02, peakPct: 16 }, // peak ski long weekend
-  { name: 'Memorial Day',     file: 'memorial-day.png',    month: 4,  weekday: 1, last: true, color: '#2B3A67', fit: 1.03, peakPct: 18 }, // start-of-summer long weekend
-  { name: 'Juneteenth',       file: 'juneteenth.png',      month: 5,  day: 19,                color: '#DB2A3F', star12: true, fit: 1.41, peakPct: 12 }, // 12-pointed star outline; modest demand
-  { name: 'Independence Day', file: 'july-4th.png',        month: 6,  day: 4,                 color: '#E0394B', fit: 1.19, peakPct: 22 }, // summer peak, beach/lake
-  { name: 'Labor Day',        file: 'labor-day.png',       month: 8,  weekday: 1, nth: 1,     color: '#D14836', fit: 1.34, peakPct: 18 }, // end-of-summer long weekend
-  { name: 'Veterans Day',     file: 'veterans-day.png',    month: 10, day: 11,                color: '#2B3A67', fit: 1.09, peakPct: 10 }, // blue secondary circle; lowest travel bump
+  { name: "New Year's Day",   file: 'new-years.png',       month: 0,  day: 1,                color: '#E6B422', fit: 1.24, secondaryFile: 'sec-new-years.png', peakPct: 25 }, // NYE travel/parties — highest
+  { name: 'MLK Jr. Day',      file: 'mlk-jr-day.png',      month: 0,  weekday: 1, nth: 3,     color: '#9AA1A9', fit: 1.14, secondaryFile: 'sec-mlk-jr-day.png', peakPct: 15 }, // winter ski long weekend
+  { name: "Presidents' Day",  file: 'presidents-day.png',  month: 1,  weekday: 1, nth: 3,     color: '#B0987A', fit: 1.02, secondaryFile: 'sec-presidents-day.png', peakPct: 16 }, // peak ski long weekend
+  { name: 'Memorial Day',     file: 'memorial-day.png',    month: 4,  weekday: 1, last: true, color: '#2B3A67', fit: 1.03, secondaryFile: 'sec-memorial-day.png', peakPct: 18 }, // start-of-summer long weekend
+  { name: 'Juneteenth',       file: 'juneteenth.png',      month: 5,  day: 19,                color: '#DB2A3F', fit: 1.41, secondaryFile: 'sec-juneteenth.png', peakPct: 12 }, // 12-pointed star outline; modest demand
+  { name: 'Independence Day', file: 'july-4th.png',        month: 6,  day: 4,                 color: '#E0394B', fit: 1.19, secondaryFile: 'sec-july-4th.png', peakPct: 22 }, // summer peak, beach/lake
+  { name: 'Labor Day',        file: 'labor-day.png',       month: 8,  weekday: 1, nth: 1,     color: '#D14836', fit: 1.34, secondaryFile: 'sec-labor-day.png', peakPct: 18 }, // end-of-summer long weekend
+  { name: 'Veterans Day',     file: 'veterans-day.png',    month: 10, day: 11,                color: '#2B3A67', fit: 1.09, secondaryFile: 'sec-veterans-day.png', peakPct: 10 }, // blue secondary circle; lowest travel bump
   { name: 'Thanksgiving',     file: 'thanksgiving.png',    month: 10, weekday: 4, nth: 4,     color: '#C8742A', fit: 1.0, secondaryFile: 'thanksgiving2.png', secFit: 1.0, peakPct: 20 }, // heavy travel
-  { name: 'Christmas',        file: 'christmas.png',       month: 11, day: 25,                color: '#2E7D32', fit: 1.04, secOffsets: [-3, -2, -1, 1, 2], altColors: ['#C8102E', '#2E7D32'], peakPct: 22 }, // family/ski travel; Dec 22–27 alternate red/green balls
+  { name: 'Christmas',        file: 'christmas.png',       month: 11, day: 25,                color: '#2E7D32', fit: 1.04, secOffsets: [-3, -2, -1, 1, 2], altColors: ['#C8102E', '#2E7D32'], altFiles: ['sec-christmas-red.png', 'sec-christmas-green.png'], peakPct: 22 }, // family/ski travel; Dec 22–27 alternate red/green balls
 ];
 // The holiday falling on date d (or null). Handles fixed, nth-weekday, and last-weekday rules.
 function holidayFor(d) {
@@ -3702,6 +3702,17 @@ function secondaryHolidayFor(d) {
 }
 // Circle colour for a secondary day. Holidays with `altColors` alternate per day in
 // their offset sequence (Christmas → red, green, red, …); otherwise the single `color`.
+function secondaryAltIndex(d, h) { // d's position in the holiday's offset run (drives red/green alternation)
+  for (const yr of [d.getFullYear() - 1, d.getFullYear(), d.getFullYear() + 1]) {
+    const hd = holidayDateInYear(h, yr);
+    const offs = h.secOffsets || secondaryOffsets(hd.getDay());
+    for (let i = 0; i < offs.length; i++) {
+      const sd = new Date(hd.getFullYear(), hd.getMonth(), hd.getDate() + offs[i]);
+      if (sd.getFullYear() === d.getFullYear() && sd.getMonth() === d.getMonth() && sd.getDate() === d.getDate()) return i;
+    }
+  }
+  return 0;
+}
 function secondaryColor(d, h) {
   if (!h.altColors) return h.color || '#888';
   for (const yr of [d.getFullYear() - 1, d.getFullYear(), d.getFullYear() + 1]) {
@@ -3963,7 +3974,9 @@ function render(preserveScroll) {
     const hDate = (hol || sec) ? d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '';
     const hAttrs = (hol || sec) ? ` data-hname="${hName}" data-hdate="${hDate}"` : '';
     if (hol) holHTML = `<img class="holiday-icon" src="${encodeURI('holidays/' + hol.file)}" alt="${hol.name}"${hAttrs} style="--fit:${hol.fit || 1}" loading="lazy">`;
-    else if (sec) holHTML = sec.secondaryFile
+    else if (sec) holHTML = sec.altFiles
+      ? `<img class="holiday-icon secondary" src="${encodeURI('holidays/' + sec.altFiles[secondaryAltIndex(d, sec) % 2])}" alt=""${hAttrs} style="--fit:${sec.secFit || 1}" loading="lazy">`
+      : sec.secondaryFile
       ? `<img class="holiday-icon secondary" src="${encodeURI('holidays/' + sec.secondaryFile)}" alt=""${hAttrs} style="--fit:${sec.secFit || 1}" loading="lazy">`
       : sec.star12
       ? `<div class="holiday-icon secondary holiday-star12"${hAttrs}><svg viewBox="0 0 16 16" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="${STAR12_PATH}" stroke="${sec.color}" stroke-width="1" stroke-linejoin="miter" stroke-miterlimit="10"/></svg></div>`
