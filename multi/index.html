@@ -2269,6 +2269,7 @@ body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.se
   height: 40px; padding: 0 16px; border-radius: 999px 999px 4px 999px; white-space: nowrap; /* pointer: every corner round except the bottom-right, which aims at the hidden dates */
   box-shadow: 0 6px 20px rgba(0,0,0,0.3); pointer-events: none; }
 .opp-more.show { display: flex; }
+.opp-more.is-back { pointer-events: auto; cursor: pointer; } /* detached: tap = fly back to the card */
 .opp-more svg { display: block; }
 /* Holiday cells. Two states (placed after the base state rules so they win on equal specificity):
    • .holiday-affected — while the modal is open & this column isn't surcharged yet: black stroke + grey backing.
@@ -8567,8 +8568,23 @@ function isOnboarding() { // fresh host: no bookings + no price variance → the
       if (!anchor || r.top < anchor.top - 1 || (Math.abs(r.top - anchor.top) <= 1 && r.left < anchor.left)) anchor = r;
       lastVisDi = Math.max(lastVisDi, +c.dataset.di);
     });
-    if (!anchor) return; // nothing of this card on stage — nothing to continue from
-    // RIGHT: date columns of the window past the right edge
+    cx.classList.remove('is-back'); cx.onclick = null;
+    if (!anchor) {
+      // no affected CELLS on stage. If the whole window sits OFF TO THE RIGHT (scrolled back/left),
+      // the counter PERSISTS at the right corner with the FULL count and becomes a tap-to-return.
+      if ((rowOffsets[g.a] || 0) >= gridWrap.scrollLeft + gridWrap.clientWidth) {
+        const row0 = (g.lis || []).map(li => document.querySelector('#gridRows .price-row[data-li="' + li + '"]'))
+          .filter(Boolean).map(r => r.getBoundingClientRect())
+          .filter(r => r.bottom > gw.top && r.top < gw.bottom).sort((x, y) => x.top - y.top)[0];
+        const all = g.b - g.a + 1;
+        place(cx, all + ' more date' + (all === 1 ? '' : 's'), gw.right - 16, row0 ? Math.max(gw.top + 8, row0.top - 48) : gw.top + 16);
+        cx.classList.add('is-back');
+        cx.onclick = () => { const vw = gridWrap.clientWidth || window.innerWidth;
+          gridWrap.scrollTo({ left: Math.max(0, (rowOffsets[g.a] || 0) - Math.round(vw * 0.28)), behavior: 'smooth' }); };
+      }
+      return;
+    }
+    // RIGHT: date columns of the window past the right edge — live countdown, NOT tappable
     const moreX = Math.max(0, g.b - lastVisDi);
     if (moreX > 0) place(cx, moreX + ' more date' + (moreX === 1 ? '' : 's'), gw.right - 16, Math.max(gw.top + 8, anchor.top - 48));
     // DOWN: affected listings whose whole row sits below the fold
