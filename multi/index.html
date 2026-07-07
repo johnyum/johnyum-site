@@ -10466,10 +10466,18 @@ function searchCalendar(raw, after) {
   if (rest && !/\d/.test(rest) && !rest.includes(' ')) {
     const mi = _searchMonthIdx(rest);
     if (mi >= 0) {
-      const hits = []; allDays.forEach((d, k) => { if (d.getMonth() === mi && d.getDate() === 1 && (year == null || d.getFullYear() === year)) hits.push(k); });
-      if (!hits.length) allDays.forEach((d, k) => { if (d.getMonth() === mi && (year == null || d.getFullYear() === year)) hits.push(k); });
-      const di = hits.find(k => k >= minDi) ?? hits[0];
-      if (di != null) return searchGoto(di, null, true);
+      // month occurrences as RUNS — prefer the one still in progress (its remainder, landing on
+      // today) over skipping a year ahead; Enter again cycles to the next occurrence
+      const runs = []; let s0 = -1;
+      allDays.forEach((d, k) => { const inM = d.getMonth() === mi && (year == null || d.getFullYear() === year);
+        if (inM && s0 < 0) s0 = k; if (!inM && s0 >= 0) { runs.push({ a: s0, b: k - 1 }); s0 = -1; } });
+      if (s0 >= 0) runs.push({ a: s0, b: allDays.length - 1 });
+      if (runs.length) {
+        // cycling steps to the NEXT occurrence (a fresh month), never back into the same one
+        const run = (after != null ? runs.find(r => r.a >= minDi) : runs.find(r => r.b >= minDi)) || runs[runs.length - 1];
+        _searchCanSelect = true; _searchPendingRanges = [run]; // ghosts/Select cover THIS occurrence only
+        return searchGoto(Math.max(run.a, Math.max(0, todayDi)), null, true);
+      }
     }
   }
   // holidays — "labor day", "thanksgiving"
