@@ -8243,10 +8243,27 @@ function computeSuggestions() {
     return cs.length === 1 ? 'in ' + cs[0] : cs.length === 2 ? 'in ' + cs[0] + ' and ' + cs[1] : 'across ' + cs.length + ' cities';
   };
   const _diByH = new Map(allDays.map((d, i) => [_evDayKey(d), i]));
+  // A holiday's travel window is its OWN weekend block — never the weekend before a mid-week
+  // holiday: Mon holiday → [Fri before, Mon] · Sat/Sun → [Fri before, Sun] · Tue–Fri → [holiday,
+  // the Sunday after]. (Veterans Day, a Wednesday, prices Wed→Sun — not the prior weekend.)
+  function holidayTravelWindow(d0) {
+    const a = new Date(d0), b = new Date(d0), dow = d0.getDay();
+    if (dow === 1) { a.setDate(a.getDate() - 3); }                    // Monday: the long weekend behind it
+    else if (dow === 0) { a.setDate(a.getDate() - 2); }               // Sunday: back to Friday
+    else if (dow === 6) { a.setDate(a.getDate() - 1); b.setDate(b.getDate() + 1); } // Saturday: Fri–Sun
+    if (dow >= 2 && dow <= 5) { while (b.getDay() !== 0) b.setDate(b.getDate() + 1); } // Tue–Fri: ride to Sunday
+    return [a, b];
+  }
   Object.keys(holBy).forEach(h => {
     const its = holBy[h];
-    its.forEach(x => { // stretch each play to the holiday's travel window (shoulders + the weekend)
-      const [w0, w1] = eventTravelWindow(allDays[x.a], allDays[x.b]);
+    its.forEach(x => {
+      // the holiday's actual date sits inside (or near) the detected cluster
+      let holDi = -1;
+      for (let k = Math.max(0, x.a - 3); k <= Math.min(N - 1, x.b + 3); k++) {
+        const hf = holidayFor(allDays[k]); if (hf && hf.name === h) { holDi = k; break; }
+      }
+      if (holDi < 0) return; // can't anchor — leave the detected span alone
+      const [w0, w1] = holidayTravelWindow(allDays[holDi]);
       const na = _diByH.get(_evDayKey(w0)), nb = _diByH.get(_evDayKey(w1));
       if (na != null) x.a = Math.max(todayDi, na);
       if (nb != null) x.b = Math.min(N - 1, nb);
