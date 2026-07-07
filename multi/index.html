@@ -9525,8 +9525,17 @@ function searchCalendar(raw, after) {
   const minDi = (after != null && after >= 0) ? Math.min(N2 - 1, Math.max(Math.max(0, todayDi), after + 1)) : Math.max(0, todayDi);
   // ── "Select …": search as a COMMAND — verb + time expression + optional "in <place>" scope.
   // "Select all summer months in Aspen" → a REAL multi-select (the bulk-edit pill pops) + fly there.
-  const vm = ql.match(/^(?:select|highlight|grab|pick|choose)\s+(?:all\s+)?(?:of\s+)?(?:the\s+)?(.+)$/);
-  if (vm) {
+  // the VERB is typo-tolerant too: "selc comicon", "slect july" still command a selection.
+  // A verb-ish first word whose remainder does NOT resolve falls through to plain search —
+  // so "high season" never gets kidnapped by "highlight".
+  const _w0 = ql.split(' ')[0];
+  const _isSelVerb = ['select', 'highlight', 'grab', 'pick', 'choose'].some(v =>
+    v === _w0 || _w0.startsWith(v)
+    || (v.startsWith(_w0) && _w0.length >= Math.max(3, v.length - 3))) // 'sel'✓ but 'high' ≠ highlight — "high season" must stay a plain search
+    || (_w0.length >= 4 && _w0[0] === 's' && _levDist(_w0, 'select') <= 2);
+  const vm = _isSelVerb && ql.includes(' ')
+    ? [null, ql.slice(_w0.length + 1).replace(/^(?:all\s+)?(?:of\s+)?(?:the\s+)?/, '')] : null;
+  cmd: if (vm) {
     let expr = vm[1].trim();
     let lis = LISTINGS.map((_, i) => i);
     // a trailing "in <place>" is a SCOPE only when it names a city or group on the board — otherwise
@@ -9541,7 +9550,7 @@ function searchCalendar(raw, after) {
       else if (grp) { lis = grp.members.slice(); expr = sm[1].trim(); }
     }
     const ranges = _searchDayRanges(expr, lis);
-    if (!ranges || !lis.length) return false;
+    if (!ranges || !lis.length) break cmd; // not a time expression — treat the query as plain search
     const shared = Array.isArray(ranges); // gaps/open-nights resolve PER LISTING instead
     // an event range knows its city — unscoped queries narrow to that city's rows automatically
     if (shared && ranges[0].city && lis.length === LISTINGS.length) {
@@ -9555,7 +9564,7 @@ function searchCalendar(raw, after) {
       if (r.city && LISTINGS[li].city !== r.city) return;
       for (let k = r.a; k <= r.b; k++) if (isSelectable(li, k)) { setSel(li, k, true); if (!first || k < first.di) first = { li, di: k }; }
     }));
-    if (!first) return false; // everything in range was past/booked
+    if (!first) break cmd; // everything in range was past/booked — plain search may still land it
     paintSelection(); updateClearBtn(); updateDateHeaders();
     const selLis = new Set(selList().map(x => x.li));
     _searchHint = '→ ' + selCount() + ' night' + (selCount() > 1 ? 's' : '') + ' · ' + selLis.size + ' listing' + (selLis.size > 1 ? 's' : '');
