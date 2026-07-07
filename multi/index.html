@@ -2246,7 +2246,7 @@ body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.se
    when everything is on stage. ── */
 .opp-more { position: fixed; z-index: 3000; display: none; box-sizing: border-box; align-items: center; gap: 8px;
   background: #222; color: #fff; font-family: 'Cereal', sans-serif; font-size: 12px; font-weight: 500;
-  height: 40px; padding: 0 16px; border-radius: 16px; white-space: nowrap;
+  height: 40px; padding: 0 16px; border-radius: 999px 999px 4px 999px; white-space: nowrap; /* pointer: every corner round except the bottom-right, which aims at the hidden dates */
   box-shadow: 0 6px 20px rgba(0,0,0,0.3); pointer-events: none; }
 .opp-more.show { display: flex; }
 .opp-more svg { display: block; }
@@ -8366,8 +8366,6 @@ function isOnboarding() { // fresh host: no bookings + no price variance → the
 // flagged cell, 16px off the grid's right edge (the edge where the dates are). Bottom chip =
 // affected LISTINGS below the fold. Derived from live DOM on every pass — never remembered.
 (function setupOppMoreCues() {
-  const AR = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1.5 6h9M6.5 2.5L10.5 6l-4 3.5" stroke="white" stroke-width="1.5" fill="none"/></svg>';
-  const AD = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5v9M2.5 6.5L6 10.5l3.5-4" stroke="white" stroke-width="1.5" fill="none"/></svg>';
   const mk = () => { const el = document.createElement('div'); el.className = 'opp-more'; document.body.appendChild(el); return el; };
   const cx = mk(), cy = mk();
   let raf = false;
@@ -8392,12 +8390,12 @@ function isOnboarding() { // fresh host: no bookings + no price variance → the
     if (!anchor) return; // nothing of this card on stage — nothing to continue from
     // RIGHT: date columns of the window past the right edge
     const moreX = Math.max(0, g.b - lastVisDi);
-    if (moreX > 0) place(cx, moreX + ' more date' + (moreX === 1 ? '' : 's') + AR, gw.right - 16, Math.max(gw.top + 8, anchor.top - 48));
+    if (moreX > 0) place(cx, moreX + ' more date' + (moreX === 1 ? '' : 's'), gw.right - 16, Math.max(gw.top + 8, anchor.top - 48));
     // DOWN: affected listings whose whole row sits below the fold
     let moreY = 0;
     (g.lis || []).forEach(li => { const row = document.querySelector('#gridRows .price-row[data-li="' + li + '"]');
       if (row && row.getBoundingClientRect().top > gw.bottom) moreY++; });
-    if (moreY > 0) place(cy, moreY + ' more listing' + (moreY === 1 ? '' : 's') + AD, gw.right - 16, gw.bottom - 56);
+    if (moreY > 0) place(cy, moreY + ' more listing' + (moreY === 1 ? '' : 's'), gw.right - 16, gw.bottom - 56);
   }
   function queue() { if (!raf) { raf = true; requestAnimationFrame(update); } }
   gridWrap.addEventListener('scroll', queue);
