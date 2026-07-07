@@ -9070,8 +9070,32 @@ function scrollToOpportunity(s, cb) {
   const vw = gridWrap.clientWidth || window.innerWidth;
   const left = Math.max(0, (rowOffsets[s.a] || 0) - Math.round(vw * 0.28)); // sit the opportunity ~28% from the left
   let top = gridWrap.scrollTop;
-  if (row) { const rr = row.getBoundingClientRect(), wr = gridWrap.getBoundingClientRect();
-    top = Math.max(0, gridWrap.scrollTop + (rr.top - wr.top) - (gridWrap.clientHeight / 2 - rr.height / 2)); }
+  // frame the WHOLE focused block (every listing row this card touches) in the area ABOVE the
+  // pill, so the modal never parks on top of the wavy cells — short cards fit fully; a block
+  // taller than the safe area falls back to the old centre-on-first-row behaviour.
+  {
+    const wr = gridWrap.getBoundingClientRect();
+    const lisSet = new Set(s.lis && s.lis.length ? s.lis : [s.li]);
+    const rows = [...document.querySelectorAll('#gridRows > .price-row')].filter(r => lisSet.has(+r.dataset.li));
+    if (rows.length) {
+      const rects = rows.map(r => r.getBoundingClientRect());
+      const blockTop = Math.min(...rects.map(r => r.top)), blockBottom = Math.max(...rects.map(r => r.bottom));
+      const blockH = blockBottom - blockTop;
+      const ma = document.getElementById('magicAction');
+      const mar = ma && ma.getBoundingClientRect();
+      const pillTop = mar && mar.height > 0 ? mar.top : wr.bottom - 220;
+      const safeH = Math.max(160, (pillTop - 16) - wr.top);
+      if (blockH <= safeH) {
+        top = Math.max(0, gridWrap.scrollTop + (blockTop - wr.top) - Math.max(12, (safeH - blockH) / 2));
+      } else if (row) {
+        const rr = row.getBoundingClientRect();
+        top = Math.max(0, gridWrap.scrollTop + (rr.top - wr.top) - (gridWrap.clientHeight / 2 - rr.height / 2));
+      }
+    } else if (row) {
+      const rr = row.getBoundingClientRect(), wr2 = gridWrap.getBoundingClientRect();
+      top = Math.max(0, gridWrap.scrollTop + (rr.top - wr2.top) - (gridWrap.clientHeight / 2 - rr.height / 2));
+    }
+  }
   gridWrap.scrollTo({ left, top, behavior: 'smooth' });
   // Poll until the smooth scroll has ARRIVED and the target cell has mounted (virtualization) — a fixed
   // timeout fires mid-scroll on big jumps and misses the cell. Bounded to ~1.5s.
