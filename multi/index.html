@@ -381,6 +381,18 @@ body.row-reordering .thumb-row { cursor: grabbing; }
   transition: opacity .12s ease;
 }
 .thumb-row.row-dragging { cursor: grabbing; }
+/* ── GROUPS MODE: a drag handle slides in left of every thumbnail (24×24, on the page's left rail,
+   12px to the picture). Dragging it lifts the whole listing; dropping on another listing groups
+   them live. ── */
+.thumb-row .drag-handle { flex: 0 0 auto; width: 0; margin-right: 0; opacity: 0; overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center; height: 24px; cursor: grab;
+  touch-action: none; transition: width .3s cubic-bezier(.4,0,.2,1), margin-right .3s cubic-bezier(.4,0,.2,1), opacity .25s ease; }
+body.groups-mode .thumb-row .drag-handle { width: 24px; margin-right: 12px; opacity: 1; }
+.thumb-row .drag-handle svg { width: 24px; height: 24px; display: block; flex: 0 0 auto; }
+.thumb-row.group-dragging { opacity: 1; z-index: 30; background: #fff; border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.16); cursor: grabbing; }
+.price-row.group-dragging-grid { opacity: .35; transition: opacity .12s ease; }
+.thumb-row.group-drop-target { background: var(--grey-100); border-radius: 12px; }
 .row-drop-indicator {
   position: absolute;
   left: 12px;
@@ -3953,6 +3965,7 @@ function render(preserveScroll) {
     row.className = 'thumb-row';
     row.dataset.li = i;
     row.innerHTML = `
+      <span class="drag-handle" aria-label="Drag to group"><svg viewBox="0 -960 960 960" width="24" height="24" fill="#1F1F1F"><path d="M160-360v-80h640v80H160Zm0-160v-80h640v80H160Z"/></svg></span>
       <div class="thumb-img"><img src="${listing.img}" alt="" loading="lazy"></div>
       <div class="thumb-info">
         <div class="thumb-name">${listing.name}</div>
@@ -6563,6 +6576,7 @@ function positionLeftToggle() {
 
   inner.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
+    if (e.target.closest('.drag-handle')) return;  // the handle runs the drop-to-GROUP flow instead
     const row = e.target.closest('.thumb-row');
     if (!row) return;                          // group dividers / labels aren't draggable rows
     li = +row.dataset.li; rowEl = row; startY = curY = e.clientY;
@@ -6623,6 +6637,57 @@ function positionLeftToggle() {
       saveRowOrder();
     }
     applyGroupsToCalendar();
+  }
+})();
+
+// ── GROUPS MODE: drag a row BY ITS HANDLE onto another listing → group them, LIVE ─────────
+// Drop A onto B: B's existing group adopts A, or a fresh "Group N" forms at the TOP; everything
+// ungrouped falls into "More" automatically. The regroup rides the same staged exchange
+// animation as Automate (setGroupsLive).
+(function setupGroupDrop() {
+  const inner = document.getElementById('listingThumbsInner');
+  if (!inner) return;
+  let li = null, rowEl = null, gridRowEl = null, startY = 0, started = false, target = null;
+  inner.addEventListener('pointerdown', e => {
+    const h = e.target.closest('.drag-handle');
+    if (!h || e.button !== 0 || !document.body.classList.contains('groups-mode')) return;
+    e.preventDefault(); e.stopPropagation();   // capture phase — the plain reorder flow never sees it
+    rowEl = h.closest('.thumb-row'); li = +rowEl.dataset.li; startY = e.clientY; started = false;
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, { once: true });
+  }, true);
+  function begin() {
+    started = true;
+    document.body.classList.add('row-reordering'); // shared grabbing cursor + selection guard
+    document.getElementById('thumbHoverPill')?.classList.remove('show');
+    rowEl.classList.add('group-dragging');
+    gridRowEl = document.querySelector('#gridRows .price-row[data-li="' + li + '"]');
+    gridRowEl?.classList.add('group-dragging-grid');
+  }
+  function onMove(e) {
+    if (!started) { if (Math.abs(e.clientY - startY) < 5) return; begin(); }
+    rowEl.style.transform = 'translateY(' + (e.clientY - startY) + 'px)';
+    const t = [...inner.querySelectorAll('.thumb-row')].find(r => {
+      if (r === rowEl) return false; const rc = r.getBoundingClientRect();
+      return e.clientY >= rc.top && e.clientY <= rc.bottom; }) || null;
+    if (t !== target) { target?.classList.remove('group-drop-target'); target = t; target?.classList.add('group-drop-target'); }
+  }
+  function onUp() {
+    window.removeEventListener('pointermove', onMove);
+    document.body.classList.remove('row-reordering');
+    if (rowEl) { rowEl.classList.remove('group-dragging'); rowEl.style.transform = ''; }
+    gridRowEl?.classList.remove('group-dragging-grid'); gridRowEl = null;
+    const t = target; target?.classList.remove('group-drop-target'); target = null;
+    if (started && t) groupByDrop(li, +t.dataset.li);
+    li = null; rowEl = null; started = false;
+  }
+  function groupByDrop(a, b) {
+    if (a === b || Number.isNaN(a) || Number.isNaN(b)) return;
+    const next = groups.map(g => ({ name: g.name, members: g.members.filter(l => l !== a), collapsed: !!g.collapsed }));
+    const host = next.find(g => g.members.includes(b));
+    if (host) host.members.push(a);
+    else next.unshift({ name: 'Group ' + (next.filter(g => g.members.length).length + 1), members: [b, a] });
+    setGroupsLive(next.filter(g => g.members.length));
   }
 })();
 
@@ -8418,8 +8483,25 @@ function isOnboarding() { // fresh host: no bookings + no price variance → the
   window.addEventListener('resize', queue);
   window._oppMoreSync = queue;
 })();
+// ── GROUPS MODE: while the grouping card is on stage, drag handles slide in beside every
+// thumbnail and the name panel opens automatically; stepping off restores the panel to whatever
+// the user had before entering. ──
+let _gmPrevExpanded = null;
+function setListingsExpanded(open) {
+  if (document.body.classList.contains('listings-expanded') === open) return;
+  document.body.classList.toggle('listings-expanded', open);
+  requestAnimationFrame(() => { if (typeof updateVSync === 'function') updateVSync(); if (typeof buildGroupLabelOverlay === 'function') buildGroupLabelOverlay(); });
+}
+function setGroupsMode(on) {
+  if (document.body.classList.contains('groups-mode') === on) return;
+  document.body.classList.toggle('groups-mode', on);
+  if (on) { _gmPrevExpanded = document.body.classList.contains('listings-expanded'); setListingsExpanded(true); }
+  else if (_gmPrevExpanded != null) { setListingsExpanded(_gmPrevExpanded); _gmPrevExpanded = null; }
+}
 function renderMagicPill() {
   if (window._oppMoreSync) window._oppMoreSync();
+  { const og = window.__opt, gg = og && og.suggs && og.suggs[og.cur || 0];
+    setGroupsMode(!!(document.body.classList.contains('optimize-mode') && og && og.state === 'results' && gg && gg.bucket === 'grouping')); }
   const pill = document.getElementById('magicPill'); if (!pill) return;
   const o = window.__opt; pill.className = 'magic-pill';
   pill.parentElement.classList.toggle('nav-ready', o.state === 'results' && o.suggs.length > 0); // outer chevrons only around the review
