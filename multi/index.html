@@ -6766,7 +6766,11 @@ function positionLeftToggle() {
     const next = groups.map(g => ({ name: g.name, members: g.members.filter(l => l !== a), collapsed: !!g.collapsed }));
     const host = next.find(g => g.members.includes(b));
     if (host) host.members.push(a);
-    else next.unshift({ name: 'Group ' + (next.filter(g => g.members.length).length + 1), members: [b, a] });
+    else { // smallest FREE number: a renamed "Group 1" frees its number for the next group
+      let n = 1; const names = new Set(next.map(g => g.name));
+      while (names.has('Group ' + n)) n++;
+      next.unshift({ name: 'Group ' + n, members: [b, a] });
+    }
     const t = setGroupsLive(next.filter(g => g.members.length)) || 0;
     if (!host) setTimeout(() => startGroupNameEdit(0, true), t + 80); // fresh group: name it right here
   }
