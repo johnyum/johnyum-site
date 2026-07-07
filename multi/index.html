@@ -383,10 +383,13 @@ body.row-reordering .thumb-row { cursor: grabbing; }
 .thumb-row.row-dragging { cursor: grabbing; }
 /* ── GROUPS MODE: the whole listing row (picture + name) is the drag surface. Dragging lifts the
    listing; dropping on another listing's middle groups them live, gaps just reorder. ── */
-.thumb-row.group-dragging { opacity: 1; z-index: 30; background: #fff; border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.16); cursor: grabbing; }
+.thumb-row.group-dragging { opacity: 1; z-index: 30; cursor: grabbing; }
+.thumb-row.group-dragging::before, .thumb-row.group-drop-target::before { content: '';
+  position: absolute; left: 12px; right: 4px; top: -4px; bottom: -4px; /* 12px visual padding around the content (thumb sits 24px in, 8px down) */
+  border-radius: 12px; z-index: -1; }
+.thumb-row.group-dragging::before { background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.10); }
 .price-row.group-dragging-grid { opacity: .35; transition: opacity .12s ease; }
-.thumb-row.group-drop-target { background: var(--grey-100); border-radius: 12px; }
+.thumb-row.group-drop-target::before { background: var(--grey-100); }
 .holiday-tip.group-drop-tip { z-index: 400; pointer-events: none; } /* the drag's "Create group" pill — same white holiday pill, above everything */
 .row-drop-indicator {
   position: absolute;
@@ -6647,7 +6650,7 @@ function positionLeftToggle() {
   const inner = document.getElementById('listingThumbsInner');
   if (!inner) return;
   let li = null, rowEl = null, gridRowEl = null, startY = 0, started = false;
-  let target = null, insBefore = null, indicator = null, tip = null;
+  let target = null, insBefore = null, tip = null;
   const rows = () => [...inner.querySelectorAll('.thumb-row')].filter(r => r !== rowEl);
   inner.addEventListener('pointerdown', e => {
     if (e.button !== 0 || !document.body.classList.contains('groups-mode')) return;
@@ -6664,8 +6667,6 @@ function positionLeftToggle() {
     rowEl.classList.add('group-dragging');
     gridRowEl = document.querySelector('#gridRows .price-row[data-li="' + li + '"]');
     gridRowEl?.classList.add('group-dragging-grid');
-    indicator = document.createElement('div'); indicator.className = 'row-drop-indicator'; indicator.style.display = 'none';
-    inner.appendChild(indicator);
     tip = document.createElement('div'); tip.className = 'holiday-tip group-drop-tip';
     document.body.appendChild(tip);
   }
@@ -6678,22 +6679,17 @@ function positionLeftToggle() {
       if (Math.abs(e.clientY - (rc.top + rc.height / 2)) <= rc.height * 0.3) { t = r; break; } }
     if (t !== target) { target?.classList.remove('group-drop-target'); target = t; target?.classList.add('group-drop-target'); }
     if (target) {
-      insBefore = null; indicator.style.display = 'none';
+      insBefore = null;
       const rc = target.getBoundingClientRect(), host = groups.find(g => g.members.includes(+target.dataset.li));
       tip.textContent = host ? 'Add to ' + host.name : 'Create group';
       tip.style.display = 'block';
       tip.style.left = (rc.left + rc.width / 2) + 'px';
       tip.style.top = (rc.top - 38) + 'px';
-    } else {
+    } else { // a gap: quiet — the lifted card itself is the cue; drop just reorders
       tip.style.display = 'none';
       insBefore = null;
       for (const r of rows()) { const rc = r.getBoundingClientRect();
         if (e.clientY < rc.top + rc.height / 2) { insBefore = r; break; } }
-      const innerRect = inner.getBoundingClientRect(), all = rows();
-      const y = insBefore ? insBefore.getBoundingClientRect().top
-        : (all.length ? all[all.length - 1].getBoundingClientRect().bottom : innerRect.top);
-      indicator.style.display = '';
-      indicator.style.top = (y - innerRect.top) + 'px';
     }
   }
   function onUp() {
@@ -6701,7 +6697,7 @@ function positionLeftToggle() {
     document.body.classList.remove('row-reordering');
     if (rowEl) { rowEl.classList.remove('group-dragging'); rowEl.style.transform = ''; }
     gridRowEl?.classList.remove('group-dragging-grid'); gridRowEl = null;
-    indicator?.remove(); indicator = null; tip?.remove(); tip = null;
+    tip?.remove(); tip = null;
     const t = target; target?.classList.remove('group-drop-target'); target = null;
     if (started && t) groupByDrop(li, +t.dataset.li);
     else if (started) reorderByDrop(li, insBefore ? +insBefore.dataset.li : null);
