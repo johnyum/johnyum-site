@@ -464,7 +464,9 @@ body.row-reordering .thumb-row { cursor: grabbing; }
    the primary icon opens the run over its first date column, small secondary accents carry the
    rest; every icon is centred to its column and to the header type's centreline. ── */
 #gridRows .group-divider { position: relative; }
-.gev { position: absolute; pointer-events: none; transform: translate(-50%, -50%); }
+.gev { position: absolute; pointer-events: auto; cursor: default; transform: translate(-50%, -50%);
+  transition: transform 0.32s ease; z-index: 5; } /* hovers exactly like a holiday icon */
+.gev:hover { transform: translate(-50%, -50%) scale(1.5); z-index: 12; }
 .gev.gev-primary { width: 30px; height: 30px; }
 .gev.gev-secondary { width: 18px; height: 18px; }
 .gev.gev-tentative { opacity: .55; } /* estimated dates read as tentative */
@@ -6777,6 +6779,7 @@ function buildGroupEventIcons() {
         const img = document.createElement('img');
         img.className = 'gev ' + (primary ? 'gev-primary' : 'gev-secondary') + (status === 'estimated' ? ' gev-tentative' : '');
         img.src = src; img.alt = name; img.loading = 'lazy';
+        img.dataset.hname = name + (status === 'estimated' ? ' (estimated)' : '');
         img.style.left = (rowOffsets[di] + cellW / 2) + 'px';
         img.style.top = cy + 'px';
         div.appendChild(img);
@@ -7016,6 +7019,21 @@ function buildGroupEventIcons() {
   });
   hdr.addEventListener('mouseout', e => {
     const icon = e.target.closest('.holiday-icon');
+    if (icon && !icon.contains(e.relatedTarget)) hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 90);
+  });
+  // Event icons in the group bands (.gev) hover EXACTLY like holiday icons — same pill, same zoom.
+  const gridRowsEl = document.getElementById('gridRows');
+  gridRowsEl.addEventListener('mouseover', e => {
+    const icon = e.target.closest('.gev'); if (!icon) return;
+    clearTimeout(hideTimer);
+    tip.textContent = icon.dataset.hname || icon.alt || '';
+    tip.style.display = 'block';
+    const r = icon.getBoundingClientRect();
+    tip.style.left = (r.left + r.width / 2) + 'px';
+    tip.style.top = (r.top - r.height * 0.25 - tip.offsetHeight - 4) + 'px';
+  });
+  gridRowsEl.addEventListener('mouseout', e => {
+    const icon = e.target.closest('.gev');
     if (icon && !icon.contains(e.relatedTarget)) hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 90);
   });
 
