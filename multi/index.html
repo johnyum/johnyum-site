@@ -9084,7 +9084,16 @@ function scrollToOpportunity(s, cb) {
     const rows = [...document.querySelectorAll('#gridRows > .price-row')].filter(r => lisSet.has(+r.dataset.li));
     if (rows.length) {
       const rects = rows.map(r => r.getBoundingClientRect());
-      const blockTop = Math.min(...rects.map(r => r.top)), blockBottom = Math.max(...rects.map(r => r.bottom));
+      let blockTop = Math.min(...rects.map(r => r.top));
+      const blockBottom = Math.max(...rects.map(r => r.bottom));
+      // the BAND above the first focused row carries the event icons — it's part of the frame.
+      // ICONS WIN: a block too tall for the safe area pins the band at the top and lets the
+      // pill cover the tail rows instead.
+      const kids = [...document.querySelectorAll('#gridRows > .price-row, #gridRows > .group-divider')];
+      const firstRow = rows.reduce((a2, r) => (r.getBoundingClientRect().top < a2.getBoundingClientRect().top ? r : a2), rows[0]);
+      for (let i2 = kids.indexOf(firstRow) - 1; i2 >= 0; i2--) {
+        if (kids[i2].classList.contains('group-divider')) { blockTop = Math.min(blockTop, kids[i2].getBoundingClientRect().top); break; }
+      }
       const blockH = blockBottom - blockTop;
       const ma = document.getElementById('magicAction');
       const mar = ma && ma.getBoundingClientRect();
@@ -9092,9 +9101,8 @@ function scrollToOpportunity(s, cb) {
       const safeH = Math.max(160, (pillTop - 16) - wr.top);
       if (blockH <= safeH) {
         top = Math.max(0, gridWrap.scrollTop + (blockTop - wr.top) - Math.max(12, (safeH - blockH) / 2));
-      } else if (row) {
-        const rr = row.getBoundingClientRect();
-        top = Math.max(0, gridWrap.scrollTop + (rr.top - wr.top) - (gridWrap.clientHeight / 2 - rr.height / 2));
+      } else {
+        top = Math.max(0, gridWrap.scrollTop + (blockTop - wr.top) - 12);
       }
     } else if (row) {
       const rr = row.getBoundingClientRect(), wr2 = gridWrap.getBoundingClientRect();
