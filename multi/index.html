@@ -442,6 +442,11 @@ body.row-reordering .thumb-row { cursor: grabbing; }
   color: #222222;
 }
 .gname-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* typeable group names: click into the label and type; the fresh-group suggestion sits grey-600
+   with the caret parked at the FRONT until typing replaces it */
+.cal-group-label .gname-text[contenteditable] { outline: none; cursor: text; caret-color: #222;
+  display: inline-block; min-width: 2px; }
+.cal-group-label .gname-text.gname-ph { color: var(--grey-600); }
 /* Collapse/expand toggle (Sync.svg): grey circle + chevron. Up = expanded, down = collapsed.
    Back on every grouping heading (calendar overlay + in-column Pricing/Availability labels). */
 .group-toggle {
@@ -6349,6 +6354,7 @@ function fillGroupLabel(el, name, gi, collapsed) {
   const t = document.createElement('span');
   t.className = 'gname-text';
   t.textContent = name;
+  if (gi !== 'more') { t.contentEditable = 'plaintext-only'; t.spellcheck = false; t.dataset.gi = gi; } // every group name is a typeable surface
   const btn = document.createElement('button');
   btn.className = 'group-toggle' + (collapsed ? ' collapsed' : '');
   btn.dataset.gi = gi;
@@ -6356,6 +6362,52 @@ function fillGroupLabel(el, name, gi, collapsed) {
   btn.innerHTML = SYNC_ICON;
   el.append(t, btn);
 }
+// ── Group names are TYPEABLE SURFACES ──────────────────────────────────────────────────────
+// Tap any group label → type. Keystrokes live-mirror into the divider anchors + the model so the
+// self-healing overlay never sees a mismatch; blur/Enter commits (empty reverts). A drag-created
+// group opens pre-focused: "Group N" sits grey-600 as a suggestion, caret at the front — typing
+// replaces it, blurring keeps it.
+function startGroupNameEdit(gi, placeholder) {
+  const el = document.querySelector('#groupLabelInner .cal-group-label[data-gi="' + gi + '"] .gname-text');
+  if (!el) return;
+  if (placeholder) el.classList.add('gname-ph');
+  el.focus();
+  const sel = window.getSelection(), r = document.createRange();
+  r.setStart(el.firstChild || el, 0); r.collapse(true);
+  sel.removeAllRanges(); sel.addRange(r);
+}
+(function setupGroupNameEditing() {
+  const inner = document.getElementById('groupLabelInner'); if (!inner) return;
+  const editEl = e => e.target.closest ? e.target.closest('.gname-text[contenteditable]') : null;
+  function mirror(el) {
+    const gi = +el.dataset.gi; if (Number.isNaN(gi) || !groups[gi]) return;
+    groups[gi].name = el.textContent;
+    document.querySelectorAll('.group-divider[data-gi="' + gi + '"] .gname-text').forEach(n => { if (n !== el) n.textContent = el.textContent; });
+  }
+  inner.addEventListener('beforeinput', e => {
+    const el = editEl(e); if (!el) return;
+    if (el.classList.contains('gname-ph')) { el.classList.remove('gname-ph'); el.textContent = ''; }
+  });
+  inner.addEventListener('input', e => { const el = editEl(e); if (el) mirror(el); });
+  inner.addEventListener('keydown', e => {
+    const el = editEl(e); if (!el) return;
+    if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+    else if (e.key === 'Escape') { e.preventDefault(); el.textContent = el.dataset.was || el.textContent; el.classList.remove('gname-ph'); el.blur(); }
+    e.stopPropagation(); // typing must never reach app shortcuts
+  });
+  inner.addEventListener('focusin', e => {
+    const el = editEl(e); if (!el) return;
+    const g = groups[+el.dataset.gi]; el.dataset.was = g ? g.name : el.textContent;
+  });
+  inner.addEventListener('focusout', e => {
+    const el = editEl(e); if (!el) return;
+    let txt = el.textContent.trim();
+    if (!txt) { txt = el.dataset.was || 'Group ' + (+el.dataset.gi + 1); el.textContent = txt; }
+    else el.textContent = txt;
+    el.classList.remove('gname-ph');
+    mirror(el); saveGroups();
+  });
+})();
 
 function applyGroupsToCalendar() {
   // Reflect `groups` as grouped, header-separated rows across every row container.
@@ -6713,7 +6765,8 @@ function positionLeftToggle() {
     const host = next.find(g => g.members.includes(b));
     if (host) host.members.push(a);
     else next.unshift({ name: 'Group ' + (next.filter(g => g.members.length).length + 1), members: [b, a] });
-    setGroupsLive(next.filter(g => g.members.length));
+    const t = setGroupsLive(next.filter(g => g.members.length)) || 0;
+    if (!host) setTimeout(() => startGroupNameEdit(0, true), t + 80); // fresh group: name it right here
   }
   function reorderByDrop(a, beforeLi) { // drop into a GAP → move to that slot, join the slot's section
     const next = groups.map(g => ({ name: g.name, members: g.members.filter(l => l !== a), collapsed: !!g.collapsed })).filter(g => g.members.length);
