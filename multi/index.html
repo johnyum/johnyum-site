@@ -2235,6 +2235,15 @@ body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.se
 #shiftTip .shift-x { display: inline-flex; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer; opacity: .85; } /* 12×12 close X; 12px from label via the pill gap, 16px to the pill end */
 #shiftTip .shift-x:hover { opacity: 1; }
 #shiftTip .shift-x svg { display: block; }
+/* ── Opportunity continuation cues: shiftTip-voiced black chips counting the focused card's
+   off-screen extent ("12 more dates →"). Recounted live as you scroll; they melt to nothing
+   when everything is on stage. ── */
+.opp-more { position: fixed; z-index: 3000; display: none; box-sizing: border-box; align-items: center; gap: 8px;
+  background: #222; color: #fff; font-family: 'Cereal', sans-serif; font-size: 12px; font-weight: 500;
+  height: 40px; padding: 0 16px; border-radius: 16px; white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3); pointer-events: none; }
+.opp-more.show { display: flex; }
+.opp-more svg { display: block; }
 /* Holiday cells. Two states (placed after the base state rules so they win on equal specificity):
    • .holiday-affected — while the modal is open & this column isn't surcharged yet: black stroke + grey backing.
    • .holiday-priced — column has a >0 surcharge: green stroke + fill + green price.
@@ -8342,7 +8351,53 @@ function isOnboarding() { // fresh host: no bookings + no price variance → the
   const v = document.getElementById('devVariance'), b = document.getElementById('devBookings');
   return !(v && v.checked) && !(b && b.checked);
 }
+// ── Continuation cues: when the focused card's window runs past the viewport, black chips
+// (the shift-tip voice) count what's off-screen and count down as you scroll toward it.
+// Right chip = hidden DATES beyond the right edge, floating above the top-left-most visible
+// flagged cell, 16px off the grid's right edge (the edge where the dates are). Bottom chip =
+// affected LISTINGS below the fold. Derived from live DOM on every pass — never remembered.
+(function setupOppMoreCues() {
+  const AR = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1.5 6h9M6.5 2.5L10.5 6l-4 3.5" stroke="white" stroke-width="1.5" fill="none"/></svg>';
+  const AD = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5v9M2.5 6.5L6 10.5l3.5-4" stroke="white" stroke-width="1.5" fill="none"/></svg>';
+  const mk = () => { const el = document.createElement('div'); el.className = 'opp-more'; document.body.appendChild(el); return el; };
+  const cx = mk(), cy = mk();
+  let raf = false;
+  function place(el, html, left, top) { el.innerHTML = html; el.classList.add('show');
+    el.style.left = Math.round(left - el.offsetWidth) + 'px'; el.style.top = Math.round(top) + 'px'; }
+  function update() {
+    raf = false;
+    const o = window.__opt, g = o && o.suggs && o.suggs[o.cur];
+    const on = document.body.classList.contains('optimize-mode') && o.state === 'results'
+      && g && g.items && g.items.length && !document.body.classList.contains('opt-scanning');
+    cx.classList.remove('show'); cy.classList.remove('show');
+    if (!on) return;
+    const gw = gridWrap.getBoundingClientRect();
+    // the card's visible flagged cells → anchor (top-left-most) + the last date column on stage
+    let anchor = null, lastVisDi = -1;
+    document.querySelectorAll('#gridRows .price-card.opt-flag[data-sugg="' + g.id + '"]').forEach(c => {
+      const r = c.getBoundingClientRect();
+      if (r.right < gw.left || r.left > gw.right || r.bottom < gw.top || r.top > gw.bottom) return;
+      if (!anchor || r.top < anchor.top - 1 || (Math.abs(r.top - anchor.top) <= 1 && r.left < anchor.left)) anchor = r;
+      lastVisDi = Math.max(lastVisDi, +c.dataset.di);
+    });
+    if (!anchor) return; // nothing of this card on stage — nothing to continue from
+    // RIGHT: date columns of the window past the right edge
+    const moreX = Math.max(0, g.b - lastVisDi);
+    if (moreX > 0) place(cx, moreX + ' more date' + (moreX === 1 ? '' : 's') + AR, gw.right - 16, Math.max(gw.top + 8, anchor.top - 48));
+    // DOWN: affected listings whose whole row sits below the fold
+    let moreY = 0;
+    (g.lis || []).forEach(li => { const row = document.querySelector('#gridRows .price-row[data-li="' + li + '"]');
+      if (row && row.getBoundingClientRect().top > gw.bottom) moreY++; });
+    if (moreY > 0) place(cy, moreY + ' more listing' + (moreY === 1 ? '' : 's') + AD, gw.right - 16, gw.bottom - 56);
+  }
+  function queue() { if (!raf) { raf = true; requestAnimationFrame(update); } }
+  gridWrap.addEventListener('scroll', queue);
+  document.addEventListener('scroll', queue, true);
+  window.addEventListener('resize', queue);
+  window._oppMoreSync = queue;
+})();
 function renderMagicPill() {
+  if (window._oppMoreSync) window._oppMoreSync();
   const pill = document.getElementById('magicPill'); if (!pill) return;
   const o = window.__opt; pill.className = 'magic-pill';
   pill.parentElement.classList.toggle('nav-ready', o.state === 'results' && o.suggs.length > 0); // outer chevrons only around the review
