@@ -3515,7 +3515,7 @@ const DEMAND_EVENTS = [
   ['Summer Solstice parade', 'Santa Barbara', '2027-06-18', '2027-06-20', 18, 'event_icons/sun.png', 'event_icons/sec-butterfly.png', 'estimated'],
   ['Santa Barbara Bowl concerts', 'Santa Barbara', '2026-03-28', '2026-10-17', 4, 'event_icons/spotlight.png', 'event_icons/sec-note-eighth.png', 'confirmed'],
   ['Santa Barbara Pride', 'Santa Barbara', '2026-08-22', '2026-08-22', 14, 'event_icons/pride-rainbow.png', 'event_icons/sec-pride-arc.png', 'confirmed'],
-  ['Big Bear Oktoberfest', 'Big Bear', '2026-09-05', '2026-11-08', 8, 'event_icons/beer-stein.png', 'event_icons/sec-pretzel.png', 'estimated'],
+  ['Big Bear Oktoberfest', 'Big Bear', '2026-09-19', '2026-10-11', 8, 'event_icons/beer-stein.png', 'event_icons/sec-pretzel.png', 'estimated'], // the core Oktoberfest weekends, not the whole 2-month run
   ['Chili Cook-Off', 'Malibu', '2026-09-04', '2026-09-07', 18, 'event_icons/chili-pepper.png', 'event_icons/sec-flame.png', 'confirmed'],
   ['Malibu Triathlon', 'Malibu', '2026-09-19', '2026-09-20', 14, 'event_icons/bicycle.png', 'event_icons/sec-stopwatch.png', 'confirmed'],
   ['Joshua Tree Music Festival', 'Joshua Tree', '2026-05-14', '2026-05-17', 26, 'event_icons/joshua-tree.png', 'event_icons/sec-note-triple.png', 'confirmed'],
@@ -8970,12 +8970,22 @@ function makeOdometer(card, li, di) {
   // "old" price = what the guest saw BEFORE this card: during a piano sweep the live price has
   // already changed, so cells ahead of the wavefront read the pre-apply snapshot instead.
   const g = window.__opt.suggs.find(s => s.id === f.id);
-  const cur = (g && g._sweepDi != null && g._pre && g._pre.has(li + ':' + di)) ? g._pre.get(li + ':' + di) : getPrice(li, di);
+  // APPLIED = FROZEN: struck price is the pre-apply snapshot, shown price is exactly what got committed.
+  // Never recompute a % off the already-applied price (that compounds — +15% on the applied $230 shows
+  // $265, low seasons drift toward zero). Because cur == the stable pre-apply price, the pstack is
+  // idempotent and the numbers never move once you hit Apply.
+  const frozen = g && g.applied && g._pre && g._pre.has(li + ':' + di);
+  const cur = frozen ? g._pre.get(li + ':' + di)
+    : (g && g._sweepDi != null && g._pre && g._pre.has(li + ':' + di)) ? g._pre.get(li + ':' + di)
+    : getPrice(li, di);
   const old = card.querySelector(':scope > .pstack');
   if (old && +old.dataset.cur === cur) return;   // fresh — keep (idempotent)
   if (old) old.remove();                         // stale baseline (e.g. after undo) — rebuild, self-healing
   let neu;
-  if (f.roll.market !== false) {
+  if (frozen) {
+    neu = getPrice(li, di); // the committed price — held exactly, no recompute
+    if (neu === cur) { removeOdometer(card); return; }
+  } else if (f.roll.market !== false) {
     // The cell price is DERIVED from the same per-date % the pill prints (oppNewPrice) — no separate
     // marketRate read, no ±$2 floor. So the number under the pill always equals the pill's percent.
     neu = oppNewPrice(g, cur, di, f.roll.dir === 'up');
@@ -9894,16 +9904,11 @@ function _stepOpp(fromIdx, dir) { // the next opp in calendar order from fromIdx
   return order[(pos + dir + order.length) % order.length];
 }
 function optNav(dir) {
-  const o = window.__opt; let n = o.suggs.length; if (!n) return;
-  if (o.suggs[o.cur] && o.suggs[o.cur].applied) {           // stepping off an applied card → drop it
-    const target = o.suggs[_stepOpp(o.cur, dir)];           // remember the neighbour we're heading to BEFORE the splice reindexes
-    o.suggs.splice(o.cur, 1); n = o.suggs.length;
-    buildFlags(o.suggs); // the applied card leaves the board — union re-derives
-    if (!n) { o.flags = new Map(); repaintOptGlows(); o.state = 'done'; renderMagicPill(); setTimeout(exitOptimize, 900); return; }
-    const ti = o.suggs.indexOf(target); o.cur = ti >= 0 ? ti : Math.min(o.cur, n - 1);
-  } else {
-    o.cur = _stepOpp(o.cur, dir);
-  }
+  const o = window.__opt; const n = o.suggs.length; if (!n) return;
+  // Applied cards STAY on the board — you just step past them. Their cells keep the frozen green
+  // applied price and their %-pills stay put (drawStatic reads _appliedVals), and stepping back onto
+  // one reopens it in the green-check / undo state. Nothing gets dropped or zeroed on nav.
+  o.cur = _stepOpp(o.cur, dir);
   renderMagicPill(); focusOpportunity();
 }
 // Apply the opportunity currently shown in the pill, then advance the focus to the next one.
