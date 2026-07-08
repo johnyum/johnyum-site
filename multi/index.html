@@ -468,7 +468,7 @@ body.row-reordering .thumb-row { cursor: grabbing; }
    rest; every icon is centred to its column and to the header type's centreline. ── */
 #gridRows .group-divider { position: relative; } /* the band is the icons' coordinate space */
 .gev { position: absolute; transform: translateX(-50%) scale(var(--fit, 1)); pointer-events: auto; cursor: default;
-  transition: transform 0.32s ease, filter 0.45s ease; z-index: 10; } /* left set inline to the column centre (rowOffsets); --fit crops transparent PNG padding so the glyph fills its box */
+  transition: transform 0.32s ease; z-index: 10; } /* left set inline to the column centre (rowOffsets); --fit crops transparent PNG padding so the glyph fills its box */
 .gev:hover { transform: translateX(-50%) scale(calc(var(--fit, 1) * 1.5)); z-index: 12; }
 /* group-name centreline = 27px above the band's bottom edge (16px below-name + 11px half-name) —
    same in the 62px band and the 38px .first band, so one pair of offsets centres both sizes on it */
@@ -481,8 +481,6 @@ body.row-reordering .thumb-row { cursor: grabbing; }
 .gev.gev-season.gev-secondary { width: 18px; height: 18px; bottom: 18px; }
 .gev.gev-tentative { opacity: 1; } /* estimated dates render SOLID — the hover pill carries the "(estimated)" caveat */
 .gev.gev-past { filter: grayscale(1); opacity: 0.5; } /* dates already gone — holidays, events, season markers all read as spent (grey) */
-/* During the opportunities SCAN the event/holiday/season icons desaturate to black&white; color floods back (0.45s) when the scan settles. */
-body.opt-scanning .gev:not(.gev-past) { filter: grayscale(1); }
 /* SEASON markers only appear once their opp is TAPPED in opps mode — they ride the pills like the
    event/holiday icons. At rest (default view, or another opp focused) they're hidden but stay in the
    DOM, so the ride math + rise animation are identical to every other icon. */
@@ -1424,8 +1422,9 @@ body.opt-sizing .price-row, body.opt-sizing .thumb-row { transition: height .4s 
 body:not(.opt-scanning) .price-card.opt-flag.has-odo:not(.opt-focus) .price-val { visibility: hidden; }
 body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-odo.opt-focus .price-val { visibility: hidden; }
 .price-card.opt-flag .pstack .prec, .price-card.opt-flag .pstack .pold {
-  position: absolute; left: 0; right: 0; text-align: center; height: 16px; line-height: 16px;
+  position: absolute; left: 0; right: 0; text-align: center; white-space: nowrap; height: 16px; line-height: 16px;
   font: 400 14px 'Cereal', sans-serif; }
+.price-card.opt-flag .pstack .prow { white-space: nowrap; } /* digit reels never wrap → the price stays centred even at $10000+ */
 /* prec (the NEW value): starts at centre showing the old digits, RISES to the top slot while its
    reels roll to the recommended number, landing green/bold. pold (a COPY of the old): starts at the
    same centre, SINKS to the bottom slot and strikes through. Both begin exactly where the plain
@@ -2218,6 +2217,8 @@ body.super-collapse-2 .sc2-mseg:not(:first-child) { margin-left: 24px; }
   -webkit-user-select: none;
   position: relative;
 }
+/* Prices ALWAYS centre, even super-large ones: never wrap, never left-align on overflow. */
+.price-card .price-val { text-align: center; white-space: nowrap; }
 /* ── Small "3–5 Listings" host: roomier 80px rows, bigger 40×40 photos, a matching taller booking pill.
    Price content stays centered; the corner dot/X markers stay pinned to their corners. ── */
 body.host-small:not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .price-row { height: 96px; }
@@ -8792,7 +8793,7 @@ function computeSuggestions() {
     const tot = staysItems.reduce((s, x) => s + (x.b - x.a + 1), 0);
     cards.push({ bucket: 'stays', type: 'minnight', intent: 'fill',
       a: Math.min(...staysItems.map(x => x.a)), b: Math.max(...staysItems.map(x => x.b)), items: staysItems,
-      head: 'Free up these stranded nights', cta: 'Apply',
+      head: 'Free up stranded nights', cta: 'Apply',
       title: 'Unlock ' + tot + ' stranded night' + (tot > 1 ? 's' : ''),
       why: tot + ' night' + (tot > 1 ? 's are' : ' is') + ' wedged in gaps too short for your minimums, so no one can book them. Open them up just here.' });
   }
@@ -8987,8 +8988,8 @@ function computeSuggestions() {
         c.mag = cityStr + ' · ' + dates + ' · <span class="hl' + (c.intent === 'fill' ? ' lo' : '') + '">' + range + '</span>';
         c.magKind = 'flat';
       };
-      if (c.bucket === 'grouping') { c.mag = 'Groups alike listings automatically. Edit anytime.'; c.magKind = 'flat'; return; }
-      else if (c.bucket === 'stays') { c.mag = [...new Set(c.items.map(x => x.li))].length + ' listings · min-night unlock'; c.magKind = 'flat'; }
+      if (c.bucket === 'grouping') { c.mag = 'Group alike listings automatically by location'; c.magKind = 'flat'; return; }
+      else if (c.bucket === 'stays') { c.mag = [...new Set(c.items.map(x => x.li))].length + ' listings · Reduce min nights'; c.magKind = 'flat'; }
       else if (c.bucket === 'setup') { c.mag = c.items.some(x => x.type === 'earlybird') ? 'Early-bird −12% · Last-minute −15%' : 'Last-minute −15%'; c.magKind = 'flat'; }
       else if (c.bucket === 'season-up' || c.bucket === 'season-down') {
         c.head = c.intent === 'earn' ? 'Set high season prices' : 'Set low season prices';
