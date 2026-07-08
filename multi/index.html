@@ -1292,7 +1292,14 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
 .mnav-in.prev { margin-right: 4px; } /* 12px flex gap + 4px = 16px to the content */
 .mnav-in.next { margin-left: -4px; } /* 12px flex gap − 4 = 8px Apply → arrow */
 /* season demand ribbon: the focused season card's market curve, drawn in each group band.
-   Peak pills name the spikes; tap one to fly there. Icons (z10) ride above the ribbon (z1). */
+   Peak pills name the spikes; tap one to fly there. Icons (z10) ride above the ribbon (z1).
+   While a season card is focused, the HOSTING bands grow so the chart breathes — rows below
+   just shift; the left thumbnails carry the same class so the columns stay in lockstep. */
+.group-divider { transition: height .35s cubic-bezier(.4,0,.2,1); }
+.group-divider.ribbon-grown { height: 148px; }
+.group-divider.first.ribbon-grown { height: 128px; }
+.ribbon-hit { position: absolute; inset: 0; pointer-events: auto; cursor: crosshair; }
+.season-ribbon .ribbon-cursor { pointer-events: none; z-index: 4; }
 .season-ribbon .ribbon-peak {
   position: absolute; top: -14px; transform: translateX(-50%); pointer-events: auto; cursor: pointer;
   font: 600 11px 'Cereal', sans-serif; color: #038026; background: #fff;
@@ -8869,6 +8876,7 @@ function _peakLabel(g, p) { // "Thanksgiving +24%" / "Dec 31 +42%" — a holiday
 }
 function updateSeasonRibbon() {
   document.querySelectorAll('.season-ribbon').forEach(x => x.remove());
+  document.querySelectorAll('.group-divider.ribbon-grown').forEach(x => x.classList.remove('ribbon-grown'));
   const o = window.__opt;
   if (!o || o.state !== 'results') return;
   const g = o.suggs[o.cur];
@@ -8876,7 +8884,7 @@ function updateSeasonRibbon() {
   const up = g.intent === 'earn';
   const vals = _seasonSeries(g);
   const mx = Math.max(...vals, 0.001);
-  const cw = gridCell().w, H = 30;
+  const cw = gridCell().w, H = 84; // the grown band gives the curve real height
   const stroke = up ? '#038026' : '#BE4900';
   const fill = up ? 'rgba(3,128,38,0.13)' : 'rgba(190,73,0,0.12)';
   const gLis = new Set(g.lis && g.lis.length ? g.lis : g.items.map(x => x.li));
@@ -8893,10 +8901,35 @@ function updateSeasonRibbon() {
     vals.forEach((v, i) => { const x = ((rowOffsets[g.a + i] || 0) + cw / 2) - x0;
       const y = H - 3 - (v / mx) * (H - 7); d += ' L' + x.toFixed(1) + ' ' + y.toFixed(1); });
     d += ' L' + W.toFixed(1) + ' ' + H + ' Z';
+    div.classList.add('ribbon-grown'); // this band grows for the chart
+    const twin = document.querySelector('#listingThumbsInner > .group-divider[data-gi="' + gi + '"]');
+    if (twin) twin.classList.add('ribbon-grown'); // left column keeps step
     const wrap = document.createElement('div');
     wrap.className = 'season-ribbon';
     wrap.style.cssText = 'position:absolute;bottom:2px;left:' + x0 + 'px;width:' + W + 'px;height:' + H + 'px;pointer-events:none;z-index:1;';
     wrap.innerHTML = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="display:block"><path d="' + d + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    // interactive: hover reads the curve ("Aug 14 · +35%"), click flies there
+    const hit = document.createElement('div'); hit.className = 'ribbon-hit';
+    const cur = document.createElement('div'); cur.className = 'ribbon-peak ribbon-cursor' + (up ? '' : ' lo'); cur.style.display = 'none';
+    const _M3c = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const nearestI = ev => { const x = ev.clientX - wrap.getBoundingClientRect().left;
+      let best = 0, bd = 1e9;
+      for (let i = 0; i < vals.length; i++) { const cx = ((rowOffsets[g.a + i] || 0) + cw / 2) - x0;
+        const d2 = Math.abs(cx - x); if (d2 < bd) { bd = d2; best = i; } }
+      return best; };
+    hit.addEventListener('mousemove', ev => {
+      const i = nearestI(ev); const d2 = allDays[g.a + i];
+      const y = H - 3 - (vals[i] / mx) * (H - 7);
+      cur.textContent = _M3c[d2.getMonth()] + ' ' + d2.getDate() + ' · ' + (up ? '+' : '\u2212') + Math.round(vals[i] * 100) + '%';
+      cur.style.left = (((rowOffsets[g.a + i] || 0) + cw / 2) - x0) + 'px';
+      cur.style.top = Math.max(-14, y - 28) + 'px';
+      cur.style.display = '';
+    });
+    hit.addEventListener('mouseleave', () => { cur.style.display = 'none'; });
+    hit.addEventListener('click', ev => { ev.stopPropagation();
+      const i = nearestI(ev);
+      gridWrap.scrollTo({ left: Math.max(0, (rowOffsets[g.a + i] || 0) - Math.round((gridWrap.clientWidth || 1200) * 0.4)), behavior: 'smooth' }); });
+    wrap.appendChild(hit); wrap.appendChild(cur);
     _seasonPeaks(vals, 3).forEach(p => {
       const lbl = document.createElement('div');
       lbl.className = 'ribbon-peak' + (up ? '' : ' lo');
