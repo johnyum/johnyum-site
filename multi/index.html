@@ -477,6 +477,8 @@ body.row-reordering .thumb-row { cursor: grabbing; }
    bottom:13 centres the 28px glyph on the group-name line (27px above the band's bottom edge). */
 .gev.gev-primary, .gev.gev-secondary { width: 28px; height: 28px; bottom: 13px; }
 .gev[data-ride] { width: 28px; height: 28px; }
+/* season TREND arrows are mini accents trailing the big themed primary — small even when riding (3 classes beat .gev[data-ride]) */
+.gev.gev-season.gev-secondary { width: 18px; height: 18px; bottom: 18px; }
 .gev.gev-tentative { opacity: 1; } /* estimated dates render SOLID — the hover pill carries the "(estimated)" caveat */
 /* collapse is RETIRED for GROUPS: no up/down chevrons anywhere — groups are always open.
    The left panel's own grey-circle chevron stays: names can still collapse/expand. */
@@ -7140,9 +7142,10 @@ function buildGroupEventIcons() {
     // SEASONALITY markers: annotate this band's cities' demand curves — a primary at each season's
     // peak with small secondary accents flanking it (green high / orange low). Separate layer from
     // DEMAND_EVENTS; skips any date an event/holiday already claimed so nothing stacks.
-    SEASON_MARKERS.forEach(([city, kind, label, months, primary, secondary]) => {
+    SEASON_MARKERS.forEach(([city, kind, label, months, primary]) => {
       if (!cities.has(city)) return;
       const mset = _monthSet(months);
+      const arrow = kind === 'low' ? 'event_icons/arrow-down-orange.png' : 'event_icons/arrow-up-green.png'; // trend arrow = the mini accent
       const place = (d, src, isP) => {
         if (d < 0 || d >= allDays.length || taken.has(d)) return;
         taken.add(d);
@@ -7159,10 +7162,11 @@ function buildGroupEventIcons() {
         const rs = di; while (di < allDays.length && mset.has(allDays[di].getMonth())) di++;
         const re = di - 1, span = re - rs;
         if (span < 20) continue; // a window sliver clipped at the calendar edge — skip
-        place(Math.floor((rs + re) / 2), primary, true); // the peak carries the big icon
-        const nSec = Math.min(4, Math.max(2, Math.round(span / 45))); // ~one accent per 45 days
-        for (let k = 1; k <= nSec; k++) { const d = Math.round(rs + span * k / (nSec + 1));
-          if (Math.abs(d - Math.floor((rs + re) / 2)) > 8) place(d, secondary, false); }
+        // BIG themed icon leads the season (thermometer / ski). For the season you're IN right now, pin
+        // it to TODAY so it's the first thing on screen; future seasons lead at their window start.
+        place((todayDi > rs && todayDi <= re) ? todayDi : rs, primary, true);
+        const nSec = Math.min(5, Math.max(2, Math.round(span / 40))); // mini trend arrows (orange ↓ / green ↑) trail across the window
+        for (let k = 1; k <= nSec; k++) { const d = Math.round(rs + span * k / nSec); if (d > rs) place(d, arrow, false); }
       }
     });
   });
