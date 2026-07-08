@@ -1306,6 +1306,11 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
   box-shadow: 0 1px 4px rgba(0,0,0,0.25); user-select: none; -webkit-user-select: none; touch-action: none;
 }
 .season-ribbon .ribbon-handle.lo { color: #EB6100; }
+.season-ribbon .ribbon-warn {
+  position: absolute; transform: translateX(-50%); pointer-events: none; z-index: 7;
+  font: 600 11px 'Cereal', sans-serif; color: #B85C0A; background: #FBEEDF;
+  border-radius: 999px; padding: 2px 8px; white-space: nowrap;
+}
 .season-ribbon .ribbon-handle.dragging { transform: translate(-50%, -50%) scale(1.15); z-index: 6; }
 .season-ribbon .ribbon-cursor { pointer-events: none; z-index: 4; }
 .season-ribbon .ribbon-peak {
@@ -8907,8 +8912,12 @@ function updateSeasonRibbon() {
     const x0 = rowOffsets[g.a] || 0;
     const W = ((rowOffsets[g.b] || 0) + cw) - x0;
     if (W <= 0) return;
-    let yScale = mx; // the chart's live y-axis — dragging past the top GROWS it (renormalizes)
-    const yOf = v2 => H - 3 - (Math.min(v2, yScale) / yScale) * (H - 7);
+    // RANGE-normalized axis: the curve spans min→max of the window (not 0→max), so even a few
+    // percentage points of spread fill the full chart height. Drags past either edge grow the range.
+    let yHi = mx;
+    let yLo = Math.max(0, Math.min(...vals));
+    if (yHi - yLo < 0.02) { yLo = Math.max(0, yHi - 0.02); } // degenerate flat window still draws
+    const yOf = v2 => H - 3 - ((Math.max(yLo, Math.min(v2, yHi)) - yLo) / (yHi - yLo)) * (H - 7);
     const mkD = () => { let d2 = '';
       vals.forEach((v2, i2) => { const x2 = ((rowOffsets[g.a + i2] || 0) + cw / 2) - x0;
         d2 += (i2 ? ' L' : 'M') + x2.toFixed(1) + ' ' + yOf(v2).toFixed(1); });
@@ -8926,6 +8935,11 @@ function updateSeasonRibbon() {
     // odometers, the card line, and Apply itself.
     const path = () => wrap.querySelector('path');
     const buildD = mkD;
+    const warn = document.createElement('div');
+    warn.className = 'ribbon-warn';
+    warn.textContent = "That's a lot";
+    warn.style.display = 'none';
+    wrap.appendChild(warn);
     const hps = [];
     const layoutHandles = () => hps.forEach((hp2, i2) => { hp2.style.top = yOf(vals[i2]) + 'px'; });
     if (cw >= 40) {
@@ -8947,16 +8961,22 @@ function updateSeasonRibbon() {
             document.querySelector('#gridRows .price-row[data-li="' + li2 + '"] .price-card[data-di="' + di2 + '"] .pstack')).filter(Boolean);
           const move = e2 => {
             const wy = e2.clientY - wrap.getBoundingClientRect().top;
-            // NO data cap at the chart top: pulling past it grows the y-axis (the rest of the
-            // curve compresses live). Hard sanity ceiling: +100%.
-            let v2 = Math.max(0, (H - 3 - wy) / (H - 7) * yScale);
-            v2 = Math.min(1, v2);
-            if (v2 > yScale) yScale = v2;
+            // NO data cap: pulling past either edge stretches the range live. Ceiling +100%.
+            let v2 = yLo + (H - 3 - wy) / (H - 7) * (yHi - yLo);
+            v2 = Math.max(0, Math.min(1, v2));
+            if (v2 > yHi) yHi = v2;
+            if (v2 < yLo) yLo = v2;
             vals[i] = v2;
             g._pctOv = g._pctOv || {}; g._pctOv[di2] = v2;
             hp.textContent = sign + Math.round(v2 * 100) + '%';
             const p2 = path(); if (p2) p2.setAttribute('d', buildD());
             layoutHandles();
+            if (v2 >= 0.5) { // that's a lot
+              warn.style.left = hp.style.left;
+              warn.style.top = (parseFloat(hp.style.top) - 26) + 'px';
+              warn.style.display = '';
+              clearTimeout(warn._t);
+            } else warn.style.display = 'none';
             liveCells.forEach(ps => {
               const cur2 = +ps.dataset.cur || 0; if (!cur2) return;
               let neu = Math.round(cur2 * (1 + (up ? 1 : -1) * v2));
@@ -8970,7 +8990,8 @@ function updateSeasonRibbon() {
             hp.classList.remove('dragging');
             const magEl = document.querySelector('.mopp-mag');
             if (magEl) magEl.innerHTML = _seasonNarrate(g);
-            updateSeasonRibbon(); // renormalize the axis to the new shape
+            if (warn.style.display !== 'none') { clearTimeout(warn._t); warn._t = setTimeout(() => { updateSeasonRibbon(); }, 1400); }
+            else updateSeasonRibbon(); // renormalize the axis to the new shape
           };
           window.addEventListener('pointermove', move);
           window.addEventListener('pointerup', done, { once: true });
