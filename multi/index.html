@@ -8961,6 +8961,7 @@ function seasonWandReset() {
   const g = o.suggs[Math.min(o.cur || 0, o.suggs.length - 1)];
   if (!g) return;
   const wb = document.querySelector('.mopp-wandbtn');
+  const startVals = _seasonSeries(g); // the curve's shape BEFORE the tap — the ribbon animates FROM here
   const rebuild = dis => dis.forEach(di => (g.lis || [g.li]).forEach(li => {
     const card = document.querySelector('#gridRows .price-row[data-li="' + li + '"] .price-card[data-di="' + di + '"]');
     if (!card) return; // off-screen cells rebuild clean on their next mount
@@ -8969,6 +8970,7 @@ function seasonWandReset() {
   }));
   const redress = () => {
     const magEl = document.querySelector('.mopp-mag'); if (magEl) magEl.innerHTML = _seasonNarrate(g);
+    updateSeasonRibbon._wandFrom = startVals; updateSeasonRibbon._wandT0 = performance.now(); // tween the curve from the pre-tap shape
     updateSeasonRibbon();
   };
   if (wb && wb.classList.contains('is-on')) {
@@ -8996,7 +8998,7 @@ function updateSeasonRibbon() {
   // ENTRY: a freshly-focused card animates the chart up from 0% on the odometer's early beats
   // (flat ~300ms, rise, settled by ~750ms). The t0 is shared so mid-flight rebuilds (camera
   // scroll re-hangs) RESUME the rise instead of cutting it.
-  if (updateSeasonRibbon._lastId !== g.id) { updateSeasonRibbon._lastId = g.id; updateSeasonRibbon._entryT0 = performance.now(); }
+  if (updateSeasonRibbon._lastId !== g.id) { updateSeasonRibbon._lastId = g.id; updateSeasonRibbon._entryT0 = performance.now(); updateSeasonRibbon._wandT0 = 0; }
   const up = g.intent === 'earn';
   const vals = _seasonSeries(g);
   const mx = Math.max(...vals, 0.001);
@@ -9086,7 +9088,7 @@ function updateSeasonRibbon() {
         (di2 => hp.addEventListener('pointerdown', ev => {
           ev.preventDefault(); ev.stopPropagation();
           try { hp.setPointerCapture(ev.pointerId); } catch (err) {}
-          updateSeasonRibbon._entryT0 = 0; // grabbing a handle ends the entry rise instantly
+          updateSeasonRibbon._entryT0 = 0; updateSeasonRibbon._wandT0 = 0; // grabbing a handle ends any entry / wand rise instantly
           hp.classList.add('dragging');
           // the edited column's odometer TARGETS update LIVE while dragging — plain digits swap in
           // place of the reels, so nothing re-animates; the struck old price stays put
@@ -9168,32 +9170,36 @@ function updateSeasonRibbon() {
     if (cw < 40) { wrap.appendChild(hit); wrap.appendChild(cur); } // handles carry the readout in week mode
     // (static "\u25b2 Jul 28 +61%" peak pills retired \u2014 the %-handles carry every date's number)
     div.appendChild(wrap);
-    // ENTRY RISE \u2014 the chart lifts from a flat 0% line to its shape: flat until 308ms, rising to
-    // settled at 748ms. Time runs off the shared focus t0, so a mid-flight rebuild re-enters the
-    // tween at the right frame.
+    // ENTRY / WAND RISE \u2014 animate the curve from a start shape to `vals`, off a SHARED clock so a
+    // mid-flight rebuild resumes rather than restarts. Fresh focus: start = a flat 0% line off
+    // _entryT0 (flat until 308ms, settled 748ms). Wand tap/untap: start = the pre-tap shape
+    // (_wandFrom), so the curve visibly FALLS to flat / LIFTS back to the suggestion over WDUR.
     (() => {
-      const RISE_A = 308, RISE_B = 748;
-      const tNow = () => performance.now() - (updateSeasonRibbon._entryT0 || 0);
-      if (tNow() >= RISE_B) return; // focus is old news \u2014 draw settled
+      const RISE_A = 308, RISE_B = 748, WDUR = 560;
+      const wandOn = updateSeasonRibbon._wandT0 && (performance.now() - updateSeasonRibbon._wandT0 < WDUR)
+        && Array.isArray(updateSeasonRibbon._wandFrom) && updateSeasonRibbon._wandFrom.length === vals.length;
+      const from = wandOn ? updateSeasonRibbon._wandFrom : null;
       const sign2 = up ? '+' : '\u2212';
       const ease = x => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+      const valAt = (i2, k) => from ? from[i2] + (vals[i2] - from[i2]) * k : vals[i2] * k;
       const drawK = k => {
         const p2 = path();
         if (p2) { let d2 = ''; vals.forEach((v2, i2) => { const x2 = ((rowOffsets[g.a + i2] || 0) + cw / 2) - x0;
-          d2 += (i2 ? ' L' : 'M') + x2.toFixed(1) + ' ' + yOf(v2 * k).toFixed(1); }); p2.setAttribute('d', d2); }
-        hps.forEach((hp2, i2) => { hp2.style.top = yOf(vals[i2] * k) + 'px';
-          hp2.textContent = sign2 + Math.round(vals[i2] * k * 100) + '%';
-          const ic = hics[i2]; if (ic) ic.style.bottom = (ICBASE + (H - yOf(vals[i2] * k))) + 'px'; });
+          d2 += (i2 ? ' L' : 'M') + x2.toFixed(1) + ' ' + yOf(valAt(i2, k)).toFixed(1); }); p2.setAttribute('d', d2); }
+        hps.forEach((hp2, i2) => { const vv = valAt(i2, k); hp2.style.top = yOf(vv) + 'px';
+          hp2.textContent = sign2 + Math.round(vv * 100) + '%';
+          const ic = hics[i2]; if (ic) ic.style.bottom = (ICBASE + (H - yOf(vv))) + 'px'; });
       };
-      const step = () => {
-        if (!wrap.isConnected) return; // this ribbon was rebuilt \u2014 its successor carries the tween
-        const t = tNow();
-        const k = t <= RISE_A ? 0 : t >= RISE_B ? 1 : ease((t - RISE_A) / (RISE_B - RISE_A));
-        drawK(k);
-        if (k < 1) requestAnimationFrame(step);
+      const kNow = () => {
+        if (from) return ease(Math.min(1, (performance.now() - updateSeasonRibbon._wandT0) / WDUR));
+        const t = performance.now() - (updateSeasonRibbon._entryT0 || 0);
+        return t <= RISE_A ? 0 : t >= RISE_B ? 1 : ease((t - RISE_A) / (RISE_B - RISE_A));
       };
-      const t1 = tNow(); // paint the correct first frame before the browser shows anything
-      drawK(t1 <= RISE_A ? 0 : t1 >= RISE_B ? 1 : ease((t1 - RISE_A) / (RISE_B - RISE_A)));
+      const doneNow = () => from ? (performance.now() - updateSeasonRibbon._wandT0 >= WDUR)
+        : (performance.now() - (updateSeasonRibbon._entryT0 || 0) >= RISE_B);
+      if (!from && doneNow()) return; // settled fresh focus \u2014 leave the drawn curve as-is
+      const step = () => { if (!wrap.isConnected) return; drawK(kNow()); if (!doneNow()) requestAnimationFrame(step); };
+      drawK(kNow()); // correct first frame before paint
       requestAnimationFrame(step);
     })();
   });
