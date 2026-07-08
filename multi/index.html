@@ -8691,11 +8691,53 @@ function computeSuggestions() {
       title: 'Turn on smart discounts',
       why: '' });
   }
-  // NEVER OVERLAP: a holiday or event OWNS its nights — carve those date-runs out of every season /
-  // promo card's items (and re-derive its window) so the same dates are never double-priced.
+  // IN-SEASON HOLIDAYS become their own opps. A holiday buried deep inside a season (Thanksgiving and
+  // Christmas sit in the winter high season; the per-month scan above only catches the first holiday
+  // per month, so they get swallowed) never surfaces on its own. Here we scan each season's window for
+  // holidays the market actually lifts and spawn a holiday card — which the carve/split below then uses
+  // to CUT the season around it, so the winter stretch becomes Nov · [Thanksgiving] · Dec · [Christmas] · Jan.
+  {
+    const existingHol = new Set(cards.filter(c => c.bucket === 'holiday').map(c => c.hol));
+    const spawn = [];
+    cards.filter(c => c.bucket === 'season-up' || c.bucket === 'season-down').forEach(sc => {
+      const lis = [...new Set(sc.items.map(it => it.li))];
+      const seen = new Set();
+      for (let k = sc.a; k <= sc.b; k++) {
+        const h = holidayFor(allDays[k]); if (!h || seen.has(h.name)) continue; seen.add(h.name);
+        if (existingHol.has(h.name)) continue; // already carded elsewhere
+        const hObj = HOLIDAYS.find(o => o.name === h.name);
+        const offs = (hObj && hObj.secOffsets) || secondaryOffsets(allDays[k].getDay());
+        const wa = Math.max(sc.a, Math.max(0, k + Math.min(0, ...offs)));
+        const wb = Math.min(sc.b, k + Math.max(0, ...offs));
+        const hitems = lis.map(li => { const pc = getPrice(li, k), mk = marketRate(li, k);
+          return { li, a: wa, b: wb, intent: 'earn', type: 'raise', pct: Math.max(0, (mk - pc) / pc),
+            curPrice: pc, newPrice: mk, hol: h.name, title: 'Raise for ' + h.name }; });
+        if (!hitems.some(it => it.newPrice > it.curPrice + 4)) continue; // market doesn't lift this one → leave the season whole
+        spawn.push({ bucket: 'holiday', type: 'raise', intent: 'earn', hol: h.name, items: hitems,
+          a: wa, b: wb, pct: hitems.reduce((s, x) => s + x.pct, 0) / hitems.length,
+          head: 'Set ' + h.name + ' prices', cta: 'Apply', title: 'Set ' + h.name + ' prices', why: '' });
+        existingHol.add(h.name);
+      }
+    });
+    cards.push(...spawn);
+  }
+  // NEVER OVERLAP + SPLIT: a holiday or event OWNS its nights — carve those date-runs out of every
+  // season / promo card. When a holiday/event lands in the MIDDLE of a season, it doesn't just leave a
+  // gap — it CUTS the season into separate opps, one per surviving stretch (e.g. Thanksgiving and
+  // Christmas break the winter high season into three; Labor Day splits the desert-summer low season).
   {
     const owners = cards.filter(c => (c.bucket === 'event' || c.bucket === 'holiday') && c.items.length);
     const lisOf = c => new Set(c.items.map(it => it.li));
+    const mergeRuns = items => { // union the (possibly per-listing) segments into contiguous date runs
+      const iv = items.map(it => [it.a, it.b]).sort((x, y) => x[0] - y[0]);
+      const runs = [];
+      iv.forEach(([a, b]) => { const last = runs[runs.length - 1];
+        if (last && a <= last.b + 1) last.b = Math.max(last.b, b); else runs.push({ a, b }); });
+      return runs;
+    };
+    const setDates = c => { c.a = Math.min(...c.items.map(it => it.a)); c.b = Math.max(...c.items.map(it => it.b));
+      c._dates = new Set(); c.items.forEach(it => { for (let k = it.a; k <= it.b; k++) c._dates.add(k); }); };
+    const splitAdds = [];
     cards.forEach(sc => {
       if (sc.bucket !== 'season-up' && sc.bucket !== 'season-down' && sc.bucket !== 'promo') return;
       const scLis = lisOf(sc);
@@ -8715,10 +8757,19 @@ function computeSuggestions() {
         });
         return segs;
       });
-      if (!sc.items.length) sc._drop = true;
-      else { sc.a = Math.min(...sc.items.map(it => it.a)); sc.b = Math.max(...sc.items.map(it => it.b));
-        sc._dates = new Set(); sc.items.forEach(it => { for (let k = it.a; k <= it.b; k++) sc._dates.add(k); }); }
+      if (!sc.items.length) { sc._drop = true; return; }
+      const runs = mergeRuns(sc.items);
+      if (runs.length <= 1) { setDates(sc); return; } // one stretch → keep as a single card
+      // multiple stretches → this card becomes the first, clones carry the rest (ids/lis assigned later)
+      const allItems = sc.items; // capture BEFORE the loop mutates sc.items (ri 0 reassigns it)
+      runs.forEach((run, ri) => {
+        const runItems = allItems.filter(it => it.a <= run.b && it.b >= run.a).map(it => Object.assign({}, it));
+        const target = ri === 0 ? sc : Object.assign({}, sc);
+        target.items = runItems; setDates(target);
+        if (ri > 0) splitAdds.push(target);
+      });
     });
+    cards.push(...splitAdds);
     for (let i = cards.length - 1; i >= 0; i--) if (cards[i]._drop) cards.splice(i, 1);
   }
   // Estimated $ impact per card → biggest first. The number on the card is what justifies mass action.
@@ -8795,13 +8846,14 @@ function computeSuggestions() {
   // digestible set of 8 — but bucket-DIVERSE: the best card of every bucket makes the cut before
   // any bucket doubles up, so Unlock stays / Smart discounts never get crowded out by big price plays
   {
-    // EVERY event + holiday card rides — any section highlighted on the calendar must be
-    // steppable with ‹ ›, never skipped. The digestible cap applies only to the rest
-    // (seasons, tools), which are fungible.
-    const dated = cards.filter(c => c.bucket === 'event' || c.bucket === 'holiday');
+    // EVERY calendar-anchored price window rides — events, holidays AND seasons (incl. the split
+    // stretches between holidays). Any section highlighted on the calendar must be steppable with ‹ ›,
+    // never skipped. The digestible cap applies only to the fungible tools (setup / stays / promo).
+    const DATED = c => c.bucket === 'event' || c.bucket === 'holiday' || c.bucket === 'season-up' || c.bucket === 'season-down';
+    const dated = cards.filter(DATED);
     const seen = new Set(), lead = [], rest = [];
     cards.forEach(c => {
-      if (c.bucket === 'event' || c.bucket === 'holiday') return;
+      if (DATED(c)) return;
       if (!seen.has(c.bucket)) { seen.add(c.bucket); lead.push(c); } else rest.push(c);
     });
     // CHRONOLOGICAL: structure first, then ONE date-ordered sweep of EVERY price opportunity —
