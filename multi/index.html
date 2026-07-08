@@ -8772,6 +8772,46 @@ function computeSuggestions() {
     cards.push(...splitAdds);
     for (let i = cards.length - 1; i >= 0; i--) if (cards[i]._drop) cards.splice(i, 1);
   }
+  // ABSORB tiny orphan stretches: a 1–4 night season sliver wedged between two holidays reads as
+  // noise (Dec 28–30 between Christmas and New Year, Jan 20–21 after MLK). Fold it into the adjacent
+  // holiday/event — preferring the one just BEFORE it — so there's no standalone micro-opp.
+  {
+    const MINLEN = 4;
+    const shareLis = (h, sc) => { const H = new Set(h.items.map(i => i.li)); return sc.items.some(i => H.has(i.li)); };
+    cards.filter(c => (c.bucket === 'season-up' || c.bucket === 'season-down') && (c.b - c.a + 1) <= MINLEN).forEach(sc => {
+      const list = cards.filter(c => (c.bucket === 'holiday' || c.bucket === 'event') && c.items && c.items.length);
+      const host = list.find(h => h.b === sc.a - 1 && shareLis(h, sc)) || list.find(h => h.a === sc.b + 1 && shareLis(h, sc));
+      if (!host) return; // no adjacent holiday — leave the short season as-is
+      sc.items.forEach(si => { const hi = host.items.find(i => i.li === si.li);
+        if (hi) { hi.a = Math.min(hi.a, si.a); hi.b = Math.max(hi.b, si.b); } // stretch the host's item over the sliver
+        else host.items.push(Object.assign({}, si)); }); // host doesn't price this listing yet — add it
+      host.a = Math.min(...host.items.map(i => i.a)); host.b = Math.max(...host.items.map(i => i.b));
+      if (host._dates) for (let k = sc.a; k <= sc.b; k++) host._dates.add(k);
+      sc._drop = true;
+    });
+    for (let i = cards.length - 1; i >= 0; i--) if (cards[i]._drop) cards.splice(i, 1);
+  }
+  // HORIZON: opportunities only within the next 8 months (rolling — recomputed from today every run).
+  // A window starting inside the horizon but running past it is clipped at the boundary; anything
+  // starting beyond is dropped. Structural/portfolio cards (grouping, setup, stays) aren't date-bound.
+  {
+    const DATED = c => ['season-up', 'season-down', 'event', 'holiday', 'promo'].includes(c.bucket);
+    const base = allDays[Math.max(0, todayDi)] || allDays[0];
+    const hd = new Date(base); hd.setMonth(hd.getMonth() + 8);
+    let horizonDi = N - 1;
+    for (let i = Math.max(0, todayDi); i < N; i++) { if (allDays[i] >= hd) { horizonDi = i - 1; break; } }
+    cards.forEach(c => {
+      if (!DATED(c)) return;
+      if (c.a > horizonDi) { c._drop = true; return; }
+      if (c.b > horizonDi) { // straddles the boundary → clip the tail
+        c.b = horizonDi;
+        if (c.items) { c.items = c.items.filter(it => it.a <= horizonDi).map(it => it.b > horizonDi ? Object.assign({}, it, { b: horizonDi }) : it);
+          if (!c.items.length) { c._drop = true; return; } }
+        if (c._dates) c._dates = new Set([...c._dates].filter(k => k <= horizonDi));
+      }
+    });
+    for (let i = cards.length - 1; i >= 0; i--) if (cards[i]._drop) cards.splice(i, 1);
+  }
   // Estimated $ impact per card → biggest first. The number on the card is what justifies mass action.
   cards.forEach(c => {
     let sum = 0;
