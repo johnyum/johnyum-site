@@ -1225,7 +1225,7 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
 /* Apply = the QA modals' primary button (bp-save), verbatim */
 .mopp-apply { color: #fff; border-radius: 999px; height: 48px; padding: 0 22px;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  background: #038026; border: 0; /* green button, white type */
+  background: transparent; border: 1px solid var(--grey-700); /* outlined — same stroke as the QA modal's buttons */
   font: 500 14px 'Cereal', sans-serif; cursor: pointer; flex-shrink: 0; transition: background .2s ease; }
 .mopp-apply svg { display: block; flex-shrink: 0; } /* CTA glyph rides LEFT of the label */
 .mopp-apply .cta-wand .wstar { fill: #30D158; animation: wandTwinkle 1.6s ease-in-out infinite;
@@ -1233,7 +1233,7 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
 .mopp-apply .cta-wand .wstar2 { animation-delay: .5s; }
 .mopp-apply .cta-wand .wstar3 { animation-delay: 1s; }
 @keyframes wandTwinkle { 0%, 100% { opacity: 1; transform: scale(1.3); } 50% { opacity: .3; transform: scale(.85); } }
-.mopp-apply:hover { background: #026a20; }
+.mopp-apply:hover { background: rgba(255,255,255,0.12); }
 /* thinking state — the Automate button holds its outline and pulses three dots while it works */
 .mopp-apply.is-thinking { min-width: 112px; cursor: default; }
 .mopp-apply .thinkdots { display: inline-flex; gap: 6px; }
@@ -1329,11 +1329,12 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
 .ribbon-hit { position: absolute; inset: 0; pointer-events: auto; cursor: crosshair; }
 .season-ribbon .ribbon-handle {
   position: absolute; transform: translate(-50%, -50%); pointer-events: auto; cursor: ns-resize;
-  font: 600 12px 'Cereal', sans-serif; color: #30D158; background: #111;
+  font: 600 12px 'Cereal', sans-serif; color: #fff; background: #038026; /* green button, white type */
   border-radius: 999px; padding: 3px 9px; white-space: nowrap; z-index: 5;
   user-select: none; -webkit-user-select: none; touch-action: none;
 }
-.season-ribbon .ribbon-handle.lo { color: #EB6100; }
+.season-ribbon .ribbon-handle.lo { background: #BE4900; } /* low season = orange button */
+.season-ribbon .ribbon-handle.rh-static { cursor: default; pointer-events: none; } /* non-focused opps: visible, not draggable */
 .season-ribbon .ribbon-warn {
   position: absolute; transform: translateX(-50%); pointer-events: none; z-index: 7;
   font: 600 11px 'Cereal', sans-serif; color: #B85C0A; background: #FBEEDF;
@@ -8991,7 +8992,7 @@ function seasonWandReset() {
   } else if (wb) wb.classList.add('is-on');
 }
 function updateSeasonRibbon() {
-  document.querySelectorAll('.season-ribbon, .ribbon-rail').forEach(x => x.remove());
+  document.querySelectorAll('.season-ribbon, .ribbon-rail, .season-rules').forEach(x => x.remove());
   document.querySelectorAll('.group-divider.ribbon-grown').forEach(x => { x.classList.remove('ribbon-grown'); x.style.height = ''; });
   document.querySelectorAll('.gev[data-ride]').forEach(ic => { ic.style.bottom = ''; ic.removeAttribute('data-ride'); }); // ridden event icons drop back to their stock band spot
   const o = window.__opt;
@@ -9017,13 +9018,23 @@ function updateSeasonRibbon() {
   let ceil = niceCeil(mx);
   let H = BANDH[String(ceil)] - 78; // calibrated so name→top-tick = 24px and 0%-line→cells = 16px at every ceiling
   const stroke = '#111'; // the curve line is BLACK now (pills separate from it via their white stroke)
-  const gLis = new Set(g.lis && g.lis.length ? g.lis : g.items.map(x => x.li));
+  const CHART = s => s && (s.bucket === 'season-up' || s.bucket === 'season-down' || s.bucket === 'event');
+  const chartOpps = o.suggs.filter(CHART);          // EVERY chart opp draws its own persistent curve on its band
+  const oppLis = s => (s.lis && s.lis.length ? s.lis : s.items.map(x => x.li));
+  const fullW = (rowOffsets[rowOffsets.length - 1] || 0) + cw; // rules span the WHOLE band, edge to edge
+  const gLis = new Set(oppLis(g));
   document.querySelectorAll('#gridRows > .group-divider').forEach(div => {
     const gi = div.dataset.gi;
     const grouped = new Set(groups.flatMap(g2 => g2.members));
     const members = gi === 'more' ? LISTINGS.map((_, i) => i).filter(i => !grouped.has(i))
       : (groups[+gi] ? groups[+gi].members : []);
     if (!members.some(li => gLis.has(li))) return;
+    const memberSet = new Set(members);
+    // ALL chart opps on this band — each draws its own curve (blank between them); the axis is
+    // SHARED so the ceiling accommodates the tallest curve across every opp on the band.
+    const bandOpps = chartOpps.filter(s => oppLis(s).some(li => memberSet.has(li)));
+    { let m2 = 0.001; bandOpps.forEach(s => _seasonSeries(s).forEach(x => { if (x > m2) m2 = x; }));
+      ceil = niceCeil(m2); H = BANDH[String(ceil)] - 78; }
     const x0 = rowOffsets[g.a] || 0;
     const W = ((rowOffsets[g.b] || 0) + cw) - x0;
     if (W <= 0) return;
@@ -9032,12 +9043,8 @@ function updateSeasonRibbon() {
       vals.forEach((v2, i2) => { const x2 = ((rowOffsets[g.a + i2] || 0) + cw / 2) - x0;
         d2 += (i2 ? ' L' : 'M') + x2.toFixed(1) + ' ' + yOf(v2).toFixed(1); });
       return d2; }; // open polyline — no bottom baseline, no closing edge
-    // spreadsheet dressing: dotted gridlines at 0 / mid / ceiling (0% strongest), then the curve.
-    // (the dashed average line is retired — the card line already narrates the average)
     const ticks = () => [0, ceil / 2, ceil];
-    const mkSvg = () => ticks().map(t => { const y = yOf(t).toFixed(1);
-        return '<line x1="0" x2="' + W + '" y1="' + y + '" y2="' + y + '" stroke="' + (t === 0 ? '#D6D6D6' : '#E6E6E6') + '" stroke-width="1"' + (t === 0 ? '' : ' stroke-dasharray="3 4"') + '/>'; }).join('')
-      + '<path class="rcurve" d="' + mkD() + '" fill="none" stroke="' + stroke + '" stroke-width="1.5" stroke-linejoin="round"/>';
+    const mkSvg = () => '<path class="rcurve" d="' + mkD() + '" fill="none" stroke="' + stroke + '" stroke-width="1.5" stroke-linejoin="round"/>'; // curve only — the gridlines live in a full-width backdrop
     const isFirst = div.classList.contains('first');
     const bandH = () => BANDH[String(ceil)] - (isFirst ? 20 : 0);
     div.classList.add('ribbon-grown'); div.style.height = bandH() + 'px'; // the band grows with the ceiling
@@ -9055,16 +9062,50 @@ function updateSeasonRibbon() {
     if (twin) { rail = document.createElement('div'); rail.className = 'ribbon-rail';
       rail.style.cssText = 'position:absolute;right:6px;bottom:' + WBOT + 'px;height:' + H + 'px;width:64px;pointer-events:none;';
       rail.innerHTML = railHTML(); twin.appendChild(rail); }
+    // EDGE-TO-EDGE grey-500 rules — one backdrop spanning the WHOLE band, behind every curve
+    const rulesSvg = () => ticks().map(t => { const y = yOf(t).toFixed(1);
+      return '<line x1="0" x2="' + fullW + '" y1="' + y + '" y2="' + y + '" stroke="var(--grey-500)" stroke-width="1"' + (t === 0 ? '' : ' stroke-dasharray="3 4"') + '/>'; }).join('');
+    const rules = document.createElement('div'); rules.className = 'season-rules';
+    rules.style.cssText = 'position:absolute;bottom:' + WBOT + 'px;left:0;width:' + fullW + 'px;height:' + H + 'px;pointer-events:none;z-index:0;';
+    rules.innerHTML = '<svg width="' + fullW + '" height="' + H + '" viewBox="0 0 ' + fullW + ' ' + H + '" preserveAspectRatio="none" style="display:block">' + rulesSvg() + '</svg>';
+    div.appendChild(rules);
+    // NON-FOCUSED opps — draw each one's curve + %-pills + riding icons (persistent, static, no drag)
+    const staticRedraws = [];
+    const drawStatic = so => {
+      const su = so.intent === 'earn';
+      const sv = _seasonSeries(so);
+      const sx0 = rowOffsets[so.a] || 0;
+      const sW = ((rowOffsets[so.b] || 0) + cw) - sx0;
+      if (sW <= 0) return;
+      const w2 = document.createElement('div'); w2.className = 'season-ribbon';
+      w2.style.cssText = 'position:absolute;bottom:' + WBOT + 'px;left:' + sx0 + 'px;width:' + sW + 'px;height:' + H + 'px;pointer-events:none;z-index:1;';
+      const mkd = () => { let d = ''; sv.forEach((v, i) => { const x2 = ((rowOffsets[so.a + i] || 0) + cw / 2) - sx0; d += (i ? ' L' : 'M') + x2.toFixed(1) + ' ' + yOf(v).toFixed(1); }); return d; };
+      w2.innerHTML = '<svg width="' + sW + '" height="' + H + '" viewBox="0 0 ' + sW + ' ' + H + '" preserveAspectRatio="none" style="display:block"><path class="rcurve" d="' + mkd() + '" fill="none" stroke="' + stroke + '" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+      const spills = []; const sgn = su ? '+' : '−';
+      if (cw >= 40) sv.forEach((v, i) => { const di = so.a + i; const hx = ((rowOffsets[di] || 0) + cw / 2) - sx0;
+        const hp = document.createElement('div'); hp.className = 'ribbon-handle rh-static' + (su ? '' : ' lo');
+        hp.style.left = hx + 'px'; hp.style.top = yOf(v) + 'px'; hp.textContent = sgn + Math.round(v * 100) + '%';
+        w2.appendChild(hp); spills.push({ hp: hp, di: di, v: v });
+        const gic = div.querySelector('.gev[data-di="' + di + '"]'); if (gic) { gic.dataset.ride = '1'; gic.style.bottom = (ICBASE + (H - yOf(v))) + 'px'; }
+      });
+      div.appendChild(w2);
+      staticRedraws.push(() => { w2.style.height = H + 'px'; const svg = w2.querySelector('svg');
+        svg.setAttribute('height', H); svg.setAttribute('viewBox', '0 0 ' + sW + ' ' + H); svg.querySelector('path.rcurve').setAttribute('d', mkd());
+        spills.forEach(p => { p.hp.style.top = yOf(p.v) + 'px'; const gic = div.querySelector('.gev[data-ride][data-di="' + p.di + '"]'); if (gic) gic.style.bottom = (ICBASE + (H - yOf(p.v))) + 'px'; }); });
+    };
+    bandOpps.forEach(so => { if (so !== g) drawStatic(so); });
     // DRAGGABLE HANDLES — one black pill per date on the curve line, showing the exact % the
     // engine uses; drag up/down to reshape the season. Edits feed the curve, that column's
     // odometers, the card line, and Apply itself.
     const path = () => wrap.querySelector('path.rcurve');
     const buildD = mkD;
-    const redraw = () => { // ceiling changed mid-drag: rescale chart, gridlines, rail and handles
+    const redraw = () => { // ceiling changed mid-drag: rescale focused chart, rules, rail, static opps
       const s = wrap.querySelector('svg');
       wrap.style.height = H + 'px'; s.setAttribute('height', H); s.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
       s.innerHTML = mkSvg();
+      const rs = rules.querySelector('svg'); rules.style.height = H + 'px'; rs.setAttribute('height', H); rs.setAttribute('viewBox', '0 0 ' + fullW + ' ' + H); rs.innerHTML = rulesSvg();
       if (rail) { rail.style.height = H + 'px'; rail.innerHTML = railHTML(); }
+      staticRedraws.forEach(fn => fn());
       layoutHandles();
     };
     const warn = document.createElement('div');
