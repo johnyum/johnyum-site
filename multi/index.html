@@ -8740,6 +8740,11 @@ function computeSuggestions() {
     const picked = lead.concat(rest).slice(0, 10).concat(dated).sort(onboarding
       ? (x, y) => (phase(x) - phase(y)) || (x.a - y.a)
       : (x, y) => x.a - y.a); // busy: step chronologically (‹ › move one way through the calendar)
+    // LEAD with the closest GREEN (price-up); everything after it stays in pure date order — so the
+    // very next card is the earliest remaining opportunity, green OR orange (no run of all-greens).
+    const isUp = c => c.intent === 'earn' && (c.bucket === 'season-up' || c.bucket === 'event' || c.bucket === 'holiday');
+    const gi = picked.findIndex(isUp);
+    if (gi > 0) { const [green] = picked.splice(gi, 1); picked.unshift(green); }
     cards.length = 0; picked.forEach(c => cards.push(c));
   }
   cards.forEach((g, i) => {
@@ -9598,11 +9603,9 @@ function startOptimize() {
     pillEl.style.width = '72px'; // width = height → a perfect circle, wand centred
   });
   setTimeout(() => {
-    const suggs = computeSuggestions(); // chronological (closest opportunity first)
+    const suggs = computeSuggestions(); // closest green (price-up) leads, then chronological
     window.__opt.suggs = suggs;
-    // OPEN on the closest price-UP (green) opportunity, then ‹ › steps chronologically ("next in line")
-    const firstUp = suggs.findIndex(s => s.intent === 'earn' && (s.bucket === 'season-up' || s.bucket === 'event' || s.bucket === 'holiday'));
-    window.__opt.cur = firstUp >= 0 ? firstUp : 0; window.__opt.state = 'results'; // MUST land before the repaint below — dressOptState
+    window.__opt.cur = 0; window.__opt.state = 'results'; // MUST land before the repaint below — dressOptState
     // reads suggs[cur] to decide focus; a stale cur from the last session used to dress the WRONG card as
     // focused, so a fresh entry whose first-card cells were already mounted needed a tap to light up
     buildFlags(suggs); // the WHOLE board lights: every opportunity is pre-wavy from the first reveal
