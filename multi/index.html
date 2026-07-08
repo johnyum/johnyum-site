@@ -8939,6 +8939,10 @@ function updateSeasonRibbon() {
           ev.preventDefault(); ev.stopPropagation();
           try { hp.setPointerCapture(ev.pointerId); } catch (err) {}
           hp.classList.add('dragging');
+          // the edited column's odometer TARGETS update LIVE while dragging — plain digits swap in
+          // place of the reels, so nothing re-animates; the struck old price stays put
+          const liveCells = (g.lis || []).map(li2 =>
+            document.querySelector('#gridRows .price-row[data-li="' + li2 + '"] .price-card[data-di="' + di2 + '"] .pstack')).filter(Boolean);
           const move = e2 => {
             const wy = e2.clientY - wrap.getBoundingClientRect().top;
             const yy = Math.max(3, Math.min(H - 3, wy));
@@ -8948,15 +8952,17 @@ function updateSeasonRibbon() {
             hp.style.top = yy + 'px';
             hp.textContent = sign + Math.round(v2 * 100) + '%';
             const p2 = path(); if (p2) p2.setAttribute('d', buildD());
+            liveCells.forEach(ps => {
+              const cur2 = +ps.dataset.cur || 0; if (!cur2) return;
+              let neu = Math.round(cur2 * (1 + (up ? 1 : -1) * v2));
+              neu = up ? Math.max(neu, cur2 + 2) : Math.min(neu, cur2 - 2);
+              const prow = ps.querySelector('.prow');
+              if (prow) prow.textContent = '$' + neu;
+            });
           };
           const done = () => {
             window.removeEventListener('pointermove', move);
             hp.classList.remove('dragging');
-            // the edited column's odometers re-roll to the new target; the card line re-narrates
-            (g.lis || []).forEach(li2 => {
-              const card2 = document.querySelector('#gridRows .price-row[data-li="' + li2 + '"] .price-card[data-di="' + di2 + '"]');
-              if (card2 && card2.classList.contains('opt-flag')) { removeOdometer(card2); makeOdometer(card2, li2, di2); }
-            });
             const magEl = document.querySelector('.mopp-mag');
             if (magEl) magEl.innerHTML = _seasonNarrate(g);
           };
