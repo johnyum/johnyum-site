@@ -8923,12 +8923,11 @@ function makeOdometer(card, li, di) {
   if (old && +old.dataset.cur === cur) return;   // fresh — keep (idempotent)
   if (old) old.remove();                         // stale baseline (e.g. after undo) — rebuild, self-healing
   let neu;
-  if (f.roll.market !== false && typeof marketRate === 'function') {
-    neu = marketRate(li, di);
-    if (g && g._pctOv && g._pctOv[di] != null) {
-      neu = Math.round(cur * (1 + (f.roll.dir === 'up' ? 1 : -1) * g._pctOv[di])); // handle-edited % — the edit IS the truth, no direction floor
-      if (neu === cur) { removeOdometer(card); return; } // an explicit 0% edit = no change: plain price, no strike
-    } else neu = f.roll.dir === 'up' ? Math.max(neu, cur + 2) : Math.min(neu, cur - 2); // hold the card's direction
+  if (f.roll.market !== false) {
+    // The cell price is DERIVED from the same per-date % the pill prints (oppNewPrice) — no separate
+    // marketRate read, no ±$2 floor. So the number under the pill always equals the pill's percent.
+    neu = oppNewPrice(g, cur, di, f.roll.dir === 'up');
+    if (neu === cur) { removeOdometer(card); return; } // 0% for this date = no change: plain price, no strike
   } else { // fill-urgency (this week): a fixed discount, not the market rate
     neu = Math.round(cur * (1 - f.roll.pct));
   }
@@ -8991,16 +8990,37 @@ let _wPhase = 0, _wLast = 0; const _wSpeed = 3.2; // a hair faster than 2.6, sti
 // ═══ SEASON DEMAND RIBBON ════════════════════════════════════════════════════════════════════
 // A focused season card draws its market curve as a thin ribbon in each group band — you SEE the
 // peaks instead of reading a hundred odometers. Cells keep their odometers untouched.
-function _seasonSeries(g) { // per-day avg premium (earn) / discount depth (fill) across the card's listings
+// ── ONE source of truth for pricing math ─────────────────────────────────────────────────────
+// The pill %, the cell odometer, and the applied price ALL derive from these two functions, so
+// they can never disagree. _livePct = the raw per-day premium (earn) / discount depth (fill),
+// averaged across the card's listings. oppPctAt = what to SHOW/APPLY for a date: an explicit handle
+// edit wins, then the applied snapshot, else the live premium.
+function _livePct(g, di) {
   const lis = g.lis && g.lis.length ? g.lis : [...new Set(g.items.map(x => x.li))];
   const up = g.intent === 'earn';
-  const vals = [];
-  for (let k = g.a; k <= g.b; k++) {
-    let s2 = 0, n = 0;
-    lis.forEach(li => { const p = getPrice(li, k) || 0; if (!p) return;
-      const m = marketRate(li, k); s2 += Math.max(0, up ? (m - p) / p : (p - m) / p); n++; });
-    vals.push(n ? s2 / n : 0);
+  let s2 = 0, n = 0;
+  lis.forEach(li => { const p = getPrice(li, di) || 0; if (!p) return;
+    const m = marketRate(li, di); s2 += Math.max(0, up ? (m - p) / p : (p - m) / p); n++; });
+  return n ? s2 / n : 0;
+}
+function oppPctAt(g, di) {
+  if (!g) return 0;
+  if (g._pctOv && g._pctOv[di] != null) return g._pctOv[di];            // a dragged/zeroed handle IS the truth
+  if (g._appliedVals && g._appliedVals.length) {                        // committed → the frozen placement
+    const i = di - g.a; return (i >= 0 && i < g._appliedVals.length) ? (g._appliedVals[i] || 0) : 0;
   }
+  return _livePct(g, di);                                               // live preview
+}
+// The new $ price this opp puts on (li, di). Rounds the % to the SAME whole number the pill prints
+// (Math.round(pct*100)) BEFORE turning it into dollars, so "+10%" always means base×1.10 exactly —
+// never a floored +$2, never a value that disagrees with the pill above it.
+function oppNewPrice(g, cur, di, up) {
+  const pct = Math.round(oppPctAt(g, di) * 100) / 100; // whole-percent, matching the pill's readout
+  return Math.round(cur * (1 + (up ? 1 : -1) * pct));
+}
+function _seasonSeries(g) { // per-day premium/depth series driving the pill curve — same _livePct math
+  const vals = [];
+  for (let k = g.a; k <= g.b; k++) vals.push(_livePct(g, k));
   if (g._pctOv) Object.keys(g._pctOv).forEach(k => { const i = +k - g.a; if (i >= 0 && i < vals.length) vals[i] = g._pctOv[k]; });
   return vals;
 }
@@ -9751,24 +9771,23 @@ function exitOptimize() {
   clearTimeout(exitOptimize._sz); exitOptimize._sz = setTimeout(() => { document.body.classList.remove('opt-sizing'); updateVSync(); }, 450); // let the shrink finish, then disarm + resync at the SETTLED 48px height
   if (typeof updateVSync === 'function') requestAnimationFrame(updateVSync); // row heights changed → resync thumbnails
 }
-function applySuggestion(s) { // one per-listing item (groups apply every item)
+function applySuggestion(s, g) { // one per-listing item (groups apply every item); g = the owning card
   if (s.type === 'discount') { lastMinuteVals[s.li] = '-15%'; return; } // introduces the last-minute discount setting
   if (s.type === 'earlybird') { earlyBirdVals[s.li] = '-12%'; return; } // introduces the early-bird discount setting
   for (let k = s.a; k <= s.b; k++) {
     if (s.type === 'raise' || s.type === 'drop') {
       const cur = getPrice(s.li, k);
       if (s.near) { priceOverride[s.li][k] = Math.round(cur * (1 - s.pct)); } // fill-urgency drop
-      else { let m = marketRate(s.li, k);
-        if (s._pctOv && s._pctOv[k] != null) m = Math.round(cur * (1 + (s.type === 'raise' ? 1 : -1) * s._pctOv[k])); // handle-edited % — the edit IS the truth, no direction floor
-        else m = s.type === 'raise' ? Math.max(m, cur + 2) : Math.min(m, cur - 2);
-        if (m !== cur) priceOverride[s.li][k] = m; } // an explicit 0% edit applies as "no change"
+      else { // commit EXACTLY what the pill/cell showed — oppNewPrice(g) is the single source of truth
+        const neu = oppNewPrice(g, cur, k, s.type === 'raise');
+        if (neu !== cur) priceOverride[s.li][k] = neu; } // a 0%-for-this-date edit applies as "no change"
     }
     else if (s.type === 'promo') promoVals[s.li][k] = s.pct;
     else if (s.type === 'minnight') minOverride[s.li][k] = s.newMin;
     if (s.minTo != null) minOverride[s.li][k] = s.minTo; // riding min-night change lands with the price play
   }
 }
-function applyGroup(g) { if (g._pctOv) g.items.forEach(it => { it._pctOv = g._pctOv; }); g.items.forEach(applySuggestion); }
+function applyGroup(g) { g.items.forEach(it => applySuggestion(it, g)); }
 // ONE opportunity at a time: only the current group's cells glow. Focusing clears the old glow
 // instantly, flies to the new window, and blooms its glow (and min-badge) once the camera is still.
 // Focusing NEVER re-flags the board — every opportunity is already wavy. The camera flies to the
