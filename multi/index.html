@@ -7030,7 +7030,7 @@ function buildGroupEventIcons() {
     const which = hol || sec; if (!which) continue;
     const file = hol ? which.file : (which.secondaryFile || (which.altFiles && which.altFiles[secondaryAltIndex(d, which) % 2]));
     if (!file) continue; // star12 / circle secondaries carry no image — skip them in the band
-    holMarks.push({ di, primary: !!hol, name: which.name, file: encodeURI('holidays/' + file), fit: (hol ? (which.fit || 1) : (which.secFit || 1.2)) }); // secondaries (tape, flag…) carry ~18% transparent padding — crop it so they don't ride tiny next to primaries
+    holMarks.push({ di, primary: !!hol, name: which.name, file: encodeURI('holidays/' + file), fit: 1 }); // fit 1 = SAME as event icons — holiday primaries AND secondaries are ~80–85% filled just like the event PNGs, so at the shared 28px box they render identically (no 1.2 scale-up that made holiday secondaries ride bigger)
   }
   dividers.forEach(div => {
     const gi = div.dataset.gi;
@@ -9237,7 +9237,7 @@ function updateSeasonRibbon() {
     const staticRedraws = [];
     const drawStatic = so => {
       const su = so.intent === 'earn';
-      const sv = (so._appliedVals && so._appliedVals.length) ? so._appliedVals.slice() : new Array(so.b - so.a + 1).fill(0); // applied → keep the placements; otherwise ZEROED until tapped
+      const sv = (so._appliedVals && so._appliedVals.length) ? so._appliedVals.slice() : _seasonSeries(so); // applied → the frozen placements; otherwise the SUGGESTED curve (greyed) — every opp stays at its real height, icons never collapse to the 0% line
       const sx0 = rowOffsets[so.a] || 0;
       const sW = ((rowOffsets[so.b] || 0) + cw) - sx0;
       if (sW <= 0) return;
@@ -9397,6 +9397,7 @@ function updateSeasonRibbon() {
       const wandOn = updateSeasonRibbon._wandT0 && (performance.now() - updateSeasonRibbon._wandT0 < WDUR)
         && Array.isArray(updateSeasonRibbon._wandFrom) && updateSeasonRibbon._wandFrom.length === vals.length;
       const from = wandOn ? updateSeasonRibbon._wandFrom : null;
+      if (!from) return; // no fresh-focus 0-rise: the opp already sits at its suggested curve when non-focused, so focusing just recolours it in place (no snap to 0 and back). Only the wand toggle animates.
       const sign2 = up ? '+' : '\u2212';
       const ease = x => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
       const valAt = (i2, k) => from ? from[i2] + (vals[i2] - from[i2]) * k : vals[i2] * k;
