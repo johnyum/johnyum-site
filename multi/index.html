@@ -9597,9 +9597,11 @@ function startOptimize() {
     pillEl.style.width = '72px'; // width = height → a perfect circle, wand centred
   });
   setTimeout(() => {
-    const suggs = computeSuggestions(); // pre-sorted by estimated $ impact — biggest opportunity leads
+    const suggs = computeSuggestions(); // chronological (closest opportunity first)
     window.__opt.suggs = suggs;
-    window.__opt.cur = 0; window.__opt.state = 'results'; // MUST land before the repaint below — dressOptState
+    // OPEN on the closest price-UP (green) opportunity, then ‹ › steps chronologically ("next in line")
+    const firstUp = suggs.findIndex(s => s.intent === 'earn' && (s.bucket === 'season-up' || s.bucket === 'event' || s.bucket === 'holiday'));
+    window.__opt.cur = firstUp >= 0 ? firstUp : 0; window.__opt.state = 'results'; // MUST land before the repaint below — dressOptState
     // reads suggs[cur] to decide focus; a stale cur from the last session used to dress the WRONG card as
     // focused, so a fresh entry whose first-card cells were already mounted needed a tap to light up
     buildFlags(suggs); // the WHOLE board lights: every opportunity is pre-wavy from the first reveal
