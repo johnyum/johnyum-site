@@ -468,7 +468,7 @@ body.row-reordering .thumb-row { cursor: grabbing; }
    rest; every icon is centred to its column and to the header type's centreline. ── */
 #gridRows .group-divider { position: relative; } /* the band is the icons' coordinate space */
 .gev { position: absolute; transform: translateX(-50%) scale(var(--fit, 1)); pointer-events: auto; cursor: default;
-  transition: transform 0.32s ease; z-index: 10; } /* left set inline to the column centre (rowOffsets); --fit crops transparent PNG padding so the glyph fills its box */
+  transition: transform 0.32s ease, filter 0.45s ease; z-index: 10; } /* left set inline to the column centre (rowOffsets); --fit crops transparent PNG padding so the glyph fills its box */
 .gev:hover { transform: translateX(-50%) scale(calc(var(--fit, 1) * 1.5)); z-index: 12; }
 /* group-name centreline = 27px above the band's bottom edge (16px below-name + 11px half-name) —
    same in the 62px band and the 38px .first band, so one pair of offsets centres both sizes on it */
@@ -481,6 +481,8 @@ body.row-reordering .thumb-row { cursor: grabbing; }
 .gev.gev-season.gev-secondary { width: 18px; height: 18px; bottom: 18px; }
 .gev.gev-tentative { opacity: 1; } /* estimated dates render SOLID — the hover pill carries the "(estimated)" caveat */
 .gev.gev-past { filter: grayscale(1); opacity: 0.5; } /* dates already gone — holidays, events, season markers all read as spent (grey) */
+/* During the opportunities SCAN the event/holiday/season icons desaturate to black&white; color floods back (0.45s) when the scan settles. */
+body.opt-scanning .gev:not(.gev-past) { filter: grayscale(1); }
 /* SEASON markers only appear once their opp is TAPPED in opps mode — they ride the pills like the
    event/holiday icons. At rest (default view, or another opp focused) they're hidden but stay in the
    DOM, so the ride math + rise animation are identical to every other icon. */
@@ -1273,7 +1275,8 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
 /* LOW season wand = orange across: orange stroke, light-orange fill, orange wand + orange stars */
 .mopp-wandbtn.is-on.lo { border-color: #EB6100; background: rgba(235,97,0,0.14); }
 .mopp-wandbtn.is-on.lo:hover { background: rgba(235,97,0,0.14); }
-.mopp-wandbtn.is-on.lo .wbody, .mopp-wandbtn.is-on.lo .wstar { fill: #EB6100; }
+.mopp-wandbtn.is-on.lo .wbody { fill: #fff; } /* wand stays white */
+.mopp-wandbtn.is-on.lo .wstar { fill: #EB6100; }
 .magic-pill.opp-light .mopp-apply { background: #222; color: #fff; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .magic-pill.opp-light .mopp-apply:hover { background: #000; }
 .mopp-allbtn { background: transparent; color: var(--grey-700); border: 0; font: 500 12px 'Cereal', sans-serif;
@@ -1354,11 +1357,16 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
 .season-ribbon .ribbon-handle.lo { color: #BE4900; } /* low season = amber type, same grey stroke */
 .season-ribbon .ribbon-handle.rh-static { cursor: pointer; pointer-events: auto; background: transparent; color: var(--grey-700); box-shadow: none;
   -webkit-text-stroke: 3px #fff; paint-order: stroke fill; } /* non-selected → bare grey-700 number with a white sticker outline (no fill box, no shadow, no connecting line); tap to focus */
+/* Price-drag warning pill — sized to match the event/holiday hover pill (.holiday-tip).
+   Two states only: default = "Above/Below market" (grey-200 fill, black type);
+   .extreme = "no one's charging this much" / "you'd be giving it away" (light-red fill, red type). */
 .season-ribbon .ribbon-warn {
   position: absolute; transform: translateX(-50%); pointer-events: none; z-index: 7;
-  font: 600 11px 'Cereal', sans-serif; color: #B85C0A; background: #FBEEDF;
-  border-radius: 999px; padding: 2px 8px; white-space: nowrap;
+  font: 500 13px/1 'Cereal', sans-serif; color: var(--grey-1000); background: var(--grey-200);
+  border-radius: 999px; padding: 7px 12px; white-space: nowrap;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.18);
 }
+.season-ribbon .ribbon-warn.extreme { color: var(--red-600); background: var(--red-100); }
 .season-ribbon .ribbon-handle.dragging { transform: translate(-50%, -50%) scale(1.15); z-index: 6; }
 .season-ribbon .ribbon-cursor { pointer-events: none; z-index: 4; }
 .season-ribbon .ribbon-peak {
@@ -1490,6 +1498,12 @@ body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.opt-
 .price-card.opt-fill.opt-applied .wring .wpath { stroke: #BE4900 !important; }
 .price-card.opt-fill.opt-applied .wring .wfill { fill: rgba(235,97,0,0.10); }
 .price-card.opt-fill.opt-applied .pstack .prec, .price-card.opt-fill.opt-applied.has-sub .price-val { color: #BE4900; }
+/* SUBDUED applied: tapping a DIFFERENT opp calms the previously-applied cells — black wavy stroke,
+   grey-100 fill, black price. Tapping back into that opp restores the green/orange colours above. */
+.price-card.opt-applied:not(.opt-focus) .wring .wpath { stroke: #222 !important; }
+.price-card.opt-applied:not(.opt-focus) .wring .wfill { fill: var(--grey-100) !important; }
+.price-card.opt-applied:not(.opt-focus) .pstack .prec,
+.price-card.opt-applied:not(.opt-focus).has-sub .price-val { color: #222 !important; }
 /* the pill's Applied state (replaces Apply): the green check ANIMATES in, and the whole thing is a
    button — tap to UNDO. One behavior across every opps flow (onboarding + optimization). */
 .mopp-applied { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0; color: #fff;
@@ -3500,8 +3514,8 @@ const DEMAND_EVENTS = [
   ['Palm Springs Pride', 'Palm Springs', '2026-11-06', '2026-11-08', 20, 'event_icons/pride-heart.png', 'event_icons/sec-pride-flag.png', 'confirmed'],
   ['The Dinah queer festival', 'Palm Springs', '2026-09-30', '2026-10-04', 22, 'event_icons/pride-heart.png', 'event_icons/sec-pride-balloon.png', 'confirmed'],
   ['The Dinah queer festival', 'Palm Springs', '2027-03-31', '2027-04-04', 22, 'event_icons/pride-heart.png', 'event_icons/sec-pride-balloon.png', 'estimated'],
-  ['Comic-Con convention', 'San Diego', '2026-07-23', '2026-07-26', 40, 'event_icons/comic-pow.png', 'event_icons/sec-comic-bolt.png', 'confirmed'],
-  ['Comic-Con convention', 'San Diego', '2027-07-22', '2027-07-26', 40, 'event_icons/comic-pow.png', 'event_icons/sec-comic-bolt.png', 'estimated'],
+  ['Comic-Con', 'San Diego', '2026-07-23', '2026-07-26', 40, 'event_icons/comic-pow.png', 'event_icons/sec-comic-bolt.png', 'confirmed'],
+  ['Comic-Con', 'San Diego', '2027-07-22', '2027-07-26', 40, 'event_icons/comic-pow.png', 'event_icons/sec-comic-bolt.png', 'estimated'],
   ['Del Mar Racing opening day', 'San Diego', '2026-07-17', '2026-07-19', 8, 'event_icons/jockey-silks.png', 'event_icons/sec-horseshoe.png', 'confirmed'], // opening weekend only — the window rides out to Mon Jul 20
   ['San Diego County Fair', 'San Diego', '2026-06-10', '2026-07-05', 8, 'event_icons/carousel-horse.png', 'event_icons/sec-ticket.png', 'confirmed'],
   ['Farmers Insurance Open golf', 'San Diego', '2026-01-29', '2026-02-01', 14, 'event_icons/golf-badge.png', 'event_icons/sec-golf-flag.png', 'confirmed'],
@@ -3540,7 +3554,7 @@ const DEMAND_EVENTS = [
   ['Summer Solstice parade', 'Santa Barbara', '2027-06-18', '2027-06-20', 18, 'event_icons/sun.png', 'event_icons/sec-butterfly.png', 'estimated'],
   ['Santa Barbara Bowl concerts', 'Santa Barbara', '2026-03-28', '2026-10-17', 4, 'event_icons/spotlight.png', 'event_icons/sec-note-eighth.png', 'confirmed'],
   ['Santa Barbara Pride', 'Santa Barbara', '2026-08-22', '2026-08-22', 14, 'event_icons/pride-rainbow.png', 'event_icons/sec-pride-arc.png', 'confirmed'],
-  ['Big Bear Oktoberfest', 'Big Bear', '2026-09-19', '2026-10-11', 8, 'event_icons/beer-stein.png', 'event_icons/sec-pretzel.png', 'estimated'], // the core Oktoberfest weekends, not the whole 2-month run
+  ['Big Bear Oktoberfest', 'Big Bear', '2026-09-17', '2026-09-26', 8, 'event_icons/beer-stein.png', 'event_icons/sec-pretzel.png', 'estimated'], // capped to Sep 17–26 (the headline weekends), never the 2-month run
   ['Chili Cook-Off', 'Malibu', '2026-09-04', '2026-09-07', 18, 'event_icons/chili-pepper.png', 'event_icons/sec-flame.png', 'confirmed'],
   ['Malibu Triathlon', 'Malibu', '2026-09-19', '2026-09-20', 14, 'event_icons/bicycle.png', 'event_icons/sec-stopwatch.png', 'confirmed'],
   ['Joshua Tree Music Festival', 'Joshua Tree', '2026-05-14', '2026-05-17', 26, 'event_icons/joshua-tree.png', 'event_icons/sec-note-triple.png', 'confirmed'],
@@ -7158,11 +7172,13 @@ function buildGroupEventIcons() {
       const mset = _monthSet(months);
       const arrow = kind === 'low' ? 'event_icons/arrow-down-orange.png' : 'event_icons/arrow-up-green.png'; // trend arrow = the mini accent
       // hover label: plain "Low season" / "High season"; dual-peak highs get a simple distinct name
+      // Dual-peak highs get a distinct name. "Ski"/"Awards" already imply high demand, so they stand
+      // alone; ambiguous descriptors (summer/spring/fall) get the "high season" qualifier appended.
       const hover = kind === 'low' ? 'Low season'
         : /winter/i.test(label) ? 'Ski season'
-        : /summer/i.test(label) ? 'Summer season'
-        : /spring/i.test(label) ? 'Spring season'
-        : /fall/i.test(label) ? 'Fall season'
+        : /summer/i.test(label) ? 'Summer high season'
+        : /spring/i.test(label) ? 'Spring high season'
+        : /fall/i.test(label) ? 'Fall high season'
         : /awards/i.test(label) ? 'Awards season'
         : 'High season';
       const place = (d, src, isP) => {
@@ -8456,6 +8472,12 @@ function fmtRange(a, b) {
 // RAISES price — it lowers, or introduces a last-minute discount when the listing has none; and
 // one group per date window, so a holiday touching 4 listings is ONE apply for all of them.
 const NEAR_DAYS = 7;
+// Lead-time (early-bird / last-minute) OPPORTUNITY cards are hidden for now (user request 2026-07-08).
+// The underlying pricing settings still work in the Pricing tab — only the opp-stream card is suppressed.
+const SHOW_LEADTIME_OPPS = false;
+// PROMO opportunity cards are also hidden from the stream for now — promo + early-bird are reactive
+// pop-ups only, never proactive stream cards. Gated at the single promo-card chokepoint below.
+const SHOW_PROMO_OPPS = false;
 function computeSuggestions() {
   const items = []; const N = allDays.length;
   const varianceOn = !!(document.getElementById('devVariance') && document.getElementById('devVariance').checked);
@@ -8750,6 +8772,7 @@ function computeSuggestions() {
   });
   Object.keys(seasonBy).forEach(key => {
     const its = seasonBy[key], t = its[0].type;
+    if (t !== 'raise' && t !== 'drop' && !SHOW_PROMO_OPPS) return; // promo cards are pop-up only — keep them out of the stream
     const pct = its.reduce((s, x) => s + x.pct, 0) / its.length;
     const mon = _MONF[allDays[its[0].a].getMonth()], where = wherePhrase(its);
     const nL = new Set(its.map(x => x.li)).size;
@@ -8757,18 +8780,12 @@ function computeSuggestions() {
     cards.push({ bucket: t === 'raise' ? 'season-up' : t === 'drop' ? 'season-down' : 'promo',
       type: t, intent: its[0].intent, pct,
       a: Math.min(...its.map(x => x.a)), b: Math.max(...its.map(x => x.b)), items: its,
-      head: onboarding
-        ? (t === 'raise' ? 'High season · ' + cityList : t === 'drop' ? 'Slow season · ' + cityList : mon + ' promotion, ready')
-        : (t === 'raise' ? 'Lean into peak season' : t === 'drop' ? 'Keep pace in the slow season' : 'Tempt guests into a quiet stretch'),
+      // ONE voice for every persona — the Get-started copy is canonical (season heads are re-set to
+      // "Set high/low season prices" in the magnitude pass; promo keeps its "<Mon> promotion, ready").
+      head: t === 'raise' ? 'High season · ' + cityList : t === 'drop' ? 'Slow season · ' + cityList : mon + ' promotion, ready',
       cta: 'Apply',
       title: its[0].title,
-      why: onboarding
-        ? ''
-        : (t === 'raise'
-            ? mon + ' is your busiest month ' + where + ', yet ' + nL + ' listing' + (nL > 1 ? 's are' : ' is') + ' still sitting at base rate.'
-            : t === 'drop'
-            ? mon + ' is quiet ' + where + ' — booked stays are going below your rate, so a small trim keeps you in the mix.'
-            : 'It’s slow ' + where + ' — a limited promo clears these nights and lifts you in search, base price untouched.') });
+      why: '' });
   });
   // (4) UNLOCK STAYS — every stranded gap on the calendar as ONE mass action
   if (staysItems.length) {
@@ -8787,7 +8804,7 @@ function computeSuggestions() {
   LISTINGS.forEach((l, li) => {
     if (earlyBirdVals[li] == null && !_dropLis.has(li)) setupItems.push({ li, a: Math.max(0, todayDi), b: Math.min(N - 1, todayDi + NEAR_DAYS), intent: 'fill', type: 'earlybird' });
   });
-  if (setupItems.length) {
+  if (SHOW_LEADTIME_OPPS && setupItems.length) {
     cards.push({ bucket: 'setup', type: 'discount', intent: 'fill', pct: 0.15,
       a: Math.min(...setupItems.map(x => x.a)), b: Math.max(...setupItems.map(x => x.b)), items: setupItems,
       head: 'Smart discounts, ready',
@@ -8804,16 +8821,18 @@ function computeSuggestions() {
     const existingHol = new Set(cards.filter(c => c.bucket === 'holiday').map(c => c.hol));
     const spawn = [];
     cards.filter(c => c.bucket === 'season-up' || c.bucket === 'season-down').forEach(sc => {
-      const lis = [...new Set(sc.items.map(it => it.li))];
       const seen = new Set();
       for (let k = sc.a; k <= sc.b; k++) {
         const h = holidayFor(allDays[k]); if (!h || seen.has(h.name)) continue; seen.add(h.name);
         if (existingHol.has(h.name)) continue; // already carded elsewhere
         const hObj = HOLIDAYS.find(o => o.name === h.name);
         const offs = (hObj && hObj.secOffsets) || secondaryOffsets(allDays[k].getDay());
-        const wa = Math.max(sc.a, Math.max(0, k + Math.min(0, ...offs)));
-        const wb = Math.min(sc.b, k + Math.max(0, ...offs));
-        const hitems = lis.map(li => { const pc = getPrice(li, k), mk = marketRate(li, k);
+        // A holiday is a national premium date — it spans EVERY city grouping, one Apply, each with its
+        // own per-city variance (like Labor Day). Window off the holiday itself (not the spawning
+        // season), and build items for ALL listings, not just this season card's city.
+        const wa = Math.max(0, k + Math.min(0, ...offs));
+        const wb = Math.min(N - 1, k + Math.max(0, ...offs));
+        const hitems = LISTINGS.map((_, li) => { const pc = getPrice(li, k), mk = marketRate(li, k);
           return { li, a: wa, b: wb, intent: 'earn', type: 'raise', pct: Math.max(0, (mk - pc) / pc),
             curPrice: pc, newPrice: mk, hol: h.name, title: 'Raise for ' + h.name }; });
         if (!hitems.some(it => it.newPrice > it.curPrice + 4)) continue; // market doesn't lift this one → leave the season whole
@@ -8945,8 +8964,8 @@ function computeSuggestions() {
     const p = Math.round((c.pct || 0) * 100);
     c.magKind = c.intent === 'earn' ? 'up' : 'down'; // accent: amber up, green down/savings
     c.why = ''; // the persuasion paragraph is retired — head + the number line say it all
-    if (true) { // ONE system for every persona — the simple onboarding language everywhere
-      // "just say yes": the decision is MADE — one concrete number line, same Apply everywhere.
+    // ONE system for every persona — the Get-started copy is canonical everywhere (no voice fork).
+    // "just say yes": the decision is MADE — one concrete number line, same Apply everywhere.
       // Every dated price card shares ONE sub format: city · dates · REAL % range (min–max of
       // marketRate vs base across the window — weekdays land lower, Fri/Sat higher).
       const it = c.items[0];
@@ -8981,10 +9000,6 @@ function computeSuggestions() {
       }
       else if (it && it.curPrice && it.newPrice) { c.mag = '$' + it.curPrice + ' → ~$' + it.newPrice + ' a night'; }
       else { c.mag = c.intent === 'earn' ? '~' + p + '% higher' : '~' + p + '% lower'; }
-    } else {
-      if (c.bucket === 'grouping') { c.mag = ''; return; } // structural step — no % / $ to claim
-      c.mag = '≈ +' + _money(c.impact);
-    }
   });
   cards.sort((x, y) => y.impact - x.impact);
   // digestible set of 8 — but bucket-DIVERSE: the best card of every bucket makes the cut before
@@ -9095,6 +9110,11 @@ function dressOptState(card, f) {
   }
   document.head.insertAdjacentHTML('beforeend', '<style>' + kf + '</style>');
 })();
+function _odoStaticHtml(s) { // frozen digits — NO roll animation (applied cells must never re-animate on re-mount)
+  let out = '';
+  for (const c of s) { const ch = c === ' ' ? '&nbsp;' : c; out += '<span class="dg"><span class="dgreel"><i>' + ch + '</i></span></span>'; }
+  return out;
+}
 function _odoRollHtml(oldS, newS, dir) {
   let out = '';
   for (let i = 0; i < Math.max(oldS.length, newS.length); i++) {
@@ -9140,7 +9160,9 @@ function makeOdometer(card, li, di) {
   const oldS = '$' + cur, newS = '$' + neu;
   const ps = document.createElement('div'); ps.className = 'pstack'; ps.dataset.cur = cur;
   ps.style.setProperty('--odoc', f.roll.dir === 'up' ? '#038026' : '#222');
-  ps.innerHTML = '<div class="prec"><span class="prow">' + _odoRollHtml(oldS, newS, f.roll.dir) + '</span></div><div class="pold">' + oldS + '</div>';
+  // frozen (applied) → static digits, never re-roll; live opp → the rolling odometer
+  const rowHtml = frozen ? _odoStaticHtml(newS) : _odoRollHtml(oldS, newS, f.roll.dir);
+  ps.innerHTML = '<div class="prec"><span class="prow">' + rowHtml + '</span></div><div class="pold">' + oldS + '</div>';
   card.appendChild(ps); card.classList.add('has-odo');
 }
 function removeOdometer(card) { if (!card) return; const ps = card.querySelector(':scope > .pstack'); if (ps) ps.remove(); card.classList.remove('has-odo'); }
@@ -9207,7 +9229,8 @@ function _livePct(g, di) {
   let s2 = 0, n = 0;
   lis.forEach(li => { const p = getPrice(li, di) || 0; if (!p) return;
     const m = marketRate(li, di); s2 += Math.max(0, up ? (m - p) / p : (p - m) / p); n++; });
-  return n ? s2 / n : 0;
+  // an opportunity always moves the price at least a little — never a flat 0% within its window
+  return n ? Math.max(0.02, s2 / n) : 0;
 }
 function oppPctAt(g, di) {
   if (!g) return 0;
@@ -9241,12 +9264,14 @@ function _seasonNarrate(c) {
     ? _M3b[dA.getMonth()] + ' ' + dA.getDate() + ' – ' + dB.getDate()
     : _M3b[dA.getMonth()] + ' – ' + _M3b[dB.getMonth()];
   const cls = c.intent === 'fill' ? ' lo' : '';
-  // just the dates + the % RANGE (no avg / softest): "Jul – Sep · 12% – 24% reduced"
+  // ONE baseline line for every up/down opp: "City · Date range · X% – Y% premium|discount"
+  const cities = [...new Set(c.items.map(x => listingCity[x.li]))];
+  const cityStr = cities.length > 3 ? cities.slice(0, 3).join(', ') + ' +' + (cities.length - 3) : cities.join(', ');
   const lo = nz.length ? Math.round(Math.min(...nz) * 100) : 0;
   const hi = nz.length ? Math.round(Math.max(...nz) * 100) : 0;
   const range = lo === hi ? lo + '%' : lo + '% – ' + hi + '%';
-  const word = c.intent === 'earn' ? 'premium' : 'reduced';
-  return dates + ' · <span class="hl' + cls + '">' + range + ' ' + word + '</span>';
+  const word = c.intent === 'earn' ? 'premium' : 'discount';
+  return (cityStr ? cityStr + ' · ' : '') + dates + ' · <span class="hl' + cls + '">' + range + ' ' + word + '</span>';
 }
 function _seasonPeaks(vals, count) { // top clusters, ≥10 days apart, chronological
   const idx = vals.map((v, i) => [v, i]).sort((a2, b2) => b2[0] - a2[0]);
@@ -9321,7 +9346,7 @@ function updateSeasonRibbon() {
   const BANDH = { '0.4': 164, '0.6': 196, '0.8': 226, '1': 256, '1.5': 296 }; // band px per ceiling
   const niceCeil = v => STEPS.find(s => s >= v - 1e-9) || STEPS[STEPS.length - 1];
   const WBOT = 5;           // chart bottom inset: 0% line sits 16px above the cells (WBOT + 3px baseline + ~8px row gap)
-  const ICBASE = WBOT + 14; // riding-icon bottom base (WBOT + 10 half-pill + 4 gap)
+  const ICBASE = WBOT + 15; // riding-icon bottom base (WBOT + 11 half-pill [22px pill] + 4px gap icon↔pill)
   let ceil = niceCeil(up ? mx : Math.min(mx, 1)); // low season axis never opens past −100% ($0 floor)
   let H = BANDH[String(ceil)] - 78; // calibrated so name→top-tick = 24px and 0%-line→cells = 16px at every ceiling
   const stroke = '#111'; // the curve line is BLACK now (pills separate from it via their white stroke)
@@ -9477,10 +9502,14 @@ function updateSeasonRibbon() {
             // PROGRESSIVE warning, keyed off how far past the MARKET this drag sits (v2 vs the
             // suggested/market premium for this date) — not a flat %. So a big number on a genuine
             // spike stays quiet, but pricing well above what the market supports escalates in words.
+            // TWO states only (user spec 2026-07-08): a grey "Above/Below market" once the drag
+            // runs past what the market supports, then the extreme red warning further out.
             const over = v2 - _livePct(g, di2);
+            const extreme = over >= 0.55;
             const warnMsg = over < 0.20 ? ''
-              : up ? (over >= 0.70 ? "No one's charging this much" : over >= 0.45 ? 'Priciest nearby' : 'Ahead of the market')
-                   : (over >= 0.70 ? "You'd be giving it away" : over >= 0.45 ? 'Below the market' : 'Under the market');
+              : up ? (extreme ? "No one's charging this much" : 'Above market')
+                   : (extreme ? "You'd be giving it away"     : 'Below market');
+            warn.classList.toggle('extreme', !!warnMsg && extreme);
             if (warnMsg) {
               warn.textContent = warnMsg;
               warn.style.left = hp.style.left;
