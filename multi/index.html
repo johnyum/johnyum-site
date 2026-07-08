@@ -1318,6 +1318,14 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
    from bottom-aligned to top-pinned at the same 24px it already sat at in the 62px band — so the
    name holds still while the band grows the chart in beneath it. (Event icons hang separately.) */
 .listing-thumbs .group-divider.ribbon-grown:not(.first) { align-items: flex-start; padding-top: 24px; }
+.listing-thumbs .group-divider.ribbon-grown { position: relative; } /* the y-axis rail anchors here */
+/* Excel-style Y-AXIS RAIL in the left gutter: tick labels right-aligned against the chart's left
+   edge, plus the "avg +N%" chip riding its dashed line */
+.ribbon-rail { z-index: 2; }
+.ribbon-rail .rr-tick { position: absolute; right: 0; font: 400 12px 'Cereal', sans-serif; color: var(--grey-500); line-height: 14px; }
+.ribbon-rail .rr-avg { position: absolute; right: 0; font: 600 10px 'Cereal', sans-serif; line-height: 14px;
+  color: #038026; background: #E6F2E9; border-radius: 999px; padding: 1px 6px; white-space: nowrap; }
+.ribbon-rail .rr-avg.lo { color: #BE4900; background: #FBEEDF; }
 .ribbon-hit { position: absolute; inset: 0; pointer-events: auto; cursor: crosshair; }
 .season-ribbon .ribbon-handle {
   position: absolute; transform: translate(-50%, -50%); pointer-events: auto; cursor: ns-resize;
@@ -8976,8 +8984,8 @@ function seasonWandReset() {
   } else if (wb) wb.classList.add('is-on');
 }
 function updateSeasonRibbon() {
-  document.querySelectorAll('.season-ribbon').forEach(x => x.remove());
-  document.querySelectorAll('.group-divider.ribbon-grown').forEach(x => x.classList.remove('ribbon-grown'));
+  document.querySelectorAll('.season-ribbon, .ribbon-rail').forEach(x => x.remove());
+  document.querySelectorAll('.group-divider.ribbon-grown').forEach(x => { x.classList.remove('ribbon-grown'); x.style.height = ''; });
   document.querySelectorAll('.gev[data-ride]').forEach(ic => { ic.style.bottom = ''; ic.removeAttribute('data-ride'); }); // ridden event icons drop back to their stock band spot
   const o = window.__opt;
   if (!o || o.state !== 'results') return;
@@ -8986,9 +8994,16 @@ function updateSeasonRibbon() {
   const up = g.intent === 'earn';
   const vals = _seasonSeries(g);
   const mx = Math.max(...vals, 0.001);
-  const cw = gridCell().w, H = 84; // the grown band gives the curve real height
+  const cw = gridCell().w;
+  // EXCEL-style axis: 0-based, honest scale. The ceiling snaps to the next "nice" step and the
+  // BAND GROWS with it, so 0→150% stays readable at a near-constant %-per-pixel. Dragging past
+  // the chart top bumps to the next step live; release relaxes back to what the data needs.
+  const STEPS = [0.4, 0.6, 0.8, 1.0, 1.5];
+  const BANDH = { '0.4': 148, '0.6': 180, '0.8': 210, '1': 240, '1.5': 280 }; // band px per ceiling
+  const niceCeil = v => STEPS.find(s => s >= v - 1e-9) || STEPS[STEPS.length - 1];
+  let ceil = niceCeil(mx);
+  let H = BANDH[String(ceil)] - 64; // 64 = name zone (24 + 22 name + 16 gap) + 2 wrap inset
   const stroke = up ? '#038026' : '#BE4900';
-  const fill = 'none'; // line only — the area wash is retired for now
   const gLis = new Set(g.lis && g.lis.length ? g.lis : g.items.map(x => x.li));
   document.querySelectorAll('#gridRows > .group-divider').forEach(div => {
     const gi = div.dataset.gi;
@@ -8999,31 +9014,57 @@ function updateSeasonRibbon() {
     const x0 = rowOffsets[g.a] || 0;
     const W = ((rowOffsets[g.b] || 0) + cw) - x0;
     if (W <= 0) return;
-    // RANGE-normalized axis: the curve spans min→max of the window (not 0→max), so even a few
-    // percentage points of spread fill the full chart height. Drags past either edge grow the range.
-    let yHi = mx;
-    let yLo = Math.max(0, Math.min(...vals));
-    if (yHi - yLo < 0.10) { // flat/near-flat windows (e.g. after a zero-out) keep a USABLE drag range:
-      yLo = Math.max(0, (yHi + yLo) / 2 - 0.05); yHi = yLo + 0.10; // 10% span centered on the level
-    }
-    const yOf = v2 => H - 3 - ((Math.max(yLo, Math.min(v2, yHi)) - yLo) / (yHi - yLo)) * (H - 7);
+    const yOf = v2 => H - 3 - (Math.max(0, Math.min(v2, ceil)) / ceil) * (H - 7);
     const mkD = () => { let d2 = '';
       vals.forEach((v2, i2) => { const x2 = ((rowOffsets[g.a + i2] || 0) + cw / 2) - x0;
         d2 += (i2 ? ' L' : 'M') + x2.toFixed(1) + ' ' + yOf(v2).toFixed(1); });
       return d2; }; // open polyline — no bottom baseline, no closing edge
-    const d = mkD();
-    div.classList.add('ribbon-grown'); // this band grows for the chart
+    // spreadsheet dressing: dotted gridlines at 0 / mid / ceiling (0% strongest), a dashed
+    // average line in the card's colour, then the curve on top
+    const nzv = vals.filter(v2 => v2 > 0.005);
+    const avg = nzv.length ? nzv.reduce((a2, b2) => a2 + b2, 0) / nzv.length : 0;
+    const ticks = () => [0, ceil / 2, ceil];
+    const mkSvg = () => ticks().map(t => { const y = yOf(t).toFixed(1);
+        return '<line x1="0" x2="' + W + '" y1="' + y + '" y2="' + y + '" stroke="' + (t === 0 ? '#D6D6D6' : '#E6E6E6') + '" stroke-width="1"' + (t === 0 ? '' : ' stroke-dasharray="3 4"') + '/>'; }).join('')
+      + (avg > 0.005 ? '<line x1="0" x2="' + W + '" y1="' + yOf(avg).toFixed(1) + '" y2="' + yOf(avg).toFixed(1) + '" stroke="' + stroke + '" stroke-width="1" stroke-dasharray="5 4" opacity="0.35"/>' : '')
+      + '<path class="rcurve" d="' + mkD() + '" fill="none" stroke="' + stroke + '" stroke-width="1.5" stroke-linejoin="round"/>';
+    const isFirst = div.classList.contains('first');
+    const bandH = () => BANDH[String(ceil)] - (isFirst ? 20 : 0);
+    div.classList.add('ribbon-grown'); div.style.height = bandH() + 'px'; // the band grows with the ceiling
     const twin = document.querySelector('#listingThumbsInner > .group-divider[data-gi="' + gi + '"]');
-    if (twin) twin.classList.add('ribbon-grown'); // left column keeps step
+    if (twin) { twin.classList.add('ribbon-grown'); twin.style.height = bandH() + 'px'; } // left column keeps step
     const wrap = document.createElement('div');
     wrap.className = 'season-ribbon';
     wrap.style.cssText = 'position:absolute;bottom:2px;left:' + x0 + 'px;width:' + W + 'px;height:' + H + 'px;pointer-events:none;z-index:1;';
-    wrap.innerHTML = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="display:block"><path d="' + d + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    wrap.innerHTML = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="display:block">' + mkSvg() + '</svg>';
+    // Y-AXIS RAIL — Excel-style tick labels in the left gutter under the group name, plus the
+    // "avg +N%" chip on its dashed line (skipped when it would collide with a tick label).
+    const railHTML = () => {
+      let h2 = ticks().map(t => '<span class="rr-tick" style="top:' + (yOf(t) - 7) + 'px">' + (t === 0 ? '0%' : (up ? '+' : '−') + Math.round(t * 100) + '%') + '</span>').join('');
+      if (avg > 0.005) { // the avg chip ducks to the clear side of any tick label it would collide with
+        let cy = yOf(avg) - 8;
+        const hit = ticks().find(t => Math.abs(yOf(t) - yOf(avg)) <= 16);
+        if (hit != null) cy = yOf(hit) > yOf(avg) ? yOf(avg) - 22 : yOf(avg) + 6;
+        h2 += '<span class="rr-avg' + (up ? '' : ' lo') + '" style="top:' + cy + 'px">avg ' + (up ? '+' : '−') + Math.round(avg * 100) + '%</span>';
+      }
+      return h2;
+    };
+    let rail = null;
+    if (twin) { rail = document.createElement('div'); rail.className = 'ribbon-rail';
+      rail.style.cssText = 'position:absolute;right:6px;bottom:2px;height:' + H + 'px;width:64px;pointer-events:none;';
+      rail.innerHTML = railHTML(); twin.appendChild(rail); }
     // DRAGGABLE HANDLES — one black pill per date on the curve line, showing the exact % the
     // engine uses; drag up/down to reshape the season. Edits feed the curve, that column's
     // odometers, the card line, and Apply itself.
-    const path = () => wrap.querySelector('path');
+    const path = () => wrap.querySelector('path.rcurve');
     const buildD = mkD;
+    const redraw = () => { // ceiling changed mid-drag: rescale chart, gridlines, rail and handles
+      const s = wrap.querySelector('svg');
+      wrap.style.height = H + 'px'; s.setAttribute('height', H); s.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+      s.innerHTML = mkSvg();
+      if (rail) { rail.style.height = H + 'px'; rail.innerHTML = railHTML(); }
+      layoutHandles();
+    };
     const warn = document.createElement('div');
     warn.className = 'ribbon-warn';
     warn.textContent = "That's a lot";
@@ -9054,11 +9095,16 @@ function updateSeasonRibbon() {
           const liveCards = (g.lis || []).map(li2 => ({ li: li2, card: document.querySelector('#gridRows .price-row[data-li="' + li2 + '"] .price-card[data-di="' + di2 + '"]') })).filter(x => x.card);
           const move = e2 => {
             const wy = e2.clientY - wrap.getBoundingClientRect().top;
-            // NO data cap: pulling past either edge stretches the range live. Ceiling +100%.
-            let v2 = yLo + (H - 3 - wy) / (H - 7) * (yHi - yLo);
-            v2 = Math.max(0, Math.min(1, v2));
-            if (v2 > yHi) yHi = v2;
-            if (v2 < yLo) yLo = v2;
+            let v2 = (H - 3 - wy) / (H - 7) * ceil; // 0-based Excel axis
+            v2 = Math.max(0, Math.min(ceil, v2));
+            // magnetic ticks: quarter-grid stops + the axis midline snap under the hand
+            for (const s of [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, ceil / 2]) {
+              if (s <= ceil + 1e-9 && Math.abs(v2 - s) <= 0.015) { v2 = s; break; }
+            }
+            // pushing past the chart top bumps the ceiling to the next step — the band grows to hold it
+            if (wy < -6) { const ni = STEPS.indexOf(ceil) + 1;
+              if (ni > 0 && ni < STEPS.length) { ceil = STEPS[ni]; H = BANDH[String(ceil)] - 64;
+                div.style.height = bandH() + 'px'; if (twin) twin.style.height = bandH() + 'px'; redraw(); } }
             vals[i] = v2;
             g._pctOv = g._pctOv || {}; g._pctOv[di2] = v2;
             const wb0 = document.querySelector('.mopp-wandbtn'); if (wb0) wb0.classList.remove('is-on'); // hand-edited — no longer our suggestion
@@ -9091,7 +9137,7 @@ function updateSeasonRibbon() {
             const magEl = document.querySelector('.mopp-mag');
             if (magEl) magEl.innerHTML = _seasonNarrate(g);
             if (warn.style.display !== 'none') { clearTimeout(warn._t); warn._t = setTimeout(() => { updateSeasonRibbon(); }, 1400); }
-            else updateSeasonRibbon(); // renormalize the axis to the new shape
+            else updateSeasonRibbon(); // relax the ceiling (and band height) to what the data needs
           };
           window.addEventListener('pointermove', move);
           window.addEventListener('pointerup', done, { once: true });
@@ -9110,7 +9156,7 @@ function updateSeasonRibbon() {
       return best; };
     hit.addEventListener('mousemove', ev => {
       const i = nearestI(ev); const d2 = allDays[g.a + i];
-      const y = H - 3 - (vals[i] / mx) * (H - 7);
+      const y = yOf(vals[i]);
       cur.textContent = _M3c[d2.getMonth()] + ' ' + d2.getDate() + ' · ' + (up ? '+' : '\u2212') + Math.round(vals[i] * 100) + '%';
       cur.style.left = (((rowOffsets[g.a + i] || 0) + cw / 2) - x0) + 'px';
       cur.style.top = Math.max(-14, y - 28) + 'px';
