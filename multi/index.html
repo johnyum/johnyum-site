@@ -481,6 +481,11 @@ body.row-reordering .thumb-row { cursor: grabbing; }
 .gev.gev-season.gev-secondary { width: 18px; height: 18px; bottom: 18px; }
 .gev.gev-tentative { opacity: 1; } /* estimated dates render SOLID — the hover pill carries the "(estimated)" caveat */
 .gev.gev-past { filter: grayscale(1); opacity: 0.5; } /* dates already gone — holidays, events, season markers all read as spent (grey) */
+/* SEASON markers only appear once their opp is TAPPED in opps mode — they ride the pills like the
+   event/holiday icons. At rest (default view, or another opp focused) they're hidden but stay in the
+   DOM, so the ride math + rise animation are identical to every other icon. */
+.gev.gev-season { opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .32s ease; }
+.gev.gev-season[data-ride] { opacity: 1; pointer-events: auto; }
 /* collapse is RETIRED for GROUPS: no up/down chevrons anywhere — groups are always open.
    The left panel's own grey-circle chevron stays: names can still collapse/expand. */
 .group-toggle { display: none; }
@@ -7164,11 +7169,12 @@ function buildGroupEventIcons() {
         const rs = di; while (di < allDays.length && mset.has(allDays[di].getMonth())) di++;
         const re = di - 1, span = re - rs;
         if (span < 20) continue; // a window sliver clipped at the calendar edge — skip
+        if (re < todayDi - 45 || rs > todayDi + 260) continue; // markers only matter within the opps window (hidden in default, ridden only when a season opp is tapped) — skip distant runs to keep the DOM light
         // BIG themed icon leads the season (thermometer / ski). For the season you're IN right now, pin
         // it to TODAY so it's the first thing on screen; future seasons lead at their window start.
-        place((todayDi > rs && todayDi <= re) ? todayDi : rs, primary, true);
-        const nSec = Math.min(5, Math.max(2, Math.round(span / 40))); // mini trend arrows (orange ↓ / green ↑) trail across the window
-        for (let k = 1; k <= nSec; k++) { const d = Math.round(rs + span * k / nSec); if (d > rs) place(d, arrow, false); }
+        const pd = (todayDi > rs && todayDi <= re) ? todayDi : rs;
+        place(pd, primary, true);
+        for (let d = rs; d <= re; d++) if (d !== pd) place(d, arrow, false); // a trend arrow (orange ↓ / green ↑) on EVERY date → every pill rides one
       }
     });
   });
