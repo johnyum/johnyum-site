@@ -1329,9 +1329,10 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
 .ribbon-hit { position: absolute; inset: 0; pointer-events: auto; cursor: crosshair; }
 .season-ribbon .ribbon-handle {
   position: absolute; transform: translate(-50%, -50%); pointer-events: auto; cursor: ns-resize;
-  font: 600 11px 'Cereal', sans-serif; color: #30D158; background: #111;
-  border-radius: 999px; padding: 2px 8px; white-space: nowrap; z-index: 5;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.25); user-select: none; -webkit-user-select: none; touch-action: none;
+  font: 600 14px 'Cereal', sans-serif; color: #30D158; background: #111;
+  border-radius: 999px; padding: 3px 10px; white-space: nowrap; z-index: 5;
+  box-shadow: 0 0 0 1px #fff, 0 2px 6px rgba(0,0,0,0.32); /* outside 1px white stroke + drop shadow → floats off the black line */
+  user-select: none; -webkit-user-select: none; touch-action: none;
 }
 .season-ribbon .ribbon-handle.lo { color: #EB6100; }
 .season-ribbon .ribbon-warn {
@@ -8992,10 +8993,10 @@ function updateSeasonRibbon() {
   if (!o || o.state !== 'results') { updateSeasonRibbon._lastId = null; return; }
   const g = o.suggs[o.cur];
   if (!g || (g.bucket !== 'season-up' && g.bucket !== 'season-down' && g.bucket !== 'event')) { updateSeasonRibbon._lastId = null; return; } // events ride the SAME chart system as seasons
-  // ENTRY: a freshly-focused card holds the chart flat at 0% until the price odometers start
-  // (their focus gates clear), then rises over the SAME 2.2s reel window — so the pills count up
-  // and land exactly when the prices do. _riseStart is shared so mid-flight rebuilds RESUME.
-  if (updateSeasonRibbon._lastId !== g.id) { updateSeasonRibbon._lastId = g.id; updateSeasonRibbon._entryDone = false; updateSeasonRibbon._riseStart = null; }
+  // ENTRY: a freshly-focused card animates the chart up from 0% on the odometer's early beats
+  // (flat ~300ms, rise, settled by ~750ms). The t0 is shared so mid-flight rebuilds (camera
+  // scroll re-hangs) RESUME the rise instead of cutting it.
+  if (updateSeasonRibbon._lastId !== g.id) { updateSeasonRibbon._lastId = g.id; updateSeasonRibbon._entryT0 = performance.now(); }
   const up = g.intent === 'earn';
   const vals = _seasonSeries(g);
   const mx = Math.max(...vals, 0.001);
@@ -9010,7 +9011,7 @@ function updateSeasonRibbon() {
   const ICBASE = WBOT + 14; // riding-icon bottom base (WBOT + 10 half-pill + 4 gap)
   let ceil = niceCeil(mx);
   let H = BANDH[String(ceil)] - 70; // calibrated so name→top-tick = 16px and 0%-line→cells = 16px at every ceiling
-  const stroke = up ? '#038026' : '#BE4900';
+  const stroke = '#111'; // the curve line is BLACK now (pills separate from it via their white stroke)
   const gLis = new Set(g.lis && g.lis.length ? g.lis : g.items.map(x => x.li));
   document.querySelectorAll('#gridRows > .group-divider').forEach(div => {
     const gi = div.dataset.gi;
@@ -9026,14 +9027,11 @@ function updateSeasonRibbon() {
       vals.forEach((v2, i2) => { const x2 = ((rowOffsets[g.a + i2] || 0) + cw / 2) - x0;
         d2 += (i2 ? ' L' : 'M') + x2.toFixed(1) + ' ' + yOf(v2).toFixed(1); });
       return d2; }; // open polyline — no bottom baseline, no closing edge
-    // spreadsheet dressing: dotted gridlines at 0 / mid / ceiling (0% strongest), a dashed
-    // average line in the card's colour, then the curve on top
-    const nzv = vals.filter(v2 => v2 > 0.005);
-    const avg = nzv.length ? nzv.reduce((a2, b2) => a2 + b2, 0) / nzv.length : 0;
+    // spreadsheet dressing: dotted gridlines at 0 / mid / ceiling (0% strongest), then the curve.
+    // (the dashed average line is retired — the card line already narrates the average)
     const ticks = () => [0, ceil / 2, ceil];
     const mkSvg = () => ticks().map(t => { const y = yOf(t).toFixed(1);
         return '<line x1="0" x2="' + W + '" y1="' + y + '" y2="' + y + '" stroke="' + (t === 0 ? '#D6D6D6' : '#E6E6E6') + '" stroke-width="1"' + (t === 0 ? '' : ' stroke-dasharray="3 4"') + '/>'; }).join('')
-      + (avg > 0.005 ? '<line x1="0" x2="' + W + '" y1="' + yOf(avg).toFixed(1) + '" y2="' + yOf(avg).toFixed(1) + '" stroke="' + stroke + '" stroke-width="1" stroke-dasharray="5 4" opacity="0.35"/>' : '')
       + '<path class="rcurve" d="' + mkD() + '" fill="none" stroke="' + stroke + '" stroke-width="1.5" stroke-linejoin="round"/>';
     const isFirst = div.classList.contains('first');
     const bandH = () => BANDH[String(ceil)] - (isFirst ? 20 : 0);
@@ -9088,7 +9086,7 @@ function updateSeasonRibbon() {
         (di2 => hp.addEventListener('pointerdown', ev => {
           ev.preventDefault(); ev.stopPropagation();
           try { hp.setPointerCapture(ev.pointerId); } catch (err) {}
-          updateSeasonRibbon._entryDone = true; // grabbing a handle ends the entry rise instantly
+          updateSeasonRibbon._entryT0 = 0; // grabbing a handle ends the entry rise instantly
           hp.classList.add('dragging');
           // the edited column's odometer TARGETS update LIVE while dragging — plain digits swap in
           // place of the reels, so nothing re-animates; the struck old price stays put
@@ -9170,16 +9168,13 @@ function updateSeasonRibbon() {
     if (cw < 40) { wrap.appendChild(hit); wrap.appendChild(cur); } // handles carry the readout in week mode
     // (static "\u25b2 Jul 28 +61%" peak pills retired \u2014 the %-handles carry every date's number)
     div.appendChild(wrap);
-    // ENTRY RISE \u2014 SYNCED 1:1 WITH THE PRICE ODOMETERS. The chart holds flat at 0% while the
-    // focus gates (glow-hold / opt-beat) are up, then the instant they clear \u2014 the same instant
-    // the odometer reels begin \u2014 it rises over the SAME 2.2s window, easing like the reels, so
-    // the pills count up and land exactly when the prices do. _riseStart is shared across
-    // rebuilds so a mid-flight camera re-hang resumes the rise instead of restarting it.
+    // ENTRY RISE \u2014 the chart lifts from a flat 0% line to its shape: flat until 308ms, rising to
+    // settled at 748ms. Time runs off the shared focus t0, so a mid-flight rebuild re-enters the
+    // tween at the right frame.
     (() => {
-      if (updateSeasonRibbon._entryDone) return; // this focus already finished \u2014 SVG is already settled
-      const ODO_MS = 2200; // matches .dgreel / .prec (odoRollUp1 / odoRec) 2.2s
-      const gatesClear = () => { const b = document.body.classList;
-        return b.contains('optimize-mode') && !b.contains('glow-hold') && !b.contains('opt-beat') && !b.contains('opt-scanning'); };
+      const RISE_A = 308, RISE_B = 748;
+      const tNow = () => performance.now() - (updateSeasonRibbon._entryT0 || 0);
+      if (tNow() >= RISE_B) return; // focus is old news \u2014 draw settled
       const sign2 = up ? '+' : '\u2212';
       const ease = x => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
       const drawK = k => {
@@ -9190,21 +9185,15 @@ function updateSeasonRibbon() {
           hp2.textContent = sign2 + Math.round(vals[i2] * k * 100) + '%';
           const ic = hics[i2]; if (ic) ic.style.bottom = (ICBASE + (H - yOf(vals[i2] * k))) + 'px'; });
       };
-      const kNow = () => {
-        if (!gatesClear() || updateSeasonRibbon._riseStart == null) return 0; // still holding flat
-        const t = performance.now() - updateSeasonRibbon._riseStart;
-        return t >= ODO_MS ? 1 : ease(t / ODO_MS);
-      };
       const step = () => {
-        if (!wrap.isConnected) return; // rebuilt \u2014 the successor ribbon carries the tween
-        if (updateSeasonRibbon._entryDone) { drawK(1); return; }
-        if (gatesClear() && updateSeasonRibbon._riseStart == null) updateSeasonRibbon._riseStart = performance.now(); // odometers just started \u2014 sync our clock to theirs
-        const k = kNow();
+        if (!wrap.isConnected) return; // this ribbon was rebuilt \u2014 its successor carries the tween
+        const t = tNow();
+        const k = t <= RISE_A ? 0 : t >= RISE_B ? 1 : ease((t - RISE_A) / (RISE_B - RISE_A));
         drawK(k);
-        if (k >= 1 && gatesClear()) { updateSeasonRibbon._entryDone = true; return; }
-        requestAnimationFrame(step);
+        if (k < 1) requestAnimationFrame(step);
       };
-      drawK(kNow()); // correct first frame before paint
+      const t1 = tNow(); // paint the correct first frame before the browser shows anything
+      drawK(t1 <= RISE_A ? 0 : t1 >= RISE_B ? 1 : ease((t1 - RISE_A) / (RISE_B - RISE_A)));
       requestAnimationFrame(step);
     })();
   });
