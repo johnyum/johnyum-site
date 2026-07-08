@@ -8684,6 +8684,36 @@ function computeSuggestions() {
       title: 'Turn on smart discounts',
       why: '' });
   }
+  // NEVER OVERLAP: a holiday or event OWNS its nights — carve those date-runs out of every season /
+  // promo card's items (and re-derive its window) so the same dates are never double-priced.
+  {
+    const owners = cards.filter(c => (c.bucket === 'event' || c.bucket === 'holiday') && c.items.length);
+    const lisOf = c => new Set(c.items.map(it => it.li));
+    cards.forEach(sc => {
+      if (sc.bucket !== 'season-up' && sc.bucket !== 'season-down' && sc.bucket !== 'promo') return;
+      const scLis = lisOf(sc);
+      const cuts = owners.filter(oc => { const oLis = lisOf(oc); return [...scLis].some(li => oLis.has(li)); })
+        .map(oc => ({ a: oc.a, b: oc.b, lis: lisOf(oc) }));
+      if (!cuts.length) return;
+      sc.items = sc.items.flatMap(it => {
+        let segs = [it];
+        cuts.forEach(cut => { if (!cut.lis.has(it.li)) return; // only carve where the owner covers THIS listing
+          segs = segs.flatMap(s => {
+            if (cut.b < s.a || cut.a > s.b) return [s]; // no overlap → keep
+            const out = [];
+            if (cut.a > s.a) out.push(Object.assign({}, s, { b: cut.a - 1 }));
+            if (cut.b < s.b) out.push(Object.assign({}, s, { a: cut.b + 1 }));
+            return out; // owner fully covers this run → dropped
+          });
+        });
+        return segs;
+      });
+      if (!sc.items.length) sc._drop = true;
+      else { sc.a = Math.min(...sc.items.map(it => it.a)); sc.b = Math.max(...sc.items.map(it => it.b));
+        sc._dates = new Set(); sc.items.forEach(it => { for (let k = it.a; k <= it.b; k++) sc._dates.add(k); }); }
+    });
+    for (let i = cards.length - 1; i >= 0; i--) if (cards[i]._drop) cards.splice(i, 1);
+  }
   // Estimated $ impact per card → biggest first. The number on the card is what justifies mass action.
   cards.forEach(c => {
     let sum = 0;
@@ -9063,6 +9093,7 @@ function updateSeasonRibbon() {
   const CHART = s => s && (s.bucket === 'season-up' || s.bucket === 'season-down' || s.bucket === 'event' || s.bucket === 'holiday');
   const chartOpps = o.suggs.filter(CHART);          // EVERY chart opp draws its own curve on its band (zeroed until tapped)
   const oppLis = s => (s.lis && s.lis.length ? s.lis : s.items.map(x => x.li));
+  const coveredBy = (opp, di) => !opp._dates || opp._dates.has(di); // seasons carved by holidays/events skip the owned dates (gap in the curve)
   const fullW = (rowOffsets[rowOffsets.length - 1] || 0) + cw; // rules span the WHOLE band, edge to edge
   const gLis = new Set(oppLis(g));
   document.querySelectorAll('#gridRows > .group-divider').forEach(div => {
@@ -9079,9 +9110,10 @@ function updateSeasonRibbon() {
     const W = ((rowOffsets[g.b] || 0) + cw) - x0;
     if (W <= 0) return;
     const yOf = v2 => H - 3 - (Math.max(0, Math.min(v2, ceil)) / ceil) * (H - 7);
-    const mkD = () => { let d2 = '';
-      vals.forEach((v2, i2) => { const x2 = ((rowOffsets[g.a + i2] || 0) + cw / 2) - x0;
-        d2 += (i2 ? ' L' : 'M') + x2.toFixed(1) + ' ' + yOf(v2).toFixed(1); });
+    const mkD = () => { let d2 = ''; let pen = false;
+      vals.forEach((v2, i2) => { const di = g.a + i2; if (!coveredBy(g, di)) { pen = false; return; } // gap where a holiday/event owns the date
+        const x2 = ((rowOffsets[di] || 0) + cw / 2) - x0;
+        d2 += (pen ? ' L' : 'M') + x2.toFixed(1) + ' ' + yOf(v2).toFixed(1); pen = true; });
       return d2; }; // open polyline — no bottom baseline, no closing edge
     const ticks = () => [0, ceil / 2, ceil];
     const mkSvg = () => '<path class="rcurve" d="' + mkD() + '" fill="none" stroke="' + stroke + '" stroke-width="1.5" stroke-linejoin="round"/>'; // curve only — the gridlines live in a full-width backdrop
@@ -9117,7 +9149,7 @@ function updateSeasonRibbon() {
       const sx0 = rowOffsets[so.a] || 0;
       const sW = ((rowOffsets[so.b] || 0) + cw) - sx0;
       if (sW <= 0) return;
-      const shown = i => { const di = so.a + i; return !(di >= g.a && di <= g.b); }; // hide the dates the FOCUSED opp owns — never stack two pills on one date
+      const shown = i => { const di = so.a + i; return !(di >= g.a && di <= g.b) && coveredBy(so, di); }; // hide the dates the FOCUSED opp owns (never stack two pills) AND the dates a holiday/event carved out of this season
       if (!sv.some((v, i) => shown(i))) return; // fully under the focused opp → nothing to draw
       const w2 = document.createElement('div'); w2.className = 'season-ribbon';
       w2.style.cssText = 'position:absolute;bottom:' + WBOT + 'px;left:' + sx0 + 'px;width:' + sW + 'px;height:' + H + 'px;pointer-events:none;z-index:1;';
@@ -9159,12 +9191,14 @@ function updateSeasonRibbon() {
     wrap.appendChild(warn);
     const hps = [], hics = []; // hics[i] = the date's event icon, riding 4px above its % pill
     const layoutHandles = () => hps.forEach((hp2, i2) => {
+      if (!hp2) return; // carved date: no pill here
       hp2.style.top = yOf(vals[i2]) + 'px';
       const ic = hics[i2]; if (ic) ic.style.bottom = (ICBASE + (H - yOf(vals[i2]))) + 'px'; // 2 wrap inset + 10 half-pill + 4 gap
     });
     if (cw >= 40) {
       const sign = up ? '+' : '\u2212';
       for (let i = 0; i < vals.length; i++) {
+        if (!coveredBy(g, g.a + i)) { hps.push(null); continue; } // carved date owned by a holiday/event — no season pill
         const hx = ((rowOffsets[g.a + i] || 0) + cw / 2) - x0;
         const hp = document.createElement('div');
         hps.push(hp);
@@ -9275,9 +9309,11 @@ function updateSeasonRibbon() {
       const valAt = (i2, k) => from ? from[i2] + (vals[i2] - from[i2]) * k : vals[i2] * k;
       const drawK = k => {
         const p2 = path();
-        if (p2) { let d2 = ''; vals.forEach((v2, i2) => { const x2 = ((rowOffsets[g.a + i2] || 0) + cw / 2) - x0;
-          d2 += (i2 ? ' L' : 'M') + x2.toFixed(1) + ' ' + yOf(valAt(i2, k)).toFixed(1); }); p2.setAttribute('d', d2); }
-        hps.forEach((hp2, i2) => { const vv = valAt(i2, k); hp2.style.top = yOf(vv) + 'px';
+        if (p2) { let d2 = ''; let pen = false; vals.forEach((v2, i2) => { const di = g.a + i2;
+          if (!coveredBy(g, di)) { pen = false; return; } // gap where a holiday/event owns the date
+          const x2 = ((rowOffsets[di] || 0) + cw / 2) - x0;
+          d2 += (pen ? ' L' : 'M') + x2.toFixed(1) + ' ' + yOf(valAt(i2, k)).toFixed(1); pen = true; }); p2.setAttribute('d', d2); }
+        hps.forEach((hp2, i2) => { if (!hp2) return; const vv = valAt(i2, k); hp2.style.top = yOf(vv) + 'px';
           hp2.textContent = sign2 + Math.round(vv * 100) + '%';
           const ic = hics[i2]; if (ic) ic.style.bottom = (ICBASE + (H - yOf(vv))) + 'px'; });
       };
