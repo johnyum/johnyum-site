@@ -7024,13 +7024,17 @@ function buildGroupEventIcons() {
       }
       if (!days.length) return;
       if (days.length > 14) { const pi = Math.max(0, days.findIndex(d => d.primary)); days = days.slice(0, pi + 7); } // long ambient runs: shoulders + headline week, then quiet — every PRICED shoulder night keeps its icon
+      const singlePrimary = /modernism week/i.test(name); // this event shows ONE headline icon, not a repeat — the rest of the run reads as secondary accents
+      let usedPrimary = false;
       days.forEach(({ di, primary }) => {
         if (taken.has(di)) return;
-        const src = primary ? icon : sec;
+        let isP = primary;
+        if (singlePrimary && isP) { if (usedPrimary) isP = false; else usedPrimary = true; } // keep only the FIRST primary; downgrade the rest to secondary
+        const src = isP ? icon : sec;
         if (!src) return;
         taken.add(di);
         const img = document.createElement('img');
-        img.className = 'gev ' + (primary ? 'gev-primary' : 'gev-secondary') + (status === 'estimated' ? ' gev-tentative' : '');
+        img.className = 'gev ' + (isP ? 'gev-primary' : 'gev-secondary') + (status === 'estimated' ? ' gev-tentative' : '');
         img.src = src; img.alt = name; img.loading = 'lazy';
         img.dataset.hname = name; img.dataset.di = di; // the ribbon's %-handles adopt their date's icon by this key
         img.style.left = ((rowOffsets[di] || 0) + cw / 2) + 'px';
