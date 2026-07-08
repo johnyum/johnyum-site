@@ -1334,7 +1334,8 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
   user-select: none; -webkit-user-select: none; touch-action: none;
 }
 .season-ribbon .ribbon-handle.lo { background: #BE4900; } /* low season = orange button */
-.season-ribbon .ribbon-handle.rh-static { cursor: default; pointer-events: none; } /* non-focused opps: visible, not draggable */
+.season-ribbon .ribbon-handle.rh-static { cursor: pointer; pointer-events: auto; background: var(--grey-200); color: #222; box-shadow: 0 0 0 1px var(--grey-300); } /* zeroed & non-focused → GREYED OUT (grey-200 fill, black type); tap to focus */
+.season-ribbon .ribbon-handle.rh-static:hover { background: var(--grey-300); }
 .season-ribbon .ribbon-warn {
   position: absolute; transform: translateX(-50%); pointer-events: none; z-index: 7;
   font: 600 11px 'Cereal', sans-serif; color: #B85C0A; background: #FBEEDF;
@@ -9071,18 +9072,22 @@ function updateSeasonRibbon() {
     const staticRedraws = [];
     const drawStatic = so => {
       const su = so.intent === 'earn';
-      const sv = new Array(so.b - so.a + 1).fill(0); // ZEROED — non-focused opps sit flat at 0% until you tap them
+      const sv = new Array(so.b - so.a + 1).fill(0); // ZEROED — non-focused opps sit flat at 0% until tapped
       const sx0 = rowOffsets[so.a] || 0;
       const sW = ((rowOffsets[so.b] || 0) + cw) - sx0;
       if (sW <= 0) return;
+      const shown = i => { const di = so.a + i; return !(di >= g.a && di <= g.b); }; // hide the dates the FOCUSED opp owns — never stack two pills on one date
+      if (!sv.some((v, i) => shown(i))) return; // fully under the focused opp → nothing to draw
       const w2 = document.createElement('div'); w2.className = 'season-ribbon';
       w2.style.cssText = 'position:absolute;bottom:' + WBOT + 'px;left:' + sx0 + 'px;width:' + sW + 'px;height:' + H + 'px;pointer-events:none;z-index:1;';
-      const mkd = () => { let d = ''; sv.forEach((v, i) => { const x2 = ((rowOffsets[so.a + i] || 0) + cw / 2) - sx0; d += (i ? ' L' : 'M') + x2.toFixed(1) + ' ' + yOf(v).toFixed(1); }); return d; };
-      w2.innerHTML = '<svg width="' + sW + '" height="' + H + '" viewBox="0 0 ' + sW + ' ' + H + '" preserveAspectRatio="none" style="display:block"><path class="rcurve" d="' + mkd() + '" fill="none" stroke="' + stroke + '" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+      const mkd = () => { let d = ''; let pen = false; sv.forEach((v, i) => { if (!shown(i)) { pen = false; return; } const x2 = ((rowOffsets[so.a + i] || 0) + cw / 2) - sx0; d += (pen ? ' L' : 'M') + x2.toFixed(1) + ' ' + yOf(v).toFixed(1); pen = true; }); return d; };
+      w2.innerHTML = '<svg width="' + sW + '" height="' + H + '" viewBox="0 0 ' + sW + ' ' + H + '" preserveAspectRatio="none" style="display:block"><path class="rcurve" d="' + mkd() + '" fill="none" stroke="var(--grey-400)" stroke-width="1.5" stroke-linejoin="round"/></svg>';
       const spills = []; const sgn = su ? '+' : '−';
-      if (cw >= 40) sv.forEach((v, i) => { const di = so.a + i; const hx = ((rowOffsets[di] || 0) + cw / 2) - sx0;
+      const focusMe = ev => { ev.stopPropagation(); const idx = window.__opt.suggs.indexOf(so); if (idx >= 0) { window.__opt.cur = idx; renderMagicPill(); focusOpportunity(); } }; // tap a greyed opp → focus it (highlight + modal + wand animation)
+      if (cw >= 40) sv.forEach((v, i) => { if (!shown(i)) return; const di = so.a + i; const hx = ((rowOffsets[di] || 0) + cw / 2) - sx0;
         const hp = document.createElement('div'); hp.className = 'ribbon-handle rh-static' + (su ? '' : ' lo');
         hp.style.left = hx + 'px'; hp.style.top = yOf(v) + 'px'; hp.textContent = sgn + Math.round(v * 100) + '%';
+        hp.addEventListener('click', focusMe);
         w2.appendChild(hp); spills.push({ hp: hp, di: di, v: v });
         const gic = div.querySelector('.gev[data-di="' + di + '"]'); if (gic) { gic.dataset.ride = '1'; gic.style.bottom = (ICBASE + (H - yOf(v))) + 'px'; }
       });
