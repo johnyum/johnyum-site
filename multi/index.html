@@ -3796,10 +3796,10 @@ function refreshCalendarPrices() {
 // Min-night badge text: gap-exception nights show the lowered minimum (strike-through).
 function minBadgeHTML(li, isGap, di) {
   const ov = (di != null) ? minOverride[li][di] : undefined;
-  if (ov != null) return `Min ${ov}`; // manual per-date override wins (plain value, no gap strikeout)
+  if (ov != null) return `min ${ov}`; // manual per-date override wins (plain value, no gap strikeout)
   return isGap
-    ? `Min <s>${minNightsVals[li]}</s> ${gapVals[li]}`
-    : `Min ${minNightsVals[li]}`;
+    ? `min <s>${minNightsVals[li]}</s> ${gapVals[li]}`
+    : `min ${minNightsVals[li]}`;
 }
 
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -4289,7 +4289,7 @@ function buildPriceCell(li, di, booked, unavail, gapSet) {
   const _dtxt = _dk ? discBadgeText(li, di) : '';
   const _tip = _bt ? (_bt === 'adv' ? 'Adv notice' : 'Prep time') : _dk ? (_dk === 'early' ? 'Early bird' : 'Last minute') : '';
   const _ofActive = _of && (card.classList.contains('opt-focus') || card.classList.contains('opt-applied'));
-  card.innerHTML = isBooked ? '' : `<span class="price-val">$${getPrice(li, di)}</span><span class="min-badge">${_of && _of.min && _ofActive ? `Min <s>${_of.min.cur}</s> ${_of.min.to}` : minBadgeHTML(li, gapSet.has(di), di)}</span>${_dtxt ? `<span class="disc-badge">${_dtxt}</span>` : ''}<span class="cell-date">${d.getDate()}</span>${_tip ? `<span class="block-tip">${_tip}</span>` : ''}`;
+  card.innerHTML = isBooked ? '' : `<span class="price-val">$${getPrice(li, di)}</span><span class="min-badge">${_of && _of.min && _ofActive ? `min <s>${_of.min.cur}</s> ${_of.min.to}` : minBadgeHTML(li, gapSet.has(di), di)}</span>${_dtxt ? `<span class="disc-badge">${_dtxt}</span>` : ''}<span class="cell-date">${d.getDate()}</span>${_tip ? `<span class="block-tip">${_tip}</span>` : ''}`;
   setCellBadge(card, li, di, gapSet);
   if (_of) { makeWring(card); if (_ofActive) { makeOdometer(card, li, di); makeSub(card, li, di); } } // quiet wave for everyone; the TYPE only on the focused/applied card
   const rsIdx = ruleSetCell[li][di]; // persist the rule-set color tint + corner dot across re-renders
@@ -8858,7 +8858,7 @@ function makeSub(card, li, di) {
   const f = optFlagFor(li, di); if (!f || (!f.disc && !f.min)) { removeSub(card); return; }
   if (card.querySelector(':scope > .subreveal')) return;
   const sub = document.createElement('div'); sub.className = 'subreveal' + (f.min ? ' is-min' : ' is-disc');
-  sub.innerHTML = f.min ? ('Min <s>' + f.min.cur + '</s> ' + f.min.to) : f.disc;
+  sub.innerHTML = f.min ? ('min <s>' + f.min.cur + '</s> ' + f.min.to) : f.disc;
   card.appendChild(sub); card.classList.add('has-sub');
 }
 function removeSub(card) { if (!card) return; const s = card.querySelector(':scope > .subreveal'); if (s) s.remove(); card.classList.remove('has-sub'); }
@@ -9154,7 +9154,7 @@ function repaintOptGlows() { // re-apply glow classes to currently-mounted cells
         else { removeOdometer(card); removeSub(card); }
         const badge = card.querySelector('.min-badge');
         if (badge) {
-          if (f.min && active) { card.classList.add('opt-min'); badge.innerHTML = 'Min <s>' + f.min.cur + '</s> ' + f.min.to; }
+          if (f.min && active) { card.classList.add('opt-min'); badge.innerHTML = 'min <s>' + f.min.cur + '</s> ' + f.min.to; }
           else if (hadMin) badge.innerHTML = minBadgeHTML(li, gapSet.has(di), di);
         }
       } else {
