@@ -485,7 +485,7 @@ body.row-reordering .thumb-row { cursor: grabbing; }
    event/holiday icons. At rest (default view, or another opp focused) they're hidden but stay in the
    DOM, so the ride math + rise animation are identical to every other icon. */
 .gev.gev-season { opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .32s ease; }
-.gev.gev-season[data-ride] { opacity: 1; pointer-events: auto; }
+.gev.gev-season[data-focusride] { opacity: 1; pointer-events: auto; } /* season icons show ONLY while their opp is the FOCUSED one — applied-but-unfocused keeps the numbers, hides the icons */
 /* collapse is RETIRED for GROUPS: no up/down chevrons anywhere — groups are always open.
    The left panel's own grey-circle chevron stays: names can still collapse/expand. */
 .group-toggle { display: none; }
@@ -1270,6 +1270,10 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
 .mopp-wandbtn.is-on .wstar { animation: wandTwinkle 1.6s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
 .mopp-wandbtn.is-on .wstar2 { animation-delay: .5s; }
 .mopp-wandbtn.is-on .wstar3 { animation-delay: 1s; }
+/* LOW season wand = orange across: orange stroke, light-orange fill, orange wand + orange stars */
+.mopp-wandbtn.is-on.lo { border-color: #EB6100; background: rgba(235,97,0,0.14); }
+.mopp-wandbtn.is-on.lo:hover { background: rgba(235,97,0,0.14); }
+.mopp-wandbtn.is-on.lo .wbody, .mopp-wandbtn.is-on.lo .wstar { fill: #EB6100; }
 .magic-pill.opp-light .mopp-apply { background: #222; color: #fff; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .magic-pill.opp-light .mopp-apply:hover { background: #000; }
 .mopp-allbtn { background: transparent; color: var(--grey-700); border: 0; font: 500 12px 'Cereal', sans-serif;
@@ -7153,13 +7157,21 @@ function buildGroupEventIcons() {
       if (!cities.has(city)) return;
       const mset = _monthSet(months);
       const arrow = kind === 'low' ? 'event_icons/arrow-down-orange.png' : 'event_icons/arrow-up-green.png'; // trend arrow = the mini accent
+      // hover label: plain "Low season" / "High season"; dual-peak highs get a simple distinct name
+      const hover = kind === 'low' ? 'Low season'
+        : /winter/i.test(label) ? 'Ski season'
+        : /summer/i.test(label) ? 'Summer season'
+        : /spring/i.test(label) ? 'Spring season'
+        : /fall/i.test(label) ? 'Fall season'
+        : /awards/i.test(label) ? 'Awards season'
+        : 'High season';
       const place = (d, src, isP) => {
         if (d < 0 || d >= allDays.length || taken.has(d)) return;
         taken.add(d);
         const img = document.createElement('img');
         img.className = 'gev ' + (isP ? 'gev-primary' : 'gev-secondary') + ' gev-season gev-' + kind + pastCls(d);
-        img.src = bust(src); img.alt = label + ' season'; img.loading = 'lazy'; img.style.setProperty('--fit', '1');
-        img.dataset.hname = city + ' · ' + label; img.dataset.di = d; img.dataset.season = kind;
+        img.src = bust(src); img.alt = hover; img.loading = 'lazy'; img.style.setProperty('--fit', '1');
+        img.dataset.hname = hover; img.dataset.di = d; img.dataset.season = kind;
         img.style.left = ((rowOffsets[d] || 0) + cw / 2) + 'px';
         div.appendChild(img);
       };
@@ -9210,7 +9222,7 @@ function oppPctAt(g, di) {
 // never a floored +$2, never a value that disagrees with the pill above it.
 function oppNewPrice(g, cur, di, up) {
   let pct = Math.round(oppPctAt(g, di) * 100) / 100; // whole-percent, matching the pill's readout
-  if (!up) pct = Math.min(pct, 1); // a discount can't exceed 100% — the price floor is $0, never negative
+  if (!up) pct = Math.min(pct, 0.99); // a discount can't exceed 99% — the price floors at 1% of base, never $0
   return Math.round(cur * (1 + (up ? 1 : -1) * pct));
 }
 function _seasonSeries(g) { // per-day premium/depth series driving the pill curve — same _livePct math
@@ -9223,17 +9235,18 @@ function _seasonSeries(g) { // per-day premium/depth series driving the pill cur
 function _seasonNarrate(c) {
   const vals = _seasonSeries(c);
   const nz = vals.filter(v => v > 0.005);
-  const avg = nz.length ? nz.reduce((a2, v) => a2 + v, 0) / nz.length : 0;
-  const pk = _seasonPeaks(vals, 1)[0];
   const _M3b = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const dA = allDays[c.a], dB = allDays[c.b]; // short (event) windows inside one month read "Jul 15 – 27"
   const dates = dA.getMonth() === dB.getMonth() && dA.getFullYear() === dB.getFullYear()
     ? _M3b[dA.getMonth()] + ' ' + dA.getDate() + ' – ' + dB.getDate()
     : _M3b[dA.getMonth()] + ' – ' + _M3b[dB.getMonth()];
-  const sign = c.intent === 'earn' ? '+' : '\u2212';
   const cls = c.intent === 'fill' ? ' lo' : '';
-  return dates + ' · <span class="hl' + cls + '">avg ' + sign + Math.round(avg * 100) + '%</span>'
-    + (pk ? ' · ' + (c.intent === 'earn' ? 'peak: ' : 'softest: ') + '<span class="hl' + cls + '">' + _peakLabel(c, pk) + '</span>' : '');
+  // just the dates + the % RANGE (no avg / softest): "Jul – Sep · 12% – 24% reduced"
+  const lo = nz.length ? Math.round(Math.min(...nz) * 100) : 0;
+  const hi = nz.length ? Math.round(Math.max(...nz) * 100) : 0;
+  const range = lo === hi ? lo + '%' : lo + '% – ' + hi + '%';
+  const word = c.intent === 'earn' ? 'premium' : 'reduced';
+  return dates + ' · <span class="hl' + cls + '">' + range + ' ' + word + '</span>';
 }
 function _seasonPeaks(vals, count) { // top clusters, ≥10 days apart, chronological
   const idx = vals.map((v, i) => [v, i]).sort((a2, b2) => b2[0] - a2[0]);
@@ -9288,7 +9301,7 @@ function seasonWandReset() {
 function updateSeasonRibbon() {
   document.querySelectorAll('.season-ribbon, .ribbon-rail, .season-rules').forEach(x => x.remove());
   document.querySelectorAll('.group-divider.ribbon-grown').forEach(x => { x.classList.remove('ribbon-grown'); x.style.height = ''; });
-  document.querySelectorAll('.gev[data-ride]').forEach(ic => { ic.style.bottom = ''; ic.style.cursor = ''; ic.removeAttribute('data-ride'); if (ic._onDown) { ic.removeEventListener('pointerdown', ic._onDown); ic._onDown = null; } if (ic._onClick) { ic.removeEventListener('click', ic._onClick); ic._onClick = null; } }); // ridden event icons drop back to their stock band spot + shed drag/tap handlers
+  document.querySelectorAll('.gev[data-ride]').forEach(ic => { ic.style.bottom = ''; ic.style.cursor = ''; ic.removeAttribute('data-ride'); ic.removeAttribute('data-focusride'); if (ic._onDown) { ic.removeEventListener('pointerdown', ic._onDown); ic._onDown = null; } if (ic._onClick) { ic.removeEventListener('click', ic._onClick); ic._onClick = null; } }); // ridden event icons drop back to their stock band spot + shed drag/tap handlers
   const o = window.__opt;
   if (!o || o.state !== 'results') { updateSeasonRibbon._lastId = null; return; }
   const g = o.suggs[o.cur];
@@ -9430,7 +9443,7 @@ function updateSeasonRibbon() {
         hp.style.left = hx + 'px'; hp.style.top = yOf(vals[i]) + 'px';
         hp.textContent = sign + Math.round(vals[i] * 100) + '%';
         const gic = div.querySelector('.gev[data-di="' + (g.a + i) + '"]');
-        if (gic) { gic.dataset.ride = '1'; hics[i] = gic; gic.style.bottom = (ICBASE + (H - yOf(vals[i]))) + 'px'; }
+        if (gic) { gic.dataset.ride = '1'; gic.dataset.focusride = '1'; hics[i] = gic; gic.style.bottom = (ICBASE + (H - yOf(vals[i]))) + 'px'; } // focusride → season icons show (this IS the tapped opp)
         (di2 => { const onDown = ev => {
           ev.preventDefault(); ev.stopPropagation();
           try { hp.setPointerCapture(ev.pointerId); } catch (err) {}
@@ -9442,12 +9455,14 @@ function updateSeasonRibbon() {
           const move = e2 => {
             const wy = e2.clientY - wrap.getBoundingClientRect().top;
             let v2 = (up ? (H - 3 - wy) : (wy - 3)) / (H - 7) * ceil; // 0-based Excel axis (inverted for low season)
-            // low season can't cut past −100% (that's $0 — a free night); the price floor is $0
-            v2 = Math.max(0, Math.min(up ? ceil : Math.min(ceil, 1), v2));
-            // magnetic ticks: quarter-grid stops + the axis midline snap under the hand
+            // low season can't cut past −99% — the price floors at 1% of base ($2 on $200), never $0
+            const floor = up ? ceil : Math.min(ceil, 0.99);
+            v2 = Math.max(0, Math.min(floor, v2));
+            // magnetic ticks: quarter-grid stops + the axis midline snap — only ticks WITHIN the floor
             for (const s of [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, ceil / 2]) {
-              if (s <= ceil + 1e-9 && Math.abs(v2 - s) <= 0.015) { v2 = s; break; }
+              if (s <= floor + 1e-9 && Math.abs(v2 - s) <= 0.015) { v2 = s; break; }
             }
+            v2 = Math.min(floor, v2); // re-assert the floor after snapping
             // pushing past the chart's far edge bumps the ceiling to the next step — the band grows to hold it
             // (up: past the TOP; low season: past the BOTTOM, since its axis is flipped)
             if (up ? (wy < -6) : (wy > H + 6)) { const ni = STEPS.indexOf(ceil) + 1;
@@ -9563,6 +9578,54 @@ function updateSeasonRibbon() {
       drawK(kNow()); // correct first frame before paint
       requestAnimationFrame(step);
     })();
+  });
+  // PERSIST across bands: the loop above only draws the FOCUSED opp's band. Any APPLIED opp on a
+  // DIFFERENT band still keeps its committed %s here — a static ribbon (numbers stay put) drawn on
+  // each other band that has applied chart opps. Season ICONS stay hidden (no data-focusride); only
+  // the numbers persist, exactly as asked.
+  document.querySelectorAll('#gridRows > .group-divider').forEach(div => {
+    const gi = div.dataset.gi;
+    const grouped = new Set(groups.flatMap(g2 => g2.members));
+    const members = gi === 'more' ? LISTINGS.map((_, i) => i).filter(i => !grouped.has(i)) : (groups[+gi] ? groups[+gi].members : []);
+    if (members.some(li => gLis.has(li))) return; // focused band already rendered above
+    const memberSet = new Set(members);
+    const applied = chartOpps.filter(s => s.applied && s._appliedVals && s._appliedVals.length && oppLis(s).some(li => memberSet.has(li)));
+    if (!applied.length) return;
+    const aUp = applied[0].intent === 'earn';
+    const mx2 = Math.max(...applied.flatMap(a => a._appliedVals), 0.001);
+    const ceil2 = niceCeil(aUp ? mx2 : Math.min(mx2, 1));
+    const H2 = BANDH[String(ceil2)] - 78;
+    const yOf2 = v2 => { const t = (Math.max(0, Math.min(v2, ceil2)) / ceil2) * (H2 - 7); return aUp ? (H2 - 3 - t) : (3 + t); };
+    const isFirst = div.classList.contains('first');
+    const bh = BANDH[String(ceil2)] - (isFirst ? 20 : 0);
+    div.classList.add('ribbon-grown'); div.style.height = bh + 'px';
+    const twin = document.querySelector('#listingThumbsInner > .group-divider[data-gi="' + gi + '"]');
+    if (twin) { twin.classList.add('ribbon-grown'); twin.style.height = bh + 'px'; }
+    const ticks2 = [0, ceil2 / 2, ceil2];
+    const rules = document.createElement('div'); rules.className = 'season-rules';
+    rules.style.cssText = 'position:absolute;bottom:' + WBOT + 'px;left:0;width:' + fullW + 'px;height:' + H2 + 'px;pointer-events:none;z-index:0;';
+    rules.innerHTML = '<svg width="' + fullW + '" height="' + H2 + '" viewBox="0 0 ' + fullW + ' ' + H2 + '" preserveAspectRatio="none" style="display:block">' + ticks2.filter(t => t !== 0).map(t => { const y = yOf2(t).toFixed(1); return '<line x1="0" x2="' + fullW + '" y1="' + y + '" y2="' + y + '" stroke="var(--grey-500)" stroke-width="1" stroke-dasharray="3 4"/>'; }).join('') + '</svg>';
+    div.appendChild(rules);
+    if (twin) { const rail = document.createElement('div'); rail.className = 'ribbon-rail'; rail.style.cssText = 'position:absolute;right:6px;bottom:' + WBOT + 'px;height:' + H2 + 'px;width:64px;pointer-events:none;';
+      rail.innerHTML = ticks2.map(t => '<span class="rr-tick" style="top:' + (yOf2(t) - 7) + 'px">' + (t === 0 ? '0%' : (aUp ? '+' : '−') + Math.round(t * 100) + '%') + '</span>').join(''); twin.appendChild(rail); }
+    applied.forEach(so => {
+      const su = so.intent === 'earn'; const sv = so._appliedVals.slice();
+      const sx0 = rowOffsets[so.a] || 0; const sW = ((rowOffsets[so.b] || 0) + cw) - sx0; if (sW <= 0) return;
+      const shown = i => coveredBy(so, so.a + i);
+      const w2 = document.createElement('div'); w2.className = 'season-ribbon';
+      w2.style.cssText = 'position:absolute;bottom:' + WBOT + 'px;left:' + sx0 + 'px;width:' + sW + 'px;height:' + H2 + 'px;pointer-events:none;z-index:1;';
+      let d = ''; let pen = false; sv.forEach((v, i) => { if (!shown(i)) { pen = false; return; } const x2 = ((rowOffsets[so.a + i] || 0) + cw / 2) - sx0; d += (pen ? ' L' : 'M') + x2.toFixed(1) + ' ' + yOf2(v).toFixed(1); pen = true; });
+      w2.innerHTML = '<svg width="' + sW + '" height="' + H2 + '" viewBox="0 0 ' + sW + ' ' + H2 + '" preserveAspectRatio="none" style="display:block"><path class="rcurve" d="' + d + '" fill="none" stroke="none"/></svg>';
+      const sgn = su ? '+' : '−';
+      const focusMe = ev => { ev.stopPropagation(); const idx = window.__opt.suggs.indexOf(so); if (idx >= 0) { window.__opt.cur = idx; renderMagicPill(); focusOpportunity(); } };
+      if (cw >= 40) sv.forEach((v, i) => { if (!shown(i)) return; const di = so.a + i; const hx = ((rowOffsets[di] || 0) + cw / 2) - sx0;
+        const hp = document.createElement('div'); hp.className = 'ribbon-handle rh-static' + (su ? '' : ' lo');
+        hp.style.left = hx + 'px'; hp.style.top = yOf2(v) + 'px'; hp.textContent = sgn + Math.round(v * 100) + '%'; hp.addEventListener('click', focusMe);
+        w2.appendChild(hp);
+        const gic = div.querySelector('.gev[data-di="' + di + '"]'); if (gic) { gic.dataset.ride = '1'; gic.style.bottom = (ICBASE + (H2 - yOf2(v))) + 'px'; gic.style.cursor = 'pointer'; if (gic._onClick) gic.removeEventListener('click', gic._onClick); gic._onClick = focusMe; gic.addEventListener('click', focusMe); } // data-ride (not focusride) → event/holiday icons ride, season icons stay hidden
+      });
+      div.appendChild(w2);
+    });
   });
 }
 function buildFlags(groups) { // only the groups passed in glow — the focus model hands us ONE at a time
@@ -9797,7 +9860,7 @@ function renderMagicPill() {
     // recommendation; dragging any %-handle untaps it; tapping it back snaps every handle home.
     const isSeason = g.bucket === 'season-up' || g.bucket === 'season-down' || g.bucket === 'event' || g.bucket === 'holiday'; // events + holidays carry the same chart + wand
     const WANDBTN = isSeason && !g.thinking && !g.applied
-      ? '<button class="mopp-wandbtn' + (g._pctOv && Object.keys(g._pctOv).length ? '' : ' is-on') + '" data-magic="wandreset" title="Snap back to suggested" aria-label="Snap the curve back to the suggested percentages">' +
+      ? '<button class="mopp-wandbtn' + (g._pctOv && Object.keys(g._pctOv).length ? '' : ' is-on') + (g.intent === 'fill' ? ' lo' : '') + '" data-magic="wandreset" title="Snap back to suggested" aria-label="Snap the curve back to the suggested percentages">' +
         '<svg width="24" height="24" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path class="wbody" d="M12.2069 2.85859L13.1411 3.79285C13.5317 4.18339 13.5317 4.81662 13.1411 5.2071L3.20689 15.1413C2.81636 15.532 2.18313 15.532 1.79265 15.1414L0.858273 14.2071C0.467808 13.8166 0.467808 13.1834 0.858316 12.7929L10.7926 2.85853C11.1832 2.46807 11.8163 2.46807 12.2069 2.85859ZM8.49893 6.84769L1.84792 13.4997L2.49942 14.1512L9.15043 7.49919L8.49893 6.84769Z"/><path class="wstar" d="M13.9997 7L14.4997 8L15.4997 8.5L14.4997 9L13.9997 10L13.4997 9L12.4997 8.5L13.4997 8L13.9997 7Z"/><path class="wstar wstar2" d="M7.49974 0.5L7.99974 1.5L8.99974 2L7.99974 2.5L7.49974 3.5L6.99974 2.5L5.99974 2L6.99974 1.5L7.49974 0.5Z"/><path class="wstar wstar3" d="M14.4997 0L14.9997 1L15.9997 1.5L14.9997 2L14.4997 3L13.9997 2L12.9997 1.5L13.9997 1L14.4997 0Z"/></svg></button>'
       : '';
     pill.innerHTML =
