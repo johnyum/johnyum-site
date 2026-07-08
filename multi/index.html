@@ -5094,7 +5094,7 @@ function clearSelection() {
   document.querySelectorAll('.settings-sub-cell.selected').forEach(c => c.classList.remove('selected'));
   document.querySelectorAll('.month-card.selected').forEach(c => c.classList.remove('selected'));
   document.querySelectorAll('.price-card.range-preview').forEach(c => c.classList.remove('range-preview'));
-  if (typeof _resetShiftTip === 'function') _resetShiftTip(); // clearing selection re-arms the coach tip
+  if (typeof _hideShiftTip === 'function') _hideShiftTip(); // clearing selection HIDES the tip but does NOT re-arm it — once dismissed/learned it stays gone until a Reset
   subActiveColId = null;
   updateClearBtn();
   updateDateHeaders();
@@ -7394,7 +7394,8 @@ function buildGroupEventIcons() {
     autofill.classList.remove('active');
   });
 
-  document.getElementById('holidaysBtn').addEventListener('click', () => { clearSelection(); renderList(); autofill.classList.remove('active'); overlay.classList.add('visible'); });
+  const _holBtn = document.getElementById('holidaysBtn'); // may be absent — the ⋯-menu Holidays entry was removed; guard so init doesn't halt
+  if (_holBtn) _holBtn.addEventListener('click', () => { clearSelection(); renderList(); autofill.classList.remove('active'); overlay.classList.add('visible'); });
   document.getElementById('holidaysClose').addEventListener('click', () => overlay.classList.remove('visible'));
   document.getElementById('holidaysSave').addEventListener('click', () => overlay.classList.remove('visible'));
   overlay.addEventListener('click', e => { if (e.target.id === 'holidaysOverlay') overlay.classList.remove('visible'); });
@@ -7822,6 +7823,7 @@ function animateGroupsByCity() {
 // never changes which host persona is on screen.
 document.getElementById('devReset').addEventListener('click', () => {
   if (typeof clearSelection === 'function') clearSelection(); // selection + QA pill go back to default
+  if (typeof _resetShiftTip === 'function') _resetShiftTip(); // Reset is the ONLY thing that re-arms the shift coach tip
   if (typeof window._resetSearchPill === 'function') window._resetSearchPill(); // query cleared, pill collapsed
   if (document.body.classList.contains('optimize-mode') && typeof exitOptimize === 'function') exitOptimize();
   setDataMode('none'); // bookings off + variance off (fires the host-wide flatten when they were on)
@@ -8371,7 +8373,7 @@ document.getElementById('devVariance').addEventListener('change', e => {
   // Persistence: the tip turns ON the moment a cell is tapped and STAYS on through any further taps.
   // The ONLY thing that dismisses it is the user actually shift-tapping a range (_shiftTapDone). Clearing
   // the whole selection resets it so a fresh selection re-teaches.
-  let tipDone = false;
+  let tipDone = false; try { tipDone = localStorage.getItem('mhc_shift_tip_done') === '1'; } catch (e) {} // persists across reloads — only a Reset re-arms it (guarded: sandboxed contexts throw on localStorage)
   window._hideShiftTip = () => tip.classList.remove('show');
   window._maybeShiftTip = function() {
     if (tipDone || !weekCal() || selCount() < 1 || !selAnchor) return _hideShiftTip(); // shows in both week and month (calendar mode)
@@ -8383,8 +8385,8 @@ document.getElementById('devVariance').addEventListener('change', e => {
     tip.style.left = Math.round(r.left + r.width / 2 - tr.width / 2) + 'px'; // centered over the tapped cell
     tip.style.top = Math.round(r.top - tr.height - 4) + 'px';                // 4px above the cell
   };
-  window._shiftTapDone = function() { tipDone = true; _hideShiftTip(); };   // user shift-tapped → learned, hide
-  window._resetShiftTip = function() { tipDone = false; _hideShiftTip(); }; // selection cleared → re-arm
+  window._shiftTapDone = function() { tipDone = true; try { localStorage.setItem('mhc_shift_tip_done', '1'); } catch (e) {} _hideShiftTip(); }; // shift-tapped OR X-dismissed → learned, gone for good (until Reset)
+  window._resetShiftTip = function() { tipDone = false; try { localStorage.removeItem('mhc_shift_tip_done'); } catch (e) {} _hideShiftTip(); }; // ONLY the dev Reset re-arms the coach tip
 })();
 
 // ── Per-listing actions: tap the thumbnail → open its calendar; the pencil badge → the actions panel ──
