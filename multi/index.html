@@ -1495,6 +1495,18 @@ body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.opt-
 .mopp-applied.is-check.is-lo { border-color: #EB6100; color: #EB6100; background: rgba(235,97,0,0.14); }
 .mopp-applied.is-check.is-lo:hover { background: rgba(235,97,0,0.22); }
 @keyframes apCkIn { 0% { opacity: 0; transform: scale(.4); } 100% { opacity: 1; transform: scale(1); } }
+/* On/off toggle (replaces Apply on price opps): OFF = grey track, knob left; ON = green track (amber
+   for a low-season cut), knob right. Toggling ON applies + keeps the %s; OFF reverts to the 0% default. */
+.mopp-toggle { width: 52px; height: 30px; border-radius: 999px; flex-shrink: 0; cursor: pointer;
+  border: none; padding: 0; position: relative; background: rgba(255,255,255,0.24); transition: background .22s ease; }
+.mopp-toggle .tg-knob { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.35); transition: transform .22s cubic-bezier(.4,0,.2,1); }
+.mopp-toggle:hover { background: rgba(255,255,255,0.34); }
+.mopp-toggle.is-on { background: #30D158; }
+.mopp-toggle.is-on:hover { background: #2cbb4e; }
+.mopp-toggle.is-on .tg-knob { transform: translateX(22px); }
+.mopp-toggle.is-lo.is-on { background: #EB6100; }
+.mopp-toggle.is-lo.is-on:hover { background: #d55a00; }
 /* The suggestion card (opens on tapping a glow) */
 .opt-card { position: fixed; display: none; width: 304px; background: #fff; border-radius: 20px; padding: 20px;
   box-shadow: 0 16px 50px rgba(0,0,0,0.24); font-family: 'Cereal', sans-serif; z-index: 240; }
@@ -9277,7 +9289,7 @@ function updateSeasonRibbon() {
     const staticRedraws = [];
     const drawStatic = so => {
       const su = so.intent === 'earn';
-      const sv = (so._appliedVals && so._appliedVals.length) ? so._appliedVals.slice() : _seasonSeries(so); // applied → the frozen placements; otherwise the SUGGESTED curve (greyed) — every opp stays at its real height, icons never collapse to the 0% line
+      const sv = (so._appliedVals && so._appliedVals.length) ? so._appliedVals.slice() : new Array(so.b - so.a + 1).fill(0); // TOGGLED ON (applied) → hold the frozen placements even when this opp isn't the focused one; otherwise ZERO (default) — an un-toggled opp collapses to the 0% line when you leave it
       const sx0 = rowOffsets[so.a] || 0;
       const sW = ((rowOffsets[so.b] || 0) + cw) - sx0;
       if (sW <= 0) return;
@@ -9437,7 +9449,6 @@ function updateSeasonRibbon() {
       const wandOn = updateSeasonRibbon._wandT0 && (performance.now() - updateSeasonRibbon._wandT0 < WDUR)
         && Array.isArray(updateSeasonRibbon._wandFrom) && updateSeasonRibbon._wandFrom.length === vals.length;
       const from = wandOn ? updateSeasonRibbon._wandFrom : null;
-      if (!from) return; // no fresh-focus 0-rise: the opp already sits at its suggested curve when non-focused, so focusing just recolours it in place (no snap to 0 and back). Only the wand toggle animates.
       const sign2 = up ? '+' : '\u2212';
       const ease = x => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
       const valAt = (i2, k) => from ? from[i2] + (vals[i2] - from[i2]) * k : vals[i2] * k;
@@ -9706,7 +9717,10 @@ function renderMagicPill() {
         oppIconHTML(g) +
         '<div class="mopp-whywrap' + (g.bucket === 'grouping' ? ' is-group' : '') + '"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + '</span>' : '') + (g.why ? '<span class="mopp-why">' + g.why + '</span>' : '') + '</div>' +
         WANDBTN +
-        (g.thinking ? '<button class="mopp-apply is-thinking" disabled aria-label="Working"><span class="thinkdots"><i></i><i></i><i></i></span></button>'
+        (isSeason
+          // price opps get an ON/OFF toggle: ON commits + holds the %s onto the next opp; OFF reverts to 0
+          ? '<button class="mopp-toggle' + ((g.applied || g.thinking) ? ' is-on' : '') + (g.intent === 'fill' ? ' is-lo' : '') + '" data-magic="' + ((g.applied || g.thinking) ? 'undo' : 'apply') + '" role="switch" aria-checked="' + ((g.applied || g.thinking) ? 'true' : 'false') + '" aria-label="Turn this price change on or off"><span class="tg-knob"></span></button>'
+          : g.thinking ? '<button class="mopp-apply is-thinking" disabled aria-label="Working"><span class="thinkdots"><i></i><i></i><i></i></span></button>'
           : g.applied ? '<button class="mopp-applied is-check' + (g.intent === 'fill' && g.bucket !== 'grouping' ? ' is-lo' : '') + '" data-magic="undo" title="Undo" aria-label="Applied — tap to undo"><svg class="apck" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg></button>'
           : '<button class="mopp-apply" data-magic="apply">' + (g.bucket === 'grouping' ? '<svg class=\'cta-wand\' width=\'24\' height=\'24\' viewBox=\'0 0 16 16\' fill=\'none\' aria-hidden=\'true\'><path fill=\'#fff\' d=\'M12.2069 2.85859L13.1411 3.79285C13.5317 4.18339 13.5317 4.81662 13.1411 5.2071L3.20689 15.1413C2.81636 15.532 2.18313 15.532 1.79265 15.1414L0.858273 14.2071C0.467808 13.8166 0.467808 13.1834 0.858316 12.7929L10.7926 2.85853C11.1832 2.46807 11.8163 2.46807 12.2069 2.85859ZM8.49893 6.84769L1.84792 13.4997L2.49942 14.1512L9.15043 7.49919L8.49893 6.84769Z\'/><path class=\'wstar\' d=\'M13.9997 7L14.4997 8L15.4997 8.5L14.4997 9L13.9997 10L13.4997 9L12.4997 8.5L13.4997 8L13.9997 7Z\'/><path class=\'wstar wstar2\' d=\'M7.49974 0.5L7.99974 1.5L8.99974 2L7.99974 2.5L7.49974 3.5L6.99974 2.5L5.99974 2L6.99974 1.5L7.49974 0.5Z\'/><path class=\'wstar wstar3\' d=\'M14.4997 0L14.9997 1L15.9997 1.5L14.9997 2L14.4997 3L13.9997 2L12.9997 1.5L13.9997 1L14.4997 0Z\'/></svg>' : '') + (g.cta || 'Apply') + '</button>') +
         '<button class="mnav-in next" data-magic="next" aria-label="Next opportunity">' + CHEV_NEXT + '</button>' +
