@@ -472,10 +472,10 @@ body.row-reordering .thumb-row { cursor: grabbing; }
 .gev:hover { transform: translateX(-50%) scale(calc(var(--fit, 1) * 1.5)); z-index: 12; }
 /* group-name centreline = 27px above the band's bottom edge (16px below-name + 11px half-name) —
    same in the 62px band and the 38px .first band, so one pair of offsets centres both sizes on it */
-.gev.gev-primary { width: 30px; height: 30px; bottom: 12px; }
-.gev.gev-secondary { width: 18px; height: 18px; bottom: 18px; }
-/* Riding a %-pill (opps mode): every icon reads at ONE size regardless of primary/secondary —
-   a row of tapes + a toolbox all match instead of the shoulder tapes looking tiny. */
+/* ONE size for every band icon — headline (primary) and shoulder (secondary), events AND holidays,
+   band AND riding. Nothing resizes when an opp is tapped; the whole system reads as one family.
+   bottom:13 centres the 28px glyph on the group-name line (27px above the band's bottom edge). */
+.gev.gev-primary, .gev.gev-secondary { width: 28px; height: 28px; bottom: 13px; }
 .gev[data-ride] { width: 28px; height: 28px; }
 .gev.gev-tentative { opacity: 1; } /* estimated dates render SOLID — the hover pill carries the "(estimated)" caveat */
 /* collapse is RETIRED for GROUPS: no up/down chevrons anywhere — groups are always open.
@@ -939,7 +939,7 @@ body.morph-settling:not(.super-collapse-2) .min-badge { animation: morph-fadein 
 /* SECONDARY hover (holiday + event alike): blow up to a fixed ~44px — scale is absolute (no --fit)
    so every secondary lands the same hover size no matter its resting optical correction */
 .holiday-icon.secondary:hover { transform: translateX(-50%) scale(2.44); }
-.gev.gev-secondary:hover { transform: translateX(-50%) scale(2.44); }
+/* gev secondaries now share the primary's size, so they share the primary hover (base .gev:hover 1.5×) too */
 /* Secondary "long weekend" marker: a small icon centered on the same rule — 18px, the SAME size
    as the event secondaries (.gev-secondary) so the two icon families read as one system */
 .holiday-icon.secondary {
@@ -9136,7 +9136,10 @@ function updateSeasonRibbon() {
     const x0 = rowOffsets[g.a] || 0;
     const W = ((rowOffsets[g.b] || 0) + cw) - x0;
     if (W <= 0) return;
-    const yOf = v2 => H - 3 - (Math.max(0, Math.min(v2, ceil)) / ceil) * (H - 7);
+    // Low season (down) INVERTS the axis: 0% sits at the TOP and the discount grows DOWNWARD, so a
+    // deeper cut reads as the curve dropping. Up seasons keep 0% at the bottom, growing upward.
+    const yOf = v2 => { const t = (Math.max(0, Math.min(v2, ceil)) / ceil) * (H - 7);
+      return up ? (H - 3 - t) : (3 + t); };
     const mkD = () => { let d2 = ''; let pen = false;
       vals.forEach((v2, i2) => { const di = g.a + i2; if (!coveredBy(g, di)) { pen = false; return; } // gap where a holiday/event owns the date
         const x2 = ((rowOffsets[di] || 0) + cw / 2) - x0;
@@ -9244,14 +9247,15 @@ function updateSeasonRibbon() {
           const liveCards = oppLis(g).map(li2 => ({ li: li2, card: document.querySelector('#gridRows .price-row[data-li="' + li2 + '"] .price-card[data-di="' + di2 + '"]') })).filter(x => x.card);
           const move = e2 => {
             const wy = e2.clientY - wrap.getBoundingClientRect().top;
-            let v2 = (H - 3 - wy) / (H - 7) * ceil; // 0-based Excel axis
+            let v2 = (up ? (H - 3 - wy) : (wy - 3)) / (H - 7) * ceil; // 0-based Excel axis (inverted for low season)
             v2 = Math.max(0, Math.min(ceil, v2));
             // magnetic ticks: quarter-grid stops + the axis midline snap under the hand
             for (const s of [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, ceil / 2]) {
               if (s <= ceil + 1e-9 && Math.abs(v2 - s) <= 0.015) { v2 = s; break; }
             }
-            // pushing past the chart top bumps the ceiling to the next step — the band grows to hold it
-            if (wy < -6) { const ni = STEPS.indexOf(ceil) + 1;
+            // pushing past the chart's far edge bumps the ceiling to the next step — the band grows to hold it
+            // (up: past the TOP; low season: past the BOTTOM, since its axis is flipped)
+            if (up ? (wy < -6) : (wy > H + 6)) { const ni = STEPS.indexOf(ceil) + 1;
               if (ni > 0 && ni < STEPS.length) { ceil = STEPS[ni]; H = BANDH[String(ceil)] - 78;
                 div.style.height = bandH() + 'px'; if (twin) twin.style.height = bandH() + 'px'; redraw(); } }
             vals[i] = v2;
