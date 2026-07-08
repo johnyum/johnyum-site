@@ -507,6 +507,11 @@ body.row-reordering .thumb-row { cursor: grabbing; }
    edge, free to extend right over the (empty) divider band. Pricing/Availability
    keep the visible in-column label (the grid is hidden in those modes). */
 body:not(.settings-mode):not(.avail-mode) .listing-thumbs .group-divider-name { visibility: hidden; }
+/* Pricing/Availability: the group header sits in the narrow (92px) left column — let its full name
+   overflow to the RIGHT (into the empty header-row space) instead of clipping to "Palm Sp"/"San Die". */
+body.settings-mode .listing-thumbs, body.avail-mode .listing-thumbs { overflow: visible; }
+body.settings-mode .group-divider-name, body.avail-mode .group-divider-name { white-space: nowrap; }
+body.settings-mode .listing-thumbs .gname-text, body.avail-mode .listing-thumbs .gname-text { overflow: visible; text-overflow: clip; }
 /* Listing-info column collapse/expand — a MANUAL global toggle (persisted) that wins over the old
    per-mode behavior in EVERY view (Calendar/Pricing/Availability + Week/Month/SC2).
    Collapsed (default): big thumbnail only, no name/+Nickname, narrow 92px column — the opaque white
@@ -8983,7 +8988,7 @@ function computeSuggestions() {
         const dates = c.a === c.b ? _M3[dA.getMonth()] + ' ' + dA.getDate()
           : _M3[dA.getMonth()] + ' ' + dA.getDate() + ' – ' + _M3[dB.getMonth()] + ' ' + dB.getDate();
         const cities = [...new Set(c.items.map(x => listingCity[x.li]))];
-        const cityStr = cities.length > 3 ? cities.slice(0, 3).join(', ') + ' +' + (cities.length - 3) : cities.join(', ');
+        const cityStr = cities.length > 2 ? cities.length + ' cities' : cities.join(', '); // 3+ cities → just the count, never a long name list
         const range = (loP === hiP ? loP + '%' : loP + '% – ' + hiP + '%') + ' ' + word;
         c.mag = cityStr + ' · ' + dates + ' · <span class="hl' + (c.intent === 'fill' ? ' lo' : '') + '">' + range + '</span>';
         c.magKind = 'flat';
@@ -9267,7 +9272,7 @@ function _seasonNarrate(c) {
   const cls = c.intent === 'fill' ? ' lo' : '';
   // ONE baseline line for every up/down opp: "City · Date range · X% – Y% premium|discount"
   const cities = [...new Set(c.items.map(x => listingCity[x.li]))];
-  const cityStr = cities.length > 3 ? cities.slice(0, 3).join(', ') + ' +' + (cities.length - 3) : cities.join(', ');
+  const cityStr = cities.length > 2 ? cities.length + ' cities' : cities.join(', '); // 3+ cities → just the count
   const lo = nz.length ? Math.round(Math.min(...nz) * 100) : 0;
   const hi = nz.length ? Math.round(Math.max(...nz) * 100) : 0;
   const range = lo === hi ? lo + '%' : lo + '% – ' + hi + '%';
@@ -9328,6 +9333,7 @@ function updateSeasonRibbon() {
   document.querySelectorAll('.season-ribbon, .ribbon-rail, .season-rules').forEach(x => x.remove());
   document.querySelectorAll('.group-divider.ribbon-grown').forEach(x => { x.classList.remove('ribbon-grown'); x.style.height = ''; });
   document.querySelectorAll('.gev[data-ride]').forEach(ic => { ic.style.bottom = ''; ic.style.cursor = ''; ic.removeAttribute('data-ride'); ic.removeAttribute('data-focusride'); if (ic._onDown) { ic.removeEventListener('pointerdown', ic._onDown); ic._onDown = null; } if (ic._onClick) { ic.removeEventListener('click', ic._onClick); ic._onClick = null; } }); // ridden event icons drop back to their stock band spot + shed drag/tap handlers
+  document.querySelectorAll('.gev[data-synth]').forEach(e => e.remove()); // synthesized season arrows are rebuilt each pass — never accumulate
   const o = window.__opt;
   if (!o || o.state !== 'results') { updateSeasonRibbon._lastId = null; return; }
   const g = o.suggs[o.cur];
@@ -9468,7 +9474,19 @@ function updateSeasonRibbon() {
         hp.className = 'ribbon-handle' + (up ? '' : ' lo');
         hp.style.left = hx + 'px'; hp.style.top = yOf(vals[i]) + 'px';
         hp.textContent = sign + Math.round(vals[i] * 100) + '%';
-        const gic = div.querySelector('.gev[data-di="' + (g.a + i) + '"]');
+        let gic = div.querySelector('.gev[data-di="' + (g.a + i) + '"]');
+        // EVERY high/low-season cell must ride a trend arrow. SEASON_MARKERS only cover curated month
+        // windows, so a demand-driven season card (e.g. San Diego high runs into Sep, past the Jun–Aug
+        // marker) lands on dates with NO marker → synthesize the arrow here so no cell is ever missing one.
+        if (!gic && (g.bucket === 'season-up' || g.bucket === 'season-down')) {
+          gic = document.createElement('img');
+          gic.className = 'gev gev-secondary gev-season gev-' + (up ? 'high' : 'low');
+          gic.src = (up ? 'event_icons/arrow-up-green.png' : 'event_icons/arrow-down-orange.png') + '?v=2';
+          gic.alt = ''; gic.loading = 'lazy'; gic.style.setProperty('--fit', '1');
+          gic.dataset.di = (g.a + i); gic.dataset.synth = '1';
+          gic.style.left = ((rowOffsets[g.a + i] || 0) + cw / 2) + 'px';
+          div.appendChild(gic);
+        }
         if (gic) { gic.dataset.ride = '1'; gic.dataset.focusride = '1'; hics[i] = gic; gic.style.bottom = (ICBASE + (H - yOf(vals[i]))) + 'px'; } // focusride → season icons show (this IS the tapped opp)
         (di2 => { const onDown = ev => {
           ev.preventDefault(); ev.stopPropagation();
