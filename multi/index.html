@@ -6630,10 +6630,11 @@ document.addEventListener('touchend', () => { isDragging = false; document.body.
 // ── Groups (drag listings into groups; drop on + to make a new group) ──────
 // Persist groups across reloads (localStorage)
 function saveGroups() { try { localStorage.setItem('mhc_groups', JSON.stringify(groups)); } catch (e) {} }
-let groups = (() => {
-  try { const s = localStorage.getItem('mhc_groups'); if (s) return JSON.parse(s); } catch (e) {}
-  return [{ name: 'Group 1', members: [] }];
-})(); // members = LISTINGS indices
+// Prototype: every browser REFRESH starts UNGROUPED (like Reset), so the "Automate groups" gate always
+// leads the demo. Grouping still works + persists in-session (saveGroups); it's just not restored on a
+// fresh load — the stored value is cleared here.
+try { localStorage.removeItem('mhc_groups'); } catch (e) {}
+let groups = [{ name: 'Group 1', members: [] }]; // members = LISTINGS indices
 let renamingGroup = -1;
 // Ungrouped listings collapse together under a "More" row (its own collapse state, persisted).
 // "More" (ungrouped homes) ALWAYS starts expanded — it never auto-closes; it stays shown until the
