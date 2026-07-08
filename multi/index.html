@@ -8998,7 +8998,7 @@ function updateSeasonRibbon() {
   const o = window.__opt;
   if (!o || o.state !== 'results') { updateSeasonRibbon._lastId = null; return; }
   const g = o.suggs[o.cur];
-  if (!g || (g.bucket !== 'season-up' && g.bucket !== 'season-down' && g.bucket !== 'event')) { updateSeasonRibbon._lastId = null; return; } // events ride the SAME chart system as seasons
+  if (!g || (g.bucket !== 'season-up' && g.bucket !== 'season-down' && g.bucket !== 'event' && g.bucket !== 'holiday')) { updateSeasonRibbon._lastId = null; return; } // events + holidays ride the SAME chart system as seasons
   // ENTRY: a freshly-focused card animates the chart up from 0% on the odometer's early beats
   // (flat ~300ms, rise, settled by ~750ms). The t0 is shared so mid-flight rebuilds (camera
   // scroll re-hangs) RESUME the rise instead of cutting it.
@@ -9018,8 +9018,8 @@ function updateSeasonRibbon() {
   let ceil = niceCeil(mx);
   let H = BANDH[String(ceil)] - 78; // calibrated so name→top-tick = 24px and 0%-line→cells = 16px at every ceiling
   const stroke = '#111'; // the curve line is BLACK now (pills separate from it via their white stroke)
-  const CHART = s => s && (s.bucket === 'season-up' || s.bucket === 'season-down' || s.bucket === 'event');
-  const chartOpps = o.suggs.filter(CHART);          // EVERY chart opp draws its own persistent curve on its band
+  const CHART = s => s && (s.bucket === 'season-up' || s.bucket === 'season-down' || s.bucket === 'event' || s.bucket === 'holiday');
+  const chartOpps = o.suggs.filter(CHART);          // EVERY chart opp draws its own curve on its band (zeroed until tapped)
   const oppLis = s => (s.lis && s.lis.length ? s.lis : s.items.map(x => x.li));
   const fullW = (rowOffsets[rowOffsets.length - 1] || 0) + cw; // rules span the WHOLE band, edge to edge
   const gLis = new Set(oppLis(g));
@@ -9030,11 +9030,9 @@ function updateSeasonRibbon() {
       : (groups[+gi] ? groups[+gi].members : []);
     if (!members.some(li => gLis.has(li))) return;
     const memberSet = new Set(members);
-    // ALL chart opps on this band — each draws its own curve (blank between them); the axis is
-    // SHARED so the ceiling accommodates the tallest curve across every opp on the band.
+    // ALL chart opps on this band draw their own curve — but only the FOCUSED one shows its pre-set
+    // values (the rest sit flat at 0% until tapped), so the axis only needs to fit the focused opp.
     const bandOpps = chartOpps.filter(s => oppLis(s).some(li => memberSet.has(li)));
-    { let m2 = 0.001; bandOpps.forEach(s => _seasonSeries(s).forEach(x => { if (x > m2) m2 = x; }));
-      ceil = niceCeil(m2); H = BANDH[String(ceil)] - 78; }
     const x0 = rowOffsets[g.a] || 0;
     const W = ((rowOffsets[g.b] || 0) + cw) - x0;
     if (W <= 0) return;
@@ -9073,7 +9071,7 @@ function updateSeasonRibbon() {
     const staticRedraws = [];
     const drawStatic = so => {
       const su = so.intent === 'earn';
-      const sv = _seasonSeries(so);
+      const sv = new Array(so.b - so.a + 1).fill(0); // ZEROED — non-focused opps sit flat at 0% until you tap them
       const sx0 = rowOffsets[so.a] || 0;
       const sW = ((rowOffsets[so.b] || 0) + cw) - sx0;
       if (sW <= 0) return;
@@ -9136,7 +9134,7 @@ function updateSeasonRibbon() {
           hp.classList.add('dragging');
           // the edited column's odometer TARGETS update LIVE while dragging — plain digits swap in
           // place of the reels, so nothing re-animates; the struck old price stays put
-          const liveCards = (g.lis || []).map(li2 => ({ li: li2, card: document.querySelector('#gridRows .price-row[data-li="' + li2 + '"] .price-card[data-di="' + di2 + '"]') })).filter(x => x.card);
+          const liveCards = oppLis(g).map(li2 => ({ li: li2, card: document.querySelector('#gridRows .price-row[data-li="' + li2 + '"] .price-card[data-di="' + di2 + '"]') })).filter(x => x.card);
           const move = e2 => {
             const wy = e2.clientY - wrap.getBoundingClientRect().top;
             let v2 = (H - 3 - wy) / (H - 7) * ceil; // 0-based Excel axis
@@ -9478,7 +9476,7 @@ function renderMagicPill() {
     const LAYERS = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M15 9.75L8 15L1 9.75M8 1L1.5 6L8 11L14.5 6L8 1Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>'; // the Automate-group layers glyph
     // Season wand: "this curve is our suggestion" toggle. ON (green fill, stars dance) = untouched
     // recommendation; dragging any %-handle untaps it; tapping it back snaps every handle home.
-    const isSeason = g.bucket === 'season-up' || g.bucket === 'season-down' || g.bucket === 'event'; // events carry the same chart + wand
+    const isSeason = g.bucket === 'season-up' || g.bucket === 'season-down' || g.bucket === 'event' || g.bucket === 'holiday'; // events + holidays carry the same chart + wand
     const WANDBTN = isSeason && !g.thinking && !g.applied
       ? '<button class="mopp-wandbtn' + (g._pctOv && Object.keys(g._pctOv).length ? '' : ' is-on') + '" data-magic="wandreset" title="Snap back to suggested" aria-label="Snap the curve back to the suggested percentages">' +
         '<svg width="24" height="24" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path class="wbody" d="M12.2069 2.85859L13.1411 3.79285C13.5317 4.18339 13.5317 4.81662 13.1411 5.2071L3.20689 15.1413C2.81636 15.532 2.18313 15.532 1.79265 15.1414L0.858273 14.2071C0.467808 13.8166 0.467808 13.1834 0.858316 12.7929L10.7926 2.85853C11.1832 2.46807 11.8163 2.46807 12.2069 2.85859ZM8.49893 6.84769L1.84792 13.4997L2.49942 14.1512L9.15043 7.49919L8.49893 6.84769Z"/><path class="wstar" d="M13.9997 7L14.4997 8L15.4997 8.5L14.4997 9L13.9997 10L13.4997 9L12.4997 8.5L13.4997 8L13.9997 7Z"/><path class="wstar wstar2" d="M7.49974 0.5L7.99974 1.5L8.99974 2L7.99974 2.5L7.49974 3.5L6.99974 2.5L5.99974 2L6.99974 1.5L7.49974 0.5Z"/><path class="wstar wstar3" d="M14.4997 0L14.9997 1L15.9997 1.5L14.9997 2L14.4997 3L13.9997 2L12.9997 1.5L13.9997 1L14.4997 0Z"/></svg></button>'
