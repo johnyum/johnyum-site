@@ -1150,6 +1150,14 @@ body.optimize-mode .search-pill, body.multi-active .search-pill {
 .magic-cta .thinkdots i { width: 6px; height: 6px; border-radius: 50%; background: #222; animation: thinkPulse 1s ease-in-out infinite; }
 .magic-cta .thinkdots i:nth-child(2) { animation-delay: .2s; }
 .magic-cta .thinkdots i:nth-child(3) { animation-delay: .4s; }
+/* "Automate groups": layers glyph on the left, sized + inset like the search magnifier (24px, 24px inset) */
+.magic-cta.ag-cta { padding-left: 24px; }
+.magic-cta .ag-layers { width: 24px; height: 24px; }
+/* after grouping: take a beat, then the wand POPS in with the "Opportunities" label */
+@keyframes magicWandPop { 0% { transform: scale(.3); opacity: 0; } 55% { transform: scale(1.14); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes magicLabelIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: translateX(0); } }
+.magic-cta.wand-enter .magic-wandwrap { animation: magicWandPop .55s cubic-bezier(.2,.8,.3,1.3) both; }
+.magic-cta.wand-enter .magic-label { animation: magicLabelIn .45s ease .18s both; }
 /* the label rides OPEN by default — "N Opportunities" with 12px after the wand and 16px of air on
    its right; tapping still collapses the whole pill into the 72px scanning circle */
 .magic-label { padding-left: 12px; padding-right: 16px; white-space: nowrap; display: inline-block; overflow: hidden; max-width: 240px;
@@ -9934,16 +9942,16 @@ function renderMagicPill() {
   // IDLE. The "Opportunities" pill is GATED behind having groups: with none yet, show an "Automate
   // groups" button in its place; once grouped, Opportunities takes over. While grouping animates,
   // three dots pulse where the label was (groups are set synchronously, so a flag overrides the gate).
-  const LAYERS = '<svg width="24" height="24" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M15 9.75L8 15L1 9.75M8 1L1.5 6L8 11L14.5 6L8 1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+  const LAYERS = '<svg class="ag-layers" width="24" height="24" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M15 9.75L8 15L1 9.75M8 1L1.5 6L8 11L14.5 6L8 1Z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></svg>'; // 24px, stroke weight matched to the search magnifier
   if (window._autoGroupThinking) {
     pill.innerHTML = '<button class="magic-cta is-autogroup" disabled aria-label="Grouping…"><span class="thinkdots"><i></i><i></i><i></i></span></button>';
     return;
   }
   if (typeof hasRealGroups === 'function' && !hasRealGroups()) {
-    pill.innerHTML = '<button class="magic-cta" data-magic="autogroup">' + LAYERS + '<span class="magic-label">Automate groups</span></button>';
+    pill.innerHTML = '<button class="magic-cta ag-cta" data-magic="autogroup">' + LAYERS + '<span class="magic-label">Automate groups</span></button>';
     return;
   }
-  pill.innerHTML = '<button class="magic-cta" data-magic="go">' + wandHTML() + '<span class="magic-label">Opportunities</span></button>'; // idle: wand + label — ONE name in every mode
+  pill.innerHTML = '<button class="magic-cta' + (window._oppWandEnter ? ' wand-enter' : '') + '" data-magic="go">' + wandHTML() + '<span class="magic-label">Opportunities</span></button>'; // idle: wand + label — ONE name in every mode
 }
 window.updateMagicPill = function () {
   const el = document.getElementById('magicAction'); if (!el) return;
@@ -10285,11 +10293,14 @@ function closeOptCard() { const c = document.getElementById('optCard'); if (c) c
 document.getElementById('magicAction').addEventListener('click', e => {
   const b = e.target.closest('[data-magic]'); if (!b) return;
   const act = b.dataset.magic;
-  if (act === 'autogroup') { // standalone grouping gate → three dots → then the button becomes Opportunities
+  if (act === 'autogroup') { // standalone grouping gate → three dots → beat → the wand animates in as Opportunities
     if (window._autoGroupThinking) return;
     window._autoGroupThinking = true; renderMagicPill();               // dots take the label's place
     const total = (typeof applyGroupingLive === 'function' ? applyGroupingLive() : 0) || 2400; // runs the live grouping, returns its duration
-    setTimeout(() => { window._autoGroupThinking = false; renderMagicPill(); }, total); // grouping done → "Opportunities" replaces the button
+    setTimeout(() => {                                                 // grouping settled → take a beat, then wand-in as Opportunities
+      window._autoGroupThinking = false; window._oppWandEnter = true; renderMagicPill();
+      setTimeout(() => { window._oppWandEnter = false; }, 900);        // one-shot: clear after the entrance animation
+    }, total + 420);                                                    // +420ms beat after the grouping lands
   }
   else if (act === 'go') startOptimize();
   else if (act === 'all') applyAllSuggestions();
