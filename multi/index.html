@@ -6934,21 +6934,12 @@ function _groupLabelSyncPass() {
   // writes last, and only on change
   if (thumbsInner && thumbsInner.style.getPropertyValue('--vmax') !== vmax) thumbsInner.style.setProperty('--vmax', vmax);
   if (inner.style.getPropertyValue('--vmax') !== vmax) inner.style.setProperty('--vmax', vmax);
-  // The HIGHLIGHTED city's header must never disappear behind the clip/date-header: pin the focused
-  // group's label just below the 60px clip line (sticky), still bounded to its own band, so it stays
-  // legible even when the opps modal frames the cells at the top. Legibility > cells-behind-modal.
-  const o = window.__opt;
-  const fg = (o && o.state === 'results' && document.body.classList.contains('optimize-mode') && o.suggs && o.suggs[o.cur]) ? o.suggs[o.cur] : null;
-  const focusedLis = fg ? new Set(fg.lis && fg.lis.length ? fg.lis : (fg.items || []).map(x => x.li)) : null;
+  // Labels ride their band's NATURAL position and tuck cleanly UNDER the 60px date-header clip as they
+  // scroll up. (No sticky pin: a sticky focused-label floated below the header over its own rows / the
+  // next group instead of going under. The opps framing already lands the focused name below the clip.)
   labels.forEach((l, i) => {
     if (tops[i] == null) return;
-    let ti = tops[i];
-    if (focusedLis) {
-      const gi2 = divs[i].dataset.gi;
-      const members = gi2 === 'more' ? [] : (groups[+gi2] ? groups[+gi2].members : []);
-      if (members.some(m => focusedLis.has(m))) ti = Math.max(ti, 64 - ty); // STICKY: pin the highlighted city's header just below the 60px clip line so it's always legible
-    }
-    const t = Math.round(ti * 2) / 2 + 'px'; // half-px grid: stable, no per-frame churn
+    const t = Math.round(tops[i] * 2) / 2 + 'px'; // half-px grid: stable, no per-frame churn
     if (l.style.top !== t) l.style.top = t;
   });
 }
