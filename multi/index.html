@@ -9532,8 +9532,14 @@ function updateSeasonRibbon() {
             if (warnMsg) {
               warn.textContent = warnMsg;
               warn.style.left = hp.style.left;
-              warn.style.top = (parseFloat(hp.style.top) - 26 - (hics[i] ? hics[i].offsetHeight + 4 : 0)) + 'px'; // sit 4px above the riding event icon
-              warn.style.display = '';
+              warn.style.display = ''; // show first so offsetHeight is measurable
+              const ic = hics[i];
+              if (ic) { // sit the pill exactly 4px above the riding icon's real top (icon lives in the band → measure it)
+                const wr = wrap.getBoundingClientRect(), ir = ic.getBoundingClientRect();
+                warn.style.top = Math.round(ir.top - wr.top - warn.offsetHeight - 4) + 'px';
+              } else { // no icon → 4px above the % pill
+                warn.style.top = (parseFloat(hp.style.top) - warn.offsetHeight - 4) + 'px';
+              }
               clearTimeout(warn._t);
             } else warn.style.display = 'none';
             liveCards.forEach(({ li: li2, card }) => {
