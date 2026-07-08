@@ -360,7 +360,7 @@ body.super-collapse-2 .left-toggle svg { width: 14px; height: 14px; }
 .listing-thumbs::-webkit-scrollbar { width: 0; }
 
 .thumb-row {
-  height: 56px;
+  height: 64px;
   flex-shrink: 0;
   display: flex;
   flex-direction: row;
@@ -467,13 +467,16 @@ body.row-reordering .thumb-row { cursor: grabbing; }
    the primary icon opens the run over its first date column, small secondary accents carry the
    rest; every icon is centred to its column and to the header type's centreline. ── */
 #gridRows .group-divider { position: relative; } /* the band is the icons' coordinate space */
-.gev { position: absolute; transform: translateX(-50%); pointer-events: auto; cursor: default;
-  transition: transform 0.32s ease; z-index: 10; } /* left set inline to the column centre (rowOffsets) */
-.gev:hover { transform: translateX(-50%) scale(1.5); z-index: 12; }
+.gev { position: absolute; transform: translateX(-50%) scale(var(--fit, 1)); pointer-events: auto; cursor: default;
+  transition: transform 0.32s ease; z-index: 10; } /* left set inline to the column centre (rowOffsets); --fit crops transparent PNG padding so the glyph fills its box */
+.gev:hover { transform: translateX(-50%) scale(calc(var(--fit, 1) * 1.5)); z-index: 12; }
 /* group-name centreline = 27px above the band's bottom edge (16px below-name + 11px half-name) —
    same in the 62px band and the 38px .first band, so one pair of offsets centres both sizes on it */
 .gev.gev-primary { width: 30px; height: 30px; bottom: 12px; }
 .gev.gev-secondary { width: 18px; height: 18px; bottom: 18px; }
+/* Riding a %-pill (opps mode): every icon reads at ONE size regardless of primary/secondary —
+   a row of tapes + a toolbox all match instead of the shoulder tapes looking tiny. */
+.gev[data-ride] { width: 28px; height: 28px; }
 .gev.gev-tentative { opacity: 1; } /* estimated dates render SOLID — the hover pill carries the "(estimated)" caveat */
 /* collapse is RETIRED for GROUPS: no up/down chevrons anywhere — groups are always open.
    The left panel's own grey-circle chevron stays: names can still collapse/expand. */
@@ -1351,9 +1354,8 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
   border: 1px solid rgba(3,128,38,0.35); border-radius: 999px; padding: 2px 8px; white-space: nowrap; z-index: 3;
 }
 .season-ribbon .ribbon-peak.lo { color: #BE4900; border-color: rgba(190,73,0,0.35); }
-/* the month header carries NO chevrons: the title's ⌄ and the round › listing-names toggle are gone */
+/* the month header title's ⌄ is gone, but the round › listing-names toggle is BACK (grey circle on the thumbnail line) */
 .month-title svg { display: none !important; }
-.left-toggle { display: none !important; }
 /* rides .bp-close, DARK skin */
 .bp-close.magic-close { top: -44px; right: -44px; /* its offset box is inset 20px from the pill edge → −44 here = the QA pill's exact −24 float */ background: #000; color: #fff; box-shadow: 0 0 0 1px rgba(255,255,255,0.16), 0 4px 14px rgba(0,0,0,0.32); } /* IDENTICAL float to the QA pill's X (−24/−24 off the pill corner) — every modal shares one X spacing */
 
@@ -1388,8 +1390,8 @@ body.opt-sizing .price-row, body.opt-sizing .thumb-row { transition: height .4s 
 .price-card.opt-flag:hover { border-color: transparent; background: transparent; }
 /* hover fill traces the WAVE (the .wfill path), not a square behind it — grey-200 blooms inside the
    wavy outline across the whole focused group in unison. */
-body.optimize-mode:not(.host-small):not(.host-pro):not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .price-row,
-body.optimize-mode:not(.host-small):not(.host-pro):not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .thumb-row { height: 72px; } /* host-pro (32 listings) stays at its shortest 48px in EVERY mode — no opts grow */
+/* Cells keep their idle height in opportunities mode across EVERY tier — no opts grow, no scanner grow.
+   12 listings stays 64px, 32 listings stays 56px, just like each other. */
 /* ═══ Opportunity cell INFO reveal — split-odometer price roll (ported from the glow study).
    ADDITIVE: the .pstack overlay exists only on a FOCUSED raise/drop opportunity cell; idle cells
    and every non-opportunity cell keep their plain .price-val untouched. ═══ */
@@ -1976,7 +1978,7 @@ body.month-view:not(.settings-mode):not(.avail-mode) .thumb-row { height: 140px;
 
 .price-row {
   display: flex;
-  height: 56px;
+  height: 64px;
   align-items: center;
   padding: 0;
   position: relative;
@@ -2208,8 +2210,8 @@ body.host-small.dim-bookings:not(.super-collapse-2) .booking-pill {
 
 /* ── Pro host density: 48px calendar rows. Same tools, same jobs — the Pricing/Availability input
    rows stay at their normal height; only the calendar gets denser as the inventory grows. */
-body.host-pro:not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .price-row { height: 48px; }
-body.host-pro:not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .thumb-row { height: 48px; }
+body.host-pro:not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .price-row { height: 56px; }
+body.host-pro:not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .thumb-row { height: 56px; }
 body.host-pro:not(.super-collapse-2):not(.dim-bookings) .booking-pill { height: 36px; border-radius: 18px; } /* idle only — edit/opportunities mode falls through to the dim BOX-SNAP */
 body.host-pro:not(.super-collapse-2) .booking-avatar { width: 28px; height: 28px; }
 body.host-pro:not(.super-collapse-2) .booking-name { font-size: 12px; }
@@ -7024,7 +7026,7 @@ function buildGroupEventIcons() {
     const which = hol || sec; if (!which) continue;
     const file = hol ? which.file : (which.secondaryFile || (which.altFiles && which.altFiles[secondaryAltIndex(d, which) % 2]));
     if (!file) continue; // star12 / circle secondaries carry no image — skip them in the band
-    holMarks.push({ di, primary: !!hol, name: which.name, file: encodeURI('holidays/' + file), fit: (which.fit || 1) });
+    holMarks.push({ di, primary: !!hol, name: which.name, file: encodeURI('holidays/' + file), fit: (hol ? (which.fit || 1) : (which.secFit || 1.2)) }); // secondaries (tape, flag…) carry ~18% transparent padding — crop it so they don't ride tiny next to primaries
   }
   dividers.forEach(div => {
     const gi = div.dataset.gi;
@@ -7061,7 +7063,8 @@ function buildGroupEventIcons() {
         taken.add(di);
         const img = document.createElement('img');
         img.className = 'gev ' + (isP ? 'gev-primary' : 'gev-secondary') + (status === 'estimated' ? ' gev-tentative' : '');
-        img.src = src; img.alt = name; img.loading = 'lazy';
+        img.src = src; img.alt = name; img.loading = 'lazy'; img.style.setProperty('--fit', '1'); // event_icons are pre-cropped
+
         img.dataset.hname = name; img.dataset.di = di; // the ribbon's %-handles adopt their date's icon by this key
         img.style.left = ((rowOffsets[di] || 0) + cw / 2) + 'px';
         div.appendChild(img);
@@ -7073,7 +7076,7 @@ function buildGroupEventIcons() {
       taken.add(m.di);
       const img = document.createElement('img');
       img.className = 'gev ' + (m.primary ? 'gev-primary' : 'gev-secondary');
-      img.src = m.file; img.alt = m.name; img.loading = 'lazy';
+      img.src = m.file; img.alt = m.name; img.loading = 'lazy'; img.style.setProperty('--fit', m.fit || 1);
       img.dataset.hname = m.name; img.dataset.di = m.di;
       img.style.left = ((rowOffsets[m.di] || 0) + cw / 2) + 'px';
       div.appendChild(img);
