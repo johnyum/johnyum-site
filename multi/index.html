@@ -9331,8 +9331,7 @@ function updateSeasonRibbon() {
     };
     const warn = document.createElement('div');
     warn.className = 'ribbon-warn';
-    warn.textContent = "That's a lot";
-    warn.style.display = 'none';
+    warn.style.display = 'none'; // text is set per-drag by the progressive over-market tiers
     wrap.appendChild(warn);
     const hps = [], hics = []; // hics[i] = the date's event icon, riding 4px above its % pill
     const layoutHandles = () => hps.forEach((hp2, i2) => {
@@ -9379,7 +9378,15 @@ function updateSeasonRibbon() {
             hp.textContent = sign + Math.round(v2 * 100) + '%';
             const p2 = path(); if (p2) p2.setAttribute('d', buildD());
             layoutHandles();
-            if (v2 >= 0.5) { // that's a lot
+            // PROGRESSIVE warning, keyed off how far past the MARKET this drag sits (v2 vs the
+            // suggested/market premium for this date) — not a flat %. So a big number on a genuine
+            // spike stays quiet, but pricing well above what the market supports escalates in words.
+            const over = v2 - _livePct(g, di2);
+            const warnMsg = over < 0.20 ? ''
+              : up ? (over >= 0.70 ? "No one's charging this much" : over >= 0.45 ? 'Above the market' : 'Ahead of the market')
+                   : (over >= 0.70 ? "You'd be giving it away" : over >= 0.45 ? 'Below the market' : 'Under the market');
+            if (warnMsg) {
+              warn.textContent = warnMsg;
               warn.style.left = hp.style.left;
               warn.style.top = (parseFloat(hp.style.top) - 26 - (hics[i] ? hics[i].offsetHeight + 8 : 0)) + 'px'; // clear the riding event icon
               warn.style.display = '';
