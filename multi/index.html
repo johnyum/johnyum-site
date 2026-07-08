@@ -911,6 +911,7 @@ body.morph-settling:not(.super-collapse-2) .min-badge { animation: morph-fadein 
   gap: 2px; /* space between the day-of-week label and the date number (week + month) */
   cursor: pointer;
 }
+#dateHeader .holiday-icon { display: none; } /* holidays no longer sit on the date-header rule — they ride the group bands (buildGroupEventIcons holMarks) */
 .holiday-icon {
   position: absolute;
   left: 50%;
@@ -1387,8 +1388,8 @@ body.opt-sizing .price-row, body.opt-sizing .thumb-row { transition: height .4s 
 .price-card.opt-flag:hover { border-color: transparent; background: transparent; }
 /* hover fill traces the WAVE (the .wfill path), not a square behind it — grey-200 blooms inside the
    wavy outline across the whole focused group in unison. */
-body.optimize-mode:not(.host-small):not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .price-row,
-body.optimize-mode:not(.host-small):not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .thumb-row { height: 72px; }
+body.optimize-mode:not(.host-small):not(.host-pro):not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .price-row,
+body.optimize-mode:not(.host-small):not(.host-pro):not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .thumb-row { height: 72px; } /* host-pro (32 listings) stays at its shortest 48px in EVERY mode — no opts grow */
 /* ═══ Opportunity cell INFO reveal — split-odometer price roll (ported from the glow study).
    ADDITIVE: the .pstack overlay exists only on a FOCUSED raise/drop opportunity cell; idle cells
    and every non-opportunity cell keep their plain .price-val untouched. ═══ */
@@ -7015,6 +7016,16 @@ function buildGroupEventIcons() {
   const diBy = new Map(allDays.map((d, i) => [_evDayKey(d), i]));
   const cw = gridCell().w;
   const grouped = new Set(groups.flatMap(g => g.members));
+  // HOLIDAYS are moved OFF the date-header rule and INTO each band, repeated per city group. Build the
+  // day→icon map once, then drop the same marks on every divider below.
+  const holMarks = [];
+  for (let di = 0; di < allDays.length; di++) {
+    const d = allDays[di]; const hol = holidayFor(d); const sec = hol ? null : secondaryHolidayFor(d);
+    const which = hol || sec; if (!which) continue;
+    const file = hol ? which.file : (which.secondaryFile || (which.altFiles && which.altFiles[secondaryAltIndex(d, which) % 2]));
+    if (!file) continue; // star12 / circle secondaries carry no image — skip them in the band
+    holMarks.push({ di, primary: !!hol, name: which.name, file: encodeURI('holidays/' + file), fit: (which.fit || 1) });
+  }
   dividers.forEach(div => {
     const gi = div.dataset.gi;
     const members = gi === 'more'
@@ -7055,6 +7066,17 @@ function buildGroupEventIcons() {
         img.style.left = ((rowOffsets[di] || 0) + cw / 2) + 'px';
         div.appendChild(img);
       });
+    });
+    // holidays ride this band on every date an event didn't already claim (repeated on each city group)
+    holMarks.forEach(m => {
+      if (taken.has(m.di)) return;
+      taken.add(m.di);
+      const img = document.createElement('img');
+      img.className = 'gev ' + (m.primary ? 'gev-primary' : 'gev-secondary');
+      img.src = m.file; img.alt = m.name; img.loading = 'lazy';
+      img.dataset.hname = m.name; img.dataset.di = m.di;
+      img.style.left = ((rowOffsets[m.di] || 0) + cw / 2) + 'px';
+      div.appendChild(img);
     });
   });
 }
@@ -9014,7 +9036,7 @@ function seasonWandReset() {
 function updateSeasonRibbon() {
   document.querySelectorAll('.season-ribbon, .ribbon-rail, .season-rules').forEach(x => x.remove());
   document.querySelectorAll('.group-divider.ribbon-grown').forEach(x => { x.classList.remove('ribbon-grown'); x.style.height = ''; });
-  document.querySelectorAll('.gev[data-ride]').forEach(ic => { ic.style.bottom = ''; ic.removeAttribute('data-ride'); }); // ridden event icons drop back to their stock band spot
+  document.querySelectorAll('.gev[data-ride]').forEach(ic => { ic.style.bottom = ''; ic.style.cursor = ''; ic.removeAttribute('data-ride'); if (ic._onDown) { ic.removeEventListener('pointerdown', ic._onDown); ic._onDown = null; } if (ic._onClick) { ic.removeEventListener('click', ic._onClick); ic._onClick = null; } }); // ridden event icons drop back to their stock band spot + shed drag/tap handlers
   const o = window.__opt;
   if (!o || o.state !== 'results') { updateSeasonRibbon._lastId = null; return; }
   const g = o.suggs[o.cur];
@@ -9024,7 +9046,7 @@ function updateSeasonRibbon() {
   // scroll re-hangs) RESUME the rise instead of cutting it.
   if (updateSeasonRibbon._lastId !== g.id) { updateSeasonRibbon._lastId = g.id; updateSeasonRibbon._entryT0 = performance.now(); updateSeasonRibbon._wandT0 = 0; }
   const up = g.intent === 'earn';
-  const vals = (g.applied && g._appliedVals && g._appliedVals.length) ? g._appliedVals.slice() : _seasonSeries(g); // applied → hold the snapshotted placements (post-apply _seasonSeries reads ~0)
+  const vals = (g._appliedVals && g._appliedVals.length) ? g._appliedVals.slice() : _seasonSeries(g); // applying OR applied → hold the snapshotted placements the whole time (no zero-crunch during the thinking dots)
   const mx = Math.max(...vals, 0.001);
   const cw = gridCell().w;
   // EXCEL-style axis: 0-based, honest scale. The ceiling snaps to the next "nice" step and the
@@ -9091,7 +9113,7 @@ function updateSeasonRibbon() {
     const staticRedraws = [];
     const drawStatic = so => {
       const su = so.intent === 'earn';
-      const sv = (so.applied && so._appliedVals && so._appliedVals.length) ? so._appliedVals.slice() : new Array(so.b - so.a + 1).fill(0); // applied → keep the placements; otherwise ZEROED until tapped
+      const sv = (so._appliedVals && so._appliedVals.length) ? so._appliedVals.slice() : new Array(so.b - so.a + 1).fill(0); // applied → keep the placements; otherwise ZEROED until tapped
       const sx0 = rowOffsets[so.a] || 0;
       const sW = ((rowOffsets[so.b] || 0) + cw) - sx0;
       if (sW <= 0) return;
@@ -9108,7 +9130,7 @@ function updateSeasonRibbon() {
         hp.style.left = hx + 'px'; hp.style.top = yOf(v) + 'px'; hp.textContent = sgn + Math.round(v * 100) + '%';
         hp.addEventListener('click', focusMe);
         w2.appendChild(hp); spills.push({ hp: hp, di: di, v: v });
-        const gic = div.querySelector('.gev[data-di="' + di + '"]'); if (gic) { gic.dataset.ride = '1'; gic.style.bottom = (ICBASE + (H - yOf(v))) + 'px'; }
+        const gic = div.querySelector('.gev[data-di="' + di + '"]'); if (gic) { gic.dataset.ride = '1'; gic.style.bottom = (ICBASE + (H - yOf(v))) + 'px'; gic.style.cursor = 'pointer'; if (gic._onClick) gic.removeEventListener('click', gic._onClick); gic._onClick = focusMe; gic.addEventListener('click', focusMe); } // tap the icon = focus this opp too
       });
       div.appendChild(w2);
       staticRedraws.push(() => { w2.style.height = H + 'px'; const svg = w2.querySelector('svg');
@@ -9151,7 +9173,7 @@ function updateSeasonRibbon() {
         hp.textContent = sign + Math.round(vals[i] * 100) + '%';
         const gic = div.querySelector('.gev[data-di="' + (g.a + i) + '"]');
         if (gic) { gic.dataset.ride = '1'; hics[i] = gic; gic.style.bottom = (ICBASE + (H - yOf(vals[i]))) + 'px'; }
-        (di2 => hp.addEventListener('pointerdown', ev => {
+        (di2 => { const onDown = ev => {
           ev.preventDefault(); ev.stopPropagation();
           try { hp.setPointerCapture(ev.pointerId); } catch (err) {}
           updateSeasonRibbon._entryT0 = 0; updateSeasonRibbon._wandT0 = 0; // grabbing a handle ends any entry / wand rise instantly
@@ -9208,7 +9230,9 @@ function updateSeasonRibbon() {
           };
           window.addEventListener('pointermove', move);
           window.addEventListener('pointerup', done, { once: true });
-        }))(g.a + i);
+        }; hp.addEventListener('pointerdown', onDown);
+          if (gic) { gic.style.cursor = 'ns-resize'; if (gic._onDown) gic.removeEventListener('pointerdown', gic._onDown); gic._onDown = onDown; gic.addEventListener('pointerdown', onDown); } // the riding icon is part of the drag target (replace, don't stack)
+        })(g.a + i);
         wrap.appendChild(hp);
       }
     }
@@ -9241,7 +9265,7 @@ function updateSeasonRibbon() {
     // _entryT0 (flat until 308ms, settled 748ms). Wand tap/untap: start = the pre-tap shape
     // (_wandFrom), so the curve visibly FALLS to flat / LIFTS back to the suggestion over WDUR.
     (() => {
-      if (g.applied) return; // an applied card is settled at its placements — no rise
+      if (g.applied || (g._appliedVals && g._appliedVals.length)) return; // applying/applied → settled at its placements, no rise (no crunch during the thinking dots)
       const RISE_A = 680, RISE_B = 1120, WDUR = 560; // hold a longer BEAT after landing before the curve rises
       const wandOn = updateSeasonRibbon._wandT0 && (performance.now() - updateSeasonRibbon._wandT0 < WDUR)
         && Array.isArray(updateSeasonRibbon._wandFrom) && updateSeasonRibbon._wandFrom.length === vals.length;
