@@ -1241,6 +1241,22 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
 .mopp-apply .thinkdots i:nth-child(2) { animation-delay: .2s; }
 .mopp-apply .thinkdots i:nth-child(3) { animation-delay: .4s; }
 @keyframes thinkPulse { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+/* Season wand toggle (left of Apply on season cards): ON = the curve is our untouched suggestion —
+   green stroke + green fill (the applied-check treatment), stars dance. Dragging a %-handle untaps
+   it to the grey Apply stroke, wand goes still; tapping it snaps every handle back to suggested. */
+.mopp-wandbtn { width: 48px; height: 48px; border-radius: 999px; flex-shrink: 0; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; padding: 0;
+  background: transparent; border: 1px solid var(--grey-700); transition: background .2s ease, border-color .2s ease; }
+.mopp-wandbtn svg { display: block; }
+.mopp-wandbtn .wbody, .mopp-wandbtn .wstar { fill: var(--grey-500); }
+.mopp-wandbtn:hover { background: rgba(255,255,255,0.12); }
+.mopp-wandbtn.is-on { border: 1.5px solid #30D158; background: rgba(48,209,88,0.14); cursor: default; }
+.mopp-wandbtn.is-on:hover { background: rgba(48,209,88,0.14); }
+.mopp-wandbtn.is-on .wbody { fill: #fff; } /* tapped: white wand (the Automate treatment), green stars */
+.mopp-wandbtn.is-on .wstar { fill: #30D158; }
+.mopp-wandbtn.is-on .wstar { animation: wandTwinkle 1.6s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+.mopp-wandbtn.is-on .wstar2 { animation-delay: .5s; }
+.mopp-wandbtn.is-on .wstar3 { animation-delay: 1s; }
 .magic-pill.opp-light .mopp-apply { background: #222; color: #fff; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .magic-pill.opp-light .mopp-apply:hover { background: #000; }
 .mopp-allbtn { background: transparent; color: var(--grey-700); border: 0; font: 500 12px 'Cereal', sans-serif;
@@ -1298,6 +1314,10 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
 .group-divider { transition: height .35s cubic-bezier(.4,0,.2,1); }
 .group-divider.ribbon-grown { height: 148px; }
 .group-divider.first.ribbon-grown { height: 128px; }
+/* Grown band anatomy: group NAME on top, chart below it, cells underneath. The name anchor flips
+   from bottom-aligned to top-pinned at the same 24px it already sat at in the 62px band — so the
+   name holds still while the band grows the chart in beneath it. (Event icons hang separately.) */
+.listing-thumbs .group-divider.ribbon-grown:not(.first) { align-items: flex-start; padding-top: 24px; }
 .ribbon-hit { position: absolute; inset: 0; pointer-events: auto; cursor: crosshair; }
 .season-ribbon .ribbon-handle {
   position: absolute; transform: translate(-50%, -50%); pointer-events: auto; cursor: ns-resize;
@@ -2280,6 +2300,29 @@ body:not(.optimize-mode):not(.super-collapse-2) .price-card:hover .min-badge,
 body:not(.optimize-mode):not(.super-collapse-2) .price-card:hover .disc-badge,
 body:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .min-badge,
 body:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .disc-badge { opacity: 1; }
+/* QA-SELECTED cells: "Min N" animates in UNDER the price in the odometer's exact geometry —
+   14px type, 16px slots 2px apart, the price lifting to the top slot. Deselecting eases the
+   price back to centre and fades the line away. */
+body:not(.optimize-mode):not(.super-collapse-2) .price-card .price-val { transition: transform .3s cubic-bezier(.4,0,.2,1); }
+body:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .price-val { transform: translateY(-9px); }
+body:not(.optimize-mode):not(.super-collapse-2) .price-card.sel-out .min-badge {
+  font-size: 14px; height: 16px; line-height: 16px; top: calc(50% + 1px);
+  animation: selMinOut .25s ease both; } /* deselected: the line slides back up into the price and fades */
+body:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .min-badge {
+  font-size: 14px; height: 16px; line-height: 16px; top: calc(50% + 1px);
+  animation: selMinIn .3s cubic-bezier(.4,0,.2,1) both; }
+body.no-min:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .min-badge,
+body.no-min:not(.optimize-mode):not(.super-collapse-2) .price-card.sel-out .min-badge { display: block; } /* selection reveals the minimum even under the "No Min" switch */
+/* Discount cells join the same stack: price / Min N / -15%, every line a 16px slot 2px apart —
+   no more badge floating detached at the cell's bottom edge. */
+body:not(.optimize-mode):not(.super-collapse-2) .price-card.sel-out .disc-badge {
+  top: calc(50% + 19px); height: 16px; line-height: 16px; margin-top: 0;
+  animation: selMinOut .25s ease both; }
+body:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .disc-badge {
+  top: calc(50% + 19px); height: 16px; line-height: 16px; margin-top: 0;
+  animation: selMinIn .3s cubic-bezier(.4,0,.2,1) both; }
+@keyframes selMinIn { from { opacity: 0; transform: translateY(-9px); } to { opacity: 1; transform: none; } }
+@keyframes selMinOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-9px); } }
 body.optimize-mode .price-card:not(.opt-flag) .disc-badge { animation: discAway .35s ease forwards; } /* clear pre-existing discount lines during opportunity mode → clean $ cells */
 body.optimize-mode .price-card.opt-flag .disc-badge { display: none; } /* a FLAGGED cell shows ONLY its card's treatment (odometer / subreveal) — never a pre-existing badge underneath (type-on-type) */
 @keyframes discAway { from { opacity: 1; max-height: 16px; margin-top: 2px; } to { opacity: 0; max-height: 0; margin-top: 0; } }
@@ -3758,10 +3801,10 @@ function refreshCalendarPrices() {
 // Min-night badge text: gap-exception nights show the lowered minimum (strike-through).
 function minBadgeHTML(li, isGap, di) {
   const ov = (di != null) ? minOverride[li][di] : undefined;
-  if (ov != null) return `min ${ov}`; // manual per-date override wins (plain value, no gap strikeout)
+  if (ov != null) return `Min ${ov}`; // manual per-date override wins (plain value, no gap strikeout)
   return isGap
-    ? `min <s>${minNightsVals[li]}</s> ${gapVals[li]}`
-    : `min ${minNightsVals[li]}`;
+    ? `Min <s>${minNightsVals[li]}</s> ${gapVals[li]}`
+    : `Min ${minNightsVals[li]}`;
 }
 
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -4251,7 +4294,7 @@ function buildPriceCell(li, di, booked, unavail, gapSet) {
   const _dtxt = _dk ? discBadgeText(li, di) : '';
   const _tip = _bt ? (_bt === 'adv' ? 'Adv notice' : 'Prep time') : _dk ? (_dk === 'early' ? 'Early bird' : 'Last minute') : '';
   const _ofActive = _of && (card.classList.contains('opt-focus') || card.classList.contains('opt-applied'));
-  card.innerHTML = isBooked ? '' : `<span class="price-val">$${getPrice(li, di)}</span><span class="min-badge">${_of && _of.min && _ofActive ? `min <s>${_of.min.cur}</s> ${_of.min.to}` : minBadgeHTML(li, gapSet.has(di), di)}</span>${_dtxt ? `<span class="disc-badge">${_dtxt}</span>` : ''}<span class="cell-date">${d.getDate()}</span>${_tip ? `<span class="block-tip">${_tip}</span>` : ''}`;
+  card.innerHTML = isBooked ? '' : `<span class="price-val">$${getPrice(li, di)}</span><span class="min-badge">${_of && _of.min && _ofActive ? `Min <s>${_of.min.cur}</s> ${_of.min.to}` : minBadgeHTML(li, gapSet.has(di), di)}</span>${_dtxt ? `<span class="disc-badge">${_dtxt}</span>` : ''}<span class="cell-date">${d.getDate()}</span>${_tip ? `<span class="block-tip">${_tip}</span>` : ''}`;
   setCellBadge(card, li, di, gapSet);
   if (_of) { makeWring(card); if (_ofActive) { makeOdometer(card, li, di); makeSub(card, li, di); } } // quiet wave for everyone; the TYPE only on the focused/applied card
   const rsIdx = ruleSetCell[li][di]; // persist the rule-set color tint + corner dot across re-renders
@@ -5374,7 +5417,12 @@ function selectRange(a, b) {
 function paintSelection() {
   document.querySelectorAll('#gridRows .price-card').forEach(card => {
     const row = card.closest('.price-row');
-    card.classList.toggle('selected', isSel(+row.dataset.li, +card.dataset.di));
+    const is = isSel(+row.dataset.li, +card.dataset.di);
+    if (card.classList.contains('selected') && !is) { // leaving selection: the "Min N" line animates AWAY (300ms grace)
+      card.classList.add('sel-out'); clearTimeout(card._selOutT);
+      card._selOutT = setTimeout(() => card.classList.remove('sel-out'), 320);
+    } else if (is) { card.classList.remove('sel-out'); clearTimeout(card._selOutT); }
+    card.classList.toggle('selected', is);
   });
 }
 // Whether cell (li,di) can be selected — mirrors the `.price-card:not(.past):not(.unavailable):not(.booked)`
@@ -6974,7 +7022,7 @@ function buildGroupEventIcons() {
         const img = document.createElement('img');
         img.className = 'gev ' + (primary ? 'gev-primary' : 'gev-secondary') + (status === 'estimated' ? ' gev-tentative' : '');
         img.src = src; img.alt = name; img.loading = 'lazy';
-        img.dataset.hname = name;
+        img.dataset.hname = name; img.dataset.di = di; // the ribbon's %-handles adopt their date's icon by this key
         img.style.left = ((rowOffsets[di] || 0) + cw / 2) + 'px';
         div.appendChild(img);
       });
@@ -8784,8 +8832,10 @@ function makeOdometer(card, li, di) {
   let neu;
   if (f.roll.market !== false && typeof marketRate === 'function') {
     neu = marketRate(li, di);
-    if (g && g._pctOv && g._pctOv[di] != null) neu = Math.round(cur * (1 + (f.roll.dir === 'up' ? 1 : -1) * g._pctOv[di])); // handle-edited %
-    neu = f.roll.dir === 'up' ? Math.max(neu, cur + 2) : Math.min(neu, cur - 2); // hold the card's direction
+    if (g && g._pctOv && g._pctOv[di] != null) {
+      neu = Math.round(cur * (1 + (f.roll.dir === 'up' ? 1 : -1) * g._pctOv[di])); // handle-edited % — the edit IS the truth, no direction floor
+      if (neu === cur) { removeOdometer(card); return; } // an explicit 0% edit = no change: plain price, no strike
+    } else neu = f.roll.dir === 'up' ? Math.max(neu, cur + 2) : Math.min(neu, cur - 2); // hold the card's direction
   } else { // fill-urgency (this week): a fixed discount, not the market rate
     neu = Math.round(cur * (1 - f.roll.pct));
   }
@@ -8813,7 +8863,7 @@ function makeSub(card, li, di) {
   const f = optFlagFor(li, di); if (!f || (!f.disc && !f.min)) { removeSub(card); return; }
   if (card.querySelector(':scope > .subreveal')) return;
   const sub = document.createElement('div'); sub.className = 'subreveal' + (f.min ? ' is-min' : ' is-disc');
-  sub.innerHTML = f.min ? ('min <s>' + f.min.cur + '</s> ' + f.min.to) : f.disc;
+  sub.innerHTML = f.min ? ('Min <s>' + f.min.cur + '</s> ' + f.min.to) : f.disc;
   card.appendChild(sub); card.classList.add('has-sub');
 }
 function removeSub(card) { if (!card) return; const s = card.querySelector(':scope > .subreveal'); if (s) s.remove(); card.classList.remove('has-sub'); }
@@ -8868,7 +8918,10 @@ function _seasonNarrate(c) {
   const avg = nz.length ? nz.reduce((a2, v) => a2 + v, 0) / nz.length : 0;
   const pk = _seasonPeaks(vals, 1)[0];
   const _M3b = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const dates = _M3b[allDays[c.a].getMonth()] + ' – ' + _M3b[allDays[c.b].getMonth()];
+  const dA = allDays[c.a], dB = allDays[c.b]; // short (event) windows inside one month read "Jul 15 – 27"
+  const dates = dA.getMonth() === dB.getMonth() && dA.getFullYear() === dB.getFullYear()
+    ? _M3b[dA.getMonth()] + ' ' + dA.getDate() + ' – ' + dB.getDate()
+    : _M3b[dA.getMonth()] + ' – ' + _M3b[dB.getMonth()];
   const sign = c.intent === 'earn' ? '+' : '\u2212';
   const cls = c.intent === 'fill' ? ' lo' : '';
   return dates + ' · <span class="hl' + cls + '">avg ' + sign + Math.round(avg * 100) + '%</span>'
@@ -8889,13 +8942,47 @@ function _peakLabel(g, p) { // "Thanksgiving +24%" / "Dec 31 +42%" — a holiday
   const _M3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return (hol ? hol.name : _M3[d.getMonth()] + ' ' + d.getDate()) + ' ' + pct;
 }
+// Season wand = a TOGGLE on "our suggestion".
+//   ON  + tap → zero out every draggable % in the window (flat +0% curve), wand untaps.
+//   OFF + tap → forget every override (hand-drags or the zero-out), snap every handle back to the
+//               suggested curve, roll the odometers home, wand lights back up.
+function seasonWandReset() {
+  const o = window.__opt; if (!o || o.state !== 'results' || !o.suggs.length) return;
+  const g = o.suggs[Math.min(o.cur || 0, o.suggs.length - 1)];
+  if (!g) return;
+  const wb = document.querySelector('.mopp-wandbtn');
+  const rebuild = dis => dis.forEach(di => (g.lis || [g.li]).forEach(li => {
+    const card = document.querySelector('#gridRows .price-row[data-li="' + li + '"] .price-card[data-di="' + di + '"]');
+    if (!card) return; // off-screen cells rebuild clean on their next mount
+    const ps = card.querySelector(':scope > .pstack'); if (ps) ps.remove();
+    makeOdometer(card, li, di);
+  }));
+  const redress = () => {
+    const magEl = document.querySelector('.mopp-mag'); if (magEl) magEl.innerHTML = _seasonNarrate(g);
+    updateSeasonRibbon();
+  };
+  if (wb && wb.classList.contains('is-on')) {
+    g._pctOv = {};
+    for (let di = g.a; di <= g.b; di++) g._pctOv[di] = 0;
+    rebuild(Object.keys(g._pctOv).map(Number));
+    redress();
+    wb.classList.remove('is-on');
+  } else if (g._pctOv && Object.keys(g._pctOv).length) {
+    const dis = Object.keys(g._pctOv).map(Number);
+    delete g._pctOv;
+    rebuild(dis);
+    redress();
+    if (wb) wb.classList.add('is-on');
+  } else if (wb) wb.classList.add('is-on');
+}
 function updateSeasonRibbon() {
   document.querySelectorAll('.season-ribbon').forEach(x => x.remove());
   document.querySelectorAll('.group-divider.ribbon-grown').forEach(x => x.classList.remove('ribbon-grown'));
+  document.querySelectorAll('.gev[data-ride]').forEach(ic => { ic.style.bottom = ''; ic.removeAttribute('data-ride'); }); // ridden event icons drop back to their stock band spot
   const o = window.__opt;
   if (!o || o.state !== 'results') return;
   const g = o.suggs[o.cur];
-  if (!g || (g.bucket !== 'season-up' && g.bucket !== 'season-down')) return;
+  if (!g || (g.bucket !== 'season-up' && g.bucket !== 'season-down' && g.bucket !== 'event')) return; // events ride the SAME chart system as seasons
   const up = g.intent === 'earn';
   const vals = _seasonSeries(g);
   const mx = Math.max(...vals, 0.001);
@@ -8916,7 +9003,9 @@ function updateSeasonRibbon() {
     // percentage points of spread fill the full chart height. Drags past either edge grow the range.
     let yHi = mx;
     let yLo = Math.max(0, Math.min(...vals));
-    if (yHi - yLo < 0.02) { yLo = Math.max(0, yHi - 0.02); } // degenerate flat window still draws
+    if (yHi - yLo < 0.10) { // flat/near-flat windows (e.g. after a zero-out) keep a USABLE drag range:
+      yLo = Math.max(0, (yHi + yLo) / 2 - 0.05); yHi = yLo + 0.10; // 10% span centered on the level
+    }
     const yOf = v2 => H - 3 - ((Math.max(yLo, Math.min(v2, yHi)) - yLo) / (yHi - yLo)) * (H - 7);
     const mkD = () => { let d2 = '';
       vals.forEach((v2, i2) => { const x2 = ((rowOffsets[g.a + i2] || 0) + cw / 2) - x0;
@@ -8940,8 +9029,11 @@ function updateSeasonRibbon() {
     warn.textContent = "That's a lot";
     warn.style.display = 'none';
     wrap.appendChild(warn);
-    const hps = [];
-    const layoutHandles = () => hps.forEach((hp2, i2) => { hp2.style.top = yOf(vals[i2]) + 'px'; });
+    const hps = [], hics = []; // hics[i] = the date's event icon, riding 4px above its % pill
+    const layoutHandles = () => hps.forEach((hp2, i2) => {
+      hp2.style.top = yOf(vals[i2]) + 'px';
+      const ic = hics[i2]; if (ic) ic.style.bottom = (16 + (H - yOf(vals[i2]))) + 'px'; // 2 wrap inset + 10 half-pill + 4 gap
+    });
     if (cw >= 40) {
       const sign = up ? '+' : '\u2212';
       for (let i = 0; i < vals.length; i++) {
@@ -8951,14 +9043,15 @@ function updateSeasonRibbon() {
         hp.className = 'ribbon-handle' + (up ? '' : ' lo');
         hp.style.left = hx + 'px'; hp.style.top = yOf(vals[i]) + 'px';
         hp.textContent = sign + Math.round(vals[i] * 100) + '%';
+        const gic = div.querySelector('.gev[data-di="' + (g.a + i) + '"]');
+        if (gic) { gic.dataset.ride = '1'; hics[i] = gic; gic.style.bottom = (16 + (H - yOf(vals[i]))) + 'px'; }
         (di2 => hp.addEventListener('pointerdown', ev => {
           ev.preventDefault(); ev.stopPropagation();
           try { hp.setPointerCapture(ev.pointerId); } catch (err) {}
           hp.classList.add('dragging');
           // the edited column's odometer TARGETS update LIVE while dragging — plain digits swap in
           // place of the reels, so nothing re-animates; the struck old price stays put
-          const liveCells = (g.lis || []).map(li2 =>
-            document.querySelector('#gridRows .price-row[data-li="' + li2 + '"] .price-card[data-di="' + di2 + '"] .pstack')).filter(Boolean);
+          const liveCards = (g.lis || []).map(li2 => ({ li: li2, card: document.querySelector('#gridRows .price-row[data-li="' + li2 + '"] .price-card[data-di="' + di2 + '"]') })).filter(x => x.card);
           const move = e2 => {
             const wy = e2.clientY - wrap.getBoundingClientRect().top;
             // NO data cap: pulling past either edge stretches the range live. Ceiling +100%.
@@ -8968,21 +9061,28 @@ function updateSeasonRibbon() {
             if (v2 < yLo) yLo = v2;
             vals[i] = v2;
             g._pctOv = g._pctOv || {}; g._pctOv[di2] = v2;
+            const wb0 = document.querySelector('.mopp-wandbtn'); if (wb0) wb0.classList.remove('is-on'); // hand-edited — no longer our suggestion
             hp.textContent = sign + Math.round(v2 * 100) + '%';
             const p2 = path(); if (p2) p2.setAttribute('d', buildD());
             layoutHandles();
             if (v2 >= 0.5) { // that's a lot
               warn.style.left = hp.style.left;
-              warn.style.top = (parseFloat(hp.style.top) - 26) + 'px';
+              warn.style.top = (parseFloat(hp.style.top) - 26 - (hics[i] ? hics[i].offsetHeight + 8 : 0)) + 'px'; // clear the riding event icon
               warn.style.display = '';
               clearTimeout(warn._t);
             } else warn.style.display = 'none';
-            liveCells.forEach(ps => {
+            liveCards.forEach(({ li: li2, card }) => {
+              let ps = card.querySelector(':scope > .pstack');
+              if (!ps) { // a 0%-edited cell dropped its odometer — rebuild it the moment the drag leaves zero
+                makeOdometer(card, li2, di2);
+                ps = card.querySelector(':scope > .pstack'); if (!ps) return;
+              }
               const cur2 = +ps.dataset.cur || 0; if (!cur2) return;
-              let neu = Math.round(cur2 * (1 + (up ? 1 : -1) * v2));
-              neu = up ? Math.max(neu, cur2 + 2) : Math.min(neu, cur2 - 2);
+              const neu = Math.round(cur2 * (1 + (up ? 1 : -1) * v2)); // tracks the hand exactly — no direction floor on edits
               const prow = ps.querySelector('.prow');
               if (prow) prow.textContent = '$' + neu;
+              const pold = ps.querySelector('.pold');
+              if (pold) pold.style.visibility = neu === cur2 ? 'hidden' : ''; // at ±0 the strike hides — reads as "no change"
             });
           };
           const done = () => {
@@ -9021,15 +9121,7 @@ function updateSeasonRibbon() {
       const i = nearestI(ev);
       gridWrap.scrollTo({ left: Math.max(0, (rowOffsets[g.a + i] || 0) - Math.round((gridWrap.clientWidth || 1200) * 0.4)), behavior: 'smooth' }); });
     if (cw < 40) { wrap.appendChild(hit); wrap.appendChild(cur); } // handles carry the readout in week mode
-    _seasonPeaks(vals, 3).forEach(p => {
-      const lbl = document.createElement('div');
-      lbl.className = 'ribbon-peak' + (up ? '' : ' lo');
-      lbl.style.left = (((rowOffsets[g.a + p.i] || 0) + cw / 2) - x0) + 'px';
-      lbl.textContent = (up ? '\u25b2 ' : '\u25bc ') + _peakLabel(g, p);
-      lbl.addEventListener('click', ev => { ev.stopPropagation();
-        gridWrap.scrollTo({ left: Math.max(0, (rowOffsets[g.a + p.i] || 0) - Math.round((gridWrap.clientWidth || 1200) * 0.4)), behavior: 'smooth' }); });
-      wrap.appendChild(lbl);
-    });
+    // (static "\u25b2 Jul 28 +61%" peak pills retired \u2014 the %-handles carry every date's number)
     div.appendChild(wrap);
   });
 }
@@ -9067,7 +9159,7 @@ function repaintOptGlows() { // re-apply glow classes to currently-mounted cells
         else { removeOdometer(card); removeSub(card); }
         const badge = card.querySelector('.min-badge');
         if (badge) {
-          if (f.min && active) { card.classList.add('opt-min'); badge.innerHTML = 'min <s>' + f.min.cur + '</s> ' + f.min.to; }
+          if (f.min && active) { card.classList.add('opt-min'); badge.innerHTML = 'Min <s>' + f.min.cur + '</s> ' + f.min.to; }
           else if (hadMin) badge.innerHTML = minBadgeHTML(li, gapSet.has(di), di);
         }
       } else {
@@ -9261,11 +9353,19 @@ function renderMagicPill() {
     const CHEV_PREV = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 6 9 12 15 18"/></svg>';
     const CHEV_NEXT = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 6 15 12 9 18"/></svg>';
     const LAYERS = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M15 9.75L8 15L1 9.75M8 1L1.5 6L8 11L14.5 6L8 1Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>'; // the Automate-group layers glyph
+    // Season wand: "this curve is our suggestion" toggle. ON (green fill, stars dance) = untouched
+    // recommendation; dragging any %-handle untaps it; tapping it back snaps every handle home.
+    const isSeason = g.bucket === 'season-up' || g.bucket === 'season-down' || g.bucket === 'event'; // events carry the same chart + wand
+    const WANDBTN = isSeason && !g.thinking && !g.applied
+      ? '<button class="mopp-wandbtn' + (g._pctOv && Object.keys(g._pctOv).length ? '' : ' is-on') + '" data-magic="wandreset" title="Snap back to suggested" aria-label="Snap the curve back to the suggested percentages">' +
+        '<svg width="24" height="24" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path class="wbody" d="M12.2069 2.85859L13.1411 3.79285C13.5317 4.18339 13.5317 4.81662 13.1411 5.2071L3.20689 15.1413C2.81636 15.532 2.18313 15.532 1.79265 15.1414L0.858273 14.2071C0.467808 13.8166 0.467808 13.1834 0.858316 12.7929L10.7926 2.85853C11.1832 2.46807 11.8163 2.46807 12.2069 2.85859ZM8.49893 6.84769L1.84792 13.4997L2.49942 14.1512L9.15043 7.49919L8.49893 6.84769Z"/><path class="wstar" d="M13.9997 7L14.4997 8L15.4997 8.5L14.4997 9L13.9997 10L13.4997 9L12.4997 8.5L13.4997 8L13.9997 7Z"/><path class="wstar wstar2" d="M7.49974 0.5L7.99974 1.5L8.99974 2L7.99974 2.5L7.49974 3.5L6.99974 2.5L5.99974 2L6.99974 1.5L7.49974 0.5Z"/><path class="wstar wstar3" d="M14.4997 0L14.9997 1L15.9997 1.5L14.9997 2L14.4997 3L13.9997 2L12.9997 1.5L13.9997 1L14.4997 0Z"/></svg></button>'
+      : '';
     pill.innerHTML =
       '<div class="mopp-pill">' +
         '<button class="mnav-in prev" data-magic="prev" aria-label="Previous opportunity">' + CHEV_PREV + '</button>' +
         oppIconHTML(g) +
         '<div class="mopp-whywrap' + (g.bucket === 'grouping' ? ' is-group' : '') + '"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + '</span>' : '') + (g.why ? '<span class="mopp-why">' + g.why + '</span>' : '') + '</div>' +
+        WANDBTN +
         (g.thinking ? '<button class="mopp-apply is-thinking" disabled aria-label="Working"><span class="thinkdots"><i></i><i></i><i></i></span></button>'
           : g.applied ? '<button class="mopp-applied is-check' + (g.intent === 'fill' && g.bucket !== 'grouping' ? ' is-lo' : '') + '" data-magic="undo" title="Undo" aria-label="Applied — tap to undo"><svg class="apck" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg></button>'
           : '<button class="mopp-apply" data-magic="apply">' + (g.bucket === 'grouping' ? '<svg class=\'cta-wand\' width=\'24\' height=\'24\' viewBox=\'0 0 16 16\' fill=\'none\' aria-hidden=\'true\'><path fill=\'#fff\' d=\'M12.2069 2.85859L13.1411 3.79285C13.5317 4.18339 13.5317 4.81662 13.1411 5.2071L3.20689 15.1413C2.81636 15.532 2.18313 15.532 1.79265 15.1414L0.858273 14.2071C0.467808 13.8166 0.467808 13.1834 0.858316 12.7929L10.7926 2.85853C11.1832 2.46807 11.8163 2.46807 12.2069 2.85859ZM8.49893 6.84769L1.84792 13.4997L2.49942 14.1512L9.15043 7.49919L8.49893 6.84769Z\'/><path class=\'wstar\' d=\'M13.9997 7L14.4997 8L15.4997 8.5L14.4997 9L13.9997 10L13.4997 9L12.4997 8.5L13.4997 8L13.9997 7Z\'/><path class=\'wstar wstar2\' d=\'M7.49974 0.5L7.99974 1.5L8.99974 2L7.99974 2.5L7.49974 3.5L6.99974 2.5L5.99974 2L6.99974 1.5L7.49974 0.5Z\'/><path class=\'wstar wstar3\' d=\'M14.4997 0L14.9997 1L15.9997 1.5L14.9997 2L14.4997 3L13.9997 2L12.9997 1.5L13.9997 1L14.4997 0Z\'/></svg>' : '') + (g.cta || 'Apply') + '</button>') +
@@ -9419,8 +9519,9 @@ function applySuggestion(s) { // one per-listing item (groups apply every item)
       const cur = getPrice(s.li, k);
       if (s.near) { priceOverride[s.li][k] = Math.round(cur * (1 - s.pct)); } // fill-urgency drop
       else { let m = marketRate(s.li, k);
-        if (s._pctOv && s._pctOv[k] != null) m = Math.round(cur * (1 + (s.type === 'raise' ? 1 : -1) * s._pctOv[k])); // handle-edited %
-        m = s.type === 'raise' ? Math.max(m, cur + 2) : Math.min(m, cur - 2); priceOverride[s.li][k] = m; }
+        if (s._pctOv && s._pctOv[k] != null) m = Math.round(cur * (1 + (s.type === 'raise' ? 1 : -1) * s._pctOv[k])); // handle-edited % — the edit IS the truth, no direction floor
+        else m = s.type === 'raise' ? Math.max(m, cur + 2) : Math.min(m, cur - 2);
+        if (m !== cur) priceOverride[s.li][k] = m; } // an explicit 0% edit applies as "no change"
     }
     else if (s.type === 'promo') promoVals[s.li][k] = s.pct;
     else if (s.type === 'minnight') minOverride[s.li][k] = s.newMin;
@@ -9595,6 +9696,7 @@ document.getElementById('magicAction').addEventListener('click', e => {
   else if (act === 'next') optNav(1);
   else if (act === 'apply') applyCurrent();
   else if (act === 'undo') undoCurrent();
+  else if (act === 'wandreset') seasonWandReset();
   else if (act === 'editgroups') { // the pencil → the drag-and-drop groups editor
     if (typeof clearSelection === 'function') clearSelection();
     renderGroups(); document.getElementById('groupsOverlay').classList.add('visible');
