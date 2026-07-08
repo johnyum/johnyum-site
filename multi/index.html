@@ -9654,6 +9654,29 @@ function scrollToOpportunity(s, cb) {
     requestAnimationFrame(wait);
   })();
 }
+// Which opp does opps-mode OPEN on? Not always the list's first — the one the host is ALREADY
+// looking at. Pick the date-opp whose window sits nearest the visible viewport centre (an event/
+// season/holiday/promo/stays card the calendar is currently showing); if none overlap the view,
+// fall back to the closest one either side. Grouping/setup aren't things you "see" on the grid.
+function pickEntryOpp(suggs) {
+  if (!suggs || !suggs.length) return 0;
+  const gw = document.getElementById('gridWrap');
+  if (!gw || typeof diAtX !== 'function') return 0;
+  const sl = gw.scrollLeft, vw = gw.clientWidth || window.innerWidth;
+  const visLo = diAtX(sl), visHi = diAtX(sl + vw), center = (visLo + visHi) / 2;
+  const pool = suggs.map((s, i) => ({ s, i }))
+    .filter(({ s }) => s.bucket !== 'grouping' && s.bucket !== 'setup' && s.a != null && s.b != null);
+  if (!pool.length) return 0;
+  const overlap = s => Math.min(s.b, visHi) - Math.max(s.a, visLo) + 1;           // >0 ⇒ on screen
+  const edgeDist = s => s.b < visLo ? (visLo - s.b) : (s.a > visHi ? (s.a - visHi) : 0);
+  const centerDist = s => Math.abs((s.a + s.b) / 2 - center);
+  const onscreen = pool.filter(({ s }) => overlap(s) > 0);
+  const rank = (onscreen.length ? onscreen : pool).slice();
+  rank.sort((A, B) => onscreen.length
+    ? (centerDist(A.s) - centerDist(B.s)) || (A.i - B.i)   // seeing several: the most-centred wins (ties keep list order = closest green first)
+    : (edgeDist(A.s) - edgeDist(B.s)) || (A.i - B.i));      // nothing in view: the nearest one, forward or back
+  return rank[0].i;
+}
 function startOptimize() {
   document.body.classList.add('opt-sizing');   // arm the cell grow/shrink for Medium & Pro
   if (typeof clearSelection === 'function') clearSelection(); // drop any selection; optimize owns the grid
@@ -9683,7 +9706,8 @@ function startOptimize() {
   setTimeout(() => {
     const suggs = computeSuggestions(); // closest green (price-up) leads, then chronological
     window.__opt.suggs = suggs;
-    window.__opt.cur = 0; window.__opt.state = 'results'; // MUST land before the repaint below — dressOptState
+    const startIdx = pickEntryOpp(suggs); // open on the opp the host is ALREADY looking at (most in view), not always the list's first
+    window.__opt.cur = startIdx; window.__opt.state = 'results'; // MUST land before the repaint below — dressOptState
     // reads suggs[cur] to decide focus; a stale cur from the last session used to dress the WRONG card as
     // focused, so a fresh entry whose first-card cells were already mounted needed a tap to light up
     buildFlags(suggs); // the WHOLE board lights: every opportunity is pre-wavy from the first reveal
@@ -9705,7 +9729,7 @@ function startOptimize() {
       setTimeout(() => { pillEl.style.width = ''; pillEl.style.height = ''; }, 560); // release once landed
     });
     if (suggs.length) {
-      scrollToOpportunity(suggs[0], () =>                            // fly to the first opportunity…
+      scrollToOpportunity(suggs[startIdx], () =>                     // fly to the opp the host is already looking at…
         setTimeout(() => { document.body.classList.remove('glow-hold'); setTimeout(startWaveRamps, 200); setTimeout(() => document.body.classList.remove('opt-beat'), 750); }, 180)); // camera still → STRAIGHT edge shows → hold a beat → ripples INTO the wave → BEAT (digest) → the inside animates
     } else {
       document.body.classList.remove('glow-hold');
