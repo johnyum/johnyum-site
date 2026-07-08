@@ -9197,7 +9197,8 @@ function oppPctAt(g, di) {
 // (Math.round(pct*100)) BEFORE turning it into dollars, so "+10%" always means base×1.10 exactly —
 // never a floored +$2, never a value that disagrees with the pill above it.
 function oppNewPrice(g, cur, di, up) {
-  const pct = Math.round(oppPctAt(g, di) * 100) / 100; // whole-percent, matching the pill's readout
+  let pct = Math.round(oppPctAt(g, di) * 100) / 100; // whole-percent, matching the pill's readout
+  if (!up) pct = Math.min(pct, 1); // a discount can't exceed 100% — the price floor is $0, never negative
   return Math.round(cur * (1 + (up ? 1 : -1) * pct));
 }
 function _seasonSeries(g) { // per-day premium/depth series driving the pill curve — same _livePct math
@@ -9296,7 +9297,7 @@ function updateSeasonRibbon() {
   const niceCeil = v => STEPS.find(s => s >= v - 1e-9) || STEPS[STEPS.length - 1];
   const WBOT = 5;           // chart bottom inset: 0% line sits 16px above the cells (WBOT + 3px baseline + ~8px row gap)
   const ICBASE = WBOT + 14; // riding-icon bottom base (WBOT + 10 half-pill + 4 gap)
-  let ceil = niceCeil(mx);
+  let ceil = niceCeil(up ? mx : Math.min(mx, 1)); // low season axis never opens past −100% ($0 floor)
   let H = BANDH[String(ceil)] - 78; // calibrated so name→top-tick = 24px and 0%-line→cells = 16px at every ceiling
   const stroke = '#111'; // the curve line is BLACK now (pills separate from it via their white stroke)
   const CHART = s => s && (s.bucket === 'season-up' || s.bucket === 'season-down' || s.bucket === 'event' || s.bucket === 'holiday');
@@ -9429,7 +9430,8 @@ function updateSeasonRibbon() {
           const move = e2 => {
             const wy = e2.clientY - wrap.getBoundingClientRect().top;
             let v2 = (up ? (H - 3 - wy) : (wy - 3)) / (H - 7) * ceil; // 0-based Excel axis (inverted for low season)
-            v2 = Math.max(0, Math.min(ceil, v2));
+            // low season can't cut past −100% (that's $0 — a free night); the price floor is $0
+            v2 = Math.max(0, Math.min(up ? ceil : Math.min(ceil, 1), v2));
             // magnetic ticks: quarter-grid stops + the axis midline snap under the hand
             for (const s of [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, ceil / 2]) {
               if (s <= ceil + 1e-9 && Math.abs(v2 - s) <= 0.015) { v2 = s; break; }
@@ -9437,7 +9439,7 @@ function updateSeasonRibbon() {
             // pushing past the chart's far edge bumps the ceiling to the next step — the band grows to hold it
             // (up: past the TOP; low season: past the BOTTOM, since its axis is flipped)
             if (up ? (wy < -6) : (wy > H + 6)) { const ni = STEPS.indexOf(ceil) + 1;
-              if (ni > 0 && ni < STEPS.length) { ceil = STEPS[ni]; H = BANDH[String(ceil)] - 78;
+              if (ni > 0 && ni < STEPS.length && (up || STEPS[ni] <= 1)) { ceil = STEPS[ni]; H = BANDH[String(ceil)] - 78; // low season never opens past −100% ($0 floor)
                 div.style.height = bandH() + 'px'; if (twin) twin.style.height = bandH() + 'px'; redraw(); } }
             vals[i] = v2;
             g._pctOv = g._pctOv || {}; g._pctOv[di2] = v2;
@@ -9792,10 +9794,7 @@ function renderMagicPill() {
         oppIconHTML(g) +
         '<div class="mopp-whywrap' + (g.bucket === 'grouping' ? ' is-group' : '') + '"><span class="mopp-head">' + (g.head || '') + '</span>' + (g.mag ? '<span class="mopp-mag ' + (g.magKind || '') + '">' + g.mag + '</span>' : '') + (g.why ? '<span class="mopp-why">' + g.why + '</span>' : '') + '</div>' +
         WANDBTN +
-        (isSeason
-          // price opps get an ON/OFF toggle: ON commits + holds the %s onto the next opp; OFF reverts to 0
-          ? '<button class="mopp-toggle' + ((g.applied || g.thinking) ? ' is-on' : '') + (g.intent === 'fill' ? ' is-lo' : '') + '" data-magic="' + ((g.applied || g.thinking) ? 'undo' : 'apply') + '" role="switch" aria-checked="' + ((g.applied || g.thinking) ? 'true' : 'false') + '" aria-label="Turn this price change on or off"><span class="tg-knob"></span></button>'
-          : g.thinking ? '<button class="mopp-apply is-thinking" disabled aria-label="Working"><span class="thinkdots"><i></i><i></i><i></i></span></button>'
+        (g.thinking ? '<button class="mopp-apply is-thinking" disabled aria-label="Working"><span class="thinkdots"><i></i><i></i><i></i></span></button>'
           : g.applied ? '<button class="mopp-applied is-check' + (g.intent === 'fill' && g.bucket !== 'grouping' ? ' is-lo' : '') + '" data-magic="undo" title="Undo" aria-label="Applied — tap to undo"><svg class="apck" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg></button>'
           : '<button class="mopp-apply" data-magic="apply">' + (g.bucket === 'grouping' ? '<svg class=\'cta-wand\' width=\'24\' height=\'24\' viewBox=\'0 0 16 16\' fill=\'none\' aria-hidden=\'true\'><path fill=\'#fff\' d=\'M12.2069 2.85859L13.1411 3.79285C13.5317 4.18339 13.5317 4.81662 13.1411 5.2071L3.20689 15.1413C2.81636 15.532 2.18313 15.532 1.79265 15.1414L0.858273 14.2071C0.467808 13.8166 0.467808 13.1834 0.858316 12.7929L10.7926 2.85853C11.1832 2.46807 11.8163 2.46807 12.2069 2.85859ZM8.49893 6.84769L1.84792 13.4997L2.49942 14.1512L9.15043 7.49919L8.49893 6.84769Z\'/><path class=\'wstar\' d=\'M13.9997 7L14.4997 8L15.4997 8.5L14.4997 9L13.9997 10L13.4997 9L12.4997 8.5L13.4997 8L13.9997 7Z\'/><path class=\'wstar wstar2\' d=\'M7.49974 0.5L7.99974 1.5L8.99974 2L7.99974 2.5L7.49974 3.5L6.99974 2.5L5.99974 2L6.99974 1.5L7.49974 0.5Z\'/><path class=\'wstar wstar3\' d=\'M14.4997 0L14.9997 1L15.9997 1.5L14.9997 2L14.4997 3L13.9997 2L12.9997 1.5L13.9997 1L14.4997 0Z\'/></svg>' : '') + (g.cta || 'Apply') + '</button>') +
         '<button class="mnav-in next" data-magic="next" aria-label="Next opportunity">' + CHEV_NEXT + '</button>' +
@@ -9874,28 +9873,17 @@ function scrollToOpportunity(s, cb) {
     requestAnimationFrame(wait);
   })();
 }
-// Which opp does opps-mode OPEN on? Not always the list's first — the one the host is ALREADY
-// looking at. Pick the date-opp whose window sits nearest the visible viewport centre (an event/
-// season/holiday/promo/stays card the calendar is currently showing); if none overlap the view,
-// fall back to the closest one either side. Grouping/setup aren't things you "see" on the grid.
+// Opps-mode OPENS on the very FIRST opportunity on the calendar (earliest by date) — even if it's a
+// price-DROP (orange). From there the ‹ › arrows walk by calendar proximity. Grouping/setup are
+// structural, not a dated thing you "start on".
 function pickEntryOpp(suggs) {
   if (!suggs || !suggs.length) return 0;
-  const gw = document.getElementById('gridWrap');
-  if (!gw || typeof diAtX !== 'function') return 0;
-  const sl = gw.scrollLeft, vw = gw.clientWidth || window.innerWidth;
-  const visLo = diAtX(sl), visHi = diAtX(sl + vw), center = (visLo + visHi) / 2;
-  const pool = suggs.map((s, i) => ({ s, i }))
-    .filter(({ s }) => s.bucket !== 'grouping' && s.bucket !== 'setup' && s.a != null && s.b != null);
-  if (!pool.length) return 0;
-  const overlap = s => Math.min(s.b, visHi) - Math.max(s.a, visLo) + 1;           // >0 ⇒ on screen
-  const edgeDist = s => s.b < visLo ? (visLo - s.b) : (s.a > visHi ? (s.a - visHi) : 0);
-  const centerDist = s => Math.abs((s.a + s.b) / 2 - center);
-  const onscreen = pool.filter(({ s }) => overlap(s) > 0);
-  const rank = (onscreen.length ? onscreen : pool).slice();
-  rank.sort((A, B) => onscreen.length
-    ? (centerDist(A.s) - centerDist(B.s)) || (A.i - B.i)   // seeing several: the most-centred wins (ties keep list order = closest green first)
-    : (edgeDist(A.s) - edgeDist(B.s)) || (A.i - B.i));      // nothing in view: the nearest one, forward or back
-  return rank[0].i;
+  let best = -1, bestA = Infinity;
+  suggs.forEach((s, i) => {
+    if (s.bucket === 'grouping' || s.bucket === 'setup' || s.a == null) return;
+    if (s.a < bestA) { bestA = s.a; best = i; } // the earliest-starting opp wins, green or orange
+  });
+  return best >= 0 ? best : 0;
 }
 function startOptimize() {
   document.body.classList.add('opt-sizing');   // arm the cell grow/shrink for Medium & Pro
