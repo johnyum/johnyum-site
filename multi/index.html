@@ -6952,15 +6952,12 @@ function buildGroupEventIcons() {
       const [w0, w1] = eventWindowFor(name, s0, e0);
       // The PRIMARY icon opens the run: icons start on the headline day (the pre-event shoulder
       // days stay in the PRICING window but get no icon), secondaries carry the rest.
-      const p0 = eventPrimaryDay(s0, w0, w1);
-      const pKey = _evDayKey(p0);
-      // EVERY event's icons cover its WHOLE travel window — each priced night wears an icon
-      // (secondaries on the shoulder days before the headline too), so the band always agrees
-      // with the event's opportunity card, ambient runs included.
-      const i0 = new Date(w0);
+      // EVERY event's icons cover its WHOLE travel window: the PRIMARY icon repeats on each night
+      // the event is ACTUALLY happening (s0..e0 — the flower crown on Coachella's real dates); the
+      // small secondary marks the shoulder nights that get priced but aren't the event itself.
       let days = [];
-      for (let x = new Date(Math.max(i0, w0)); x <= w1; x.setDate(x.getDate() + 1)) {
-        const di = diBy.get(_evDayKey(x)); if (di != null) days.push({ di, primary: _evDayKey(x) === pKey });
+      for (let x = new Date(w0); x <= w1; x.setDate(x.getDate() + 1)) {
+        const di = diBy.get(_evDayKey(x)); if (di != null) days.push({ di, primary: x >= s0 && x <= e0 });
       }
       if (!days.length) return;
       if (days.length > 14) { const pi = Math.max(0, days.findIndex(d => d.primary)); days = days.slice(0, pi + 7); } // long ambient runs: shoulders + headline week, then quiet — every PRICED shoulder night keeps its icon
@@ -8899,7 +8896,7 @@ function updateSeasonRibbon() {
   const mx = Math.max(...vals, 0.001);
   const cw = gridCell().w, H = 84; // the grown band gives the curve real height
   const stroke = up ? '#038026' : '#BE4900';
-  const fill = up ? 'rgba(3,128,38,0.13)' : 'rgba(190,73,0,0.12)';
+  const fill = 'none'; // line only — the area wash is retired for now
   const gLis = new Set(g.lis && g.lis.length ? g.lis : g.items.map(x => x.li));
   document.querySelectorAll('#gridRows > .group-divider').forEach(div => {
     const gi = div.dataset.gi;
