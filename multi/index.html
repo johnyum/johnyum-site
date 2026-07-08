@@ -480,6 +480,7 @@ body.row-reordering .thumb-row { cursor: grabbing; }
 /* season TREND arrows are mini accents trailing the big themed primary — small even when riding (3 classes beat .gev[data-ride]) */
 .gev.gev-season.gev-secondary { width: 18px; height: 18px; bottom: 18px; }
 .gev.gev-tentative { opacity: 1; } /* estimated dates render SOLID — the hover pill carries the "(estimated)" caveat */
+.gev.gev-past { filter: grayscale(1); opacity: 0.5; } /* dates already gone — holidays, events, season markers all read as spent (grey) */
 /* collapse is RETIRED for GROUPS: no up/down chevrons anywhere — groups are always open.
    The left panel's own grey-circle chevron stays: names can still collapse/expand. */
 .group-toggle { display: none; }
@@ -7071,6 +7072,7 @@ function buildGroupEventIcons() {
   document.querySelectorAll('.gev').forEach(e => e.remove());
   if (!allDays.length) return;
   const bust = s => s + '?v=2'; // cache-bust re-drawn icons (same filenames, new clay art)
+  const pastCls = di => di < todayDi ? ' gev-past' : ''; // dates already gone render grey
   const dividers = document.querySelectorAll('#gridRows > .group-divider');
   if (!dividers.length) return;
   const diBy = new Map(allDays.map((d, i) => [_evDayKey(d), i]));
@@ -7120,7 +7122,7 @@ function buildGroupEventIcons() {
         if (!src) return;
         taken.add(di);
         const img = document.createElement('img');
-        img.className = 'gev ' + (isP ? 'gev-primary' : 'gev-secondary') + (status === 'estimated' ? ' gev-tentative' : '');
+        img.className = 'gev ' + (isP ? 'gev-primary' : 'gev-secondary') + (status === 'estimated' ? ' gev-tentative' : '') + pastCls(di);
         img.src = bust(src); img.alt = name; img.loading = 'lazy'; img.style.setProperty('--fit', '1'); // event_icons are pre-cropped
 
         img.dataset.hname = name; img.dataset.di = di; // the ribbon's %-handles adopt their date's icon by this key
@@ -7133,7 +7135,7 @@ function buildGroupEventIcons() {
       if (taken.has(m.di)) return;
       taken.add(m.di);
       const img = document.createElement('img');
-      img.className = 'gev ' + (m.primary ? 'gev-primary' : 'gev-secondary');
+      img.className = 'gev ' + (m.primary ? 'gev-primary' : 'gev-secondary') + pastCls(m.di);
       img.src = bust(m.file); img.alt = m.name; img.loading = 'lazy'; img.style.setProperty('--fit', m.fit || 1);
       img.dataset.hname = m.name; img.dataset.di = m.di;
       img.style.left = ((rowOffsets[m.di] || 0) + cw / 2) + 'px';
@@ -7150,7 +7152,7 @@ function buildGroupEventIcons() {
         if (d < 0 || d >= allDays.length || taken.has(d)) return;
         taken.add(d);
         const img = document.createElement('img');
-        img.className = 'gev ' + (isP ? 'gev-primary' : 'gev-secondary') + ' gev-season gev-' + kind;
+        img.className = 'gev ' + (isP ? 'gev-primary' : 'gev-secondary') + ' gev-season gev-' + kind + pastCls(d);
         img.src = bust(src); img.alt = label + ' season'; img.loading = 'lazy'; img.style.setProperty('--fit', '1');
         img.dataset.hname = city + ' · ' + label; img.dataset.di = d; img.dataset.season = kind;
         img.style.left = ((rowOffsets[d] || 0) + cw / 2) + 'px';
