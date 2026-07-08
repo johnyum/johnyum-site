@@ -3536,6 +3536,44 @@ const DEMAND_EVENTS = [
   ['Joshua Tree Music Festival', 'Joshua Tree', '2026-10-08', '2026-10-11', 26, 'event_icons/joshua-tree.png', 'event_icons/sec-note-quarter.png', 'confirmed'],
 ];
 const EVENT_CARD_MIN_BOOST = 8; // every real demand driver gets a card — ambient season runs (Del Mar) included; the ≥8% market-premium truth check still gates weak ones
+// ── SEASONALITY MARKERS ─────────────────────────────────────────────────────────────────────────
+// Annotate each CITY's demand curve with a themed icon cluster (big primary + small secondary
+// accents), keyed by CITY + SEASON month-window (NOT by date, unlike DEMAND_EVENTS). Peaks read
+// green (high), lows orange. Separate system from DEMAND_EVENTS — never touches it.
+// [city, kind, label, months, primaryIcon, secondaryIcon]
+const SEASON_MARKERS = [
+  ['Palm Springs','high','High',         'Nov–May',         'event_icons/flamingo-floatie.png',    'event_icons/sec-sunglasses.png'],
+  ['Palm Springs','low','Low (heat)',    'Jun–Sep',         'event_icons/hot-thermometer.png',     'event_icons/sec-sun.png'],
+  ['San Diego','high','High',            'Jun–Aug',         'event_icons/season-sandiego-high.png','event_icons/sec-flipflop.png'],
+  ['San Diego','low','Low (gloom)',      'Dec–Feb',         'event_icons/season-sandiego-low.png', 'event_icons/sec-umbrella.png'],
+  ['Aspen','high','Winter',              'Dec–Mar',         'event_icons/season-aspen-winter.png', 'event_icons/sec-snowflake.png'],
+  ['Aspen','high','Summer',              'Jun–Aug',         'event_icons/season-aspen-summer.png', 'event_icons/sec-sun.png'],
+  ['Aspen','low','Low (mud season)',     'Apr–May, Oct–Nov','event_icons/season-aspen-low.png',    'event_icons/sec-raindrop.png'],
+  ['Lake Tahoe','high','Winter',         'Dec–Mar',         'event_icons/season-tahoe-winter.png', 'event_icons/sec-snowflake.png'],
+  ['Lake Tahoe','high','Summer',         'Jul–Aug',         'event_icons/season-tahoe-summer.png', 'event_icons/sec-sun.png'],
+  ['Lake Tahoe','low','Low (shoulder)',  'Apr–May, Oct–Nov','event_icons/season-tahoe-low.png',    'event_icons/sec-raindrop.png'],
+  ['Los Angeles','high','Summer',        'Jun–Aug',         'event_icons/season-la-summer.png',    'event_icons/sec-palm.png'],
+  ['Los Angeles','high','Awards season', 'Jan–Mar',         'event_icons/season-la-awards.png',    'event_icons/sec-sparkle.png'],
+  ['Los Angeles','low','Low (rainy)',    'Feb–Mar',         'event_icons/season-rain.png',         'event_icons/sec-umbrella.png'],
+  ['Malibu','high','High',               'Jun–Aug',         'event_icons/season-malibu-high.png',  'event_icons/sec-wave.png'],
+  ['Malibu','low','Low (storms)',        'Dec–Feb',         'event_icons/season-malibu-low.png',   'event_icons/sec-raindrop.png'],
+  ['Santa Barbara','high','High',        'Jun–Aug',         'event_icons/season-sb-high.png',      'event_icons/sec-sun.png'],
+  ['Santa Barbara','low','Low (rainy)',  'Jan–Feb',         'event_icons/season-rain.png',         'event_icons/sec-umbrella.png'],
+  ['Big Bear','high','Winter',           'Dec–Mar',         'event_icons/season-bigbear-winter.png','event_icons/sec-snowflake.png'],
+  ['Big Bear','high','Summer',           'Jul–Aug',         'event_icons/season-bigbear-summer.png','event_icons/sec-sun.png'],
+  ['Big Bear','low','Low (hibernation)', 'Apr–May, Sep–Oct','event_icons/season-bigbear-low.png',  'event_icons/sec-moon.png'],
+  ['Joshua Tree','high','Spring',        'Mar–May',         'event_icons/joshua-tree.png',         'event_icons/sec-daisy.png'],
+  ['Joshua Tree','high','Fall (stars)',  'Oct–Nov',         'event_icons/season-joshuatree-fall.png','event_icons/sec-star.png'],
+  ['Joshua Tree','low','Low (heat)',     'Jun–Aug',         'event_icons/hot-thermometer.png',     'event_icons/sec-sun.png'],
+];
+const _MON_IX = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+// "Nov–May" or "Apr–May, Oct–Nov" → a Set of month indices the window covers (wrap across year-end)
+function _monthSet(str) {
+  const s = new Set();
+  str.split(',').forEach(part => { const [a, b] = part.trim().split(/[–-]/).map(x => _MON_IX[x.trim()]);
+    if (a == null || b == null) return; let m = a; for (let g = 0; g < 12; g++) { s.add(m); if (m === b) break; m = (m + 1) % 12; } });
+  return s;
+}
 let _evMap = null; // city|Y-M-D → strongest active event that night
 function _evDayKey(d) { return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
 // The TRAVEL WINDOW around an event: guests arrive early and ride the weekend — 2 shoulder days
@@ -7030,6 +7068,7 @@ function positionLeftToggle() {
 function buildGroupEventIcons() {
   document.querySelectorAll('.gev').forEach(e => e.remove());
   if (!allDays.length) return;
+  const bust = s => s + '?v=2'; // cache-bust re-drawn icons (same filenames, new clay art)
   const dividers = document.querySelectorAll('#gridRows > .group-divider');
   if (!dividers.length) return;
   const diBy = new Map(allDays.map((d, i) => [_evDayKey(d), i]));
@@ -7080,7 +7119,7 @@ function buildGroupEventIcons() {
         taken.add(di);
         const img = document.createElement('img');
         img.className = 'gev ' + (isP ? 'gev-primary' : 'gev-secondary') + (status === 'estimated' ? ' gev-tentative' : '');
-        img.src = src; img.alt = name; img.loading = 'lazy'; img.style.setProperty('--fit', '1'); // event_icons are pre-cropped
+        img.src = bust(src); img.alt = name; img.loading = 'lazy'; img.style.setProperty('--fit', '1'); // event_icons are pre-cropped
 
         img.dataset.hname = name; img.dataset.di = di; // the ribbon's %-handles adopt their date's icon by this key
         img.style.left = ((rowOffsets[di] || 0) + cw / 2) + 'px';
@@ -7093,10 +7132,38 @@ function buildGroupEventIcons() {
       taken.add(m.di);
       const img = document.createElement('img');
       img.className = 'gev ' + (m.primary ? 'gev-primary' : 'gev-secondary');
-      img.src = m.file; img.alt = m.name; img.loading = 'lazy'; img.style.setProperty('--fit', m.fit || 1);
+      img.src = bust(m.file); img.alt = m.name; img.loading = 'lazy'; img.style.setProperty('--fit', m.fit || 1);
       img.dataset.hname = m.name; img.dataset.di = m.di;
       img.style.left = ((rowOffsets[m.di] || 0) + cw / 2) + 'px';
       div.appendChild(img);
+    });
+    // SEASONALITY markers: annotate this band's cities' demand curves — a primary at each season's
+    // peak with small secondary accents flanking it (green high / orange low). Separate layer from
+    // DEMAND_EVENTS; skips any date an event/holiday already claimed so nothing stacks.
+    SEASON_MARKERS.forEach(([city, kind, label, months, primary, secondary]) => {
+      if (!cities.has(city)) return;
+      const mset = _monthSet(months);
+      const place = (d, src, isP) => {
+        if (d < 0 || d >= allDays.length || taken.has(d)) return;
+        taken.add(d);
+        const img = document.createElement('img');
+        img.className = 'gev ' + (isP ? 'gev-primary' : 'gev-secondary') + ' gev-season gev-' + kind;
+        img.src = bust(src); img.alt = label + ' season'; img.loading = 'lazy'; img.style.setProperty('--fit', '1');
+        img.dataset.hname = city + ' · ' + label; img.dataset.di = d; img.dataset.season = kind;
+        img.style.left = ((rowOffsets[d] || 0) + cw / 2) + 'px';
+        div.appendChild(img);
+      };
+      let di = 0;
+      while (di < allDays.length) { // each contiguous run of in-window days = one season occurrence
+        if (!mset.has(allDays[di].getMonth())) { di++; continue; }
+        const rs = di; while (di < allDays.length && mset.has(allDays[di].getMonth())) di++;
+        const re = di - 1, span = re - rs;
+        if (span < 20) continue; // a window sliver clipped at the calendar edge — skip
+        place(Math.floor((rs + re) / 2), primary, true); // the peak carries the big icon
+        const nSec = Math.min(4, Math.max(2, Math.round(span / 45))); // ~one accent per 45 days
+        for (let k = 1; k <= nSec; k++) { const d = Math.round(rs + span * k / (nSec + 1));
+          if (Math.abs(d - Math.floor((rs + re) / 2)) > 8) place(d, secondary, false); }
+      }
     });
   });
 }
@@ -9383,7 +9450,7 @@ function updateSeasonRibbon() {
             // spike stays quiet, but pricing well above what the market supports escalates in words.
             const over = v2 - _livePct(g, di2);
             const warnMsg = over < 0.20 ? ''
-              : up ? (over >= 0.70 ? "No one's charging this much" : over >= 0.45 ? 'Above the market' : 'Ahead of the market')
+              : up ? (over >= 0.70 ? "No one's charging this much" : over >= 0.45 ? 'Priciest nearby' : 'Ahead of the market')
                    : (over >= 0.70 ? "You'd be giving it away" : over >= 0.45 ? 'Below the market' : 'Under the market');
             if (warnMsg) {
               warn.textContent = warnMsg;
