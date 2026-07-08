@@ -1144,6 +1144,12 @@ body.optimize-mode .search-pill, body.multi-active .search-pill {
 .magic-pill.is-opp { background: #fff; color: #111; height: auto; } /* the review rides the same WHITE surface */
 .magic-cta { display: inline-flex; align-items: center; background: none; border: 0; color: #111;
   font: 500 16px 'Cereal', sans-serif; cursor: pointer; height: 72px; padding: 0 16px 0 20px; border-radius: 999px; } /* Medium weight; +4px of air left of the wand */
+/* "Automate groups" gate: while the grouping animates, three dots pulse where the label was */
+.magic-cta.is-autogroup { cursor: default; padding: 0 26px; justify-content: center; }
+.magic-cta .thinkdots { display: inline-flex; gap: 6px; }
+.magic-cta .thinkdots i { width: 6px; height: 6px; border-radius: 50%; background: #222; animation: thinkPulse 1s ease-in-out infinite; }
+.magic-cta .thinkdots i:nth-child(2) { animation-delay: .2s; }
+.magic-cta .thinkdots i:nth-child(3) { animation-delay: .4s; }
 /* the label rides OPEN by default — "N Opportunities" with 12px after the wand and 16px of air on
    its right; tapping still collapses the whole pill into the 72px scanning circle */
 .magic-label { padding-left: 12px; padding-right: 16px; white-space: nowrap; display: inline-block; overflow: hidden; max-width: 240px;
@@ -9925,6 +9931,18 @@ function renderMagicPill() {
       '</div>';
     return;
   }
+  // IDLE. The "Opportunities" pill is GATED behind having groups: with none yet, show an "Automate
+  // groups" button in its place; once grouped, Opportunities takes over. While grouping animates,
+  // three dots pulse where the label was (groups are set synchronously, so a flag overrides the gate).
+  const LAYERS = '<svg width="24" height="24" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M15 9.75L8 15L1 9.75M8 1L1.5 6L8 11L14.5 6L8 1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+  if (window._autoGroupThinking) {
+    pill.innerHTML = '<button class="magic-cta is-autogroup" disabled aria-label="Grouping…"><span class="thinkdots"><i></i><i></i><i></i></span></button>';
+    return;
+  }
+  if (typeof hasRealGroups === 'function' && !hasRealGroups()) {
+    pill.innerHTML = '<button class="magic-cta" data-magic="autogroup">' + LAYERS + '<span class="magic-label">Automate groups</span></button>';
+    return;
+  }
   pill.innerHTML = '<button class="magic-cta" data-magic="go">' + wandHTML() + '<span class="magic-label">Opportunities</span></button>'; // idle: wand + label — ONE name in every mode
 }
 window.updateMagicPill = function () {
@@ -10267,7 +10285,13 @@ function closeOptCard() { const c = document.getElementById('optCard'); if (c) c
 document.getElementById('magicAction').addEventListener('click', e => {
   const b = e.target.closest('[data-magic]'); if (!b) return;
   const act = b.dataset.magic;
-  if (act === 'go') startOptimize();
+  if (act === 'autogroup') { // standalone grouping gate → three dots → then the button becomes Opportunities
+    if (window._autoGroupThinking) return;
+    window._autoGroupThinking = true; renderMagicPill();               // dots take the label's place
+    const total = (typeof applyGroupingLive === 'function' ? applyGroupingLive() : 0) || 2400; // runs the live grouping, returns its duration
+    setTimeout(() => { window._autoGroupThinking = false; renderMagicPill(); }, total); // grouping done → "Opportunities" replaces the button
+  }
+  else if (act === 'go') startOptimize();
   else if (act === 'all') applyAllSuggestions();
   else if (act === 'exit') exitOptimize();
   else if (act === 'prev') optNav(-1);
