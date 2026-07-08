@@ -8732,10 +8732,10 @@ function computeSuggestions() {
       if (c.bucket === 'event' || c.bucket === 'holiday') return;
       if (!seen.has(c.bucket)) { seen.add(c.bucket); lead.push(c); } else rest.push(c);
     });
-    // onboarding: structure first, then ONE chronological sweep of every price RAISE (seasons,
-    // holidays, events interleaved by date — fill the year month by month), then the lower-prices
-    // pass, tools last.
-    const phase = c => c.bucket === 'grouping' ? 0 : c.bucket === 'setup' ? 3 : c.type === 'raise' ? 1 : 2;
+    // CHRONOLOGICAL: structure first, then ONE date-ordered sweep of EVERY price opportunity —
+    // raises, lowers, events, holidays all interleaved by date (no "price up first" rule; you start
+    // on the closest opportunity and walk down the calendar), tools last.
+    const phase = c => c.bucket === 'grouping' ? 0 : c.bucket === 'setup' ? 2 : 1;
     const picked = lead.concat(rest).slice(0, 10).concat(dated).sort(onboarding
       ? (x, y) => (phase(x) - phase(y)) || (x.a - y.a)
       : (x, y) => x.a - y.a); // busy: step chronologically (‹ › move one way through the calendar)
