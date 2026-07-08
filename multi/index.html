@@ -1299,6 +1299,14 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
 .group-divider.ribbon-grown { height: 148px; }
 .group-divider.first.ribbon-grown { height: 128px; }
 .ribbon-hit { position: absolute; inset: 0; pointer-events: auto; cursor: crosshair; }
+.season-ribbon .ribbon-handle {
+  position: absolute; transform: translate(-50%, -50%); pointer-events: auto; cursor: ns-resize;
+  font: 600 11px 'Cereal', sans-serif; color: #30D158; background: #111;
+  border-radius: 999px; padding: 2px 8px; white-space: nowrap; z-index: 5;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25); user-select: none; -webkit-user-select: none; touch-action: none;
+}
+.season-ribbon .ribbon-handle.lo { color: #EB6100; }
+.season-ribbon .ribbon-handle.dragging { transform: translate(-50%, -50%) scale(1.15); z-index: 6; }
 .season-ribbon .ribbon-cursor { pointer-events: none; z-index: 4; }
 .season-ribbon .ribbon-peak {
   position: absolute; top: -14px; transform: translateX(-50%); pointer-events: auto; cursor: pointer;
@@ -8632,17 +8640,7 @@ function computeSuggestions() {
       else if (c.bucket === 'setup') { c.mag = c.items.some(x => x.type === 'earlybird') ? 'Early-bird −12% · Last-minute −15%' : 'Last-minute −15%'; c.magKind = 'flat'; }
       else if (c.bucket === 'season-up' || c.bucket === 'season-down') {
         c.head = c.intent === 'earn' ? 'Set high season prices' : 'Set low season prices';
-        // narrated: dates · avg ±N% · peak/softest — the ribbon's story in one line
-        const vals = _seasonSeries(c);
-        const nz = vals.filter(v => v > 0.005);
-        const avg = nz.length ? nz.reduce((a2, v) => a2 + v, 0) / nz.length : 0;
-        const pk = _seasonPeaks(vals, 1)[0];
-        const _M3b = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-        const dates = _M3b[allDays[c.a].getMonth()] + ' – ' + _M3b[allDays[c.b].getMonth()];
-        const sign = c.intent === 'earn' ? '+' : '\u2212';
-        const cls = c.intent === 'fill' ? ' lo' : '';
-        c.mag = dates + ' · <span class="hl' + cls + '">avg ' + sign + Math.round(avg * 100) + '%</span>'
-          + (pk ? ' · ' + (c.intent === 'earn' ? 'peak: ' : 'softest: ') + '<span class="hl' + cls + '">' + _peakLabel(c, pk) + '</span>' : '');
+        c.mag = _seasonNarrate(c); // dates · avg ±N% · peak — the ribbon's story in one line
         c.magKind = 'flat';
       }
       else if (c.bucket === 'holiday' || c.bucket === 'event') {
@@ -8784,6 +8782,7 @@ function makeOdometer(card, li, di) {
   let neu;
   if (f.roll.market !== false && typeof marketRate === 'function') {
     neu = marketRate(li, di);
+    if (g && g._pctOv && g._pctOv[di] != null) neu = Math.round(cur * (1 + (f.roll.dir === 'up' ? 1 : -1) * g._pctOv[di])); // handle-edited %
     neu = f.roll.dir === 'up' ? Math.max(neu, cur + 2) : Math.min(neu, cur - 2); // hold the card's direction
   } else { // fill-urgency (this week): a fixed discount, not the market rate
     neu = Math.round(cur * (1 - f.roll.pct));
@@ -8857,7 +8856,21 @@ function _seasonSeries(g) { // per-day avg premium (earn) / discount depth (fill
       const m = marketRate(li, k); s2 += Math.max(0, up ? (m - p) / p : (p - m) / p); n++; });
     vals.push(n ? s2 / n : 0);
   }
+  if (g._pctOv) Object.keys(g._pctOv).forEach(k => { const i = +k - g.a; if (i >= 0 && i < vals.length) vals[i] = g._pctOv[k]; });
   return vals;
+}
+// the narrated card line, recomputable after handle drags
+function _seasonNarrate(c) {
+  const vals = _seasonSeries(c);
+  const nz = vals.filter(v => v > 0.005);
+  const avg = nz.length ? nz.reduce((a2, v) => a2 + v, 0) / nz.length : 0;
+  const pk = _seasonPeaks(vals, 1)[0];
+  const _M3b = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dates = _M3b[allDays[c.a].getMonth()] + ' – ' + _M3b[allDays[c.b].getMonth()];
+  const sign = c.intent === 'earn' ? '+' : '\u2212';
+  const cls = c.intent === 'fill' ? ' lo' : '';
+  return dates + ' · <span class="hl' + cls + '">avg ' + sign + Math.round(avg * 100) + '%</span>'
+    + (pk ? ' · ' + (c.intent === 'earn' ? 'peak: ' : 'softest: ') + '<span class="hl' + cls + '">' + _peakLabel(c, pk) + '</span>' : '');
 }
 function _seasonPeaks(vals, count) { // top clusters, ≥10 days apart, chronological
   const idx = vals.map((v, i) => [v, i]).sort((a2, b2) => b2[0] - a2[0]);
@@ -8908,6 +8921,54 @@ function updateSeasonRibbon() {
     wrap.className = 'season-ribbon';
     wrap.style.cssText = 'position:absolute;bottom:2px;left:' + x0 + 'px;width:' + W + 'px;height:' + H + 'px;pointer-events:none;z-index:1;';
     wrap.innerHTML = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="display:block"><path d="' + d + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    // DRAGGABLE HANDLES — one black pill per date on the curve line, showing the exact % the
+    // engine uses; drag up/down to reshape the season. Edits feed the curve, that column's
+    // odometers, the card line, and Apply itself.
+    const path = () => wrap.querySelector('path');
+    const buildD = () => { let d2 = 'M0 ' + H;
+      vals.forEach((v2, i2) => { const x2 = ((rowOffsets[g.a + i2] || 0) + cw / 2) - x0;
+        const y2 = H - 3 - (Math.min(v2, mx) / mx) * (H - 7); d2 += ' L' + x2.toFixed(1) + ' ' + y2.toFixed(1); });
+      return d2 + ' L' + W.toFixed(1) + ' ' + H + ' Z'; };
+    if (cw >= 40) {
+      const sign = up ? '+' : '\u2212';
+      for (let i = 0; i < vals.length; i++) {
+        const hx = ((rowOffsets[g.a + i] || 0) + cw / 2) - x0;
+        const hy = () => H - 3 - (Math.min(vals[i], mx) / mx) * (H - 7);
+        const hp = document.createElement('div');
+        hp.className = 'ribbon-handle' + (up ? '' : ' lo');
+        hp.style.left = hx + 'px'; hp.style.top = hy() + 'px';
+        hp.textContent = sign + Math.round(vals[i] * 100) + '%';
+        (di2 => hp.addEventListener('pointerdown', ev => {
+          ev.preventDefault(); ev.stopPropagation();
+          try { hp.setPointerCapture(ev.pointerId); } catch (err) {}
+          hp.classList.add('dragging');
+          const move = e2 => {
+            const wy = e2.clientY - wrap.getBoundingClientRect().top;
+            const yy = Math.max(3, Math.min(H - 3, wy));
+            const v2 = Math.max(0, (H - 3 - yy) / (H - 7) * mx);
+            vals[i] = v2;
+            g._pctOv = g._pctOv || {}; g._pctOv[di2] = v2;
+            hp.style.top = yy + 'px';
+            hp.textContent = sign + Math.round(v2 * 100) + '%';
+            const p2 = path(); if (p2) p2.setAttribute('d', buildD());
+          };
+          const done = () => {
+            window.removeEventListener('pointermove', move);
+            hp.classList.remove('dragging');
+            // the edited column's odometers re-roll to the new target; the card line re-narrates
+            (g.lis || []).forEach(li2 => {
+              const card2 = document.querySelector('#gridRows .price-row[data-li="' + li2 + '"] .price-card[data-di="' + di2 + '"]');
+              if (card2 && card2.classList.contains('opt-flag')) { removeOdometer(card2); makeOdometer(card2, li2, di2); }
+            });
+            const magEl = document.querySelector('.mopp-mag');
+            if (magEl) magEl.innerHTML = _seasonNarrate(g);
+          };
+          window.addEventListener('pointermove', move);
+          window.addEventListener('pointerup', done, { once: true });
+        }))(g.a + i);
+        wrap.appendChild(hp);
+      }
+    }
     // interactive: hover reads the curve ("Aug 14 · +35%"), click flies there
     const hit = document.createElement('div'); hit.className = 'ribbon-hit';
     const cur = document.createElement('div'); cur.className = 'ribbon-peak ribbon-cursor' + (up ? '' : ' lo'); cur.style.display = 'none';
@@ -8929,7 +8990,7 @@ function updateSeasonRibbon() {
     hit.addEventListener('click', ev => { ev.stopPropagation();
       const i = nearestI(ev);
       gridWrap.scrollTo({ left: Math.max(0, (rowOffsets[g.a + i] || 0) - Math.round((gridWrap.clientWidth || 1200) * 0.4)), behavior: 'smooth' }); });
-    wrap.appendChild(hit); wrap.appendChild(cur);
+    if (cw < 40) { wrap.appendChild(hit); wrap.appendChild(cur); } // handles carry the readout in week mode
     _seasonPeaks(vals, 3).forEach(p => {
       const lbl = document.createElement('div');
       lbl.className = 'ribbon-peak' + (up ? '' : ' lo');
@@ -9327,14 +9388,16 @@ function applySuggestion(s) { // one per-listing item (groups apply every item)
     if (s.type === 'raise' || s.type === 'drop') {
       const cur = getPrice(s.li, k);
       if (s.near) { priceOverride[s.li][k] = Math.round(cur * (1 - s.pct)); } // fill-urgency drop
-      else { let m = marketRate(s.li, k); m = s.type === 'raise' ? Math.max(m, cur + 2) : Math.min(m, cur - 2); priceOverride[s.li][k] = m; }
+      else { let m = marketRate(s.li, k);
+        if (s._pctOv && s._pctOv[k] != null) m = Math.round(cur * (1 + (s.type === 'raise' ? 1 : -1) * s._pctOv[k])); // handle-edited %
+        m = s.type === 'raise' ? Math.max(m, cur + 2) : Math.min(m, cur - 2); priceOverride[s.li][k] = m; }
     }
     else if (s.type === 'promo') promoVals[s.li][k] = s.pct;
     else if (s.type === 'minnight') minOverride[s.li][k] = s.newMin;
     if (s.minTo != null) minOverride[s.li][k] = s.minTo; // riding min-night change lands with the price play
   }
 }
-function applyGroup(g) { g.items.forEach(applySuggestion); }
+function applyGroup(g) { if (g._pctOv) g.items.forEach(it => { it._pctOv = g._pctOv; }); g.items.forEach(applySuggestion); }
 // ONE opportunity at a time: only the current group's cells glow. Focusing clears the old glow
 // instantly, flies to the new window, and blooms its glow (and min-badge) once the camera is still.
 // Focusing NEVER re-flags the board — every opportunity is already wavy. The camera flies to the
