@@ -9006,7 +9006,7 @@ function updateSeasonRibbon() {
   // scroll re-hangs) RESUME the rise instead of cutting it.
   if (updateSeasonRibbon._lastId !== g.id) { updateSeasonRibbon._lastId = g.id; updateSeasonRibbon._entryT0 = performance.now(); updateSeasonRibbon._wandT0 = 0; }
   const up = g.intent === 'earn';
-  const vals = _seasonSeries(g);
+  const vals = (g.applied && g._appliedVals && g._appliedVals.length) ? g._appliedVals.slice() : _seasonSeries(g); // applied → hold the snapshotted placements (post-apply _seasonSeries reads ~0)
   const mx = Math.max(...vals, 0.001);
   const cw = gridCell().w;
   // EXCEL-style axis: 0-based, honest scale. The ceiling snaps to the next "nice" step and the
@@ -9073,7 +9073,7 @@ function updateSeasonRibbon() {
     const staticRedraws = [];
     const drawStatic = so => {
       const su = so.intent === 'earn';
-      const sv = new Array(so.b - so.a + 1).fill(0); // ZEROED — non-focused opps sit flat at 0% until tapped
+      const sv = (so.applied && so._appliedVals && so._appliedVals.length) ? so._appliedVals.slice() : new Array(so.b - so.a + 1).fill(0); // applied → keep the placements; otherwise ZEROED until tapped
       const sx0 = rowOffsets[so.a] || 0;
       const sW = ((rowOffsets[so.b] || 0) + cw) - sx0;
       if (sW <= 0) return;
@@ -9223,6 +9223,7 @@ function updateSeasonRibbon() {
     // _entryT0 (flat until 308ms, settled 748ms). Wand tap/untap: start = the pre-tap shape
     // (_wandFrom), so the curve visibly FALLS to flat / LIFTS back to the suggestion over WDUR.
     (() => {
+      if (g.applied) return; // an applied card is settled at its placements — no rise
       const RISE_A = 680, RISE_B = 1120, WDUR = 560; // hold a longer BEAT after landing before the curve rises
       const wandOn = updateSeasonRibbon._wandT0 && (performance.now() - updateSeasonRibbon._wandT0 < WDUR)
         && Array.isArray(updateSeasonRibbon._wandFrom) && updateSeasonRibbon._wandFrom.length === vals.length;
@@ -9725,7 +9726,7 @@ function undoCurrent() { // tap "Applied" → revert this card and hand the Appl
     clearTimeout(automateGroupingStaged._t);
     g.thinking = false; g._undo = null; g.applied = false; renderMagicPill(); return;
   }
-  if (g._undo) g._undo(); g._undo = null; g.applied = false;
+  if (g._undo) g._undo(); g._undo = null; g.applied = false; g._appliedVals = null; // dropping applied → the placements snapshot goes too (revert to suggested / zeroed)
   document.querySelectorAll('#gridRows .price-card.opt-applied').forEach(c => c.classList.remove('opt-applied')); // cells return to their SUGGESTED look (ring colors back, struck old returns)
   refreshCalendarPrices();
   repaintOptGlows(); // heal any pstack whose baseline was baked while prices were applied
@@ -9745,6 +9746,7 @@ function applyCurrent() {
   g.thinking = true; renderMagicPill();
   g._pre = new Map(); // pre-apply prices — cells mounting ahead of the wavefront still show the true old→new roll
   g.items.forEach(x => { for (let di = x.a; di <= x.b; di++) g._pre.set(x.li + ':' + di, getPrice(x.li, di)); });
+  if (g.bucket === 'season-up' || g.bucket === 'season-down' || g.bucket === 'event' || g.bucket === 'holiday') g._appliedVals = _seasonSeries(g).slice(); // snapshot the placements NOW (before prices change) so the applied curve holds put instead of zeroing on nav-away
   applyGroup(g); closeOptCard();
   refreshCalendarPrices();
   pianoApply(g, () => { g.thinking = false; g.applied = true; renderMagicPill(); });
