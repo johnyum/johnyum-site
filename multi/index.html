@@ -11506,9 +11506,11 @@ function searchCalendar(raw, after) {
   {
     const rg = (() => { try { return _searchDayRanges(ql, LISTINGS.map((_, i) => i)); } catch (err) { return null; } })();
     if (Array.isArray(rg) && rg.length) {
-      const run = rg.find(r => r.b >= minDi) || rg[0];
+      // Cycling (Enter again) jumps to the NEXT range's START — the next holiday / event / occurrence —
+      // never cell-by-cell within the current window. First search lands on the current/next one.
+      const run = (after != null ? rg.find(r => r.a >= minDi) : rg.find(r => r.b >= minDi)) || rg[0];
       _searchCanSelect = true; _searchPendingRanges = rg;
-      return searchGoto(Math.max(run.a, run.b >= minDi ? minDi : run.a), null, true);
+      return searchGoto(after != null ? run.a : Math.max(run.a, Math.max(0, todayDi)), null, true);
     }
     if (rg && rg.perLi) {
       let best = null;
