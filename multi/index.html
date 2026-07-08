@@ -1364,7 +1364,6 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
   position: absolute; transform: translateX(-50%); pointer-events: none; z-index: 7;
   font: 500 13px/1 'Cereal', sans-serif; color: var(--grey-1000); background: var(--grey-200);
   border-radius: 999px; padding: 7px 12px; white-space: nowrap;
-  box-shadow: 0 3px 12px rgba(0,0,0,0.18);
 }
 .season-ribbon .ribbon-warn.extreme { color: var(--red-600); background: var(--red-100); }
 .season-ribbon .ribbon-handle.dragging { transform: translate(-50%, -50%) scale(1.15); z-index: 6; }
@@ -9514,7 +9513,7 @@ function updateSeasonRibbon() {
             if (warnMsg) {
               warn.textContent = warnMsg;
               warn.style.left = hp.style.left;
-              warn.style.top = (parseFloat(hp.style.top) - 26 - (hics[i] ? hics[i].offsetHeight + 8 : 0)) + 'px'; // clear the riding event icon
+              warn.style.top = (parseFloat(hp.style.top) - 26 - (hics[i] ? hics[i].offsetHeight + 4 : 0)) + 'px'; // sit 4px above the riding event icon
               warn.style.display = '';
               clearTimeout(warn._t);
             } else warn.style.display = 'none';
@@ -10369,6 +10368,7 @@ function _searchDayRanges(expr, lis) {
   const ym = expr.match(/\b(19|20)\d{2}\b/); const year = ym ? +ym[0] : null;
   let e = (ym ? expr.replace(ym[0], '') : expr).replace(/[,\s]+/g, ' ').trim();
   e = e.replace(/\s+months?$/, '').replace(/^the\s+/, ''); // "summer months" → "summer"
+  e = e.replace(/\b(\d{1,2})(st|nd|rd|th)\b/g, '$1'); // ordinals: "july 4th" → "july 4", "the 1st" → "1"
   const inYear = d => year == null || d.getFullYear() === year;
   if (!e && year != null) return _searchRuns(d => d.getFullYear() === year); // "select 2027" — the whole year
   // "august and nov" / "june, july & sept" — a LIST selects exactly those parts (union), nothing
@@ -10401,6 +10401,31 @@ function _searchDayRanges(expr, lis) {
     return _searchRuns(d => inYear(d) && within(d) && (wknd
       ? (d.getDay() === 5 || d.getDay() === 6 || d.getDay() === 0)
       : (d.getDay() >= 1 && d.getDay() <= 4)));
+  }
+  // "<date/holiday> weekend" → the Fri–Sun weekend AROUND a specific date/holiday: "july 4 weekend",
+  // "labor day weekend", "memorial day weekend". (Distinct from "weekends in july" above, which is
+  // every weekend of a month.) The prefix must resolve to a SHORT run (≤5 nights) so "july weekend"
+  // — a whole month — falls through instead of picking one arbitrary weekend.
+  {
+    const wkm = e.match(/^(.+)\s+weekend$/);
+    if (wkm && !/^weekends?$/.test(wkm[1].trim())) {
+      const inner = _searchDayRanges(wkm[1].trim() + (year != null ? ' ' + year : ''), lis);
+      if (Array.isArray(inner) && inner.length) {
+        const out = [];
+        inner.forEach(rg => {
+          if (rg.b - rg.a > 5) return;                       // whole month/season → not a single weekend
+          const anchor = Math.floor((rg.a + rg.b) / 2), d = allDays[anchor]; if (!d) return;
+          const dow = d.getDay();                            // 0=Sun … 6=Sat
+          const toSat = dow === 6 ? 0 : dow === 0 ? -1 : dow <= 3 ? -(dow + 1) : (6 - dow); // nearest Saturday
+          const satDi = anchor + toSat;
+          let a = satDi - 1, b = satDi + 1;                  // Fri … Sun
+          if (dow === 1) b = anchor;                         // Monday holiday → long weekend Sat…Mon
+          if (dow === 5) a = anchor;                         // Friday holiday → Fri…Sun
+          out.push({ a: Math.max(0, a), b: Math.min(allDays.length - 1, b), city: rg.city });
+        });
+        if (out.length) return out;
+      }
+    }
   }
   // "blocked" · "all blocked dates" · "blocked dates in jan" — the host-blocked nights (per listing)
   {
@@ -11040,6 +11065,29 @@ function searchCalendar(raw, after) {
       const grp = typeof groups !== 'undefined' && groups.find(g => g.members && g.members.length && g.name && _fuzzyPlace(g.name, place));
       if (city) { lis = LISTINGS.map((l, i) => l.city === city ? i : -1).filter(i => i >= 0); expr = sm[1].trim(); }
       else if (grp) { lis = grp.members.slice(); expr = sm[1].trim(); }
+    }
+    // BARE CITY/GROUP scope (no "in" needed): a city or group name anywhere in the query scopes it —
+    // "august big bear", "july 4th weekend palm springs". Strip the place tokens, keep the rest as the
+    // time expression — but ONLY when the remainder still resolves to real dates, so a bare "palm
+    // springs" stays a select-all-city (handled below) and a stray word never hijacks the scope.
+    if (lis.length === LISTINGS.length) {
+      const _cityNames = [...new Set(LISTINGS.map(l => l.city))];
+      const _words = expr.split(' ').filter(Boolean);
+      let _best = null;
+      for (let len = _words.length; len >= 1 && !_best; len--) {          // longest place-phrase wins ("big bear" before "big")
+        for (let s = 0; s + len <= _words.length; s++) {
+          const phrase = _words.slice(s, s + len).join(' ');
+          const city = _cityNames.find(c => _fuzzyPlace(c, phrase));
+          const grp = !city && typeof groups !== 'undefined' && groups.find(g => g.members && g.members.length && g.name && _fuzzyPlace(g.name, phrase));
+          if (!city && !grp) continue;
+          const remExpr = _words.slice(0, s).concat(_words.slice(s + len)).join(' ').trim();
+          if (!remExpr) continue;                                          // whole query IS the place → let the place-first block select the city
+          const scopeLis = city ? LISTINGS.map((l, i) => l.city === city ? i : -1).filter(i => i >= 0) : grp.members.slice();
+          const rng = _searchDayRanges(remExpr, scopeLis);
+          if (Array.isArray(rng) ? rng.length : (rng && rng.perLi)) { _best = { lis: scopeLis, expr: remExpr }; break; } // remainder is a real time expr → commit
+        }
+      }
+      if (_best) { lis = _best.lis; expr = _best.expr; }
     }
     // a PLACE resolves FIRST: "select all of san diego" means the CITY's rows (even though an
     // event shares the name), "select all of Desert Palm Villa" / "slect gaslamp" a listing's —
