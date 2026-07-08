@@ -2316,6 +2316,10 @@ body.no-min:not(.optimize-mode):not(.super-collapse-2) .price-card.sel-out .min-
 /* Discounts are OUT of default mode for now (hover + selected) — a different discount system is
    coming; the badge still exists for the opps-mode treatments. */
 body:not(.optimize-mode) .price-card .disc-badge { display: none; }
+/* While the hand is still SWEEPING cells, hold the reveal: selected outline only, price centred,
+   no "min N". Letting go drops .sel-dragging → every gathered cell blooms at once. */
+body.sel-dragging:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .price-val { transform: none; }
+body.sel-dragging:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .min-badge { animation: none; opacity: 0; }
 @keyframes selMinIn { from { opacity: 0; transform: translateY(-9px); } to { opacity: 1; transform: none; } }
 @keyframes selMinOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-9px); } }
 body.optimize-mode .price-card:not(.opt-flag) .disc-badge { animation: discAway .35s ease forwards; } /* clear pre-existing discount lines during opportunity mode → clean $ cells */
@@ -5475,6 +5479,7 @@ function startDrag(e) {
   const clientX = e.touches ? e.touches[0].clientX : e.clientX;
   const clientY = e.touches ? e.touches[0].clientY : e.clientY;
   isDragging = true;
+  document.body.classList.add('sel-dragging'); // hold the "min N" reveal until the hand lets go
   dragStartX = clientX;
   dragStartY = clientY;
   dragSelectMode = card.classList.contains('selected') ? 'deselect' : 'select';
@@ -6501,8 +6506,8 @@ document.addEventListener('touchmove', e => {
   updateRect(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: false });
 
-document.addEventListener('mouseup', () => { isDragging = false; dateDragging = false; monthColDragging = false; updateMultiAction(); if (typeof _maybeShiftTip === 'function') _maybeShiftTip(); });
-document.addEventListener('touchend', () => { isDragging = false; dateDragging = false; monthColDragging = false; updateMultiAction(); });
+document.addEventListener('mouseup', () => { isDragging = false; document.body.classList.remove('sel-dragging'); dateDragging = false; monthColDragging = false; updateMultiAction(); if (typeof _maybeShiftTip === 'function') _maybeShiftTip(); });
+document.addEventListener('touchend', () => { isDragging = false; document.body.classList.remove('sel-dragging'); dateDragging = false; monthColDragging = false; updateMultiAction(); });
 
 // ── Groups (drag listings into groups; drop on + to make a new group) ──────
 // Persist groups across reloads (localStorage)
