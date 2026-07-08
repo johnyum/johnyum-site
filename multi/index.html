@@ -9040,16 +9040,8 @@ function updateSeasonRibbon() {
     wrap.innerHTML = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="display:block">' + mkSvg() + '</svg>';
     // Y-AXIS RAIL — Excel-style tick labels in the left gutter under the group name, plus the
     // "avg +N%" chip on its dashed line (skipped when it would collide with a tick label).
-    const railHTML = () => {
-      let h2 = ticks().map(t => '<span class="rr-tick" style="top:' + (yOf(t) - 7) + 'px">' + (t === 0 ? '0%' : (up ? '+' : '−') + Math.round(t * 100) + '%') + '</span>').join('');
-      if (avg > 0.005) { // the avg chip ducks to the clear side of any tick label it would collide with
-        let cy = yOf(avg) - 8;
-        const hit = ticks().find(t => Math.abs(yOf(t) - yOf(avg)) <= 16);
-        if (hit != null) cy = yOf(hit) > yOf(avg) ? yOf(avg) - 22 : yOf(avg) + 6;
-        h2 += '<span class="rr-avg' + (up ? '' : ' lo') + '" style="top:' + cy + 'px">avg ' + (up ? '+' : '−') + Math.round(avg * 100) + '%</span>';
-      }
-      return h2;
-    };
+    const railHTML = () => ticks().map(t => '<span class="rr-tick" style="top:' + (yOf(t) - 7) + 'px">' + (t === 0 ? '0%' : (up ? '+' : '−') + Math.round(t * 100) + '%') + '</span>').join('');
+    // (the "avg +N%" chip is retired — the card line already narrates the average; the dashed line stays)
     let rail = null;
     if (twin) { rail = document.createElement('div'); rail.className = 'ribbon-rail';
       rail.style.cssText = 'position:absolute;right:6px;bottom:2px;height:' + H + 'px;width:64px;pointer-events:none;';
