@@ -1144,8 +1144,9 @@ body.optimize-mode .search-pill, body.multi-active .search-pill {
 .magic-pill.is-opp { background: #fff; color: #111; height: auto; } /* the review rides the same WHITE surface */
 .magic-cta { display: inline-flex; align-items: center; background: none; border: 0; color: #111;
   font: 500 16px 'Cereal', sans-serif; cursor: pointer; height: 72px; padding: 0 16px 0 20px; border-radius: 999px; } /* Medium weight; +4px of air left of the wand */
-/* "Automate groups" gate: while the grouping animates, three dots pulse where the label was */
-.magic-cta.is-autogroup { cursor: default; padding: 0 26px; justify-content: center; }
+/* "Automate groups" gate: while the grouping animates, three dots pulse in the SAME-width button
+   (the pill width is pinned in JS so the shape never changes) */
+.magic-cta.is-autogroup { cursor: default; width: 100%; justify-content: center; }
 .magic-cta .thinkdots { display: inline-flex; gap: 6px; }
 .magic-cta .thinkdots i { width: 6px; height: 6px; border-radius: 50%; background: #222; animation: thinkPulse 1s ease-in-out infinite; }
 .magic-cta .thinkdots i:nth-child(2) { animation-delay: .2s; }
@@ -1153,11 +1154,12 @@ body.optimize-mode .search-pill, body.multi-active .search-pill {
 /* "Automate groups": layers glyph on the left, sized + inset like the search magnifier (24px, 24px inset) */
 .magic-cta.ag-cta { padding-left: 24px; }
 .magic-cta .ag-layers { width: 24px; height: 24px; }
-/* after grouping: take a beat, then the wand POPS in with the "Opportunities" label */
+/* Grouping done → the dots button VANISHES (fade+shrink), then the wand pill ANIMATES IN as a
+   circle (wand pops), then the pill WIDENS to reveal "Opportunities" (JS-driven width FLIP). */
+.magic-pill.ag-vanish .magic-cta { opacity: 0; transform: scale(.9); transition: opacity .22s ease, transform .22s ease; }
+.magic-pill.ag-clip { overflow: hidden; }
 @keyframes magicWandPop { 0% { transform: scale(.3); opacity: 0; } 55% { transform: scale(1.14); opacity: 1; } 100% { transform: scale(1); } }
-@keyframes magicLabelIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: translateX(0); } }
-.magic-cta.wand-enter .magic-wandwrap { animation: magicWandPop .55s cubic-bezier(.2,.8,.3,1.3) both; }
-.magic-cta.wand-enter .magic-label { animation: magicLabelIn .45s ease .18s both; }
+.magic-cta.wand-enter .magic-wandwrap { animation: magicWandPop .5s cubic-bezier(.2,.8,.3,1.3) both; }
 /* the label rides OPEN by default — "N Opportunities" with 12px after the wand and 16px of air on
    its right; tapping still collapses the whole pill into the 72px scanning circle */
 .magic-label { padding-left: 12px; padding-right: 16px; white-space: nowrap; display: inline-block; overflow: hidden; max-width: 240px;
@@ -10293,14 +10295,28 @@ function closeOptCard() { const c = document.getElementById('optCard'); if (c) c
 document.getElementById('magicAction').addEventListener('click', e => {
   const b = e.target.closest('[data-magic]'); if (!b) return;
   const act = b.dataset.magic;
-  if (act === 'autogroup') { // standalone grouping gate → three dots → beat → the wand animates in as Opportunities
+  if (act === 'autogroup') { // Automate groups → dots (same width) → grouping → dots VANISH → wand circle IN → widen to Opportunities
     if (window._autoGroupThinking) return;
-    window._autoGroupThinking = true; renderMagicPill();               // dots take the label's place
-    const total = (typeof applyGroupingLive === 'function' ? applyGroupingLive() : 0) || 2400; // runs the live grouping, returns its duration
-    setTimeout(() => {                                                 // grouping settled → take a beat, then wand-in as Opportunities
-      window._autoGroupThinking = false; window._oppWandEnter = true; renderMagicPill();
-      setTimeout(() => { window._oppWandEnter = false; }, 900);        // one-shot: clear after the entrance animation
-    }, total + 420);                                                    // +420ms beat after the grouping lands
+    const pill = document.getElementById('magicPill');
+    pill.style.width = pill.getBoundingClientRect().width + 'px';       // PIN the width → three dots never change the button's shape
+    window._autoGroupThinking = true; renderMagicPill();               // dots fill the pinned button
+    const total = (typeof applyGroupingLive === 'function' ? applyGroupingLive() : 0) || 2400; // run the live grouping
+    setTimeout(() => {                                                  // grouping settled + a beat
+      pill.classList.add('ag-vanish');                                 // 1) the dots button fades + shrinks out
+      setTimeout(() => {
+        window._autoGroupThinking = false; window._oppWandEnter = true; renderMagicPill(); // 2) swap to the wand pill (wand pops in)
+        pill.classList.remove('ag-vanish'); pill.classList.add('ag-clip'); // clip the label while it's a circle
+        // FLIP: measure the full label-open width, snap to a 72px circle, then WIDEN → reveal "Opportunities"
+        pill.style.transition = 'none'; pill.style.width = 'auto';
+        const full = pill.offsetWidth;
+        pill.style.width = '72px'; pill.getBoundingClientRect();        // commit the circle with transition off
+        setTimeout(() => {                                             // 3) wand reads in the circle, THEN the pill widens back out
+          pill.style.transition = 'width .5s cubic-bezier(.22,1,.36,1)';
+          pill.style.width = full + 'px';
+          setTimeout(() => { pill.style.transition = ''; pill.style.width = ''; pill.classList.remove('ag-clip'); window._oppWandEnter = false; renderMagicPill(); }, 560);
+        }, 460);
+      }, 240);                                                          // vanish duration
+    }, total + 200);                                                    // beat after the grouping lands
   }
   else if (act === 'go') startOptimize();
   else if (act === 'all') applyAllSuggestions();
