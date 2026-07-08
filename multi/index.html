@@ -4569,6 +4569,10 @@ document.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const t = e.target;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  // In opportunities mode the arrows cycle through the opps (by calendar proximity), not the calendar
+  if (document.body.classList.contains('optimize-mode') && window.__opt && window.__opt.state === 'results' && window.__opt.suggs.length) {
+    e.preventDefault(); optNav(e.key === 'ArrowLeft' ? -1 : 1); return;
+  }
   const btn = document.getElementById(e.key === 'ArrowLeft' ? 'calPrev' : 'calNext');
   if (btn && btn.offsetParent) { e.preventDefault(); btn.click(); }
 });
@@ -9799,15 +9803,31 @@ function applyAllSuggestions() {
   setTimeout(exitOptimize, 1100);
 }
 // Step left/right through opportunities — the pill updates + the focus (glow + camera) moves with it.
+// Opps are stored green-first, but you NAVIGATE them by calendar PROXIMITY — → = the next opp
+// later on the calendar, ← = the one just before, regardless of list order (so from Comic-Con, ←
+// lands on Del Mar right beside it, then the season before that). Wraps at both ends.
+function _oppOrder() { // indices of the current suggs sorted by where they sit on the calendar
+  const s = window.__opt.suggs;
+  return s.map((_, i) => i).sort((x, y) => {
+    const A = s[x], B = s[y]; const ax = A.a == null ? Infinity : A.a, bx = B.a == null ? Infinity : B.a;
+    return (ax - bx) || ((A.b == null ? ax : A.b) - (B.b == null ? bx : B.b)) || (x - y);
+  });
+}
+function _stepOpp(fromIdx, dir) { // the next opp in calendar order from fromIdx, wrapping
+  const order = _oppOrder(); const pos = order.indexOf(fromIdx);
+  if (pos < 0) return fromIdx;
+  return order[(pos + dir + order.length) % order.length];
+}
 function optNav(dir) {
   const o = window.__opt; let n = o.suggs.length; if (!n) return;
   if (o.suggs[o.cur] && o.suggs[o.cur].applied) {           // stepping off an applied card → drop it
+    const target = o.suggs[_stepOpp(o.cur, dir)];           // remember the neighbour we're heading to BEFORE the splice reindexes
     o.suggs.splice(o.cur, 1); n = o.suggs.length;
     buildFlags(o.suggs); // the applied card leaves the board — union re-derives
     if (!n) { o.flags = new Map(); repaintOptGlows(); o.state = 'done'; renderMagicPill(); setTimeout(exitOptimize, 900); return; }
-    o.cur = dir > 0 ? (o.cur % n) : ((o.cur - 1 + n) % n);
+    const ti = o.suggs.indexOf(target); o.cur = ti >= 0 ? ti : Math.min(o.cur, n - 1);
   } else {
-    o.cur = ((o.cur || 0) + dir + n) % n;
+    o.cur = _stepOpp(o.cur, dir);
   }
   renderMagicPill(); focusOpportunity();
 }
