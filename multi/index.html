@@ -8989,9 +8989,13 @@ function updateSeasonRibbon() {
   document.querySelectorAll('.group-divider.ribbon-grown').forEach(x => { x.classList.remove('ribbon-grown'); x.style.height = ''; });
   document.querySelectorAll('.gev[data-ride]').forEach(ic => { ic.style.bottom = ''; ic.removeAttribute('data-ride'); }); // ridden event icons drop back to their stock band spot
   const o = window.__opt;
-  if (!o || o.state !== 'results') return;
+  if (!o || o.state !== 'results') { updateSeasonRibbon._lastId = null; return; }
   const g = o.suggs[o.cur];
-  if (!g || (g.bucket !== 'season-up' && g.bucket !== 'season-down' && g.bucket !== 'event')) return; // events ride the SAME chart system as seasons
+  if (!g || (g.bucket !== 'season-up' && g.bucket !== 'season-down' && g.bucket !== 'event')) { updateSeasonRibbon._lastId = null; return; } // events ride the SAME chart system as seasons
+  // ENTRY: a freshly-focused card animates the chart up from 0% on the odometer's beats (flat
+  // ~300ms, rise, settled by ~750ms). The t0 is shared so mid-flight rebuilds (camera scroll
+  // re-hangs) RESUME the rise instead of cutting it.
+  if (updateSeasonRibbon._lastId !== g.id) { updateSeasonRibbon._lastId = g.id; updateSeasonRibbon._entryT0 = performance.now(); }
   const up = g.intent === 'earn';
   const vals = _seasonSeries(g);
   const mx = Math.max(...vals, 0.001);
@@ -9082,6 +9086,7 @@ function updateSeasonRibbon() {
         (di2 => hp.addEventListener('pointerdown', ev => {
           ev.preventDefault(); ev.stopPropagation();
           try { hp.setPointerCapture(ev.pointerId); } catch (err) {}
+          updateSeasonRibbon._entryT0 = 0; // grabbing a handle ends the entry rise instantly
           hp.classList.add('dragging');
           // the edited column's odometer TARGETS update LIVE while dragging — plain digits swap in
           // place of the reels, so nothing re-animates; the struck old price stays put
@@ -9163,6 +9168,34 @@ function updateSeasonRibbon() {
     if (cw < 40) { wrap.appendChild(hit); wrap.appendChild(cur); } // handles carry the readout in week mode
     // (static "\u25b2 Jul 28 +61%" peak pills retired \u2014 the %-handles carry every date's number)
     div.appendChild(wrap);
+    // ENTRY RISE \u2014 the chart lifts from a flat 0% line to its shape on the odometer's timeline:
+    // flat until 308ms, rising to settled at 748ms (odoRec's 14%\u219234% beats on 2.2s). Time runs
+    // off the shared focus t0, so a mid-flight rebuild re-enters the tween at the right frame.
+    (() => {
+      const RISE_A = 308, RISE_B = 748;
+      const tNow = () => performance.now() - (updateSeasonRibbon._entryT0 || 0);
+      if (tNow() >= RISE_B) return; // focus is old news \u2014 draw settled
+      const sign2 = up ? '+' : '\u2212';
+      const ease = x => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+      const drawK = k => {
+        const p2 = path();
+        if (p2) { let d2 = ''; vals.forEach((v2, i2) => { const x2 = ((rowOffsets[g.a + i2] || 0) + cw / 2) - x0;
+          d2 += (i2 ? ' L' : 'M') + x2.toFixed(1) + ' ' + yOf(v2 * k).toFixed(1); }); p2.setAttribute('d', d2); }
+        hps.forEach((hp2, i2) => { hp2.style.top = yOf(vals[i2] * k) + 'px';
+          hp2.textContent = sign2 + Math.round(vals[i2] * k * 100) + '%';
+          const ic = hics[i2]; if (ic) ic.style.bottom = (16 + (H - yOf(vals[i2] * k))) + 'px'; });
+      };
+      const step = () => {
+        if (!wrap.isConnected) return; // this ribbon was rebuilt \u2014 its successor carries the tween
+        const t = tNow();
+        const k = t <= RISE_A ? 0 : t >= RISE_B ? 1 : ease((t - RISE_A) / (RISE_B - RISE_A));
+        drawK(k);
+        if (k < 1) requestAnimationFrame(step);
+      };
+      const t1 = tNow(); // paint the correct first frame before the browser shows anything
+      drawK(t1 <= RISE_A ? 0 : t1 >= RISE_B ? 1 : ease((t1 - RISE_A) / (RISE_B - RISE_A)));
+      requestAnimationFrame(step);
+    })();
   });
 }
 function buildFlags(groups) { // only the groups passed in glow — the focus model hands us ONE at a time
