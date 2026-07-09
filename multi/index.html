@@ -3395,6 +3395,25 @@ function generateBookings() {
       day += nights + ri(16, 52); // big open gap before the next stay
     }
   }
+  // A handful of hand-placed stays so July–August reads realistically busy — a few ride real demand
+  // events (Del Mar racing opening + Comic-Con week in San Diego, a Palm Springs desert weekend, an
+  // Aspen/Tahoe summer week, an early-August city trip). Each drops into the first FREE listing in its
+  // city so it never overlaps the random stays above; silently skipped in tiers/cities that don't exist.
+  const _cityLis = c => LISTINGS.map((l, i) => (l.city === c ? i : -1)).filter(i => i >= 0);
+  const _occ = {}; out.forEach(b => { (_occ[b.listing] = _occ[b.listing] || new Set()); for (let k = b.start; k < b.start + b.nights; k++) _occ[b.listing].add(k); });
+  const _free = (li, s, n) => { const o = _occ[li]; if (!o) return true; for (let k = s; k < s + n; k++) if (o.has(k)) return false; return true; };
+  const _place = (cities, s, n) => {
+    for (const li of cities.flatMap(_cityLis)) { if (_free(li, s, n)) {
+      out.push({ listing: li, start: s, nights: n, guest: GUEST_NAMES[ri(0, GUEST_NAMES.length - 1)], img: 'https://i.pravatar.cc/96?img=' + ((photoN++ % 70) + 1) });
+      (_occ[li] = _occ[li] || new Set()); for (let k = s; k < s + n; k++) _occ[li].add(k); return; } }
+  };
+  const T = todayIndex; // today = Jul 8
+  _place(['San Diego'],               T + 8,  4); // Del Mar racing opens  (~Jul 16–19)
+  _place(['San Diego'],               T + 15, 4); // Comic-Con week        (~Jul 23–26)
+  _place(['Palm Springs'],            T + 3,  3); // desert weekend        (~Jul 11–13)
+  _place(['Palm Springs'],            T + 31, 4); // early-August stay     (~Aug  8–11)
+  _place(['Aspen', 'Lake Tahoe'],     T + 10, 5); // mountain summer week  (~Jul 18–22)
+  _place(['Aspen', 'Lake Tahoe', 'San Diego', 'Palm Springs'], T + 24, 3); // early-August trip (~Aug 1–3)
   return out; // (removed the fixed late-July cluster + the pinned Charlotte/Sophia — those anchored the same
               //  spots every time, which read as "not randomized")
 }
