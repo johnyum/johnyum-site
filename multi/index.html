@@ -9962,6 +9962,14 @@ window.updateMagicPill = function () {
   const optimizing = document.body.classList.contains('optimize-mode');
   const hasSel = (typeof selected !== 'undefined') && selected.size > 0;
   const show = inCal && !document.body.classList.contains('grouping-busy') && (optimizing || !hasSel); // tucked away during the Automate-group flow
+  // INVARIANT: no groups → the pill is ONLY ever "Automate groups"; groups → "Opportunities". Whenever
+  // the idle pill re-appears (e.g. after a QA select/close), fix its content if it drifted — but never
+  // rebuild needlessly (avoids restarting the wand's star animation) or mid-Automate-choreography.
+  if (show && !optimizing && (!window.__opt || window.__opt.state === 'idle') && !window._autoGroupThinking && !window._oppWandEnter && typeof renderMagicPill === 'function') {
+    const cur = el.querySelector('[data-magic]');
+    const want = (typeof hasRealGroups === 'function' && !hasRealGroups()) ? 'autogroup' : 'go';
+    if (!cur || cur.dataset.magic !== want) renderMagicPill();
+  }
   el.classList.toggle('show', show);
   document.body.classList.toggle('magic-active', show);          // scroll safety: bottom room while the pill is up
   if (typeof updateVSync === 'function') requestAnimationFrame(updateVSync); // scroll range changed → re-sync the thumbnails
