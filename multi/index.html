@@ -3439,6 +3439,23 @@ function generateBookings() {
   _place(['Palm Springs'],            T + 31, 4); // early-August stay     (~Aug  8–11)
   _place(['Aspen', 'Lake Tahoe'],     T + 10, 5); // mountain summer week  (~Jul 18–22)
   _place(['Aspen', 'Lake Tahoe', 'San Diego', 'Palm Springs'], T + 24, 3); // early-August trip (~Aug 1–3)
+  // STRANDED-GAP examples — every home whose minimum is 5+ gets ONE short gap (min−2 nights, so 3–5)
+  // wedged between two stays in Jul–Aug. The gap is SHORTER than the minimum, so it can't be booked →
+  // it surfaces as a "free up stranded nights / lower the minimum" opportunity. Placed after the near
+  // week so it reads as a future gap-night play, into a free window that varies per listing.
+  const _book = (li, s, n) => { out.push({ listing: li, start: s, nights: n, guest: GUEST_NAMES[ri(0, GUEST_NAMES.length - 1)], img: 'https://i.pravatar.cc/96?img=' + ((photoN++ % 70) + 1) }); (_occ[li] = _occ[li] || new Set()); for (let k = s; k < s + n; k++) _occ[li].add(k); };
+  LISTINGS.map((l, i) => i).filter(i => (minNightsVals[i] || 1) >= 5).forEach((li, idx) => {
+    const mn = minNightsVals[li];
+    const G = Math.max(3, Math.min(6, mn - 2));   // stranded gap: 3 (min 5) … 5 (min 7)
+    const span = mn + G + mn;                     // stayA + gap + stayB
+    const from = T + 9 + (idx % 5) * 8;           // beyond the near week; vary where each home's gap sits
+    let s = -1;
+    for (let k = from; k <= T + 54 - span; k++) { if (_free(li, k, span)) { s = k; break; } }
+    if (s < 0) for (let k = T + 9; k <= T + 54 - span; k++) { if (_free(li, k, span)) { s = k; break; } } // fallback: anywhere Jul–Aug
+    if (s < 0) return;
+    _book(li, s, mn);                 // stay A
+    _book(li, s + mn + G, mn);        // stay B — leaves G open nights between them, unbookable at this minimum
+  });
   return out; // (removed the fixed late-July cluster + the pinned Charlotte/Sophia — those anchored the same
               //  spots every time, which read as "not randomized")
 }
@@ -8689,8 +8706,9 @@ function computeSuggestions() {
       if (!open[di]) { di++; continue; }
       const a = di; while (di < N && open[di]) di++;
       const b = di - 1, L = b - a + 1;
-      // short gap wedged between two bookings that the minimum blocks -> lower the min
-      if (a > 0 && booked.has(a - 1) && b < N - 1 && booked.has(b + 1) && L < minN && L <= 2) {
+      // short gap wedged between two bookings that the minimum blocks -> lower the min. Covers gaps up
+      // to 6 nights (not just 1–2) so a 3–6-night stranded gap under a 5/7-night minimum is a gap-night opp.
+      if (a > 0 && booked.has(a - 1) && b < N - 1 && booked.has(b + 1) && L < minN && L <= 6) {
         let t = false; for (let k = a; k <= b; k++) if (tunedAt(k)) { t = true; break; }
         if (!t) items.push({ li, a, b, intent: 'fill', type: 'minnight', curMin: minN, newMin: L,
           title: 'Lower minimum to ' + L + ' night' + (L > 1 ? 's' : ''),
@@ -10546,7 +10564,7 @@ const SMALL_HOST = {
   tripMonthly:['-28%','-18%','-25%','-30%','-20%'],
   cleaning:   ['$150','$70', '$60', '$45', '$95'],
   extraGuest: ['$40', null,  '$20', '$15', '$30'],
-  minNights:  [3, 2, 3, 2, 3],
+  minNights:  [5, 3, 7, 2, 5], // longer minimums on several homes → short gaps between stays become stranded (gap-night opportunities)
   bookingWin: ['180 days','90 days','365 days','90 days','180 days'],
   advNotice:  ['1 day','Same day','2 days','Same day','1 day'],
   prepTime:   ['1 night','None','1 night','None','2 nights'],
