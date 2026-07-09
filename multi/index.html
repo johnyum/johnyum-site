@@ -3328,8 +3328,8 @@ const GUEST_NAMES = ['Olivia','James','Emma','Noah','Ava','Liam','Sophia','Mason
 const weekendVals    = ['+15%', '+15%', '+15%', '+15%', '+15%', '+15%', '+15%', '+15%', '+15%', '+15%', '+15%', '+15%'];
 const highSeasonVals = ['+18%', '+28%', '+12%', '+35%', '+15%', '+30%', '+22%', '+10%', '+32%', '+25%', '+12%', '+28%'];
 const lowSeasonVals  = ['-10%', '-20%', '-5%',  '-25%', '-15%', '-30%', '-10%', '-5%',  '-20%', '-15%', '-25%', '-10%'];
-const earlyBirdVals  = ['-15%', null, '-12%', '-18%', null, '-15%', '-20%', null, '-18%', '-22%', null, '-18%']; // booked ≥3 months out (null = no early-bird discount)
-const lastMinuteVals = ['-15%', '-20%', null, '-18%', '-25%', '-15%', null, '-10%', '-18%', null, '-14%', '-18%']; // booked ≤7 days out (null = no last-minute discount)
+const earlyBirdVals  = [null, null, null, null, null, null, null, null, null, null, null, null]; // early-bird OFF across the portfolio (no lead-time discounts in the demo)
+const lastMinuteVals = [null, null, null, null, null, null, null, null, null, null, null, null]; // last-minute OFF across the portfolio (no lead-time discounts in the demo)
 // Trip-length discounts and fees — edited via the Pricing modal (not all feed the calendar)
 const tripWeekly     = ['-10%', '-8%',  '-12%', '-10%', '-15%', '-8%',  '-12%', '-10%', '-8%',  '-12%', '-10%', '-15%'];
 const tripMonthly    = ['-20%', '-18%', '-25%', '-20%', '-30%', '-18%', '-25%', '-20%', '-18%', '-25%', '-22%', '-28%'];
@@ -8772,26 +8772,40 @@ function computeSuggestions() {
   }
   // (1) HOLIDAY PREMIUM — one card per holiday, across every listing & city (national driver)
   const cards = [], holBy = {}, seasonBy = {}, staysItems = [], setupItems = [];
-  const nearItems = [];
   items.forEach(it => {
     if (it.hol) { (holBy[it.hol] = holBy[it.hol] || []).push(it); return; }
     if (it.type === 'minnight') { staysItems.push(it); return; }                      // (4) aggregate below
     if (it.type === 'discount') { setupItems.push(it); return; }                      // (5) aggregate below
-    if (!onboarding && it.a <= todayDi + NEAR_DAYS && it.intent === 'fill') { nearItems.push(it); return; } // this week = FILL urgency, its own card (raises stay with their season/holiday bucket). Onboarding has no "this week" card — fills fold into their season bucket.
     // (2)+(3) SEASON UP / DOWN / PROMOTE — merge only same-play + same-month windows
     const key = onboarding
       ? it.type + '|' + it.a + '-' + it.b // merge ONLY when the post-clip window matches EXACTLY — a card must light every night it names (Comic-Con shifts San Diego to Jul 27, so it can't ride Aspen's Jul 6 card)
       : it.type + '|' + allDays[it.a].getMonth();
     (seasonBy[key] = seasonBy[key] || []).push(it);
   });
-  if (nearItems.length) {
-    const pct = nearItems.reduce((s, x) => s + x.pct, 0) / nearItems.length;
-    const nearLis = new Set(nearItems.map(x => x.li)).size;
-    cards.push({ bucket: 'near', type: 'drop', intent: 'fill', pct,
-      a: Math.min(...nearItems.map(x => x.a)), b: Math.max(...nearItems.map(x => x.b)), items: nearItems,
-      head: 'Let’s fill these empty nights', cta: 'Apply',
-      title: 'Fill this week',
-      why: nearLis + ' listing' + (nearLis > 1 ? 's sit' : ' sits') + ' open this week. A nudge down wins the guests booking right now — before they slip away.' });
+  // FILL EMPTY NIGHTS — the simple this-week play: sweep the NEXT WEEK and surface EVERY open
+  // (unbooked) night, nudging each down ONE uniform step to win the booking. Scoped to the near
+  // window on purpose — it's the "fill what's about to slip" moment, not the whole calendar.
+  if (!onboarding) {
+    const FILL_PCT = 0.10; // one simple, uniform drop
+    const fillItems = [];
+    const _fillEnd = Math.min(N - 1, Math.max(0, todayDi) + NEAR_DAYS); // this week only (today + 7 days)
+    for (let li = 0; li < LISTINGS.length; li++) {
+      let s0 = -1;
+      const flush = e => { if (s0 < 0) return; const pc = getPrice(li, s0) || 200;
+        fillItems.push({ li, a: s0, b: e, intent: 'fill', type: 'drop', pct: FILL_PCT, near: true,
+          curPrice: pc, newPrice: Math.round(pc * (1 - FILL_PCT)) }); s0 = -1; };
+      for (let k = Math.max(0, todayDi); k <= _fillEnd; k++) { if (isOpenNight(li, k)) { if (s0 < 0) s0 = k; } else flush(k - 1); }
+      flush(_fillEnd);
+    }
+    if (fillItems.length) {
+      const nights = fillItems.reduce((s, x) => s + (x.b - x.a + 1), 0);
+      const nLis = new Set(fillItems.map(x => x.li)).size;
+      cards.push({ bucket: 'near', type: 'drop', intent: 'fill', pct: FILL_PCT,
+        a: Math.min(...fillItems.map(x => x.a)), b: Math.max(...fillItems.map(x => x.b)), items: fillItems,
+        head: 'Fill your empty nights', cta: 'Apply',
+        title: 'Fill ' + nights + ' empty night' + (nights > 1 ? 's' : ''),
+        why: nights + ' night' + (nights > 1 ? 's are' : ' is') + ' still open across ' + nLis + ' listing' + (nLis > 1 ? 's' : '') + '. One simple nudge down helps them fill.' });
+    }
   }
   // Reasoning lines are CARD-level and cluster-aware: plain language, the value up front.
   const _MONF = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -9072,6 +9086,7 @@ function computeSuggestions() {
       else if (c.bucket === 'holiday' || c.bucket === 'event') {
         magLine(1, 'premium'); // heads set at the builders: "Set Labor Day prices" / "Set Coachella prices"
       }
+      else if (c.bucket === 'near') { const _n = c.items.reduce((s, x) => s + (x.b - x.a + 1), 0); c.mag = _n.toLocaleString('en-US') + ' empty night' + (_n > 1 ? 's' : '') + ' · <span class="hl lo">' + Math.round(c.pct * 100) + '% off</span>'; c.magKind = 'flat'; }
       else if (it && it.curPrice && it.newPrice) { c.mag = '$' + it.curPrice + ' → ~$' + it.newPrice + ' a night'; }
       else { c.mag = c.intent === 'earn' ? '~' + p + '% higher' : '~' + p + '% lower'; }
   });
@@ -10449,8 +10464,8 @@ const SMALL_HOST = {
   weekend:    ['+18%','+12%','+15%','+10%','+15%'],
   high:       ['+30%','+20%','+28%','+35%','+18%'],
   low:        ['-15%','-10%','-18%','-30%','-12%'],
-  earlyBird:  ['-15%', null, '-12%','-18%', null],
-  lastMinute: [ null, '-15%','-18%', null, '-12%'],
+  earlyBird:  [null, null, null, null, null], // early-bird OFF (no lead-time discounts in the demo)
+  lastMinute: [null, null, null, null, null], // last-minute OFF (no lead-time discounts in the demo)
   tripWeekly: ['-12%','-8%', '-10%','-15%','-10%'],
   tripMonthly:['-28%','-18%','-25%','-30%','-20%'],
   cleaning:   ['$150','$70', '$60', '$45', '$95'],
@@ -11836,8 +11851,8 @@ function buildUnifiedHost() {
     weekendVals.push(['+10%', '+15%', '+18%'][i % 3]);
     highSeasonVals.push(['+15%', '+22%', '+28%', '+35%'][i % 4]);
     lowSeasonVals.push(['-10%', '-15%', '-20%', '-25%'][i % 4]);
-    earlyBirdVals.push(i % 3 === 0 ? null : ['-12%', '-18%'][i % 2]);
-    lastMinuteVals.push(i % 4 === 0 ? null : ['-10%', '-15%', '-20%'][i % 3]);
+    earlyBirdVals.push(null);  // early-bird OFF across the portfolio (no lead-time discounts in the demo)
+    lastMinuteVals.push(null); // last-minute OFF across the portfolio (no lead-time discounts in the demo)
     tripWeekly.push(['-8%', '-10%', '-12%'][i % 3]);
     tripMonthly.push(['-18%', '-22%', '-25%'][i % 3]);
     customDiscount.push('');
