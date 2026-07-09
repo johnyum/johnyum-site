@@ -1531,25 +1531,31 @@ body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.opt-
 .price-card.opt-fill.opt-applied .wring .wpath { stroke: #BE4900 !important; }
 .price-card.opt-fill.opt-applied .wring .wfill { fill: rgba(235,97,0,0.10); }
 .price-card.opt-fill.opt-applied .pstack .prec, .price-card.opt-fill.opt-applied.has-sub .price-val { color: #BE4900; }
-/* ── LAST-MINUTE DISCOUNT pill ── the price stays BLACK and lifts to the top slot (has-sub nudge);
-   a GREEN percentage counts up from −0% to the discount in the bottom slot; the wavy ring is GREEN.
-   Placed after the opt-fill rules so it wins the equal-specificity ties on the same cell. */
+/* ── LAST-MINUTE DISCOUNT pill ── the BLACK price sits in the top slot; a GREEN "−N%" rolls up from
+   −0% in the bottom slot FIRST, then (once it lands) the price calculates itself DOWN to the
+   discounted nightly rate. Two count reels share ONE opt-beat-gated timeline. Both lines are Book
+   weight; the wavy ring is GREEN. Placed after the opt-fill rules so it wins equal-specificity ties. */
 .price-card.opt-lastmin .wring .wpath { stroke: #038026 !important; }                       /* green ring (overrides opt-fill orange) */
 .price-card.opt-lastmin .wring .wfill { fill: transparent; }
 .price-card.opt-lastmin.opt-applied .wring .wpath { stroke: #038026 !important; }
 .price-card.opt-lastmin.opt-applied .wring .wfill { fill: rgba(3,128,38,0.10); }
-.price-card.opt-lastmin.opt-applied.has-sub .price-val { color: #222 !important; }           /* price stays black on apply, never orange */
-body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-lastmin.opt-applied.has-sub .price-val { transform: translateY(-9px); } /* keep it lifted (don't re-centre like other applied subs) */
-.price-card.opt-flag .subreveal.is-lm { color: #038026; font-weight: 500; }                  /* green type (beats the grey-700 base) */
-.subreveal.is-lm .lmreel { display: inline-block; height: 16px; line-height: 16px; overflow: hidden; vertical-align: bottom; }
-.subreveal.is-lm .lmstack { display: block; animation: lmRoll 1.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
-.subreveal.is-lm.is-frozen .lmstack { animation: none !important; }                          /* applied → parked at N, no re-roll */
-.subreveal.is-lm .lmstack i { display: block; height: 16px; line-height: 16px; font-style: normal; text-align: center; }
-@keyframes lmRoll { 0%,40% { transform: translateY(0); } 72%,100% { transform: translateY(var(--lmy, 0)); } } /* beat at −0%, then roll up to the discount */
-/* hold the count-up behind the SAME gates as the sub-line reveal (camera fly / digest beat) so it plays in sync */
-body.glow-hold .price-card.opt-flag.opt-focus .subreveal.is-lm .lmstack,
-body.opt-scanning .price-card.opt-flag .subreveal.is-lm .lmstack,
-body.opt-beat .price-card.opt-flag.opt-focus .subreveal.is-lm .lmstack { animation: none !important; }
+.price-card.opt-flag .pstack.pstack-lm .prec.lmprice { top: calc(50% - 17px); color: #222; animation: none; font-weight: 400; } /* price: top slot, black, Book, no odoRec rise */
+.price-card.opt-flag .pstack.pstack-lm .lmpct { position: absolute; left: 0; right: 0; top: calc(50% + 1px); text-align: center;
+  white-space: nowrap; height: 16px; line-height: 16px; font: 400 14px 'Cereal', sans-serif; color: #038026; /* green, Book */
+  opacity: 0; animation: lmPctIn 2.6s cubic-bezier(.4,0,.2,1) 1 forwards; }
+.pstack-lm .lmreel { display: inline-block; height: 16px; line-height: 16px; overflow: hidden; vertical-align: bottom; }
+.pstack-lm .lmreel i { display: block; height: 16px; line-height: 16px; font-style: normal; font-weight: 400; text-align: center; }
+.pstack-lm .lmcstack { display: block; animation: lmPctRoll 2.6s cubic-bezier(.4,0,.2,1) 1 forwards; }   /* percent counts up first */
+.pstack-lm .lmpstack { display: block; animation: lmPriceRoll 2.6s cubic-bezier(.4,0,.2,1) 1 forwards; } /* price waits, then calculates down */
+.pstack-lm.is-frozen .lmcstack, .pstack-lm.is-frozen .lmpstack { animation: none !important; }          /* applied → parked at committed values */
+.pstack-lm.is-frozen .lmpct { opacity: 1; animation: none !important; }
+@keyframes lmPctIn    { 0%,16% { opacity: 0; transform: translateY(-3px); } 34%,100% { opacity: 1; transform: translateY(0); } }
+@keyframes lmPctRoll  { 0%,34% { transform: translateY(0); } 60%,100% { transform: translateY(var(--lmcy, 0)); } } /* lands ~60% of 2.6s */
+@keyframes lmPriceRoll{ 0%,64% { transform: translateY(0); } 88%,100% { transform: translateY(var(--lmpy, 0)); } } /* starts after the % has landed */
+/* hold BOTH reels + the reveal behind the SAME gates as the odometer so they play in sync with the beat */
+body.glow-hold .price-card.opt-flag.opt-focus .pstack-lm .lmcstack, body.glow-hold .price-card.opt-flag.opt-focus .pstack-lm .lmpstack, body.glow-hold .price-card.opt-flag.opt-focus .pstack-lm .lmpct,
+body.opt-scanning .price-card.opt-flag .pstack-lm .lmcstack, body.opt-scanning .price-card.opt-flag .pstack-lm .lmpstack, body.opt-scanning .price-card.opt-flag .pstack-lm .lmpct,
+body.opt-beat .price-card.opt-flag.opt-focus .pstack-lm .lmcstack, body.opt-beat .price-card.opt-flag.opt-focus .pstack-lm .lmpstack, body.opt-beat .price-card.opt-flag.opt-focus .pstack-lm .lmpct { animation: none !important; }
 /* SUBDUED applied: tapping a DIFFERENT opp calms the previously-applied cells — black wavy stroke,
    grey-100 fill, black price. Tapping back into that opp restores the green/orange colours above. */
 .price-card.opt-applied:not(.opt-focus) .wring .wpath { stroke: #222 !important; }
@@ -9259,7 +9265,9 @@ function _odoRollHtml(oldS, newS, dir) {
   return out;
 }
 function makeOdometer(card, li, di) {
-  const f = optFlagFor(li, di); if (!f || !f.roll) { removeOdometer(card); return; }
+  const f = optFlagFor(li, di);
+  if (f && f.lm) { makeLastMinStack(card, li, di); return; } // last-minute discount → its own two-reel stack (every makeOdometer caller routes here)
+  if (!f || !f.roll) { removeOdometer(card); return; }
   // "old" price = what the guest saw BEFORE this card: during a piano sweep the live price has
   // already changed, so cells ahead of the wavefront read the pre-apply snapshot instead.
   const g = window.__opt.suggs.find(s => s.id === f.id);
@@ -9309,24 +9317,36 @@ function sweepStrayOdometers() {
 // Promo / last-min / early-bird / min cells: the price stays put; the recommendation (discount % or
 // the new minimum) slides in beneath it — same reveal timing as the odometer, so every type is one system.
 function makeSub(card, li, di) {
-  const f = optFlagFor(li, di); if (!f || (!f.disc && !f.min && !f.lm)) { removeSub(card); return; }
+  const f = optFlagFor(li, di); if (!f || (!f.disc && !f.min)) { removeSub(card); return; }
   if (card.querySelector(':scope > .subreveal')) return;
-  const sub = document.createElement('div');
-  sub.className = 'subreveal' + (f.min ? ' is-min' : f.lm ? ' is-lm' : ' is-disc');
-  if (f.lm) {
-    // last-minute discount: a green "−N%" whose number rolls up from 0 → N in the bottom slot.
-    const frozen = card.classList.contains('opt-applied'); // applied/committed cell → park at N, never re-roll on re-mount
-    const pct = Math.round(f.lm.pct * 100);
-    let items = ''; for (let n = 0; n <= pct; n++) items += '<i>' + n + '</i>';
-    sub.style.setProperty('--lmy', (-pct * 16) + 'px');
-    sub.innerHTML = '−<span class="lmreel"><span class="lmstack"' + (frozen ? ' style="transform:translateY(' + (-pct * 16) + 'px)"' : '') + '>' + items + '</span></span>%';
-    if (frozen) sub.classList.add('is-frozen');
-  } else {
-    sub.innerHTML = f.min ? ('min <s>' + f.min.cur + '</s> ' + f.min.to) : f.disc;
-  }
+  const sub = document.createElement('div'); sub.className = 'subreveal' + (f.min ? ' is-min' : ' is-disc');
+  sub.innerHTML = f.min ? ('min <s>' + f.min.cur + '</s> ' + f.min.to) : f.disc;
   card.appendChild(sub); card.classList.add('has-sub');
 }
 function removeSub(card) { if (!card) return; const s = card.querySelector(':scope > .subreveal'); if (s) s.remove(); card.classList.remove('has-sub'); }
+// LAST-MINUTE DISCOUNT stack: two count reels in ONE gated timeline — the green "−N%" rolls up from
+// −0% first, then (once it lands) the BLACK price above calculates itself down from the nightly rate
+// to the discounted rate. Applied cells park at the committed values and never re-roll.
+function makeLastMinStack(card, li, di) {
+  const f = optFlagFor(li, di); if (!f || !f.lm) { return false; }
+  const frozen = card.classList.contains('opt-applied'); // committed → price already discounted, show it static
+  const cur = getPrice(li, di);                            // live: the nightly rate; applied: the committed (already-discounted) price
+  const neu = frozen ? cur : Math.round(cur * (1 - f.lm.pct));
+  const pct = Math.round(f.lm.pct * 100);
+  const existing = card.querySelector(':scope > .pstack');
+  if (existing) { if (existing.classList.contains('pstack-lm') && +existing.dataset.cur === cur) return true; existing.remove(); }
+  // price count-DOWN reel (cur → neu, descending) + percent count-UP reel (0 → pct)
+  let pit = ''; for (let v = cur; v >= neu; v--) pit += '<i>' + v + '</i>';
+  let cit = ''; for (let n = 0; n <= pct; n++) cit += '<i>' + n + '</i>';
+  const ps = document.createElement('div'); ps.className = 'pstack pstack-lm' + (frozen ? ' is-frozen' : ''); ps.dataset.cur = cur;
+  ps.style.setProperty('--lmpy', (-(cur - neu) * 16) + 'px'); // price reel travel
+  ps.style.setProperty('--lmcy', (-pct * 16) + 'px');         // percent reel travel
+  ps.innerHTML =
+    '<div class="prec lmprice">$<span class="lmreel"><span class="lmpstack"' + (frozen ? ' style="transform:translateY(' + (-(cur - neu) * 16) + 'px)"' : '') + '>' + pit + '</span></span></div>' +
+    '<div class="lmpct">−<span class="lmreel"><span class="lmcstack"' + (frozen ? ' style="transform:translateY(' + (-pct * 16) + 'px)"' : '') + '>' + cit + '</span></span>%</div>';
+  card.appendChild(ps); card.classList.add('has-odo');
+  return true;
+}
 let _wPhase = 0, _wLast = 0; const _wSpeed = 3.2; // a hair faster than 2.6, still a calm drift
 (function(){ // group-unison hover for opportunity cells
   const gw = (typeof gridWrap !== 'undefined') ? gridWrap : document.getElementById('gridWrap');
