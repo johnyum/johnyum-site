@@ -1551,7 +1551,8 @@ body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.opt-
 .pstack-lm .lmreel { display: inline-block; height: 16px; line-height: 16px; overflow: hidden; vertical-align: bottom; }
 .pstack-lm .lmreel i { display: block; height: 16px; line-height: 16px; font-style: normal; font-weight: 400; text-align: center; }
 .pstack-lm .lmcstack { display: block; animation: lmRollC .8s cubic-bezier(.16,1,.3,1) .34s both; }   /* % settles first (easeOutExpo) */
-.pstack-lm .lmpstack { display: block; animation: lmRollP 1s cubic-bezier(.16,1,.3,1) 1.32s both; }   /* price then calculates down & settles */
+.pstack-lm .lmpstack { display: block; transform: translateY(var(--lmpy, 0)); /* rests showing the original price */
+  animation: lmRollP 1s cubic-bezier(.16,1,.3,1) 1.32s both; }                                        /* then rolls DOWN to the discounted price */
 .pstack-lm.is-frozen .lmcstack, .pstack-lm.is-frozen .lmpstack, .pstack-lm.is-frozen .lmpct, .pstack-lm.is-frozen .prec.lmprice { animation: none !important; } /* applied → parked */
 .pstack-lm.is-frozen .prec.lmprice, .pstack-lm.is-frozen .lmpct { transition: none !important; }         /* re-mounted committed cell: snap, never re-animate */
 /* APPLY — mirror the odometer commit: the price glides to CENTRE (translateY 9px) staying green;
@@ -1563,7 +1564,7 @@ body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.opt-
 @keyframes lmGreen  { from { color: #222; } to { color: #038026; } }
 @keyframes lmFadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes lmRollC  { from { transform: translateY(0); } to { transform: translateY(var(--lmcy, 0)); } }
-@keyframes lmRollP  { from { transform: translateY(0); } to { transform: translateY(var(--lmpy, 0)); } }
+@keyframes lmRollP  { from { transform: translateY(var(--lmpy, 0)); } to { transform: translateY(0); } } /* DOWNWARD: cur → neu */
 /* hold reels + reveal + the price colour behind the SAME gates as the odometer so they play in sync with the beat */
 body.glow-hold .price-card.opt-flag.opt-focus .pstack-lm .lmcstack, body.glow-hold .price-card.opt-flag.opt-focus .pstack-lm .lmpstack, body.glow-hold .price-card.opt-flag.opt-focus .pstack-lm .lmpct, body.glow-hold .price-card.opt-flag.opt-focus .pstack-lm .prec.lmprice,
 body.opt-scanning .price-card.opt-flag .pstack-lm .lmcstack, body.opt-scanning .price-card.opt-flag .pstack-lm .lmpstack, body.opt-scanning .price-card.opt-flag .pstack-lm .lmpct, body.opt-scanning .price-card.opt-flag .pstack-lm .prec.lmprice,
@@ -9366,14 +9367,15 @@ function makeLastMinStack(card, li, di) {
   const pct = Math.round(f.lm.pct * 100);
   const existing = card.querySelector(':scope > .pstack');
   if (existing) { if (existing.classList.contains('pstack-lm') && +existing.dataset.cur === cur) return true; existing.remove(); }
-  // price count-DOWN reel (cur → neu, descending) + percent count-UP reel (0 → pct)
-  let pit = ''; for (let v = cur; v >= neu; v--) pit += '<i>' + v + '</i>';
+  // price reel ASCENDING (neu on top → cur at the bottom): it starts showing cur, then rolls DOWNWARD
+  // to neu (the digits descend, matching a falling price). Percent reel counts UP (0 → pct).
+  let pit = ''; for (let v = neu; v <= cur; v++) pit += '<i>' + v + '</i>';
   let cit = ''; for (let n = 0; n <= pct; n++) cit += '<i>' + n + '</i>';
   const ps = document.createElement('div'); ps.className = 'pstack pstack-lm' + (frozen ? ' is-frozen' : ''); ps.dataset.cur = cur;
-  ps.style.setProperty('--lmpy', (-(cur - neu) * 16) + 'px'); // price reel travel
-  ps.style.setProperty('--lmcy', (-pct * 16) + 'px');         // percent reel travel
+  ps.style.setProperty('--lmpy', (-(cur - neu) * 16) + 'px'); // reel START offset (shows cur); rolls DOWN to translateY(0) = neu
+  ps.style.setProperty('--lmcy', (-pct * 16) + 'px');         // percent reel travel (rolls up to pct)
   ps.innerHTML =
-    '<div class="prec lmprice">$<span class="lmreel"><span class="lmpstack"' + (frozen ? ' style="transform:translateY(' + (-(cur - neu) * 16) + 'px)"' : '') + '>' + pit + '</span></span></div>' +
+    '<div class="prec lmprice">$<span class="lmreel"><span class="lmpstack"' + (frozen ? ' style="transform:translateY(0px)"' : '') + '>' + pit + '</span></span></div>' +
     '<div class="lmpct">−<span class="lmreel"><span class="lmcstack"' + (frozen ? ' style="transform:translateY(' + (-pct * 16) + 'px)"' : '') + '>' + cit + '</span></span>%</div>';
   card.appendChild(ps); card.classList.add('has-odo');
   return true;
