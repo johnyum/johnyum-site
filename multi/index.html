@@ -9534,6 +9534,21 @@ function updateSeasonRibbon() {
     });
     if (cw >= 40) {
       const sign = up ? '+' : '\u2212';
+      // The themed PRIMARY icon (thermometer / ski / sun\u2026) must LEAD every high/low card \u2014 even when
+      // SEASON_MARKERS' curated window doesn't overlap the demand-driven card dates (that's why Aspen
+      // showed it but Lake Tahoe / San Diego / Palm Springs' 2nd low didn't). Look up the icon for this
+      // city + kind and synthesize it at the card's lead cell, unless the band already has its own.
+      let _seasonPrimary = null, _primaryPlaced = false, _leadDi = -1;
+      if (g.bucket === 'season-up' || g.bucket === 'season-down') {
+        const _city = listingCity[(g.items && g.items[0]) ? g.items[0].li : (g.lis && g.lis.length ? g.lis[0] : 0)];
+        const _kind = up ? 'high' : 'low';
+        const _cm = allDays[g.a] ? allDays[g.a].getMonth() : 0;
+        const _marks = (typeof SEASON_MARKERS !== 'undefined' ? SEASON_MARKERS.filter(m => m[0] === _city && m[1] === _kind) : []);
+        const _mk = _marks.find(m => { try { return _monthSet(m[3]).has(_cm); } catch (e) { return false; } }) || _marks[0];
+        _seasonPrimary = _mk ? _mk[4] : null;
+        for (let j = g.a; j <= g.b && !_primaryPlaced; j++) if (div.querySelector('.gev.gev-primary[data-di="' + j + '"]')) _primaryPlaced = true; // band already leads with its own primary
+        for (let j = 0; j < vals.length; j++) if (coveredBy(g, g.a + j)) { _leadDi = g.a + j; break; } // first non-carved cell = where the primary leads
+      }
       for (let i = 0; i < vals.length; i++) {
         if (!coveredBy(g, g.a + i)) { hps.push(null); continue; } // carved date owned by a holiday/event — no season pill
         const hx = ((rowOffsets[g.a + i] || 0) + cw / 2) - x0;
@@ -9543,17 +9558,18 @@ function updateSeasonRibbon() {
         hp.style.left = hx + 'px'; hp.style.top = yOf(vals[i]) + 'px';
         hp.textContent = sign + Math.round(vals[i] * 100) + '%';
         let gic = div.querySelector('.gev[data-di="' + (g.a + i) + '"]');
-        // EVERY high/low-season cell must ride a trend arrow. SEASON_MARKERS only cover curated month
-        // windows, so a demand-driven season card (e.g. San Diego high runs into Sep, past the Jun–Aug
-        // marker) lands on dates with NO marker → synthesize the arrow here so no cell is ever missing one.
-        if (!gic && (g.bucket === 'season-up' || g.bucket === 'season-down')) {
-          gic = document.createElement('img');
-          gic.className = 'gev gev-secondary gev-season gev-' + (up ? 'high' : 'low');
-          gic.src = (up ? 'event_icons/arrow-up-green.png' : 'event_icons/arrow-down-orange.png') + '?v=2';
-          gic.alt = ''; gic.loading = 'lazy'; gic.style.setProperty('--fit', '1');
-          gic.dataset.di = (g.a + i); gic.dataset.synth = '1';
-          gic.style.left = ((rowOffsets[g.a + i] || 0) + cw / 2) + 'px';
-          div.appendChild(gic);
+        const _isSeason = g.bucket === 'season-up' || g.bucket === 'season-down';
+        const _mkSynthGev = (cls, src) => { const im = document.createElement('img'); im.className = cls; im.src = src + '?v=2';
+          im.alt = ''; im.loading = 'lazy'; im.style.setProperty('--fit', '1'); im.dataset.di = (g.a + i); im.dataset.synth = '1';
+          im.style.left = ((rowOffsets[g.a + i] || 0) + cw / 2) + 'px'; div.appendChild(im); return im; };
+        if (_isSeason && (g.a + i) === _leadDi && !_primaryPlaced && _seasonPrimary) {
+          // The themed PRIMARY icon LEADS the card at its first cell — overriding whatever arrow/marker sits there.
+          if (gic) gic.remove();
+          gic = _mkSynthGev('gev gev-primary gev-season gev-' + (up ? 'high' : 'low'), _seasonPrimary);
+          _primaryPlaced = true;
+        } else if (!gic && _isSeason) {
+          // no marker on this date → synthesize a trend arrow so EVERY cell rides one
+          gic = _mkSynthGev('gev gev-secondary gev-season gev-' + (up ? 'high' : 'low'), up ? 'event_icons/arrow-up-green.png' : 'event_icons/arrow-down-orange.png');
         }
         if (gic) { gic.dataset.ride = '1'; gic.dataset.focusride = '1'; hics[i] = gic; gic.style.bottom = (ICBASE + (H - yOf(vals[i]))) + 'px'; } // focusride → season icons show (this IS the tapped opp)
         (di2 => { const onDown = ev => {
