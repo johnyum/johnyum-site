@@ -10684,7 +10684,7 @@ function _searchDayRanges(expr, lis) {
     if (um) {
       const w = um[1].trim();
       let end = -1;
-      const hol2 = HOLIDAYS.find(h => _fuzzyName(h.name, w));
+      const hol2 = HOLIDAYS.find(h => h.name.toLowerCase() === w) || HOLIDAYS.filter(h => _fuzzyName(h.name, w)).sort((a, b) => a.name.length - b.name.length)[0];
       if (hol2) { for (const y of [...new Set(allDays.map(d => d.getFullYear()))]) {
           const k = allDays.findIndex(d => d.toDateString() === holidayDateInYear(hol2, y).toDateString());
           if (k >= t0) { end = k; break; } } }
@@ -10849,8 +10849,10 @@ function _searchDayRanges(expr, lis) {
     });
     return rs.length ? rs : null;
   }
-  // a holiday → its banded window(s) (the same offsets the calendar marks)
-  const hol = HOLIDAYS.find(h => _fuzzyName(h.name, e));
+  // a holiday → its banded window(s) (the same offsets the calendar marks). EXACT name wins first, so
+  // "christmas" resolves to Christmas (Dec 25 + its Dec 22–27 band), not "Christmas Eve" (Dec 24, no band).
+  const hol = HOLIDAYS.find(h => h.name.toLowerCase() === e)
+    || HOLIDAYS.filter(h => _fuzzyName(h.name, e)).sort((a, b) => a.name.length - b.name.length)[0];
   if (hol) {
     const rs = [];
     [...new Set(allDays.map(d => d.getFullYear()))].forEach(y => {
@@ -11559,7 +11561,8 @@ function searchCalendar(raw, after) {
     }
   }
   // holidays — "labor day", "thanksgiving"
-  const hol = HOLIDAYS.find(h => _fuzzyName(h.name, rest));
+  const hol = HOLIDAYS.find(h => h.name.toLowerCase() === rest) // exact first: "christmas" → Christmas, not Christmas Eve
+    || HOLIDAYS.filter(h => _fuzzyName(h.name, rest)).sort((a, b) => a.name.length - b.name.length)[0];
   if (hol) {
     const allYears = [...new Set(allDays.map(d => d.getFullYear()))];
     const diFor = ys => { const hits = ys.map(y => { const hd = holidayDateInYear(hol, y);
