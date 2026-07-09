@@ -116,10 +116,12 @@ body {
 .month-title svg { margin-top: 2px; }
 .month-title:hover { color: var(--grey-600); } /* hover: month text (+ chevron via currentColor) dims to grey-600 */
 /* Month picker: same menu as ⋯ / Week, but a scrollable list (~8 months tall, rest scrolls) */
-.listing-menu.month-menu { max-height: 372px; overflow-y: auto; overscroll-behavior: contain; }
-.listing-menu.month-menu::-webkit-scrollbar { width: 8px; }
-.listing-menu.month-menu::-webkit-scrollbar-thumb { background: var(--grey-300); border-radius: 999px; }
+.listing-menu.month-menu { max-height: 372px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(0,0,0,.14) transparent; }
+.listing-menu.month-menu::-webkit-scrollbar { width: 4px; } /* thin + discreet */
+.listing-menu.month-menu::-webkit-scrollbar-thumb { background: rgba(0,0,0,.14); border-radius: 999px; }
 .listing-menu.month-menu::-webkit-scrollbar-track { background: transparent; }
+.listing-menu.month-menu .lm-item .wm-check { margin-left: auto; } /* label left-aligned, checkmark on the RIGHT */
+.listing-menu.month-menu .lm-item.past { color: var(--grey-700); } /* months before the current one are dimmed */
 .tb-left { flex: 1; display: flex; align-items: center; gap: 16px; }
 .tb-center {
   flex: 0 0 auto;        /* in the flex flow (not absolute) so it never sits on top of the side groups;
@@ -7856,8 +7858,12 @@ function animateGroupsByCity() {
   };
   function render() {
     const cur = curMonthStart();
-    menu.innerHTML = monthStarts().map(di => '<button class="lm-item" data-di="' + di + '">' +
-      '<span class="wm-check" style="visibility:' + (di === cur ? 'visible' : 'hidden') + '">' + CHECK + '</span>' + label(allDays[di]) + '</button>').join('');
+    menu.innerHTML = monthStarts().map(di => {
+      const d = allDays[di];
+      const isPast = d.getFullYear() < today.getFullYear() || (d.getFullYear() === today.getFullYear() && d.getMonth() < today.getMonth());
+      return '<button class="lm-item' + (isPast ? ' past' : '') + '" data-di="' + di + '">' +
+        label(d) + '<span class="wm-check" style="visibility:' + (di === cur ? 'visible' : 'hidden') + '">' + CHECK + '</span></button>';
+    }).join('');
   }
   const close = () => menu.classList.remove('show');
   title.addEventListener('click', e => {
