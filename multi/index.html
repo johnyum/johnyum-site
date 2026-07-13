@@ -1023,11 +1023,11 @@ body.busy-host #dateHeader .holiday-icon.secondary { display: none; }
   transition: transform 0.32s ease; /* gradual (slow) zoom in/out on hover */
 }
 .holiday-icon svg { pointer-events: none; } /* let the icon box catch the events */
-/* weekend marker: 5×5 ink dot under every Fri/Sat/Sun, a child of .date-header-wrap itself so it
-   anchors to the SAME border-box edge that paints the grey rule. bottom: -2px → dot centre =
-   the 1px rule's pixel centre, exactly, by construction. left set inline per column. */
-.wknd-dot { position: absolute; bottom: -3px; width: 5px; height: 5px; margin-left: -2.5px; /* -2 to centre + 1 for the border the padding-box anchor excludes */
-  border-radius: 50%; background: #222; z-index: 10; pointer-events: none; }
+/* weekend marker: 24×3 grey-300 rounded pill under every Fri/Sat/Sun, a child of .date-header-wrap so
+   it anchors to the SAME border-box edge that paints the grey rule. bottom: -2px centres the 3px pill
+   on the 1px rule's pixel centre; margin-left: -12px centres the 24px pill on the column. */
+.wknd-dot { position: absolute; bottom: -2px; width: 24px; height: 3px; margin-left: -12px;
+  border-radius: 999px; background: var(--grey-300); z-index: 10; pointer-events: none; }
 /* Hover: zoom 1.5x from center (keep the translateX(-50%) that centers it on the column), lift above siblings */
 .holiday-icon:hover { transform: translateX(-50%) scale(calc(var(--fit, 1) * 1.5)); z-index: 12; }
 /* SECONDARY hover (holiday + event alike): blow up to a fixed ~44px — scale is absolute (no --fit)
@@ -4806,8 +4806,16 @@ function render(preserveScroll) {
   // across modes, personas, or browser zoom. X re-derived from the laid-out cells; a
   // ResizeObserver rebuilds them whenever the header re-flows.
   (window._buildWkndDots = function () {
-    // weekend rule dots removed — just clear any that exist, never create new ones
-    hdr.parentElement.querySelectorAll('.wknd-dot').forEach(e => e.remove());
+    const wrap = hdr.parentElement;
+    wrap.querySelectorAll('.wknd-dot').forEach(e => e.remove());
+    hdr.querySelectorAll('.date-cell').forEach(dc => {
+      const dd = allDays[+dc.dataset.di]; if (!dd) return;
+      const dow = dd.getDay();
+      if (!(dow === 5 || dow === 6 || dow === 0) || holidayFor(dd) || secondaryHolidayFor(dd)) return; // ANY holiday icon (primary or secondary) owns the slot — no pill underneath
+      const dot = document.createElement('span'); dot.className = 'wknd-dot';
+      dot.style.left = (dc.offsetLeft + dc.offsetWidth / 2) + 'px'; // column centre
+      wrap.appendChild(dot);
+    });
   })();
   if (!window._wkndRO) { window._wkndRO = new ResizeObserver(() => window._buildWkndDots && window._buildWkndDots()); window._wkndRO.observe(hdr); }
 
