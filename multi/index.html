@@ -753,8 +753,6 @@ body.grouping-enter #gridRows > *, body.grouping-enter #listingThumbsInner > * {
 .settings-sub-cell[data-col-id="seasonality-high"] input { color: #038026; }
 /* Seasonality column is wider to fit the demand sparkline segment (header + cell kept in sync) */
 .settings-col-header.settings-col-seasonality, .settings-cell.settings-cell-seasonality { flex: 1.8; }
-/* Seasonality section hidden in the Pricing grid (header + every row cell) */
-.settings-col-seasonality, .settings-cell-seasonality { display: none; }
 /* Demand segment: city name (truncates) then the 12-bar sparkline immediately to its right */
 /* City on top (aligned with the High/Low labels), sparkline pinned to the bottom (aligned with the % values) */
 .season-demand-cell { flex: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-width: 0; padding: 4px; cursor: pointer; border-radius: 8px; transition: background 0.12s; } /* tappable → opens the demand modal */
@@ -1023,11 +1021,13 @@ body.busy-host #dateHeader .holiday-icon.secondary { display: none; }
   transition: transform 0.32s ease; /* gradual (slow) zoom in/out on hover */
 }
 .holiday-icon svg { pointer-events: none; } /* let the icon box catch the events */
-/* weekend marker: 24×3 grey-300 rounded pill under every Fri/Sat/Sun, a child of .date-header-wrap so
-   it anchors to the SAME border-box edge that paints the grey rule. bottom: -2px centres the 3px pill
-   on the 1px rule's pixel centre; margin-left: -12px centres the 24px pill on the column. */
-.wknd-dot { position: absolute; bottom: -2px; width: 20px; height: 3px; margin-left: -10px; /* bottom = rule centre −½ height (centred on the rule); margin-left = −½ width (centred on the column) */
-  border-radius: 999px; background: var(--grey-300); z-index: 10; pointer-events: none; }
+/* weekend marker: ONE grey pill spanning the full Fri–Sun run, a child of .date-header-wrap itself
+   so it anchors to the SAME border-box edge that paints the grey rule. left/width set inline per
+   run (left edge of the first cell → right edge of the last). border-radius is a FIXED px (not %)
+   equal to half the height — a % radius scales independently per axis and draws an ellipse on a
+   non-square box; a fixed radius = height/2 fully rounds the ends while the top/bottom stay straight. */
+.wknd-dot { position: absolute; bottom: -2.5px; height: 4px;
+  border-radius: 2px; background: var(--grey-300); border: none; z-index: 10; pointer-events: none; }
 /* Hover: zoom 1.5x from center (keep the translateX(-50%) that centers it on the column), lift above siblings */
 .holiday-icon:hover { transform: translateX(-50%) scale(calc(var(--fit, 1) * 1.5)); z-index: 12; }
 /* SECONDARY hover (holiday + event alike): blow up to a fixed ~44px — scale is absolute (no --fit)
@@ -1559,6 +1559,52 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
 .price-card.opt-flag.opt-focus.opt-applied.opt-earn,
 .price-card.opt-flag.opt-focus.opt-applied.opt-min { --c-ring: var(--green-700); --c-price: #222; --c-wash: transparent; }   /* APPLIED+selected: type = BLACK (committed); the ring + check carry the colour */
 .price-card.opt-flag.opt-focus.opt-applied.opt-fill:not(.opt-min) { --c-ring: #BE4900; --c-price: #222; --c-wash: transparent; }
+/* ── Indicator-style switcher: Filled (independent toggle) + Animated (conic-gradient comet) ── */
+/* FILLED — a 10% role-color fill under the current ring shape (rect for Default/Animated, sine for Wavy) */
+body.ind-filled .price-card.opt-flag .wring .wfill { fill: color-mix(in srgb, var(--c-ring) 10%, #fff); }
+/* ANIMATED — a conic-gradient "comet" replaces the SVG ring on FOCUSED cells only; a light-tint spot
+   (never white) glides around the ring, full colour on both sides. Direction by role colour: GREEN
+   (earn + min) = clockwise, ORANGE (lower) = counter-clockwise. */
+@property --comet-a { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.price-card.opt-flag .comet-ring { display: none; }
+body.ind-animated .price-card.opt-flag.opt-focus .wring .wpath { display: none; } /* comet replaces the SVG stroke — .wfill stays so Filled still paints */
+body.ind-animated .price-card.opt-flag.opt-focus .comet-ring {
+  display: block; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  border-radius: 12px; padding: 2px; box-sizing: border-box; /* padding = ring thickness */
+  background: conic-gradient(from var(--comet-a),
+    color-mix(in srgb, var(--c-ring) 15%, #fff) 0deg,     /* TIP — lightest 15% tint, never white */
+    color-mix(in srgb, var(--c-ring) 16%, #fff) 3deg,     /* short light plateau ("white park") */
+    color-mix(in srgb, var(--c-ring) 42%, #fff) 11deg,
+    color-mix(in srgb, var(--c-ring) 72%, #fff) 20deg,
+    var(--c-ring) 28deg,                                  /* full colour — short ahead ramp done */
+    var(--c-ring) 270deg,
+    color-mix(in srgb, var(--c-ring) 86%, #fff) 301deg,
+    color-mix(in srgb, var(--c-ring) 58%, #fff) 330deg,
+    color-mix(in srgb, var(--c-ring) 38%, #fff) 347deg,
+    color-mix(in srgb, var(--c-ring) 16%, #fff) 356deg,
+    color-mix(in srgb, var(--c-ring) 15%, #fff) 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude; /* border-only mask */
+  animation: cometspin-cw 2.4s linear infinite;
+}
+body.ind-animated .price-card.opt-flag.opt-focus.opt-fill:not(.opt-min) .comet-ring { /* ORANGE lower = CCW, mirrored ramps */
+  background: conic-gradient(from var(--comet-a),
+    color-mix(in srgb, var(--c-ring) 15%, #fff) 0deg,
+    color-mix(in srgb, var(--c-ring) 16%, #fff) 3deg,
+    color-mix(in srgb, var(--c-ring) 34%, #fff) 13deg,
+    color-mix(in srgb, var(--c-ring) 58%, #fff) 33deg,
+    color-mix(in srgb, var(--c-ring) 86%, #fff) 63deg,
+    var(--c-ring) 93deg,
+    var(--c-ring) 335deg,
+    color-mix(in srgb, var(--c-ring) 66%, #fff) 344deg,
+    color-mix(in srgb, var(--c-ring) 38%, #fff) 352deg,
+    color-mix(in srgb, var(--c-ring) 16%, #fff) 356deg,
+    color-mix(in srgb, var(--c-ring) 15%, #fff) 360deg);
+  animation-name: cometspin-ccw;
+}
+@keyframes cometspin-cw  { to { --comet-a: 360deg; } }
+@keyframes cometspin-ccw { to { --comet-a: -360deg; } }
 /* The ring is a CALM grey texture (motion = "opportunity here"); the only COLOUR in the cell is the
    suggested price — green raise / black drop — so the eye lands on the number, not the border. */
 /* ring stroke + fill now come from the --c-ring / --c-wash tokens (single source above) */
@@ -1916,6 +1962,9 @@ body.opt-beat .price-card.opt-flag.opt-focus .pstack-lm .lmcstack, body.opt-beat
 /* Only the Customize menu (the last/rightmost pill) opens over the panel's ✕, so hide the ✕ only for it.
    Every other sub-menu (price / availability / promotions / discounts / rule sets) leaves the ✕ usable. */
 body:has(#customizeMenu.show) #multiActionClose { display: none; }
+/* Every secondary panel (price / availability / promotions / min nights / customize / discounts / rule
+   sets — all share the .avail-menu base class) has its OWN floating ✕; hide it while the panel is open. */
+.avail-menu .bp-close { display: none; }
 /* Availability sub-menu (floats above the "Edit availability" pill) — block / open the selected nights */
 .avail-menu {
   position: fixed; z-index: 210; display: none; box-sizing: border-box; width: 280px; padding: 16px;
@@ -2071,16 +2120,21 @@ body:has(#customizeMenu.show) #multiActionClose { display: none; }
   background: #000; color: #fff; box-shadow: 0 0 0 1px rgba(255,255,255,0.16), 0 4px 14px rgba(0,0,0,0.32);
 }
 /* Dev-mode switch (bottom-left) */
-/* Bottom dev bar: a full-width footer of plain TAPPABLE TYPE — [5·12·32 Listings] / [Current·New Host]
-   centered, Reset pinned right, a hairline rule above. z-index above the welcome overlay so it's always
-   shown. (setDataMode / isOnboarding read its checkboxes; switchHost/setDataMode bind to #hostToggle/#dataToggle.) */
+/* Bottom dev bar: New Host icon pinned far left, [5·12·32 Listings] centered, Reset pinned right, a
+   hairline rule above. z-index above the welcome overlay so it's always shown. (setDataMode /
+   isOnboarding read its checkboxes; switchHost/setDataMode bind to #hostToggle/#devNewHostIcon.) */
 .dev-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 320; box-sizing: border-box;
   display: flex; align-items: center; padding: 12px 24px; background: #fff; border-top: 1px solid var(--grey-200); } /* 12px above/below the type; z BELOW the welcome overlay (3000) → the scrim dims the bar */
 .dev-bar .dev-reset { margin-left: auto; } /* Reset → right edge (the centre cluster is absolutely centred) */
 .dev-label { font-family: 'Cereal', sans-serif; font-size: 12px; font-weight: 500; color: var(--grey-600); white-space: nowrap; }
-/* centre cluster: dev flags · 16px · "/" · 16px · host names — all mid-aligned as one group */
+/* centre cluster: host names — mid-aligned */
 .dev-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 16px; }
-.dev-slash { font-family: 'Cereal', sans-serif; font-size: 12px; font-weight: 500; color: var(--grey-300); }
+/* New Host icon toggle: far left of the dev bar (first flex child; .dev-center is absolutely
+   positioned so it doesn't compete for flex space). grey-300 idle, black when active/tapped.
+   #devNewHostIcon (ID) so it wins over the later shared .data-opt color rules regardless of order. */
+.dev-newhost-icon { border: 0; background: none; padding: 0; cursor: pointer; display: inline-flex; align-items: center; transition: color .15s; }
+#devNewHostIcon { color: var(--grey-300); }
+#devNewHostIcon.active { color: #000; }
 .dev-hostwrap { display: flex; align-items: center; gap: 16px; }
 .dev-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
 .dev-switch { /* plain tappable text — selected = black, unselected = grey-400 (the hidden checkbox holds the state) */
@@ -2098,13 +2152,20 @@ body:has(#customizeMenu.show) #multiActionClose { display: none; }
 }
 #devRedlines.on { color: #E00B41; }                /* Redlines active → red type, like the measurement lines */
 /* Host names (centre of the dev bar): tapped = black, untapped = grey-400 */
-.host-opt, .data-opt {
+.host-opt, .data-opt, .ind-opt, .ind-fill-opt {
   border: 0; background: none; padding: 0; cursor: pointer; font-family: 'Cereal', sans-serif;
   display: inline-flex; align-items: center; height: 24px; /* 24px tap target */
   font-size: 12px; font-weight: 500; color: var(--grey-400); white-space: nowrap;
   transition: color .15s;
 }
-.host-opt.active, .data-opt.active { color: #222; }
+.host-opt.active, .data-opt.active, .ind-opt.active, .ind-fill-opt.active { color: #222; }
+/* Opportunities-mode indicator-style switcher: hidden by default, swaps in for #hostToggle while
+   optimize-mode is active (the Listings toggle doesn't apply mid-optimization). */
+#indToggle { display: none; }
+body.optimize-mode #devBar #hostToggle { display: none; }
+body.optimize-mode #devBar #indToggle { display: flex; }
+.dev-slash { font-family: 'Cereal', sans-serif; font-size: 12px; font-weight: 500; color: var(--grey-300); }
+#indToggle .dev-slash { margin: 0 4px; } /* ~20px each side of the style / Filled slash */
 /* ── Redlines inspector ───────────────────────────────────────────────────
    A Figma-style measurement overlay. The layer is pointer-events:none so it never sits under the
    cursor / blocks hit-testing (elementFromPoint reads the real element below). */
@@ -3565,13 +3626,20 @@ body.optimize-mode .price-card.opt-flag.unavailable { background: transparent; b
 </div>
 <!-- Dev bar: plain-type footer — listings / hosts centered, Reset pinned right (Redlines removed) -->
 <div class="dev-bar" id="devBar">
-  <!-- centre: hosts · / · listings — one mid-aligned cluster of plain tappable type -->
+  <!-- far left: New Host icon toggle (grey-300 idle, black when active/tapped) -->
+  <button class="data-opt dev-newhost-icon" id="devNewHostIcon" data-data="none" type="button" aria-label="New Host">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 6.875V19.375H1.875V6.875H5ZM13.75 6.875V19.375H10.625V6.875H13.75ZM18.125 3.125V19.375H15V3.125H18.125ZM9.375 0.625V19.375H6.25V0.625H9.375Z" fill="currentColor"/></svg>
+  </button>
+  <!-- centre: listings — one mid-aligned cluster of plain tappable type -->
   <div class="dev-center">
-    <div class="dev-hostwrap" id="dataToggle">
-      <button class="data-opt active" data-data="full" type="button">Current Host</button>
-      <button class="data-opt" data-data="none" type="button">New Host</button>
+    <!-- Opportunities-mode only: indicator style switcher, replaces #hostToggle while optimize-mode is active -->
+    <div class="dev-hostwrap" id="indToggle">
+      <button class="ind-opt active" data-ind="default" type="button">Default</button>
+      <button class="ind-opt" data-ind="animated" type="button">Animated</button>
+      <button class="ind-opt" data-ind="wavy" type="button">Wavy</button>
+      <span class="dev-slash">/</span>
+      <button class="ind-fill-opt" data-fill="1" type="button">Filled</button>
     </div>
-    <span class="dev-slash">/</span>
     <div class="dev-hostwrap" id="hostToggle">
       <button class="host-opt active" data-host="small" type="button">5 Listings</button>
       <button class="host-opt" data-host="big" type="button">12 Listings</button>
@@ -4800,22 +4868,33 @@ function render(preserveScroll) {
     hdr.appendChild(cell);
   });
 
-  // Weekend dots (Fri/Sat/Sun): 5×5 ink dots living on the WRAP itself, anchored to the same
-  // border-box edge that paints the grey rule — centred by CONSTRUCTION (bottom: -2px → dot centre
-  // = the 1px rule's pixel centre). No padding/height math between them, so nothing to drift
-  // across modes, personas, or browser zoom. X re-derived from the laid-out cells; a
-  // ResizeObserver rebuilds them whenever the header re-flows.
+  // Weekend bar: ONE grey pill per contiguous Fri–Sun run, living on the WRAP itself, anchored to
+  // the same border-box edge that paints the grey rule — centred by CONSTRUCTION (bottom set so the
+  // bar centre = the 1px rule's pixel centre). Spans left edge of the run's first cell → right edge
+  // of its last cell. X re-derived from the laid-out cells; a ResizeObserver rebuilds it whenever
+  // the header re-flows.
   (window._buildWkndDots = function () {
     const wrap = hdr.parentElement;
     wrap.querySelectorAll('.wknd-dot').forEach(e => e.remove());
+    let runStart = null, runEnd = null;
+    const flushRun = () => {
+      if (runStart) {
+        const dot = document.createElement('span'); dot.className = 'wknd-dot';
+        dot.style.left = runStart.offsetLeft + 'px';
+        dot.style.width = (runEnd.offsetLeft + runEnd.offsetWidth - runStart.offsetLeft) + 'px';
+        wrap.appendChild(dot);
+      }
+      runStart = runEnd = null;
+    };
     hdr.querySelectorAll('.date-cell').forEach(dc => {
-      const dd = allDays[+dc.dataset.di]; if (!dd) return;
-      const dow = dd.getDay();
-      if (!(dow === 5 || dow === 6 || dow === 0) || holidayFor(dd) || secondaryHolidayFor(dd)) return; // ANY holiday icon (primary or secondary) owns the slot — no pill underneath
-      const dot = document.createElement('span'); dot.className = 'wknd-dot';
-      dot.style.left = (dc.offsetLeft + dc.offsetWidth / 2) + 'px'; // column centre
-      wrap.appendChild(dot);
+      const dd = allDays[+dc.dataset.di];
+      const dow = dd ? dd.getDay() : null;
+      const usable = dd && (dow === 5 || dow === 6 || dow === 0) && !holidayFor(dd) && !secondaryHolidayFor(dd); // ANY holiday icon (primary or secondary) owns the slot — no bar underneath
+      if (usable && runEnd && (dc.offsetLeft - (runEnd.offsetLeft + runEnd.offsetWidth)) > 20) flushRun(); // a month gap sits between runEnd and dc — don't bridge the bar across it
+      if (usable) { if (!runStart) runStart = dc; runEnd = dc; }
+      else flushRun();
     });
+    flushRun();
   })();
   if (!window._wkndRO) { window._wkndRO = new ResizeObserver(() => window._buildWkndDots && window._buildWkndDots()); window._wkndRO.observe(hdr); }
 
@@ -6493,9 +6572,10 @@ document.getElementById('multiAction').addEventListener('click', e => {
 document.getElementById('availBlock').addEventListener('click', e => { e.stopPropagation(); setBlockState(true); });
 document.getElementById('availOpen').addEventListener('click', e => { e.stopPropagation(); setBlockState(false); });
 document.getElementById('availMenuClose').addEventListener('click', e => { e.stopPropagation(); closeAvailMenu(); }); // floating close → back to the action panel
-// Click anywhere outside the sub-menus (and the action pill) closes them.
+// Click anywhere outside the sub-menus (and the action pill) closes them — EXCEPT a tap on a
+// calendar cell, which extends the selection instead and should leave the open sub-menu alone.
 document.addEventListener('mousedown', e => {
-  if (e.target.closest('#availMenu') || e.target.closest('#priceMenu') || e.target.closest('#promoMenu') || e.target.closest('#minNightsMenu') || e.target.closest('#customizeMenu') || e.target.closest('#discountsMenu') || e.target.closest('#rulesetsMenu') || e.target.closest('#multiAction')) return;
+  if (e.target.closest('#availMenu') || e.target.closest('#priceMenu') || e.target.closest('#promoMenu') || e.target.closest('#minNightsMenu') || e.target.closest('#customizeMenu') || e.target.closest('#discountsMenu') || e.target.closest('#rulesetsMenu') || e.target.closest('#multiAction') || e.target.closest('.price-card') || e.target.closest('.month-card')) return;
   closeAvailMenu(); closePriceMenu(); closePromoMenu(); closeMinNightsMenu(); closeCustomizeMenu(); closeDiscountsMenu(); closeRuleSetsMenu();
 });
 
@@ -8131,8 +8211,9 @@ function setDataMode(mode) {
   // the listing rows (like a refresh), after the toggle-driven re-render settles.
   if (typeof scrollCalendarToToday === 'function') requestAnimationFrame(() => requestAnimationFrame(() => scrollCalendarToToday(true)));
 }
-document.getElementById('dataToggle').addEventListener('click', e => {
-  const b = e.target.closest('.data-opt'); if (b) setDataMode(b.dataset.data);
+// Single icon toggle (replaces the old Current/New Host button pair): tap flips between the two modes.
+document.getElementById('devNewHostIcon').addEventListener('click', () => {
+  setDataMode(document.getElementById('devNewHostIcon').classList.contains('active') ? 'full' : 'none');
 });
 
 // Min-nights switch retired from the dev bar — no-min is the permanent default (the "min N" text
@@ -9104,6 +9185,7 @@ document.getElementById('devVariance').addEventListener('change', e => {
   let tipDone = false; try { tipDone = localStorage.getItem('mhc_shift_tip_done') === '1'; } catch (e) {} // persists across reloads — only a Reset re-arms it (guarded: sandboxed contexts throw on localStorage)
   window._hideShiftTip = () => tip.classList.remove('show');
   window._maybeShiftTip = function() {
+    return _hideShiftTip(); // TEMP: Shift-tap coach tip disabled for now — revert this line to re-enable
     if (tipDone || !weekCal() || selCount() < 1 || !selAnchor) return _hideShiftTip(); // shows in both week and month (calendar mode)
     const card = grid.querySelector('.price-row[data-li="' + selAnchor.li + '"] .price-card[data-di="' + selAnchor.di + '"]');
     if (!card) return _hideShiftTip();
@@ -9969,6 +10051,9 @@ function makeWring(card) {
   const fill = document.createElementNS(_WNS, 'path'); fill.setAttribute('class', 'wfill');
   const path = document.createElementNS(_WNS, 'path'); path.setAttribute('class', 'wpath'); path.setAttribute('stroke-width', '1');
   svg.appendChild(fill); svg.appendChild(path); card.insertBefore(svg, card.firstChild);
+  // Animated style's conic-gradient comet needs its own element (pseudo-elements are taken by the
+  // × on blocked cells) — inert unless body.ind-animated + .opt-focus (see the comet-ring CSS).
+  const comet = document.createElement('div'); comet.className = 'comet-ring'; card.insertBefore(comet, card.firstChild);
   // amplitude ramp: a cell mounted while the group is already revealed shows the full wave at once;
   // cells present at reveal start STRAIGHT (amp 0) and ripple out when startWaveRamps() fires.
   const b = document.body.classList;
@@ -10166,18 +10251,47 @@ let _wPhase = 0, _wLast = 0; const _wSpeed = 3.2; // a hair faster than 2.6, sti
     // until their amplitude lands, then park.
     const focused = sv.parentElement.classList.contains('opt-focus');
     if (!focused && sv._drawn && !(sv._ampGo && sv._amp < 2)) return;
+    if (!document.body.classList.contains('ind-wavy')) {           // Default/Animated: flat rect, drawn once
+      if (sv._flatDrawn) return;
+      if (!sv._w) { measureWring(sv); if (!sv._w) return; }
+      const flatD = sineRingPath(sv._w, sv._h, 0, 0, sv._N);
+      sv.querySelectorAll('path').forEach(p => p.setAttribute('d', flatD));
+      sv._flatDrawn = true; sv._drawn = true; return;
+    }
+    sv._flatDrawn = false;
     if (!sv._w) { measureWring(sv); if (!sv._w) return; }
     sv._drawn = true;
     if (sv._amp == null) sv._amp = 2;
     if (sv._ampGo && sv._amp < 2) sv._amp = Math.min(2, sv._amp + dt * 4); // straight → full wave in ~0.5s (a visible morph, not a pop)
     const amp = sv._amp;
-    const ccw = sv.parentElement.classList.contains('opt-fill');   // drop/min = CCW, raise = CW
+    const ccw = sv.parentElement.classList.contains('opt-fill') && !sv.parentElement.classList.contains('opt-min'); // GREEN (earn + min) = CW, ORANGE lower = CCW
     const key = sv._w + 'x' + sv._h + 'x' + sv._N + (ccw ? 'D' : 'U') + 'a' + Math.round(amp * 20);
     const d = cache[key] || (cache[key] = sineRingPath(sv._w, sv._h, amp, ccw ? _wPhase : -_wPhase, sv._N));
     sv.querySelectorAll('path').forEach(p => p.setAttribute('d', d));
   });
   requestAnimationFrame(wLoop);
 })(0);
+
+// ═══ INDICATOR-STYLE SWITCHER (Opportunities mode) — Default · Animated · Wavy / Filled ══════
+function setIndicatorStyle(style) { // 'default' | 'animated' | 'wavy'
+  document.body.classList.remove('ind-default', 'ind-animated', 'ind-wavy');
+  document.body.classList.add('ind-' + style);
+  window._indStyle = style;
+  document.querySelectorAll('.price-card.opt-flag > .wring').forEach(sv => {
+    sv._drawn = false; sv._flatDrawn = false;
+    if (style === 'wavy') { sv._amp = 2; sv._ampGo = true; }
+  });
+  document.querySelectorAll('#indToggle .ind-opt').forEach(b => b.classList.toggle('active', b.dataset.ind === style));
+}
+function setIndicatorFilled(on) {
+  document.body.classList.toggle('ind-filled', on);
+  const fb = document.querySelector('#indToggle .ind-fill-opt'); if (fb) fb.classList.toggle('active', on);
+}
+{ const it = document.getElementById('indToggle');
+  if (it) it.addEventListener('click', e => {
+    const s = e.target.closest('[data-ind]'); if (s) { setIndicatorStyle(s.dataset.ind); return; }
+    const f = e.target.closest('[data-fill]'); if (f) setIndicatorFilled(!document.body.classList.contains('ind-filled'));
+  }); }
 
 // ═══ SEASON DEMAND RIBBON ════════════════════════════════════════════════════════════════════
 // A focused season card draws its market curve as a thin ribbon in each group band — you SEE the
@@ -11401,6 +11515,7 @@ function startOptimize() {
   document.body.classList.add('opt-sizing');   // arm the cell grow/shrink for Medium & Pro
   if (typeof clearSelection === 'function') clearSelection(); // drop any selection; optimize owns the grid
   document.body.classList.add('optimize-mode');
+  if (typeof setIndicatorStyle === 'function') { setIndicatorStyle('default'); setIndicatorFilled(false); } // every session starts on Default, unfilled
   updateBookingDim(); // guest pills step back to the grey edit-mode look for the whole session
   // stagger each cell's stroke pulse by its on-screen x → the wave sweeps left → right (800px/s)
   const swBase = gridWrap.scrollLeft;
@@ -11477,6 +11592,8 @@ function exitOptimize() {
   updateBookingDim(); // optimize-mode is off again → guest pills come back (unless a selection holds them)
   clearTimeout(exitOptimize._sz); exitOptimize._sz = setTimeout(() => { document.body.classList.remove('opt-sizing'); updateVSync(); }, 450); // let the shrink finish, then disarm + resync at the SETTLED 48px height
   if (typeof updateVSync === 'function') requestAnimationFrame(updateVSync); // row heights changed → resync thumbnails
+  // Closing opps (however it ends — X, Escape, or clearing every suggestion) always lands back on Today.
+  if (typeof scrollCalendarToToday === 'function') requestAnimationFrame(() => requestAnimationFrame(() => scrollCalendarToToday()));
 }
 // ALL OPPS DONE → the opp pill bows out in ONE smooth motion (collapse + fade + shrink) while the search
 // glides to dead centre and stays its 72 circle. (Reset / host-switch re-arm everything.)
@@ -11736,32 +11853,30 @@ renderMagicPill(); window.updateMagicPill(); // show the idle "Optimize" pill on
 // host's full state and restores the other's — so edits/optimizations in each are independent. All
 // the render/iteration code is untouched: swapping LISTINGS to 5 entries makes everything render 5.
 const SMALL_HOST = {
-  listings: [ // photos hand-picked to FIT each city (verified visually; 3:4 crops for the 48×64 frame)
-    // 3 in Palm Springs — desert-modern pool homes + a Spanish hacienda
-    { img: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=240&h=320&fit=crop', base: 330, name: 'Desert Palm Villa',     city: 'Palm Springs' },
-    { img: 'https://images.unsplash.com/photo-1416331108676-a22ccb276e35?w=240&h=320&fit=crop', base: 275, name: 'Sunstone Bungalow',     city: 'Palm Springs' },
-    { img: 'https://images.unsplash.com/photo-1613977257363-707ba9348227?w=240&h=320&fit=crop', base: 300, name: 'Mid-Mod Pool House',    city: 'Palm Springs' },
-    // 2 in San Diego — coastal beach house + a downtown loft building
-    { img: 'https://images.unsplash.com/photo-1575517111478-7f6afd0973db?w=240&h=320&fit=crop', base: 390, name: 'La Jolla Cove Cottage', city: 'San Diego' },
-    { img: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=240&h=320&fit=crop',    base: 310, name: 'Gaslamp Quarter Loft',  city: 'San Diego' },
+  listings: [ // all 5 in San Diego — the small host is single-market; photos hand-picked per neighborhood (3:4 crops for the 48×64 frame)
+    { img: 'https://images.unsplash.com/photo-1575517111478-7f6afd0973db?w=240&h=320&fit=crop', base: 390, name: 'La Jolla Cove Cottage',   city: 'San Diego' },
+    { img: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=240&h=320&fit=crop',    base: 310, name: 'Gaslamp Quarter Loft',    city: 'San Diego' },
+    { img: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=240&h=320&fit=crop', base: 330, name: 'Coronado Island Bungalow', city: 'San Diego' },
+    { img: 'https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?w=240&h=320&fit=crop', base: 275, name: 'Pacific Beach Boardwalk House', city: 'San Diego' },
+    { img: 'https://images.unsplash.com/photo-1580216643062-cf460548a66a?w=240&h=320&fit=crop', base: 300, name: 'North Park Craftsman',    city: 'San Diego' },
   ],
-  weekend:    ['+18%','+12%','+15%','+10%','+15%'],
-  high:       ['+30%','+20%','+28%','+35%','+18%'],
-  low:        ['-15%','-10%','-18%','-30%','-12%'],
+  weekend:    ['+10%','+15%','+18%','+12%','+15%'],
+  high:       ['+35%','+18%','+30%','+20%','+28%'],
+  low:        ['-30%','-12%','-15%','-10%','-18%'],
   earlyBird:  [null, null, null, null, null], // early-bird OFF (no lead-time discounts in the demo)
   lastMinute: [null, null, null, null, null], // last-minute OFF (no lead-time discounts in the demo)
-  tripWeekly: ['-12%','-8%', '-10%','-15%','-10%'],
-  tripMonthly:['-28%','-18%','-25%','-30%','-20%'],
-  cleaning:   ['$150','$70', '$60', '$45', '$95'],
-  extraGuest: ['$40', null,  '$20', '$15', '$30'],
-  minNights:  [5, 3, 7, 2, 5], // longer minimums on several homes → short gaps between stays become stranded (gap-night opportunities)
-  bookingWin: ['180 days','90 days','365 days','90 days','180 days'],
-  advNotice:  ['1 day','Same day','2 days','Same day','1 day'],
-  prepTime:   ['1 night','None','1 night','None','2 nights'],
-  gap:        [2, 1, 2, 1, 2],
-  maxNights:  [21, 14, 30, 14, 28],
-  rcIn:       ['None','Fri','Sat','None','Sun'],
-  rcOut:      ['None','None','Sun','Mon','None'],
+  tripWeekly: ['-15%','-10%','-12%','-8%', '-10%'],
+  tripMonthly:['-30%','-20%','-28%','-18%','-25%'],
+  cleaning:   ['$45', '$95', '$150','$70', '$60'],
+  extraGuest: ['$15', '$30', '$40', null,  '$20'],
+  minNights:  [2, 5, 5, 3, 7], // longer minimums on several homes → short gaps between stays become stranded (gap-night opportunities)
+  bookingWin: ['90 days','180 days','180 days','90 days','365 days'],
+  advNotice:  ['Same day','1 day','1 day','Same day','2 days'],
+  prepTime:   ['None','2 nights','1 night','None','1 night'],
+  gap:        [1, 2, 2, 1, 2],
+  maxNights:  [14, 28, 21, 14, 30],
+  rcIn:       ['None','Sun','None','Fri','Sat'],
+  rcOut:      ['Mon','None','None','None','Sun'],
   reqEx:      [false, false, false, false, false],
 };
 // Arrays that constitute a host's state (swapped in place so their const bindings never change).
@@ -13171,7 +13286,7 @@ function buildUnifiedHost() {
   _HOST_P.forEach((a, i) => C.p[i].slice(0, 7).forEach(x => a.push(x))); // classic rows ride behind the five
   C.o[0].slice(0, 7).forEach(l => LISTINGS.push(JSON.parse(JSON.stringify(l))));
   // …then grow to 32 with a deterministic generated tail (stable across reloads)
-  const cities = ['Aspen', 'Lake Tahoe', 'Palm Springs', 'Los Angeles', 'San Diego', 'Malibu', 'Santa Barbara', 'Big Bear', 'Joshua Tree'];
+  const cities = ['Aspen', 'Lake Tahoe', 'San Diego', 'Los Angeles', 'Palm Springs', 'Malibu', 'Santa Barbara', 'Big Bear', 'San Diego'];
   const photos = [
     'photo-1542718610-a1d656d1884c', 'photo-1449158743715-0a90ebb6d2d8', 'photo-1449844908441-8829872d2607',
     'photo-1512917774080-9991f1c4c750', 'photo-1580587771525-78b9dba3b914', 'photo-1600585154340-be6161a56a0c',
@@ -13332,7 +13447,6 @@ function finishHostSwitch(enterFrom) {
 }
 function switchHost(key, instant) {
   if (key === activeHost) return;
-  try { localStorage.setItem('mhc_host', key); } catch (e) {} // persist the chosen listing count so Reset/reload continues at it
   if (document.body.classList.contains('optimize-mode') && typeof exitOptimize === 'function') exitOptimize();
   if (typeof clearSelection === 'function') clearSelection();
   const prevN = HOST_N[activeHost];
@@ -13450,11 +13564,10 @@ window.addEventListener('load', () => loadPlacesPhotos());
   try { skip = sessionStorage.getItem('mhc_skip_welcome') === '1'; sessionStorage.removeItem('mhc_skip_welcome'); } catch (e) {}
   if (!skip) { document.body.classList.add('pills-cloaked'); overlay.classList.add('visible'); } // greet + hide the pills until dismiss
 })();
-// 5 Listings is the DEFAULT starting point, but honor the last chosen listing count across Reset/reload.
+// 5 Listings is always the boot default — every load/Reset starts fresh, regardless of any tier chosen earlier.
 window.addEventListener('load', () => {
-  let hk = 'small';
-  try { const s = localStorage.getItem('mhc_host'); if (s === 'small' || s === 'big' || s === 'pro') hk = s; } catch (e) {}
-  if (activeHost === hk) activeHost = (hk === 'small' ? 'big' : 'small'); // ensure switchHost doesn't early-return on boot
+  const hk = 'small';
+  if (activeHost === hk) activeHost = 'big'; // ensure switchHost doesn't early-return on boot
   switchHost(hk, true);
   setDataMode('full'); // default the prototype to CURRENT HOST (bookings + variance, busy-host treatment) on load + reset
 });
