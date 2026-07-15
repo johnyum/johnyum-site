@@ -185,8 +185,10 @@ body {
 .today-btn:hover { background: #e8e8e8; }
 /* Prev/next calendar paging — white circles with a grey stroke (no fill); calendar mode only */
 /* Today (grey pill) with the prev/next arrow circles OUTSIDE it, in a plain flex group. */
-.cal-nav-group { display: flex; align-items: center; gap: 8px; margin-right: 32px; } /* ← Today → 8px apart; +32 margin + the bar's 8px gap = 40px to Week (was 24) */
+.cal-nav-group { display: flex; align-items: center; gap: 8px; margin-right: 32px; transition: opacity .3s ease; } /* ← Today → 8px apart; +32 margin + the bar's 8px gap = 40px to Week (was 24) */
+.cal-nav-group.nav-dimmed { opacity: 0; pointer-events: none; } /* search is open — fades in place, no shift (the search-pill-slot keeps layout fixed) */
 body.settings-mode .cal-nav-group, body.avail-mode .cal-nav-group, body.settings-mode .today-btn, body.avail-mode .today-btn { display: none; }
+body.settings-mode .search-pill-slot, body.avail-mode .search-pill-slot { display: none; } /* search is Calendar-only — Pricing and Availability never showed it before the system-level move to the top bar, and shouldn't now either */
 /* Week / Month toggle (tb-left) — narrower than the tab toggle since the labels are short; hidden outside Calendar */
 #wmToggle { display: none !important; } /* retired — the Week/Month switch now lives in the top-right dropdown pill */
 .wm-toggle .seg-btn { width: 72px; }
@@ -304,20 +306,8 @@ body.settings-mode .view-dd, body.avail-mode .view-dd { display: none; }
   position: relative;
 }
 
-/* Gradient overlay on right edge of left panel — overhangs slightly into the
-   horizontally-scrolling calendar grid. Only meaningful in Calendar; hidden in
-   Pricing/Availability where it would just be a stray gradient over the cells. */
-.left::after {
-  content: '';
-  position: absolute;
-  top: 0; right: -12px;
-  width: 12px; height: 100%;
-  background: linear-gradient(to right, #fff 0%, transparent 100%);
-  pointer-events: none;
-  z-index: 11;
-}
-body.settings-mode .left::after,
-body.avail-mode .left::after { display: none; }
+/* Fade gradient removed — the white listings panel now ends with a clean, hard edge instead of
+   bleeding into the calendar grid. */
 
 .left-header {
   height: 60px; /* matches the date header (same rule position across all modes) */
@@ -381,7 +371,7 @@ body.super-collapse-2 .left-toggle svg { width: 14px; height: 14px; }
   align-items: center;
   justify-content: flex-start;
   gap: 0;
-  padding: 0 16px 0 24px;
+  padding: 0 24px; /* same 24px left and right — the panel now ends with a clean edge, no fade to compensate for */
   cursor: grab;
   position: relative; /* containing block for the hover ⋯ options button */
 }
@@ -829,8 +819,8 @@ body.grouping-enter #gridRows > *, body.grouping-enter #listingThumbsInner > * {
 .lm-upsell-modal.icons-mode .lm-upsell-actions { position: absolute; left: 32px; right: 32px; bottom: 28px; width: auto; }
 /* the WHEEL pivots on the modal's BOTTOM-CENTRE point (a 0×0 ring at left:50% top:100%), spinning clockwise */
 .lm-upsell-modal.icons-mode .lm-upsell-icons { display: block; position: absolute; left: 50%; top: 100%; width: 0; height: 0; margin: 0; pointer-events: none; animation: ehWheelSpin 22s linear infinite; }
-.lm-upsell-modal.icons-mode .eh-wheel-icon { position: absolute; left: 0; top: 0; width: 96px; height: 96px; margin: -48px; transform: rotate(var(--a)) translateY(-351px); } /* 96px icon on a 351px-radius circle around the bottom-centre → the top-centre icon gets EQUAL 54px padding above (modal top) and below (to the 204px title) */
-.lm-upsell-modal.icons-mode .eh-wheel-icon img { width: 96px; height: 96px; display: block; object-fit: contain; animation: ehIconUpright 22s linear infinite; }
+.lm-upsell-modal.icons-mode .eh-wheel-icon { position: absolute; left: 0; top: 0; width: 88px; height: 88px; margin: -44px; transform: rotate(var(--a)) translateY(-351px); } /* 88px icon on the SAME 351px-radius circle around the bottom-centre — settled here as the best size; only the icon size changes, not the circle/animation */
+.lm-upsell-modal.icons-mode .eh-wheel-icon img { width: 88px; height: 88px; display: block; object-fit: contain; animation: ehIconUpright 22s linear infinite; }
 @keyframes ehWheelSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes ehIconUpright { from { transform: rotate(calc(-1 * var(--a))); } to { transform: rotate(calc(-1 * var(--a) - 360deg)); } } /* cancels the wheel's spin + placement angle → picture stays level */
 .lm-upsell-title { margin: 0 0 8px; font-size: 22px; line-height: 1.25; font-weight: 600; font-variation-settings: 'wght' 600;
@@ -845,6 +835,12 @@ body.grouping-enter #gridRows > *, body.grouping-enter #listingThumbsInner > * {
 .lm-upsell-on { border: none; background: #222; color: #fff; font-family: 'Cereal', sans-serif; font-size: 14px; font-weight: 600;
   height: 48px; padding: 0 26px; border-radius: 999px; cursor: pointer; -webkit-font-smoothing: antialiased; }
 .lm-upsell-on:hover { background: #000; }
+.lm-upsell-on.is-thinking { cursor: default; padding: 0 26px; } /* events/holidays sweep running behind the modal — dots hold the button's place until the checkmark takes over */
+.lm-upsell-on.is-thinking:hover { background: #222; }
+.lm-upsell-on .thinkdots { display: inline-flex; gap: 6px; }
+.lm-upsell-on .thinkdots i { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: thinkPulse 1s ease-in-out infinite; }
+.lm-upsell-on .thinkdots i:nth-child(2) { animation-delay: .2s; }
+.lm-upsell-on .thinkdots i:nth-child(3) { animation-delay: .4s; }
 /* Turn on → the offer content fades out, a green check-circle pops in from centre, holds a beat, then closes */
 .lm-upsell-offer { display: flex; flex-direction: column; align-items: center; width: 100%; transition: opacity .26s ease, transform .26s ease; }
 .lm-upsell-modal.is-done .lm-upsell-offer { opacity: 0; transform: scale(.96); pointer-events: none; }
@@ -1217,26 +1213,23 @@ body.magic-active #gridRows, body.magic-active #listingThumbsInner, body.magic-a
 .magic-action .multi-action-inner { transform: translateY(50%); align-items: center; } /* pill centres on that line → height changes grow outward on all sides */
 /* ── Search pill: lives in the topbar, left of the Week pill (same plain 8px gap Week has to
    Settings — no extra margin). Idle = a 40×40 grey-fill circle (same chrome as .tb-icon-btn), family
-   with the rest of the top nav. Click unfurls it into an input, growing LEFTWARD (tb-right is
-   flex-end-packed, so widening pushes the pill's left edge left while its right edge stays anchored
-   to Week). Enter flies to the match; a miss shakes it. ── */
+   with the rest of the top nav. The SLOT is a fixed 40×40 flex item (Week/Settings never move); the
+   pill is absolutely positioned inside it, anchored right, and grows LEFT past the slot's edge when
+   open — so opening/closing never reflows anything else in the bar. Enter flies to the match; a miss
+   shakes it. ── */
+.search-pill-slot { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
 .search-pill {
-  display: inline-flex; align-items: center; height: 40px; width: 40px; flex-shrink: 0;
+  position: absolute; top: 0; right: 0; display: inline-flex; align-items: center; height: 40px; width: 40px;
   background: #F2F2F2; border-radius: 999px; overflow: hidden; cursor: pointer;
-  transition: width .5s cubic-bezier(.22,.9,.3,1), margin-right .5s cubic-bezier(.22,.9,.3,1),
-    opacity .3s ease, transform .5s cubic-bezier(.22,.9,.3,1);
 }
-/* Search is a persistent top-nav element (system-level for Calendar) — stays visible through
-   Opportunities/Price-setup review, not just the idle pill. QA multi-select still folds it away, since
-   that mode owns the bottom stage the same way it always did. */
-body.multi-active .search-pill {
-  width: 0 !important; margin-right: 0 !important; opacity: 0; transform: scale(.7); pointer-events: none;
-}
+/* Search is a permanent, static top-nav element — no entrance/exit animation, no hiding in any
+   calendar mode (Week/Month, Pricing/Availability, Opportunities/Price-setup, or multi-select). Same
+   standing as the Week pill or the Settings gear. */
 .search-pill > svg { flex-shrink: 0; width: 16px; height: 16px; margin: 0 12px; } /* 12 + 16 + 12 = the 40px idle circle, magnifier dead-centre; `>` so it never touches the sp-close icon nested below */
 .search-pill input {
   border: 0; outline: none; background: transparent; padding: 0;
   font: 400 13px 'Cereal', sans-serif; color: #222;
-  width: 0; opacity: 0; transition: width .5s cubic-bezier(.22,.9,.3,1), opacity .3s ease;
+  width: 0; opacity: 0;
 }
 .search-pill input::placeholder { color: var(--grey-500); }
 .search-pill.open { width: 240px; cursor: text; }
@@ -1265,7 +1258,7 @@ body.multi-active .search-pill {
   padding: 6px 12px; border-radius: 999px; box-shadow: 0 2px 10px rgba(0,0,0,0.18);
   opacity: 0; transition: opacity .2s ease; pointer-events: none; z-index: 2;
 }
-.sp-hint.show { opacity: 1; }
+.sp-hint.show { opacity: 1; display: none; } /* result hint retired — no more floating "→ 89 nights · 5 listings" pill above search */
 .magic-pill { /* idle: a 72×72 white CIRCLE (just the wand); hover unfurls the label, states morph from here */
   display: inline-flex; align-items: center; height: 72px; padding: 0;
   background: #fff; color: #111; border-radius: 999px; white-space: nowrap;
@@ -1311,7 +1304,7 @@ body.opps-retired .magic-pill { margin: 0 !important; opacity: 0; transform: sca
 /* Welcome entrance: pills stay hidden while the modal is up (at start), then animate in on dismiss.
    Reveal is SCALE-FREE: the search circle + wand circle fade in (opacity), then the opps pill WIDENS
    (its label's max-width) to reveal "N Opportunities" — width is the only motion, no pop, no overlap. */
-body.pills-cloaked .search-pill, body.pills-cloaked .magic-pill { opacity: 0 !important; pointer-events: none; }
+body.pills-cloaked .magic-pill { opacity: 0 !important; pointer-events: none; }
 .magic-pill.mp-circle { overflow: hidden; }
 .magic-pill.mp-circle .magic-cta { width: 72px; } /* perfect 72px circle (twin of the search circle) — wand sits ~centred, label clipped */
 .magic-pill.mp-circle .magic-label { max-width: 0; opacity: 0; padding-left: 0; padding-right: 0; }
@@ -1369,6 +1362,8 @@ body.group-scanning #listingThumbsInner > .thumb-row::before {
 }
 /* in optimize mode, the UNaffected prices (no wavy ring) recede to grey-600 so the opportunity cells lead */
 body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.booked):not(.blocked):not(.unavailable):not(.past) .price-val { color: var(--grey-600); }
+/* those same cells are NOT tappable in Tips mode — read as disabled: grey-200 fill, no stroke */
+body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.booked):not(.blocked):not(.unavailable):not(.past) { background: var(--grey-200); border-color: transparent; }
 @keyframes strokeSweep {
   0%, 34%, 100% { background-color: #fff; border-color: #fff; }
   10%, 22% { background-color: var(--grey-100); border-color: var(--grey-100); }
@@ -1400,11 +1395,11 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
 .mopp-glyph svg { display: block; width: 40px; height: 40px; }
 .mopp-head { font: 600 16px/20px 'Cereal', sans-serif; color: #fff; white-space: normal; } /* the card's NAME — same treatment on every card */
 .mopp-head .hl, .mopp-mag .hl { color: #30D158; } /* the premium range keeps the system green wherever it rides */
-.mopp-head .hl.lo, .mopp-mag .hl.lo { color: #EB6100; } /* low season: the "lower" range rides ORANGE */
+.mopp-head .hl.lo, .mopp-mag .hl.lo { color: #30D158; } /* lower now rides the SAME green as raise — no more orange, per user request */
 /* MAGNITUDE — the "how much / to what" the card was missing. Its own tier between the name and the reason. */
 .mopp-mag { font: 400 12px/16px 'Cereal', sans-serif; color: var(--grey-500); white-space: nowrap; } /* secondary line: 12/16 Book, grey-500 */
 .mopp-mag.up { color: #30D158; }   /* raise accent = GREEN */
-.mopp-mag.down { color: #EB6100; } /* lower / discount accent = ORANGE — the modal matches the orange cells */
+.mopp-mag.down { color: #30D158; } /* lower / discount accent = GREEN now, matching raise — no more orange */
 .magic-pill.opp-light .mopp-mag.up { color: #B26B00; }
 .magic-pill.opp-light .mopp-mag.down { color: #038026; }
 .mopp-ic { display: none !important; } /* the direction glyph is retired — ONE pill anatomy everywhere */
@@ -1457,11 +1452,20 @@ body.optimize-mode:not(.opt-scanning) #gridRows .price-card:not(.opt-flag):not(.
 .mopp-wandbtn.is-on .wstar { animation: wandTwinkle 1.6s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
 .mopp-wandbtn.is-on .wstar2 { animation-delay: .5s; }
 .mopp-wandbtn.is-on .wstar3 { animation-delay: 1s; }
-/* LOW season wand = orange across: orange stroke, light-orange fill, orange wand + orange stars */
-.mopp-wandbtn.is-on.lo { border-color: #EB6100; background: rgba(235,97,0,0.14); }
-.mopp-wandbtn.is-on.lo:hover { background: rgba(235,97,0,0.14); }
+/* LOW season wand now rides the SAME green as high season — no more orange */
+.mopp-wandbtn.is-on.lo { border-color: #30D158; background: rgba(48,209,88,0.14); }
+.mopp-wandbtn.is-on.lo:hover { background: rgba(48,209,88,0.14); }
 .mopp-wandbtn.is-on.lo .wbody { fill: #fff; } /* wand stays white */
-.mopp-wandbtn.is-on.lo .wstar { fill: #EB6100; }
+.mopp-wandbtn.is-on.lo .wstar { fill: #30D158; }
+/* Wand icon retired from view everywhere — kept flashing into view during pill/button transitions.
+   Hide every wand glyph (idle circle, Automate groups, Apply's grouping-bucket icon, season snap-back
+   button) rather than display:none-ing their wrappers, so the surrounding flex/width choreography that
+   assumes the icon's box is still there (widths held mid-morph, etc.) doesn't shift. */
+.magic-wand, .wand-star, .ag-wand, .cta-wand, .mopp-wandbtn .wbody, .mopp-wandbtn .wstar { visibility: hidden; }
+/* EXCEPTION: bring the wand back just for the "Price setup" idle pill (New Host / onboarding, bottom
+   center) — nowhere else. [data-magic="go"] is shared with the Busy Host "Tips" pill too, but that one
+   never renders a .magic-wand/.wand-star to begin with, so this only ever matches Price setup. */
+#magicAction [data-magic="go"] .magic-wand, #magicAction [data-magic="go"] .wand-star { visibility: visible; }
 .magic-pill.opp-light .mopp-apply { background: #222; color: #fff; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .magic-pill.opp-light .mopp-apply:hover { background: #000; }
 .mopp-allbtn { background: transparent; color: var(--grey-700); border: 0; font: 500 12px 'Cereal', sans-serif;
@@ -1539,7 +1543,7 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
 .ribbon-rail .rr-tick { position: absolute; right: 0; font: 400 12px 'Cereal', sans-serif; color: var(--grey-500); line-height: 14px; }
 .ribbon-rail .rr-avg { position: absolute; right: 0; font: 600 10px 'Cereal', sans-serif; line-height: 14px;
   color: #038026; background: #E6F2E9; border-radius: 999px; padding: 1px 6px; white-space: nowrap; }
-.ribbon-rail .rr-avg.lo { color: #BE4900; background: #FBEEDF; }
+.ribbon-rail .rr-avg.lo { color: #038026; background: #E6F2E9; }
 .ribbon-hit { position: absolute; inset: 0; pointer-events: auto; cursor: crosshair; }
 /* BIG hover/drag zone over the band: moving the mouse slides the ⇕ dot to the cursor; press-drag moves
    the level. Sits above the hover layer but below the event icons (z10) so those stay interactive. */
@@ -1551,7 +1555,7 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
   font: 800 12px 'Cereal', sans-serif; color: #038026; background: transparent; white-space: nowrap; z-index: 5;
   -webkit-text-stroke: 5px #fff; paint-order: stroke fill; user-select: none; -webkit-user-select: none;
 }
-.season-ribbon .ribbon-handle.lo { color: #BE4900; } /* low season = amber sticker */
+.season-ribbon .ribbon-handle.lo { color: #038026; } /* low season now the same green as high — no more amber */
 .season-ribbon .ribbon-handle.rh-static { display: none; } /* non-focused opps' curves are invisible now → hide their numbers too */
 /* every date carries its own 12px % sticker above the curve (always shown) */
 /* Price-drag warning pill — sized to match the event/holiday hover pill (.holiday-tip).
@@ -1595,7 +1599,7 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
   font: 600 11px 'Cereal', sans-serif; color: #038026; background: #fff;
   border: 1px solid rgba(3,128,38,0.35); border-radius: 999px; padding: 2px 8px; white-space: nowrap; z-index: 3;
 }
-.season-ribbon .ribbon-peak.lo { color: #BE4900; border-color: rgba(190,73,0,0.35); }
+.season-ribbon .ribbon-peak.lo { color: #038026; border-color: rgba(3,128,38,0.35); }
 /* the month header title's ⌄ is gone, but the round › listing-names toggle is BACK (grey circle on the thumbnail line) */
 .month-title svg { display: none !important; }
 /* rides .bp-close, DARK skin */
@@ -1619,11 +1623,11 @@ body.glow-hold .mopp-ic.pop svg, body.opt-scanning .mopp-ic.pop svg, body.opt-be
 /* FOCUSED (the card you tapped into) — the role colour comes back on ring + text. */
 .price-card.opt-flag.opt-focus.opt-earn,
 .price-card.opt-flag.opt-focus.opt-min { --c-ring: #038026; --c-price: #038026; }                            /* focus · raise & min = GREEN */
-.price-card.opt-flag.opt-focus.opt-fill:not(.opt-min) { --c-ring: #BE4900; --c-price: #BE4900; }             /* focus · lower = ORANGE */
+.price-card.opt-flag.opt-focus.opt-fill:not(.opt-min) { --c-ring: #038026; --c-price: #038026; }             /* focus · lower = GREEN now, matching raise — no more orange */
 /* FOCUSED + APPLIED (committed while still on the card) — deeper colour on ring + text, NO fill (washes removed — the ring + type carry it). */
 .price-card.opt-flag.opt-focus.opt-applied.opt-earn,
 .price-card.opt-flag.opt-focus.opt-applied.opt-min { --c-ring: var(--green-700); --c-price: #222; --c-wash: transparent; }   /* APPLIED+selected: type = BLACK (committed); the ring + check carry the colour */
-.price-card.opt-flag.opt-focus.opt-applied.opt-fill:not(.opt-min) { --c-ring: #BE4900; --c-price: #222; --c-wash: transparent; }
+.price-card.opt-flag.opt-focus.opt-applied.opt-fill:not(.opt-min) { --c-ring: var(--green-700); --c-price: #222; --c-wash: transparent; }
 /* ── Indicator-style switcher: Filled (independent toggle) + Animated (conic-gradient comet) ── */
 /* FILLED — a 10% role-color fill under the current ring shape (rect for Default/Animated, sine for Wavy) */
 body.ind-filled .price-card.opt-flag .wring .wfill { fill: color-mix(in srgb, var(--c-ring) 10%, #fff); }
@@ -1634,7 +1638,7 @@ body.ind-filled .price-card.opt-flag .wring .wfill { fill: color-mix(in srgb, va
 .price-card.opt-flag .comet-ring { display: none; }
 body.ind-animated .price-card.opt-flag.opt-focus .wring .wpath { display: none; } /* comet replaces the SVG stroke — .wfill stays so Filled still paints */
 body.ind-animated .price-card.opt-flag.opt-focus .comet-ring {
-  display: block; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  display: block; position: absolute; inset: 0; z-index: 1; pointer-events: none; /* above .wring (z-index 0) — .wfill (the Filled wash) lives in that SAME svg and stays painted in Animated mode, so without this the fill sat on top and buried the comet */
   border-radius: 12px; padding: 2px; box-sizing: border-box; /* padding = ring thickness */
   background: conic-gradient(from var(--comet-a),
     color-mix(in srgb, var(--c-ring) 15%, #fff) 0deg,     /* TIP — lightest 15% tint, never white */
@@ -1763,27 +1767,15 @@ body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.has-
 .price-card.opt-flag.has-sub .price-val { font-weight: 400; transition: transform .3s cubic-bezier(.4,0,.2,1); } /* Book, always — quicker nudge */
 .price-card.opt-flag .subreveal { position: absolute; left: 0; right: 0; top: calc(50% + 1px); text-align: center;
   font: 400 14px 'Cereal', sans-serif; color: var(--grey-700); white-space: nowrap; pointer-events: none; z-index: 2;
-  height: 16px; line-height: 16px; opacity: 0; animation: subIn .62s cubic-bezier(.4,0,.2,1) 1 forwards; } /* 16px slot; the "min 5̶ 3" eases up into place — slowed from .3s (user: the price→min reveal went by too fast) */
-.price-card.opt-flag .subreveal.is-min { color: #222; }
-.price-card.opt-flag .subreveal.is-min s { color: #222; margin-right: 4px; } /* struck OLD minimum, BLACK */
-.price-card.opt-flag .subreveal.is-min .mn { color: #038026; } /* the NEW gap minimum, green */
-/* ── MIN-NIGHT OUTLIER ── the positive "free up nights" play shows NO price — just a single, CENTRED
-   "min 7̶ 3" (old struck black, new green). The $ fades away on focus/apply; applied drops the strike → "min 3". */
-.price-card.opt-flag.opt-min.opt-focus .price-val, .price-card.opt-flag.opt-min.opt-applied .price-val,
-.price-card.opt-flag.opt-min.opt-focus .pstack, .price-card.opt-flag.opt-min.opt-applied .pstack { opacity: 0 !important; transform: translateY(-24px) !important; transition: opacity .5s ease, transform .62s cubic-bezier(.4,0,.2,1); } /* the $ SLIDES UP & out as the "min N" slides in from below — slowed from .3s/.4s to match the calmer subIn (user: reveal was too fast) */
-.price-card.opt-flag.opt-min.opt-focus .subreveal.is-min { top: calc(50% - 8px); } /* recentre — no price above it anymore */
-.price-card.opt-flag.opt-min.opt-applied .subreveal.is-min { top: calc(50% - 17px); opacity: 1 !important; } /* committed → sits in the TOP slot so the check sits below (2-up spacing) */
-/* LIVE apply → the min line BLINKS like raise/lm: it gathers at the centre, then springs UP to the top slot while the struck old collapses out (fade + width→0, so "min N" recentres smoothly) and the check emerges from the middle below. Gated :not(.is-frozen) + !important so it beats is-settled's animation-zeroing; a re-mounted committed cell (is-frozen) snaps straight to the end-state. */
-.price-card.opt-flag.opt-min.opt-applied .subreveal.is-min:not(.is-frozen) { animation: apMinBlink .66s cubic-bezier(.5,0,.3,1) both !important; }
-.price-card.opt-flag.opt-min.opt-applied .subreveal.is-min:not(.is-frozen) s { display: inline-block; overflow: hidden; vertical-align: baseline; animation: apMinStrike .66s cubic-bezier(.5,0,.3,1) both; }
-.price-card.opt-flag.opt-min.opt-applied .subreveal.is-min.is-frozen { animation: none !important; transition: none !important; transform: none; } /* re-mount committed → no blink */
-.price-card.opt-flag.opt-min.opt-applied .subreveal.is-min.is-frozen s { display: none; } /* re-mount committed → struck old already gone, leaving "min 3" */
-@keyframes apMinBlink { 0% { transform: translateY(9px); } 100% { transform: translateY(0); } } /* clean slide UP from the focused centre (9px below) to the top slot — no downward dip (user: the down-then-up gather is jarring) */
-@keyframes apMinStrike { 0% { opacity: 1; max-width: 2.5em; margin-right: 4px; } 22% { opacity: 0; } 100% { opacity: 0; max-width: 0; margin-right: 0; } } /* the 5 FADES fast (gone by 22% → never rides the slide up / pokes above), while its width collapses continuously from 0% so the 3 CINCHES left in one smooth motion */
+  height: 16px; line-height: 16px; opacity: 0; animation: subIn .62s cubic-bezier(.4,0,.2,1) 1 forwards; } /* 16px slot — the discount % eases up into place */
+/* ── MIN-NIGHT OUTLIER ── the positive "free up nights" play now rides the SAME two-line pstack
+   system as a price change (see makeMinStack): "Min N" rolls in the green top slot, the old minimum
+   sits struck below — no separate single-line reveal anymore. .price-val hides via the generic
+   has-odo rule below, same as every other opportunity type. */
 /* the min line flows UP into place from below — same reveal as tapping a default cell (minReveal) */
 @keyframes subIn { 0% { opacity: 0; transform: translateY(14px); } 100% { opacity: 1; transform: translateY(0); } } /* slides UP from below into the centre — feels like it takes the price's place */
-/* MIN starts IMMEDIATELY on tap (not held for the camera fly) — only opt-scanning still hides it. Non-min subs keep the gate. */
-body.glow-hold .price-card.opt-flag.opt-focus:not(.opt-min) .subreveal, body.opt-scanning .price-card.opt-flag .subreveal, body.opt-beat .price-card.opt-flag.opt-focus:not(.opt-min) .subreveal { animation: none !important; opacity: 0; }
+/* hold the discount-% reveal back until the camera settles (same gate as the ring + pstack) */
+body.glow-hold .price-card.opt-flag.opt-focus .subreveal, body.opt-scanning .price-card.opt-flag .subreveal, body.opt-beat .price-card.opt-flag.opt-focus .subreveal { animation: none !important; opacity: 0; }
 .price-card.opt-flag .pstack .pold, .price-card.opt-flag .pstack .pold * { font-weight: 400 !important; } /* struck old = Book, always */
 /* the suggested price (prec + its reels) stays Book throughout — the reels inherit it */
 .price-card.opt-flag .pstack .dg { display: inline-block; height: 16px; overflow: hidden; vertical-align: top; }
@@ -1854,7 +1846,7 @@ body:not(.glow-hold):not(.opt-scanning):not(.opt-beat) .price-card.opt-flag.opt-
 .price-card.opt-flag .apcheck svg { width: 14px; height: 14px; display: block; }
 .price-card.opt-flag.opt-applied.opt-earn .apcheck,
 .price-card.opt-flag.opt-applied.opt-min .apcheck { color: var(--green-700); }         /* green cells → green check */
-.price-card.opt-flag.opt-applied.opt-fill:not(.opt-min) .apcheck { color: #BE4900; }    /* orange cells → orange check */
+.price-card.opt-flag.opt-applied.opt-fill:not(.opt-min) .apcheck { color: var(--green-700); }    /* green cells → green check, same as earn now */
 /* the check EMERGES FROM THE MIDDLE (translateY -9px = centre) down into the bottom slot, fading in as the
    price springs back up. TRANSITION (not animation) → immune to is-settled; re-mount shows it settled instantly. */
 .price-card.opt-flag.opt-applied .apcheck { opacity: 1; transform: translateY(0); transition: opacity .22s ease .34s, transform .34s cubic-bezier(.34,1.56,.64,1) .34s; } /* emerges a touch slower, after the (slower) blink midpoint */
@@ -1937,9 +1929,9 @@ body.opt-beat .price-card.opt-flag.opt-focus .pstack-lm .lmcstack, body.opt-beat
   background: rgba(48, 209, 88, 0.14); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .mopp-applied.is-check:hover { background: rgba(48, 209, 88, 0.22); }
 .mopp-applied.is-check .apck { width: 24px; height: 24px; }
-/* low season / fill intent: the Applied check rides the ORANGE system */
-.mopp-applied.is-check.is-lo { border-color: #EB6100; color: #EB6100; background: rgba(235,97,0,0.14); }
-.mopp-applied.is-check.is-lo:hover { background: rgba(235,97,0,0.22); }
+/* low season / fill intent: the Applied check now rides the SAME green as high season — no more orange */
+.mopp-applied.is-check.is-lo { border-color: #30D158; color: #30D158; background: rgba(48,209,88,0.14); }
+.mopp-applied.is-check.is-lo:hover { background: rgba(48,209,88,0.22); }
 @keyframes apCkIn { 0% { opacity: 0; transform: scale(.4); } 100% { opacity: 1; transform: scale(1); } }
 /* On/off toggle (replaces Apply on price opps): OFF = grey track, knob left; ON = green track (amber
    for a low-season cut), knob right. Toggling ON applies + keeps the %s; OFF reverts to the 0% default. */
@@ -1951,8 +1943,8 @@ body.opt-beat .price-card.opt-flag.opt-focus .pstack-lm .lmcstack, body.opt-beat
 .mopp-toggle.is-on { background: #30D158; }
 .mopp-toggle.is-on:hover { background: #2cbb4e; }
 .mopp-toggle.is-on .tg-knob { transform: translateX(22px); }
-.mopp-toggle.is-lo.is-on { background: #EB6100; }
-.mopp-toggle.is-lo.is-on:hover { background: #d55a00; }
+.mopp-toggle.is-lo.is-on { background: #30D158; }
+.mopp-toggle.is-lo.is-on:hover { background: #2cbb4e; }
 /* The suggestion card (opens on tapping a glow) */
 .opt-card { position: fixed; display: none; width: 304px; background: #fff; border-radius: 20px; padding: 20px;
   box-shadow: 0 16px 50px rgba(0,0,0,0.24); font-family: 'Cereal', sans-serif; z-index: 240; }
@@ -2014,6 +2006,7 @@ body.opt-beat .price-card.opt-flag.opt-focus .pstack-lm .lmcstack, body.opt-beat
 .ma-action:hover, .ma-price:hover { background: rgba(255,255,255,0.12); } /* subtle light hover on the dark pill */
 /* Customize = icon-only, square bounding box (width = height = 56px), 20px edit glyph centered. */
 .ma-action.ma-action-icon { width: 56px; padding: 0; justify-content: center; }
+.ma-action.ma-action-icon[data-act="customize"] { display: none; } /* Customize's pencil retired from the quick-actions pill */
 .ma-action.ma-action-icon svg { display: block; width: 20px; height: 20px; }
 .ma-price {
   flex-shrink: 0; height: 56px; padding: 0 22px; display: inline-flex; align-items: center; box-sizing: border-box;
@@ -2024,9 +2017,10 @@ body.opt-beat .price-card.opt-flag.opt-focus .pstack-lm .lmcstack, body.opt-beat
    20px-radius corner; the pill is fully rounded (radius 48), so its bounding corner sits ~12px further
    from the visible edge — pulling the X in ~8px (to -24/-24) lands the same ~8px gap off the curve. */
 #multiActionClose { top: -24px; right: -24px; }
-/* Only the Customize menu (the last/rightmost pill) opens over the panel's ✕, so hide the ✕ only for it.
-   Every other sub-menu (price / availability / promotions / discounts / rule sets) leaves the ✕ usable. */
-body:has(#customizeMenu.show) #multiActionClose { display: none; }
+/* Customize and Discounts both open tall enough to sit right under the panel's ✕, so hide the ✕ for
+   those two specifically (it reappears the moment either menu closes). Every other sub-menu (price /
+   availability / min nights / rule sets) leaves the ✕ usable. */
+body:has(#customizeMenu.show) #multiActionClose, body:has(#discountsMenu.show) #multiActionClose { display: none; }
 /* Every secondary panel (price / availability / promotions / min nights / customize / discounts / rule
    sets — all share the .avail-menu base class) has its OWN floating ✕; hide it while the panel is open. */
 .avail-menu .bp-close { display: none; }
@@ -2068,6 +2062,10 @@ body:has(#customizeMenu.show) #multiActionClose { display: none; }
 .promo-opt.selected .promo-radio::after { content: ''; position: absolute; inset: 4px; border-radius: 50%; background: #222; }
 .promo-label { font-family: 'Cereal', sans-serif; font-size: 16px; font-weight: 400; color: #222; } /* book weight */
 .promo-menu .avail-menu-head { margin-bottom: 32px; } /* 48 − 16 = closer to the first radio */
+/* Promotions disabled FOR NOW (user request) — button pulled from the Quick Actions pill and the
+   modal force-hidden as a backstop. Delete these two rules to bring it back. */
+[data-act="add-promo"] { display: none !important; }
+#promoMenu { display: none !important; }
 /* Price sub-menu input — the same grey type-in bar used in the Pricing tab (.bp-value) */
 .price-input { background: #F2F2F2; border-radius: 14px; padding: 12px 16px; }
 .price-input input {
@@ -2224,11 +2222,11 @@ body:has(#customizeMenu.show) #multiActionClose { display: none; }
   transition: color .15s;
 }
 .host-opt.active, .data-opt.active, .ind-opt.active, .ind-fill-opt.active { color: #222; }
-/* Opportunities-mode indicator-style switcher: hidden by default, swaps in for #hostToggle while
-   optimize-mode is active (the Listings toggle doesn't apply mid-optimization). */
-#indToggle { display: none; }
-body.optimize-mode #devBar #hostToggle { display: none; }
-body.optimize-mode #devBar #indToggle { display: flex; }
+/* Opportunities-mode indicator-style switcher (Default/Animated/Wavy + Filled): retired from view
+   entirely, in every mode — the dev bar always shows the Listings toggle now, never swaps to this.
+   Animated/Wavy are no longer reachable through the UI; Optimize mode force-locks to Default+Filled
+   on every entry (see startOptimize) regardless. */
+#indToggle { display: none !important; }
 .dev-slash { font-family: 'Cereal', sans-serif; font-size: 12px; font-weight: 500; color: var(--grey-300); }
 #indToggle .dev-slash { margin: 0 4px; } /* ~20px each side of the style / Filled slash */
 /* ── Redlines inspector ───────────────────────────────────────────────────
@@ -2468,7 +2466,7 @@ body.month-view:not(.settings-mode):not(.avail-mode) .thumb-row { height: 140px;
   display: flex;
   align-items: center;
   padding: 0 16px 0 4px;
-  z-index: 5;
+  z-index: 7; /* above a hovered cell's tooltip-elevated z-index (6) — the pill stays whole/uncut even when an adjacent cell's hover raises above the pill's old z-index. Tooltips themselves are z-index:20, well above this either way, so they're never at risk. */
   cursor: pointer;
   box-sizing: border-box;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5); /* white outside stroke so pills don't blend into selected/checkout cells */
@@ -2537,7 +2535,7 @@ body.dim-bookings:not(.super-collapse-2) .booking-pill {
 body.dim-bookings.super-collapse-2 .booking-pill {
   top: 0; height: 56px; border-radius: 8px;
   margin-left: calc(var(--cell-w) / -4);
-  padding-left: calc(4px + var(--cell-w) / 4);
+  padding-left: calc(4px + var(--cell-w) / 4); /* same 4px as every other tier's pill padding — matches the idle sc-any rule below */
   background: var(--grey-100); border: 1px solid var(--grey-300);
   transition: background 0.2s;
 }
@@ -2556,8 +2554,9 @@ body.dim-bookings.super-collapse-2 .booking-pill {
 body.sc-any .price-card { border-radius: 8px; gap: 0; }
 body.sc-any .discount-badge,
 body.sc-any .rs-corner { display: none; }
-body.sc-any .booking-pill { height: 30px; }
+body.sc-any .booking-pill { height: 30px; padding-left: 4px; } /* same 4px left inset as every other tier's pill */
 body.sc-any .booking-avatar { width: 20px; height: 20px; }
+body.sc-any .booking-label { left: calc(12px + (var(--cell-w) - 20px) / 2); } /* GRID_GUTTER + half the leftover cell width around the 20px avatar — uses --cell-w so it tracks month view's cell size instead of a hardcoded px */
 body.sc-any .booking-name { font-size: 10px; }
 /* SC1: a small price + day-of-week */
 body.super-collapse .price-val { font-size: 11px; }
@@ -2686,7 +2685,7 @@ body.host-small:not(.settings-mode):not(.avail-mode) .thumb-row { padding: 0 24p
 /* holiday SECONDARY icons are back — leaves ride around the turkey (and every holiday's shoulder days) */
 .holiday-icon { cursor: default; } /* hover (name pill + zoom) still works; tap is blocked in the handler */
 body.host-small #holidaysBtn { display: none; }
-body.host-small:not(.super-collapse-2) .booking-pill { height: 48px; padding: 0 18px 0 4px; border-radius: 24px; } /* 4px inset left of the avatar; vertical centering is geometric */
+body.host-small:not(.super-collapse-2) .booking-pill { height: 48px; padding: 0 18px 0 4px; border-radius: 24px; } /* same 4px left inset as every other tier's pill */
 body.host-small:not(.super-collapse-2) .booking-avatar { width: 40px; height: 40px; }
 body.host-small:not(.super-collapse-2) .booking-label { left: 32px; } /* pinned label: 12 gutter + (80−40)/2 → the 40px avatar centers on the first visible cell */
 body.host-small:not(.super-collapse-2) .booking-name { font-size: 15px; }
@@ -2694,8 +2693,8 @@ body.host-small:not(.super-collapse-2) .booking-name { font-size: 15px; }
    the cell's 12px corners (loses the tail overhang), grey fill + stroke from the base dim rule */
 body.host-small.dim-bookings:not(.super-collapse-2) .booking-pill {
   top: 0; height: 100%; border-radius: 12px;
-  margin-left: calc(var(--cell-w) / -4);
-  padding: 0 18px 0 calc(var(--cell-w) / 4);
+  margin-left: calc(4px - (var(--cell-w) - 40px) / 2); /* cancels the pill's start offset for the 40px avatar (pillStartInset), not the generic cell-w/4 — must track that JS formula or the box misaligns */
+  padding: 0 18px 0 calc((var(--cell-w) - 40px) / 2); /* restores the avatar to the same x as the idle rule's 40px-avatar centering */
 }
 /* month edit mode: same treatment, sized to the 56px month cell */
 
@@ -2709,8 +2708,13 @@ body.host-pro:not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .thumb
    thumb-row to it here. host-small overrides this to 96px via its own higher-specificity rule above (its
    settings-row is 96px too), so this only governs host-big (12) and host-pro (32). */
 body.settings-mode .thumb-row, body.avail-mode .thumb-row { height: 56px; }
-body.host-pro:not(.super-collapse-2):not(.dim-bookings) .booking-pill { height: 36px; border-radius: 18px; } /* idle only — edit/opportunities mode falls through to the dim BOX-SNAP */
+body.host-pro:not(.super-collapse-2):not(.dim-bookings) .booking-pill { height: 36px; border-radius: 18px; } /* idle only — edit/opportunities mode falls through to the dim BOX-SNAP; padding-left inherits the base 4px, same as every other tier */
+body.host-pro.dim-bookings:not(.super-collapse-2) .booking-pill {
+  margin-left: calc(4px - (var(--cell-w) - 28px) / 2); /* cancels the pill's start offset for the 28px avatar (pillStartInset) — the generic dim rule's cell-w/4 assumed the base 32px avatar and misaligned this tier's box */
+  padding-left: calc((var(--cell-w) - 28px) / 2); /* restores the avatar to the same x as the idle rule's 28px-avatar centering */
+}
 body.host-pro:not(.super-collapse-2) .booking-avatar { width: 28px; height: 28px; }
+body.host-pro:not(.super-collapse-2) .booking-label { left: 38px; } /* pinned label: 12 gutter + (80−28)/2 → the 28px avatar centers on the first visible cell (same formula as the host-small override above, just for this tier's smaller avatar) */
 body.host-pro:not(.super-collapse-2) .booking-name { font-size: 12px; }
 
 /* ── Host-size morph: switching Small ↔ Medium ↔ Pro tweens the DENSITY on the rows already on
@@ -2809,23 +2813,23 @@ body:not(.optimize-mode):not(.super-collapse-2) .price-card .disc-badge {
 }
 body:not(.optimize-mode):not(.super-collapse-2) .price-card .min-badge { top: min(calc(50% + 12px), calc(100% - 30px)); } /* min() clamps INSIDE the cell on short rows */
 body:not(.optimize-mode):not(.super-collapse-2) .price-card .disc-badge { top: min(calc(50% + 26px), calc(100% - 16px)); }
-body:not(.optimize-mode):not(.super-collapse-2) .price-card:hover .min-badge,
 body:not(.optimize-mode):not(.super-collapse-2) .price-card:hover .disc-badge,
-body:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .min-badge,
+body.mn-open:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .min-badge,
 body:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .disc-badge { opacity: 1; }
-/* QA-SELECTED cells: "Min N" animates in UNDER the price in the odometer's exact geometry —
-   14px type, 16px slots 2px apart, the price lifting to the top slot. Deselecting eases the
-   price back to centre and fades the line away. */
-body:not(.optimize-mode):not(.super-collapse-2) .price-card .price-val { transition: transform .3s cubic-bezier(.4,0,.2,1); }
-body:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .price-val { transform: translateY(-9px); }
-body:not(.optimize-mode):not(.super-collapse-2) .price-card.sel-out .min-badge {
+/* QA-SELECTED cells, ONLY while the Min-nights quick action is open: "Min N" animates in UNDER the
+   price in the odometer's exact geometry — 14px type, 16px slots 2px apart, the price lifting to the
+   top slot. Deselecting eases the price back to centre and fades the line away. Plain selection with
+   the menu closed leaves the price as the one centred number — no min info reveal, hover or tap. */
+body.mn-open:not(.optimize-mode):not(.super-collapse-2) .price-card .price-val { transition: transform .3s cubic-bezier(.4,0,.2,1); }
+body.mn-open:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .price-val { transform: translateY(-9px); }
+body.mn-open:not(.optimize-mode):not(.super-collapse-2) .price-card.sel-out .min-badge {
   font-size: 14px; height: 16px; line-height: 16px; top: calc(50% + 1px);
   animation: selMinOut .25s ease both; } /* deselected: the line slides back up into the price and fades */
-body:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .min-badge {
+body.mn-open:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .min-badge {
   font-size: 14px; height: 16px; line-height: 16px; top: calc(50% + 1px);
   animation: selMinIn .3s cubic-bezier(.4,0,.2,1) both; }
-body.no-min:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .min-badge,
-body.no-min:not(.optimize-mode):not(.super-collapse-2) .price-card.sel-out .min-badge { display: block; } /* selection reveals the minimum even under the "No Min" switch */
+body.mn-open.no-min:not(.optimize-mode):not(.super-collapse-2) .price-card.selected .min-badge,
+body.mn-open.no-min:not(.optimize-mode):not(.super-collapse-2) .price-card.sel-out .min-badge { display: block; } /* selection reveals the minimum even under the "No Min" switch, while the Min-nights menu is open */
 /* Discounts are OUT of default mode for now (hover + selected) — a different discount system is
    coming; the badge still exists for the opps-mode treatments. */
 body:not(.optimize-mode) .price-card .disc-badge { display: none; }
@@ -2836,31 +2840,32 @@ body.sel-dragging:not(.optimize-mode):not(.super-collapse-2) .price-card.selecte
 @keyframes selMinIn { from { opacity: 0; transform: translateY(-9px); } to { opacity: 1; transform: none; } }
 @keyframes selMinOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-9px); } }
 /* ── PROMOTIONS PREVIEW SWAP ─────────────────────────────────────────────────────────────────
-   While the Promotions sub-menu is open, the "−N%" rides IN to the min-badge's 2nd-line slot (right
-   under the lifted price) — NEVER a 3rd line. "min N" cross-fades up and out. Closing the menu
-   (X or Save) drops body.promo-preview → "min N" re-runs selMinIn (rides back in) and the "−N%"
-   slides back down and fades. Both directions animate. Scoped to selected px-promo cells only. */
+   Same treatment as Min nights: while the Promotions sub-menu is open, the price lifts (selMinIn/
+   selMinOut, identical keyframes/timing) and the "−N%" rides IN to the min-badge's 2nd-line slot
+   (right under the lifted price) — NEVER a 3rd line. "min N" slides out the same way it slides IN
+   for Min nights, just reversed. Closing the menu drops body.promo-preview → both animate back.
+   Scoped to selected px-promo cells only. */
 body:not(.optimize-mode):not(.super-collapse-2) .price-card.selected.px-promo .disc-badge {
-  display: block; opacity: 0; transform: translateY(9px);
-  font-size: 14px; height: auto; line-height: 16px; margin-top: 0;
-  color: #BE4900; /* the "−N%" reads ORANGE (the discount colour) — one clean line, no subtitle */
+  display: block; font-size: 14px; height: 16px; line-height: 16px; margin-top: 0;
+  color: #038026; /* the "−N%" reads GREEN now (no more orange) — one clean line, no subtitle */
   top: calc(50% + 1px); /* the min-badge's exact slot */
-  transition: opacity .26s ease, transform .34s cubic-bezier(.4,0,.2,1);
 }
+body.promo-preview:not(.optimize-mode):not(.super-collapse-2) .price-card .price-val { transition: transform .3s cubic-bezier(.4,0,.2,1); }
+body.promo-preview:not(.optimize-mode):not(.super-collapse-2) .price-card.selected.px-promo .price-val { transform: translateY(-9px); } /* same lift as Min nights */
+body.promo-preview:not(.optimize-mode):not(.super-collapse-2) .price-card.sel-out.px-promo .disc-badge {
+  animation: selMinOut .25s ease both; } /* deselected while the menu's open: slides back up into the price and fades — same as Min nights */
 body.promo-preview:not(.optimize-mode):not(.super-collapse-2) .price-card.selected.px-promo .disc-badge {
-  opacity: 1; transform: none;
-}
+  animation: selMinIn .3s cubic-bezier(.4,0,.2,1) both; } /* identical animation to Min nights' "min N" reveal */
 body.promo-preview:not(.optimize-mode):not(.super-collapse-2) .price-card.selected.px-promo .min-badge {
-  animation: none; opacity: 0; transform: translateY(-9px);
-  transition: opacity .22s ease, transform .3s cubic-bezier(.4,0,.2,1);
+  animation: selMinOut .25s ease both; /* "min N" slides out the same way it slides IN for Min nights — reversed */
 }
 body.optimize-mode .price-card:not(.opt-flag) .disc-badge { animation: discAway .35s ease forwards; } /* clear pre-existing discount lines during opportunity mode → clean $ cells */
 body.optimize-mode .price-card.opt-flag .disc-badge { display: none; } /* a FLAGGED cell shows ONLY its card's treatment (odometer / subreveal) — never a pre-existing badge underneath (type-on-type) */
 @keyframes discAway { from { opacity: 1; max-height: 16px; margin-top: 2px; } to { opacity: 0; max-height: 0; margin-top: 0; } }
-.price-card .disc-badge { /* last-min / early-bird / promo "-N%" — priced-sized type, ORANGE (a price DROP) */
+.price-card .disc-badge { /* last-min / early-bird / promo "-N%" — priced-sized type, GREEN now (no more orange) */
   font-size: 14px;
   line-height: 1;
-  color: #BE4900;
+  color: #038026;
   white-space: nowrap;
   margin-top: 2px;
 }
@@ -2873,33 +2878,22 @@ body.no-min .price-card.opt-min .min-badge { display: inline; }
 body.glow-hold .price-card.opt-min.opt-focus .min-badge { animation: none; opacity: 0; }
 @keyframes minReveal { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .price-card.selected .min-badge { color: var(--grey-700); } /* "min N" secondary type = grey-700 on the light selected cell */
+/* Every closed-by-settings reason (advance notice / prep time / booking window) now reads the SAME
+   way — no more separate "just an X" style. Retired the X entirely: struck-through grey price on a
+   flat grey cell, identical to a host-blocked night, regardless of WHY it's closed. */
 .price-card.unavailable {
-  background: var(--grey-100);   /* flat + light — the diagonal stripes are retired */
-  border-color: var(--grey-100);
+  background: #F2F2F2;
+  border-color: #E8E8E8;
   color: #6C6C6C;
   cursor: not-allowed;
 }
-/* closed-by-settings (advance notice / prep time / booking window): no price, no corner mark —
-   just one centered X (~12px) on the flat grey cell. SC2's own smaller X overrides via specificity. */
-.price-card.unavailable .price-val, .price-card.unavailable .min-badge,
-.price-card.unavailable .discount-badge { display: none; }
-.price-card.unavailable:not(.booked)::before, .price-card.unavailable:not(.booked)::after {
-  content: ''; position: absolute; top: 50%; left: 50%; width: 12px; height: 1.5px; border-radius: 2px;
-  background: var(--grey-600); /* 12px bars rotated 45° → an ~8×8 X */
-}
-.price-card.unavailable:not(.booked)::before { transform: translate(-50%, -50%) rotate(45deg); }
-.price-card.unavailable:not(.booked)::after { transform: translate(-50%, -50%) rotate(-45deg); }
-/* NOT OPEN YET (beyond the booking window): looks exactly like a host-BLOCKED night — light grey
-   backing + struck-through grey price. The X is reserved for advance notice / prep time. */
-.price-card.unavailable.closed-window { background: #F2F2F2; border-color: #E8E8E8; }
-.price-card.unavailable.closed-window::before, .price-card.unavailable.closed-window::after,
-body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.selected)::before,
-body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.selected)::after { content: none; }
-.price-card.unavailable.closed-window .price-val { display: inline; position: relative; color: #6C6C6C; }
-.price-card.unavailable.closed-window .price-val::after { /* same custom strike as .blocked */
+.price-card.unavailable .min-badge, .price-card.unavailable .discount-badge { display: none; }
+.price-card.unavailable .price-val { display: inline; position: relative; color: #6C6C6C; }
+.price-card.unavailable .price-val::after { /* same custom strike as .blocked */
   content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   width: calc(100% + 14px); height: 1.5px; background: currentColor; border-radius: 1px; pointer-events: none;
 }
+.price-card.opt-min.unavailable .price-val::after { content: none; } /* a min-opportunity cell shows plain "Min N" at rest, not a struck price/value — the strike only belongs to the OLD number once the reveal splits it into the two-line pstack */
 .price-card.unavailable.closed-rule:hover { border-color: var(--grey-200); background: var(--grey-200); } /* adv/prep hover: grey-200 fill (window-closed cells keep their blocked look) */
 /* MIN-NIGHT closed nights are hoverable → their "Min N nights" tip shows + a subtle hover fill signals it */
 .price-card.min-closed { cursor: default; }
@@ -2909,6 +2903,7 @@ body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.se
    pill — white fill, dark type, soft shadow — centre-aligned 4px above the cell */
 .price-card.unavailable.closed-rule { position: relative; cursor: default; }
 .price-card { position: relative; } /* tips anchor to their cell */
+.price-card:not(.booked):has(> .block-tip):hover { z-index: 6; } /* above .booking-pill (z-index:5) — ONLY for cells with an info tooltip (Adv notice / Prep time / Min N / discount): that tooltip must never clip behind a guest pill. A plain cell's hover has nothing that needs to sit above a pill, so it stays at its normal z-index — the blanket version was lifting every hovered cell, including ones with no tooltip, and THAT punched visible holes through a neighboring pill's rounded tail. Still excludes .booked cells for the same reason as before: the pill doesn't cover the full row height, so hovering the sliver above/below it must not lift that cell above the pill either. */
 .block-tip { position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
   display: none; background: #fff; color: #222; font: 500 13px/1 'Cereal', sans-serif;
   white-space: nowrap; padding: 7px 12px; border-radius: 999px;
@@ -2926,6 +2921,7 @@ body.super-collapse-2 .price-card.unavailable.closed-window:not(.booked):not(.se
   width: calc(100% + 14px); height: 1.5px; background: currentColor; border-radius: 1px;
   pointer-events: none;
 }
+.price-card.opt-min.blocked .price-val::after { content: none; } /* same as the unavailable case — a min-opportunity cell's idle "Min N" stays plain, never struck */
 /* Deselected (default) blocked cell: light-grey backing + grey #6C6C6C price & strike (::after uses currentColor) */
 .price-card.blocked:not(.selected) { background: #F2F2F2; border-color: #E8E8E8; }
 /* BLOCKED + opportunity cell: the grey backing fills the WAVE (not the square), and the suggested
@@ -3433,12 +3429,16 @@ body.optimize-mode .price-card.opt-flag.unavailable { background: transparent; b
       </button>
     </div>
     <!-- Search — sits left of Week, same 8px gap as Week→Settings. Idle magnifier circle unfurls into
-         an input; Enter flies the calendar to whatever it names (month, year, date, event, holiday, guest, $price). -->
-    <span class="sp-hint" id="searchPillHint"></span>
-    <div class="search-pill" id="searchPill">
-      <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M20.666 20.6641L30.666 30.6641" stroke="#222222" stroke-width="2"/><path d="M24.0007 12.6653C24.0007 18.9246 18.9266 23.9987 12.6673 23.9987C6.40808 23.9987 1.33398 18.9246 1.33398 12.6653C1.33398 6.40613 6.40808 1.33203 12.6673 1.33203C18.9266 1.33203 24.0007 6.40613 24.0007 12.6653Z" stroke="#222222" stroke-width="2"/></svg>
-      <input id="searchPillInput" type="text" placeholder="Try &quot;Weekends&quot;" autocomplete="off" spellcheck="false">
-      <button class="sp-close" id="searchPillClose" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2L10 10M10 2L2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+         an input; Enter flies the calendar to whatever it names (month, year, date, event, holiday, guest, $price).
+         The SLOT stays a fixed 40px flex item so opening never reflows Week/Settings; the pill itself is
+         absolutely positioned inside it, anchored right, and grows LEFT past the slot's own edge. -->
+    <div class="search-pill-slot">
+      <span class="sp-hint" id="searchPillHint"></span>
+      <div class="search-pill" id="searchPill">
+        <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M20.666 20.6641L30.666 30.6641" stroke="#222222" stroke-width="2"/><path d="M24.0007 12.6653C24.0007 18.9246 18.9266 23.9987 12.6673 23.9987C6.40808 23.9987 1.33398 18.9246 1.33398 12.6653C1.33398 6.40613 6.40808 1.33203 12.6673 1.33203C18.9266 1.33203 24.0007 6.40613 24.0007 12.6653Z" stroke="#222222" stroke-width="2"/></svg>
+        <input id="searchPillInput" type="text" placeholder="Try &quot;Weekends&quot;" autocomplete="off" spellcheck="false">
+        <button class="sp-close" id="searchPillClose" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2L10 10M10 2L2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+      </div>
     </div>
     <!-- Week/Month view — a pill + checkmark dropdown (replaces the old segmented toggle) -->
     <button class="tb-pill-btn wm-drop" id="wmDropBtn" aria-haspopup="true">
@@ -3448,17 +3448,12 @@ body.optimize-mode .price-card.opt-flag.unavailable { background: transparent; b
       <button class="lm-item" data-view="week"><span class="wm-check"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19.5 7"/></svg></span>Week</button>
       <button class="lm-item" data-view="month"><span class="wm-check"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19.5 7"/></svg></span>Month</button>
     </div>
-    <!-- Was a ⋯ catch-all dropdown (Automate group / Calendar sync / Settings) — swapped for a plain
-         settings gear that doesn't do anything yet. No dropdown; the old menu items are gone. -->
-    <button class="tb-icon-btn" id="tbMoreBtn" aria-label="Settings">
-      <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_4340_604091)"><path d="M9.68909 13.4983C9.81656 13.1758 10.023 12.8905 10.2895 12.6686C10.5559 12.4467 10.8739 12.2953 11.2141 12.2283C11.4885 12.1752 11.7709 12.1793 12.0436 12.2404C12.3164 12.3015 12.5736 12.4182 12.7991 12.5833C12.8567 12.6255 12.9226 12.6548 12.9924 12.6694C13.0623 12.684 13.1345 12.6834 13.2041 12.6678C13.2737 12.6522 13.3392 12.6218 13.3961 12.5788C13.453 12.5358 13.5001 12.481 13.5341 12.4183L14.5891 10.5983C14.6264 10.5371 14.6502 10.4686 14.6587 10.3974C14.6672 10.3262 14.6603 10.2541 14.6385 10.1858C14.6167 10.1175 14.5805 10.0547 14.5323 10.0016C14.484 9.9486 14.425 9.90654 14.3591 9.87831C13.9986 9.71639 13.6926 9.45374 13.478 9.12198C13.2633 8.79021 13.1491 8.40347 13.1491 8.00831C13.1491 7.61315 13.2633 7.22641 13.478 6.89465C13.6926 6.56288 13.9986 6.30023 14.3591 6.13831C14.425 6.11009 14.484 6.06803 14.5323 6.01498C14.5805 5.96193 14.6167 5.89913 14.6385 5.83084C14.6603 5.76256 14.6672 5.69038 14.6587 5.6192C14.6502 5.54802 14.6264 5.47951 14.5891 5.41831L13.5341 3.58831C13.5001 3.52558 13.453 3.47086 13.3961 3.42783C13.3392 3.38479 13.2737 3.35444 13.2041 3.33881C13.1345 3.32318 13.0623 3.32264 12.9924 3.33721C12.9226 3.35179 12.8567 3.38114 12.7991 3.42331C12.5734 3.58814 12.3162 3.70473 12.0435 3.7658C11.7708 3.82688 11.4885 3.83114 11.2141 3.77831C10.8728 3.71034 10.5541 3.55743 10.2876 3.3337C10.021 3.10997 9.81519 2.82266 9.68909 2.49831C9.57007 2.2019 9.52378 1.88129 9.55409 1.56331C9.56496 1.49165 9.56013 1.41848 9.53992 1.34888C9.51971 1.27927 9.48461 1.21489 9.43705 1.16019C9.38949 1.1055 9.33061 1.0618 9.26448 1.03212C9.19835 1.00244 9.12656 0.987493 9.05409 0.988313H6.95409C6.88161 0.987493 6.80982 1.00244 6.74369 1.03212C6.67757 1.0618 6.61868 1.1055 6.57112 1.16019C6.52356 1.21489 6.48846 1.27927 6.46825 1.34888C6.44804 1.41848 6.44321 1.49165 6.45409 1.56331C6.50271 2.0744 6.35828 2.58517 6.04921 2.9951C5.74014 3.40504 5.28882 3.68444 4.78409 3.77831C4.50969 3.83144 4.22727 3.82733 3.95453 3.76625C3.6818 3.70516 3.42461 3.58841 3.19909 3.42331C3.14152 3.38114 3.0756 3.35179 3.00574 3.33721C2.93589 3.32264 2.86372 3.32318 2.7941 3.33881C2.72447 3.35444 2.659 3.38479 2.60208 3.42783C2.54515 3.47086 2.4981 3.52558 2.46409 3.58831L1.40909 5.40831C1.37176 5.46951 1.34802 5.53802 1.33949 5.6092C1.33096 5.68038 1.33783 5.75256 1.35965 5.82084C1.38146 5.88913 1.41771 5.95193 1.46592 6.00498C1.51413 6.05803 1.57319 6.10009 1.63909 6.12831C1.99955 6.29023 2.30553 6.55288 2.52021 6.88465C2.73488 7.21641 2.84909 7.60315 2.84909 7.99831C2.84909 8.39347 2.73488 8.78021 2.52021 9.11198C2.30553 9.44374 1.99955 9.70639 1.63909 9.86831C1.57319 9.89654 1.51413 9.9386 1.46592 9.99165C1.41771 10.0447 1.38146 10.1075 1.35965 10.1758C1.33783 10.2441 1.33096 10.3162 1.33949 10.3874C1.34802 10.4586 1.37176 10.5271 1.40909 10.5883L2.46409 12.4083C2.4981 12.471 2.54515 12.5258 2.60208 12.5688C2.659 12.6118 2.72447 12.6422 2.7941 12.6578C2.86372 12.6734 2.93589 12.674 3.00574 12.6594C3.0756 12.6448 3.14152 12.6155 3.19909 12.5733C3.42461 12.4082 3.6818 12.2915 3.95453 12.2304C4.22727 12.1693 4.50969 12.1652 4.78409 12.2183C5.11994 12.2869 5.43322 12.4387 5.69527 12.6597C5.95732 12.8807 6.15976 13.1639 6.28409 13.4833C6.4056 13.7808 6.45362 14.1033 6.42409 14.4233C6.41321 14.495 6.41804 14.5681 6.43825 14.6378C6.45846 14.7074 6.49356 14.7717 6.54112 14.8264C6.58868 14.8811 6.64757 14.9248 6.71369 14.9545C6.77982 14.9842 6.85161 14.9991 6.92409 14.9983H9.01409C9.08656 14.9991 9.15835 14.9842 9.22448 14.9545C9.29061 14.9248 9.34949 14.8811 9.39705 14.8264C9.44461 14.7717 9.47971 14.7074 9.49992 14.6378C9.52013 14.5681 9.52496 14.495 9.51409 14.4233C9.49799 14.1054 9.55798 13.7883 9.68909 13.4983ZM5.99909 7.99831C5.99909 7.60275 6.11638 7.21607 6.33615 6.88717C6.55591 6.55827 6.86827 6.30193 7.23372 6.15055C7.59917 5.99918 8.0013 5.95957 8.38927 6.03674C8.77723 6.11391 9.13359 6.30439 9.4133 6.5841C9.693 6.8638 9.88349 7.22017 9.96066 7.60813C10.0378 7.99609 9.99822 8.39823 9.84685 8.76368C9.69547 9.12913 9.43912 9.44149 9.11023 9.66125C8.78133 9.88101 8.39465 9.99831 7.99909 9.99831C7.46865 9.99831 6.95995 9.7876 6.58487 9.41253C6.2098 9.03745 5.99909 8.52875 5.99909 7.99831Z" stroke="currentColor"/></g><defs><clipPath id="clip0_4340_604091"><rect width="16" height="16" fill="white"/></clipPath></defs></svg>
-    </button>
   </div>
 </div>
 
 <!-- Calendar -->
 <div class="cal">
-  <!-- Left: listing thumbnails with right-fade gradient -->
+  <!-- Left: listing thumbnails, clean hard edge (no fade) -->
   <div class="left">
     <div class="left-header">
       <span class="left-header-label">Listings</span>
@@ -3471,8 +3466,8 @@ body.optimize-mode .price-card.opt-flag.unavailable { background: transparent; b
     <div class="settings-header-wrap" id="settingsHeaderWrap">
       <div class="settings-col-header settings-col-baseprice">Base price</div>
       <div class="settings-col-header settings-col-seasonality">Seasonality</div>
-      <div class="settings-col-header single">Last min discount</div>
-      <div class="settings-col-header single">Early bird discount</div>
+      <div class="settings-col-header single">Last minute</div>
+      <div class="settings-col-header single">Early bird</div>
       <div class="settings-col-header">Trip length discount</div>
       <div class="settings-col-header">Fees</div>
     </div>
@@ -3577,7 +3572,7 @@ body.optimize-mode .price-card.opt-flag.unavailable { background: transparent; b
     <div class="lm-upsell-offer" id="lmUpsellOffer">
       <img class="lm-upsell-icon" src="img/price-tag.png" alt="" aria-hidden="true" />
       <div class="lm-upsell-icons" id="lmUpsellIcons" aria-hidden="true"></div>
-      <h2 class="lm-upsell-title" id="lmUpsellTitle">Automate last-minute<br>Discounts</h2>
+      <h2 class="lm-upsell-title" id="lmUpsellTitle">Automate last-minute<br>discounts</h2>
       <p class="lm-upsell-sub">Give a 10% off discount to guests booking<br>7 days before arrival. <a href="#" class="lm-upsell-edit" id="lmUpsellEdit">Edit</a></p>
       <div class="lm-upsell-actions">
         <button class="lm-upsell-skip" id="lmUpsellSkip" type="button">Skip</button>
@@ -3722,7 +3717,8 @@ body.optimize-mode .price-card.opt-flag.unavailable { background: transparent; b
       <button class="ind-fill-opt" data-fill="1" type="button">Filled</button>
     </div>
     <div class="dev-hostwrap" id="hostToggle">
-      <button class="host-opt active" data-host="small" type="button">5 Listings</button>
+      <button class="host-opt active" data-host="tiny" type="button">3 Listings</button>
+      <button class="host-opt" data-host="small" type="button">5 Listings</button>
       <button class="host-opt" data-host="big" type="button">12 Listings</button>
       <button class="host-opt" data-host="pro" type="button">32 Listings</button>
     </div>
@@ -3948,6 +3944,16 @@ function generateBookings() {
   { const jul17 = pastDays + 16, jul21 = pastDays + 20; // date D (July) → index pastDays + D - 1
     const b = out.find(x => x.guest === 'Noah' && LISTINGS[x.listing] && LISTINGS[x.listing].city === 'San Diego' && x.start < jul21 + 7 && x.start + x.nights > jul21);
     if (b) b.start = jul17; }
+  // Extra guests beyond the lead booker ("Ethan +2") — 0 (shown as just the name) to +5 (party of 6).
+  // A SEPARATE seeded RNG, applied in its own pass after everything else above is finished: drawing
+  // this from the SAME `rng` used above would consume an extra random() per booking and shift every
+  // later booking's name/nights/start-gap to a different draw — reshuffling the whole seeded layout
+  // instead of just adding a guest count on top of it.
+  const rng2 = mulberry32(19348);
+  const GUESTS_W = [10, 30, 30, 15, 10, 5]; // weight per extra-guest count 0–5 → mostly +1/+2, 0 only ~10% of the time
+  const GUESTS_SUM = GUESTS_W.reduce((s, w) => s + w, 0);
+  const pickGuests = () => { let r = rng2() * GUESTS_SUM; for (let n = 0; n < GUESTS_W.length; n++) { r -= GUESTS_W[n]; if (r < 0) return n; } return GUESTS_W.length - 1; };
+  out.forEach(b => { b.guests = pickGuests(); });
   return out; // (removed the fixed late-July cluster + the pinned Charlotte/Sophia — those anchored the same
               //  spots every time, which read as "not randomized")
 }
@@ -4103,7 +4109,7 @@ const DEMAND_EVENTS = [
   ['The Dinah queer festival', 'Palm Springs', '2027-03-31', '2027-04-04', 22, 'event_icons/pride-heart.png', 'event_icons/sec-pride-balloon.png', 'estimated'],
   ['Comic-Con', 'San Diego', '2026-07-23', '2026-07-26', 40, 'event_icons/comic-pow.png', 'event_icons/sec-comic-bolt.png', 'confirmed'],
   ['Comic-Con', 'San Diego', '2027-07-22', '2027-07-26', 40, 'event_icons/comic-pow.png', 'event_icons/sec-comic-bolt.png', 'estimated'],
-  ['Del Mar Racing Opening Day', 'San Diego', '2026-07-17', '2026-07-19', 8, 'event_icons/jockey-silks.png', 'event_icons/sec-horseshoe.png', 'confirmed'], // opening weekend only — the window rides out to Mon Jul 20
+  ['Del Mar Racing Opening Weekend', 'San Diego', '2026-07-17', '2026-07-19', 8, 'event_icons/jockey-silks.png', 'event_icons/sec-horseshoe.png', 'confirmed'], // opening weekend only — the window rides out to Mon Jul 20
   ['San Diego County Fair', 'San Diego', '2026-06-10', '2026-07-05', 8, 'event_icons/carousel-horse.png', 'event_icons/sec-ticket.png', 'confirmed'],
   ['Farmers Insurance Open golf', 'San Diego', '2026-01-29', '2026-02-01', 14, 'event_icons/golf-badge.png', 'event_icons/sec-golf-flag.png', 'confirmed'],
   ['The Sentry PGA golf', 'San Diego', '2027-01-27', '2027-01-30', 14, 'event_icons/golf-badge.png', 'event_icons/sec-golf-flag.png', 'confirmed'],
@@ -4475,7 +4481,8 @@ function refreshCalendarPrices() {
       const di = +card.dataset.di; // virtualized: cell's true night-index, not its DOM position
       if (card.classList.contains('booked')) return;
       const valEl = card.querySelector('.price-val');
-      if (valEl) valEl.textContent = '$' + getPrice(li, di);
+      if (valEl) { const _rf = typeof optFlagFor === 'function' ? optFlagFor(li, di) : null;
+        valEl.textContent = (_rf && _rf.min) ? ('Min ' + _rf.min.cur) : ('$' + getPrice(li, di)); } // min-opportunity cells show "Min N" even at rest, not the price — see buildPriceCell
       const badge = card.querySelector('.min-badge');
       if (badge) badge.innerHTML = minBadgeHTML(li, gapSet.has(di), di, gapSet.get(di));
       let db = card.querySelector('.disc-badge');
@@ -4670,7 +4677,7 @@ function secondaryColor(d, h) {
 // (pink today marker, past-cell greying, lead-time pricing, the start column) treats July 8 as today
 // so the demo is stable no matter when it's opened. (User: "start the prototype always for July 8th
 // to be today.") Change the month/day here to move it.
-function protoToday() { return new Date(new Date().getFullYear(), 6, 8); } // 6 = July, day 8
+function protoToday() { return new Date(); } // real today — no more forced July 8 pin
 let today = protoToday();
 let todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 let viewDate = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -4691,15 +4698,9 @@ let monthPageStart = 0;    // di of the 1st of the month currently shown in the 
 function refreshSc2Metrics() {
   const gw = document.getElementById('gridWrap');
   const avail = (gw && gw.clientWidth) || 790;
-  // Right gutter so the 31st cell's right edge lines up with the topbar's right content boundary (the sync
-  // icon). Measured dynamically = (visible-content right edge) − (sync-icon right edge), so it accounts for
-  // the scrollbar width + any topbar padding. Falls back to 24 if the sync button isn't found.
-  let rightGutter = 24;
-  const sync = document.getElementById('tbMoreBtn');
-  if (gw && sync) {
-    const gr = gw.getBoundingClientRect(), sr = sync.getBoundingClientRect();
-    rightGutter = Math.max(0, (gr.left + avail) - sr.right);
-  }
+  // Right gutter so the 31st cell's right edge lines up with the topbar's own right edge (its 24px
+  // padding — there's no longer a rightmost icon to measure against since Settings was removed).
+  const rightGutter = 24;
   // MIN 56px per cell — never crunch below legible. When 31 days can't fit at 56px, the cell stays 56 and
   // the month overflows the page (later dates hidden until you page/scroll) instead of collapsing. The
   // month-page stride grows with the month width so consecutive months never overlap.
@@ -4713,10 +4714,10 @@ function monthStartOf(di) { // di of the 1st of the month containing di
   while (i > 0 && allDays[i].getDate() !== 1) i--;
   return i;
 }
-// FIXED calendar start = the 8th of the current month (July 8). The prototype PINS here instead of
-// snapping to `today`, so boot / host toggle / view switch all land on the same single date and never
-// "go back to today". (User: "stick it to a single date, don't go back to today.")
-function calStartDi() { return Math.min(monthStartOf(todayDi) + 7, allDays.length - 1); }
+// Calendar start = today. This used to pin to a fixed "8th of the month" offset back when `today`
+// itself was hardcoded to July 8 (monthStart + 7 == today, always) — now that today is the REAL
+// current date, that fixed offset no longer tracks it, so the landing date drifted away from today.
+function calStartDi() { return Math.min(todayDi, allDays.length - 1); }
 function nextMonthStart(di) { const m = monthStartOf(di); let i = m + 1; while (i < allDays.length && allDays[i].getDate() !== 1) i++; return i < allDays.length ? i : m; }
 function prevMonthStart(di) { const m = monthStartOf(di); return m > 0 ? monthStartOf(m - 1) : m; }
 // Scroll so the given month's 1st day sits at the left gutter (the pager "page" for that month).
@@ -4794,6 +4795,14 @@ function computeOffsets() {
 // vars during the morph (used only while `morphing`; otherwise fixed px from rowOffsets are used).
 function cellLeftCalc(di) { return `calc(${di}*(var(--cell-w) + var(--cell-gap)) + ${mgCount[di] || 0}*var(--month-gap))`; }
 function pillLeftCalc(b) { return `calc(${b.start}*(var(--cell-w) + var(--cell-gap)) + ${mgCount[b.start] || 0}*var(--month-gap) + var(--cell-w)/4)`; }
+// Start inset so the guest avatar centers in the check-in cell while staying 4px inside the pill's
+// rounded end. The fixed cell/4 noon offset only centers the 32px base avatar; bigger host avatars need
+// a size-aware inset.
+function pillStartInset(cellW) {
+  const c = document.body.classList;
+  const avatarW = c.contains('host-small') ? 40 : c.contains('host-pro') ? 28 : 32;
+  return (cellW - avatarW) / 2 - 4; // 4px = the pill's padding-left
+}
 function pillWidthCalc(b) { const e = Math.min(b.start + b.nights, allDays.length); const mg = (mgCount[e] || 0) - (mgCount[b.start] || 0); return `calc(${b.nights}*(var(--cell-w) + var(--cell-gap)) + ${mg}*var(--month-gap) - var(--cell-gap))`; }
 
 // The SC2 sticky month-label strip (one segment per month). Built every render, shown only in SC2.
@@ -4848,7 +4857,7 @@ function finalizeGrid() {
     row.querySelectorAll('.booking-pill').forEach(p => {
       const s = +p.dataset.start, n = +p.dataset.nights;
       const so = gapOffset[s] || 0, eo = gapOffset[Math.min(s + n, allDays.length)] || 0;
-      p.style.left = (s * pitch + so + gc.w / 4) + 'px';
+      p.style.left = (s * pitch + so + pillStartInset(gc.w)) + 'px';
       p.style.width = (n * pitch + (eo - so) - gc.gap) + 'px';
     });
   });
@@ -5071,7 +5080,11 @@ function buildPriceCell(li, di, booked, unavail, gapSet, minClosed) {
     : _dk ? (_dk === 'early' ? 'Early bird' : 'Last minute') : '';
   const _tipClass = _minClosed ? ' min-tip' : (_discFrac > 0 ? ' disc-tip' : '');
   const _ofActive = _of && (card.classList.contains('opt-focus') || card.classList.contains('opt-applied'));
-  card.innerHTML = isBooked ? '' : `<span class="price-val">$${getPrice(li, di)}</span><span class="min-badge">${_of && _of.min && _ofActive ? `min <s>${_of.min.cur}</s> ${_of.min.to}` : minBadgeHTML(li, gapSet.has(di), di, gapSet.get(di))}</span>${_dtxt ? `<span class="disc-badge">${_dtxt}</span>` : ''}<span class="cell-date">${d.getDate()}</span>${_tip ? `<span class="block-tip${_tipClass}">${_tip}</span>` : ''}`;
+  // A min-opportunity cell shows "Min N" (the current minimum) in place of the price EVEN AT REST,
+  // not just once focused — so the reveal is "Min 5" splitting into "Min 3 / Min 5" (via makeMinStack),
+  // never a struck price abruptly swapping for "Min 5" when you tap in.
+  const _priceValTxt = (_of && _of.min) ? ('Min ' + _of.min.cur) : ('$' + getPrice(li, di));
+  card.innerHTML = isBooked ? '' : `<span class="price-val">${_priceValTxt}</span><span class="min-badge">${_of && _of.min && _ofActive ? `min <s>${_of.min.cur}</s> ${_of.min.to}` : minBadgeHTML(li, gapSet.has(di), di, gapSet.get(di))}</span>${_dtxt ? `<span class="disc-badge">${_dtxt}</span>` : ''}<span class="cell-date">${d.getDate()}</span>${_tip ? `<span class="block-tip${_tipClass}">${_tip}</span>` : ''}`;
   setCellBadge(card, li, di, gapSet);
   if (_of) { makeWring(card); if (_ofActive) { makeOdometer(card, li, di); makeSub(card, li, di); makeApCheck(card); } } // quiet wave for everyone; the TYPE + applied check only on the focused/applied card
   const rsIdx = ruleSetCell[li][di]; // persist the rule-set color tint + corner dot across re-renders
@@ -5102,10 +5115,10 @@ function buildRowPills(row, li) {
     else {
       const startOff = gapOffset[b.start] || 0;
       const endOff = gapOffset[Math.min(b.start + b.nights, allDays.length)] || 0;
-      pill.style.left = (b.start * pitch + startOff + gc.w / 4) + 'px';
+      pill.style.left = (b.start * pitch + startOff + pillStartInset(gc.w)) + 'px';
       pill.style.width = (b.nights * pitch + (endOff - startOff) - gc.gap) + 'px'; // + the month gaps the stay spans
     }
-    pill.innerHTML = `<div class="booking-label"><div class="booking-avatar"><img src="${b.img}" alt="" loading="lazy"></div><span class="booking-name">${b.guest}</span></div>`;
+    pill.innerHTML = `<div class="booking-label"><div class="booking-avatar"><img src="${b.img}" alt="" loading="lazy"></div><span class="booking-name">${b.guest}${b.guests ? ' +' + b.guests : ''}</span></div>`;
     row.appendChild(pill);
   });
 }
@@ -5549,8 +5562,8 @@ const MODAL_COLS = {
   'baseprice-weekends': { label: 'Weekends',             unit: '%', sign: '+', set: (i, v) => { weekendVals[i] = v; } },
   'seasonality-high':   { label: 'High season',          unit: '%', sign: '+', set: (i, v) => { highSeasonVals[i] = v; } },
   'seasonality-low':    { label: 'Low season',           unit: '%', sign: '-', set: (i, v) => { lowSeasonVals[i] = v; } },
-  'lastminute':         { label: 'Last-minute discount', unit: '%', sign: '-', set: (i, v) => { lastMinuteVals[i] = v; } },
-  'earlybird':          { label: 'Early bird discount',  unit: '%', sign: '-', set: (i, v) => { earlyBirdVals[i] = v; } },
+  'lastminute':         { label: 'Last minute', unit: '%', sign: '-', set: (i, v) => { lastMinuteVals[i] = v; } },
+  'earlybird':          { label: 'Early bird',  unit: '%', sign: '-', set: (i, v) => { earlyBirdVals[i] = v; } },
   'discounts-weekly':   { label: 'Weekly discount',      unit: '%', sign: '-', set: (i, v) => { tripWeekly[i] = v; } },
   'discounts-monthly':  { label: 'Monthly discount',     unit: '%', sign: '-', set: (i, v) => { tripMonthly[i] = v; } },
   'fees-cleaning':      { label: 'Cleaning fee',         unit: '$',           set: (i, v) => { cleaningFees[i] = v; } },
@@ -5934,7 +5947,7 @@ function buildSettingsRows() {
         cell.style.padding = '4px';
         cell.style.alignItems = 'stretch';
       } else if (field === 'Base Price') {
-        cell.appendChild(makeSubCell('baseprice-base', `<input type="text" value="$${listing.base}" style="text-align:center;width:100%;">`));
+        cell.appendChild(makeSubCell('baseprice-base', `<span style="font-size:12px;color:#6C6C6C;font-family:'Cereal',sans-serif;">Weekdays</span><input type="text" value="$${listing.base}" style="text-align:center;width:100%;">`));
         cell.appendChild(makeDivider());
         cell.appendChild(makeSubCell('baseprice-weekends', `<span style="font-size:12px;color:#6C6C6C;font-family:'Cereal',sans-serif;">Weekends</span>${pctSub(weekendVals[i], 'color:#038026;')}`));
         splitStyle();
@@ -6387,11 +6400,11 @@ function renderMonthAction(pill) {
   pill.innerHTML =
     `<div class="ma-photos" style="width:${photoStackWidth(imgs.length)}px">${photoStackHTML(imgs)}</div>` +
     `<div class="ma-meta"><span class="ma-title">${name}</span><span class="ma-dates">${months}</span></div>` +
-    `<span class="ma-price" data-act="edit-price">Price</span>` +
     `<button class="ma-action" type="button" data-act="edit-avail">Availability</button>` +
+    `<span class="ma-price" data-act="edit-price">Price</span>` +
+    `<button class="ma-action" type="button" data-act="add-discount">Discounts</button>` +
     `<button class="ma-action" type="button" data-act="min-nights">Min nights</button>` +
     `<button class="ma-action" type="button" data-act="add-promo">Promotions</button>` +
-    `<button class="ma-action" type="button" data-act="add-discount">Discounts</button>` +
     ruleSetsPillHTML() +
     `<button class="ma-action ma-action-icon" type="button" data-act="customize" aria-label="Customize" title="Customize"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M11.395 4.59764L15.4037 8.60639L6.25 17.7601C6.01375 17.9964 5.7 18.1264 5.36625 18.1264H1.875V14.6351C1.875 14.3064 2.00812 13.9839 2.24125 13.7514L11.395 4.59764ZM17.6294 2.37201C17.0974 1.84113 16.3766 1.54297 15.625 1.54297C14.8734 1.54297 14.1526 1.84113 13.6206 2.37201L12.7206 3.27201L16.73 7.28014L17.6294 6.38076C18.1603 5.8488 18.4584 5.12794 18.4584 4.37639C18.4584 3.62484 18.1603 2.90398 17.6294 2.37201Z" fill="currentColor"/></svg></button>`;
   return true;
@@ -6432,11 +6445,11 @@ function renderMultiAction() {
   pill.innerHTML =
     `<div class="ma-photos" style="width:${photoStackWidth(imgs.length)}px">${photoStackHTML(imgs)}</div>` +
     `<div class="ma-meta"><span class="ma-title">${name}</span><span class="ma-dates">${dates}</span></div>` +
-    `<span class="ma-price" data-act="edit-price">Price</span>` +
     `<button class="ma-action" type="button" data-act="edit-avail">Availability</button>` +
+    `<span class="ma-price" data-act="edit-price">Price</span>` +
+    `<button class="ma-action" type="button" data-act="add-discount">Discounts</button>` +
     `<button class="ma-action" type="button" data-act="min-nights">Min nights</button>` +
     `<button class="ma-action" type="button" data-act="add-promo">Promotions</button>` +
-    `<button class="ma-action" type="button" data-act="add-discount">Discounts</button>` +
     ruleSetsPillHTML() +
     `<button class="ma-action ma-action-icon" type="button" data-act="customize" aria-label="Customize" title="Customize"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M11.395 4.59764L15.4037 8.60639L6.25 17.7601C6.01375 17.9964 5.7 18.1264 5.36625 18.1264H1.875V14.6351C1.875 14.3064 2.00812 13.9839 2.24125 13.7514L11.395 4.59764ZM17.6294 2.37201C17.0974 1.84113 16.3766 1.54297 15.625 1.54297C14.8734 1.54297 14.1526 1.84113 13.6206 2.37201L12.7206 3.27201L16.73 7.28014L17.6294 6.38076C18.1603 5.8488 18.4584 5.12794 18.4584 4.37639C18.4584 3.62484 18.1603 2.90398 17.6294 2.37201Z" fill="currentColor"/></svg></button>`;
   return true;
@@ -6632,6 +6645,7 @@ function setBlockState(block) {
       }
     });
     updateAvailMenu();
+    clearTimeout(setBlockState._t); setBlockState._t = setTimeout(closeAvailMenu, 500); // let the strike/backing register, a beat, then auto-close
     return;
   }
   selectedLiDi().forEach(({ li, di }) => {
@@ -6639,6 +6653,7 @@ function setBlockState(block) {
   });
   refreshCalendarPrices(); // re-apply .blocked (strike + grey backing) to the correct cells by data-di (grid is virtualized → can't index by DOM position)
   updateAvailMenu();       // state flips to all-blocked / all-open
+  clearTimeout(setBlockState._t); setBlockState._t = setTimeout(closeAvailMenu, 500); // let the strike/backing register, a beat, then auto-close
 }
 // Tapping "Edit availability" opens the avail menu; tapping the price pill opens the price menu.
 document.getElementById('multiAction').addEventListener('click', e => {
@@ -6653,11 +6668,44 @@ document.getElementById('multiAction').addEventListener('click', e => {
 document.getElementById('availBlock').addEventListener('click', e => { e.stopPropagation(); setBlockState(true); });
 document.getElementById('availOpen').addEventListener('click', e => { e.stopPropagation(); setBlockState(false); });
 document.getElementById('availMenuClose').addEventListener('click', e => { e.stopPropagation(); closeAvailMenu(); }); // floating close → back to the action panel
-// Click anywhere outside the sub-menus (and the action pill) closes them — EXCEPT a tap on a
-// calendar cell, which extends the selection instead and should leave the open sub-menu alone.
+// Click anywhere outside the sub-menus AND the action pill AND a calendar cell drops the whole
+// selection (closing the quick-actions pill with it) — a tap on a cell extends the selection instead
+// and should leave everything alone.
 document.addEventListener('mousedown', e => {
   if (e.target.closest('#availMenu') || e.target.closest('#priceMenu') || e.target.closest('#promoMenu') || e.target.closest('#minNightsMenu') || e.target.closest('#customizeMenu') || e.target.closest('#discountsMenu') || e.target.closest('#rulesetsMenu') || e.target.closest('#multiAction') || e.target.closest('.price-card') || e.target.closest('.month-card')) return;
+  // The events/holidays icon band (.group-divider, holding the .gev icons): tapping an icon itself, or
+  // the gap between two icons that belong to the SAME event/holiday run (e.g. within Comic-Con's string
+  // of icons), leaves the selection alone. A gap between two DIFFERENT events (or empty band space with
+  // no event on either side) is real outside space and still closes.
+  if (e.target.closest('.holiday-icon')) return;
+  { const divider = e.target.closest('.group-divider');
+    if (divider) {
+      if (e.target.closest('.gev')) return; // tapping the icon itself
+      const icons = [...divider.querySelectorAll(':scope > .gev, :scope > .holiday-icon')];
+      const x = e.clientX; let left = null, right = null;
+      icons.forEach(ic => {
+        const r = ic.getBoundingClientRect();
+        if (r.right <= x && (!left || r.right > left.right)) left = { right: r.right, name: ic.dataset.hname };
+        if (r.left >= x && (!right || r.left < right.left)) right = { left: r.left, name: ic.dataset.hname };
+      });
+      if (left && right && left.name && left.name === right.name) return; // same event on both sides → internal gap
+    }
+  }
+  // The gutters — the flex `gap` between cells in a row, and between rows themselves — have no element
+  // of their own; a click there lands on the row/grid container as e.target. Treat that exactly like a
+  // cell tap (leave the selection alone) — but ONLY inside the actual row stack. The empty white margin
+  // AROUND the grid (below the last row, including its padding-bottom reserved for the QA pill) is real
+  // outside space and should still close, so check the click's Y against the rows' own bounds.
+  if (e.target.classList.contains('price-row') || e.target.classList.contains('month-row')) return;
+  if (e.target.id === 'gridRows' || e.target.id === 'monthRows') {
+    const rows = e.target.querySelectorAll(':scope > .price-row, :scope > .month-row');
+    if (rows.length) {
+      const first = rows[0].getBoundingClientRect(), last = rows[rows.length - 1].getBoundingClientRect();
+      if (e.clientY >= first.top && e.clientY <= last.bottom) return; // between rows → gutter, leave alone
+    }
+  }
   closeAvailMenu(); closePriceMenu(); closePromoMenu(); closeMinNightsMenu(); closeCustomizeMenu(); closeDiscountsMenu(); closeRuleSetsMenu();
+  if (typeof clearSelection === 'function') clearSelection(); // outside tap → drop the selection + close the QA pill
 });
 
 // ── Price sub-menu: a custom nightly price for the selected cells (grey input bar, no Save) ────────
@@ -6742,6 +6790,7 @@ function openMinNightsMenu() {
   const menu = document.getElementById('minNightsMenu');
   document.getElementById('minNightsInput').value = mnRange(); // prefill with the current value/range
   menu.classList.add('show');
+  document.body.classList.add('mn-open'); // reveals "min N" under the price on selected cells only while this menu is open
   positionMinNightsMenu();             // offsetWidth/Height need display first
   requestAnimationFrame(() => menu.classList.add('in'));
 }
@@ -6749,6 +6798,7 @@ function closeMinNightsMenu() {
   const menu = document.getElementById('minNightsMenu');
   if (!menu.classList.contains('show')) return; // guard: already closed (also avoids recursion via updateMultiAction)
   menu.classList.remove('show', 'in');
+  document.body.classList.remove('mn-open');
 }
 function toggleMinNightsMenu() {
   document.getElementById('minNightsMenu').classList.contains('show') ? closeMinNightsMenu() : openMinNightsMenu();
@@ -6758,6 +6808,15 @@ document.getElementById('minNightsInput').addEventListener('input', () => {
   const inp = document.getElementById('minNightsInput');
   const digits = inp.value.replace(/[^\d]/g, '');
   if (inp.value !== digits) { inp.value = digits; inp.setSelectionRange(digits.length, digits.length); }
+  // Live, same as the Price input: every keystroke updates the selected cells' "min N" right away —
+  // Enter/Save just confirms and closes, it isn't the only thing that applies the value.
+  const v = digits ? parseInt(digits, 10) : null;
+  if (v == null || v > 0) { // same guard as Save — never write a 0/invalid override, but an emptied field clears back to base
+    selectedLiDi().forEach(({ li, di }) => {
+      if (v == null) delete minOverride[li][di]; else minOverride[li][di] = v;
+    });
+    refreshCalendarPrices();
+  }
 });
 document.getElementById('minNightsInput').addEventListener('focus', e => requestAnimationFrame(() => { try { e.target.select(); } catch (err) {} }));
 document.getElementById('minNightsInput').addEventListener('mouseup', e => e.preventDefault());
@@ -8275,7 +8334,7 @@ document.getElementById('devBookings').addEventListener('change', e => {
   if (window.__opt && window.__opt.state === 'idle' && typeof renderMagicPill === 'function') renderMagicPill(); // bookings change the gap/near opportunities → refresh the idle count
 });
 // Data segment: 'No Bookings' = clean fresh sheet (both off = the reset state); 'Bookings' = bookings + price variance baked in.
-function setDataMode(mode) {
+function setDataMode(mode, skipScroll) {
   if (typeof acceptedOpps !== 'undefined') acceptedOpps.clear(); // switching New/Busy Host = a different calendar → every opportunity is on the table again
   window._oppUniverse = null; // different calendar → recompute the first-run opp universe
   window._optCleared = false; document.body.classList.remove('opps-retired', 'opps-retiring'); // opps are back on the table → un-retire the pill + search
@@ -8289,8 +8348,10 @@ function setDataMode(mode) {
   pv.checked = want; pv.dispatchEvent(new Event('change'));
   document.querySelectorAll('.data-opt').forEach(b => b.classList.toggle('active', b.dataset.data === mode)); // footer + welcome-modal toggles both sync
   // BOTH New Host and Busy Host reset to the starting point — animate back to Today AND to the top of
-  // the listing rows (like a refresh), after the toggle-driven re-render settles.
-  if (typeof scrollCalendarToToday === 'function') requestAnimationFrame(() => requestAnimationFrame(() => scrollCalendarToToday(true)));
+  // the listing rows (like a refresh), after the toggle-driven re-render settles. skipScroll: boot/reset
+  // already lands on Today instantly (see the boot block below) — animating it there too would just
+  // replay a visible past→today slide over the calendar that's already sitting there.
+  if (!skipScroll && typeof scrollCalendarToToday === 'function') requestAnimationFrame(() => requestAnimationFrame(() => scrollCalendarToToday(true)));
 }
 // Single icon toggle (replaces the old Current/New Host button pair): tap flips between the two modes.
 document.getElementById('devNewHostIcon').addEventListener('click', () => {
@@ -8616,9 +8677,9 @@ function animateGroupsByCity() {
   document.addEventListener('mousedown', e => { if (!e.target.closest('#monthMenu') && !e.target.closest('#monthTitle')) close(); });
 })();
 
-// Dev "Reset" → back to the STARTING POINT: a clean, fully-seeded Busy Host at 5 Listings, every
+// Dev "Reset" → back to the STARTING POINT: a clean, fully-seeded Busy Host at 3 Listings, every
 // overlay (custom prices, promos, min-overrides, rule sets, groups, applied opportunities) wiped.
-// Implemented as a reload into the load defaults (switchHost('small') + Busy Host) — the only way to
+// Implemented as a reload into the load defaults (switchHost('tiny') + Busy Host) — the only way to
 // guarantee a pristine seeded board without unwinding the MASTER/tier snapshot state by hand. First
 // clear the persisted flags so the fresh load starts ungrouped with the coach tip re-armed.
 document.getElementById('devReset').addEventListener('click', () => {
@@ -8853,9 +8914,8 @@ document.getElementById('devSuperCollapse2')?.addEventListener('change', e => se
     if (!raf) raf = requestAnimationFrame(draw);
   }, true);
 
-  // Redlines button removed from the dev bar (user killed it); keep the inspector reachable via TRIPLE-TAP.
-  const toggleRedlines = () => { const on = document.body.classList.toggle('redlines-mode'); if (!on) layer.innerHTML = ''; };
-  document.addEventListener('click', e => { if (e.detail === 3) toggleRedlines(); }); // triple-tap anywhere toggles it
+  // DISABLED — the Redlines button was already removed from the dev bar, and the triple-tap trigger
+  // that replaced it is gone too. Nothing can turn on .redlines-mode anymore.
 })();
 
 // Dev "Zero out" TOGGLE: ON snapshots the current settings then applies a zeroed baseline; OFF
@@ -9223,11 +9283,13 @@ document.getElementById('devVariance').addEventListener('change', e => {
     const card = e.target.closest('.price-card'); if (!card) return;
     const row = card.closest('.price-row'); if (!row) return;
     lastHover = { li: +row.dataset.li, di: +card.dataset.di };
+    if (shiftDown && !e.shiftKey) { shiftDown = false; } // self-heal a STUCK shift flag: keyup never fires if focus left the page while Shift was held (alt-tab, a modal stealing focus…), so re-check the live key state on every hover instead of trusting keydown/keyup alone
     if (shiftDown && selAnchor) paintPreview(); else clearPreview(); // ghost ONLY while Shift is held; plain hover otherwise
   });
   grid.addEventListener('mouseleave', () => { lastHover = null; clearPreview(); });
   document.addEventListener('keydown', e => { if (e.key === 'Shift' && !shiftDown) { shiftDown = true; if (selAnchor) paintPreview(); } }); // tip STAYS while shift is held
   document.addEventListener('keyup', e => { if (e.key === 'Shift') { shiftDown = false; clearPreview(); } });
+  window.addEventListener('blur', () => { shiftDown = false; clearPreview(); }); // losing window focus (alt-tab, DevTools, a native dialog) never fires keyup — drop the stuck flag + any ghost showing
   document.addEventListener('mousedown', clearPreview, true); // a real click commits → drop the ghost
   document.addEventListener('scroll', clearPreview, true);
 
@@ -9416,8 +9478,16 @@ function computeSuggestions() {
     const open = []; for (let di = 0; di < N; di++) open[di] = isOpenNight(li, di);
     const tunedAt = di => priceOverride[li][di] != null || promoVals[li][di] || minOverride[li][di] != null;
     const nearEnd = todayDi + NEAR_DAYS;
+    // Events/holidays SUPERSEDE the near-term discount tip: if one lands within the next NEAR_DAYS
+    // for this listing's city, skip the discount play here entirely — the event/holiday card (built
+    // in section 0 below, which already scans from today forward) carries the tip instead. Once
+    // there's a clean 7-day run with nothing on the calendar, the discount logic takes back over.
+    let nearHasEventOrHoliday = false;
+    for (let k = Math.max(0, todayDi); k <= Math.min(N - 1, nearEnd); k++) {
+      if (holidayFor(allDays[k]) || eventAt(city, allDays[k])) { nearHasEventOrHoliday = true; break; }
+    }
     // (A) the NEAR window: open nights within the next week -> last-minute play, never a raise
-    {
+    if (!nearHasEventOrHoliday) {
       let s0 = -1, e0 = -1, tuned = false;
       for (let k = Math.max(0, todayDi); k <= Math.min(N - 1, nearEnd); k++) {
         if (open[k]) { if (s0 < 0) s0 = k; e0 = k; if (tunedAt(k)) tuned = true; }
@@ -9597,6 +9667,11 @@ function computeSuggestions() {
     const fillItems = [];
     const _fillEnd = Math.min(N - 1, Math.max(0, todayDi) + NEAR_DAYS); // this week only (today + 7 days)
     for (let li = 0; li < LISTINGS.length; li++) {
+      // Same rule as the other near-window discount cards: an event/holiday within the fill window
+      // for this listing's city supersedes the "fill empty nights" discount entirely.
+      let _nearEH = false;
+      for (let k = Math.max(0, todayDi); k <= _fillEnd; k++) { if (holidayFor(allDays[k]) || eventAt(listingCity[li], allDays[k])) { _nearEH = true; break; } }
+      if (_nearEH) continue;
       let s0 = -1;
       const flush = e => { if (s0 < 0) return; const pc = getPrice(li, s0) || 200;
         fillItems.push({ li, a: s0, b: e, intent: 'fill', type: 'drop', pct: FILL_PCT, near: true,
@@ -9738,7 +9813,15 @@ function computeSuggestions() {
   // everyone (it fills a different, near-term window).
   const _dropLis = new Set(cards.filter(c => c.type === 'drop').flatMap(c => c.items.map(x => x.li)));
   LISTINGS.forEach((l, li) => {
-    if (earlyBirdVals[li] == null && !_dropLis.has(li)) setupItems.push({ li, a: Math.max(0, todayDi), b: Math.min(N - 1, todayDi + NEAR_DAYS), intent: 'fill', type: 'earlybird' });
+    if (earlyBirdVals[li] == null && !_dropLis.has(li)) {
+      // Same rule as the near-window last-minute play above: an event/holiday within the next
+      // NEAR_DAYS for this listing's city supersedes the discount setup card too.
+      let _nearEH = false;
+      for (let k = Math.max(0, todayDi); k <= Math.min(N - 1, todayDi + NEAR_DAYS); k++) {
+        if (holidayFor(allDays[k]) || eventAt(l.city, allDays[k])) { _nearEH = true; break; }
+      }
+      if (!_nearEH) setupItems.push({ li, a: Math.max(0, todayDi), b: Math.min(N - 1, todayDi + NEAR_DAYS), intent: 'fill', type: 'earlybird' });
+    }
   });
   if (SHOW_LEADTIME_OPPS && setupItems.length) {
     cards.push({ bucket: 'setup', type: 'discount', intent: 'fill', pct: 0.15,
@@ -9986,7 +10069,7 @@ function computeSuggestions() {
         c.magKind = 'flat';
       };
       if (c.bucket === 'grouping') { c.mag = 'Group alike listings automatically by location'; c.magKind = 'flat'; return; }
-      else if (c.bucket === 'stays') { const _sn = c.items.reduce((s, x) => s + (x.b - x.a + 1), 0); c.mag = _sn.toLocaleString('en-US') + ' night' + (_sn > 1 ? 's' : '') + ' blocked by your minimum'; c.magKind = 'flat'; }
+      else if (c.bucket === 'stays') { const _sn = c.items.reduce((s, x) => s + (x.b - x.a + 1), 0); c.mag = _sn.toLocaleString('en-US') + ' night' + (_sn > 1 ? 's' : '') + ' blocked by your minimum · <span class="hl">Open nights</span>'; c.magKind = 'flat'; }
       else if (c.bucket === 'setup') { c.mag = c.items.some(x => x.type === 'earlybird') ? 'Early-bird −12% · Last-minute −15%' : 'Last-minute −15%'; c.magKind = 'flat'; }
       else if (c.bucket === 'season-up' || c.bucket === 'season-down') {
         const _sc = [...new Set(c.items.map(x => listingCity[x.li]))];   // reason leads with the where
@@ -10020,17 +10103,13 @@ function computeSuggestions() {
     const NH_ALLOW = new Set(['season-up', 'season-down', 'event', 'holiday']);
     const kept = cards.filter(c => NH_ALLOW.has(c.bucket)); cards.length = 0; kept.forEach(c => cards.push(c));
   }
-  // CAP — near-term TOOLS (last-minute / weeknight / promo / stays / setup) stop at end-of-October, but
-  // EVENTS & HOLIDAYS "open up" the whole run through CHRISTMAS so Automate can sweep the year to Dec 25
-  // (Veterans Day · Thanksgiving · Christmas all surface; New Year's falls just past, so Christmas is the
-  // clean endpoint). NEW HOST is EXEMPT entirely — it already runs to the full 6-month horizon.
-  if (!onboarding) { const _cy = allDays[Math.max(0, todayDi)].getFullYear(); let _octEnd = -1, _xmasEnd = -1;
+  // CAP — a hard cutoff at end-of-August for EVERY bucket, events/holidays included (no more running
+  // the year out to Christmas — anything past August, like Thanksgiving or Christmas, never surfaces).
+  // NEW HOST is EXEMPT entirely — it already runs to the full 6-month horizon.
+  if (!onboarding) { const _cy = allDays[Math.max(0, todayDi)].getFullYear(); let _augEnd = -1;
     for (let k = 0; k < allDays.length; k++) { const d = allDays[k];
-      if (d.getFullYear() === _cy && d.getMonth() === 9) _octEnd = k;                                   // end of October
-      if (d.getFullYear() === _cy && d.getMonth() === 11 && d.getDate() === 25) _xmasEnd = k; }          // Christmas Day
-    const EH = c => c.bucket === 'event' || c.bucket === 'holiday';
-    const bound = c => (EH(c) && _xmasEnd >= 0) ? _xmasEnd : _octEnd;                                     // events/holidays run to Christmas; everything else to Oct
-    if (_octEnd >= 0) { const kept = cards.filter(c => c.a == null || c.a <= bound(c)); cards.length = 0; kept.forEach(c => cards.push(c)); } }
+      if (d.getFullYear() === _cy && d.getMonth() === 7) _augEnd = k; }                                   // end of August
+    if (_augEnd >= 0) { const kept = cards.filter(c => c.a == null || c.a <= _augEnd); cards.length = 0; kept.forEach(c => cards.push(c)); } }
   // digestible set of 8 — but bucket-DIVERSE: the best card of every bucket makes the cut before
   // any bucket doubles up, so Unlock stays / Smart discounts never get crowded out by big price plays
   {
@@ -10079,10 +10158,10 @@ function computeSuggestions() {
 // Wave count N is fixed per ring (resize-safe: ripples stretch, never a count-jump). One rAF loop
 // paints every mounted `.wring`; a ResizeObserver keeps each ring's px size + viewBox current.
 const _WNS = 'http://www.w3.org/2000/svg';
-function _ringPerim(w, h) { const i = 2, rc = 11; const sh = (w - 2 * i) - 2 * rc, sv = (h - 2 * i) - 2 * rc, qa = Math.PI * rc / 2; return 2 * sh + 2 * sv + 4 * qa; }
+function _ringPerim(w, h) { const i = 0, rc = 11; const sh = (w - 2 * i) - 2 * rc, sv = (h - 2 * i) - 2 * rc, qa = Math.PI * rc / 2; return 2 * sh + 2 * sv + 4 * qa; } /* i must match sineRingPath's inset below — they drive the same path */
 function _waveCount(w, h, wl) { return Math.max(6, Math.round(_ringPerim(w, h) / wl)); }
 function sineRingPath(w, h, amp, phase, N) {
-  const inset = 2, rc = 11, W = w - 2 * inset, H = h - 2 * inset;
+  const inset = 0, rc = 11, W = w - 2 * inset, H = h - 2 * inset; // was 2, then 1 — still too much: the wring SVG itself sits inset:0 inside .price-card's PADDING edge, i.e. already 1px inside the card's true outer border (the card has a 1px border even on opt-flag cells, just transparent), so any extra inset here double-counts. 0 lets the stroke's own half-width sit right where a normal 1px CSS border would draw, instead of visibly further in
   const sh = W - 2 * rc, sv = H - 2 * rc, qa = Math.PI * rc / 2, P = 2 * sh + 2 * sv + 4 * qa;
   const k = N * 2 * Math.PI / P;
   const pt = s => {
@@ -10106,6 +10185,11 @@ function measureWring(sv) {
   const w = Math.round(r.width), h = Math.round(r.height);
   if (w === sv._w && h === sv._h) return;
   sv._w = w; sv._h = h; if (sv._N == null) sv._N = _waveCount(w, h, 12); sv.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  // size genuinely changed (e.g. the cell settled AFTER the first draw) → force a redraw at the new
+  // size. _drawn must reset too, not just _flatDrawn: wLoop's PARKED-ring shortcut (`!focused &&
+  // sv._drawn && ...`) skips the whole per-frame body — including the _flatDrawn check — for any
+  // ring outside the focused group, so without this a parked ring's stale size would never get fixed.
+  sv._flatDrawn = false; sv._drawn = false;
 }
 function makeWring(card) {
   if (!card || card.querySelector(':scope > .wring')) return;
@@ -10166,15 +10250,15 @@ function _odoStaticHtml(s) { // frozen digits — NO roll animation (applied cel
   for (const c of s) { const ch = c === ' ' ? '&nbsp;' : c; out += '<span class="dg"><span class="dgreel"><i>' + ch + '</i></span></span>'; }
   return out;
 }
-function _odoRollHtml(oldS, newS, dir) {
+function _odoRollHtml(oldS, newS, dir, prefix) {
   // PRECISE odometer: RIGHT-align the new price under the old (ones under ones) so ONLY the digit PLACES
-  // that change roll — 276→262 holds the "$2" still and turns just the 7 and 6. The "$" is GLUED to the
-  // first digit of the NEW number (no fixed-position padding) so there's NEVER a gap between $ and the
-  // price: when the number shrinks (200→48) the vanished leading place simply isn't drawn — the struck
-  // old price below still shows the full $200. A gentle per-place stagger settles it place-by-place.
+  // that change roll — 276→262 holds the "$2" still and turns just the 7 and 6. The prefix ("$", or "Min "
+  // for the min-nights reveal) is GLUED to the first digit of the NEW number (no fixed-position padding)
+  // so there's NEVER a gap: when the number shrinks (200→48) the vanished leading place simply isn't
+  // drawn — the struck old price below still shows the full $200. A gentle per-place stagger settles it place-by-place.
   const ch = c => c === ' ' ? '&nbsp;' : c;
   const oD = oldS.replace(/[^\d]/g, ''), nD = newS.replace(/[^\d]/g, '');
-  let out = '<span class="dg"><span class="dgreel"><i>$</i></span></span>'; // the $ never rolls — and sits flush against the number
+  let out = '<span class="dg"><span class="dgreel"><i>' + (prefix || '$').replace(/ /g, '&nbsp;') + '</i></span></span>'; // the prefix never rolls — and sits flush against the number
   let changed = 0;
   for (let i = 0; i < nD.length; i++) {
     const nc = nD[i];
@@ -10196,6 +10280,7 @@ function makeOdometer(card, li, di) {
   const f = optFlagFor(li, di);
   if (f) makeApCheck(card); // applied-confirmation check on EVERY active opp cell (raise / lm / min all route through here)
   if (f && f.lm) { makeLastMinStack(card, li, di); return; } // last-minute discount → its own two-reel stack (every makeOdometer caller routes here)
+  if (f && f.min && !f.roll) { makeMinStack(card, f); return; } // pure min-night play (no price change) → SAME pstack system as price: "Min N" rolls in the top slot, the old minimum struck below
   if (!f || !f.roll) { removeOdometer(card); return; }
   // "old" price = what the guest saw BEFORE this card: during a piano sweep the live price has
   // already changed, so cells ahead of the wavefront read the pre-apply snapshot instead.
@@ -10240,6 +10325,28 @@ function makeOdometer(card, li, di) {
   card.appendChild(ps); card.classList.add('has-odo');
 }
 function removeOdometer(card) { if (!card) return; const ps = card.querySelector(':scope > .pstack'); if (ps) ps.remove(); card.classList.remove('has-odo'); }
+// Pure min-night play (free up stranded nights, no price change): SAME pstack system as a price
+// odometer — "Min N" rolls in the top (green) slot, the old minimum sits struck below — instead of
+// the old single-line "min 5̶ 3" reveal. Reuses .pstack/.prec/.pold wholesale so every existing
+// positioning/gating/apply-blink/frozen rule (all written generically, none excluding .opt-min)
+// just works — the only thing that had to change was retiring the CSS that hid .opt-min's pstack.
+function makeMinStack(card, f) {
+  const cur = f.min.cur, neu = f.min.to;
+  const old = card.querySelector(':scope > .pstack');
+  if (old && +old.dataset.cur === cur && +old.dataset.neu === neu) return; // fresh — keep (idempotent)
+  if (old) old.remove();
+  const frozen = card.classList.contains('opt-applied'); // committed re-mount → snap to the end-state, never replay
+  const animate = card.classList.contains('opt-focus') && !card.classList.contains('is-settled');
+  const staticNow = frozen || !animate;
+  const oldS = 'Min ' + cur, newS = 'Min ' + neu;
+  const dir = neu > cur ? 'up' : 'dn';
+  const ps = document.createElement('div');
+  ps.className = 'pstack' + (frozen ? ' is-frozen' : (staticNow ? ' odo-static' : '')); ps.dataset.cur = cur; ps.dataset.neu = neu;
+  ps.style.setProperty('--odoc', '#038026'); // min-night changes are always the green "positive outlier" — never orange/red
+  const rowHtml = staticNow ? _odoStaticHtml(newS) : _odoRollHtml(oldS, newS, dir, 'Min ');
+  ps.innerHTML = '<div class="prec"><span class="prow">' + rowHtml + '</span></div><div class="pold">' + oldS + '</div>';
+  card.appendChild(ps); card.classList.add('has-odo');
+}
 // Safety net: any cell that is NOT a live opportunity cell must show its plain, CENTERED price — no
 // leftover split stuck at the top slot. Kills stray pstacks/rings when a card switches, applies, or exits.
 function sweepStrayOdometers() {
@@ -10251,16 +10358,17 @@ function sweepStrayOdometers() {
     if (c.classList.contains('has-odo')) c.classList.remove('has-odo');
   });
 }
-// Promo / last-min / early-bird / min cells: the price stays put; the recommendation (discount % or
-// the new minimum) slides in beneath it — same reveal timing as the odometer, so every type is one system.
+// Promo / last-min / early-bird cells: the price stays put; the discount % slides in beneath it —
+// same reveal timing as the odometer, so every type is one system. (Min-night cells now route through
+// makeMinStack/the pstack system instead — see makeOdometer.)
 function makeSub(card, li, di) {
-  const f = optFlagFor(li, di); if (!f || (!f.disc && !f.min)) { removeSub(card); return; }
+  const f = optFlagFor(li, di); if (!f || !f.disc) { removeSub(card); return; }
   if (card.querySelector(':scope > .subreveal')) return;
   const frozen = card.classList.contains('opt-applied'); // committed re-mount → snap to the end-state, never replay the apply blink (parity w/ makeOdometer / makeSubLm)
   const animate = card.classList.contains('opt-focus') && !card.classList.contains('is-settled'); // subIn plays only during the live reveal
   const staticNow = frozen || !animate;
-  const sub = document.createElement('div'); sub.className = 'subreveal' + (f.min ? ' is-min' : ' is-disc') + (frozen ? ' is-frozen' : (staticNow ? ' is-static' : ''));
-  sub.innerHTML = f.min ? ('min <s>' + f.min.cur + '</s><span class="mn">' + f.min.to + '</span>') : f.disc; // old min struck (grey) → new gap min (green)
+  const sub = document.createElement('div'); sub.className = 'subreveal is-disc' + (frozen ? ' is-frozen' : (staticNow ? ' is-static' : ''));
+  sub.innerHTML = f.disc;
   card.appendChild(sub); card.classList.add('has-sub');
 }
 function removeSub(card) { if (!card) return; const s = card.querySelector(':scope > .subreveal'); if (s) s.remove(); card.classList.remove('has-sub'); }
@@ -10308,20 +10416,28 @@ let _wPhase = 0, _wLast = 0; const _wSpeed = 3.2; // a hair faster than 2.6, sti
   const dt = _wLast ? Math.min(0.05, (now - _wLast) / 1000) : 0; _wLast = now; _wPhase += _wSpeed * dt;
   const cache = {};
   document.querySelectorAll('.price-card.opt-flag > .wring').forEach(sv => {
+    // ALWAYS re-measure first, for EVERY ring, focused or parked — cheap (a read-only rect check),
+    // and it's the ONLY thing that can catch a parked ring's cell resizing for a reason that has
+    // nothing to do with focus (a host-tier density change, another section's layout shifting the
+    // row, etc). measureWring resets _flatDrawn/_drawn itself when the real size actually changed,
+    // so a stale ring self-heals the very next frame no matter what caused the resize. Skipping this
+    // call for parked rings (the old shortcut) was the bug: once parked+drawn, a ring's size was
+    // NEVER checked again until it became focused, so it could stay stuck at a stale/smaller size
+    // indefinitely.
+    measureWring(sv); if (!sv._w) return;
     // PARKED rings (any section that isn't focused) freeze at a full wave after their first draw —
-    // only the focused section's rings pay the per-frame cost. Rings mid-ripple keep animating
-    // until their amplitude lands, then park.
+    // only the focused section's rings pay the per-frame REDRAW cost. Rings mid-ripple keep animating
+    // until their amplitude lands, then park. (measureWring above already ran, so this only skips
+    // the path-string work, never the staleness check.)
     const focused = sv.parentElement.classList.contains('opt-focus');
     if (!focused && sv._drawn && !(sv._ampGo && sv._amp < 2)) return;
-    if (!document.body.classList.contains('ind-wavy')) {           // Default/Animated: flat rect, drawn once
+    if (!document.body.classList.contains('ind-wavy')) {           // Default/Animated: flat rect, drawn once per size
       if (sv._flatDrawn) return;
-      if (!sv._w) { measureWring(sv); if (!sv._w) return; }
       const flatD = sineRingPath(sv._w, sv._h, 0, 0, sv._N);
       sv.querySelectorAll('path').forEach(p => p.setAttribute('d', flatD));
       sv._flatDrawn = true; sv._drawn = true; return;
     }
     sv._flatDrawn = false;
-    if (!sv._w) { measureWring(sv); if (!sv._w) return; }
     sv._drawn = true;
     if (sv._amp == null) sv._amp = 2;
     if (sv._ampGo && sv._amp < 2) sv._amp = Math.min(2, sv._amp + dt * 4); // straight → full wave in ~0.5s (a visible morph, not a pop)
@@ -10548,15 +10664,15 @@ function updateSeasonRibbon() {
     return Math.max(0, p); };
   let pan = _fitPan(null);  // the value at the NEAR edge of the window; framed so the whole curve shows
   const icB = y => ICBASE + Math.max(0, H - y); // riding-icon bottom: rides UP with the curve, FLOORED at the baseline so it never sinks below the cells (only up, never down)
-  // curve line colour: GREEN (high) / ORANGE (low) at/near market, LERPING to a deep warning RED as the
-  // curve pushes past what the market supports — same thresholds as the warning pill (.20 above/below
-  // market → .45 deep red), keyed off the MAX over-market night across the curve.
+  // curve line colour: GREEN throughout (high AND low — no more orange) at/near market, LERPING to a
+  // deep warning RED as the curve pushes past what the market supports — same thresholds as the
+  // warning pill (.20 above/below market → .45 deep red), keyed off the MAX over-market night across the curve.
   const _h2r = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const _mixHex = (a, b, t) => { const A = _h2r(a), B = _h2r(b); return 'rgb(' + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',') + ')'; };
   const _RIBBON_RED = '#BD0F0F'; // deep warning red (--red-700)
   const strokeFor = () => {
-    const base = up ? '#038026' : '#BE4900';
-    if (!up) return base;                                 // LOW season stays orange — no red "too far" warning (only the UP bar reddens)
+    const base = '#038026';
+    if (!up) return base;                                 // LOW season stays green — no red "too far" warning (only the UP bar reddens)
     if (g.applied || g.thinking) return base;             // APPLIED (or MID-APPLY): committed recommendation, never "above market". `g.thinking` gates the 850ms piano sweep — prices commit before g.applied flips, so _livePct would briefly read over-market and FLASH red without this.
     let over = 0;
     vals.forEach((v, i) => { const di = g.a + i; if (g._dates && !g._dates.has(di)) return; const o = v - _livePct(g, di); if (o > over) over = o; });
@@ -11418,6 +11534,11 @@ function setGroupsMode(on) {
   else if (_gmPrevExpanded != null) { setListingsExpanded(_gmPrevExpanded); _gmPrevExpanded = null; }
 }
 function renderMagicPill() {
+  // Events/holidays "Turn on" sweep: scripted behind the upsell modal's scrim, which is translucent —
+  // a repaint here would still read through it as the bottom pill flashing Comic-Con/next event. Freeze
+  // the pill exactly as it was on the trigger card; autopilotEH flips _autopilot off before its own
+  // final render, so that one still lands normally.
+  if (window.__opt && window.__opt._autopilot) return;
   requestAnimationFrame(() => { if (typeof updateSeasonRibbon === 'function') { try { updateSeasonRibbon(); } catch (err) {} } }); // the season ribbon tracks whatever card is focused
   if (window._oppMoreSync) window._oppMoreSync();
   { const og = window.__opt, gg = og && og.suggs && og.suggs[og.cur || 0];
@@ -11475,7 +11596,11 @@ function renderMagicPill() {
     pill.innerHTML = '<button class="magic-cta ag-cta" data-magic="autogroup">' + wandHTML() + '<span class="magic-label">Automate groups</span></button>';
     return;
   }
-  const _oppN = (function(){ try { return computeSuggestions().length; } catch (e) { return 0; } })(); // remaining opps → shown as a count in front of the label
+  const _oppN = (function(){ try {
+    const s = computeSuggestions();
+    const ehN = s.filter(c => c.bucket === 'event' || c.bucket === 'holiday').length; // every individual holiday/event card (Fourth of July, Labor Day, a concert weekend…) reads as ONE combined tip in the count — the cards themselves stay separate, this only affects the number shown here
+    return s.length - ehN + (ehN > 0 ? 1 : 0);
+  } catch (e) { return 0; } })(); // remaining opps → shown as a count in front of the label
   // New Host (onboarding) frames this as guided setup, not a stream of opps → keeps the ORIGINAL
   // wand treatment. Everyone else gets the rausch count-circle + "Tip(s)" label (no wand).
   if (typeof isOnboarding === 'function' && isOnboarding()) {
@@ -11581,7 +11706,7 @@ function startOptimize() {
   document.body.classList.add('opt-sizing');   // arm the cell grow/shrink for Medium & Pro
   if (typeof clearSelection === 'function') clearSelection(); // drop any selection; optimize owns the grid
   document.body.classList.add('optimize-mode');
-  if (typeof setIndicatorStyle === 'function') { setIndicatorStyle('default'); setIndicatorFilled(false); } // every session starts on Default, unfilled
+  if (typeof setIndicatorStyle === 'function') { setIndicatorStyle('default'); setIndicatorFilled(true); } // every session starts on Default, FILLED (the wash shows behind the tips cells by default)
   updateBookingDim(); // guest pills step back to the grey edit-mode look for the whole session
   // stagger each cell's stroke pulse by its on-screen x → the wave sweeps left → right (800px/s)
   const swBase = gridWrap.scrollLeft;
@@ -11816,40 +11941,50 @@ function applyCurrent() {
     if (!window.__opt._autopilot && (g.head === 'Last-minute discount' || g.bucket === 'event' || g.bucket === 'holiday') && typeof openLastMinuteUpsell === 'function') setTimeout(() => openLastMinuteUpsell(g), 500);
   });
 }
-// EVENTS & HOLIDAYS AUTOPILOT — "Turn on" in the upsell → sweep the calendar forward through every
-// remaining event/holiday opportunity (Del Mar → Comic-Con → Labor Day → … toward year-end), panning
-// the camera to each and applying it (piano sweep) one after another, then flying back to the card the
-// user originally applied. Reuses focusOpportunity (camera) + applyCurrent (piano) — this just paces them.
-function autopilotEH(startIdx) {
-  const o = window.__opt; if (!o || !o.suggs) return;
+// EVENTS & HOLIDAYS AUTOPILOT — "Turn on" in the upsell → sweep every remaining event/holiday
+// opportunity (Del Mar → Comic-Con → Labor Day → … toward year-end) and apply each in place, one
+// after another — NO camera pan between them. Each card still plays its full reveal (price rolls
+// in) then the check-sweep lands, exactly like a manual focus/apply; it just never scrolls the view
+// to get there. A card whose cells happen to be outside the current scroll window simply updates its
+// data with no visible animation (nothing there to watch) — that's expected, not a bug. Stays on
+// whichever card is focused when the sweep finishes; no flying back to the trigger card either.
+function autopilotEH(startIdx, onDone) {
+  const o = window.__opt; if (!o || !o.suggs) { if (onDone) onDone(); return; }
   o._autopilot = true;                          // gate the per-apply upsell so it doesn't re-pop each step
   const order = _oppOrder();                    // calendar order (earliest date first)
   const eh = order.filter(i => { const g = o.suggs[i]; return g && (g.bucket === 'event' || g.bucket === 'holiday'); });
   const startPos = eh.indexOf(startIdx);
   const queue = (startPos < 0 ? eh : eh.slice(startPos + 1)).filter(i => !o.suggs[i].applied); // everything LATER on the calendar, not yet applied
-  // NO NUMBER ROLL in autopilot — the user wants it to go STRAIGHT to the applied checkmark (the odometer
-  // roll is what hitched cell-to-cell). Per card: pan the camera with the cells left SETTLED/static (no
-  // glow-hold/opt-beat gates → dressOptState keeps them is-settled → makeOdometer renders static, no roll),
-  // then applyCurrent lands the check-sweep. No roll = no hitch.
+  // BOTH animations play per card, same as a normal manual focus: the price rolls in (glow-hold →
+  // opt-beat gates lifting), THEN applyCurrent lands the check-sweep. HOLD_MS paces the gap before
+  // the next card. No scrollToOpportunity — the reveal starts immediately, wherever the cells are.
   const HOLD_MS = 1050; // let the applied check-sweep (~850ms) land + a small beat before the next card
   let k = 0;
   const step = () => {
-    if (k >= queue.length) {                    // reached the last one → fly home to the trigger card
-      setTimeout(() => { o.cur = startIdx; renderMagicPill();
-        repaintOptGlows();                                  // move the focus glow + pill to the trigger card
-        // pan back WITHOUT the glow-hold/opt-beat gates — the trigger is already applied, so leaving it
-        // SETTLED keeps its odometer frozen/static (re-revealing it was the "crunched number" flash).
-        if (typeof scrollToOpportunity === 'function') scrollToOpportunity(o.suggs[startIdx], () => {});
-        setTimeout(() => { o._autopilot = false; o._ehAutomated = true; }, 600); }, 300); // events/holidays are all handled now → ‹ › skips past them (see optNav)
+    if (k >= queue.length) {                    // reached the last one → don't stay on it or fly back to the trigger card
+      setTimeout(() => {
+        o._autopilot = false; o._ehAutomated = true;
+        // Stay right where the modal was triggered from (the FIRST event/holiday) — don't fly to
+        // stranded nights or any other tip on its own. optNav's _ehAutomated skip (above) is what
+        // carries the host past every now-applied event/holiday the next time they tap ›.
+        o.cur = startIdx; repaintOptGlows();
+        renderMagicPill();
+        if (onDone) onDone(); // the upsell modal was waiting behind its scrim for exactly this — now show its checkmark + close
+      }, 600); // events/holidays are all handled now → ‹ › skips past them too (see optNav)
       return;
     }
     const idx = queue[k++]; const g = o.suggs[idx];
     o.cur = idx; renderMagicPill();
-    repaintOptGlows();                                    // move the focus glow; NO gates → cells stay static (no roll)
-    scrollToOpportunity(g, () => {                        // pan; when the camera has LANDED…
-      applyCurrent();                                     // …go STRAIGHT to the applied checkmark — no odometer roll, no hitch
-      setTimeout(step, HOLD_MS);
-    });
+    document.body.classList.add('glow-hold', 'opt-beat'); // same gates as a normal focus — holds the roll back for the same beat a camera-pan would have taken
+    repaintOptGlows();                                    // move the focus glow (visible on-screen; a no-op for off-screen cells)
+    setTimeout(() => {
+      document.body.classList.remove('glow-hold');        // the odometer/number roll starts revealing…
+      setTimeout(() => {
+        document.body.classList.remove('opt-beat');        // …finishes revealing…
+        applyCurrent();                                     // …THEN the check-sweep lands
+        setTimeout(step, HOLD_MS);
+      }, 750);
+    }, 180);
   };
   step();
 }
@@ -11871,12 +12006,12 @@ const EH_ICONS = ['event_icons/sec-football.png', 'event_icons/sec-grapes.png', 
 // Copy per opp type — the modal is shared, so title/sub swap with the opportunity.
 const UPSELL_CONTENT = {
   lastmin: {
-    title: 'Automate last-minute<br>Discounts',
+    title: 'Automate last-minute<br>discounts',
     sub: 'Give a 10% off discount to guests booking<br>7 days before arrival. <a href="#" class="lm-upsell-edit" id="lmUpsellEdit">Edit</a>'
   },
   eventholiday: {
     title: 'Automate events<br>and holidays',
-    sub: 'Automatically add a 15–65% premium<br>on high-demand dates. <a href="#" class="lm-upsell-edit">Learn more</a>'
+    sub: 'Add a 15–65% premium on<br>high-demand dates. <a href="#" class="lm-upsell-edit">Learn more</a>'
   }
 };
 function openLastMinuteUpsell(g) {
@@ -11884,12 +12019,16 @@ function openLastMinuteUpsell(g) {
   overlay._lis = [...new Set((g.items || []).map(x => x.li))];
   overlay.classList.remove('closing'); // clear any lingering fade-out
   const modal = overlay.querySelector('.lm-upsell-modal'); if (modal) modal.classList.remove('is-done'); // reset from any prior confirm
+  const onBtn = document.getElementById('lmUpsellOn'); if (onBtn) { onBtn.disabled = false; onBtn.classList.remove('is-thinking'); onBtn.textContent = 'Turn on'; } // reset from any prior EH sweep
   const isEH = (g.bucket === 'event' || g.bucket === 'holiday');
   overlay._eh = isEH;
-  // ONCE-PER-SESSION: after the host answers this upsell (Skip / X / Esc OR Turn on), never show that
-  // type again — set in closeLastMinuteUpsell, checked here. (Reset reloads the page → clears it.)
-  if (!window._upsellDone) window._upsellDone = { lastmin: false, eventholiday: false };
-  if (window._upsellDone[isEH ? 'eventholiday' : 'lastmin']) return;
+  // ONCE-PER-TIER, PER SESSION: after the host answers this upsell (Skip / X / Esc OR Turn on), never
+  // show that type again for the CURRENT listing-count tier — set in closeLastMinuteUpsell, checked
+  // here. Switching tiers (3/5/12/32 listings) is a fresh board, so it gets its own dismissal state —
+  // dismissing in one tier doesn't silence it in the others. (Reset reloads the page → clears it all.)
+  if (!window._upsellDone) window._upsellDone = {};
+  if (!window._upsellDone[activeHost]) window._upsellDone[activeHost] = { lastmin: false, eventholiday: false };
+  if (window._upsellDone[activeHost][isEH ? 'eventholiday' : 'lastmin']) return;
   overlay._triggerIdx = (window.__opt && window.__opt.suggs) ? window.__opt.suggs.indexOf(g) : -1; // the card the sweep flies home to
   const c = isEH ? UPSELL_CONTENT.eventholiday : UPSELL_CONTENT.lastmin;
   const titleEl = document.getElementById('lmUpsellTitle'); if (titleEl) titleEl.innerHTML = c.title;
@@ -11906,8 +12045,9 @@ function openLastMinuteUpsell(g) {
 }
 function closeLastMinuteUpsell() {
   const o = document.getElementById('lmUpsellOverlay'); if (!o || !o.classList.contains('visible') || o.classList.contains('closing')) return;
-  if (!window._upsellDone) window._upsellDone = { lastmin: false, eventholiday: false };
-  window._upsellDone[o._eh ? 'eventholiday' : 'lastmin'] = true; // answered (dismissed OR turned on) → don't show this type again
+  if (!window._upsellDone) window._upsellDone = {};
+  if (!window._upsellDone[activeHost]) window._upsellDone[activeHost] = { lastmin: false, eventholiday: false };
+  window._upsellDone[activeHost][o._eh ? 'eventholiday' : 'lastmin'] = true; // answered (dismissed OR turned on) → don't show this type again FOR THIS TIER
   o.classList.add('closing'); // fade the scrim + modal out, THEN hide (see the ~.35s keyframes)
   setTimeout(() => { o.classList.remove('visible', 'closing'); const m = o.querySelector('.lm-upsell-modal'); if (m) m.classList.remove('is-done'); }, 150);
 }
@@ -11918,14 +12058,22 @@ function closeLastMinuteUpsell() {
   // No scrim to click away from — X, Skip, or Escape are the only ways to dismiss.
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.classList.contains('visible')) closeLastMinuteUpsell(); });
   overlay.addEventListener('click', e => { if (e.target.closest('.lm-upsell-edit')) e.preventDefault(); }); // delegated — catches both "Edit" (last-min) and "view all" (event/holiday); no destination wired yet
-  document.getElementById('lmUpsellOn').addEventListener('click', () => {
+  document.getElementById('lmUpsellOn').addEventListener('click', (e) => {
     const modal = overlay.querySelector('.lm-upsell-modal');
     if (overlay._eh) {
-      // EVENTS & HOLIDAYS → confirm ✓, drop the modal quickly, then autopilot the calendar through the rest.
+      // EVENTS & HOLIDAYS → keep the modal + its dark scrim up over the WHOLE sweep, so every cell
+      // change and bottom-pill update happens hidden behind it (no comic-con/next-event flash). The
+      // button itself goes into a three-dot loading state for the duration, THEN the modal shows its
+      // own checkmark once every remaining event/holiday is applied.
       const startIdx = overlay._triggerIdx;
-      if (modal) modal.classList.add('is-done');
-      setTimeout(() => { closeLastMinuteUpsell();
-        setTimeout(() => { if (typeof autopilotEH === 'function') autopilotEH(startIdx); }, 240); }, 780);
+      const onBtn = e.currentTarget;
+      onBtn.disabled = true; onBtn.classList.add('is-thinking'); onBtn.innerHTML = '<span class="thinkdots"><i></i><i></i><i></i></span>';
+      if (typeof autopilotEH === 'function') {
+        autopilotEH(startIdx, () => {
+          if (modal) modal.classList.add('is-done');
+          setTimeout(closeLastMinuteUpsell, 780);
+        });
+      }
       return;
     }
     // Turn ON the last-minute discount across the WHOLE portfolio at −10% (not just the touched cells) →
@@ -12472,7 +12620,9 @@ function _searchDayRanges(expr, lis) {
         rs.push({ a: Math.max(0, k + Math.min(0, ...offs)), b: Math.min(allDays.length - 1, k + Math.max(0, ...offs)) });
       });
     });
-    return rs.length ? rs : null;
+    // SORT by date — built by iterating years×HOLIDAYS (declaration order), not calendar order, so
+    // cycling (Enter again finds the next r.a >= minDi) must not rely on array order matching time order.
+    return rs.length ? rs.sort((x, y) => x.a - y.a) : null;
   }
   // "events" → every event instance's travel window, each on ITS city's rows
   if (/^events?$/.test(e)) {
@@ -12488,7 +12638,9 @@ function _searchDayRanges(expr, lis) {
       allDays.forEach((d, k) => { if (d >= w0 && d <= w1) { if (a < 0) a = k; b = k; } });
       if (a >= 0) rs.push({ a, b, city });
     });
-    return rs.length ? rs : null;
+    // SORT by date — DEMAND_EVENTS is declared grouped by city/theme, not chronologically, so cycling
+    // must not rely on array order matching time order (same fix as "holidays" above).
+    return rs.length ? rs.sort((x, y) => x.a - y.a) : null;
   }
   // a holiday → its banded window(s) (the same offsets the calendar marks). EXACT name wins first, so
   // "christmas" resolves to Christmas (Dec 25 + its Dec 22–27 band), not "Christmas Eve" (Dec 24, no band).
@@ -13286,7 +13438,15 @@ function searchCalendar(raw, after) {
       // never cell-by-cell within the current window. First search lands on the current/next one.
       const run = (after != null ? rg.find(r => r.a >= minDi) : rg.find(r => r.b >= minDi)) || rg[0];
       _searchCanSelect = true; _searchPendingRanges = rg;
-      return searchGoto(after != null ? run.a : Math.max(run.a, Math.max(0, todayDi)), null, true);
+      // "events" ranges carry their own city (each instance lives on that city's rows) — scroll the
+      // Y axis to it, not just the X axis. "holidays" ranges have no city (they touch every listing
+      // equally), so rotate through the board's distinct cities by occurrence index instead — cycling
+      // with Enter still visibly moves both axes rather than just sliding sideways on one row.
+      let li = null;
+      if (run.city) li = LISTINGS.findIndex(l => l.city === run.city);
+      else { const cities = [...new Set(LISTINGS.map(l => l.city))];
+        if (cities.length) li = LISTINGS.findIndex(l => l.city === cities[rg.indexOf(run) % cities.length]); }
+      return searchGoto(after != null ? run.a : Math.max(run.a, Math.max(0, todayDi)), li, true);
     }
     if (rg && rg.perLi) {
       let best = null;
@@ -13317,6 +13477,14 @@ function searchCalendar(raw, after) {
 (function setupSearchPill() {
   const pill = document.getElementById('searchPill'), input = document.getElementById('searchPillInput');
   if (!pill || !input) return;
+  // ←Today→ fades to 0 opacity (no shift — the search-pill-slot keeps its own layout fixed) while
+  // search is open, and fades back in when it closes. A MutationObserver (not each call site) so
+  // every place that toggles .open — click, X, blur, Escape, dev Reset — stays in sync automatically.
+  const navGroup = document.getElementById('calNavGroup');
+  if (navGroup) {
+    const syncNavDim = () => navGroup.classList.toggle('nav-dimmed', pill.classList.contains('open'));
+    new MutationObserver(syncNavDim).observe(pill, { attributes: true, attributeFilter: ['class'] });
+  }
   // Click-only: a top-nav icon shouldn't unfurl on hover. Leaving without engaging (no click, no
   // text) folds it back to the circle on blur.
   const xBtn = document.getElementById('searchPillClose');
@@ -13443,7 +13611,7 @@ function buildSmallHost() {
 // inputs, same edits: the tools and the jobs don't change with more listings, the calendar just gets
 // denser. Switching size tweens the density, swaps how much inventory is on screen, and syncs edits
 // back into the master prefix so they persist at every size.
-const HOST_N = { small: 5, big: 12, pro: 32 };
+const HOST_N = { tiny: 3, small: 5, big: 12, pro: 32 };
 let MASTER = null;
 function buildUnifiedHost() {
   const C = captureHostState();  // the boot 12-listing arrays: their rows 0–6 become master listings 5–11
@@ -13580,7 +13748,7 @@ function syncTierBack(n) {
   _HOST_SET.forEach((a, i) => { for (let j = 0; j < n; j++) M.set[i][j] = [...a[j]]; });
   M.customMin = [...customMinListings].concat(M.customMin.filter(x => x >= n));
 }
-let activeHost = 'big'; // ≠ the boot target below (5 Listings), so switchHost('small') doesn't early-return on load
+let activeHost = 'big'; // ≠ the boot target below (3 Listings), so switchHost('tiny') doesn't early-return on load
 function updateHostToggleUI() { document.querySelectorAll('.host-opt').forEach(o => o.classList.toggle('active', o.dataset.host === activeHost)); } // footer + welcome-modal toggles both sync
 // Default (ungrouped) row order: cities INTERLEAVED round-robin, so the fresh portfolio reads mixed —
 // grouping is then a visible act of tidying. Deterministic (no shuffle jitter between renders).
@@ -13622,7 +13790,7 @@ function switchHost(key, instant) {
   activeHost = key;
   updateHostToggleUI();
   if (instant) { // boot: no morph, just land on the tier
-    document.body.classList.toggle('host-small', key === 'small');
+    document.body.classList.toggle('host-small', key === 'small' || key === 'tiny'); // 3 Listings reuses the 5-listing tier's density/styling — same San Diego rows, just fewer of them
     document.body.classList.toggle('host-pro', key === 'pro');
     finishHostSwitch();
     return;
@@ -13635,7 +13803,7 @@ function switchHost(key, instant) {
   if (newN < prevN) document.querySelectorAll('#gridRows > .price-row, #listingThumbsInner .thumb-row')
     .forEach(r => { if (+r.dataset.li >= newN) r.classList.add('row-exit'); });
   document.body.classList.add('hosts-morph');
-  document.body.classList.toggle('host-small', key === 'small');
+  document.body.classList.toggle('host-small', key === 'small' || key === 'tiny'); // 3 Listings reuses the 5-listing tier's density/styling — same San Diego rows, just fewer of them
   document.body.classList.toggle('host-pro', key === 'pro');
   clearTimeout(switchHost._t); // (--vmax tracks the tweening rows via the permanent group-label sync loop)
   switchHost._t = setTimeout(() => {
@@ -13690,18 +13858,17 @@ window.addEventListener('load', () => loadPlacesPhotos());
   let _revealed = false;
   function revealPills() {
     if (_revealed) return; _revealed = true;
-    const sp = document.getElementById('searchPill'), mp = document.getElementById('magicPill');
-    if (!sp || !mp) return;
+    const mp = document.getElementById('magicPill');
+    if (!mp) return;
     if (typeof renderMagicPill === 'function') renderMagicPill();     // opps content ready (full "N Opportunities")
-    const pills = [sp, mp];
-    // ONE smooth motion: both pills fade + gently rise into place together — single synchronized
-    // transition, no stagger, no width/scale morph.
-    pills.forEach(el => { el.style.transition = 'none'; el.style.opacity = '0'; el.style.transform = 'translateY(12px)'; });
+    // Search lives in the topbar now — permanent, no entrance animation. Only the Tips pill plays
+    // the fade + gentle rise on welcome dismiss.
+    mp.style.transition = 'none'; mp.style.opacity = '0'; mp.style.transform = 'translateY(12px)';
     document.body.classList.remove('pills-cloaked');                  // hand off from the CSS cloak to JS
     mp.getBoundingClientRect();                                       // commit the from-state
     requestAnimationFrame(() => {
-      pills.forEach(el => { el.style.transition = 'opacity .5s ease, transform .5s cubic-bezier(.22,.9,.3,1)'; el.style.opacity = '1'; el.style.transform = 'translateY(0)'; });
-      setTimeout(() => pills.forEach(el => { el.style.transition = ''; el.style.opacity = ''; el.style.transform = ''; }), 580);
+      mp.style.transition = 'opacity .5s ease, transform .5s cubic-bezier(.22,.9,.3,1)'; mp.style.opacity = '1'; mp.style.transform = 'translateY(0)';
+      setTimeout(() => { mp.style.transition = ''; mp.style.opacity = ''; mp.style.transform = ''; }, 580);
     });
   }
   // "Get started" → dismiss, a beat, then play the AUTO-GROUP sort while the pills stay cloaked; once
@@ -13730,13 +13897,22 @@ window.addEventListener('load', () => loadPlacesPhotos());
   try { skip = sessionStorage.getItem('mhc_skip_welcome') === '1'; sessionStorage.removeItem('mhc_skip_welcome'); } catch (e) {}
   if (!skip) { document.body.classList.add('pills-cloaked'); overlay.classList.add('visible'); } // greet + hide the pills until dismiss
 })();
-// 5 Listings is always the boot default — every load/Reset starts fresh, regardless of any tier chosen earlier.
-window.addEventListener('load', () => {
-  const hk = 'small';
+// 3 Listings is always the boot default — every load/Reset starts fresh, regardless of any tier chosen earlier.
+// Runs synchronously (NOT on window 'load') — 'load' waits for every image to finish downloading, and
+// render() above has already painted the full pre-tier listing set by then, so the host would flash at
+// the old size for however long images take before snapping down to 3. Switching in the same synchronous
+// pass as render() means the browser never gets a chance to paint the in-between state.
+{
+  const hk = 'tiny';
   if (activeHost === hk) activeHost = 'big'; // ensure switchHost doesn't early-return on boot
   switchHost(hk, true);
-  setDataMode('full'); // default the prototype to CURRENT HOST (bookings + variance, busy-host treatment) on load + reset
-});
+  setDataMode('full', true); // default to CURRENT HOST on load + reset; skipScroll — no animated slide on boot
+  // switchHost's internal render(true) grabs scrollLeft BEFORE the very first render()'s own rAF has
+  // applied its "jump to Today" — so it can preserve a stale pre-jump value. Both of those are already
+  // queued by now; a rAF registered after them lands last in the same frame and pins the final, correct
+  // position instantly (no slide).
+  requestAnimationFrame(() => { gridWrap.scrollLeft = Math.max(0, (rowOffsets[calStartDi()] || 0) - GRID_GUTTER); });
+}
 </script>
 </body>
 </html>
