@@ -3717,9 +3717,9 @@ body.optimize-mode .price-card.opt-flag.unavailable { background: transparent; b
       <button class="ind-fill-opt" data-fill="1" type="button">Filled</button>
     </div>
     <div class="dev-hostwrap" id="hostToggle">
-      <button class="host-opt active" data-host="tiny" type="button">3 Listings</button>
+      <button class="host-opt" data-host="tiny" type="button">3 Listings</button>
       <button class="host-opt" data-host="small" type="button">5 Listings</button>
-      <button class="host-opt" data-host="big" type="button">12 Listings</button>
+      <button class="host-opt active" data-host="big" type="button">12 Listings</button>
       <button class="host-opt" data-host="pro" type="button">32 Listings</button>
     </div>
     <!-- hidden state: 'No Bookings' = both off (fresh sheet); 'Bookings' = bookings + price variance both on -->
@@ -8679,7 +8679,7 @@ function animateGroupsByCity() {
 
 // Dev "Reset" → back to the STARTING POINT: a clean, fully-seeded Busy Host at 3 Listings, every
 // overlay (custom prices, promos, min-overrides, rule sets, groups, applied opportunities) wiped.
-// Implemented as a reload into the load defaults (switchHost('tiny') + Busy Host) — the only way to
+// Implemented as a reload into the load defaults (switchHost('big') + Busy Host) — the only way to
 // guarantee a pristine seeded board without unwinding the MASTER/tier snapshot state by hand. First
 // clear the persisted flags so the fresh load starts ungrouped with the coach tip re-armed.
 document.getElementById('devReset').addEventListener('click', () => {
@@ -13748,7 +13748,7 @@ function syncTierBack(n) {
   _HOST_SET.forEach((a, i) => { for (let j = 0; j < n; j++) M.set[i][j] = [...a[j]]; });
   M.customMin = [...customMinListings].concat(M.customMin.filter(x => x >= n));
 }
-let activeHost = 'big'; // ≠ the boot target below (3 Listings), so switchHost('tiny') doesn't early-return on load
+let activeHost = 'tiny'; // ≠ the boot target below (12 Listings), so switchHost('big') doesn't early-return on load
 function updateHostToggleUI() { document.querySelectorAll('.host-opt').forEach(o => o.classList.toggle('active', o.dataset.host === activeHost)); } // footer + welcome-modal toggles both sync
 // Default (ungrouped) row order: cities INTERLEAVED round-robin, so the fresh portfolio reads mixed —
 // grouping is then a visible act of tidying. Deterministic (no shuffle jitter between renders).
@@ -13897,14 +13897,14 @@ window.addEventListener('load', () => loadPlacesPhotos());
   try { skip = sessionStorage.getItem('mhc_skip_welcome') === '1'; sessionStorage.removeItem('mhc_skip_welcome'); } catch (e) {}
   if (!skip) { document.body.classList.add('pills-cloaked'); overlay.classList.add('visible'); } // greet + hide the pills until dismiss
 })();
-// 3 Listings is always the boot default — every load/Reset starts fresh, regardless of any tier chosen earlier.
+// 12 Listings is always the boot default — every load/Reset starts fresh, regardless of any tier chosen earlier.
 // Runs synchronously (NOT on window 'load') — 'load' waits for every image to finish downloading, and
 // render() above has already painted the full pre-tier listing set by then, so the host would flash at
 // the old size for however long images take before snapping down to 3. Switching in the same synchronous
 // pass as render() means the browser never gets a chance to paint the in-between state.
 {
-  const hk = 'tiny';
-  if (activeHost === hk) activeHost = 'big'; // ensure switchHost doesn't early-return on boot
+  const hk = 'big';
+  if (activeHost === hk) activeHost = 'tiny'; // ensure switchHost doesn't early-return on boot
   switchHost(hk, true);
   setDataMode('full', true); // default to CURRENT HOST on load + reset; skipScroll — no animated slide on boot
   // switchHost's internal render(true) grabs scrollLeft BEFORE the very first render()'s own rAF has
