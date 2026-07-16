@@ -493,7 +493,7 @@ body.row-reordering .thumb-row { cursor: grabbing; }
 .season-ribbon .ribbon-handle .rh-arrow-off { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 8px; width: 20px; height: 20px; pointer-events: none; }
 .season-ribbon .ribbon-handle .rh-arrow svg { width: 20px; height: 20px; display: block; fill: currentColor; filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1px #fff); }
 .gev.gev-tentative { opacity: 1; } /* estimated dates render SOLID — the hover pill carries the "(estimated)" caveat */
-.gev.gev-past { filter: grayscale(1); opacity: 0.5; } /* dates already gone — holidays, events, season markers all read as spent (grey) */
+.gev.gev-past { display: none !important; } /* dates already gone — hide past holidays / events / season markers entirely (don't show spent ones) */
 /* SEASON markers only appear once their opp is TAPPED in opps mode — they ride the pills like the
    event/holiday icons. At rest (default view, or another opp focused) they're hidden but stay in the
    DOM, so the ride math + rise animation are identical to every other icon. */
@@ -3448,6 +3448,14 @@ body.optimize-mode .price-card.opt-flag.unavailable { background: transparent; b
     <div class="listing-menu wm-menu" id="wmMenu">
       <button class="lm-item" data-view="week"><span class="wm-check"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19.5 7"/></svg></span>Week</button>
       <button class="lm-item" data-view="month"><span class="wm-check"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19.5 7"/></svg></span>Month</button>
+    </div>
+    <!-- ⋯ more menu (top-right): grouping + holidays live here -->
+    <button class="tb-icon-btn" id="tbMoreBtn" aria-haspopup="true" aria-label="More options">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+    </button>
+    <div class="listing-menu more-menu" id="moreMenu">
+      <button class="lm-item" data-more="autogroup">Automate groups</button>
+      <button class="lm-item" data-more="holidays">Holidays</button>
     </div>
   </div>
 </div>
@@ -8142,8 +8150,9 @@ function buildGroupEventIcons() {
     autofill.classList.remove('active');
   });
 
-  const _holBtn = document.getElementById('holidaysBtn'); // may be absent — the ⋯-menu Holidays entry was removed; guard so init doesn't halt
-  if (_holBtn) _holBtn.addEventListener('click', () => { clearSelection(); renderList(); autofill.classList.remove('active'); overlay.classList.add('visible'); });
+  window.openHolidaysModal = () => { clearSelection(); renderList(); autofill.classList.remove('active'); overlay.classList.add('visible'); }; // exposed so the ⋯ menu can open it
+  const _holBtn = document.getElementById('holidaysBtn'); // may be absent — guard so init doesn't halt
+  if (_holBtn) _holBtn.addEventListener('click', window.openHolidaysModal);
   document.getElementById('holidaysClose').addEventListener('click', () => overlay.classList.remove('visible'));
   document.getElementById('holidaysSave').addEventListener('click', () => overlay.classList.remove('visible'));
   overlay.addEventListener('click', e => { if (e.target.id === 'holidaysOverlay') overlay.classList.remove('visible'); });
@@ -8629,6 +8638,30 @@ function animateGroupsByCity() {
   document.addEventListener('mousedown', e => { if (!e.target.closest('#wmMenu') && !e.target.closest('#wmDropBtn')) close(); });
   new MutationObserver(renderChecks).observe(document.body, { attributes: true, attributeFilter: ['class'] }); // label stays right if the view flips elsewhere
   renderChecks();
+})();
+
+// ⋯ MORE menu (top-right): Automate groups + Holidays — same dropdown mechanics as the Week pill.
+(function moreMenuInit() {
+  const btn = document.getElementById('tbMoreBtn'), menu = document.getElementById('moreMenu');
+  if (!btn || !menu) return;
+  const close = () => menu.classList.remove('show');
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (menu.classList.contains('show')) return close();
+    const holItem = menu.querySelector('[data-more="holidays"]'); // only offer Holidays if the modal is in this build
+    if (holItem) holItem.style.display = document.getElementById('holidaysOverlay') ? '' : 'none';
+    menu.classList.add('show');
+    const r = btn.getBoundingClientRect();
+    menu.style.top = (r.bottom + 8) + 'px';
+    menu.style.left = Math.max(8, r.right - menu.offsetWidth) + 'px';
+  });
+  menu.addEventListener('click', e => {
+    const it = e.target.closest('.lm-item'); if (!it) return;
+    close();
+    if (it.dataset.more === 'autogroup') { if (typeof animateGroupsByCity === 'function') animateGroupsByCity(); else if (typeof applyGroupingLive === 'function') applyGroupingLive(); }
+    else if (it.dataset.more === 'holidays' && typeof window.openHolidaysModal === 'function') window.openHolidaysModal();
+  });
+  document.addEventListener('mousedown', e => { if (!e.target.closest('#moreMenu') && !e.target.closest('#tbMoreBtn')) close(); });
 })();
 
 // Month-title dropdown: tap the big month label → a scrollable list of EVERY month in the calendar span
@@ -13340,6 +13373,21 @@ function searchCalendar(raw, after) {
         const runs = _searchRuns(pred);
         const run = runs.find(r => r.b >= t0) || runs[0];
         if (run) return searchGoto(Math.max(run.a, t0));
+      }
+    }
+  }
+  // bare "events" / "holidays" → cycle through ALL of them, FUTURE only. Placed BEFORE the fuzzy
+  // single-holiday match so "events" isn't mis-matched to "Christmas Eve" (via "eve"); skips past ones.
+  if (/^events?$/.test(ql) || /^holidays?$/.test(ql)) {
+    const rg = _searchDayRanges(ql, LISTINGS.map((_, i) => i));
+    if (Array.isArray(rg) && rg.length) {
+      const future = rg.filter(r => r.b >= Math.max(0, todayDi)); // future / still-ongoing only — never navigate to a past event or holiday
+      if (future.length) {
+        const run = future.find(r => r.a >= minDi) || future[0]; // Enter again steps to the next future one; wraps to the first
+        const li = run.city ? LISTINGS.findIndex(l => l.city === run.city) : -1;
+        _searchHint = '→ ' + (/^event/.test(ql) ? 'events' : 'holidays');
+        _searchCanSelect = true; _searchPendingRanges = [{ a: run.a, b: run.b }];
+        return searchGoto(Math.max(run.a, Math.max(0, todayDi)), li >= 0 ? li : null, true);
       }
     }
   }
