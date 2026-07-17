@@ -11663,6 +11663,25 @@ window.updateMagicPill = function () {
 };
 // After scanning, fly the grid to an opportunity (horizontal → its dates, vertical → its listing row),
 // then run cb once the cells have mounted so its card can anchor to a real glowing cell.
+// Eased scroll with a FIXED, browser-consistent duration — the native `behavior:'smooth'` is
+// controlled by the browser (Safari's is near-instant, Chrome's is slower/smoother), so the opp fly
+// felt different per browser. This makes it identical everywhere (tuned to Chrome's calmer feel).
+function _flyScroll(el, target, dur) {
+  dur = dur || 500;
+  const sL = el.scrollLeft, sT = el.scrollTop;
+  const dL = (target.left != null ? target.left : sL) - sL;
+  const dT = (target.top != null ? target.top : sT) - sT;
+  if (Math.abs(dL) < 1 && Math.abs(dT) < 1) { if (target.left != null) el.scrollLeft = target.left; if (target.top != null) el.scrollTop = target.top; return; }
+  const t0 = performance.now();
+  const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // easeInOutCubic
+  if (el._flyRAF) cancelAnimationFrame(el._flyRAF);
+  (function step(now) {
+    const p = Math.min(1, (now - t0) / dur), k = ease(p);
+    if (target.left != null) el.scrollLeft = sL + dL * k;
+    if (target.top != null) el.scrollTop = sT + dT * k;
+    if (p < 1) el._flyRAF = requestAnimationFrame(step); else el._flyRAF = null;
+  })(t0);
+}
 function scrollToOpportunity(s, cb) {
   if (s && s.bucket === 'grouping') { if (cb) cb(null); return; } // structural step — no cells to fly to
   if (typeof updateSeasonRibbon === 'function') updateSeasonRibbon._flyUntil = performance.now() + 1200; // this scroll is a programmatic camera-fly → the season dot must NOT re-centre; it stays on the first cell
@@ -11711,7 +11730,7 @@ function scrollToOpportunity(s, cb) {
       top = Math.max(0, gridWrap.scrollTop + (rr.top - wr2.top) - (gridWrap.clientHeight / 2 - rr.height / 2));
     }
   }
-  gridWrap.scrollTo({ left, top, behavior: 'smooth' });
+  _flyScroll(gridWrap, { left, top }, 500); // fixed-duration eased fly → same speed on Safari + Chrome (native 'smooth' varies per browser)
   // Poll until the smooth scroll has ARRIVED and the target cell has mounted (virtualization) — a fixed
   // timeout fires mid-scroll on big jumps and misses the cell. Bounded to ~1.5s.
   const sel = '#gridRows .price-card[data-sugg="' + s.id + '"]';
