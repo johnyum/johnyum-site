@@ -11667,13 +11667,16 @@ window.updateMagicPill = function () {
 // controlled by the browser (Safari's is near-instant, Chrome's is slower/smoother), so the opp fly
 // felt different per browser. This makes it identical everywhere (tuned to Chrome's calmer feel).
 function _flyScroll(el, target, dur) {
-  dur = dur || 500;
   const sL = el.scrollLeft, sT = el.scrollTop;
   const dL = (target.left != null ? target.left : sL) - sL;
   const dT = (target.top != null ? target.top : sT) - sT;
   if (Math.abs(dL) < 1 && Math.abs(dT) < 1) { if (target.left != null) el.scrollLeft = target.left; if (target.top != null) el.scrollTop = target.top; return; }
+  // GRACEFUL, distance-aware duration: a generous floor so even a short event→event hop reads as a
+  // deliberate glide (a fixed short duration made close hops feel like an instant nudge), scaling up
+  // with travel so long jumps stay a smooth camera-move, capped so it never drags.
+  if (!dur) { const dist = Math.hypot(dL, dT); dur = Math.min(1300, Math.max(900, dist * 0.46)); }
   const t0 = performance.now();
-  const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // easeInOutCubic
+  const ease = t => 1 - Math.pow(1 - t, 4); // easeOutQuart — quick to commit, long gentle settle (feels graceful)
   if (el._flyRAF) cancelAnimationFrame(el._flyRAF);
   (function step(now) {
     const p = Math.min(1, (now - t0) / dur), k = ease(p);
@@ -11730,7 +11733,7 @@ function scrollToOpportunity(s, cb) {
       top = Math.max(0, gridWrap.scrollTop + (rr.top - wr2.top) - (gridWrap.clientHeight / 2 - rr.height / 2));
     }
   }
-  _flyScroll(gridWrap, { left, top }, 750); // fixed-duration eased fly → same GRACEFUL speed on Safari + Chrome (native 'smooth' varies per browser)
+  _flyScroll(gridWrap, { left, top }); // distance-aware graceful fly → same speed on Safari + Chrome (native 'smooth' varies per browser)
   // Poll until the smooth scroll has ARRIVED and the target cell has mounted (virtualization) — a fixed
   // timeout fires mid-scroll on big jumps and misses the cell. Bounded to ~1.5s.
   const sel = '#gridRows .price-card[data-sugg="' + s.id + '"]';
@@ -11739,7 +11742,7 @@ function scrollToOpportunity(s, cb) {
     tries++;
     const near = Math.abs(gridWrap.scrollLeft - left) < 40;
     const cell = document.querySelector(sel);
-    if ((near && cell) || tries > 90) { if (typeof renderWindow === 'function') renderWindow(); if (cb) cb(document.querySelector(sel)); return; }
+    if ((near && cell) || tries > 130) { if (typeof renderWindow === 'function') renderWindow(); if (cb) cb(document.querySelector(sel)); return; }
     requestAnimationFrame(wait);
   })();
 }
