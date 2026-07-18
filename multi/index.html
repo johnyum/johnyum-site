@@ -11767,19 +11767,10 @@ function startOptimize() {
   document.body.classList.add('optimize-mode');
   if (typeof setIndicatorStyle === 'function') { setIndicatorStyle('default'); setIndicatorFilled(true); } // every session starts on Default, FILLED (the wash shows behind the tips cells by default)
   updateBookingDim(); // guest pills step back to the grey edit-mode look for the whole session
-  // stagger each cell's stroke pulse by its on-screen x → the wave sweeps left → right (800px/s)
-  const swBase = gridWrap.scrollLeft;
-  document.querySelectorAll('#gridRows .price-card').forEach(c => {
-    c.style.setProperty('--swd', Math.max(0, (c.parentElement.offsetLeft - swBase) / 800) + 's');
-  });
-  document.body.classList.add('opt-scanning');
-  // pill stays pinned at the idle Tips-pill's width for the whole scan — no shrink, no wand to glide;
-  // the three dots (rendered by renderMagicPill's 'scanning' branch) just centre inside it.
   const pillEl = document.getElementById('magicPill');
-  pillEl.style.width = pillEl.getBoundingClientRect().width + 'px';
-  window.__opt._ehAutomated = false; // fresh scan → events/holidays are steppable again until re-automated
-  window.__opt.state = 'scanning'; renderMagicPill(); window.updateMagicPill();
-  setTimeout(() => {
+  window.__opt._ehAutomated = false; // fresh session → events/holidays are steppable again until re-automated
+  // The reveal: compute opps, morph the pill open, fly the camera to the first opp, raise the graph.
+  const reveal = () => {
     const suggs = computeSuggestions(); // closest green (price-up) leads, then chronological
     window.__opt.suggs = suggs;
     const startIdx = pickEntryOpp(suggs); // open on the opp the host is ALREADY looking at (most in view), not always the list's first
@@ -11816,7 +11807,25 @@ function startOptimize() {
     } else {
       document.body.classList.remove('glow-hold');
     }
-  }, 2500); // scanner duration — 2.5s
+  };
+  // GRAPH MODE (New Host — "Price setup" pill, demand graph present): SKIP the scan. Go straight from the
+  // idle pill into the reveal → fly → graph rise. Busy Host keeps the 2.5s scanner sweep + three-dot loader.
+  if (!document.body.classList.contains('busy-host')) {
+    window.__opt.state = 'results';
+    requestAnimationFrame(reveal); // one frame so optimize-mode / indicator classes settle before the morph
+    return;
+  }
+  // stagger each cell's stroke pulse by its on-screen x → the wave sweeps left → right (800px/s)
+  const swBase = gridWrap.scrollLeft;
+  document.querySelectorAll('#gridRows .price-card').forEach(c => {
+    c.style.setProperty('--swd', Math.max(0, (c.parentElement.offsetLeft - swBase) / 800) + 's');
+  });
+  document.body.classList.add('opt-scanning');
+  // pill stays pinned at the idle Tips-pill's width for the whole scan — no shrink, no wand to glide;
+  // the three dots (rendered by renderMagicPill's 'scanning' branch) just centre inside it.
+  pillEl.style.width = pillEl.getBoundingClientRect().width + 'px';
+  window.__opt.state = 'scanning'; renderMagicPill(); window.updateMagicPill();
+  setTimeout(reveal, 2500); // scanner duration — 2.5s
 }
 function exitOptimize() {
   closeOptCard();
