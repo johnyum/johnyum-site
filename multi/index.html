@@ -8442,6 +8442,7 @@ function setGroupsLive(target) { // FLIP the rows to ANY group arrangement (appl
   const sg = target;
   groups.length = 0; sg.forEach(g => groups.push(g));       // mutate IN PLACE — host snapshots alias this array
   saveGroups(); renderGroups(); applyGroupsToCalendar();
+  if (window.updateMagicPill) updateMagicPill(); // grouped → the "N Tips" pill appears; ungrouped → it hides
   // THREE PHASES, strictly in order:
   //   1. MIX on the COMPACT grid — the dividers hold ZERO space, so every move is slot-to-slot:
   //      each piece lands exactly on a cell position (no half-landings, no header gaps mid-mix).
@@ -11663,7 +11664,8 @@ function renderMagicPill() {
   } catch (e) { return 0; } })(); // remaining opps → shown as a count in front of the label
   // New Host (onboarding) frames this as guided setup, not a stream of opps → keeps the ORIGINAL
   // wand treatment. Everyone else gets the rausch count-circle + "Tip(s)" label (no wand).
-  if (typeof isOnboarding === 'function' && isOnboarding()) {
+  // Grouped → always the "N Tips" count (the graph icon owns the onboarding/"Price setup" entry now).
+  if (typeof isOnboarding === 'function' && isOnboarding() && !(typeof hasRealGroups === 'function' && hasRealGroups())) {
     pill.innerHTML = '<button class="magic-cta' + (window._oppWandEnter ? ' wand-enter' : '') + '" data-magic="go">' + wandHTML() + '<span class="magic-label">Price setup</span></button>';
     return;
   }
@@ -11673,9 +11675,19 @@ window.updateMagicPill = function () {
   const el = document.getElementById('magicAction'); if (!el) return;
   const inCal = !document.body.classList.contains('settings-mode') && !document.body.classList.contains('avail-mode') && (typeof calendarView === 'undefined' || calendarView !== 'month');
   const optimizing = document.body.classList.contains('optimize-mode');
-  // The idle "Price setup / Tips" pill is retired — graph mode is entered from the far-left graph icon
-  // now. The pill only appears DURING graph mode (the opportunity cards + Apply).
-  const show = inCal && !document.body.classList.contains('grouping-busy') && optimizing;
+  // Graph mode is entered from the far-left graph icon. The idle pill returns ONLY when there are
+  // GROUPINGS — then it shows the "N Tips" count so grouped hosts can see/enter their opportunities.
+  const grouped = typeof hasRealGroups === 'function' && hasRealGroups();
+  const idle = (!window.__opt || window.__opt.state === 'idle');
+  let idleTips = false;
+  if (!optimizing && idle && grouped && !window._autoGroupThinking && !window._oppWandEnter) {
+    try { idleTips = computeSuggestions().length > 0; } catch (e) {}
+  }
+  const show = inCal && !document.body.classList.contains('grouping-busy') && (optimizing || idleTips);
+  if (show && !optimizing && idle && !window._autoGroupThinking && !window._oppWandEnter && typeof renderMagicPill === 'function') {
+    const cur = el.querySelector('[data-magic]');
+    if (!cur || cur.dataset.magic !== 'go') renderMagicPill(); // paint the "N Tips" idle pill
+  }
   const gi = document.getElementById('devGraphIcon'); if (gi) gi.classList.toggle('active', optimizing); // graph icon lit while graph mode is open
   el.classList.toggle('show', show);
   document.body.classList.toggle('magic-active', show);          // scroll safety: bottom room while the pill is up
