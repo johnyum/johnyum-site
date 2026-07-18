@@ -11651,7 +11651,18 @@ window.updateMagicPill = function () {
   const inCal = !document.body.classList.contains('settings-mode') && !document.body.classList.contains('avail-mode') && (typeof calendarView === 'undefined' || calendarView !== 'month');
   const optimizing = document.body.classList.contains('optimize-mode');
   const hasSel = (typeof selected !== 'undefined') && selected.size > 0;
-  const show = inCal && !document.body.classList.contains('grouping-busy') && (optimizing || !hasSel); // tucked away during Automate-group (when retired, the CONTAINER stays for the search — only the opp pill hides, via body.opps-retired)
+  // ZERO TIPS → no pill at all. Idle + the tips-count path (has groups, not onboarding) with nothing to
+  // suggest used to render a dead "0 Tips" button you could tap into an empty scan ("Looking good —
+  // nothing to tune"). Hide the whole bar instead. Setup CTAs — onboarding "Price setup", "Automate
+  // groups" — aren't tip counts, so they're exempt and still show.
+  let zeroTips = false;
+  if (!optimizing && (!window.__opt || window.__opt.state === 'idle')
+      && !(typeof isOnboarding === 'function' && isOnboarding())
+      && !(typeof hasRealGroups === 'function' && !hasRealGroups())
+      && !window._autoGroupThinking && !window._oppWandEnter) {
+    try { zeroTips = computeSuggestions().length === 0; } catch (e) {}
+  }
+  const show = inCal && !document.body.classList.contains('grouping-busy') && (optimizing || !hasSel) && !zeroTips; // tucked away during Automate-group (when retired, the CONTAINER stays for the search — only the opp pill hides, via body.opps-retired)
   // INVARIANT: no groups → the pill is ONLY ever "Automate groups"; groups → "Opportunities". Whenever
   // the idle pill re-appears (e.g. after a QA select/close), fix its content if it drifted — but never
   // rebuild needlessly (avoids restarting the wand's star animation) or mid-Automate-choreography.
