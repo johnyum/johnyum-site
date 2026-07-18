@@ -8690,12 +8690,12 @@ function animateGroupsByCity() {
     const it = e.target.closest('.lm-item'); if (!it) return;
     close();
     const act = it.dataset.more;
-    if (act === 'autogroup') { // grouped → undo (ungroup); ungrouped → play the staged auto-group animation
+    if (act === 'autogroup') { // FLIP-glide the rows into / back out of their groups (same animation, reversed)
       if (typeof hasRealGroups === 'function' && hasRealGroups()) {
-        if (typeof autoGroupByCity === 'function') autoGroupByCity(false);
-      } else if (typeof animateGroupsByCity === 'function') { animateGroupsByCity(); }
+        if (typeof setGroupsLive === 'function') setGroupsLive([{ name: 'Group 1', members: [] }]); // undo: rows glide back apart
+        else if (typeof autoGroupByCity === 'function') autoGroupByCity(false);
+      } else if (typeof applyGroupingLive === 'function') { applyGroupingLive(); } // rows glide into their city groups
       else if (typeof autoGroupByCity === 'function') { autoGroupByCity(true); }
-      if (typeof syncModeButtons === 'function') syncModeButtons();
     }
     // sync / settings: visual-only for now — the menu just closes
   });
