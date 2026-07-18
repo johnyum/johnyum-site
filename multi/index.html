@@ -3740,9 +3740,7 @@ body.optimize-mode .price-card.opt-flag.unavailable { background: transparent; b
       <button class="ind-fill-opt" data-fill="1" type="button">Filled</button>
     </div>
     <div class="dev-hostwrap" id="hostToggle">
-      <button class="mode-opt" data-modebtn="default" type="button">Default</button>
       <button class="mode-opt" data-modebtn="bookings" type="button">Bookings</button>
-      <button class="mode-opt" data-modebtn="grouping" type="button">Grouping</button>
       <span class="dev-interpunct">·</span>
       <button class="host-opt" data-host="small" type="button">5 Listings</button>
       <button class="host-opt active" data-host="big" type="button">12 Listings</button>
@@ -13915,17 +13913,14 @@ document.getElementById('hostToggle').addEventListener('click', e => { const b =
 // price, ungrouped); Bookings = Busy-Host data (bookings + variance), grouping left as-is; Grouping =
 // flip city-grouping on/off. Highlights track the live state (busy-host + hasRealGroups).
 function syncModeButtons() {
-  const busy = document.body.classList.contains('busy-host');
-  const grouped = typeof hasRealGroups === 'function' && hasRealGroups();
-  const set = (k, on) => { const b = document.querySelector('.mode-opt[data-modebtn="' + k + '"]'); if (b) b.classList.toggle('active', on); };
-  set('default', !busy); set('bookings', busy); set('grouping', grouped);
+  const b = document.querySelector('.mode-opt[data-modebtn="bookings"]');
+  if (b) b.classList.toggle('active', document.body.classList.contains('busy-host')); // lit when bookings are on
 }
 document.getElementById('hostToggle').addEventListener('click', e => {
   const m = e.target.closest('[data-modebtn]'); if (!m) return;
-  const k = m.dataset.modebtn;
-  if (k === 'default') { autoGroupByCity(false); setDataMode('none'); }        // clean slate: no bookings, same price, ungrouped
-  else if (k === 'bookings') { setDataMode('full'); }                          // add bookings + variance, grouping untouched
-  else if (k === 'grouping') { autoGroupByCity(!hasRealGroups()); }            // toggle city grouping
+  if (m.dataset.modebtn === 'bookings') { // single toggle: add bookings (full) ⇄ remove them (none)
+    setDataMode(document.body.classList.contains('busy-host') ? 'none' : 'full');
+  }
   syncModeButtons();
 });
 
