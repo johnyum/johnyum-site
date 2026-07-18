@@ -2219,13 +2219,15 @@ body:has(#customizeMenu.show) #multiActionClose, body:has(#discountsMenu.show) #
 }
 #devRedlines.on { color: #E00B41; }                /* Redlines active → red type, like the measurement lines */
 /* Host names (centre of the dev bar): tapped = black, untapped = grey-400 */
-.host-opt, .data-opt, .ind-opt, .ind-fill-opt {
+.host-opt, .data-opt, .ind-opt, .ind-fill-opt, .mode-opt {
   border: 0; background: none; padding: 0; cursor: pointer; font-family: 'Cereal', sans-serif;
   display: inline-flex; align-items: center; height: 24px; /* 24px tap target */
   font-size: 12px; font-weight: 500; color: var(--grey-400); white-space: nowrap;
   transition: color .15s;
 }
-.host-opt.active, .data-opt.active, .ind-opt.active, .ind-fill-opt.active { color: #222; }
+.host-opt.active, .data-opt.active, .ind-opt.active, .ind-fill-opt.active, .mode-opt.active { color: #222; }
+/* interpunct between the state buttons (Default/Bookings/Grouping) and the Listings tiers */
+.dev-interpunct { font-family: 'Cereal', sans-serif; font-size: 12px; font-weight: 700; color: var(--grey-300); line-height: 1; margin: 0 -2px; }
 /* Opportunities-mode indicator-style switcher (Default/Animated/Wavy + Filled): retired from view
    entirely, in every mode — the dev bar always shows the Listings toggle now, never swaps to this.
    Animated/Wavy are no longer reachable through the UI; Optimize mode force-locks to Default+Filled
@@ -3714,11 +3716,7 @@ body.optimize-mode .price-card.opt-flag.unavailable { background: transparent; b
 </div>
 <!-- Dev bar: plain-type footer — listings / hosts centered, Reset pinned right (Redlines removed) -->
 <div class="dev-bar" id="devBar">
-  <!-- far left: New Host icon toggle (grey-300 idle, black when active/tapped) -->
-  <button class="data-opt dev-newhost-icon" id="devNewHostIcon" data-data="none" type="button" aria-label="New Host">
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 6.875V19.375H1.875V6.875H5ZM13.75 6.875V19.375H10.625V6.875H13.75ZM18.125 3.125V19.375H15V3.125H18.125ZM9.375 0.625V19.375H6.25V0.625H9.375Z" fill="currentColor"/></svg>
-  </button>
-  <!-- centre: listings — one mid-aligned cluster of plain tappable type -->
+  <!-- centre: state buttons + listings — one mid-aligned cluster of plain tappable type -->
   <div class="dev-center">
     <!-- Opportunities-mode only: indicator style switcher, replaces #hostToggle while optimize-mode is active -->
     <div class="dev-hostwrap" id="indToggle">
@@ -3729,7 +3727,10 @@ body.optimize-mode .price-card.opt-flag.unavailable { background: transparent; b
       <button class="ind-fill-opt" data-fill="1" type="button">Filled</button>
     </div>
     <div class="dev-hostwrap" id="hostToggle">
-      <button class="host-opt" data-host="tiny" type="button">3 Listings</button>
+      <button class="mode-opt" data-modebtn="default" type="button">Default</button>
+      <button class="mode-opt" data-modebtn="bookings" type="button">Bookings</button>
+      <button class="mode-opt" data-modebtn="grouping" type="button">Grouping</button>
+      <span class="dev-interpunct">·</span>
       <button class="host-opt" data-host="small" type="button">5 Listings</button>
       <button class="host-opt active" data-host="big" type="button">12 Listings</button>
       <button class="host-opt" data-host="pro" type="button">32 Listings</button>
@@ -7441,6 +7442,7 @@ function autoGroupByCity(on) {
     groups = [{ name: 'Group 1', members: [] }];
   }
   saveGroups(); renderGroups(); applyGroupsToCalendar();
+  if (typeof syncModeButtons === 'function') syncModeButtons(); // keep the Grouping highlight in sync
 }
 function commitRename(gi, val) {
   if (groups[gi] && val.trim()) groups[gi].name = val.trim();
@@ -8365,11 +8367,9 @@ function setDataMode(mode, skipScroll) {
   // already lands on Today instantly (see the boot block below) — animating it there too would just
   // replay a visible past→today slide over the calendar that's already sitting there.
   if (!skipScroll && typeof scrollCalendarToToday === 'function') requestAnimationFrame(() => requestAnimationFrame(() => scrollCalendarToToday(true)));
+  if (typeof syncModeButtons === 'function') syncModeButtons(); // keep the Default/Bookings highlight in sync with the data state
 }
-// Single icon toggle (replaces the old Current/New Host button pair): tap flips between the two modes.
-document.getElementById('devNewHostIcon').addEventListener('click', () => {
-  setDataMode(document.getElementById('devNewHostIcon').classList.contains('active') ? 'full' : 'none');
-});
+// (New Host icon retired — the dev bar's Default/Bookings buttons now drive setDataMode.)
 
 // Min-nights switch retired from the dev bar — no-min is the permanent default (the "min N" text
 // only surfaces on opportunity min-night changes, via .opt-min).
@@ -13906,6 +13906,23 @@ function switchHost(key, instant) {
   }, 470);
 }
 document.getElementById('hostToggle').addEventListener('click', e => { const b = e.target.closest('[data-host]'); if (b) switchHost(b.dataset.host); });
+// State buttons (replace the old New-Host icon): Default = clean New-Host sheet (no bookings, same
+// price, ungrouped); Bookings = Busy-Host data (bookings + variance), grouping left as-is; Grouping =
+// flip city-grouping on/off. Highlights track the live state (busy-host + hasRealGroups).
+function syncModeButtons() {
+  const busy = document.body.classList.contains('busy-host');
+  const grouped = typeof hasRealGroups === 'function' && hasRealGroups();
+  const set = (k, on) => { const b = document.querySelector('.mode-opt[data-modebtn="' + k + '"]'); if (b) b.classList.toggle('active', on); };
+  set('default', !busy); set('bookings', busy); set('grouping', grouped);
+}
+document.getElementById('hostToggle').addEventListener('click', e => {
+  const m = e.target.closest('[data-modebtn]'); if (!m) return;
+  const k = m.dataset.modebtn;
+  if (k === 'default') { autoGroupByCity(false); setDataMode('none'); }        // clean slate: no bookings, same price, ungrouped
+  else if (k === 'bookings') { setDataMode('full'); }                          // add bookings + variance, grouping untouched
+  else if (k === 'grouping') { autoGroupByCity(!hasRealGroups()); }            // toggle city grouping
+  syncModeButtons();
+});
 
 // ── Google Places photos ────────────────────────────────────────────────────────────────────────
 // Paste a Google Maps Platform API key (with "Places API (New)" enabled — it's the CORS-friendly
