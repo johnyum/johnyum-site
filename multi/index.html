@@ -3470,7 +3470,6 @@ body.optimize-mode .price-card.opt-flag.unavailable { background: transparent; b
       <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
     </button>
     <div class="listing-menu more-menu" id="moreMenu">
-      <button class="lm-item" data-more="autogroup">Automate groups</button>
       <button class="lm-item" data-more="holidays">Holidays</button>
     </div>
   </div>
@@ -10076,15 +10075,7 @@ function computeSuggestions() {
     });
     c.impact = Math.max(10, Math.round(sum / 10) * 10);
   });
-  // GROUPING — onboarding step 1 (before any pricing): auto-group the portfolio so every later
-  // apply covers whole groups. No cells to flag; Apply runs the staged Automate-group flow.
-  if (typeof hasRealGroups === 'function' && !hasRealGroups()) { // EVERY surface: no groups → offer Automate first
-    cards.push({ bucket: 'grouping', type: 'grouping', intent: 'fill', items: [],
-      a: Math.max(0, todayDi), b: Math.max(0, todayDi),
-      head: 'Create groups', cta: 'Automate',
-      title: 'Automate grouping',
-      why: '' });
-  }
+  // (Auto-grouping opportunity retired — grouping is a manual choice now, not an offered/automated step.)
   // MAGNITUDE — the missing "how much / to what". Optimization leans on the $ upside that justifies
   // acting; onboarding leans on the market-relative % (a fresh host has no $ history to point at).
   const _money = n => '$' + Math.round(n).toLocaleString('en-US');
@@ -11640,10 +11631,6 @@ function renderMagicPill() {
     pill.innerHTML = '<button class="magic-cta is-autogroup" disabled aria-label="Grouping…"><span class="thinkdots"><i></i><i></i><i></i></span></button>';
     return;
   }
-  if (typeof hasRealGroups === 'function' && !hasRealGroups()) {
-    pill.innerHTML = '<button class="magic-cta ag-cta" data-magic="autogroup">' + wandHTML() + '<span class="magic-label">Automate groups</span></button>';
-    return;
-  }
   const _oppN = (function(){ try {
     const s = computeSuggestions();
     const ehN = s.filter(c => c.bucket === 'event' || c.bucket === 'holiday').length; // every individual holiday/event card (Fourth of July, Labor Day, a concert weekend…) reads as ONE combined tip in the count — the cards themselves stay separate, this only affects the number shown here
@@ -11662,25 +11649,21 @@ window.updateMagicPill = function () {
   const inCal = !document.body.classList.contains('settings-mode') && !document.body.classList.contains('avail-mode') && (typeof calendarView === 'undefined' || calendarView !== 'month');
   const optimizing = document.body.classList.contains('optimize-mode');
   const hasSel = (typeof selected !== 'undefined') && selected.size > 0;
-  // ZERO TIPS → no pill at all. Idle + the tips-count path (has groups, not onboarding) with nothing to
-  // suggest used to render a dead "0 Tips" button you could tap into an empty scan ("Looking good —
-  // nothing to tune"). Hide the whole bar instead. Setup CTAs — onboarding "Price setup", "Automate
-  // groups" — aren't tip counts, so they're exempt and still show.
+  // ZERO TIPS → no pill at all. Idle with nothing to suggest used to render a dead "0 Tips" button you
+  // could tap into an empty scan ("Looking good — nothing to tune"). Hide the whole bar instead.
+  // Onboarding "Price setup" isn't a tip count, so it's exempt and still shows.
   let zeroTips = false;
   if (!optimizing && (!window.__opt || window.__opt.state === 'idle')
       && !(typeof isOnboarding === 'function' && isOnboarding())
-      && !(typeof hasRealGroups === 'function' && !hasRealGroups())
       && !window._autoGroupThinking && !window._oppWandEnter) {
     try { zeroTips = computeSuggestions().length === 0; } catch (e) {}
   }
-  const show = inCal && !document.body.classList.contains('grouping-busy') && (optimizing || !hasSel) && !zeroTips; // tucked away during Automate-group (when retired, the CONTAINER stays for the search — only the opp pill hides, via body.opps-retired)
-  // INVARIANT: no groups → the pill is ONLY ever "Automate groups"; groups → "Opportunities". Whenever
-  // the idle pill re-appears (e.g. after a QA select/close), fix its content if it drifted — but never
-  // rebuild needlessly (avoids restarting the wand's star animation) or mid-Automate-choreography.
+  const show = inCal && !document.body.classList.contains('grouping-busy') && (optimizing || !hasSel) && !zeroTips;
+  // Whenever the idle pill re-appears (e.g. after a QA select/close), fix its content if it drifted — but
+  // never rebuild needlessly (avoids restarting the wand's star animation).
   if (show && !optimizing && (!window.__opt || window.__opt.state === 'idle') && !window._autoGroupThinking && !window._oppWandEnter && typeof renderMagicPill === 'function') {
     const cur = el.querySelector('[data-magic]');
-    const want = (typeof hasRealGroups === 'function' && !hasRealGroups()) ? 'autogroup' : 'go';
-    if (!cur || cur.dataset.magic !== want) renderMagicPill();
+    if (!cur || cur.dataset.magic !== 'go') renderMagicPill();
   }
   el.classList.toggle('show', show);
   document.body.classList.toggle('magic-active', show);          // scroll safety: bottom room while the pill is up
@@ -13993,14 +13976,11 @@ window.addEventListener('load', () => loadPlacesPhotos());
       setTimeout(() => { mp.style.transition = ''; mp.style.opacity = ''; mp.style.transform = ''; }, 580);
     });
   }
-  // "Get started" → dismiss, a beat, then play the AUTO-GROUP sort while the pills stay cloaked; once
-  // the sort settles, run the scale-free entrance.
+  // "Get started" → dismiss, a beat, then run the scale-free entrance. The board stays on Default
+  // (ungrouped) — no auto-group sort; grouping is now a manual choice (dev bar "Grouping").
   const startFlow = () => {
     close();
-    setTimeout(() => {
-      const total = (typeof applyGroupingLive === 'function' ? applyGroupingLive() : 0) || 2400; // grouping sort (pills stay cloaked)
-      setTimeout(revealPills, total + 200);                           // reveal AFTER the sort settles
-    }, 420);                                                          // the beat
+    setTimeout(revealPills, 420); // the beat, then reveal the pills
   };
   document.getElementById('welcomeStart').addEventListener('click', startFlow);
   // Modal dev toggles: choose how to try the calendar (listing count + host mode) BEFORE Get started.
@@ -14028,7 +14008,7 @@ window.addEventListener('load', () => loadPlacesPhotos());
   const hk = 'big';
   if (activeHost === hk) activeHost = 'tiny'; // ensure switchHost doesn't early-return on boot
   switchHost(hk, true);
-  setDataMode('full', true); // default to CURRENT HOST on load + reset; skipScroll — no animated slide on boot
+  setDataMode('none', true); // boot on DEFAULT view (clean: no bookings, same price, ungrouped) behind the Get started modal; skipScroll — no animated slide on boot
   // switchHost's internal render(true) grabs scrollLeft BEFORE the very first render()'s own rAF has
   // applied its "jump to Today" — so it can preserve a stale pre-jump value. Both of those are already
   // queued by now; a rAF registered after them lands last in the same frame and pins the final, correct
