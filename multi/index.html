@@ -11657,30 +11657,20 @@ function renderMagicPill() {
     pill.innerHTML = '<button class="magic-cta is-autogroup" disabled aria-label="Grouping…"><span class="thinkdots"><i></i><i></i><i></i></span></button>';
     return;
   }
-  const _oppN = (function(){ try {
-    const s = computeSuggestions();
-    const ehN = s.filter(c => c.bucket === 'event' || c.bucket === 'holiday').length; // every individual holiday/event card (Fourth of July, Labor Day, a concert weekend…) reads as ONE combined tip in the count — the cards themselves stay separate, this only affects the number shown here
-    return s.length - ehN + (ehN > 0 ? 1 : 0);
-  } catch (e) { return 0; } })(); // remaining opps → shown as a count in front of the label
-  // New Host (onboarding) frames this as guided setup, not a stream of opps → keeps the ORIGINAL
-  // wand treatment. Everyone else gets the rausch count-circle + "Tip(s)" label (no wand).
-  // Grouped → always the "N Tips" count (the graph icon owns the onboarding/"Price setup" entry now).
-  if (typeof isOnboarding === 'function' && isOnboarding() && !(typeof hasRealGroups === 'function' && hasRealGroups())) {
-    pill.innerHTML = '<button class="magic-cta' + (window._oppWandEnter ? ' wand-enter' : '') + '" data-magic="go">' + wandHTML() + '<span class="magic-label">Price setup</span></button>';
-    return;
-  }
+  const _oppN = (function(){ try { return computeSuggestions().length; } catch (e) { return 0; } })(); // remaining opps → the RAW count (one per opportunity), shown in front of the label
+  // Always the rausch count-circle + "Tip(s)" label — the graph icon owns the onboarding/"Price setup"
+  // entry now, so the pill's only job is showing the opportunity count.
   pill.innerHTML = '<button class="magic-cta is-tips' + (window._oppWandEnter ? ' wand-enter' : '') + '" data-magic="go"><span class="magic-count-circle">' + _oppN + '</span><span class="magic-label">' + (_oppN === 1 ? 'Tip' : 'Tips') + '</span></button>';
 }
 window.updateMagicPill = function () {
   const el = document.getElementById('magicAction'); if (!el) return;
   const inCal = !document.body.classList.contains('settings-mode') && !document.body.classList.contains('avail-mode') && (typeof calendarView === 'undefined' || calendarView !== 'month');
   const optimizing = document.body.classList.contains('optimize-mode');
-  // Graph mode is entered from the far-left graph icon. The idle pill returns ONLY when there are
-  // GROUPINGS — then it shows the "N Tips" count so grouped hosts can see/enter their opportunities.
-  const grouped = typeof hasRealGroups === 'function' && hasRealGroups();
+  // Graph mode is entered from the far-left graph icon. The idle "N Tips" pill shows the opportunity
+  // count whenever there ARE tips (any tier, grouped or not) — hidden only when there's nothing to tune.
   const idle = (!window.__opt || window.__opt.state === 'idle');
   let idleTips = false;
-  if (!optimizing && idle && grouped && !window._autoGroupThinking && !window._oppWandEnter) {
+  if (!optimizing && idle && !window._autoGroupThinking && !window._oppWandEnter) {
     try { idleTips = computeSuggestions().length > 0; } catch (e) {}
   }
   const show = inCal && !document.body.classList.contains('grouping-busy') && (optimizing || idleTips);
