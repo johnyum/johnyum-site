@@ -2213,6 +2213,11 @@ body:has(#customizeMenu.show) #multiActionClose, body:has(#discountsMenu.show) #
 .dev-newhost-icon { border: 0; background: none; padding: 0; cursor: pointer; display: inline-flex; align-items: center; transition: color .15s; }
 #devNewHostIcon { color: var(--grey-300); }
 #devNewHostIcon.active { color: #000; }
+/* Graph-mode icon: far left of the dev bar (first flex child; .dev-center is absolutely positioned so
+   it doesn't compete for space). grey-300 idle, black when graph mode is active. */
+.dev-graph-icon { border: 0; background: none; padding: 0; cursor: pointer; display: inline-flex; align-items: center; color: var(--grey-300); transition: color .15s; }
+.dev-graph-icon:hover { color: var(--grey-500); }
+.dev-graph-icon.active { color: #000; }
 .dev-hostwrap { display: flex; align-items: center; gap: 16px; }
 .dev-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
 .dev-switch { /* plain tappable text — selected = black, unselected = grey-400 (the hidden checkbox holds the state) */
@@ -3736,6 +3741,10 @@ body.optimize-mode .price-card.opt-flag.unavailable { background: transparent; b
 </div>
 <!-- Dev bar: plain-type footer — listings / hosts centered, Reset pinned right (Redlines removed) -->
 <div class="dev-bar" id="devBar">
+  <!-- far left: graph-mode toggle (bar-chart icon) — tap to open the demand-graph / opportunities view -->
+  <button class="dev-graph-icon" id="devGraphIcon" type="button" aria-label="Open graph mode">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 6.875V19.375H1.875V6.875H5ZM13.75 6.875V19.375H10.625V6.875H13.75ZM18.125 3.125V19.375H15V3.125H18.125ZM9.375 0.625V19.375H6.25V0.625H9.375Z" fill="currentColor"/></svg>
+  </button>
   <!-- centre: state buttons + listings — one mid-aligned cluster of plain tappable type -->
   <div class="dev-center">
     <!-- Opportunities-mode only: indicator style switcher, replaces #hostToggle while optimize-mode is active -->
@@ -11664,23 +11673,10 @@ window.updateMagicPill = function () {
   const el = document.getElementById('magicAction'); if (!el) return;
   const inCal = !document.body.classList.contains('settings-mode') && !document.body.classList.contains('avail-mode') && (typeof calendarView === 'undefined' || calendarView !== 'month');
   const optimizing = document.body.classList.contains('optimize-mode');
-  const hasSel = (typeof selected !== 'undefined') && selected.size > 0;
-  // ZERO TIPS → no pill at all. Idle with nothing to suggest used to render a dead "0 Tips" button you
-  // could tap into an empty scan ("Looking good — nothing to tune"). Hide the whole bar instead.
-  // Onboarding "Price setup" isn't a tip count, so it's exempt and still shows.
-  let zeroTips = false;
-  if (!optimizing && (!window.__opt || window.__opt.state === 'idle')
-      && !(typeof isOnboarding === 'function' && isOnboarding())
-      && !window._autoGroupThinking && !window._oppWandEnter) {
-    try { zeroTips = computeSuggestions().length === 0; } catch (e) {}
-  }
-  const show = inCal && !document.body.classList.contains('grouping-busy') && (optimizing || !hasSel) && !zeroTips;
-  // Whenever the idle pill re-appears (e.g. after a QA select/close), fix its content if it drifted — but
-  // never rebuild needlessly (avoids restarting the wand's star animation).
-  if (show && !optimizing && (!window.__opt || window.__opt.state === 'idle') && !window._autoGroupThinking && !window._oppWandEnter && typeof renderMagicPill === 'function') {
-    const cur = el.querySelector('[data-magic]');
-    if (!cur || cur.dataset.magic !== 'go') renderMagicPill();
-  }
+  // The idle "Price setup / Tips" pill is retired — graph mode is entered from the far-left graph icon
+  // now. The pill only appears DURING graph mode (the opportunity cards + Apply).
+  const show = inCal && !document.body.classList.contains('grouping-busy') && optimizing;
+  const gi = document.getElementById('devGraphIcon'); if (gi) gi.classList.toggle('active', optimizing); // graph icon lit while graph mode is open
   el.classList.toggle('show', show);
   document.body.classList.toggle('magic-active', show);          // scroll safety: bottom room while the pill is up
   if (typeof updateVSync === 'function') requestAnimationFrame(updateVSync); // scroll range changed → re-sync the thumbnails
@@ -13930,6 +13926,14 @@ document.getElementById('hostToggle').addEventListener('click', e => {
   }
   syncModeButtons();
 });
+// Far-left graph icon: tap → open graph mode (the demand-graph / opportunities view). Tap again → close.
+{ const gi = document.getElementById('devGraphIcon');
+  if (gi) gi.addEventListener('click', () => {
+    if (document.body.classList.contains('optimize-mode')) { if (typeof exitOptimize === 'function') exitOptimize(); }
+    else if (typeof startOptimize === 'function') startOptimize();
+    if (typeof updateMagicPill === 'function') updateMagicPill(); // sync the icon's active state
+  });
+}
 
 // ── Google Places photos ────────────────────────────────────────────────────────────────────────
 // Paste a Google Maps Platform API key (with "Places API (New)" enabled — it's the CORS-friendly
