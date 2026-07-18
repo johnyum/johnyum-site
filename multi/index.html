@@ -306,8 +306,19 @@ body.settings-mode .view-dd, body.avail-mode .view-dd { display: none; }
   position: relative;
 }
 
-/* Fade gradient removed — the white listings panel now ends with a clean, hard edge instead of
-   bleeding into the calendar grid. */
+/* Right-edge fade: a soft white→transparent gradient just past the listing column so the leftmost
+   dates/cells fade UNDER it instead of meeting a hard cut. Off in Pricing/Availability. */
+.left::after {
+  content: '';
+  position: absolute;
+  top: 0; right: -12px;
+  width: 12px; height: 100%;
+  background: linear-gradient(to right, #fff 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 11;
+}
+body.settings-mode .left::after,
+body.avail-mode .left::after { display: none; }
 
 .left-header {
   height: 60px; /* matches the date header (same rule position across all modes) */
@@ -2734,6 +2745,13 @@ body.hosts-morph #gridRows, body.hosts-morph #listingThumbsInner { pointer-event
    leave fade out WHILE the density tweens (so the rebuild removes rows that are already invisible).
    Growing: the freshly added rows fade in over the settled grid. */
 .price-row.row-exit, .thumb-row.row-exit { opacity: 0; transition: opacity .3s ease; }
+/* SHRINK morph: the leaving rows also COLLAPSE their height (and swallow the 8px flex gap via a
+   -8px top margin) as they fade — so the surviving rows, which the city-ordering can scatter through
+   the list, slide together smoothly instead of leaving ghost gaps where a removed row fades in place. */
+body.hosts-morph .price-row.row-exit, body.hosts-morph .thumb-row.row-exit {
+  height: 0 !important; min-height: 0; margin-top: -8px; overflow: hidden;
+  transition: height .44s cubic-bezier(.4,0,.2,1), margin-top .44s cubic-bezier(.4,0,.2,1), opacity .26s ease;
+}
 .price-row.row-enter, .thumb-row.row-enter { animation: morph-fadein .35s ease both; }
 /* Discount badge (top-left): scalloped seal icon with a tooltip pill on hover */
 .discount-badge {
