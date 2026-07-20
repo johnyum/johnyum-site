@@ -5413,13 +5413,13 @@ document.addEventListener('keydown', e => {
 function scrollCalendarToToday(alsoTop) {
   if (document.body.classList.contains('super-collapse-2')) { // month pager → today's month (+ top)
     goToMonthPage(monthStartOf(todayDi), true);
-    if (alsoTop) gridWrap.scrollTo({ top: 0, behavior: 'smooth' });
+    if (alsoTop) _flyScroll(gridWrap, { top: 0 }, 520);
     return;
   }
   const left = calendarView === 'month' ? 0 : Math.max(0, (rowOffsets[calStartDi()] || 0) - GRID_GUTTER); // pinned start (July 8), not today
-  const opts = { left, behavior: 'smooth' };
-  if (alsoTop) opts.top = 0; // one scrollTo carries both axes so the animations don't cancel each other
-  gridWrap.scrollTo(opts); // animate back to today (not an instant jump)
+  const target = { left };
+  if (alsoTop) target.top = 0; // one fly carries both axes so the animations don't cancel each other
+  _flyScroll(gridWrap, target); // eased, browser-consistent roll back to today (distance-aware duration)
 }
 document.getElementById('todayBtn').addEventListener('click', () => scrollCalendarToToday()); // Today button: horizontal only (no event arg leaking in as alsoTop)
 
@@ -5433,12 +5433,12 @@ function pageCalendar(dir) {
   }
   if (calendarView === 'month') {
     const cards = Math.max(1, Math.floor(gw.clientWidth / MONTH_CARD_PITCH));
-    gw.scrollTo({ left: gw.scrollLeft + dir * cards * MONTH_CARD_PITCH, behavior: 'smooth' });
+    _flyScroll(gw, { left: gw.scrollLeft + dir * cards * MONTH_CARD_PITCH }, 520); // eased, browser-consistent (Safari's native 'smooth' is near-instant)
     return;
   }
   const colWidth = gridCell().w + gridCell().gap;
   const cols = Math.max(1, Math.floor(gw.clientWidth / colWidth));
-  gw.scrollTo({ left: gw.scrollLeft + dir * cols * colWidth, behavior: 'smooth' });
+  _flyScroll(gw, { left: gw.scrollLeft + dir * cols * colWidth }, 520); // eased, browser-consistent (Safari's native 'smooth' is near-instant)
 }
 document.getElementById('calPrev').addEventListener('click', () => pageCalendar(-1));
 document.getElementById('calNext').addEventListener('click', () => pageCalendar(1));
@@ -12846,7 +12846,7 @@ function _searchRow(li) {
   const row = document.querySelector('#gridRows > .price-row[data-li="' + li + '"]');
   if (!row) return false;
   const rr = row.getBoundingClientRect(), wr = gridWrap.getBoundingClientRect();
-  gridWrap.scrollTo({ top: Math.max(0, gridWrap.scrollTop + (rr.top - wr.top) - (gridWrap.clientHeight / 2 - rr.height / 2)), behavior: 'smooth' });
+  _flyScroll(gridWrap, { top: Math.max(0, gridWrap.scrollTop + (rr.top - wr.top) - (gridWrap.clientHeight / 2 - rr.height / 2)) }, 520); // eased, browser-consistent
   return true;
 }
 // fly the grid to a date column (and optionally centre a listing row), then pulse the date header
@@ -12867,7 +12867,7 @@ function searchGoto(di, li, alignLeft) {
     if (row) { const rr = row.getBoundingClientRect(), wr = gridWrap.getBoundingClientRect();
       top = Math.max(0, gridWrap.scrollTop + (rr.top - wr.top) - (gridWrap.clientHeight / 2 - rr.height / 2)); }
   }
-  gridWrap.scrollTo({ left, top, behavior: 'smooth' });
+  _flyScroll(gridWrap, { left, top }); // eased, browser-consistent search fly (distance-aware; Safari's native 'smooth' was near-instant)
   // pulse the landing column's header once it exists (virtualization mounts it during the fly)
   let tries = 0;
   (function pulse() {
