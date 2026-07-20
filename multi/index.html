@@ -14021,9 +14021,9 @@ function _zeroBootCells() {
   document.querySelectorAll('#gridRows .price-card:not(.booked):not(.unavailable):not(.blocked) .price-val').forEach(pv => {
     const txt = pv.textContent || '';
     if (!/^\s*\$?\d+\s*$/.test(txt)) return;
-    if (pv.dataset.realprice != null && /^\D*1$/.test(txt)) return; // already showing $1
+    if (pv.dataset.realprice != null && /^\D*0$/.test(txt)) return; // already showing $0
     pv.dataset.realprice = txt;
-    pv.textContent = (txt.match(/^\D*/) || [''])[0] + '1';
+    pv.textContent = (txt.match(/^\D*/) || [''])[0] + '0';
   });
 }
 function _revealBootPrices() {
@@ -14039,7 +14039,7 @@ function _revealBootPrices() {
   const t0 = performance.now(), dur = 1560, ease = p => 1 - Math.pow(1 - p, 3); // easeOutCubic — 2× slower reveal
   (function step(now) {
     const p = Math.min(1, (now - t0) / dur), k = ease(p);
-    for (const it of items) it.pv.textContent = it.prefix + Math.round(1 + (it.newN - 1) * k);
+    for (const it of items) it.pv.textContent = it.prefix + Math.round(it.newN * k);
     if (p < 1) requestAnimationFrame(step); else for (const it of items) it.pv.textContent = it.real; // land exact
   })(t0);
 }
