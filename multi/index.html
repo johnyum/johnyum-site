@@ -11697,11 +11697,12 @@ window.updateMagicPill = function () {
   const inCal = !document.body.classList.contains('settings-mode') && !document.body.classList.contains('avail-mode') && (typeof calendarView === 'undefined' || calendarView !== 'month');
   const optimizing = document.body.classList.contains('optimize-mode');
   const hasSel = (typeof selected !== 'undefined') && selected.size > 0;
-  // Simple Tips pill: shows the "N Tips" count whenever there ARE tips (grouped or not) and tapping it
-  // opens the opportunity/events flow. Hidden only when there's nothing to tune.
+  // Tips pill: shows the "N Tips" count ONLY when the calendar is GROUPED (grouping is done from the ⋯
+  // menu). Ungrouped → no pill, so the default view stays clean. Tapping it opens the opportunity/events flow.
   const idle = (!window.__opt || window.__opt.state === 'idle');
+  const grouped = typeof hasRealGroups === 'function' && hasRealGroups();
   let idleTips = false;
-  if (!optimizing && idle && !hasSel && !window._autoGroupThinking && !window._oppWandEnter) {
+  if (!optimizing && idle && grouped && !hasSel && !window._autoGroupThinking && !window._oppWandEnter) {
     try { idleTips = computeSuggestions().length > 0; } catch (e) {}
   }
   const show = inCal && !document.body.classList.contains('grouping-busy') && (optimizing || idleTips);
