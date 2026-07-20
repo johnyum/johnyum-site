@@ -2492,6 +2492,13 @@ body.month-view:not(.settings-mode):not(.avail-mode) .thumb-row { height: 140px;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5); /* white outside stroke so pills don't blend into selected/checkout cells */
   transition: background 0.2s, border-color 0.2s;
 }
+/* Bookings-toggle entrance: each guest pill glides + fades in, keeping the translateY(-50%) centering
+   throughout so nothing about its resting layout changes. Staggered left→right via --bpd. */
+@keyframes bookingPillIn {
+  from { opacity: 0; transform: translateY(-50%) translateX(-7px) scale(.965); }
+  to   { opacity: 1; transform: translateY(-50%); }
+}
+.booking-pill.bp-enter { animation: bookingPillIn .52s cubic-bezier(.2,.75,.3,1) both; animation-delay: var(--bpd, 0s); }
 /* Avatar + name pin to the left of the viewport while the booking spans it,
    clamped within the pill (native sticky → scrolls with no lag) */
 .booking-label {
@@ -13928,9 +13935,62 @@ function syncModeButtons() {
   const b = document.querySelector('.mode-opt[data-modebtn="bookings"]');
   if (b) b.classList.toggle('active', document.body.classList.contains('busy-host'));
 }
+// Snapshot the currently-displayed price of every visible cell (keyed li:di), for the odometer below.
+function _snapshotCellPrices() {
+  const map = new Map();
+  document.querySelectorAll('#gridRows > .price-row').forEach(row => {
+    const li = row.dataset.li;
+    row.querySelectorAll('.price-card .price-val').forEach(pv => {
+      const card = pv.closest('.price-card'); if (!card) return;
+      const n = parseInt((pv.textContent || '').replace(/[^0-9]/g, ''), 10);
+      if (!isNaN(n)) map.set(li + ':' + card.dataset.di, n);
+    });
+  });
+  return map;
+}
+// Fluid Bookings transition: ODOMETER each changed price from its old value to its new one (one shared
+// rAF loop), and — when bookings come ON — GLIDE the guest pills in, staggered left→right. Purely visual:
+// each cell's text is restored to the real rendered value at the end; the pill classes clear after.
+function _animateBookingsChange(before, turningOn) {
+  const items = [];
+  document.querySelectorAll('#gridRows > .price-row').forEach(row => {
+    const li = row.dataset.li;
+    row.querySelectorAll('.price-card:not(.booked):not(.unavailable):not(.blocked) .price-val').forEach(pv => {
+      const card = pv.closest('.price-card'); if (!card) return;
+      const txt = pv.textContent || '';
+      if (!/^\s*\$?\d+\s*$/.test(txt)) return;                 // only plain "$579" cells — leave anything else alone
+      const newN = parseInt(txt.replace(/[^0-9]/g, ''), 10);
+      const oldN = before.get(li + ':' + card.dataset.di);
+      if (oldN == null || isNaN(newN) || oldN === newN) return;
+      items.push({ pv, oldN, newN, prefix: (txt.match(/^\D*/) || [''])[0], txt });
+    });
+  });
+  if (items.length) {
+    const t0 = performance.now(), dur = 580, ease = p => 1 - Math.pow(1 - p, 3); // easeOutCubic
+    (function step(now) {
+      const p = Math.min(1, (now - t0) / dur), k = ease(p);
+      for (const it of items) it.pv.textContent = it.prefix + Math.round(it.oldN + (it.newN - it.oldN) * k);
+      if (p < 1) requestAnimationFrame(step); else for (const it of items) it.pv.textContent = it.txt; // land on the exact rendered value
+    })(t0);
+  }
+  if (turningOn) {
+    const gw = document.getElementById('gridWrap'), wr = gw ? gw.getBoundingClientRect() : { left: 0 };
+    document.querySelectorAll('#gridRows .booking-pill').forEach(pill => {
+      const x = pill.getBoundingClientRect().left - wr.left;
+      pill.style.setProperty('--bpd', (Math.max(0, x) / 1500) + 's');   // sweep in ~1500px/s
+      pill.classList.remove('bp-enter'); void pill.offsetWidth; pill.classList.add('bp-enter');
+      setTimeout(() => { pill.classList.remove('bp-enter'); pill.style.removeProperty('--bpd'); }, 1100);
+    });
+  }
+}
 document.getElementById('hostToggle').addEventListener('click', e => {
   const m = e.target.closest('[data-modebtn]'); if (!m) return;
-  if (m.dataset.modebtn === 'bookings') setDataMode(document.body.classList.contains('busy-host') ? 'none' : 'full');
+  if (m.dataset.modebtn === 'bookings') {
+    const turningOn = !document.body.classList.contains('busy-host');
+    const before = _snapshotCellPrices();          // capture prices BEFORE the data swaps
+    setDataMode(turningOn ? 'full' : 'none');       // unchanged: same data toggle + render
+    _animateBookingsChange(before, turningOn);      // then odometer the prices + glide the pills in
+  }
   syncModeButtons();
 });
 
