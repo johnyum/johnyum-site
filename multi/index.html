@@ -783,6 +783,7 @@ body.grouping-enter #gridRows > *, body.grouping-enter #listingThumbsInner > * {
    40), 96px hero icon. ── */
 .welcome-overlay { position: fixed; inset: 0; z-index: 3000; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.48); }
 .welcome-overlay.visible { display: flex; } /* single centered modal (dev radios live inside it again) */
+.welcome-overlay .welcome-modal { display: none; } /* no greeting card — the board just holds at $0 until the auto-reveal (overlay isn't shown anyway) */
 .welcome-modal { position: relative; box-sizing: border-box; width: 688px; max-width: calc(100vw - 48px); padding: 96px 120px 96px; overflow: hidden; /* even edges (96 top = 96 bottom); airy locked rhythm — icon→title 28, title→sub 16, sub→button 40 */
   background: #fff; border-radius: 32px; box-shadow: 0 24px 70px rgba(0,0,0,0.30), 0 6px 18px rgba(0,0,0,0.12);
   display: flex; flex-direction: column; align-items: center; text-align: center; font-family: 'Cereal', sans-serif; }
@@ -14135,7 +14136,9 @@ window.addEventListener('load', () => loadPlacesPhotos());
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.classList.contains('visible')) dismiss(); });
   let skip = false; // a Reset-triggered reload carries this flag → don't greet again
   try { skip = sessionStorage.getItem('mhc_skip_welcome') === '1'; sessionStorage.removeItem('mhc_skip_welcome'); } catch (e) {}
-  if (!skip) { document.body.classList.add('pills-cloaked'); overlay.classList.add('visible'); } // greet with the welcome modal + hide the pills until Get started
+  // No modal, NO scrim: the board shows $0 (pills hidden), then after 7s startFlow auto-fires —
+  // odometers every cell $0 → $200 and fades the pills in. The overlay is never shown.
+  if (!skip) { document.body.classList.add('pills-cloaked'); setTimeout(startFlow, 7000); }
 })();
 // 12 Listings is always the boot default — every load/Reset starts fresh, regardless of any tier chosen earlier.
 // Runs synchronously (NOT on window 'load') — 'load' waits for every image to finish downloading, and
