@@ -375,7 +375,7 @@
     <button class="chip sound-btn" id="soundToggle" type="button">Sound On</button>
   </div>
   <div id="videostage" aria-hidden="true">
-    <video width="1920" height="1080" controls playsinline preload="none" poster="img/Videos/Portfolio_7.21-poster.jpg"
+    <video width="1920" height="1080" controls playsinline webkit-playsinline preload="none" poster="img/Videos/Portfolio_7.21-poster.jpg"
            controlslist="nodownload noplaybackrate noremoteplayback" disablepictureinpicture>
       <source src="img/Videos/Portfolio_7.21.mp4" type="video/mp4">
     </video>
@@ -456,6 +456,22 @@
       if (e.key !== 'Enter') return;
       if (key.value === PASSWORD) {
         key.value = '';
+        // Prime the film for mobile: this Enter/tap is a user gesture, so a muted
+        // play()->pause() here "blesses" the <video> — after this, a later
+        // programmatic play() (from the play button) is allowed even on iOS/Android,
+        // which otherwise refuse deferred/non-gesture playback. Also kicks off
+        // buffering so playback starts instantly when tapped. Muted + reset so
+        // there's no sound blip and it still starts from 0:00.
+        try {
+          const film = document.querySelector('#videostage video');
+          if (film) {
+            film.preload = 'auto';
+            film.muted = true;
+            const p = film.play();
+            if (p && p.then) p.then(() => { film.pause(); film.currentTime = 0; film.muted = false; })
+                              .catch(() => { film.muted = false; });
+          }
+        } catch (_) {}
         line.classList.add('gone');
         // iOS keeps the keyboard up after a bare blur() called from the input's
         // own keydown. Making the field readonly (+ disabled) first forces
