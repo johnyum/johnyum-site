@@ -196,7 +196,12 @@
     opacity: 0;
     pointer-events: none;
   }
-  body.playing #videostage { opacity: 1; pointer-events: auto; }
+  /* During the drain the film is made VISIBLE but sits BEHIND the pile (low
+     z-index) — mobile refuses to play() a non-visible (opacity:0/display:none)
+     video even inside a tap, so it must be rendered when we start it; the pile
+     drains away on top to uncover the already-playing film. */
+  body.draining #videostage { opacity: 1; z-index: 5; }
+  body.playing #videostage { opacity: 1; z-index: 60; pointer-events: auto; }
   body.playing #pile, body.playing #playbtn { display: none; }
   #videostage video {
     /* width/height auto + BOTH maxes → the browser scales the video down keeping
@@ -1138,11 +1143,16 @@
       }
       filmEl.play().catch(() => {});
     }
-    // Open the film: play now (+ seek if a timecode is given), and if we're still
-    // in the pile, drain it first. Already open → just jumps to the chapter.
+    // Open the film. If we're still in the pile, drain it FIRST — that adds
+    // body.draining, which makes the film visible (behind the pile). Only THEN do
+    // we play(), because mobile rejects play() on a non-visible video. A forced
+    // reflow makes the visibility change live before the play() call.
     function openFilmAt(t) {
+      if (!videoOpen && !draining) {
+        drainPile();
+        void videostage.offsetHeight;   // flush styles so opacity:1 is in effect
+      }
       startFilm(t);
-      if (!videoOpen && !draining) drainPile();
     }
     const playbtn = document.getElementById('playbtn');
     if (playbtn) playbtn.addEventListener('click', e => { e.preventDefault(); openFilmAt(); });
@@ -1349,6 +1359,41 @@
       makeWalls(nw, nh);
       wakePile();
     });
+  })();
+  </script>
+  <!-- Mobile playback debug overlay: only active with ?debug in the URL.
+       Shows a live timeline of every play() call + its outcome, video events,
+       and body-class changes, so a phone can be diagnosed by screenshot. -->
+  <script>
+  (function () {
+    if (!/[?&]debug/.test(location.search)) return;
+    var box = document.createElement('div');
+    box.style.cssText = 'position:fixed;top:8px;left:8px;right:8px;z-index:99999;background:rgba(0,0,0,.88);color:#0f0;font:11px/1.35 ui-monospace,monospace;padding:8px;max-height:66vh;overflow:auto;white-space:pre-wrap;border-radius:6px;pointer-events:none';
+    document.body.appendChild(box);
+    var t0 = Date.now(), lines = [];
+    function L(m) { lines.push('+' + ((Date.now() - t0) / 1000).toFixed(2) + 's ' + m); box.textContent = lines.slice(-45).join('\n'); }
+    L('debug on');
+    L('UA=' + navigator.userAgent);
+    var v = document.querySelector('#videostage video');
+    if (!v) { L('NO VIDEO ELEMENT'); return; }
+    L('src=' + (v.currentSrc || v.querySelector('source') && v.querySelector('source').src || '').split('/').pop());
+    ['loadedmetadata', 'loadeddata', 'canplay', 'play', 'playing', 'pause', 'waiting', 'stalled', 'suspend', 'error', 'abort', 'ended'].forEach(function (ev) {
+      v.addEventListener(ev, function () { L('vid:' + ev + ' rs=' + v.readyState + ' ns=' + v.networkState + (v.error ? ' ERRCODE=' + v.error.code + ' ' + (v.error.message || '').slice(0, 50) : '')); });
+    });
+    var _play = v.play.bind(v);
+    v.play = function () {
+      L('play() called (paused=' + v.paused + ' rs=' + v.readyState + ' muted=' + v.muted + ')');
+      var p;
+      try { p = _play(); } catch (e) { L('play() THREW ' + e.name + ': ' + (e.message || '').slice(0, 60)); throw e; }
+      if (p && p.then) p.then(function () { L('play() RESOLVED'); }).catch(function (e) { L('play() REJECTED ' + e.name + ': ' + (e.message || '').slice(0, 70)); });
+      return p;
+    };
+    var pb = document.getElementById('playbtn');
+    if (pb) pb.addEventListener('click', function () {
+      L('=== PLAY BUTTON TAPPED ===');
+      setTimeout(function () { L('t+1.5s: paused=' + v.paused + ' ct=' + v.currentTime.toFixed(1) + ' playingCls=' + document.body.classList.contains('playing')); }, 1500);
+    }, true);
+    new MutationObserver(function () { L('body.class="' + document.body.className + '"'); }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
   })();
   </script>
 </body>
