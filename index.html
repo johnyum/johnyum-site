@@ -90,7 +90,9 @@
   body.playing .chip { opacity: 1; transform: translateY(0); }
   .chip:hover { background: rgba(255, 255, 255, 0.92); }
   .chip:active { background: rgba(235, 235, 235, 0.92); }
-  .chip-t { margin-left: 8px; opacity: 0.45; font-variant-numeric: tabular-nums; }
+  .chip-t { opacity: 0.45; font-variant-numeric: tabular-nums; }
+  /* the chapter currently playing gets the whole label ("Intro 0:00") underlined */
+  .chip.active { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
   /* Sound toggle: plain black when sound is on; struck-through + flashing red
      when the film is muted. */
   .sound-btn.muted { text-decoration: line-through; animation: soundflash 0.85s ease-in-out infinite; }
@@ -1114,13 +1116,30 @@
     const playbtn = document.getElementById('playbtn');
     if (playbtn) playbtn.addEventListener('click', e => { e.preventDefault(); openFilmAt(0); });
     const fmtTime = s => Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0');
+    const chapterChips = [];
     document.querySelectorAll('#chapter-bar .chip').forEach(chip => {
       if (!chip.hasAttribute('data-t')) return;   // skip the Sound toggle
       const t = parseFloat(chip.dataset.t) || 0;
-      // append the timecode to the label (built from data-t so they never drift)
-      chip.innerHTML = chip.textContent.trim() + '<span class="chip-t">' + fmtTime(t) + '</span>';
+      // append the timecode to the label (built from data-t so they never drift).
+      // the   (en space) keeps the active-underline continuous across the gap.
+      chip.innerHTML = chip.textContent.trim() + ' <span class="chip-t">' + fmtTime(t) + '</span>';
       chip.addEventListener('click', e => { e.preventDefault(); openFilmAt(t); });
+      chapterChips.push({ chip, t });
     });
+    chapterChips.sort((a, b) => a.t - b.t);
+    // underline whichever chapter the playhead is inside (the last one whose start
+    // time we've passed); clears the others.
+    if (filmEl && chapterChips.length) {
+      const updateActiveChapter = () => {
+        let idx = 0;
+        for (let i = 0; i < chapterChips.length; i++) {
+          if (filmEl.currentTime >= chapterChips[i].t - 0.05) idx = i;
+        }
+        chapterChips.forEach((c, i) => c.chip.classList.toggle('active', i === idx));
+      };
+      filmEl.addEventListener('timeupdate', updateActiveChapter);
+      updateActiveChapter();
+    }
     // Sound toggle: flips the film's mute. The label strikes through + flashes red
     // while muted. A volumechange listener keeps it in sync with the native mute too.
     const soundBtn = document.getElementById('soundToggle');
