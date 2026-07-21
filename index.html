@@ -91,6 +91,10 @@
   .chip:hover { background: rgba(255, 255, 255, 0.92); }
   .chip:active { background: rgba(235, 235, 235, 0.92); }
   .chip-t { margin-left: 8px; opacity: 0.45; font-variant-numeric: tabular-nums; }
+  /* Sound toggle: plain black when sound is on; struck-through + flashing red
+     when the film is muted. */
+  .sound-btn.muted { text-decoration: line-through; animation: soundflash 0.85s ease-in-out infinite; }
+  @keyframes soundflash { 0%, 100% { color: #e11; } 50% { color: #f79; } }
   /* real input, visually hidden — it owns focus and the mobile keyboard */
   #key {
     position: fixed;
@@ -366,6 +370,7 @@
     <button class="chip" data-t="37">Host Calendar</button>
     <button class="chip" data-t="120">Sketches</button>
     <button class="chip" data-t="180">Transportation</button>
+    <button class="chip sound-btn" id="soundToggle" type="button">Sound</button>
   </div>
   <div id="videostage" aria-hidden="true">
     <video width="1954" height="1080" controls playsinline preload="none" poster="img/Videos/Portfolio_2-poster.jpg"
@@ -1120,11 +1125,21 @@
     if (playbtn) playbtn.addEventListener('click', e => { e.preventDefault(); openFilmAt(0); });
     const fmtTime = s => Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0');
     document.querySelectorAll('#chapter-bar .chip').forEach(chip => {
+      if (!chip.hasAttribute('data-t')) return;   // skip the Sound toggle
       const t = parseFloat(chip.dataset.t) || 0;
       // append the timecode to the label (built from data-t so they never drift)
       chip.innerHTML = chip.textContent.trim() + '<span class="chip-t">' + fmtTime(t) + '</span>';
       chip.addEventListener('click', e => { e.preventDefault(); openFilmAt(t); });
     });
+    // Sound toggle: flips the film's mute. The label strikes through + flashes red
+    // while muted. A volumechange listener keeps it in sync with the native mute too.
+    const soundBtn = document.getElementById('soundToggle');
+    if (soundBtn && filmEl) {
+      const syncSound = () => soundBtn.classList.toggle('muted', filmEl.muted || filmEl.volume === 0);
+      soundBtn.addEventListener('click', e => { e.preventDefault(); filmEl.muted = !filmEl.muted; syncSound(); });
+      filmEl.addEventListener('volumechange', syncSound);
+      syncSound();
+    }
     const videoclose = document.getElementById('videoclose');
     if (videoclose) videoclose.addEventListener('click', e => { e.stopPropagation(); closeVideo(); });
 
