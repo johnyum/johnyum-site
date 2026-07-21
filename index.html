@@ -1106,19 +1106,24 @@
     // hidden while the pile drains, then showVideo() reveals it already at the mark.
     function startFilm(t) {
       if (!filmEl) return;
-      const seek = () => { try { filmEl.currentTime = t || 0; } catch (_) {} };
-      if (filmEl.readyState >= 1) seek();
-      else filmEl.addEventListener('loadedmetadata', seek, { once: true });
+      // only seek when a target is given (chapter jump). With no target we RESUME
+      // from wherever the film is — 0 the first time, or where the user left off
+      // after they X'd out and pressed play again.
+      if (t != null) {
+        const seek = () => { try { filmEl.currentTime = t; } catch (_) {} };
+        if (filmEl.readyState >= 1) seek();
+        else filmEl.addEventListener('loadedmetadata', seek, { once: true });
+      }
       filmEl.play().catch(() => {});
     }
-    // Open the film at a timecode: seek+play now, and if we're still in the pile,
-    // drain it first. If the film is already open, this just jumps to the chapter.
+    // Open the film: play now (+ seek if a timecode is given), and if we're still
+    // in the pile, drain it first. Already open → just jumps to the chapter.
     function openFilmAt(t) {
       startFilm(t);
       if (!videoOpen && !draining) drainPile();
     }
     const playbtn = document.getElementById('playbtn');
-    if (playbtn) playbtn.addEventListener('click', e => { e.preventDefault(); openFilmAt(0); });
+    if (playbtn) playbtn.addEventListener('click', e => { e.preventDefault(); openFilmAt(); });
     const fmtTime = s => Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0');
     const chapterChips = [];
     document.querySelectorAll('#chapter-bar .chip').forEach(chip => {
