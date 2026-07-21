@@ -90,6 +90,7 @@
   body.playing .chip { opacity: 1; transform: translateY(0); }
   .chip:hover { background: rgba(255, 255, 255, 0.92); }
   .chip:active { background: rgba(235, 235, 235, 0.92); }
+  .chip-t { margin-left: 8px; opacity: 0.45; font-variant-numeric: tabular-nums; }
   /* real input, visually hidden — it owns focus and the mobile keyboard */
   #key {
     position: fixed;
@@ -355,7 +356,7 @@
   </a>
   <div id="chapter-bar">
     <button class="chip" data-t="0">Intro</button>
-    <button class="chip" data-t="60">Host Calendar</button>
+    <button class="chip" data-t="37">Host Calendar</button>
     <button class="chip" data-t="120">Sketches</button>
     <button class="chip" data-t="180">Transportation</button>
   </div>
@@ -1110,11 +1111,12 @@
     }
     const playbtn = document.getElementById('playbtn');
     if (playbtn) playbtn.addEventListener('click', e => { e.preventDefault(); openFilmAt(0); });
+    const fmtTime = s => Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0');
     document.querySelectorAll('#chapter-bar .chip').forEach(chip => {
-      chip.addEventListener('click', e => {
-        e.preventDefault();
-        openFilmAt(parseFloat(chip.dataset.t) || 0);
-      });
+      const t = parseFloat(chip.dataset.t) || 0;
+      // append the timecode to the label (built from data-t so they never drift)
+      chip.innerHTML = chip.textContent.trim() + '<span class="chip-t">' + fmtTime(t) + '</span>';
+      chip.addEventListener('click', e => { e.preventDefault(); openFilmAt(t); });
     });
     const videoclose = document.getElementById('videoclose');
     if (videoclose) videoclose.addEventListener('click', e => { e.stopPropagation(); closeVideo(); });
