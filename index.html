@@ -140,6 +140,38 @@
   #playbtn:hover { transform: translate(-50%, -50%) scale(1.06); }
   #playbtn:active { transform: translate(-50%, -50%) scale(0.94); }
   body.zoomcard #playbtn { opacity: 0; pointer-events: none; }
+  /* tapping play drains the pile — the button fades out as the work pours away */
+  body.draining #playbtn { opacity: 0; pointer-events: none; transform: translate(-50%, -50%) scale(0.6); }
+  /* the film stage: full-screen white, fades up once the work has drained */
+  #videostage {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    background: #fff;
+    z-index: 60;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+  }
+  body.playing #videostage { opacity: 1; pointer-events: auto; }
+  body.playing #pile, body.playing #playbtn { display: none; }
+  #videostage video {
+    width: 1280px; max-width: 92vw; max-height: 86vh; height: auto;
+    display: block; background: #000; border-radius: 14px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
+  }
+  #videoclose {
+    position: fixed; top: 20px; right: 20px;
+    width: 44px; height: 44px; border: 0; border-radius: 50%;
+    display: grid; place-items: center;
+    background: rgba(255, 255, 255, 0.7);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    backdrop-filter: blur(16px) saturate(150%);
+    box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.08), 0 6px 22px rgba(0, 0, 0, 0.12);
+    color: #1d1d1f; cursor: pointer; z-index: 61;
+    transition: transform 0.15s ease;
+  }
+  #videoclose:active { transform: scale(0.92); }
+  #videoclose svg { width: 20px; height: 20px; }
   #pile .card {
     position: absolute; left: 0; top: 0;
     will-change: transform;
@@ -278,9 +310,17 @@
   <input id="key" type="password" autocomplete="off" autocapitalize="off" enterkeyhint="go" spellcheck="false" aria-label="Password">
   <div id="line" aria-hidden="true"><span id="dots"><span id="caret"></span></span></div>
   <div id="pile" aria-hidden="true"></div>
-  <a id="playbtn" href="/test" aria-label="Play prototype">
+  <a id="playbtn" href="/test" aria-label="Play film">
     <svg viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="m380-300 280-180-280-180v360ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z"/></svg>
   </a>
+  <div id="videostage" aria-hidden="true">
+    <video width="1280" height="720" controls playsinline preload="none" poster="img/Videos/Test-poster.jpg">
+      <source src="img/Videos/Test.mp4" type="video/mp4">
+    </video>
+    <button id="videoclose" aria-label="Back to work">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5L19 19M19 5L5 19"/></svg>
+    </button>
+  </div>
   <button class="nav" id="navPrev" aria-label="Previous project">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
   </button>
@@ -452,6 +492,7 @@
     // entirely (a frozen engine cannot jitter). Any interaction wakes it.
     let pileAsleep = false, calmFrames = 0;
     function wakePile() { pileAsleep = false; calmFrames = 0; }
+    let draining = false, videoOpen = false;   // play button → drain the pile → show the film
     let _resetZoom = null;   // set up by the carousel touch model; clears a card's pinch-zoom
 
     // a card sits exactly where its body is — no lens, so a phone's size
@@ -835,7 +876,7 @@
       // Run physics ONLY while the pile is awake (and no card is fully open).
       // Once everything has been still for a beat we set pileAsleep and skip
       // Engine.update entirely — a frozen engine is, by definition, jitter-free.
-      if (!frozen && !pileAsleep) {
+      if (!frozen && !pileAsleep && !videoOpen) {
         // two half-steps per frame: bodies travel half as far between
         // solver passes, so penetration never gets a chance to build
         Engine.update(engine, 1000 / 120);
@@ -849,7 +890,7 @@
           // it still grows and pushes, it just doesn't drift off
           if (c === hoverCard) { Body.setVelocity(b, { x: 0, y: 0 }); Body.setAngularVelocity(b, 0); continue; }
           // one speed cap for everything (larger only while you're dragging it)
-          const cap = b === draggedBody ? 24 : 11;
+          const cap = draining ? 70 : (b === draggedBody ? 24 : 11);
           const v = b.velocity;
           const sp = Math.hypot(v.x, v.y);
           if (sp > cap) Body.setVelocity(b, { x: v.x / sp * cap, y: v.y / sp * cap });
@@ -956,6 +997,55 @@
       if (opened) close(opened, -dir, true);
       open(pick, dir);
     }
+
+    // ===== play button → drain the pile, then roll the film =====
+    // Tapping play OPENS THE BOTTOM: the floor + centre anchor are removed and
+    // gravity spikes, so all the work pours out the bottom of the screen. Once
+    // it's drained, the film fades up.
+    function drainPile() {
+      if (draining || videoOpen) return;
+      draining = true;
+      document.body.classList.add('draining');   // the play button fades out
+      wakePile();
+      for (let i = 2; i < walls.length; i++) World.remove(engine.world, walls[i]);  // keep the 2 side walls, drop the floor + anchor
+      engine.gravity.y = 3.4;
+      for (const c of cards) {
+        if (c.body.isStatic) continue;
+        Sleeping.set(c.body, false);
+        Body.setVelocity(c.body, { x: c.body.velocity.x * 0.5, y: 9 + Math.random() * 6 });
+      }
+      setTimeout(showVideo, 1250);   // ~the time it takes the work to clear the bottom
+    }
+    const videostage = document.getElementById('videostage');
+    const filmEl = videostage ? videostage.querySelector('video') : null;
+    function showVideo() {
+      videoOpen = true;
+      document.body.classList.add('playing');    // reveals the film stage, hides the pile
+      if (filmEl) { filmEl.currentTime = 0; filmEl.play().catch(() => {}); }
+    }
+    function closeVideo() {
+      if (!videoOpen) return;
+      if (filmEl) filmEl.pause();
+      videoOpen = false;
+      document.body.classList.remove('playing', 'draining');
+      // re-pour the pile: restore the floor + anchor, reset gravity, drop every
+      // card back in from above.
+      makeWalls(innerWidth, innerHeight);
+      engine.gravity.y = 1.0;
+      draining = false;
+      for (const c of cards) {
+        Body.setPosition(c.body, { x: innerWidth * (0.14 + 0.72 * Math.random()), y: -c.h - Math.random() * innerHeight * 0.6 });
+        Body.setAngle(c.body, (Math.random() - 0.5) * 0.28);
+        Body.setVelocity(c.body, { x: (Math.random() - 0.5) * 1.4, y: 1.5 });
+        Body.setAngularVelocity(c.body, (Math.random() - 0.5) * 0.05);
+        Sleeping.set(c.body, false);
+      }
+      wakePile();
+    }
+    const playbtn = document.getElementById('playbtn');
+    if (playbtn) playbtn.addEventListener('click', e => { e.preventDefault(); drainPile(); });
+    const videoclose = document.getElementById('videoclose');
+    if (videoclose) videoclose.addEventListener('click', e => { e.stopPropagation(); closeVideo(); });
 
     const navPrev = document.getElementById('navPrev');
     const navNext = document.getElementById('navNext');
