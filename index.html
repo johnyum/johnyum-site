@@ -139,23 +139,6 @@
   #playbtn:hover { transform: translate(-50%, -50%) scale(1.06); }
   #playbtn:active { transform: translate(-50%, -50%) scale(0.94); }
   body.zoomcard #playbtn { opacity: 0; pointer-events: none; }
-  /* wavy ring around the play button — a travelling sine-wave stroke (path drawn
-     each frame by the wave engine). Rotates clockwise; a synced ripple nudges
-     the surrounding work. */
-  #playwave {
-    position: fixed;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: 240px; height: 240px;
-    display: none;
-    z-index: 18;                   /* over the pile cards, just under the button (19) */
-    pointer-events: none;
-    overflow: visible;
-    transition: opacity 0.3s ease;
-  }
-  body.unlocked #playwave { display: block; }
-  body.zoomcard #playwave, body.draining #playwave, body.playing #playwave { opacity: 0; }
-  #playwave .wpath { fill: none; stroke: #111; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   /* tapping play drains the pile — the button fades out as the work pours away */
   body.draining #playbtn { opacity: 0; pointer-events: none; transform: translate(-50%, -50%) scale(0.6); }
   /* the film stage: full-screen white, fades up once the work has drained */
@@ -329,7 +312,6 @@
   <input id="key" type="password" autocomplete="off" autocapitalize="off" enterkeyhint="go" spellcheck="false" aria-label="Password">
   <div id="line" aria-hidden="true"><span id="dots"><span id="caret"></span></span></div>
   <div id="pile" aria-hidden="true"></div>
-  <svg id="playwave" viewBox="0 0 240 240" aria-hidden="true"><path class="wpath"/></svg>
   <a id="playbtn" href="/test" aria-label="Play film">
     <svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="40" fill="#111"/><path d="M33 25 L59 40 L33 55 Z" fill="#fff"/></svg>
   </a>
@@ -513,23 +495,6 @@
     let pileAsleep = false, calmFrames = 0;
     function wakePile() { pileAsleep = false; calmFrames = 0; }
     let draining = false, videoOpen = false;   // play button → drain the pile → show the film
-    // wavy ring around the play button (ported from the Multi-Cal wave engine, bent
-    // into a circle). One `wavePhase` drives BOTH the SVG stroke and the card ripple
-    // so they stay in lockstep. Clockwise = wavePhase increases.
-    let wavePhase = 0;
-    const WAVE_N = 14, RING_R = 62, RING_AMP = 8, WAVE_SPEED = 0.05;
-    const RIPPLE_INNER = 42, RIPPLE_OUTER = 230, RIPPLE_AMP = 14;
-    function sineCirclePath(cx, cy, R, amp, phase, N) {
-      let d = ''; const STEPS = 160;
-      for (let i = 0; i <= STEPS; i++) {
-        const th = (i / STEPS) * Math.PI * 2;
-        const r = R + amp * Math.sin(N * th - phase);
-        const x = cx + r * Math.cos(th), y = cy + r * Math.sin(th);
-        d += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
-      }
-      return d + 'Z';
-    }
-    const waveEl = document.querySelector('#playwave .wpath');
     let _resetZoom = null;   // set up by the carousel touch model; clears a card's pinch-zoom
 
     // a card sits exactly where its body is — no lens, so a phone's size
@@ -956,16 +921,6 @@
         }
       }
 
-      // advance the wavy ring (clockwise) + redraw its stroke; the same phase
-      // drives the card ripple below. Runs even when the pile is frozen — it's a
-      // render-layer effect, so the dialed-in physics/settle is never touched.
-      const rippleOn = !videoOpen && !draining && !document.body.classList.contains('zoomcard');
-      const cxc = innerWidth / 2, cyc = innerHeight / 2;
-      if (rippleOn) {
-        wavePhase += WAVE_SPEED;
-        if (waveEl) waveEl.setAttribute('d', sineCirclePath(120, 120, RING_R, RING_AMP, wavePhase, WAVE_N));
-      }
-
       // render: each card sits exactly where its body is, at its own size
       for (const c of cards) {
         const b = c.body;
@@ -987,20 +942,8 @@
             `rotate(${b.angle.toFixed(4)}rad)`;
         } else {
           if (c.el._dw != null) { c.el.style.width = c.w + 'px'; c.el.style.height = c.h + 'px'; c.el._dw = null; }
-          // ripple: the wave lobes nudge nearby cards radially OUTWARD as they
-          // sweep past (render-only offset, synced to the ring's wavePhase).
-          let ox = 0, oy = 0;
-          if (rippleOn) {
-            const rdx = b.position.x - cxc, rdy = b.position.y - cyc, rd = Math.hypot(rdx, rdy);
-            if (rd > 1 && rd < RIPPLE_OUTER) {
-              const wv = Math.max(0, Math.sin(WAVE_N * Math.atan2(rdy, rdx) - wavePhase));
-              const fl = 1 - Math.min(1, Math.max(0, (rd - RIPPLE_INNER) / (RIPPLE_OUTER - RIPPLE_INNER)));
-              const push = RIPPLE_AMP * wv * fl * fl;
-              ox = (rdx / rd) * push; oy = (rdy / rd) * push;
-            }
-          }
           c.el.style.transform =
-            `translate(${(b.position.x - c.w / 2 + ox).toFixed(2)}px, ${(b.position.y - c.h / 2 + oy).toFixed(2)}px) ` +
+            `translate(${(b.position.x - c.w / 2).toFixed(2)}px, ${(b.position.y - c.h / 2).toFixed(2)}px) ` +
             `rotate(${b.angle.toFixed(4)}rad) scale(${c.scale.toFixed(4)})`;
         }
       }
