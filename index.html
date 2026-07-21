@@ -173,21 +173,22 @@
   body.zoomcard #playbtn { opacity: 0; pointer-events: none; }
   /* tapping play drains the pile — the button fades out as the work pours away */
   body.draining #playbtn { opacity: 0; pointer-events: none; transform: translate(-50%, -50%) scale(0.6); }
-  /* the film stage: full-screen white, fades up once the work has drained */
+  /* the film stage: full-screen white. Shown by TOGGLING DISPLAY, not by animating
+     opacity — animating a video container's opacity makes Chrome's hardware video
+     overlay desync on macOS (the frame bleeds sideways and the pile shows through).
+     Display-toggle avoids that entirely. */
   #videostage {
     position: fixed; inset: 0;
-    display: grid; place-items: center;
+    display: none; place-items: center;
     background: #fff;
     z-index: 60;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.5s ease;
   }
-  body.playing #videostage { opacity: 1; pointer-events: auto; }
+  body.playing #videostage { display: grid; }
   body.playing #pile, body.playing #playbtn { display: none; }
   #videostage video {
     width: 1280px; max-width: 92vw; max-height: 86vh; height: auto;
-    display: block; background: transparent;   /* white on white — no frame, no shadow */
+    display: block; background: #fff;   /* white bg (matches the stage) so nothing
+                                           ever shows through the video, even mid-glitch */
   }
   /* native controls tweaked for a white page: drop the dark gradient scrim and
      flip the light icons to dark so they read on white (WebKit/Chrome + Safari) */
