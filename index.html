@@ -29,7 +29,7 @@
     transition: opacity 0.25s ease;
   }
   body.zoomcard #wm-bar { opacity: 0; }
-  #wordmark, .wm-pill {
+  #wordmark, .wm-pill, .chip {
     padding: 8px 18px;
     background: rgba(255, 255, 255, 0.72);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -63,6 +63,33 @@
     max-width: 200px; padding-left: 18px; padding-right: 18px;
     margin-left: 8px; opacity: 1;
   }
+  /* chapter chips — mirror of the top wordmark bar, pinned to the bottom with the
+     same 16px inset. Each jumps the film to a timecode. */
+  #chapter-bar {
+    position: fixed;
+    bottom: 16px;
+    left: 0; right: 0;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    z-index: 100;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  body.unlocked #chapter-bar { display: flex; }
+  body.zoomcard #chapter-bar, body.draining #chapter-bar, body.playing #chapter-bar { opacity: 0; pointer-events: none; }
+  .chip {
+    border: 0;
+    cursor: pointer;
+    pointer-events: auto;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.45s ease 0.25s, transform 0.45s cubic-bezier(0.4,0,0.2,1) 0.25s, background 0.15s ease;
+  }
+  body.unlocked .chip { opacity: 1; transform: translateY(0); }
+  .chip:hover { background: rgba(255, 255, 255, 0.92); }
+  .chip:active { background: rgba(235, 235, 235, 0.92); }
   /* real input, visually hidden — it owns focus and the mobile keyboard */
   #key {
     position: fixed;
@@ -315,6 +342,11 @@
   <a id="playbtn" href="/test" aria-label="Play film">
     <svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="40" fill="#111"/><path d="M33 25 L59 40 L33 55 Z" fill="#fff"/></svg>
   </a>
+  <div id="chapter-bar">
+    <button class="chip" data-t="0">Intro</button>
+    <button class="chip" data-t="60">Host Calendar Sketches</button>
+    <button class="chip" data-t="180">Transportation</button>
+  </div>
   <div id="videostage" aria-hidden="true">
     <video width="1954" height="1080" controls playsinline preload="none" poster="img/Videos/Portfolio_2-poster.jpg">
       <source src="img/Videos/Portfolio_2.mp4" type="video/mp4">
@@ -1045,14 +1077,30 @@
       }
       wakePile();
     }
+    // Start the film at `t` seconds, INSIDE the user gesture so the autoplay policy
+    // lets it play with sound. preload="none" means metadata isn't loaded yet, so the
+    // seek has to wait for loadedmetadata; play() triggers that load. The film runs
+    // hidden while the pile drains, then showVideo() reveals it already at the mark.
+    function startFilm(t) {
+      if (!filmEl) return;
+      const seek = () => { try { filmEl.currentTime = t || 0; } catch (_) {} };
+      if (filmEl.readyState >= 1) seek();
+      else filmEl.addEventListener('loadedmetadata', seek, { once: true });
+      filmEl.play().catch(() => {});
+    }
+    // Open the film at a timecode: seek+play now, and if we're still in the pile,
+    // drain it first. If the film is already open, this just jumps to the chapter.
+    function openFilmAt(t) {
+      startFilm(t);
+      if (!videoOpen && !draining) drainPile();
+    }
     const playbtn = document.getElementById('playbtn');
-    if (playbtn) playbtn.addEventListener('click', e => {
-      e.preventDefault();
-      // Start the film NOW, inside the user gesture, so the autoplay policy lets it
-      // play with sound. It runs (hidden behind the pile) while the pile drains, then
-      // showVideo() reveals it already-playing 1.25s later.
-      if (filmEl) { try { filmEl.currentTime = 0; filmEl.play().catch(() => {}); } catch (_) {} }
-      drainPile();
+    if (playbtn) playbtn.addEventListener('click', e => { e.preventDefault(); openFilmAt(0); });
+    document.querySelectorAll('#chapter-bar .chip').forEach(chip => {
+      chip.addEventListener('click', e => {
+        e.preventDefault();
+        openFilmAt(parseFloat(chip.dataset.t) || 0);
+      });
     });
     const videoclose = document.getElementById('videoclose');
     if (videoclose) videoclose.addEventListener('click', e => { e.stopPropagation(); closeVideo(); });
