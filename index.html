@@ -95,6 +95,8 @@
      with the timecode brought up to full black too (it's muted grey otherwise) */
   .chip.active { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
   .chip.active .chip-t { opacity: 1; }
+  /* chapters not yet in the reel: greyed out and non-clickable until they land */
+  body.playing .chip.soon { opacity: 0.3; pointer-events: none; }
   /* Sound toggle: plain black when sound is on; struck-through + flashing red
      when the film is muted. */
   .sound-btn.muted { text-decoration: line-through; animation: soundflash 0.85s ease-in-out infinite; }
@@ -363,9 +365,9 @@
   </a>
   <div id="chapter-bar">
     <button class="chip" data-t="0">Intro</button>
-    <button class="chip" data-t="37">Host Calendar</button>
-    <button class="chip" data-t="120">Sketches</button>
-    <button class="chip" data-t="180">Transportation</button>
+    <button class="chip" data-t="41">Host Calendar</button>
+    <button class="chip soon" data-t="300">Sketches</button>
+    <button class="chip soon" data-t="480">Transportation</button>
     <button class="chip sound-btn" id="soundToggle" type="button">Sound On</button>
   </div>
   <div id="videostage" aria-hidden="true">
@@ -1132,6 +1134,7 @@
       // append the timecode to the label (built from data-t so they never drift).
       // the   (en space) keeps the active-underline continuous across the gap.
       chip.innerHTML = chip.textContent.trim() + ' <span class="chip-t">' + fmtTime(t) + '</span>';
+      if (chip.classList.contains('soon')) return;   // not in the reel yet: no click, no active-underline
       chip.addEventListener('click', e => { e.preventDefault(); openFilmAt(t); });
       chapterChips.push({ chip, t });
     });
