@@ -182,17 +182,21 @@
   body.zoomcard #playbtn { opacity: 0; pointer-events: none; }
   /* tapping play drains the pile — the button fades out as the work pours away */
   body.draining #playbtn { opacity: 0; pointer-events: none; transform: translate(-50%, -50%) scale(0.6); }
-  /* the film stage: full-screen white. Shown by TOGGLING DISPLAY, not by animating
-     opacity — animating a video container's opacity makes Chrome's hardware video
-     overlay desync on macOS (the frame bleeds sideways and the pile shows through).
-     Display-toggle avoids that entirely. */
+  /* the film stage: full-screen white. Kept RENDERED at all times (opacity 0)
+     rather than display:none, because mobile browsers refuse to play a
+     display:none <video> — and we start playback inside the tap gesture, while
+     the pile is still draining. Toggled by opacity with NO transition: the
+     desktop overlay desync came from ANIMATING opacity, not from a static value,
+     and the video's own white bg backstops any bleed. */
   #videostage {
     position: fixed; inset: 0;
-    display: none; place-items: center;
+    display: grid; place-items: center;
     background: #fff;
     z-index: 60;
+    opacity: 0;
+    pointer-events: none;
   }
-  body.playing #videostage { display: grid; }
+  body.playing #videostage { opacity: 1; pointer-events: auto; }
   body.playing #pile, body.playing #playbtn { display: none; }
   #videostage video {
     /* width/height auto + BOTH maxes → the browser scales the video down keeping
