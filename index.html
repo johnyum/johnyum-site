@@ -119,6 +119,27 @@
     pointer-events: none;
   }
   body.unlocked #pile { display: block; }
+  /* the locked play-button anchor — dead centre, above the pile. The work
+     bounces off a matching static circle in the physics world. */
+  #playbtn {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px; height: 80px;
+    display: none;                 /* only in the unlocked pile view */
+    place-items: center;
+    color: #111;
+    z-index: 19;                   /* above pile cards, below the zoom-card veil (20) */
+    cursor: pointer;
+    filter: drop-shadow(0 8px 22px rgba(0, 0, 0, 0.22));
+    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #playbtn svg { width: 80px; height: 80px; display: block; }
+  body.unlocked #playbtn { display: grid; }
+  #playbtn:hover { transform: translate(-50%, -50%) scale(1.06); }
+  #playbtn:active { transform: translate(-50%, -50%) scale(0.94); }
+  body.zoomcard #playbtn { opacity: 0; pointer-events: none; }
   #pile .card {
     position: absolute; left: 0; top: 0;
     will-change: transform;
@@ -257,6 +278,9 @@
   <input id="key" type="password" autocomplete="off" autocapitalize="off" enterkeyhint="go" spellcheck="false" aria-label="Password">
   <div id="line" aria-hidden="true"><span id="dots"><span id="caret"></span></span></div>
   <div id="pile" aria-hidden="true"></div>
+  <a id="playbtn" href="/test" aria-label="Play prototype">
+    <svg viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="m380-300 280-180-280-180v360ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z"/></svg>
+  </a>
   <button class="nav" id="navPrev" aria-label="Previous project">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
   </button>
@@ -470,6 +494,13 @@
           friction: 0.4, frictionStatic: 0.5, restitution: 0  // low grip: cards slide along & pack
         }));
       }
+
+      // the play button is a LOCKED anchor at dead centre: a static circle the
+      // falling work bounces off and piles around. Radius 42 ≈ the 80px button
+      // (+ the cards' ~2px force field). Recreated here so it re-centres on resize.
+      walls.push(Bodies.circle(W / 2, H / 2, 42, {
+        isStatic: true, restitution: 0.5, friction: 0.2
+      }));
 
       World.add(engine.world, walls);
     }
