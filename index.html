@@ -409,7 +409,9 @@
     function focusKey() {
       // don't re-grab focus once the right password is in ('gone' = unlocking) —
       // that's what let the mobile keyboard pop straight back up after Enter.
-      if (!document.body.classList.contains('unlocked') && !line.classList.contains('gone')) key.focus();
+      // preventScroll: refocusing must never scroll/jump the page (that shifted the
+      // whole password line out and back — part of the flicker).
+      if (!document.body.classList.contains('unlocked') && !line.classList.contains('gone')) key.focus({ preventScroll: true });
     }
     focusKey();
     // synchronous focus inside the gesture, so mobile taps summon the keyboard
@@ -435,15 +437,23 @@
     // the hidden input is a real text field — arrows, select-all, cut,
     // everything native works. This just draws its state: one dot per
     // character, selection in blue, the caret exactly where it is.
+    let lastSig = '';
     function renderLine(active) {
       const len = key.value.length;
       const s = key.selectionStart ?? len, e = key.selectionEnd ?? len;
       const caretAt = key.selectionDirection === 'backward' ? s : e;
-      let html = '';
-      for (let i = 0; i < len; i++) html += i >= s && i < e ? '<i class="sel"></i>' : '<i></i>';
-      dots.innerHTML = html;
-      caret.style.display = s !== e ? 'none' : '';
-      dots.insertBefore(caret, dots.children[caretAt] || null);
+      // input, keyup, select AND selectionchange all fire for one keystroke — only
+      // touch the DOM when the visible state actually changed, so the dots/caret
+      // aren't torn down and rebuilt several times per key (that caused the flicker).
+      const sig = len + ':' + s + ':' + e + ':' + caretAt;
+      if (sig !== lastSig) {
+        lastSig = sig;
+        let html = '';
+        for (let i = 0; i < len; i++) html += i >= s && i < e ? '<i class="sel"></i>' : '<i></i>';
+        dots.innerHTML = html;
+        caret.style.display = s !== e ? 'none' : '';
+        dots.insertBefore(caret, dots.children[caretAt] || null);
+      }
       if (active) {
         line.classList.add('typing');
         clearTimeout(typingTimer);
