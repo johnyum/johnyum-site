@@ -8,6 +8,15 @@
 <!-- Chromium only: flags the control-inversion hack below. Safari must NOT get it
      (it washes the video grey there). Runs before paint so there's no flash. -->
 <script>if(/Chrome\//.test(navigator.userAgent))document.documentElement.classList.add('chrome-media');</script>
+<!-- Vercel Web Analytics queue shim. Defined early so events fired before the
+     analytics script finishes loading are queued, not lost. track() is a safe
+     no-op if analytics is disabled or blocked, so nothing here can break the page. -->
+<script>
+  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+  window.track = function (name, data) {
+    try { window.va('event', data ? { name: name, data: data } : { name: name }); } catch (e) {}
+  };
+</script>
 <style>
   /* This site is light-only. Declaring it stops Chrome's Auto Dark Mode from
      force-darkening the page (which turned the background dark and made the
@@ -559,6 +568,7 @@
           key.disabled = true;   // belt-and-suspenders: nothing can re-summon the keyboard
           // blank stage — the work showcase mounts here
           dispatchEvent(new CustomEvent('unlocked'));
+          window.track && window.track('unlocked');   // got past the password gate
         }, 450);
       } else {
         key.value = '';
@@ -1257,6 +1267,7 @@
     // reflow makes the visibility change live before the play() call.
     function openFilmAt(t) {
       const first = !videoOpen && !draining;
+      if (first) window.track && window.track('film_play');   // started the reel
       if (first) {
         draining = true;               // this function owns the latch now
         // Make the film VISIBLE with the cheapest possible work — one class + a
@@ -1304,7 +1315,7 @@
       // the   (en space) keeps the active-underline continuous across the gap.
       chip.innerHTML = chip.textContent.trim() + ' <span class="chip-t">' + fmtTime(t) + '</span>';
       if (chip.classList.contains('soon')) return;   // not in the reel yet: no click, no active-underline
-      onPress(chip, () => openFilmAt(t));
+      onPress(chip, () => { window.track && window.track('chapter', { chapter: chip.textContent.trim() }); openFilmAt(t); });
       chapterChips.push({ chip, t });
     });
     chapterChips.sort((a, b) => a.t - b.t);
@@ -1534,6 +1545,10 @@
     });
   })();
   </script>
+  <!-- Vercel Web Analytics (cookieless, no consent banner needed).
+       Requires enabling it once in the Vercel dashboard:
+       Project -> Analytics -> Enable Web Analytics. -->
+  <script defer src="/_vercel/insights/script.js"></script>
   <!-- Safari grey-video diagnostic: only with ?pixeltest in the URL.
        Distinguishes "the decoded frame is grey" (colour pipeline) from "the frame
        is white but something is tinting it" (compositing/overlay). Prints on screen
