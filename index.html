@@ -1348,11 +1348,25 @@
         ccBtn.textContent = on ? 'CC On' : 'CC Off';
       };
       const setCC = on => { const t = track(); if (t) t.mode = on ? 'showing' : 'hidden'; syncCC(); };
+      const ccIsOn = () => { const t = track(); return !!t && t.mode === 'showing'; };
       setCC(false);                              // start off; flip to true to default on
-      onPress(ccBtn, () => { const t = track(); setCC(!(t && t.mode === 'showing')); });
+
+      // Auto-CC: if the film is muted or turned down, show subtitles — you can't
+      // hear the narration, so the reel is meaningless without them. Once the
+      // viewer touches the CC chip themselves, that's an explicit preference and
+      // we stop second-guessing it for the rest of the session.
+      const QUIET = 0.2;                         // volume at/below this counts as "can't hear it"
+      let ccUserSet = false;
+      const autoCC = () => {
+        if (ccUserSet) return;
+        setCC(filmEl.muted || filmEl.volume <= QUIET);
+      };
+      onPress(ccBtn, () => { ccUserSet = true; setCC(!ccIsOn()); });
+      filmEl.addEventListener('volumechange', autoCC);
+      autoCC();
       // the track element loads async — re-assert once it's there
-      filmEl.addEventListener('loadedmetadata', syncCC);
-      setTimeout(syncCC, 300);
+      filmEl.addEventListener('loadedmetadata', () => { autoCC(); syncCC(); });
+      setTimeout(() => { autoCC(); syncCC(); }, 300);
     }
     const videoclose = document.getElementById('videoclose');
     onPress(videoclose, () => closeVideo());
