@@ -253,12 +253,16 @@
   /* native controls tweaked for a white page: drop the dark gradient scrim and
      flip the light icons to dark so they read on white (WebKit/Chrome + Safari).
      No backgrounds behind the icons — just the plain glyphs. */
-  #videostage video::-webkit-media-controls-panel { background: transparent; }
-  /* CHROME ONLY. Chrome draws light controls that vanish on our white page, so we
-     invert them to dark. This is a -webkit- pseudo, so Safari matched it too — and
-     Safari's enclosure has a translucent background that inverted into a dark scrim
-     washing the whole video grey. Safari's native controls already read fine, so
-     it's scoped to Chromium via the html.chrome-media class. */
+  /* CHROME ONLY — every media-control override below is scoped to Chromium.
+     These are -webkit- pseudo-elements, so Safari matches them too, and both of
+     these hacks wrecked Safari's video: clearing the panel background exposes the
+     full-area backdrop-filter Safari uses for its frosted controls (greying the
+     whole frame), and inverting the enclosure flips Safari's translucent
+     background into a dark scrim over the video. Safari's stock controls already
+     read fine on white, so it now gets NO overrides at all. */
+  html.chrome-media #videostage video::-webkit-media-controls-panel {
+    background: transparent;
+  }
   html.chrome-media #videostage video::-webkit-media-controls-enclosure {
     filter: invert(1) hue-rotate(180deg);
   }
