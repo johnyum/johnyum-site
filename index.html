@@ -1254,7 +1254,7 @@
       }
       // Record why play() failed instead of swallowing it — a silent .catch(()=>{})
       // is what made the mobile failure impossible to diagnose. Readable via
-      // window.__filmPlayError (and shown by the ?debug overlay).
+      // window.__filmPlayError for diagnosing playback failures.
       const p = filmEl.play();
       if (p && p.catch) {
         p.then(() => { window.__filmPlayError = null; })
@@ -1549,92 +1549,5 @@
        Requires enabling it once in the Vercel dashboard:
        Project -> Analytics -> Enable Web Analytics. -->
   <script defer src="/_vercel/insights/script.js"></script>
-  <!-- Safari grey-video diagnostic: only with ?pixeltest in the URL.
-       Distinguishes "the decoded frame is grey" (colour pipeline) from "the frame
-       is white but something is tinting it" (compositing/overlay). Prints on screen
-       so it can be read on any machine without dev tools. -->
-  <script>
-  (function () {
-    if (!/[?&]pixeltest/.test(location.search)) return;
-    var box = document.createElement('div');
-    box.style.cssText = 'position:fixed;left:8px;top:8px;z-index:2147483647;background:#000;color:#0f0;' +
-      'font:11px/1.45 ui-monospace,monospace;padding:8px;max-width:92vw;white-space:pre-wrap;border-radius:6px';
-    document.body.appendChild(box);
-    var say = function (s) { box.textContent += s + '\n'; };
-    say('SAFARI PIXEL TEST — press play, then screenshot this');
-    say('UA ' + navigator.userAgent.slice(0, 60));
-    var v = document.querySelector('#videostage video');
-    if (!v) { say('no video'); return; }
-    setInterval(function () {
-      if (v.paused || !v.videoWidth) return;
-      box.textContent = '';
-      say('SAFARI PIXEL TEST  t=' + v.currentTime.toFixed(1) + 's');
-      // 1) what does the DECODED frame actually contain?
-      try {
-        var c = document.createElement('canvas');
-        c.width = v.videoWidth; c.height = v.videoHeight;
-        var g = c.getContext('2d', { willReadFrequently: true });
-        g.drawImage(v, 0, 0);
-        var p = function (x, y) { var d = g.getImageData(x, y, 1, 1).data; return d[0] + ',' + d[1] + ',' + d[2]; };
-        say('decoded corners: ' + p(40, 40) + ' | ' + p(c.width - 40, 40) + ' | ' + p(40, c.height - 40));
-        say('  -> 255,255,255 = frame is WHITE (so a tint/overlay is doing it)');
-        say('  -> ~150-200    = frame itself is GREY (colour pipeline)');
-      } catch (e) { say('canvas read FAILED: ' + e.name); }
-      // 2) is anything painted on top of the video?
-      var r = v.getBoundingClientRect();
-      var top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-      say('topmost at video centre: ' + (top ? (top.id || top.tagName) : 'none') +
-          (top === v ? '  (the video itself — nothing covering it)' : '  <-- SOMETHING IS ON TOP'));
-      // 3) any ancestor creating a tint via compositing?
-      var n = v, hits = [];
-      while (n && n !== document.documentElement) {
-        var s = getComputedStyle(n);
-        if (s.filter !== 'none' || s.opacity !== '1' || s.mixBlendMode !== 'normal' ||
-            (s.backdropFilter && s.backdropFilter !== 'none') ||
-            (s.webkitBackdropFilter && s.webkitBackdropFilter !== 'none')) {
-          hits.push((n.id || n.tagName) + '{op:' + s.opacity + ' filter:' + s.filter +
-                    ' blend:' + s.mixBlendMode + '}');
-        }
-        n = n.parentElement;
-      }
-      say('compositing ancestors: ' + (hits.length ? hits.join(' | ') : 'none'));
-    }, 1500);
-  })();
-  </script>
-  <!-- Mobile playback debug overlay: only active with ?debug in the URL.
-       Shows a live timeline of every play() call + its outcome, video events,
-       and body-class changes, so a phone can be diagnosed by screenshot. -->
-  <script>
-  (function () {
-    if (!/[?&]debug/.test(location.search)) return;
-    var box = document.createElement('div');
-    box.style.cssText = 'position:fixed;top:8px;left:8px;right:8px;z-index:99999;background:rgba(0,0,0,.88);color:#0f0;font:11px/1.35 ui-monospace,monospace;padding:8px;max-height:66vh;overflow:auto;white-space:pre-wrap;border-radius:6px;pointer-events:none';
-    document.body.appendChild(box);
-    var t0 = Date.now(), lines = [];
-    function L(m) { lines.push('+' + ((Date.now() - t0) / 1000).toFixed(2) + 's ' + m); box.textContent = lines.slice(-45).join('\n'); }
-    L('debug on');
-    L('UA=' + navigator.userAgent);
-    var v = document.querySelector('#videostage video');
-    if (!v) { L('NO VIDEO ELEMENT'); return; }
-    L('src=' + (v.currentSrc || v.querySelector('source') && v.querySelector('source').src || '').split('/').pop());
-    ['loadedmetadata', 'loadeddata', 'canplay', 'play', 'playing', 'pause', 'waiting', 'stalled', 'suspend', 'error', 'abort', 'ended'].forEach(function (ev) {
-      v.addEventListener(ev, function () { L('vid:' + ev + ' rs=' + v.readyState + ' ns=' + v.networkState + (v.error ? ' ERRCODE=' + v.error.code + ' ' + (v.error.message || '').slice(0, 50) : '')); });
-    });
-    var _play = v.play.bind(v);
-    v.play = function () {
-      L('play() called (paused=' + v.paused + ' rs=' + v.readyState + ' muted=' + v.muted + ')');
-      var p;
-      try { p = _play(); } catch (e) { L('play() THREW ' + e.name + ': ' + (e.message || '').slice(0, 60)); throw e; }
-      if (p && p.then) p.then(function () { L('play() RESOLVED'); }).catch(function (e) { L('play() REJECTED ' + e.name + ': ' + (e.message || '').slice(0, 70)); });
-      return p;
-    };
-    var pb = document.getElementById('playbtn');
-    if (pb) pb.addEventListener('click', function () {
-      L('=== PLAY BUTTON TAPPED ===');
-      setTimeout(function () { L('t+1.5s: paused=' + v.paused + ' ct=' + v.currentTime.toFixed(1) + ' playingCls=' + document.body.classList.contains('playing')); }, 1500);
-    }, true);
-    new MutationObserver(function () { L('body.class="' + document.body.className + '"'); }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
-  })();
-  </script>
-</body>
+    </body>
 </html>
