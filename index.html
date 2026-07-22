@@ -110,7 +110,11 @@
   .chip-t { opacity: 0.45; font-variant-numeric: tabular-nums; }
   /* CC toggle: muted while subtitles are off (no alarm — captions being off is a
      normal state, unlike muted audio). */
-  .cc-btn.off { opacity: 0.45; }
+  /* Labels are static ("Sound", "Captions") — struck through means OFF. Captions-off
+     stays black (a normal state); only Sound-off goes red, since not hearing the
+     narration is worth flagging. NB: don't add opacity here — body.playing .chip
+     sets opacity:1 at higher specificity, so it would be a dead declaration. */
+  .cc-btn.off { text-decoration: line-through; }
   /* Subtitle rendering, matched to the site's type. Native ::cue works on both
      engines; keep the box dark so it reads over any frame. */
   #videostage video::cue {
@@ -449,8 +453,8 @@
     <button class="chip" data-t="41">Host Calendar</button>
     <button class="chip" data-t="300">Sketches</button>
     <button class="chip" data-t="361">Transportation</button>
-    <button class="chip sound-btn" id="soundToggle" type="button">Sound On</button>
-    <button class="chip cc-btn" id="ccToggle" type="button">CC Off</button>
+    <button class="chip sound-btn" id="soundToggle" type="button">Sound</button>
+    <button class="chip cc-btn" id="ccToggle" type="button">Captions</button>
   </div>
   <div id="videostage" aria-hidden="true">
     <video width="1920" height="1080" controls playsinline webkit-playsinline preload="metadata" poster="img/Videos/Portfolio_new_4_50_2-poster.jpg"
@@ -1335,7 +1339,7 @@
       const syncSound = () => {
         const off = filmEl.muted || filmEl.volume === 0;
         soundBtn.classList.toggle('muted', off);
-        soundBtn.textContent = off ? 'Sound Off' : 'Sound On';
+        soundBtn.setAttribute('aria-pressed', String(!off));   // label stays "Sound"; state is visual + a11y
       };
       onPress(soundBtn, () => { filmEl.muted = !filmEl.muted; syncSound(); });
       filmEl.addEventListener('volumechange', syncSound);
@@ -1352,7 +1356,7 @@
         const t = track();
         const on = !!t && t.mode === 'showing';
         ccBtn.classList.toggle('off', !on);
-        ccBtn.textContent = on ? 'CC On' : 'CC Off';
+        ccBtn.setAttribute('aria-pressed', String(on));        // label stays "Captions"
       };
       const setCC = on => { const t = track(); if (t) t.mode = on ? 'showing' : 'hidden'; syncCC(); };
       const ccIsOn = () => { const t = track(); return !!t && t.mode === 'showing'; };
