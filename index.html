@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light">
 <title>John Yum</title>
+<!-- Chromium only: flags the control-inversion hack below. Safari must NOT get it
+     (it washes the video grey there). Runs before paint so there's no flash. -->
+<script>if(/Chrome\//.test(navigator.userAgent))document.documentElement.classList.add('chrome-media');</script>
 <style>
   /* This site is light-only. Declaring it stops Chrome's Auto Dark Mode from
      force-darkening the page (which turned the background dark and made the
@@ -251,7 +254,14 @@
      flip the light icons to dark so they read on white (WebKit/Chrome + Safari).
      No backgrounds behind the icons — just the plain glyphs. */
   #videostage video::-webkit-media-controls-panel { background: transparent; }
-  #videostage video::-webkit-media-controls-enclosure { filter: invert(1) hue-rotate(180deg); }
+  /* CHROME ONLY. Chrome draws light controls that vanish on our white page, so we
+     invert them to dark. This is a -webkit- pseudo, so Safari matched it too — and
+     Safari's enclosure has a translucent background that inverted into a dark scrim
+     washing the whole video grey. Safari's native controls already read fine, so
+     it's scoped to Chromium via the html.chrome-media class. */
+  html.chrome-media #videostage video::-webkit-media-controls-enclosure {
+    filter: invert(1) hue-rotate(180deg);
+  }
   /* bare X, no box/shadow. 30px box at top:16/right:16 mirrors the wordmark bar
      (top:16, ~30px tall) so the X centres on the same line as the yum@ pill, and
      the top inset (16) equals the right inset (16). */
