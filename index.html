@@ -250,6 +250,13 @@
                                             top & bottom so it clears the pills */
     display: block; background: #fff;    /* white bg matches the stage */
   }
+  /* The stage is laid out (display:grid) from unlock on, so this full-screen video
+     box sits directly under #playbtn. #videostage already sets pointer-events:none,
+     but iOS WebKit's UA media-controls shadow root doesn't reliably honour an
+     INHERITED value — state it on the element itself so the hidden controls can
+     never swallow the play tap. */
+  #videostage video { pointer-events: none; }
+  body.playing #videostage video { pointer-events: auto; }
   /* native controls tweaked for a white page: drop the dark gradient scrim and
      flip the light icons to dark so they read on white (WebKit/Chrome + Safari).
      No backgrounds behind the icons — just the plain glyphs. */
@@ -428,7 +435,7 @@
     <button class="chip sound-btn" id="soundToggle" type="button">Sound On</button>
   </div>
   <div id="videostage" aria-hidden="true">
-    <video width="1920" height="1080" controls playsinline webkit-playsinline preload="none" poster="img/Videos/Portfolio_new_4_50_2-poster.jpg"
+    <video width="1920" height="1080" controls playsinline webkit-playsinline preload="metadata" poster="img/Videos/Portfolio_new_4_50_2-poster.jpg"
            controlslist="nodownload noplaybackrate noremoteplayback" disablepictureinpicture>
       <source src="img/Videos/Portfolio_new_4_50_2.mp4" type="video/mp4">
     </video>
@@ -757,6 +764,28 @@
       // grabbing is a real spring constraint: cards dangle and swing from
       // wherever you pick them up, and fly when you let go
       const mouse = Mouse.create(document.body);
+      // ROOT FIX for "nothing happens when I tap play on mobile".
+      // Matter's Mouse binds touchstart/touchmove/touchend on this element with
+      // {passive:false}, and its mousedown/mouseup handlers both run
+      // `e.changedTouches && e.preventDefault()` with NO target check. Cancelling
+      // touchstart/touchend tells the browser not to synthesise the compatibility
+      // mouse events — INCLUDING `click`. Because the element is <body>, that
+      // killed every click listener on the page from the moment the pile is built:
+      // #playbtn, the chapter chips, #soundToggle and #videoclose are all
+      // click-bound, so on a phone tapping play did literally nothing — play() was
+      // never called, which is why it never rejected and never logged an error.
+      // A capture-phase listener on `document` fires BEFORE body's bubble-phase
+      // Matter listener, so stopping propagation here keeps Matter from ever
+      // seeing touches that land on real UI. Cards still reach Matter (dragging
+      // unaffected), and so do taps on empty space (tap-to-close unaffected).
+      // Excludes .nav / #navClose — those have their own touchend handlers.
+      const CLICKABLE_UI = '#playbtn, #chapter-bar, #videoclose, #wm-bar';
+      ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(type => {
+        document.addEventListener(type, e => {
+          const t = e.target;
+          if (t && t.closest && t.closest(CLICKABLE_UI)) e.stopPropagation();
+        }, { capture: true });
+      });
       mouseCon = MouseConstraint.create(engine, {
         mouse,
         constraint: { stiffness: 0.12, damping: 0.1 }
@@ -1136,10 +1165,15 @@
     // Tapping play OPENS THE BOTTOM: the floor + centre anchor are removed and
     // gravity spikes, so all the work pours out the bottom of the screen. Once
     // it's drained, the film fades up.
+    // Pure physics. Schedules NOTHING — the reveal is owned by openFilmAt() so a
+    // physics failure can never leave the film playing audibly behind a pile that
+    // never drained. `engine` is null until start() resolves ~39 pile PNGs, but
+    // #playbtn shows the instant `unlocked` lands, so on a slow phone a tap can
+    // land in that window — the old unguarded engine.gravity.y threw here and took
+    // the reveal down with it.
     function drainPile() {
-      if (draining || videoOpen) return;
-      draining = true;
       document.body.classList.add('draining');   // the play button fades out
+      if (!engine) return;                       // pile not built yet: nothing to drain
       wakePile();
       for (let i = 2; i < walls.length; i++) World.remove(engine.world, walls[i]);  // keep the 2 side walls, drop the floor + anchor
       engine.gravity.y = 3.4;
@@ -1148,14 +1182,16 @@
         Sleeping.set(c.body, false);
         Body.setVelocity(c.body, { x: c.body.velocity.x * 0.5, y: 9 + Math.random() * 6 });
       }
-      setTimeout(showVideo, 1250);   // ~the time it takes the work to clear the bottom
     }
     const videostage = document.getElementById('videostage');
     const filmEl = videostage ? videostage.querySelector('video') : null;
     function showVideo() {
+      if (videoOpen) return;                     // idempotent
       videoOpen = true;
       document.body.classList.add('playing');    // reveals the film stage, hides the pile
-      // playback was already kicked off in the tap gesture (below); just make sure.
+      // Playback was already kicked off inside the tap gesture. This runs from a
+      // timer, i.e. OUTSIDE any user activation, so on mobile it could only ever be
+      // rejected — it's a desktop-only safety net, never the primary path.
       if (filmEl && filmEl.paused) filmEl.play().catch(() => {});
     }
     function closeVideo() {
@@ -1163,11 +1199,12 @@
       if (filmEl) filmEl.pause();
       videoOpen = false;
       document.body.classList.remove('playing', 'draining');
+      draining = false;
+      if (!engine) return;   // same null-engine guard as drainPile()
       // re-pour the pile: restore the floor + anchor, reset gravity, drop every
       // card back in from above.
       makeWalls(innerWidth, innerHeight);
       engine.gravity.y = 1.0;
-      draining = false;
       for (const c of cards) {
         Body.setPosition(c.body, { x: innerWidth * (0.14 + 0.72 * Math.random()), y: -c.h - Math.random() * innerHeight * 0.6 });
         Body.setAngle(c.body, (Math.random() - 0.5) * 0.28);
@@ -1178,7 +1215,7 @@
       wakePile();
     }
     // Start the film at `t` seconds, INSIDE the user gesture so the autoplay policy
-    // lets it play with sound. preload="none" means metadata isn't loaded yet, so the
+    // lets it play with sound. With preload="metadata" the media data may still be
     // seek has to wait for loadedmetadata; play() triggers that load. The film runs
     // hidden while the pile drains, then showVideo() reveals it already at the mark.
     function startFilm(t) {
@@ -1207,21 +1244,43 @@
     function openFilmAt(t) {
       const first = !videoOpen && !draining;
       if (first) {
+        draining = true;               // this function owns the latch now
         // Make the film VISIBLE with the cheapest possible work — one class + a
-        // reflow. Mobile refuses play() on a non-visible video, so this must happen
-        // before play(). NOTE: only the CSS class, NOT the `draining` flag —
-        // drainPile() guards on that flag and would bail.
+        // reflow — before play().
         document.body.classList.add('draining');
-        void videostage.offsetHeight;   // flush styles so opacity:1 is live
+        void videostage.offsetHeight;  // flush styles so opacity:1 is live
       }
-      // Play IMMEDIATELY, at the very top of the gesture. The heavy Matter.js drain
-      // (~39 bodies) runs AFTER — running it first could push play() outside
-      // mobile's transient user-activation window and get it rejected.
+      // Play IMMEDIATELY, at the very top of the gesture, before any heavy work.
       startFilm(t);
-      if (first) drainPile();
+      if (first) {
+        // Schedule the reveal BEFORE running the physics, so nothing Matter.js does
+        // (or throws) can stop the film stage coming up. ~the time it takes the
+        // work to clear the bottom.
+        setTimeout(showVideo, 1250);
+        drainPile();
+      }
     }
     const playbtn = document.getElementById('playbtn');
-    if (playbtn) playbtn.addEventListener('click', e => { e.preventDefault(); openFilmAt(); });
+    // pointerup fires for touch, pen and mouse, is NOT a compatibility mouse event
+    // (so nothing cancelling the touch stream can suppress it), and IS an
+    // activation-triggering event — so play() from it is allowed WITH sound.
+    // `click` is kept for keyboard/Enter and desktop; the 700ms latch stops the
+    // pointerup + ghost-click pair from firing the action twice.
+    function onPress(el, fn) {
+      if (!el) return;
+      let last = 0;
+      const go = e => {
+        if (e.cancelable) e.preventDefault();   // kills the <a href="/test"> navigation
+        e.stopPropagation();
+        const now = performance.now();
+        if (now - last < 700) return;
+        last = now;
+        fn();
+      };
+      el.addEventListener('pointerup', go);
+      el.addEventListener('click', go);
+    }
+    onPress(playbtn, () => openFilmAt());
     const fmtTime = s => Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0');
     const chapterChips = [];
     document.querySelectorAll('#chapter-bar .chip').forEach(chip => {
@@ -1231,7 +1290,7 @@
       // the   (en space) keeps the active-underline continuous across the gap.
       chip.innerHTML = chip.textContent.trim() + ' <span class="chip-t">' + fmtTime(t) + '</span>';
       if (chip.classList.contains('soon')) return;   // not in the reel yet: no click, no active-underline
-      chip.addEventListener('click', e => { e.preventDefault(); openFilmAt(t); });
+      onPress(chip, () => openFilmAt(t));
       chapterChips.push({ chip, t });
     });
     chapterChips.sort((a, b) => a.t - b.t);
@@ -1257,12 +1316,12 @@
         soundBtn.classList.toggle('muted', off);
         soundBtn.textContent = off ? 'Sound Off' : 'Sound On';
       };
-      soundBtn.addEventListener('click', e => { e.preventDefault(); filmEl.muted = !filmEl.muted; syncSound(); });
+      onPress(soundBtn, () => { filmEl.muted = !filmEl.muted; syncSound(); });
       filmEl.addEventListener('volumechange', syncSound);
       syncSound();
     }
     const videoclose = document.getElementById('videoclose');
-    if (videoclose) videoclose.addEventListener('click', e => { e.stopPropagation(); closeVideo(); });
+    onPress(videoclose, () => closeVideo());
 
     const navPrev = document.getElementById('navPrev');
     const navNext = document.getElementById('navNext');
