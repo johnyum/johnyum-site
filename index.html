@@ -138,16 +138,15 @@
     height: 1.05em;
     background: #111;
     animation: blink 1.06s step-end infinite;
-    will-change: opacity;   /* pin its compositor layer so it's never rebuilt */
-    /* The caret is NEVER detached from the DOM (renderLine reconciles dots in place
-       and positions the caret with flex `order`). Detach+reinsert restarted this
-       animation and made Chrome flash one opacity-0 frame per keystroke — that was
-       the "disappears while typing" bug. Also never use `animation: none` here:
-       killing the running animation mid-flight stuck the caret at opacity 0. */
   }
+  /* The blink's low point is a VISIBLE opacity (not 0). A caret bar this large
+     hard-blinking to 0 read as "disappearing", and worse, if Chrome stalls the
+     opacity animation it gets stuck at that low keyframe — at 0 that's invisible.
+     Bottoming out at 0.28 means the caret still visibly blinks but can NEVER vanish,
+     even if the animation glitches on Chrome. */
   @keyframes blink {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
+    50% { opacity: 0.28; }
   }
   @keyframes shake {
     20% { transform: translateX(-0.12em); }
@@ -425,7 +424,9 @@
     // password line so the blinking caret stays centred in the space ABOVE the
     // keyboard instead of hiding behind it. Inert on desktop (no keyboard →
     // viewport never shrinks → transform stays empty).
-    if (window.visualViewport) {
+    // Touch devices only — on a mouse desktop this must never run (a stray
+    // visualViewport change there could translate the line off-screen).
+    if (window.visualViewport && matchMedia('(pointer: coarse)').matches) {
       const vv = window.visualViewport;
       const liftLine = () => {
         if (document.body.classList.contains('unlocked')) { line.style.transform = ''; return; }
