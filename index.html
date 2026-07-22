@@ -138,12 +138,12 @@
     height: 1.05em;
     background: #111;
     animation: blink 1.06s step-end infinite;
-    /* NOTE: do NOT switch this to `animation: none` while typing (the old
-       #line.typing #caret rule did). Killing a running opacity animation mid-flight
-       leaves the caret stuck at opacity 0 on Chrome — that was the "disappears while
-       typing" bug. Keeping the animation on: each keystroke restarts blink at
-       opacity 1, so it reads solid while typing and blinks when idle, with no
-       Chrome stall. */
+    will-change: opacity;   /* pin its compositor layer so it's never rebuilt */
+    /* The caret is NEVER detached from the DOM (renderLine reconciles dots in place
+       and positions the caret with flex `order`). Detach+reinsert restarted this
+       animation and made Chrome flash one opacity-0 frame per keystroke — that was
+       the "disappears while typing" bug. Also never use `animation: none` here:
+       killing the running animation mid-flight stuck the caret at opacity 0. */
   }
   @keyframes blink {
     0%, 100% { opacity: 1; }
@@ -443,16 +443,21 @@
       const len = key.value.length;
       const s = key.selectionStart ?? len, e = key.selectionEnd ?? len;
       const caretAt = key.selectionDirection === 'backward' ? s : e;
-      let html = '';
-      for (let i = 0; i < len; i++) html += i >= s && i < e ? '<i class="sel"></i>' : '<i></i>';
-      dots.innerHTML = html;
-      caret.style.display = s !== e ? 'none' : '';
-      dots.insertBefore(caret, dots.children[caretAt] || null);
-      if (active) {
-        line.classList.add('typing');
-        clearTimeout(typingTimer);
-        typingTimer = setTimeout(() => line.classList.remove('typing'), 600);
-      }
+      // Reconcile the <i> dot pool IN PLACE — never wipe innerHTML, so #caret (a
+      // <span>) is never detached. Detach+reinsert restarted the caret's blink
+      // animation / compositor layer, and Chrome flashed an opacity-0 frame each
+      // keystroke — that was the "disappears while typing" bug.
+      let dotEls = dots.querySelectorAll('i');          // excludes #caret (<span>)
+      for (let i = dotEls.length; i < len; i++)
+        dots.insertBefore(document.createElement('i'), caret);   // grow: add before caret
+      for (let i = dotEls.length - 1; i >= len; i--) dotEls[i].remove();  // shrink
+      // Selection highlight + visual position via flex `order` (caret keeps its slot).
+      dots.querySelectorAll('i').forEach((el, i) => {
+        el.classList.toggle('sel', i >= s && i < e);
+        el.style.order = i < caretAt ? i : i + 1;       // reserve order===caretAt for the caret
+      });
+      caret.style.order = caretAt;                       // positioned by order only — never moved
+      caret.style.display = s !== e ? 'none' : '';       // hidden during a range selection, never detached
     }
     key.addEventListener('input', () => renderLine(true));
     key.addEventListener('keyup', () => renderLine(true));
