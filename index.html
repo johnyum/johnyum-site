@@ -502,21 +502,16 @@
       if (e.key !== 'Enter') return;
       if (key.value === PASSWORD) {
         key.value = '';
-        // Prime the film for mobile: this Enter/tap is a user gesture, so a muted
-        // play()->pause() here "blesses" the <video> — after this, a later
-        // programmatic play() (from the play button) is allowed even on iOS/Android,
-        // which otherwise refuse deferred/non-gesture playback. Also kicks off
-        // buffering so playback starts instantly when tapped. Muted + reset so
-        // there's no sound blip and it still starts from 0:00.
+        // Start buffering the film so it plays instantly when the play button is
+        // tapped. Deliberately does NOT call play() here: a muted play()->pause()
+        // "prime" used to live here (to satisfy mobile autoplay rules), but Safari
+        // didn't reliably honour the pause, so the film kept running invisibly on
+        // the pile page and then unmuted itself — audible video with nothing on
+        // screen. Mobile playback is handled properly elsewhere: the film is made
+        // visible (behind the draining pile) before play() runs inside the tap.
         try {
           const film = document.querySelector('#videostage video');
-          if (film) {
-            film.preload = 'auto';
-            film.muted = true;
-            const p = film.play();
-            if (p && p.then) p.then(() => { film.pause(); film.currentTime = 0; film.muted = false; })
-                              .catch(() => { film.muted = false; });
-          }
+          if (film) film.preload = 'auto';
         } catch (_) {}
         line.classList.add('gone');
         // iOS keeps the keyboard up after a bare blur() called from the input's
