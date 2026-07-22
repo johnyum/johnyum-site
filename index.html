@@ -99,6 +99,18 @@
   .chip:hover { background: rgba(255, 255, 255, 0.92); }
   .chip:active { background: rgba(235, 235, 235, 0.92); }
   .chip-t { opacity: 0.45; font-variant-numeric: tabular-nums; }
+  /* CC toggle: muted while subtitles are off (no alarm — captions being off is a
+     normal state, unlike muted audio). */
+  .cc-btn.off { opacity: 0.45; }
+  /* Subtitle rendering, matched to the site's type. Native ::cue works on both
+     engines; keep the box dark so it reads over any frame. */
+  #videostage video::cue {
+    background: rgba(0, 0, 0, 0.74);
+    color: #fff;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 0.85em;
+    line-height: 1.35;
+  }
   /* the chapter currently playing gets the whole label ("Intro 0:00") underlined,
      with the timecode brought up to full black too (it's muted grey otherwise) */
   .chip.active { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
@@ -433,11 +445,13 @@
     <button class="chip" data-t="300">Sketches</button>
     <button class="chip" data-t="361">Transportation</button>
     <button class="chip sound-btn" id="soundToggle" type="button">Sound On</button>
+    <button class="chip cc-btn" id="ccToggle" type="button">CC Off</button>
   </div>
   <div id="videostage" aria-hidden="true">
     <video width="1920" height="1080" controls playsinline webkit-playsinline preload="metadata" poster="img/Videos/Portfolio_new_4_50_2-poster.jpg"
            controlslist="nodownload noplaybackrate noremoteplayback" disablepictureinpicture>
       <source src="img/Videos/Portfolio_new_4_50_2.mp4" type="video/mp4">
+      <track kind="subtitles" src="img/Videos/Portfolio.vtt" srclang="en" label="English">
     </video>
     <button id="videoclose" aria-label="Back to work">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5L19 19M19 5L5 19"/></svg>
@@ -1319,6 +1333,26 @@
       onPress(soundBtn, () => { filmEl.muted = !filmEl.muted; syncSound(); });
       filmEl.addEventListener('volumechange', syncSound);
       syncSound();
+    }
+    // CC toggle. Browsers can auto-enable captions from the viewer's OS
+    // accessibility settings, so the mode is set explicitly on load rather than
+    // trusting the default. 'hidden' (not 'disabled') keeps the cues parsed and
+    // ready, so the first toggle is instant.
+    const ccBtn = document.getElementById('ccToggle');
+    if (ccBtn && filmEl) {
+      const track = () => filmEl.textTracks && filmEl.textTracks[0];
+      const syncCC = () => {
+        const t = track();
+        const on = !!t && t.mode === 'showing';
+        ccBtn.classList.toggle('off', !on);
+        ccBtn.textContent = on ? 'CC On' : 'CC Off';
+      };
+      const setCC = on => { const t = track(); if (t) t.mode = on ? 'showing' : 'hidden'; syncCC(); };
+      setCC(false);                              // start off; flip to true to default on
+      onPress(ccBtn, () => { const t = track(); setCC(!(t && t.mode === 'showing')); });
+      // the track element loads async — re-assert once it's there
+      filmEl.addEventListener('loadedmetadata', syncCC);
+      setTimeout(syncCC, 300);
     }
     const videoclose = document.getElementById('videoclose');
     onPress(videoclose, () => closeVideo());
