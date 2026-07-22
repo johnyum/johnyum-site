@@ -417,11 +417,12 @@
     addEventListener('click', focusKey);
     key.addEventListener('blur', () => setTimeout(focusKey, 50));
 
-    // mobile: the on-screen keyboard shrinks the visual viewport. Lift the
-    // password line so the blinking caret stays centred in the space ABOVE the
-    // keyboard instead of hiding behind it. Inert on desktop (no keyboard →
-    // viewport never shrinks → transform stays empty).
-    if (window.visualViewport) {
+    // TOUCH DEVICES ONLY: the on-screen keyboard shrinks the visual viewport, so
+    // lift the password line to keep the caret above the keyboard. Gated on a
+    // coarse (touch) pointer — on a mouse desktop this must NEVER run, because a
+    // stray visualViewport change there was translating the whole line off-screen
+    // (the password "disappearing"). Desktop keeps the line perfectly still.
+    if (window.visualViewport && matchMedia('(pointer: coarse)').matches) {
       const vv = window.visualViewport;
       const liftLine = () => {
         if (document.body.classList.contains('unlocked')) { line.style.transform = ''; return; }
