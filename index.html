@@ -124,6 +124,23 @@
     transition: opacity 0.45s ease;
   }
   #line.gone { opacity: 0; }
+  /* HARD GUARANTEE: while locked (and not mid-unlock-fade) the password line and
+     its dots can never be hidden — by opacity, visibility, display or transform —
+     no matter what causes it. The caret still blinks via its own animation, which
+     bottoms out at a visible 0.28, so nothing here can ever vanish. */
+  body:not(.unlocked) #line:not(.gone) {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: flex !important;
+    /* NOTE: transform is deliberately NOT forced here — liftLine still needs it to
+       raise the line above a mobile keyboard (that lift is gated to touch devices,
+       so a mouse desktop never gets a transform anyway). */
+  }
+  body:not(.unlocked) #line:not(.gone) #dots,
+  body:not(.unlocked) #line:not(.gone) #dots i {
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
   #dots {
     display: flex;
     align-items: center;
