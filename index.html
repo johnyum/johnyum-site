@@ -541,6 +541,35 @@
       if (document.activeElement === key) renderLine(false);
     });
 
+    // Paste. #key is a 1px transparent field pinned to the corner (see its CSS —
+    // centring it made 1Password anchor its overlay over the password line), so
+    // there is nothing to right-click or long-press, and a bare Cmd+V only lands
+    // if focus happens to already be inside it. So catch paste at the DOCUMENT,
+    // insert the text ourselves, and hand focus back so Enter still submits.
+    document.addEventListener('paste', e => {
+      if (document.body.classList.contains('unlocked') || line.classList.contains('gone')) return;
+      const cd = e.clipboardData || window.clipboardData;
+      const text = cd && cd.getData('text');
+      if (!text) return;
+      // preventDefault so a focused #key can't ALSO receive the native paste and
+      // double-insert. From here the insertion is ours and deterministic.
+      e.preventDefault();
+      // A password copied out of a note or a manager usually carries a trailing
+      // newline or space, and that alone is enough to make it not match.
+      const clean = text.trim();
+      if (!clean) return;
+      // Only honour the selection when #key actually holds focus; an unfocused
+      // input reports selectionStart 0, which would silently prepend.
+      const focused = document.activeElement === key;
+      const s  = focused ? (key.selectionStart ?? key.value.length) : key.value.length;
+      const en = focused ? (key.selectionEnd   ?? key.value.length) : key.value.length;
+      key.value = key.value.slice(0, s) + clean + key.value.slice(en);
+      key.focus();
+      const pos = s + clean.length;
+      try { key.setSelectionRange(pos, pos); } catch (_) {}
+      renderLine(true);
+    });
+
     key.addEventListener('keydown', e => {
       if (e.key !== 'Enter') return;
       if (key.value === PASSWORD) {
