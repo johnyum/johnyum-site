@@ -117,7 +117,7 @@
     gap: 0.16em;
     font-size: clamp(4rem, 12vw, 10rem);
     user-select: none;
-    transition: opacity 0.45s ease, transform 0.22s ease;   /* smooth the keyboard lift */
+    transition: opacity 0.45s ease;
   }
   #line.gone { opacity: 0; }
   #dots {
@@ -423,17 +423,10 @@
     // viewport never shrinks → transform stays empty).
     if (window.visualViewport) {
       const vv = window.visualViewport;
-      let appliedY = 0;   // the translateY we've actually set
       const liftLine = () => {
-        if (document.body.classList.contains('unlocked')) { line.style.transform = ''; appliedY = 0; return; }
+        if (document.body.classList.contains('unlocked')) { line.style.transform = ''; return; }
         const kb = window.innerHeight - vv.height - vv.offsetTop;   // keyboard height
-        const target = kb > 120 ? Math.round(-kb / 2) : 0;
-        // Hysteresis: only move for a real keyboard show/hide, not the small
-        // height changes as the keyboard's suggestion bar appears/disappears
-        // mid-typing — that jitter was making the whole line jump out and back.
-        if (Math.abs(target - appliedY) < 48) return;
-        appliedY = target;
-        line.style.transform = target ? `translateY(${target}px)` : '';
+        line.style.transform = kb > 90 ? `translateY(${Math.round(-kb / 2)}px)` : '';
       };
       vv.addEventListener('resize', liftLine);
       vv.addEventListener('scroll', liftLine);
