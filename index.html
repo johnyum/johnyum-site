@@ -1187,18 +1187,34 @@
         if (filmEl.readyState >= 1) seek();
         else filmEl.addEventListener('loadedmetadata', seek, { once: true });
       }
-      filmEl.play().catch(() => {});
+      // Record why play() failed instead of swallowing it — a silent .catch(()=>{})
+      // is what made the mobile failure impossible to diagnose. Readable via
+      // window.__filmPlayError (and shown by the ?debug overlay).
+      const p = filmEl.play();
+      if (p && p.catch) {
+        p.then(() => { window.__filmPlayError = null; })
+         .catch(err => { window.__filmPlayError = (err && err.name) + ': ' + (err && err.message); });
+      }
     }
     // Open the film. If we're still in the pile, drain it FIRST — that adds
     // body.draining, which makes the film visible (behind the pile). Only THEN do
     // we play(), because mobile rejects play() on a non-visible video. A forced
     // reflow makes the visibility change live before the play() call.
     function openFilmAt(t) {
-      if (!videoOpen && !draining) {
-        drainPile();
-        void videostage.offsetHeight;   // flush styles so opacity:1 is in effect
+      const first = !videoOpen && !draining;
+      if (first) {
+        // Make the film VISIBLE with the cheapest possible work — one class + a
+        // reflow. Mobile refuses play() on a non-visible video, so this must happen
+        // before play(). NOTE: only the CSS class, NOT the `draining` flag —
+        // drainPile() guards on that flag and would bail.
+        document.body.classList.add('draining');
+        void videostage.offsetHeight;   // flush styles so opacity:1 is live
       }
+      // Play IMMEDIATELY, at the very top of the gesture. The heavy Matter.js drain
+      // (~39 bodies) runs AFTER — running it first could push play() outside
+      // mobile's transient user-activation window and get it rejected.
       startFilm(t);
+      if (first) drainPile();
     }
     const playbtn = document.getElementById('playbtn');
     if (playbtn) playbtn.addEventListener('click', e => { e.preventDefault(); openFilmAt(); });
