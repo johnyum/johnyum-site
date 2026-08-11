@@ -2749,6 +2749,17 @@ body.today-mode .today-page { display: flex; }
    into. The deck runs edge to edge and the only boundary is .today-page's own overflow at the window edge,
    where a cut reads as the screen ending rather than a wall. The parked deck is kept out of sight by
    ANGLE instead — `turn` below is solved from the viewport so it always clears it. */
+/* The day-of-week + number is the handle that starts a column selection, so it needs to look tappable. The
+   hover is a GREY CIRCLE on the number itself, which already carries the 28px round footprint the today
+   circle uses — so it reads as the same mark in a different state rather than a second shape.
+   The type colour is deliberately left alone: forcing it dark turned the number invisible the moment the
+   circle behind it was dark (a selected column) or red (today).
+   TODAY and a SELECTED column are excluded — both already own the circle, and a hover fill would either
+   fight the rausch gradient or flatten the black. */
+.date-top { cursor: pointer; }
+.day-num { transition: background .12s ease; }
+.date-top:hover .day-num:not(.today):not(.col-selected) { background: #EBEBEB; }
+
 .tp-stage { position: relative; width: 100%; height: 400px; }
 /* The wheel spins about the SAME hub the slots use, so every card travels along the exact circle it's
    fanned on. BOTH decks are mounted, the upcoming one parked --turn degrees round; --spin moves the lot
@@ -2790,12 +2801,97 @@ body.today-mode .today-page { display: flex; }
    fallback for the single-row case. */
 .tp-slot { position: absolute; left: 50%; top: var(--row-y, 0px); margin-left: -134px;
   width: 268px; height: 344px;
+  cursor: pointer;                  /* the whole card opens the reservation, so it should read as a target */
   transform-origin: 50% var(--row-r, var(--wheel-r, 1340px));
   transform: rotate(calc(var(--rot, 0deg) + var(--push, 0deg)));
   /* Short and linear: --rot is now rewritten continuously from the wheel, so this only smooths a mouse's
      discrete notches. The long ease it used to have fought every event and read as settling on each card. */
   transition: transform .16s linear;
   z-index: var(--z, 1); }
+/* While a reservation is opening or closing, the deck parts on a longer, eased curve than the .16s linear the
+   wheel needs for hover and browsing: here the parting is a BEAT in a sequence, not a hover nudge, so it wants a
+   soft settle. Scoped to a class so browsing keeps its own snappy response. */
+.tp-cards.tp-choreo .tp-slot { transition: transform .3s cubic-bezier(.32,.72,0,1); }
+/* Tapping a reservation opens it as a MODAL rather than moving it in the fan. The card in the wheel stays
+   exactly where it is and a copy flies forward to the middle of the page — the wheel's transforms (a rotated
+   row, a slot pivoting about a hub 1340px below) make anything else a fight, and the fan's spacing and
+   stacking stay untouched by construction. Appended to <body>, so no transformed ancestor can capture the
+   fixed positioning. */
+.tp-scrim { position: fixed; inset: 0; z-index: 4000; background: rgba(0,0,0,0.48);
+  opacity: 0; transition: opacity .28s ease; }
+.tp-scrim.is-in { opacity: 1; }
+.tp-modal-card { position: fixed; left: 50%; top: 50%; z-index: 4001;
+  /* Opens at the card's own 268px and grows to DOUBLE width. The left pane is a fixed 268, so the original
+     design holds its place exactly and all the growth happens on the right. Height is identical to the card
+     in the fan (344), which is why the flight needs no scaling at all — position and width carry it. */
+  width: 268px; height: 344px; box-sizing: border-box;
+  /* stretch, not center: the grey panel's height comes from its own 16px top/bottom margins, and a centred
+     child ignores them — it sized to its content instead and the insets measured 69px. */
+  /* 24px frame, 12px between the two panels. The panels are flex: 1 1 0 rather than fixed widths, so they
+     divide what's left EQUALLY by construction — 246 each at 536 — and stay equal if the modal ever changes
+     size. stretch, not center: a centred child sizes to its content and ignores the frame. */
+  display: flex; flex-direction: row; align-items: stretch;
+  gap: 12px; padding: 24px; border-radius: 24px; background: #fff; overflow: visible;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05), 0 8px 20px -4px rgba(0,0,0,0.10),
+              0 28px 56px -12px rgba(0,0,0,0.16), 0 60px 90px -30px rgba(0,0,0,0.12);
+  /* The start and end transforms are written directly by the script, with the transition switched off for the
+     start frame. Driving the start position through a custom property while the transition was already live
+     meant the first frame animated OUTWARD from centre to the card, so the card appeared to fly in from
+     wherever it had got to — bottom right, in practice. */
+  transform: translate(-50%, -50%);
+  will-change: transform, width; }
+/* The copied content keeps the card's original column layout and 32px padding, in a pane the width of the
+   card it came from — so nothing inside shifts as the panel opens out. */
+/* Equal FIXED widths, and only the RIGHT side is bounded — the reservation reads as the content and the
+   actions as the panel beside it, so a second stroke around the left just boxed in something that needs no
+   edge. The two halves still feel even because their widths are identical.
+   Fixed, not flex: 1 1 0, for two reasons. Flexible boxes divided the space by their content, so the left came
+   out 254 and the right 222 — visibly unequal. And because the modal's width is animated, flexible children
+   were re-laid-out on every frame, which is what stretched the type and re-ragged the wrapping mid-flight.
+   At a fixed width nothing inside ever reflows; the modal simply reveals more of itself.
+   238 = (536 - 48 frame - 12 gap) / 2. */
+.tp-mc-left, .tp-mc-right { flex: 0 0 238px; width: 238px; box-sizing: border-box; }
+/* No enclosing stroke any more — each action is its own card, so a box around the group would double up. */
+.tp-mc-left { padding: 24px;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; text-align: center; }
+/* The actions are their own bounded panel — half the modal's width (268 of 536), a grey-200 hairline, and 16px
+   clear on ALL four sides, so it reads as a small modal sitting inside the large one. It spans top to bottom
+   because the parent stretches its children; a centred child would size to its rows and ignore these margins.
+   Radius is 8px rather than another 24: a corner set 16px inside a 24px one stays concentric at 24 - 16, so the
+   two curves read as parallel instead of the inner one looking slack. */
+/* The two panes live in a CLIPPING body rather than directly in the card. At the start width the card's inner
+   box is exactly one pane wide, so the second pane and the gap overflow it — and with the card's overflow left
+   visible for the ✕, they hung outside the white box and floated over the scrim for the whole flight. Clipped
+   here at the padding edge, the actions are simply revealed as the frame widens. */
+.tp-mc-body { flex: 1 1 auto; min-width: 0; overflow: hidden;
+  display: flex; flex-direction: row; align-items: stretch; gap: 12px; }
+/* ...and they fade up as the reveal widens, so the emerging pane never reads as content sliding out from behind
+   an edge. Closing fades faster and without the delay — the actions should be gone before the frame narrows
+   over them. */
+.tp-mc-right { opacity: 0; transition: opacity .16s ease; }
+.tp-modal-card.is-open .tp-mc-right { opacity: 1; transition: opacity .34s ease .08s; }
+/* Floating ✕ at the modal's top-right, the same treatment every menu in the Pricing sheet uses: .bp-close's
+   32px circle at -32/-32, so its bottom-left corner sits flush with the modal's corner. White fill, black glyph
+   — the base .bp-close skin, unmodified. The card's own overflow must stay visible or a close that floats
+   OUTSIDE it gets clipped away, which is why the panes are clipped by .tp-mc-body instead. */
+.tp-modal-card > .bp-close { top: -32px; right: -32px; }
+/* ONE group, not four cards, and now unshadowed — so the rules alone do the dividing and the panel reads as
+   part of the card rather than as a raised inner surface. Its height HUGS the rows (align-self beats the modal's
+   align-items: stretch) rather than spanning the card, so 16px of padding reads as 16 instead of collapsing into
+   dead white, and the gap puts 20 above and below every rule. */
+.tp-mc-right { padding: 16px; background: #fff; border-radius: 16px;
+  align-self: center;
+  display: flex; flex-direction: column; gap: 20px; }
+/* Rows occupy only their content box in the flow (the -8px margins cancel the 8px padding on all four sides),
+   so every 16px above measures content-to-rule and content-to-panel-edge — while hover still paints a
+   comfortable band, 8px proud of the content all round, clear of both the rules and the panel edge.
+   The margin/width overrides have to beat `.guest-menu-item + .guest-menu-item` and the base row's width:100%,
+   hence :not(#_) to lift specificity to 3 without inventing a class. */
+.tp-mc-right .guest-menu-item:not(#_) { flex: 0 0 auto; padding: 8px; margin: -8px; gap: 10px;
+  width: auto; border-radius: 8px; background: none; box-shadow: none; }
+.tp-mc-right .guest-menu-item:hover { background: var(--grey-100); }
+/* Rules span the panel's padded width — the 16px padding already holds them off the edges. */
+.tp-mc-right .guest-menu-divider { margin: 0; }
 .tp-card { position: absolute; inset: 0;
   box-sizing: border-box;
   display: flex; flex-direction: column; align-items: center;
@@ -3081,6 +3177,15 @@ body.redlines-mode { cursor: crosshair; }
   border: 2px solid #222;
   color: #fff;
   box-sizing: border-box;
+}
+/* ...except TODAY, which keeps its rausch circle when its column is selected. Today is the one date the host
+   navigates by, and turning it black takes that landmark away exactly when they're working on it. Declared
+   after .col-selected so it wins, with a transparent border so the 28px footprint matches the black state and
+   the mark doesn't shift size as columns are selected. */
+.day-num.today.col-selected {
+  background: linear-gradient(to right, #E61E4D, #E31C5F, #D70466);
+  border: 2px solid transparent;
+  color: #fff;
 }
 
 /* Price grid body */
@@ -6047,14 +6152,9 @@ function render(preserveScroll) {
       : `<div class="holiday-icon secondary holiday-circle${sec.lightCircle ? ' light' : ''}"${hAttrs} style="--c:${secondaryColor(d, sec)}"></div>`;
     const dowName = document.body.classList.contains('super-collapse-2') ? DAYS_SHORT[dow] : DAYS[dow];
     cell.innerHTML = `<div class="date-top"><span class="day-name">${dowName}</span><span class="day-num ${numCls}">${d.getDate()}</span></div>${holHTML}`;
-    // Column-select starts only on the date/day-of-week text — NOT the lower icon zone.
-    cell.querySelector('.date-top').addEventListener('mousedown', e => {
-      e.preventDefault();
-      if (e.shiftKey && dateAnchorDi != null) { selectColumnRange(dateAnchorDi, di); return; } // shift-click → column range
-      dateAnchorDi = di;   // plain click → this date is the anchor for the next shift-click
-      beginDateDrag(di);
-    });
-    cell.addEventListener('mouseenter', () => { if (dateDragging) extendDateDrag(di); });
+    // Column-select and the drag-extend are DELEGATED to the header (see wireDateHeader below), not bound per
+    // cell: a per-cell listener sat on the .date-top node, and anything that rewrote a cell's innerHTML threw
+    // that node away and the listener with it — which is how tapping a date stopped working entirely.
     hdr.appendChild(cell);
   });
 
@@ -8781,7 +8881,11 @@ document.getElementById('availMenuClose').addEventListener('click', e => { e.sto
 // selection (closing the quick-actions pill with it) — a tap on a cell extends the selection instead
 // and should leave everything alone.
 document.addEventListener('mousedown', e => {
-  if (e.target.closest('#availMenu') || e.target.closest('#priceMenu') || e.target.closest('#promoMenu') || e.target.closest('#minNightsMenu') || e.target.closest('#customizeMenu') || e.target.closest('#discountsMenu') || e.target.closest('#rulesetsMenu') || e.target.closest('#multiAction') || e.target.closest('.price-card') || e.target.closest('.month-card')) return;
+  // .date-cell belongs in this list. Tapping a date STARTS a column selection, so it is the opposite of an
+  // outside click — and because this handler also runs on mousedown, leaving it out meant the selection was
+  // made and then dropped again inside the same event. Dragging appeared to work only because the drag kept
+  // re-selecting on mouseover afterwards; a single tap had nothing to re-select it.
+  if (e.target.closest('#availMenu') || e.target.closest('#priceMenu') || e.target.closest('#promoMenu') || e.target.closest('#minNightsMenu') || e.target.closest('#customizeMenu') || e.target.closest('#discountsMenu') || e.target.closest('#rulesetsMenu') || e.target.closest('#multiAction') || e.target.closest('.price-card') || e.target.closest('.month-card') || e.target.closest('.date-cell')) return;
   // The events/holidays icon band (.group-divider, holding the .gev icons): tapping an icon itself, or
   // the gap between two icons that belong to the SAME event/holiday run (e.g. within Comic-Con's string
   // of icons), leaves the selection alone. A gap between two DIFFERENT events (or empty band space with
@@ -9405,6 +9509,32 @@ let dateDragMode = true;     // true = select, false = deselect
 let dateDragStartDi = null;
 let dateDragSnapshot = new Set(); // model snapshot at drag start (keys)
 
+/* ONE delegated wiring for the date header, attached once. Column-select used to bind a mousedown listener to
+   each cell's .date-top as it was built, so any later `cell.innerHTML = ...` — and renderWindow does exactly
+   that as it remounts columns — destroyed the node the listener was on and tapping a date silently died. The
+   listener now lives on the header itself and finds the cell through the event target, so it survives every
+   rebuild. Still only the date/day-of-week text starts a selection, never the icon zone below it. */
+(function wireDateHeader() {
+  // Delegated on DOCUMENT, not on #dateHeader. There is more than one date row in this app and the one on
+  // screen is not always #dateHeader's, so binding to that container silently missed every click. Document
+  // level plus a .date-top / .date-cell check works whichever row is mounted, and survives any rebuild.
+  const diOf = t => { if (!t || !t.closest) return null;
+    if (!t.closest('.date-top')) return null;                  // icon zone below the number: not a handle
+    const cell = t.closest('.date-cell'); if (!cell) return null;
+    const di = +cell.dataset.di; return isNaN(di) ? null : di; };
+  document.addEventListener('mousedown', e => {
+    const di = diOf(e.target); if (di == null) return;
+    e.preventDefault();
+    if (e.shiftKey && dateAnchorDi != null) { selectColumnRange(dateAnchorDi, di); return; }
+    dateAnchorDi = di;
+    beginDateDrag(di);
+  }, true);                                                    // capture, so nothing upstream can swallow it
+  document.addEventListener('mouseover', e => {                // mouseover delegates; mouseenter does not
+    if (!dateDragging) return;
+    const cell = e.target.closest && e.target.closest('.date-cell'); if (!cell) return;
+    const di = +cell.dataset.di; if (!isNaN(di)) extendDateDrag(di);
+  });
+})();
 function beginDateDrag(di) {
   const per = perListingAvail();
   const lis = []; for (let li = 0; li < LISTINGS.length; li++) if (cellSelectable(li, di, per)) lis.push(li);
@@ -11625,14 +11755,19 @@ document.getElementById('devVariance').addEventListener('change', e => {
   // persist; the pill itself is horizontally virtualised) for vertical tracking + gridWrap.scrollLeft for
   // horizontal — so the offset is exact no matter which axis moves.
   let anchor = null;
-  function open(guest, earnings, x, y, row) {
-    menu.innerHTML =
+  /* ONE definition of these rows, shared with the Today panel's right side. Exposed rather than duplicated so
+     the icons, order, dividers and copy can never drift between the pill menu and the panel. */
+  const rowsHTML = (guest, earnings) =>
       `<button class="guest-menu-item" role="menuitem">${ICONS.msg}<span>Message ${guest}</span></button>` +
       `<div class="guest-menu-divider"></div>` +
       `<button class="guest-menu-item" role="menuitem">${ICONS.res}<span>View reservation</span></button>` +
       `<button class="guest-menu-item" role="menuitem">${ICONS.money}<span>Send or request money</span></button>` +
       `<div class="guest-menu-divider"></div>` +
       `<button class="guest-menu-item" role="menuitem">${ICONS.earn}<span>Earnings · $${earnings.toLocaleString('en-US')}</span></button>`;
+  window.guestMenuRowsHTML = rowsHTML;
+  window.guestEarningsFor = earningsFor;
+  function open(guest, earnings, x, y, row) {
+    menu.innerHTML = rowsHTML(guest, earnings);
     overlay.classList.add('visible');
     positionAt(x, y); // measure + place now that it's laid out
     anchor = row ? {
@@ -14631,7 +14766,11 @@ const UPSELL_CONTENT = {
       // under the one before it, so the soonest reservation is the one on top. (It used to ascend, which put
       // the furthest-away stay in front of everything.)
       const z = z0 + n - i;   // FIRST card highest, descending clockwise (see the note above)
+      // The booking travels with the slot: the panel's right side needs the guest and the nights to work out
+      // earnings, and it only ever sees the DOM.
       return '<div class="tp-slot" data-set="' + set + '" data-i="' + i + '"'
+           + ' data-guest="' + String(b.guest || '').replace(/"/g, '&quot;') + '"'
+           + ' data-li="' + b.listing + '" data-start="' + b.start + '" data-nights="' + b.nights + '"'
            + ' style="--rot:' + ((i - mid) * step).toFixed(2) + 'deg'
            + ';--row-r:' + R_ + 'px;--row-y:' + y + 'px;--cs:' + sc + ';--z:' + z + '">'
            + '<div class="tp-card">'
@@ -14770,22 +14909,159 @@ const UPSELL_CONTENT = {
   // against them — the deck scrunches outward rather than sliding as a block. Purely additive: --push is a
   // delta on the card's own --rot, so the wheel geometry is untouched.
   const PUSH = 2.2, PUSH_FAR = 0.6;
-  function setPush(hoverIdx) {
+  /* Opening clears the deck FURTHER than a hover does, so the gap reads as making room. It has to be a step up
+     from the hover push and not just a repeat of it: by the time a card is clicked the pointer has usually been
+     over it for a moment, so the neighbours are already parted by PUSH and there'd be no first beat to see. */
+  const PUSH_OPEN = 2;
+  const liveSlots = () => [...cards.querySelectorAll('.tp-slot')].filter(sl => sl.getAttribute('data-deck') === tab);
+  function setPush(hoverIdx, mult) {
     // Scoped to the deck being hovered: both decks are mounted, so indexing across all children would push
     // the parked deck around too and it would drift into view.
-    const live = [...cards.querySelectorAll('.tp-slot')].filter(sl => sl.getAttribute('data-deck') === tab);
-    live.forEach((slot, j) => {
+    const m = mult || 1;
+    liveSlots().forEach((slot, j) => {
       const d = j - hoverIdx;
-      const mag = hoverIdx < 0 || d === 0 ? 0 : (Math.abs(d) === 1 ? PUSH : PUSH * PUSH_FAR);
+      const mag = hoverIdx < 0 || d === 0 ? 0 : (Math.abs(d) === 1 ? PUSH : PUSH * PUSH_FAR) * m;
       slot.style.setProperty('--push', (Math.sign(d) * mag).toFixed(2) + 'deg');
     });
   }
+  // While a modal is up the gap is HELD open, whatever the pointer does — the neighbours must not slide back
+  // under a card that is still out of the deck, and moving onto the modal fires mouseleave on the stage.
+  let pushLock = false;
   cards.addEventListener('mouseover', e => {
+    if (pushLock) return;
     const slot = e.target.closest('.tp-slot'); if (!slot) return;
-    const live = [...cards.querySelectorAll('.tp-slot')].filter(sl => sl.getAttribute('data-deck') === tab);
-    setPush(live.indexOf(slot));
+    setPush(liveSlots().indexOf(slot));
   });
-  cards.addEventListener('mouseleave', () => setPush(-1));
+  cards.addEventListener('mouseleave', () => { if (!pushLock) setPush(-1); });
+  /* TAP TO OPEN AS A MODAL. The tapped card is duplicated, not moved: the copy starts life sitting exactly
+     over the original (a FLIP — measure both rects, express the difference as a transform, then animate to
+     the identity) so it reads as that card flying forward. Tap again, or the scrim, and it flies back into
+     the stack. Nothing in the fan moves, so none of the geometry can be disturbed. */
+  let scrim = null, modalCard = null, modalSlot = null;
+  /* One curve for both properties, so the flight and the widening stay locked together. Long tail, no
+     overshoot: it leaves quickly and settles for most of the duration, which is what reads as smooth. */
+  const EASE = 'transform .5s cubic-bezier(.32,.72,0,1), width .5s cubic-bezier(.32,.72,0,1)';
+  const OPEN_W = 536;             // double the card's 268
+  /* The panel opens from the width that exactly fits ONE box inside the frame (24 + 238 + 24), not from the
+     card's 268. Those 18px are imperceptible at speed, and starting there means the left box is full size from
+     the first frame — so the reveal never clips or reflows the content the host is already looking at. */
+  const START_W = 286;
+  const CENTRED = 'translate(-50%, -50%)';
+  // The transform that puts the modal copy exactly over the card in the stack. Measured with the copy already
+  // centred, so the delta is centre -> card; the card's own rect is its axis-aligned box, which is all that's
+  // needed for a start position.
+  const overCard = slot => {
+    const a = slot.querySelector('.tp-card').getBoundingClientRect();
+    const b = modalCard.getBoundingClientRect();
+    // Translate only — no scale. The panel is already the card's height, and its width is animated instead,
+    // so the content never gets squashed on the way in.
+    return CENTRED + ' translate(' + ((a.left + a.width / 2) - (b.left + b.width / 2)).toFixed(1) + 'px,'
+                                   + ((a.top + a.height / 2) - (b.top + b.height / 2)).toFixed(1) + 'px)';
+  };
+  /* TWO BEATS, in order. Opening: the deck parts, THEN the card flies to the middle. Closing: the card goes
+     home into the deck, THEN the neighbours close in over it. Each beat overlaps the next by a fraction rather
+     than waiting for it outright — a hard stop between them reads as a stutter, not as sequence. */
+  const PART_MS = 300;                    // matches .tp-choreo's transition
+  const BEAT_IN = 210;                    // parting is ~70% settled when the card leaves
+  const BEAT_OUT = 90;                    // and the deck holds this long after the card has landed
+  let beatT = 0, offT = 0, pendingSlot = null;
+  function releasePush() {
+    pushLock = false;
+    setPush(-1);                          // the neighbours close in, still on the eased curve...
+    clearTimeout(offT);
+    offT = setTimeout(() => cards.classList.remove('tp-choreo'), PART_MS + 60);  // ...then hand back to hover
+  }
+  function cancelPending() {              // closed (or Escaped) during beat one: nothing flew, just relax
+    if (!pendingSlot) return;
+    clearTimeout(beatT); pendingSlot = null; releasePush();
+  }
+  function closeReservation() {
+    if (!modalSlot) { cancelPending(); return; }
+    const slot = modalSlot, card = modalCard, sk = scrim;
+    modalSlot = null; modalCard = null; scrim = null;
+    modalCard = card;                                   // overCard measures through this
+    card.classList.remove('is-open');                   // actions fade out first, ahead of the frame narrowing
+    card.style.transition = EASE;
+    card.style.width = START_W + 'px';                  // close back down to one box wide
+    card.style.transform = overCard(slot);              // and fly back onto the card in the stack
+    modalCard = null;
+    sk.classList.remove('is-in');
+    // The original reappears only once the copy has landed back on top of it, so the hand-off is invisible.
+    // Only THEN does the deck close up: the gap has to outlast the card's return, or the neighbours slide
+    // through the space the card is still flying into.
+    setTimeout(() => {
+      card.remove(); sk.remove(); slot.style.visibility = '';
+      setTimeout(releasePush, BEAT_OUT);
+    }, 520);
+  }
+  function openReservation(slot) {
+    if (modalSlot) { const same = modalSlot === slot; closeReservation(); if (same) return; }
+    clearTimeout(beatT);
+    // BEAT ONE — the deck clears out of the way and holds there.
+    cards.classList.add('tp-choreo');
+    setPush(liveSlots().indexOf(slot), PUSH_OPEN);
+    pushLock = true;
+    pendingSlot = slot;
+    beatT = setTimeout(() => { pendingSlot = null; flyOut(slot); }, BEAT_IN);
+  }
+  // BEAT TWO — the card leaves the (already open) gap for the middle of the page.
+  function flyOut(slot) {
+    scrim = document.createElement('div');
+    scrim.className = 'tp-scrim';
+    scrim.addEventListener('click', closeReservation);
+    modalCard = document.createElement('div');
+    modalCard.className = 'tp-modal-card';
+    // Right side = the same rows the booking pill's menu shows, built from the shared definition.
+    let rows = '';
+    if (typeof window.guestMenuRowsHTML === 'function') {
+      const g = slot.dataset.guest || 'guest';
+      const earn = (typeof window.guestEarningsFor === 'function')
+        ? Math.round(window.guestEarningsFor(+slot.dataset.li, +slot.dataset.start, +slot.dataset.nights)) : 0;
+      rows = window.guestMenuRowsHTML(g, earn);
+    }
+    modalCard.innerHTML = '<div class="tp-mc-body">'
+                        +   '<div class="tp-mc-left">' + slot.querySelector('.tp-card').innerHTML + '</div>'
+                        +   '<div class="tp-mc-right">' + rows + '</div>'
+                        + '</div>'
+                        + '<button class="bp-close" type="button" aria-label="Close">✕</button>';
+    /* A rule between EVERY row, where the pill menu groups them with only two. Re-placed here rather than by
+       forking rowsHTML, so the icons, labels and copy still come from one definition shared with the menu and
+       only the divider placement differs between the two surfaces. */
+    { const right = modalCard.querySelector('.tp-mc-right');
+      right.querySelectorAll('.guest-menu-divider').forEach(d => d.remove());
+      [...right.querySelectorAll('.guest-menu-item')].forEach((item, k) => {
+        if (!k) return;                                  // nothing above the first row to divide from
+        const rule = document.createElement('div');
+        rule.className = 'guest-menu-divider';
+        right.insertBefore(rule, item);
+      }); }
+    modalCard.addEventListener('click', closeReservation);
+    modalCard.querySelector('.bp-close').addEventListener('click', e => { e.stopPropagation(); closeReservation(); });
+    document.body.append(scrim, modalCard);
+    modalSlot = slot;
+    // FLIP: land the copy ON the tapped card with NO transition, commit that frame, then turn the transition
+    // on and send it to centre. Suppressing the transition for the start frame is the whole trick.
+    modalCard.style.transition = 'none';
+    modalCard.style.width = START_W + 'px';           // one box wide, inside the frame
+    modalCard.style.transform = overCard(slot);
+    void modalCard.offsetWidth;
+    // Hide the ORIGINAL now that the copy is sitting exactly on top of it. Without this you see the same
+    // reservation twice — once dimmed in the fan, once centred — which reads as a duplicate rather than as
+    // the card having moved forward. Measured first, hidden second: overCard needs its rect.
+    slot.style.visibility = 'hidden';
+    requestAnimationFrame(() => {
+      scrim.classList.add('is-in');
+      modalCard.classList.add('is-open');             // fades the actions up behind the widening frame
+      modalCard.style.transition = EASE;
+      modalCard.style.transform = CENTRED;
+      modalCard.style.width = OPEN_W + 'px';          // and open out to the right
+    });
+  }
+  cards.addEventListener('click', e => {
+    const slot = e.target.closest('.tp-slot'); if (!slot) return;
+    openReservation(slot);
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeReservation(); });
   /* Scroll left/right to browse a long deck. Horizontal intent wins when there is any (trackpad swipe),
      otherwise a plain wheel drives it too — on this page there's nothing to scroll vertically, so taking the
      wheel is free. Deltas ACCUMULATE to a card-width threshold instead of stepping per event: one trackpad
