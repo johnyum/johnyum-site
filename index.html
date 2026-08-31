@@ -226,7 +226,18 @@
     -webkit-tap-highlight-color: transparent;
   }
   #playbtn svg { width: 96px; height: 96px; display: block; }
-  body.unlocked #playbtn { display: grid; }
+  /* Play button POPS in the moment the password lands (body.unlocked). A keyframe,
+     not a transition, because transitions don't fire on the display:none→grid flip
+     that reveal is. Every frame keeps the -50%/-50% centring; the back-ease
+     overshoots past 1 then settles — that overshoot IS the pop. fill-mode stays
+     default (none), so once it ends the button rests on its own scale(1)/opacity(1)
+     base and hover/active/draining transforms take over cleanly. */
+  body.unlocked #playbtn { display: grid; animation: playPop 600ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes playPop {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+    to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) { body.unlocked #playbtn { animation: none; } }
   #playbtn:hover { transform: translate(-50%, -50%) scale(1.06); }
   #playbtn:active { transform: translate(-50%, -50%) scale(0.94); }
   body.zoomcard #playbtn { opacity: 0; pointer-events: none; }
