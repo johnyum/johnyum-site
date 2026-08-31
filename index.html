@@ -90,6 +90,11 @@
     gap: 8px;
     z-index: 100;
     pointer-events: none;
+    /* Commit finger gestures on the bar to HORIZONTAL panning: without this a
+       slightly-diagonal swipe is ambiguous, the engine doesn't hand it to the
+       scroller, and the following pointerup reads as a tap (= chapter jump). */
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;    /* don't rubber-band/chain past the ends */
     transition: opacity 0.25s ease;
   }
   #chapter-bar::-webkit-scrollbar { display: none; }
@@ -97,7 +102,11 @@
      (same look as before); when it OVERFLOWS they collapse to their 8px basis
      and act as edge insets at both scroll ends (+8px gap = 16px inset). */
   #chapter-bar::before, #chapter-bar::after { content: ''; flex: 1 0 8px; }
-  body.playing #chapter-bar { display: flex; }
+  /* The BAR takes pointer events while playing, not just the chips — with only
+     the chips touchable, a phone swipe that starts in a gap fell through to the
+     video underneath (poking the player) and the strip felt dead. */
+  body.playing #chapter-bar { display: flex; pointer-events: auto; }
+  .chip { touch-action: pan-x; }
   .chip {
     border: 0;
     cursor: pointer;
@@ -471,7 +480,7 @@
     <button class="chip" data-t="0">Intro</button>
     <button class="chip" data-t="39">Ask Airbnb</button>
     <button class="chip" data-t="391">Sketches</button>
-    <button class="chip" data-t="454">Host Calendar</button>
+    <button class="chip" data-t="453">Host Calendar</button>
     <button class="chip sound-btn" id="soundToggle" type="button">Sound</button>
     <button class="chip cc-btn" id="ccToggle" type="button">Captions</button>
   </div>
@@ -1366,10 +1375,26 @@
     // pointerup + ghost-click pair from firing the action twice.
     function onPress(el, fn) {
       if (!el) return;
-      let last = 0;
+      let last = 0, downX = 0, downY = 0, moved = false, pressing = false;
+      // A tap is DOWN + UP in (nearly) the same place. Without this check a
+      // swipe on the scrolling chapter bar that the engine didn't convert to a
+      // native scroll still ends in pointerup on a chip — and read as a tap,
+      // jumping the film while the user was just trying to scroll the bar.
+      // `pressing` gates the move-tracking to while the finger/button is DOWN —
+      // otherwise plain mouse hover flips `moved` and blocks keyboard Enter.
+      el.addEventListener('pointerdown', e => { pressing = true; downX = e.clientX; downY = e.clientY; moved = false; });
+      el.addEventListener('pointermove', e => {
+        if (pressing && (Math.abs(e.clientX - downX) > 10 || Math.abs(e.clientY - downY) > 10)) moved = true;
+      });
+      el.addEventListener('pointercancel', () => { pressing = false; });
       const go = e => {
+        if (e.type === 'pointerup') pressing = false;
         if (e.cancelable) e.preventDefault();   // kills the <a href="/test"> navigation
-        e.stopPropagation();
+        e.stopPropagation();                    // ALWAYS — even a drag must not reach the anchor
+        // keyboard activation (Enter/Space -> click with detail 0) never has a
+        // pointer gesture: exempt it from the stale `moved` of the last swipe
+        if (e.type === 'click' && e.detail === 0) moved = false;
+        if (moved) return;                      // finger travelled: a scroll, not a tap
         const now = performance.now();
         if (now - last < 700) return;
         last = now;
