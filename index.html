@@ -79,13 +79,24 @@
     bottom: 16px;
     left: 0; right: 0;
     display: none;
-    justify-content: center;
+    /* Scrolls horizontally when the chips don't fit (mobile). Centering is done
+       by the ::before/::after spacers below, NOT justify-content:center — a
+       centered flex row that overflows clips BOTH edges and the left chips
+       become unreachable even by scrolling. */
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;             /* no scrollbar band under the chips */
     align-items: center;
     gap: 8px;
     z-index: 100;
     pointer-events: none;
     transition: opacity 0.25s ease;
   }
+  #chapter-bar::-webkit-scrollbar { display: none; }
+  /* Spacer flex items: when the row FITS they grow equally and center it
+     (same look as before); when it OVERFLOWS they collapse to their 8px basis
+     and act as edge insets at both scroll ends (+8px gap = 16px inset). */
+  #chapter-bar::before, #chapter-bar::after { content: ''; flex: 1 0 8px; }
   body.playing #chapter-bar { display: flex; }
   .chip {
     border: 0;
@@ -458,9 +469,9 @@
   </a>
   <div id="chapter-bar">
     <button class="chip" data-t="0">Intro</button>
-    <button class="chip" data-t="39">Ask Airbnb</button>
-    <button class="chip" data-t="391">Sketches</button>
-    <button class="chip" data-t="454">Host Calendar</button>
+    <button class="chip" data-t="39">Case Study 1</button>
+    <button class="chip" data-t="391">Case Study 2</button>
+    <button class="chip" data-t="454">Case Study 3</button>
     <button class="chip sound-btn" id="soundToggle" type="button">Sound</button>
     <button class="chip cc-btn" id="ccToggle" type="button">Captions</button>
   </div>
@@ -470,7 +481,7 @@
       <source src="img/Videos/Portfolio_Updated_2_HB.mp4" type="video/mp4">
       <!-- ?v= bumps whenever the cues change: without it browsers keep serving a cached
            VTT and subtitle edits silently never reach the viewer. -->
-      <track kind="subtitles" src="img/Videos/Portfolio.vtt?v=10" srclang="en" label="English">
+      <track kind="subtitles" src="img/Videos/Portfolio.vtt?v=11" srclang="en" label="English">
     </video>
     <button id="videoclose" aria-label="Back to work">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5L19 19M19 5L5 19"/></svg>
@@ -1384,12 +1395,22 @@
     // underline whichever chapter the playhead is inside (the last one whose start
     // time we've passed); clears the others.
     if (filmEl && chapterChips.length) {
+      let lastActiveIdx = -1;
       const updateActiveChapter = () => {
         let idx = 0;
         for (let i = 0; i < chapterChips.length; i++) {
           if (filmEl.currentTime >= chapterChips[i].t - 0.05) idx = i;
         }
         chapterChips.forEach((c, i) => c.chip.classList.toggle('active', i === idx));
+        // On a scrolling bar (narrow viewport) keep the active chapter in view —
+        // only when the chapter CHANGES, so it never fights a finger mid-scroll.
+        if (idx !== lastActiveIdx) {
+          lastActiveIdx = idx;
+          const bar = document.getElementById('chapter-bar');
+          if (bar && bar.scrollWidth > bar.clientWidth + 1) {
+            chapterChips[idx].chip.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+          }
+        }
       };
       filmEl.addEventListener('timeupdate', updateActiveChapter);
       updateActiveChapter();
