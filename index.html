@@ -627,13 +627,20 @@
   </script>
   <script src="js/matter.min.js"></script>
   <script>
-  // After the knock: the calendar sketches pour in under a real rigid-body
-  // engine (Matter.js) — true rotation, torque, friction — so phones tumble
-  // and lie exactly how thrown things lie. Each physics body is 2px larger
-  // than its image on every side: the invisible 4px force field.
+  // After the knock: a clean stage with ONLY the play button and the film.
+  //
+  // PILE RETIRED (2026-08-30, user's call): the falling-work pile is switched
+  // OFF and must never appear again unless explicitly asked back. The whole
+  // rigid-body system below is kept intact but dormant behind PILE_ENABLED so
+  // it can be revived by flipping ONE flag — no code archaeology needed. While
+  // false: the work PNGs are never fetched, the pile is never built, the #pile
+  // container is hard-hidden, and tapping play cuts straight to the film with
+  // no drain. The film controls live in this same closure and are unaffected.
   (() => {
     if (!window.Matter) return;
     const { Engine, World, Bodies, Body, Events, Mouse, MouseConstraint, Sleeping } = Matter;
+    // ⤵ THE switch. false = clean play-button-only stage. true = bring the pile back.
+    const PILE_ENABLED = false;
     const DIR = 'img/Fresh_Work/';
     // bump when the image files change — forces browsers past any cached copies
     const IMGV = '?v=2';
@@ -649,7 +656,11 @@
     // no code changes needed. (Regenerate: from that folder run
     //   python3 -c "import os,json;open('manifest.json','w').write(json.dumps(sorted(f for f in os.listdir('.') if f.lower().endswith('.png'))))" )
     let SKETCHES = [], DIMS = {};
-    const sketchesReady = fetch(DIR + 'manifest.json', { cache: 'no-store' })
+    // When the pile is retired we never touch the network for the 39 work PNGs —
+    // no preload, no manifest fetch, nothing to leave a trace.
+    const sketchesReady = !PILE_ENABLED
+      ? Promise.resolve()
+      : fetch(DIR + 'manifest.json', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : [])
       .then(list => {
         SKETCHES = Array.isArray(list) ? list : [];
@@ -666,6 +677,10 @@
     const PAD = 2.5;          // half the ~5px force field, on every side
     const HOVER_S = 1.18;   // a hovered phone grows just slightly
     const pile = document.getElementById('pile');
+    // Hard-hide the container so a retired pile can't leave even an empty
+    // full-screen div behind the film. (It's pointer-events:none and empty
+    // anyway, but this makes "gone" provable, not incidental.)
+    if (!PILE_ENABLED && pile) pile.style.display = 'none';
     const MAX_TILT = Math.PI * 0.306; // 55° max lean either side
 
     // the descriptor above each phone is just its filename — name a file
@@ -693,8 +708,10 @@
       return { x: c.body.position.x, y: c.body.position.y, s: c.scale };
     }
 
-    // build the pile once unlocked AND the manifest + dims have loaded
-    addEventListener('unlocked', () => sketchesReady.then(start), { once: true });
+    // build the pile once unlocked AND the manifest + dims have loaded —
+    // ONLY when the pile is enabled. Retired: unlock reveals the play button
+    // (CSS) and nothing else builds.
+    if (PILE_ENABLED) addEventListener('unlocked', () => sketchesReady.then(start), { once: true });
 
     function makeWalls(W, H) {
       const t = 400;
@@ -1306,11 +1323,17 @@
       // Play IMMEDIATELY, at the very top of the gesture, before any heavy work.
       startFilm(t);
       if (first) {
-        // Schedule the reveal BEFORE running the physics, so nothing Matter.js does
-        // (or throws) can stop the film stage coming up. ~the time it takes the
-        // work to clear the bottom.
-        setTimeout(showVideo, 1250);
-        drainPile();
+        if (PILE_ENABLED) {
+          // Schedule the reveal BEFORE running the physics, so nothing Matter.js does
+          // (or throws) can stop the film stage coming up. ~the time it takes the
+          // work to clear the bottom.
+          setTimeout(showVideo, 1250);
+          drainPile();
+        } else {
+          // Pile retired: nothing to drain — the film is already visible from the
+          // body.draining reflow above, so reveal it fully in the same gesture.
+          showVideo();
+        }
       }
     }
     const playbtn = document.getElementById('playbtn');
