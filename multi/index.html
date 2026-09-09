@@ -2444,6 +2444,29 @@ body.opt-beat .price-card.opt-flag.opt-focus .pstack-lm .lmcstack, body.opt-beat
 .ma-action.ma-action-icon { width: 56px; padding: 0; justify-content: center; }
 .ma-action.ma-action-icon[data-act="customize"] { display: none; } /* Customize's pencil retired from the quick-actions pill */
 .ma-action.ma-action-icon svg { display: block; width: 20px; height: 20px; }
+/* ── FOCUS ON ONE STAY ───────────────────────────────────────────────────────────────────────────────
+   While a stay's quick actions are open, every OTHER booking goes to a grey-200 fill with a greyscale photo, and
+   the summaries that aren't about it fade away. Deliberately NOT the existing .dim-bookings treatment: that one
+   also box-snaps the pills into cell-height blocks, which is the edit-mode geometry and would read as the board
+   changing mode rather than as one reservation coming forward.
+   Their unread dots leave with their bubbles — a rausch dot is the brightest thing on the board, and three of them
+   left lit on greyed-out pills would pull the eye straight off the stay you just opened. */
+body.booking-focus .booking-pill:not(.is-focus) { background: var(--grey-200); box-shadow: none; }
+body.booking-focus .booking-pill:not(.is-focus) .booking-name { color: var(--grey-700); }
+body.booking-focus .booking-pill:not(.is-focus) .booking-avatar img { filter: grayscale(1); }
+body.booking-focus .booking-pill:not(.is-focus) .bp-unread { opacity: 0; }
+/* The summary and its pointer leave together, downward and slightly small — back the way they came. */
+body.booking-focus .booking-pill:not(.is-focus) .bp-ask {
+  opacity: 0; transform: translateY(6px) scale(0.96); pointer-events: none; }
+body.booking-focus .booking-pill:not(.is-focus) .booking-face.has-ask::after { opacity: 0; }
+.booking-pill { transition: background 0.2s, border-color 0.2s, box-shadow .2s; }
+.booking-name { transition: color .2s; }
+.booking-avatar img { transition: filter .2s; }
+.bp-ask { transition: opacity .22s ease, transform .22s cubic-bezier(.32,.72,0,1); transform-origin: 20px 100%; }
+.bp-unread, .booking-face.has-ask::after { transition: opacity .22s ease; }
+/* The stay's thumbnail is the guest, round, at the same 48px the listing card used so the meta keeps its place. */
+.ma-guest-face { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+  margin-right: 12px; background: var(--grey-700); }
 .ma-price {
   flex-shrink: 0; height: 56px; padding: 0 22px; display: inline-flex; align-items: center; box-sizing: border-box;
   background: transparent; color: #fff; border: 1px solid var(--grey-700); border-radius: 999px; cursor: pointer;
@@ -2653,6 +2676,217 @@ body:has(#customizeMenu.show) #multiActionClose, body:has(#discountsMenu.show) #
 .hostpick-card img { width: 88px; height: 88px; object-fit: contain; display: block; }
 .hostpick-card span { margin-top: 16px; font-family: 'Cereal', sans-serif; font-size: 16px; font-weight: 600;
   font-variation-settings: 'wght' 600; color: #222; }
+/* ── MESSAGING PAGE ──────────────────────────────────────────────────────────────────────────────────
+   Three panes, full bleed under the app header: threads | conversation | reservation.
+   Unlike Listings and Today, this page replaces the TOPBAR as well. The real surface has no secondary bar —
+   each pane carries its own header instead — and the pane rules have to run from the nav to the bottom of the
+   window, or the columns read as three boxes on a page rather than as one inbox. */
+.msg-page { display: none; flex: 1; min-height: 0; background: #fff; }
+body.messaging-mode .msg-page { display: flex; }
+body.messaging-mode .cal { display: none; }   /* the dev bar STAYS — the tier switcher drives every surface */
+body.messaging-mode .topbar { display: none; }
+body.messaging-mode #magicAction { display: none !important; }   /* tips are a calendar surface */
+body.tp-anim.tp-fwd  .msg-page { animation: tpPushLeft  .34s cubic-bezier(.2,.85,.25,1) both; }
+body.tp-anim.tp-back .msg-page { animation: tpPushRight .34s cubic-bezier(.2,.85,.25,1) both; }
+/* Fixed side panes, fluid middle: the thread list and the reservation are reference widths a host reads at a
+   glance, and the conversation is the only thing that benefits from a wider window. */
+.mg-list { flex: 0 0 320px; width: 320px; min-height: 0; display: flex; flex-direction: column;
+  border-right: 1px solid var(--grey-200); }
+.mg-conv { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.mg-res  { flex: 0 0 360px; width: 360px; min-height: 0; display: flex; flex-direction: column;
+  border-left: 1px solid var(--grey-200); }
+body.msg-res-closed .mg-res { display: none; }
+/* Three fixed-ish columns need room. Below ~1180 the reservation pane goes first (it's a detail view of the
+   thread you're already reading), and the list narrows before the conversation does — squeezed to nothing,
+   the middle pane was left 0px wide on a 685px window. */
+@media (max-width: 1180px) { body.messaging-mode .mg-res { display: none; } }
+@media (max-width: 900px)  { .mg-list { flex-basis: 268px; width: 268px; } }
+/* One header treatment for all three panes, so the three titles sit on one baseline across the window — and
+   that baseline is the one every OTHER page's title sits on. "Messages" is the same type as "Listings" and the
+   month callout (.month-title: 26/500, -0.02em, #111) at the same 24px from the left, and the 96px box is what
+   puts it at the same height down the page: the title is centred in it, so 96 = 34px of type + 31 either side,
+   which is where the topbar's own padding lands its title. */
+.mg-head { display: flex; align-items: center; gap: 12px; padding: 24px; min-height: 96px; box-sizing: border-box; }
+.mg-head h2 { flex: 1; min-width: 0; margin: 0; font-family: 'Cereal', sans-serif; font-size: 26px;
+  font-weight: 500; font-variation-settings: 'wght' 500; letter-spacing: -0.02em; color: #111; }
+/* The listing filter, when you arrive from a Listings card. It's a BUTTON, not a label: the way out of a
+   filtered inbox has to be the same thing that tells you you're in one. */
+.mg-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 150px; height: 28px; padding: 0 10px;
+  border: 1px solid var(--grey-300); border-radius: 14px; background: #fff; cursor: pointer;
+  font-family: 'Cereal', sans-serif; font-size: 12px; font-weight: 500; font-variation-settings: 'wght' 500;
+  color: #222; white-space: nowrap; overflow: hidden; transition: background .15s; }
+.mg-chip[hidden] { display: none; }   /* display:inline-flex beats the UA's [hidden] rule, so say it again */
+.mg-chip:hover { background: var(--grey-100); }
+.mg-chip span { overflow: hidden; text-overflow: ellipsis; }
+.mg-chip svg { flex: 0 0 10px; }
+.mg-hbtn { width: 32px; height: 32px; flex: 0 0 32px; border: none; border-radius: 50%; background: var(--grey-100);
+  color: #222; display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background .15s; }
+.mg-hbtn:hover { background: var(--grey-200); }
+/* ── thread list ── */
+.mg-threads { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 72px; }  /* 72: clears the dev bar */
+.mg-thread { display: flex; gap: 12px; padding: 12px; border-radius: 12px; cursor: pointer;
+  transition: background .15s; }
+.mg-thread:hover { background: var(--grey-100); }
+.mg-thread.is-on { background: var(--grey-100); }
+/* The guest's face with their listing tucked into the corner — the same pairing the reservation cards use on
+   Today, so a thread and a card read as the same reservation. */
+.mg-th-shot { position: relative; flex: 0 0 40px; width: 40px; height: 40px; }
+.mg-th-shot .mg-th-face { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; display: block;
+  background: var(--grey-200); }
+.mg-th-shot .mg-th-home { position: absolute; right: -4px; bottom: -4px; width: 22px; height: 22px;
+  border-radius: 6px; object-fit: cover; box-shadow: 0 0 0 2px #fff; background: var(--grey-200); }
+/* UNREAD. 8px rausch dot with a 2px white ring, sat ON the avatar's edge at its top-left: 2/2 rather than 0/0,
+   because the top-left of a CIRCLE's box is ~6px clear of the circle itself, and a dot floating out there reads
+   as a stray mark rather than as a badge on the face. The ring is a box-shadow, so it doesn't add to the 8px. */
+.mg-unread { position: absolute; left: 2px; top: 2px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--brand-rausch); box-shadow: 0 0 0 2px #fff; }
+.mg-th-main { flex: 1; min-width: 0; }
+.mg-th-meta { display: flex; align-items: baseline; gap: 8px;
+  font-size: 12px; line-height: 16px; color: var(--grey-700); }
+.mg-th-when { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mg-th-stamp { flex: 0 0 auto; }
+.mg-th-name { margin-top: 2px; font-size: 14px; line-height: 18px; font-weight: 600;
+  font-variation-settings: 'wght' 600; color: #222;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Two lines and then clipped: a preview that can grow to three makes every row a different height and the
+   list stops being scannable. */
+.mg-th-prev { margin-top: 2px; font-size: 14px; line-height: 18px; color: var(--grey-700);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.mg-th-cta { margin-top: 10px; height: 32px; padding: 0 14px; border: 1px solid var(--grey-300);
+  border-radius: 8px; background: #fff; font-family: 'Cereal', sans-serif; font-size: 13px; font-weight: 600;
+  font-variation-settings: 'wght' 600; color: #222; cursor: pointer; transition: background .15s; }
+.mg-th-cta:hover { background: var(--grey-100); }
+/* ── conversation ── */
+.mg-conv-head { display: flex; align-items: center; gap: 12px; padding: 16px 24px; min-height: 96px;
+  box-sizing: border-box; border-bottom: 1px solid var(--grey-200); }   /* 96 to match .mg-head, so the rule
+  under it lines up with where the other two pane headers end */
+/* Overlapped faces with a white ring, so two guests read as one party rather than as two rows. */
+.mg-faces { display: flex; flex: 0 0 auto; }
+.mg-faces img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; display: block;
+  box-shadow: 0 0 0 2px #fff; background: var(--grey-200); }
+.mg-faces img + img { margin-left: -10px; }
+.mg-conv-who { flex: 1; min-width: 0; }
+.mg-conv-title { font-size: 14px; line-height: 18px; font-weight: 500; font-variation-settings: 'wght' 500;
+  letter-spacing: -0.01em; color: #222; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mg-conv-sub { display: flex; align-items: center; gap: 5px; margin-top: 2px;
+  font-size: 12px; line-height: 16px; color: var(--grey-700); }
+/* ── the transcript ──
+   ONE column, every message left-aligned with its sender's face at the bottom of the bubble — including the
+   host's own. This surface is a log of what was said, not a chat with sides: the host writes as a team (a
+   co-host signs the check-in note in the design), so pushing "mine" to the right would split one voice
+   across both edges. */
+.mg-body { flex: 1; min-height: 0; overflow-y: auto; padding: 24px; display: flex; flex-direction: column;
+  align-items: flex-start; gap: 4px; }
+.mg-msg { display: flex; align-items: flex-end; gap: 8px; max-width: min(620px, 100%); }
+.mg-msg + .mg-msg { margin-top: 12px; }
+/* YOUR side of the thread: black bubble, right-aligned, no avatar. The face column is the guest and only the
+   guest — your own photo in the transcript reads as a third party in your own inbox — and the fill is what
+   separates the two voices instead. align-self, not margin-left: this is a COLUMN flex, so left/right is the
+   cross axis. */
+/* ── THE MINI THREAD ──────────────────────────────────────────────────────────────────────────────────
+   The middle column of Messages as a floating card, opened from a calendar pill. Its own frame; everything
+   inside reuses the pane's classes, so the two can't drift apart. The catcher is invisible rather than a scrim:
+   this sits ON the board you're reading, and dimming the board would make it a modal about nothing. */
+.mini-catch { position: fixed; inset: 0; z-index: 4200; }
+.mini-thread { position: fixed; left: 50%; top: 50%; z-index: 4201;
+  width: 400px; max-width: calc(100vw - 48px); height: 460px; max-height: calc(100vh - 48px);
+  display: flex; flex-direction: column; background: #fff; border-radius: 24px; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05), 0 8px 20px -4px rgba(0,0,0,0.10),
+              0 28px 56px -12px rgba(0,0,0,0.16), 0 60px 90px -30px rgba(0,0,0,0.12);
+  transform: translate(-50%, -50%) scale(0.97); opacity: 0;
+  transition: transform .22s cubic-bezier(.32,.72,0,1), opacity .22s ease; }
+.mini-wrap.is-in .mini-thread { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+.mini-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px;
+  border-bottom: 1px solid var(--grey-200);
+  cursor: grab; user-select: none; }        /* the drag handle — see the mousedown in openMiniThread */
+.mini-thread.is-dragging .mini-head { cursor: grabbing; }
+.mini-thread .mg-body { padding: 20px; min-height: 120px; overscroll-behavior: contain; }
+.mini-thread .mg-comp { padding: 0 20px 20px; }
+/* One row: the field and the arrow side by side, the box closed up around them. align-items: flex-end so the
+   arrow stays on the last line as the field grows. */
+.mini-comp .mg-box { display: flex; align-items: flex-end; gap: 8px; padding: 8px 8px 8px 16px;
+  border-radius: 24px; }
+.mini-comp .mg-input { flex: 1; min-width: 0; min-height: 32px; padding: 6px 0; max-height: 96px; }
+.mini-comp .mg-send { flex: 0 0 32px; }
+/* NO VISIBLE MARK. The whole right edge is the handle — a 12px invisible strip running the full height, wide
+   enough to hit without aiming, and the cursor is the affordance. The corner does both axes. */
+.mini-grip { position: absolute; right: 0; top: 0; bottom: 0; width: 12px; z-index: 2; cursor: ew-resize; }
+.mini-grip-corner { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; z-index: 3;
+  cursor: nwse-resize; }
+.mg-msg.is-mine { align-self: flex-end; max-width: min(560px, 84%); }   /* narrower than the guest's, so even
+  a long message leaves visible column to its left and the side it's on is legible */
+.mg-msg.is-mine .mg-bubble { background: #222; color: #fff; }
+.mg-msg.is-mine .mg-bubble a { color: #fff; }        /* the underline carries the link on a dark fill */
+/* The receipt belongs under the message it's about, so it follows it to the right. */
+.mg-read.is-mine { margin-left: 0; align-self: flex-end; }
+.mg-msg-face { flex: 0 0 28px; width: 28px; height: 28px; border-radius: 50%; object-fit: cover;
+  display: block; background: var(--grey-200); }
+/* white-space: pre-wrap so the house manual keeps its own line breaks without a <br> per line. */
+.mg-bubble { padding: 16px; border-radius: 16px; background: var(--grey-100);
+  font-size: 14px; line-height: 20px; color: #222; white-space: pre-wrap; overflow-wrap: anywhere; }
+.mg-bubble b { font-weight: 600; font-variation-settings: 'wght' 600; }
+.mg-bubble a { color: #222; text-decoration: underline; }
+.mg-read { margin-left: 36px; font-size: 12px; line-height: 16px; color: var(--grey-700); }
+/* ── composer ── */
+.mg-comp { padding: 0 24px 24px; }
+.mg-resp { display: flex; align-items: center; justify-content: center; gap: 6px; height: 36px;
+  margin-bottom: -12px; padding: 0 16px 12px; border-radius: 12px 12px 0 0; background: var(--grey-100);
+  font-size: 12px; color: var(--grey-700); }
+.mg-box { position: relative; border: 1px solid var(--grey-300); border-radius: 16px; background: #fff;
+  padding: 16px; }
+.mg-input { display: block; width: 100%; min-height: 44px; border: none; outline: none; resize: none;
+  font-family: 'Cereal', sans-serif; font-size: 14px; line-height: 20px; color: #222; background: none; }
+.mg-input::placeholder { color: var(--grey-700); }
+.mg-tools { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+.mg-tool { width: 32px; height: 32px; border: none; border-radius: 50%; background: none; color: #222;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .15s; }
+.mg-tool:hover { background: var(--grey-100); }
+/* The send button only lights up once there's something to send — the same "compare against real state, not
+   against having interacted" rule the modals' Save buttons follow. */
+.mg-send { width: 32px; height: 32px; border: none; border-radius: 50%; background: var(--grey-200);
+  color: var(--grey-500); display: flex; align-items: center; justify-content: center; cursor: default; }
+.mg-send.is-live { background: #222; color: #fff; cursor: pointer; }
+/* ── reservation pane ── */
+.mg-res-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 24px 72px; }  /* 72: same, the dev
+  bar sits over this corner and "Getting there" was landing underneath it */
+.mg-res-shot { position: relative; border-radius: 16px; overflow: hidden; background: var(--grey-200);
+  aspect-ratio: 3 / 2; }
+.mg-res-shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* White sticker, so it holds against any photo — same treatment as the "Listed" pill on the Listings grid. */
+.mg-sticker { position: absolute; left: 12px; top: 12px; height: 32px; padding: 0 12px; border-radius: 16px;
+  display: inline-flex; align-items: center; background: #fff;
+  font-size: 12px; font-weight: 500; font-variation-settings: 'wght' 500; color: #222;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.10), 0 2px 8px -2px rgba(0,0,0,0.14); }
+.mg-shot-next { position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  width: 28px; height: 28px; border: none; border-radius: 50%; background: #fff; color: #222;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.10), 0 2px 8px -2px rgba(0,0,0,0.14); }
+.mg-dots { position: absolute; left: 0; right: 0; bottom: 10px; display: flex; justify-content: center; gap: 5px; }
+.mg-dots i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.6); }
+.mg-dots i.on { background: #fff; }
+.mg-res-name { margin-top: 20px; font-size: 22px; line-height: 26px; font-weight: 600;
+  font-variation-settings: 'wght' 600; letter-spacing: -0.01em; color: #222; }
+.mg-res-host { margin-top: 4px; font-size: 14px; color: var(--grey-700); }
+.mg-res-people { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+.mg-pencil { width: 32px; height: 32px; border: 1px solid var(--grey-300); border-radius: 50%; background: #fff;
+  color: #222; display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background .15s; }
+.mg-pencil:hover { background: var(--grey-100); }
+.mg-btn { display: block; width: 100%; height: 48px; margin-top: 12px; border: none; border-radius: 8px;
+  background: var(--grey-100); font-family: 'Cereal', sans-serif; font-size: 14px; font-weight: 600;
+  font-variation-settings: 'wght' 600; color: #222; cursor: pointer; transition: background .15s; }
+.mg-btn:hover { background: var(--grey-200); }
+.mg-dates { display: flex; margin-top: 20px; border: 1px solid var(--grey-200); border-radius: 12px;
+  overflow: hidden; }
+.mg-date { flex: 1 1 0; min-width: 0; padding: 16px; }
+.mg-date + .mg-date { border-left: 1px solid var(--grey-200); }
+.mg-date-k { font-size: 14px; font-weight: 600; font-variation-settings: 'wght' 600; color: #222; }
+.mg-date-v { margin-top: 6px; font-size: 14px; color: var(--grey-700); }
+.mg-there { display: flex; gap: 12px; margin-top: 24px; }
+.mg-there svg { flex: 0 0 20px; margin-top: 2px; color: #222; }
+.mg-there-k { font-size: 14px; font-weight: 600; font-variation-settings: 'wght' 600; color: #222; }
+.mg-there-v { margin-top: 2px; font-size: 14px; color: var(--grey-700); }
 /* ── LISTINGS PAGE ───────────────────────────────────────────────────────────────────────────────────
    Same shape as the Today page: its own scroll area, shown only in body.listings-mode. The month title
    stays VISIBLE here (it reads "Listings") — unlike today-mode, which hides it — so the page title sits in
@@ -3305,6 +3539,43 @@ body.month-view:not(.settings-mode):not(.avail-mode) .thumb-row { height: 140px;
   gap: 8px;
   min-width: 0;
 }
+/* Wrapper for the avatar + its unread dot: .booking-avatar is overflow:hidden, so the dot needs a box that
+   isn't. A fixed 2px offset rather than a percentage — with the dot itself fixed at 8px, a percentage that sat on
+   the circle's edge at 40px pulled it off the face entirely at the 32-listing tier's 28px. */
+.booking-face { position: relative; display: flex; flex-shrink: 0; }
+/* What the dot is ABOUT, ALWAYS ON: a white pill of 12px type with a pointer under it, the pointer's tip landing
+   4px above the pill it belongs to. Not a hover state — an unanswered question is a standing fact about the board,
+   and something you have to go looking for with the cursor isn't one. Left-aligned to the pill with the pointer
+   set 20px in, so it points at the guest's face — the same place the dot is — rather than at the middle of a
+   sentence. z-index above the pill's 7 and above a hovered cell's tooltip (20). */
+/* 9px off the FACE (that's what it travels with): 5 for the pointer plus the 4 the face sits inside the pill's
+   top edge, which puts the pointer's tip flush with that edge. */
+/* LEFT-ALIGNED TO THE BLACK PILL, not to the avatar: -4px is the pill's own padding-left, so the box's left edge
+   and the pill's left edge are the same line. It still lives inside the sticky .booking-face, so it travels with
+   the guest as a long stay scrolls past. */
+.bp-ask { position: absolute; left: -4px; bottom: calc(100% + 9px); z-index: 30;
+  white-space: nowrap; height: 48px; padding: 0 16px 0 20px; display: flex; align-items: center; gap: 4px;
+  /* 4px between the line and the chevron that says it opens something. */
+  border-radius: 999px; background: #fff; color: #222;
+  font-family: 'Cereal', sans-serif; font-size: 14px; font-weight: 400; /* Cereal Book */
+  font-variation-settings: 'wght' 400;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 4px 14px rgba(0,0,0,0.16);
+  cursor: pointer; }   /* tappable: it opens the thread (see openMiniThread), so it can't be pointer-events:none */
+/* The pointer hangs off the FACE rather than off the box, which is the only way it can be centred on the photo
+   while the box is aligned to the pill: the avatar is 40px on most tiers and 28 on the densest, and a fixed
+   offset inside a box of arbitrary text width can't track that.
+   A flat white triangle with NO shadow of its own, painted ABOVE the bubble (z 31 vs 30). Both parts matter: a
+   shadowed diamond underneath the bubble put a grey smudge below the pill and let the bubble's shadow fall across
+   the pointer, so the pointer read as sitting behind it. Above and unshadowed, it covers that shadow instead and
+   the two make one continuous white silhouette.
+   Tip 4px above the face — i.e. flush with the pill's top edge, since the face sits 4px inside it. That's the
+   whole stack 4px tighter than it was; the bubble's own offset came down with it (13 -> 9) so the triangle's top
+   edge still lands exactly on the bubble's bottom. */
+.booking-face.has-ask::after { content: ''; position: absolute; left: 50%; margin-left: -5px;
+  bottom: calc(100% + 4px); border: 5px solid transparent; border-top-color: #fff; z-index: 31; }
+/* Same badge as the inbox: 8px rausch, 2px white ring. The ring reads as a badge against the pill's black. */
+.bp-unread { position: absolute; left: 2px; top: 2px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--brand-rausch); box-shadow: 0 0 0 2px #fff; pointer-events: none; }
 .booking-avatar {
   width: 32px;
   height: 32px;
@@ -4283,7 +4554,7 @@ body.settings-mode .opp-more, body.avail-mode .opp-more { display: none; }
     <a href="#">Today</a>
     <a href="#" class="active">Calendar</a>
     <a href="#">Listings</a>
-    <a href="#">Messaging</a>
+    <a href="#">Messages</a>
   </nav>
   <div class="ah-right">
     <button class="ah-switch" type="button">Switch to travelling</button>
@@ -4705,6 +4976,65 @@ body.settings-mode .opp-more, body.avail-mode .opp-more { display: none; }
 </div>
 <!-- LISTINGS PAGE. Inventory grid, 4 per row; shown only in body.listings-mode. -->
 <div class="listings-page" id="listingsPage"><div class="lst-grid" id="lstGrid"></div></div>
+<!-- MESSAGING PAGE. Threads | conversation | reservation; shown only in body.messaging-mode. Built by
+     wireMessaging() off BOOKINGS, so a tier switch changes the inbox too. -->
+<div class="msg-page" id="msgPage">
+  <aside class="mg-list">
+    <div class="mg-head">
+      <h2>Messages</h2>
+      <button class="mg-chip" type="button" id="mgChip" hidden></button>
+      <button class="mg-hbtn" type="button" aria-label="Search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg>
+      </button>
+      <button class="mg-hbtn" type="button" aria-label="Settings">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.4" fill="#fff"/><circle cx="15" cy="17" r="2.4" fill="#fff"/></svg>
+      </button>
+    </div>
+    <div class="mg-threads" id="mgThreads"></div>
+  </aside>
+  <section class="mg-conv">
+    <div class="mg-conv-head">
+      <div class="mg-faces" id="mgFaces"></div>
+      <div class="mg-conv-who">
+        <div class="mg-conv-title" id="mgConvTitle"></div>
+        <div class="mg-conv-sub">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M9 4v2c0 4-2.5 6.5-5 7.5"/><path d="M7 10c1.2 2.2 3.2 3.5 5 4"/><path d="M13 20l4-9 4 9M14.6 17h4.8"/></svg>
+          Translation on
+        </div>
+      </div>
+      <button class="mg-hbtn" type="button" aria-label="Open reservation" id="mgOpenRes">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+    <div class="mg-body" id="mgBody"></div>
+    <div class="mg-comp">
+      <div class="mg-resp">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>
+        Typical response time: 30 minutes
+      </div>
+      <div class="mg-box">
+        <textarea class="mg-input" id="mgInput" rows="2" placeholder="Write a message..."></textarea>
+        <div class="mg-tools">
+          <button class="mg-tool" type="button" aria-label="Add a photo">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M4 17l4.5-4.5 3.5 3.5 3-3L20 17"/></svg>
+          </button>
+          <button class="mg-send" type="button" id="mgSend" aria-label="Send">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5M6 11l6-6 6 6"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+  <aside class="mg-res" id="mgRes">
+    <div class="mg-head">
+      <h2>Reservation</h2>
+      <button class="mg-hbtn" type="button" id="mgResClose" aria-label="Close reservation">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg>
+      </button>
+    </div>
+    <div class="mg-res-scroll" id="mgResBody"></div>
+  </aside>
+</div>
 <!-- TODAY PAGE. Its own scroll area; shown only in body.today-mode (the calendar/sheets hide). -->
 <div class="today-page" id="todayPage">
   <h1 class="tp-head" id="tpHead">You have 1 reservation</h1>
@@ -4910,6 +5240,53 @@ const WOMEN_NAMES = ['Olivia','Emma','Ava','Sophia','Isabella','Mia','Charlotte'
   'Priya','Yuki','Freya','Aisha','Sana','Ingrid','Leila','Nadia','Camila','Anika','Rosa','Elena','Farah','Maya','Talia',
   'Sofia','Noor','Valeria','Hana','Beatriz','Solveig'];
 const GUEST_NAMES = ['Olivia','James','Emma','Noah','Ava','Liam','Sophia','Mason','Isabella','Ethan','Mia','Lucas','Charlotte','Henry','Amelia','Leo','Harper','Jack','Ella','Owen','Grace','Max','Chloe','Ryan','Zoe','Caleb','Nora','Eli','Lily','Sam','Priya','Diego','Yuki','Omar','Freya','Mateo','Aisha','Nikolai','Sana','Andre','Ingrid','Rafael','Leila','Tomas','Nadia','Hugo','Camila','Sven','Anika','Marco','Rosa','Kai','Elena','Dmitri','Farah','Jonas','Maya','Pablo','Talia','Arjun','Sofia','Bruno','Noor','Lars','Valeria','Emeka','Hana','Cyrus','Beatriz','Kwame','Solveig','Idris'];
+
+/* GUESTS WITH AN OPEN QUESTION. Declared here, above both surfaces, because two of them need it: Messages gives
+   these guests their conversation and their unread dot, and the CALENDAR marks the same guests' booking pills
+   with the same dot — the reservation on the board and the question in the inbox are one thing, so they can't be
+   two lists. Name -> which script in Messages the guest asks. */
+const OPEN_QUESTIONS = {
+  //        which conversation they open in Messages   what the board says they're asking about
+  Kofi:  { script: 'baby',     ask: 'Kofi is asking about baby gear' },
+  Nia:   { script: 'pool',     ask: 'Nia is asking about pool heating' },
+  Malik: { script: 'birthday', ask: 'Malik is asking about a birthday dinner' },
+};
+const answeredGuests = new Set();     // filled when the host replies in Messages; clears the dot on both surfaces
+const guestHasOpenQuestion = n => !!OPEN_QUESTIONS[n] && !answeredGuests.has(n);
+/* Guests are seeded with first names only, and a reservation reads as a person's booking when it carries a
+   surname. Derived from the name's own letters rather than stored, so "Nia" is Nia S. on every surface, every
+   tier and every reload — a random draw would rename her between renders. */
+const LAST_INITIALS = 'SMKRBTLDPCHNGVFA';
+const guestFullName = n => {
+  if (!n) return '';
+  let h = 0;
+  for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) % 100003;
+  return n + ' ' + LAST_INITIALS[h % LAST_INITIALS.length] + '.';
+};
+/* THE CAST HAS TO EXIST ON EVERY TIER. Guest names come off the master snapshot and loadTier keeps only the
+   bookings whose listing survives the cut, so which names are in play changes with the tier — on the 12-listing
+   default there was no Kofi, Nia or Malik at all, and with them went the dots, the summaries and their threads.
+   So three upcoming stays are RENAMED to them after every (re)load: nearest first, on three different listings
+   where possible, and never over each other. Only the name changes; nothing derived reads it. */
+function ensureOpenQuestionGuests() {
+  if (typeof BOOKINGS === 'undefined' || typeof LISTINGS === 'undefined' || !BOOKINGS.length) return;
+  const names = Object.keys(OPEN_QUESTIONS);
+  const missing = names.filter(n => !BOOKINGS.some(b => b.guest === n && LISTINGS[b.listing]));
+  if (!missing.length) return;
+  let T = 0;
+  try { T = (typeof todayDi === 'number') ? todayDi : 0; } catch (e) { T = 0; }   // TDZ-safe, see above
+  const pool = BOOKINGS
+    .filter(b => LISTINGS[b.listing] && b.start >= T && !names.includes(b.guest))
+    .sort((a, b) => (a.start - b.start));
+  const takenLi = new Set(), takenB = new Set();
+  missing.forEach(n => {
+    const b = pool.find(x => !takenB.has(x) && !takenLi.has(x.listing))
+           || pool.find(x => !takenB.has(x));      // a 3-listing tier can run out of distinct homes
+    if (!b) return;
+    takenLi.add(b.listing); takenB.add(b);
+    b.guest = n;
+  });
+}
 
 // Pricing model (shared between the Pricing tab and the Calendar)
 const weekendVals    = ['+15%', '+15%', '+15%', '+15%', '+15%', '+15%', '+15%', '+15%', '+15%', '+15%', '+15%', '+15%'];
@@ -5119,6 +5496,9 @@ function generateBookings() {
               //  spots every time, which read as "not randomized")
 }
 const BOOKINGS = generateBookings();
+/* NOT called here. This point in the file is above `let todayDi`, and ensureOpenQuestionGuests reads it — for a
+   `let` in its temporal dead zone even `typeof` THROWS, which killed the boot script and left the app on raw
+   LISTINGS with no tier, no tips and no dots. loadTier() calls it instead, which every boot path goes through. */
 // Day indices covered by a booking, per listing (price/badge hidden behind the pill)
 const bookedSet = {};
 function rebuildBookedSet() {
@@ -5788,7 +6168,7 @@ const HOLIDAYS = [
   { name: 'Memorial Day',     file: 'memorial-day.png',    month: 4,  weekday: 1, last: true, color: '#2B3A67', fit: 1.03, secondaryFile: 'sec-memorial-day.png', peakPct: 18 }, // start-of-summer long weekend
   { name: 'Juneteenth',       file: 'juneteenth.png',      month: 5,  day: 19,                color: '#DB2A3F', fit: 1.41, secondaryFile: 'sec-juneteenth.png', peakPct: 12 }, // 12-pointed star outline; modest demand
   { name: 'Independence Day', file: 'july-4th.png',        month: 6,  day: 4,                 color: '#E0394B', fit: 1.19, secondaryFile: 'sec-july-4th.png', peakPct: 22 }, // summer peak, beach/lake
-  { name: 'Labor Day',        file: 'labor-day.png',       month: 8,  weekday: 1, nth: 1,     color: '#D14836', fit: 1.34, secondaryFile: 'sec-labor-day.png', peakPct: 18 }, // end-of-summer long weekend; secondary = tape measure
+  { name: 'Labor Day',        file: 'labor-day.png',       month: 8,  weekday: 1, nth: 1,     color: '#D14836', fit: 1.07, secondaryFile: 'sec-labor-day.png', peakPct: 18 }, // end-of-summer long weekend; secondary = tape measure
   { name: 'Veterans Day',     file: 'veterans-day.png',    month: 10, day: 11,                color: '#2B3A67', fit: 1.09, secondaryFile: 'sec-veterans-day.png', peakPct: 10 }, // blue secondary circle; lowest travel bump
   { name: 'Thanksgiving',     file: 'thanksgiving.png',    month: 10, weekday: 4, nth: 4,     color: '#C8742A', fit: 1.0, secondaryFile: 'thanksgiving2.png', peakPct: 20 }, // heavy travel
   { name: 'Christmas Eve',    file: 'christmas-eve.png',   month: 11, day: 24,                color: '#C8102E', fit: 1.04, secOffsets: [1, 2], peakPct: 22 }, // Dec 24 anchors the Christmas price tip → covers Dec 24–26 (Eve, Day, Boxing Day)
@@ -6318,9 +6698,21 @@ function buildRowPills(row, li) {
       pill.style.left = (b.start * pitch + startOff + pillStartInset(gc.w)) + 'px';
       pill.style.width = (b.nights * pitch + (endOff - startOff) - gc.gap) + 'px'; // + the month gaps the stay spans
     }
-    pill.innerHTML = `<div class="booking-label"><div class="booking-avatar"><img src="${b.img}" alt="" loading="lazy"></div><span class="booking-name">${b.guest}${b.guests ? ' +' + b.guests : ''}</span></div>`;
+    /* The avatar is wrapped so the unread dot has something to sit on: .booking-avatar is overflow:hidden (it's
+       what clips the photo into a circle), so a dot inside it would be cut in half. */
+    const openQ = guestHasOpenQuestion(b.guest);
+    /* The summary sits INSIDE .booking-face — which is inside the sticky .booking-label — so it travels with the
+       avatar. Anchored to the pill instead, it stayed at the stay's start while the face slid along the row. */
+    pill.innerHTML = `<div class="booking-label"><div class="booking-face${openQ ? ' has-ask' : ''}"><div class="booking-avatar"><img src="${b.img}" alt="" loading="lazy"></div>`
+      + (openQ ? '<i class="bp-unread"></i>' : '')
+      + (openQ ? `<div class="bp-ask"><span>${OPEN_QUESTIONS[b.guest].ask}</span>`
+          // The SAME glyph the group header's left-toggle uses, at its 16px — a stroked chevron at that size
+          // reads lighter than the filled one next to "San Diego", and these two are seen together.
+          + '<svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg></div>' : '')
+      + `</div><span class="booking-name">${b.guest}${b.guests ? ' +' + b.guests : ''}</span></div>`;
     row.appendChild(pill);
   });
+  if (typeof window.paintBookingFocus === 'function') window.paintBookingFocus(row);
 }
 // (Re)build the visible-window cells + booking pills inside `row`. Cells are absolutely positioned by di
 // (left = rowOffsets[di]); selection comes from the model so it survives cells scrolling in/out.
@@ -8618,12 +9010,58 @@ function renderMonthAction(pill) {
     `<button class="ma-action ma-action-icon" type="button" data-act="customize" aria-label="Customize" title="Customize"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M11.395 4.59764L15.4037 8.60639L6.25 17.7601C6.01375 17.9964 5.7 18.1264 5.36625 18.1264H1.875V14.6351C1.875 14.3064 2.00812 13.9839 2.24125 13.7514L11.395 4.59764ZM17.6294 2.37201C17.0974 1.84113 16.3766 1.54297 15.625 1.54297C14.8734 1.54297 14.1526 1.84113 13.6206 2.37201L12.7206 3.27201L16.73 7.28014L17.6294 6.38076C18.1603 5.8488 18.4584 5.12794 18.4584 4.37639C18.4584 3.62484 18.1603 2.90398 17.6294 2.37201Z" fill="currentColor"/></svg></button>`;
   return true;
 }
+/* TAPPING A BOOKING opens this same pill rather than a popover of its own — one quick-actions system, whether
+   what's selected is a run of nights or a stay. The stay's actions are icons in circles where the night actions
+   are text pills: they're a different KIND of action (talk to the guest, look at the reservation) and reading
+   them as four more words alongside Availability/Price would suggest they edit the same thing. */
+let bookingAction = null;                    // { li, start, nights, guest } while a stay is the selection
+/* Worded pills, not glyphs: they say what they are, and one of them carries a COUNT — an icon can't tell you a
+   message is waiting. Same .ma-action treatment the night actions use, so both variants of the pill read as one
+   system. */
+const GUEST_ACTS = [
+  { act: 'guest-msg',   label: b => guestHasOpenQuestion(b.guest) ? '1 new message' : 'Message' },
+  { act: 'guest-res',   label: () => 'Reservation' },
+  { act: 'guest-earn',  label: (b, money) => 'Earnings · ' + money },
+];
+function renderBookingAction(pill) {
+  const b = bookingAction;
+  if (!b || !LISTINGS[b.li]) { bookingAction = null; return false; }
+  const l = LISTINGS[b.li];
+  const sig = 'b:' + b.li + ':' + b.start;
+  if (sig === _maSig) return true;
+  _maSig = sig;
+  const lo = allDays[b.start], hi = allDays[Math.min(b.start + b.nights - 1, allDays.length - 1)];
+  const dates = !lo || !hi ? ''
+    : lo.getMonth() === hi.getMonth()
+      ? `${MONTHS_FULL[lo.getMonth()]} ${lo.getDate()} – ${hi.getDate()}`
+      : `${MONTHS_FULL[lo.getMonth()]} ${lo.getDate()} – ${MONTHS_FULL[hi.getMonth()]} ${hi.getDate()}`;
+  // Earnings is the same honest sum the guest menu showed, carried on the icon's tooltip since a circle has
+  // nowhere to print it.
+  let earn = 0;
+  for (let di = b.start; di < b.start + b.nights; di++) earn += getPrice(b.li, di);
+  const money = '$' + Math.round(earn).toLocaleString('en-US');
+  /* The GUEST's photo, round — the stay is that person's booking, and the listing is already named on the row it
+     sits in. Read off the BOOKING rather than from what the click passed in: the pill can re-render after a tier
+     switch, and a lookup by listing+start is the one thing that survives that. */
+  const bk = BOOKINGS.find(x => x.listing === b.li && x.start === b.start);
+  const face = (bk && bk.img) || '';
+  pill.innerHTML =
+    `<img class="ma-guest-face" src="${face}" alt="">` +
+    `<div class="ma-meta"><span class="ma-title">${guestFullName(b.guest)}</span>` +
+      `<span class="ma-dates">${dates}</span></div>` +
+    GUEST_ACTS.map(a =>
+      `<button class="ma-action ma-guest-act" type="button" data-act="${a.act}">${a.label(b, money)}</button>`
+    ).join('');
+  return true;
+}
 function renderMultiAction() {
   const pill = document.getElementById('maPill');
   if (!pill) return false;
   if (calendarView === 'month') return renderMonthAction(pill); // month-mode panel (counts months, not nights)
   const sel = selList();                    // from the model, not DOM position (rows are virtualized)
+  if (bookingAction && !sel.length) return renderBookingAction(pill);
   if (!sel.length) { _maSig = ''; return false; }
+  bookingAction = null;                     // selecting nights is a different subject; the stay steps aside
   const lis = [...new Set(sel.map(s => s.li))].sort((a, b) => a - b);
   const dis = [...new Set(sel.map(s => s.di))].sort((a, b) => a - b);
   const sig = lis.join(',') + '|' + dis.join(',');
@@ -8676,6 +9114,8 @@ function updateMultiAction() {
   if (isDragging || dateDragging) return;
   const inCalendar = !document.body.classList.contains('settings-mode') && !document.body.classList.contains('avail-mode');
   const show = inCalendar && renderMultiAction();
+  if (!show) bookingAction = null;
+  if (typeof window.paintBookingFocus === 'function') window.paintBookingFocus();
   if (show) {
     ma.classList.add('show');
     if (pill) {
@@ -8708,7 +9148,32 @@ function updateMultiAction() {
   if (window.updateMagicPill) updateMagicPill();        // show the idle "Optimize" pill when nothing is selected
 }
 // The floating X clears the selection (which hides the pill + restores the dimmed guest pills).
-document.getElementById('multiActionClose').addEventListener('click', clearSelection);
+document.getElementById('multiActionClose').addEventListener('click', () => {
+  bookingAction = null;                     // the X dismisses a stay's actions as well as a selection
+  clearSelection();
+  updateMultiAction();                      // clearSelection is a no-op when nothing was selected
+});
+/* Opened from a booking pill. Exposed because the click that triggers it lives with the guest-menu code. */
+window.openBookingActions = (li, start, nights, guest) => {
+  if (typeof clearSelection === 'function') clearSelection();
+  bookingAction = { li, start, nights, guest };
+  _maSig = '';
+  updateMultiAction();
+  paintBookingFocus();
+};
+/* Applied by walking the mounted pills rather than held on one element, because the grid is horizontally
+   VIRTUALIZED — a pill that scrolls out and back would come back unmarked. buildRowPills calls this too, so a
+   freshly mounted row lands in the right state. */
+window.paintBookingFocus = function paintBookingFocus(root) {
+  const on = !!bookingAction;
+  document.body.classList.toggle('booking-focus', on);
+  (root || document).querySelectorAll('.price-row .booking-pill').forEach(pill => {
+    const row = pill.closest('.price-row');
+    const isIt = on && row && +row.dataset.li === bookingAction.li && +pill.dataset.start === bookingAction.start;
+    pill.classList.toggle('is-focus', !!isIt);
+  });
+};
+window.closeBookingActions = () => { if (bookingAction) { bookingAction = null; _maSig = ''; updateMultiAction(); } };
 
 // Month view: click-then-drag to marquee-select month cards — SAME logic as the week grid (it drives the
 // shared isDragging/dragSelectMode/preSelectState state, and getCards() returns the month cards in month
@@ -8873,6 +9338,14 @@ document.getElementById('multiAction').addEventListener('click', e => {
   else if (e.target.closest('[data-act="add-discount"]')) { e.stopPropagation(); toggleDiscountsMenu(); }
   else if (e.target.closest('[data-act="customize"]')) { e.stopPropagation(); toggleCustomizeMenu(); }
   else if (e.target.closest('[data-act="rulesets"]')) { e.stopPropagation(); toggleRuleSetsMenu(); }
+  // A stay's actions. Message opens the floating thread — the same panel the board's summary opens, so there's
+  // one way into a conversation. The other three are placeholders for now, deliberately inert.
+  else if (e.target.closest('[data-act="guest-msg"]')) {
+    e.stopPropagation();
+    if (bookingAction && typeof window.openMiniThread === 'function')
+      window.openMiniThread(bookingAction.li, bookingAction.start);
+  }
+  else if (e.target.closest('.ma-guest-act')) e.stopPropagation();
 });
 document.getElementById('availBlock').addEventListener('click', e => { e.stopPropagation(); setBlockState(true); });
 document.getElementById('availOpen').addEventListener('click', e => { e.stopPropagation(); setBlockState(false); });
@@ -11766,7 +12239,11 @@ document.getElementById('devVariance').addEventListener('change', e => {
       `<button class="guest-menu-item" role="menuitem">${ICONS.earn}<span>Earnings · $${earnings.toLocaleString('en-US')}</span></button>`;
   window.guestMenuRowsHTML = rowsHTML;
   window.guestEarningsFor = earningsFor;
-  function open(guest, earnings, x, y, row) {
+  // Which reservation the open menu belongs to — the "Message <guest>" row has to reach the SAME thread the
+  // inbox derives for this stay, and li/start is what identifies it there.
+  let menuFor = null;
+  function open(guest, earnings, x, y, row, li, start) {
+    menuFor = (li != null && start != null) ? { li, start } : null;
     menu.innerHTML = rowsHTML(guest, earnings);
     overlay.classList.add('visible');
     positionAt(x, y); // measure + place now that it's laid out
@@ -11792,6 +12269,16 @@ document.getElementById('devVariance').addEventListener('change', e => {
     if (ax < g.left || ax > g.right || ay < g.top || ay > g.bottom) close();
   }
   function close() { overlay.classList.remove('visible'); anchor = null; }
+  /* Message <guest> -> the inbox, on that guest's thread. Delegated on the menu (its rows are rebuilt on every
+     open) and matched on the ICON's position rather than the label, since the label carries a guest name. */
+  menu.addEventListener('click', e => {
+    const item = e.target.closest('.guest-menu-item'); if (!item) return;
+    const first = item === menu.querySelector('.guest-menu-item');
+    if (!first || !menuFor || typeof window.openMessagingFor !== 'function') return;
+    const m = menuFor;
+    close();
+    window.openMessagingFor(m.li, m.start);
+  });
   window.addEventListener('scroll', reposition, true); // capture: catches gridWrap (H) + the vertical scroller
   window.addEventListener('resize', () => { if (anchor) close(); });
   // Open on a booking-pill tap (delegated on the week grid). li from the row, stay from the pill dataset.
@@ -11799,7 +12286,12 @@ document.getElementById('devVariance').addEventListener('change', e => {
     const pill = e.target.closest('.booking-pill'); if (!pill) return;
     const row = pill.closest('.price-row'); if (!row) return;
     const li = +row.dataset.li, start = +pill.dataset.start, nights = +pill.dataset.nights;
-    open(pill.dataset.guest || 'guest', earningsFor(li, start, nights), e.clientX, e.clientY, row);
+    /* The quick-actions pill, not this popover: the stay's actions belong in the same place the night actions
+       already are. `open` is kept — the Today panel still builds its rows from rowsHTML above — it just isn't
+       what a pill tap reaches for any more. */
+    if (typeof window.openBookingActions === 'function')
+      window.openBookingActions(li, start, nights, pill.dataset.guest || 'guest');
+    else open(pill.dataset.guest || 'guest', earningsFor(li, start, nights), e.clientX, e.clientY, row, li, start);
   });
   // Outside click closes; a tap on another pill falls through to the click handler above (re-opens).
   document.addEventListener('mousedown', e => {
@@ -14225,7 +14717,11 @@ window.updateMagicPill = function () {
   const el = document.getElementById('magicAction'); if (!el) return;
   const inCal = !document.body.classList.contains('settings-mode') && !document.body.classList.contains('avail-mode') && (typeof calendarView === 'undefined' || calendarView !== 'month');
   const optimizing = document.body.classList.contains('optimize-mode');
-  const hasSel = (typeof selected !== 'undefined') && selected.size > 0;
+  // A stay's quick actions occupy the same spot as this pill, so they count as a selection for hiding it —
+  // otherwise "Show tips" sat on top of the actions opened from a booking pill.
+  let onStay = false;
+  try { onStay = !!bookingAction; } catch (e) { onStay = false; }
+  const hasSel = ((typeof selected !== 'undefined') && selected.size > 0) || onStay;
   const show = inCal && !document.body.classList.contains('grouping-busy') && (optimizing || !hasSel); // tucked away during Automate-group (when retired, the CONTAINER stays for the search — only the opp pill hides, via body.opps-retired)
   // INVARIANT: the idle pill is ALWAYS "Show tips" now — the "Automate groups" gate is retired, since
   // every tier boots already grouped. Whenever the idle pill re-appears (e.g. after a QA select/close),
@@ -15035,6 +15531,15 @@ const UPSELL_CONTENT = {
         rule.className = 'guest-menu-divider';
         right.insertBefore(rule, item);
       }); }
+    /* "Message <guest>" leaves for the inbox instead of closing into the deck. Bound before the card's own
+       click-to-close so stopPropagation actually keeps the modal from swallowing it. */
+    { const first = modalCard.querySelector('.tp-mc-right .guest-menu-item');
+      if (first) first.addEventListener('click', e => {
+        e.stopPropagation();
+        const li = +slot.dataset.li, start = +slot.dataset.start;
+        closeReservation();
+        if (typeof window.openMessagingFor === 'function') window.openMessagingFor(li, start);
+      }); }
     modalCard.addEventListener('click', closeReservation);
     modalCard.querySelector('.bp-close').addEventListener('click', e => { e.stopPropagation(); closeReservation(); });
     document.body.append(scrim, modalCard);
@@ -15120,9 +15625,10 @@ const UPSELL_CONTENT = {
   let animT = 0;
   // Pages in nav order. The direction of the push is simply which way you're travelling through them, so
   // Calendar→Listings slides the same way Today→Calendar does.
-  const PAGE_IX = { today: 0, calendar: 1, listings: 2 };
+  const PAGE_IX = { today: 0, calendar: 1, listings: 2, messaging: 3 };
   const curPage = () => document.body.classList.contains('today-mode') ? 'today'
-    : document.body.classList.contains('listings-mode') ? 'listings' : 'calendar';
+    : document.body.classList.contains('listings-mode') ? 'listings'
+    : document.body.classList.contains('messaging-mode') ? 'messaging' : 'calendar';
   // MUST be called BEFORE the mode classes change — it reads the page you're leaving.
   const playSwitch = to => {
     const dir = (PAGE_IX[to] ?? 1) > PAGE_IX[curPage()] ? 'tp-fwd' : 'tp-back';
@@ -15151,6 +15657,14 @@ const UPSELL_CONTENT = {
     }).join('');
   }
   window.renderListingsPage = renderListings;
+  /* A card was an <a href="#"> that did nothing. It now opens the inbox filtered to that home — the listing
+     and its conversations are the same subject, and this is the only listing-level route into Messaging.
+     Delegated, because the grid is rebuilt on every tier switch. */
+  if (lstGrid) lstGrid.addEventListener('click', e => {
+    const card = e.target.closest('.lst-card'); if (!card) return;
+    e.preventDefault();
+    if (typeof window.openMessagingForListing === 'function') window.openMessagingForListing(+card.dataset.li);
+  });
   // ── "What would you like to host?" picker ──────────────────────────────────────────────────────────
   // Single-select; Next stays disabled until something is chosen, same contract as every other modal's
   // Save (compare against a real selection, not "did you interact").
@@ -15183,9 +15697,10 @@ const UPSELL_CONTENT = {
   })();
   window.enterListingsMode = () => {
     playSwitch('listings');
+    if (typeof window.mhcHeaderShow === 'function') window.mhcHeaderShow();  // this page's nav is permanent
     // Drop today-mode directly rather than via exitTodayMode — that would re-fire playSwitch and overwrite
     // the direction we just set with a Calendar-bound one.
-    document.body.classList.remove('today-mode');
+    document.body.classList.remove('today-mode', 'messaging-mode');
     // Leave a sheet if one is open, so the calendar chrome underneath is in a known state on the way back.
     if (typeof setMode === 'function'
         && (document.body.classList.contains('settings-mode') || document.body.classList.contains('avail-mode')))
@@ -15213,9 +15728,32 @@ const UPSELL_CONTENT = {
       const c = monthTitle.querySelector('svg'); if (c) c.style.display = '';
     }
   };
+  // ── MESSAGING ──────────────────────────────────────────────────────────────────────────────────────
+  // The only page that also drops the TOPBAR (see the CSS): each pane carries its own header, so a second
+  // bar above them would leave the three column titles sitting under a title that belongs to none of them.
+  window.enterMessagingMode = () => {
+    playSwitch('messaging');
+    if (typeof window.mhcHeaderShow === 'function') window.mhcHeaderShow();  // this page's nav is permanent
+    document.body.classList.remove('today-mode', 'listings-mode');
+    if (typeof setMode === 'function'
+        && (document.body.classList.contains('settings-mode') || document.body.classList.contains('avail-mode')))
+      setMode('calendar');
+    document.body.classList.add('messaging-mode');
+    document.querySelectorAll('.ah-nav a').forEach(a2 => a2.classList.toggle('active', a2.textContent.trim() === 'Messages'));
+    if (typeof window.renderMessagingPage === 'function') window.renderMessagingPage();
+  };
+  window.exitMessagingMode = () => {
+    playSwitch('calendar');
+    document.body.classList.remove('messaging-mode');
+    document.querySelectorAll('.ah-nav a').forEach(a2 => a2.classList.toggle('active', a2.textContent.trim() === 'Calendar'));
+    // Same hidden-measurement trap as Today and Listings: the toolbar was display:none, so the toggle's
+    // white pill has to be re-seated once it can be measured again.
+    requestAnimationFrame(() => { if (typeof refreshSegIndicator === 'function') refreshSegIndicator(); });
+  };
   window.enterTodayMode = () => {
     playSwitch('today');
-    document.body.classList.remove('listings-mode');       // the two pages are mutually exclusive
+    if (typeof window.mhcHeaderShow === 'function') window.mhcHeaderShow();  // this page's nav is permanent
+    document.body.classList.remove('listings-mode', 'messaging-mode');   // the pages are mutually exclusive
     document.body.classList.add('today-mode');
     document.querySelectorAll('.ah-nav a').forEach(a2 => a2.classList.toggle('active', a2.textContent.trim() === 'Today'));
     setTab('today');                                     // always rebuilds the page on entry
@@ -15246,14 +15784,16 @@ const UPSELL_CONTENT = {
     requestAnimationFrame(repair);
     setTimeout(repair, 140);
   };
-  // header nav: Today enters, Calendar leaves, Listings has its own mode. (Messaging isn't built.)
+  // header nav: Today enters, Calendar leaves, Listings and Messaging have their own modes.
   document.querySelectorAll('.ah-nav a').forEach(link => {
     link.addEventListener('click', e => {
       const label = link.textContent.trim();
-      if (label !== 'Today' && label !== 'Calendar' && label !== 'Listings') return;
+      if (label !== 'Today' && label !== 'Calendar' && label !== 'Listings' && label !== 'Messages') return;
       e.preventDefault();
       if (label === 'Listings') return window.enterListingsMode();
-      // Today and Calendar both mean "not Listings" — leave it first so the chrome resets once.
+      if (label === 'Messages') return window.enterMessagingMode();
+      // Today and Calendar both mean "neither of those" — leave them first so the chrome resets once.
+      if (document.body.classList.contains('messaging-mode')) window.exitMessagingMode();
       if (document.body.classList.contains('listings-mode')) window.exitListingsMode();
       label === 'Today' ? window.enterTodayMode() : window.exitTodayMode();
       // Landing on Calendar arms the 1s auto-hide, so the board settles into its clean state on its own and
@@ -15265,6 +15805,698 @@ const UPSELL_CONTENT = {
   ['segCal', 'segRules', 'segAvail'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('click', () => { if (document.body.classList.contains('today-mode')) window.exitTodayMode(); });
+  });
+})();
+/* ── MESSAGING PAGE ───────────────────────────────────────────────────────────────────────────────────
+   Threads are DERIVED from BOOKINGS, never a fixture. The tier switcher rebuilds LISTINGS and BOOKINGS in
+   place and every other surface re-renders off them, so the inbox has to as well — otherwise 32 listings
+   would show 12 listings' worth of guests. Everything that looks arbitrary (which preview line a thread
+   shows, how many guests are on it) is drawn from a hash of the booking itself, so a re-render is stable and
+   two hosts of the same tier see the same inbox. */
+(function wireMessaging() {
+  const listEl = document.getElementById('mgThreads'); if (!listEl) return;
+  const bodyEl = document.getElementById('mgBody'), resEl = document.getElementById('mgResBody');
+  const titleEl = document.getElementById('mgConvTitle'), facesEl = document.getElementById('mgFaces');
+  const inputEl = document.getElementById('mgInput'), sendEl = document.getElementById('mgSend');
+  const HOST_FACE = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=96&h=96&fit=crop';
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const threadKey = b => b.listing + ':' + b.start;
+  const dOf = di => (typeof allDays !== 'undefined' && allDays[di]) ? allDays[di] : null;
+  const dayLabel = di => { const d = dOf(di); return d ? MON[d.getMonth()] + ' ' + d.getDate() : ''; };
+  const longDate = di => { const d = dOf(di);
+    return d ? DAYS[d.getDay()].slice(0, 3) + ', ' + MON[d.getMonth()] + ' ' + d.getDate() : ''; };
+  // Stable per-thread pseudo-randomness: same booking -> same preview, every render.
+  const hash = b => Math.abs(((b.listing + 1) * 73856093) ^ ((b.start + 1) * 19349663) ^ (b.nights * 83492791)) % 100000;
+  /* THREADS. Nearest reservation first, upcoming ahead of past — the same order of interest the Today deck
+     uses. Capped at 12: an inbox is a list you scan, and every extra row past a screenful is a row nobody
+     reads. */
+  /* ARRIVING FROM ANOTHER SURFACE.
+     pinned = a specific reservation somebody asked for ("Message Freya" on a booking pill). It has to be
+     force-fed into the list: the inbox only derives twelve threads, so a stay in November is legitimately not
+     among them, and without this the jump would land on someone else's conversation.
+     filterLi = a listing somebody asked for (a card on Listings). The list narrows to that home and the header
+     says so, because an inbox that silently shows a subset is worse than one that shows everything. */
+  let pinned = null, filterLi = null;
+  function threadsFor() {
+    if (typeof BOOKINGS === 'undefined' || typeof LISTINGS === 'undefined') return [];
+    const T = (typeof todayDi === 'number') ? todayDi : 0;
+    const near = (a, b) => Math.abs(a.start - T) - Math.abs(b.start - T);
+    let ok = BOOKINGS.filter(b => LISTINGS[b.listing]);
+    if (filterLi != null) ok = ok.filter(b => b.listing === filterLi);
+    // Nearest first, but hold three slots for stays that have ENDED — those are the threads carrying a
+    // "Leave a review", and a pure nearest-first sort buries them behind a season of upcoming arrivals.
+    const done = ok.filter(b => b.start + b.nights - 1 < T).sort(near).slice(0, 3);
+    const open = ok.filter(b => b.start + b.nights - 1 >= T).sort(near).slice(0, 12 - done.length);
+    // Interleaved by recency, the way an inbox actually reads: the review prompts land among the arrivals
+    // rather than in a block at the bottom.
+    const out = open.concat(done).sort(near);
+    /* The three named guests are ALWAYS in the list — their nearest stay, force-added if the twelve nearest
+       didn't reach it. They're the threads that are meant to be waiting on you, and a thread that isn't here
+       can't be. Skipped while filtered to one listing, where a guest of another home has no business showing. */
+    if (filterLi == null) Object.keys(PINNED).forEach(name => {
+      if (out.some(b => b.guest === name)) return;
+      const b = ok.filter(x => x.guest === name).sort(near)[0];
+      if (b) out.push(b);
+    });
+    /* UNREAD FIRST, then everything else by recency. Sorted on the NAME rather than on the live unread set, so a
+       row doesn't leap up the list the moment you read it — the group holds its place and only the dot goes. */
+    out.sort((a, b) => (waiting(b) ? 1 : 0) - (waiting(a) ? 1 : 0));
+    // The pinned reservation goes to the FRONT if the derivation missed it — front, not sorted in, so the
+    // thread you asked for is the one at the top of the list you land on.
+    if (pinned) {
+      const p = ok.find(b => threadKey(b) === pinned);
+      if (p && !out.some(b => threadKey(b) === pinned)) out.unshift(p);
+    }
+    return out;
+  }
+  // Timestamps read the way a real inbox reads: a time today, a weekday inside the last week, a date after
+  // that. Derived from the stay so it can't drift from the row it sits on.
+  function stamp(b) {
+    const T = (typeof todayDi === 'number') ? todayDi : 0;
+    if (isNote(b)) return '11:12 AM';        // the prepared arrival is the one that just came in
+    const age = Math.max(1, Math.abs(b.start - T) % 40);
+    const d = dOf(Math.max(0, T - age));
+    if (age <= 6) return d ? DAYS[d.getDay()] : '';
+    return d ? (d.getMonth() + 1) + '/' + d.getDate() : '';
+  }
+  /* No truncation any more: the three open-question scripts are WRITTEN to end on the guest's question, so the
+     whole back-and-forth can show and the last word is still theirs. Earlier passes cut the transcript down to its
+     opening turn to keep the dot honest, which threw away the conversation around it. */
+  const visibleTurns = b => turnsFor(b);   // a wrapper, not an alias: turnsFor is declared further down, and
+                                           // aliasing it here read it inside its temporal dead zone and threw
+  /* The preview IS the last line of the thread, read off the same turns the conversation renders. Two copies
+     of "what was said last" drift apart the moment either is edited. */
+  /* The transcript's markup, shared by the pane and by the mini panel the calendar opens — one definition, so a
+     thread looks the same wherever it's read.
+     "Read by" belongs under the LAST message and only if it's yours: it's the receipt on what you sent, so a
+     guest reply after it means there's nothing left to confirm. */
+  function bubblesHTML(b) {
+    const msgs = visibleTurns(b).concat(sent[threadKey(b)] || []);
+    const lastIx = msgs.length - 1;
+    return msgs.map((m, k) =>
+      '<div class="mg-msg' + (m.face ? '' : ' is-mine') + '">'
+      + (m.face ? '<img class="mg-msg-face" src="' + m.face + '" alt="">' : '')
+      + '<div class="mg-bubble">' + m.text.split('\n').map(line =>
+          /<a /.test(line) ? line : esc(line)).join('\n') + '</div></div>'
+      + (m.me && k === lastIx ? '<div class="mg-read is-mine">Read by ' + esc(b.guest) + '</div>' : '')).join('');
+  }
+  const previewOf = b => {
+    const all = visibleTurns(b).concat(sent[threadKey(b)] || []);
+    const last = all[all.length - 1];
+    return last.from + ': ' + last.text.split('\n')[0];
+  };
+  // Which threads carry a "Leave a review" button: the ones whose stay is already over.
+  const isPast = b => (typeof todayDi === 'number') && (b.start + b.nights - 1 < todayDi);
+  function metaLine(b) {
+    const T = (typeof todayDi === 'number') ? todayDi : 0;
+    const l = LISTINGS[b.listing];
+    // The arrival being prepared states its status; every other thread states its dates and its home.
+    if (isNote(b)) return b.start < T ? 'Currently hosting'
+      : b.start === T ? 'Check in today' : b.start === T + 1 ? 'Check in tomorrow'
+      : 'Check in ' + dayLabel(b.start);
+    return dayLabel(b.start) + ' – ' + dayLabel(b.start + b.nights - 1) + ' · ' + l.name;
+  }
+  /* THE CONVERSATIONS. One SCRIPT per thread, not one script reused: opening a thread has to tell you
+     something the list didn't, and twelve copies of the same check-in note is a screenshot, not an inbox.
+     Each script is a short exchange with its own subject — an early arrival, a dropped router, a stay being
+     extended — written as TURNS rather than as a blob, so "who spoke last" is a fact the rest of the page can
+     read off it: the list preview, the "Read by" receipt, and which avatar sits under the bubble.
+     Placeholders are filled from the booking, so every conversation is about the listing, city, dates and door
+     code the rest of the prototype already agrees on. {g} guest · {L} listing · {C} city · {code} door code ·
+     {net}/{pw} wifi · {in}/{out} arrival + departure · {n} nights · {co} co-host. */
+  const CO_NAME = 'Heather';
+  /* The second face on a booking is the guest travelling WITH them — drawn from the same avatar pool the
+     bookings use, and never the same photo twice on one thread. It used to be the host's own avatar, which put
+     the person reading the inbox into the guest party. */
+  const secondFace = b => {
+    if (typeof AVATARS === 'undefined' || !AVATARS.length) return null;
+    // The host's own photo is IN this pool (AVATARS and the app header share it), so it has to be excluded
+    // explicitly or the party ends up with the person reading the inbox in it.
+    const pool = AVATARS.filter(a => a !== b.img && a !== HOST_FACE);
+    if (!pool.length) return null;
+    return pool[hash(b) % pool.length];
+  };
+  const SCRIPTS = [
+    // 0 — THE CHECK-IN NOTE. First on purpose: it goes to the top thread, and it's the long, structured
+    //     message this surface exists to hold.
+    { turns: [
+      { me: false, t: 'Hi John! Checking in for our upcoming arrival at {L} from {in}. Is there anything we should know before we get there?' },
+      { me: true, co: true, t:
+          'Hi {g} — all set for you. Everything you need is below.\n\n'
+        + 'PARKING:\nTwo cars fit in the driveway. There is also street parking if needed. A level 2 EV charger is available in the carport as needed.\n\n'
+        + 'ENTRY CODE:\n- Press the keypad symbol\n- Enter {code} and press the tick\n- When you leave, pull the door tight and press the symbol to lock — no code needed\n- Please adjust the HVAC when leaving to conserve energy\n\n'
+        + 'BED SETUP:\nThe primary bedroom will be set up as a King unless you prefer 2 Twin XLs. Please let us know.\n\n'
+        + 'WIFI:\nNetwork: {net}\nPassword: {pw}\n\n'
+        + 'GUIDEBOOK + HOUSE MANUAL:\n<a href="#">Open the house manual</a>\n\n'
+        + 'WELCOME:\nThe home has been cleaned and stocked in preparation for your arrival. If you have any issues with the cleanliness, please let us know right away. If you have any questions, issues or concerns during your stay please reach out. If something is off, we want the chance to make it right.\n\n'
+        + 'Enjoy! If you have any other questions, just let me know.\n\nBest,\n{co}\n{C} Vacation Rentals' },
+    ] },
+    { turns: [   // early arrival
+      { me: false, t: 'Hi! Our flight lands at 11am on {in}. Any chance we could drop our bags before check-in?' },
+      { me: true,  t: 'Of course — the cleaners finish around 2pm so the house won’t be ready before then, but you’re welcome to leave bags in the carport closet from 11. The code is {code}.' },
+      { me: false, t: 'That’s perfect, thank you! We’ll do that and go find lunch.' },
+    ] },
+    { turns: [   // parking
+      { me: false, t: 'One more thing — is there parking for a second car?' },
+      { me: true,  t: 'Yes, two fit in the driveway and there’s unrestricted street parking on the same side as the house.' },
+      { me: false, t: 'Great. One of them is a van with a roof box — will it clear the carport?' },
+      { me: true,  t: 'It’s 7ft to the beam, so probably not. Put the van on the street and the car in the driveway.' },
+      { me: false, t: 'Will do, thanks for checking.' },
+    ] },
+    { turns: [   // wifi drops out mid-stay
+      { me: false, t: 'Hi — the wifi dropped out about an hour ago. We’ve tried reconnecting to {net} with no luck.' },
+      { me: true,  t: 'Sorry about that. There’s a router in the hall cupboard on the top shelf — unplug it for 30 seconds and plug it back in. It takes about two minutes to come back.' },
+      { me: false, t: 'Back up, thank you! Working fine now.' },
+    ] },
+    { turns: [   // extending the stay
+      { me: false, t: 'We’re having a great time at {L}. Would it be possible to stay two extra nights after {out}?' },
+      { me: true,  t: 'Those nights are open — I’ll send a change request through so the rate and the total update properly on your side.' },
+      { me: false, t: 'Just accepted it. Thanks so much for sorting that out!' },
+    ] },
+    { turns: [   // late checkout, answered with a compromise
+      { me: false, t: 'Would a 1pm checkout be possible on {out}?' },
+      { me: true,  t: 'I can do 12 — there’s an arrival the same afternoon and the turnaround is tight. Hope that still helps.' },
+      { me: false, t: 'Noon works, no problem at all. Thanks for checking!' },
+    ] },
+    { turns: [   // post-stay thanks
+      { me: false, t: 'Just wanted to say we loved the house. Everything was spotless and the kitchen was a dream.' },
+      { me: true,  t: 'That’s so good to hear, {g} — you were wonderful guests. You’re welcome back any time.' },
+      { me: false, t: 'Of course! We’ll be leaving a very positive review.' },
+    ] },
+    { turns: [   // the keypad
+      { me: false, t: 'We’re outside but the keypad isn’t taking the code. Are we doing something wrong?' },
+      { me: true,  t: 'Press the symbol at the top FIRST to wake it, then {code} and the tick. It won’t take a code until it lights up.' },
+      { me: false, t: 'That was it — we’re in. Thank you!' },
+    ] },
+    { turns: [   // recommendations
+      { me: false, t: 'Any dinner recommendations near {L}? Somewhere we could walk to would be ideal.' },
+      { me: true,  t: 'Three good ones, all about ten minutes on foot — the little Italian place on the corner, the taqueria two blocks down (cash only), and the wine bar by the park. The guidebook in the kitchen has a longer list.' },
+      { me: false, t: 'Perfect, that all makes sense. See you then!' },
+    ] },
+    { turns: [   // a real problem, handled
+      { me: false, t: 'Hi — there’s a stain on one of the bath towels and the upstairs bin hadn’t been emptied.' },
+      { me: true,  t: 'I’m sorry, that shouldn’t have got past the turnover. Fresh towels are in the hall closet, and housekeeping can come by tomorrow morning — would 9am suit?' },
+      { me: false, t: '9am is fine. Appreciate the quick reply.' },
+      { me: true,  t: 'She’s been and gone — bins done and a fresh set of towels left in the bathroom. Sorry again for the start of your stay.' },
+      { me: false, t: 'All sorted, and no harm done. The house is lovely otherwise.' },
+    ] },
+    { turns: [   // pets
+      { me: false, t: 'Would you allow a small dog? She’s house trained and travels with us everywhere.' },
+      { me: true,  t: 'She’s welcome — there’s a $75 pet fee I’ll add to the reservation, and the yard is fully fenced. Please just keep her off the beds.' },
+      { me: false, t: 'Hi John, that’s fantastic. Thank you!!' },
+    ] },
+    { turns: [   // the host opens this one
+      { me: true,  t: 'Hi {g} — looking forward to hosting you on {in}. Roughly what time do you expect to arrive?' },
+      { me: false, t: 'We should be there around 5pm, maybe a little later with traffic.' },
+      { me: true,  t: 'Wonderful — I’ll have everything ready for you.' },
+    ] },
+    { turns: [   // the AC
+      { me: false, t: 'How does the AC work? It’s reading 78 downstairs and we can’t get it any lower.' },
+      { me: true,  t: 'The thermostat by the kitchen door runs the whole house — hold the down arrow rather than tapping it, and close the upstairs vents if you want it cooler at night.' },
+      { me: false, t: 'Got it down to 72, thank you. Does it run all night or is there a schedule on it?' },
+      { me: true,  t: 'No schedule, it’ll hold whatever you set. I’d only ask that you turn it up when you’re out for the day.' },
+      { me: false, t: 'Of course. Everything else looks great, thanks!' },
+    ] },
+    { turns: [   // bags after checkout
+      { me: false, t: 'Our flight isn’t until 8pm on {out}. Could we leave bags after we check out?' },
+      { me: true,  t: 'Yes — leave them in the carport closet and the code stays live until 6pm. If you need anything else just let me know!' },
+    ] },
+    /* ── WHY THEY'RE COMING ──────────────────────────────────────────────────────────────────────────
+       Longer exchanges where the guest says what the trip is FOR. A stay with a reason behind it is what
+       makes an inbox worth reading — the host is answering a 70th birthday, not a booking id — and it gives
+       the reservation pane's dates something to mean. */
+    /* ── THE THREE OPEN QUESTIONS ────────────────────────────────────────────────────────────────────
+       Kofi, Nia and Malik each get a real back-and-forth that ENDS on their question, unanswered. That last turn
+       is what the unread dot, the list preview and the calendar's summary are all about, so it has to be theirs
+       and it has to be last — a scripted answer after it would make the dot a lie. */
+    { id: 'birthday', turns: [   // Malik — a 70th
+      { me: false, t: 'Hi John! Booking this one for my mum’s 70th — there’ll be six of us over from Chicago.' },
+      { me: true,  t: 'What a lovely reason to come. I’ll make sure the house is all set for you.' },
+      { me: false, t: 'Thank you! We’d love to do a proper dinner at the house on the Saturday rather than go out.' },
+      { me: true,  t: 'The table seats eight, and there are two folding chairs in the garage cupboard. The outdoor table is the nicer spot at that time of evening.' },
+      { me: false, t: 'That settles it then. Is there any chance of a late checkout on the {out}, so we’re not rushing off after a late one?' },
+    ] },
+    { turns: [   // an anniversary
+      { me: false, t: 'It’s our tenth anniversary, which is why we picked somewhere nice. Anywhere you’d send us for dinner one night?' },
+      { me: true,  t: 'The place on the water two streets over is the one locals book for exactly this — ask for a table on the terrace. Congratulations, by the way. I’ll leave something in the fridge for you.' },
+      { me: false, t: 'That’s so kind, thank you! We’ll book it for the Friday.' },
+    ] },
+    { turns: [   // a family reunion, and how the beds work out
+      { me: false, t: 'There’ll be nine of us across two families — my sister’s lot and ours. How do the beds actually work out?' },
+      { me: true,  t: 'King in the primary, two queens upstairs, and a full-size sofa bed in the den. That’s eight comfortably; the ninth is the airbed in the hall closet, which is a good one.' },
+      { me: false, t: 'That works. Are the two queens on the same floor? The cousins will want to be together.' },
+      { me: true,  t: 'Same landing, sharing the upstairs bathroom. Kids usually end up in there together anyway.' },
+      { me: false, t: 'Perfect, that all makes sense. See you then!' },
+    ] },
+    { turns: [   // a wedding
+      { me: false, t: 'We’re in town for a wedding on the {out} — six of us getting ready at the house that morning. Is that alright?' },
+      { me: true,  t: 'Absolutely, as long as it’s the six on the reservation. The main bathroom has the best light, and there’s a full-length mirror in the primary closet.' },
+      { me: false, t: 'Noted, thank you! That’s one less thing to worry about.' },
+    ] },
+    { turns: [   // working from the house
+      { me: false, t: 'I’ll be working two of the days — what’s the wifi actually like, and is there a proper desk?' },
+      { me: true,  t: 'Fibre, about 400 down, and it holds up on video calls. There’s a desk in the second bedroom with a monitor, a lamp and a decent chair.' },
+      { me: false, t: 'That’ll do nicely. Thanks for the detail.' },
+    ] },
+    /* ── THINGS THEY NEED ──────────────────────────────────────────────────────────────────────────── */
+    { id: 'baby', turns: [   // Kofi — travelling with a baby
+      { me: false, t: 'Hi! We’re booked in from {in} — first trip with our 9 month old, so we’re slightly nervous about it.' },
+      { me: true,  t: 'You’ll be fine, and the house is a good one for it — quiet street, and the pool gate is self-latching.' },
+      { me: false, t: 'That’s reassuring. We’re trying very hard not to fly with every single thing she owns.' },
+      { me: true,  t: 'Very sensible. Tell me what would help most and I’ll see what we already have here.' },
+      { me: false, t: 'Do you have baby things like a pack n play? And a high chair, if there’s one going?' },
+    ] },
+    { id: 'pool', turns: [   // Nia — the pool
+      { me: false, t: 'Hi John — we arrive on {in} and the kids have talked about nothing but the pool.' },
+      { me: true,  t: 'Then they’ll be happy. It gets the sun from late morning right through the afternoon.' },
+      { me: false, t: 'Good to know. We’re coming from Seattle, so “warm” is relative for us.' },
+      { me: true,  t: 'Ha — fair enough. It sits around 70°F this time of year without the heater on.' },
+      { me: false, t: 'Can we have the pool heated during our stay? And what would that add to the total?' },
+    ] },
+    { turns: [   // accessibility
+      { me: false, t: 'My father uses a walker — how many steps are there to the front door?' },
+      { me: true,  t: 'Three at the front, but the side gate is step-free straight into the kitchen, and that’s the door I’d use. Both showers have grab rails.' },
+      { me: false, t: 'That’s very helpful, thank you. We’ll come in that way.' },
+    ] },
+    { turns: [   // groceries before arrival
+      { me: false, t: 'Could we have a grocery delivery arrive before we check in?' },
+      { me: true,  t: 'Yes — schedule it after 3pm and the cleaner will put the cold things away if she’s still there. Otherwise the carport closet stays shaded all afternoon.' },
+      { me: false, t: 'Booked for 4pm. Thanks so much for sorting that out!' },
+    ] },
+    { turns: [   // a delayed flight
+      { me: false, t: 'Our flight’s been delayed — we won’t get in until around 1am. Is that going to be a problem?' },
+      { me: true,  t: 'Not at all, check-in is self-service so any hour works. Code is {code}, and I’ll leave the porch light on for you.' },
+      { me: false, t: 'Thank you, that’s one worry gone. Safe to say we’ll sleep in.' },
+    ] },
+    /* ── SOMETHING'S WRONG ─────────────────────────────────────────────────────────────────────────── */
+    { turns: [   // the dishwasher
+      { me: false, t: 'The dishwasher is showing an error and won’t drain.' },
+      { me: true,  t: 'There’s a filter in the bottom that clogs — twist the cap anticlockwise, rinse it and drop it back in. If that doesn’t do it I’ll get someone out tomorrow morning.' },
+      { me: false, t: 'Filter was full of rice. Draining fine now, thanks!' },
+    ] },
+    { turns: [   // the host raises it, gently
+      { me: true,  t: 'Hi {g} — the neighbours mentioned music on the patio quite late last night. No trouble at all, just a heads up that quiet hours here start at 10pm.' },
+      { me: false, t: 'So sorry, that was us. We’ll move inside after 10 for the rest of the week.' },
+      { me: true,  t: 'Appreciated, thank you. Enjoy the rest of your stay.' },
+    ] },
+  ];
+  /* Assigned per RENDER, not per booking. The starting point is the booking's own hash — so a thread keeps its
+     conversation across re-renders and tier switches — and the only adjustment is to step off a script the row
+     above already used: by hash alone, three consecutive rows ended on the same line, which reads as a bug
+     rather than as an inbox. Script 0 is reserved for the top thread, because a check-in note only makes sense
+     on the arrival being prepared. */
+  /* Three conversations belong to three NAMED guests wherever they turn up — the same Kofi, Nia and Malik the
+     calendar shows on their booking pills, so the person you read about in one surface is the person asking the
+     question in the other. Matched on the guest's name rather than on a booking, since a tier switch reshuffles
+     which stays exist but keeps the cast. */
+  const PINNED = OPEN_QUESTIONS;        // shared with the calendar's pills — see the note at its declaration
+  const scriptById = id => SCRIPTS.findIndex(sc => sc.id === id);
+  let scriptAt = {}, noteKey = null;
+  /* WHICH thread gets the check-in note: the arrival being prepared — the soonest stay that hasn't started,
+     falling back to one under way. Keyed on the BOOKING and not on row 0, because arriving from a booking pill
+     pins that reservation to the top of the list; when this was "whatever is first", jumping to Rafael's
+     thread showed him someone else's check-in note and titled the row with the listing. */
+  function pickNote(list) {
+    const T = (typeof todayDi === 'number') ? todayDi : 0;
+    // Skip the pinned guests where there's an alternative: the soonest arrival happened to be Nia, and handing
+    // her the check-in note would have taken her pool question off the board AND left no thread showing the note.
+    const byStart = (a, b) => a.start - b.start;
+    const free = b => !PINNED[b.guest];
+    const up = list.filter(b => b.start >= T).sort(byStart);
+    const soon = up.filter(free)[0] || up[0];
+    const on = list.filter(b => b.start < T && b.start + b.nights - 1 >= T).sort((a, b) => b.start - a.start);
+    const now = on.filter(free)[0] || on[0];
+    return threadKey(soon || now || list[0]);
+  }
+  function assignScripts(list) {
+    scriptAt = {}; noteKey = pickNote(list); let prev = -1; const used = new Set();
+    list.forEach(b => {
+      const k0 = threadKey(b);
+      if (k0 === noteKey) { scriptAt[k0] = 0; prev = 0; return; }
+      const pin = PINNED[b.guest] ? scriptById(PINNED[b.guest].script) : -1;
+      if (pin > 0) { scriptAt[k0] = pin; used.add(pin); prev = pin; return; }
+      /* The hash is the starting point, then it walks to the first UNUSED script. There are more scripts than
+         threads, so a rendered list has no repeats at all — the hash alone put the same towel complaint on two
+         rows and the same wedding on two more, which undoes the point of having twenty-odd of them. */
+      let k = 1 + hash(b) % (SCRIPTS.length - 1);
+      for (let step = 0; step < SCRIPTS.length && (used.has(k) || k === prev); step++)
+        k = 1 + (k % (SCRIPTS.length - 1));
+      scriptAt[k0] = k; used.add(k); prev = k;
+    });
+  }
+  const isNote = b => threadKey(b) === noteKey;
+  const scriptFor = b => SCRIPTS[scriptAt[threadKey(b)] != null ? scriptAt[threadKey(b)] : 0];
+  function fill(t, b) {
+    const l = LISTINGS[b.listing], h = hash(b);
+    return t.replace(/\{g\}/g, b.guest)
+            .replace(/\{L\}/g, l.name)
+            .replace(/\{C\}/g, (typeof cityLabel === 'function') ? cityLabel(l.city) : l.city)
+            .replace(/\{code\}/g, String(1000 + h % 8999))
+            .replace(/\{net\}/g, l.name.replace(/[^A-Za-z0-9]/g, ''))
+            .replace(/\{pw\}/g, 'welcome' + (h % 90 + 10))
+            .replace(/\{in\}/g, longDate(b.start))
+            .replace(/\{out\}/g, longDate(b.start + b.nights))
+            .replace(/\{n\}/g, String(b.nights))
+            .replace(/\{co\}/g, CO_NAME);
+  }
+  /* A turn becomes a message. Only the GUEST gets a face: the host side is you, and your own photo in the
+     transcript reads as a third party in your own inbox. A bubble with no face is yours — it sits indented to
+     the same text edge, so the column of avatars is the guest speaking and nothing else. */
+  const turnsFor = b => scriptFor(b).turns.map(t => ({
+    me: t.me, from: t.me ? (t.co ? CO_NAME : 'You') : b.guest,
+    face: t.me ? null : b.img,
+    text: fill(t.t, b),
+  }));
+  let openIx = 0, landed = false, sent = {};                  // sent: messages the host has typed this session, per thread
+  /* UNREAD is derived, not stored: a thread is waiting on you when the last thing said in it came from the
+     guest. Capped at the three most recent, because ending on the guest is common and a dot on half the list
+     stops meaning anything. Opening a thread clears it, and the thread you land on counts as opened. */
+  // Waiting on you = the three named guests' threads. Name-based rather than "whoever spoke last", so the same
+  // three are unread on every tier and in every render, and so the sort below is stable as you read them.
+  const waiting = b => !!PINNED[b.guest];
+  /* Seeded ONCE and then only ever shrunk. Recomputing per render meant reading a thread promoted the next
+     candidate into the cap, so the three dots never became two — an unread count that refills as you clear it
+     is worse than none. Re-seeded only when a tier switch has replaced the inventory outright, since none of
+     the old keys exist any more. */
+  let unreadSet = null, seedKeys = null;
+  function seedUnread(list) {
+    const fresh = new Set();
+    list.forEach(b => { if (waiting(b)) fresh.add(threadKey(b)); });
+    unreadSet = fresh;
+    seedKeys = new Set(list.map(threadKey));   // what this seed was ABOUT, so an empty set isn't read as stale
+  }
+  /* Re-seed only when the inventory has been replaced outright — a tier switch, where none of the seeded keys
+     exist any more. Testing "is the unread set empty" instead brought the dots BACK the moment you'd read all
+     three, since an emptied set looks identical to one that was never seeded. */
+  const staleSeed = list => !seedKeys || !list.some(b => seedKeys.has(threadKey(b)));
+  function renderList(list) {
+    listEl.innerHTML = list.map((b, i) => {
+      const l = LISTINGS[b.listing];
+      const name = isNote(b) ? l.name : b.guest;   // the prepared arrival reads as the home, the rest as the guest
+      const prev = previewOf(b);
+      return '<div class="mg-thread' + (i === openIx ? ' is-on' : '') + '" data-ix="' + i + '"'
+           + ' data-key="' + threadKey(b) + '">'
+           + '<div class="mg-th-shot">'
+           +   '<img class="mg-th-face" src="' + b.img + '" alt="">'
+           +   '<img class="mg-th-home" src="' + l.img + '" alt="">'
+           +   (unreadSet.has(threadKey(b)) ? '<i class="mg-unread"></i>' : '')
+           + '</div>'
+           + '<div class="mg-th-main">'
+           +   '<div class="mg-th-meta"><span class="mg-th-when">' + esc(metaLine(b)) + '</span>'
+           +     '<span class="mg-th-stamp">' + esc(stamp(b)) + '</span></div>'
+           +   '<div class="mg-th-name">' + esc(name) + '</div>'
+           +   '<div class="mg-th-prev">' + esc(prev) + '</div>'
+           +   (isPast(b) ? '<button class="mg-th-cta" type="button">Leave a review</button>' : '')
+           + '</div></div>';
+    }).join('');
+  }
+  function renderConv(b) {
+    const l = LISTINGS[b.listing];
+    titleEl.textContent = l.name;
+    // Two faces when the booking has company on it, one when it doesn't — the count is already modelled on
+    // the reservation (b.guests = heads beyond the lead booker).
+    /* The header pair is the two PARTIES to the conversation — the guest and you — so the host's face belongs
+       here even though it stays out of the transcript and out of the "2 guests" row on the reservation, which
+       is about the party travelling. Unconditional: a thread always has both sides. */
+    facesEl.innerHTML = '<img src="' + b.img + '" alt="">'
+      + '<img src="' + HOST_FACE + '" alt="">';
+    bodyEl.innerHTML = bubblesHTML(b);
+    bodyEl.scrollTop = bodyEl.scrollHeight;
+  }
+  function renderRes(b) {
+    const l = LISTINGS[b.listing];
+    const where = (typeof cityLabel === 'function') ? cityLabel(l.city) : l.city;
+    // Ask for a bigger crop: the stored URL is the 48px calendar thumbnail, and a 312px card upscales it.
+    const big = String(l.img).replace(/([?&])w=\d+/, '$1w=880').replace(/([?&])h=\d+/, '$1h=880');
+    const guests = 1 + (b.guests || 0);
+    resEl.innerHTML =
+        '<div class="mg-res-shot"><img src="' + big + '" alt="">'
+      +   '<span class="mg-sticker">Check-in after 4:00 PM</span>'
+      +   '<button class="mg-shot-next" type="button" aria-label="Next photo">'
+      +     '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>'
+      +   '</button>'
+      +   '<div class="mg-dots"><i class="on"></i><i></i><i></i><i></i><i></i></div>'
+      + '</div>'
+      + '<div class="mg-res-name">' + esc(l.name) + '</div>'
+      + '<div class="mg-res-host">Home in ' + esc(where) + '</div>'
+      + '<div class="mg-res-people">'
+      +   '<div class="mg-faces"><img src="' + b.img + '" alt="">'
+      +     (b.guests && secondFace(b) ? '<img src="' + secondFace(b) + '" alt="">' : '') + '</div>'
+      +   '<div class="mg-res-host">' + guests + ' guest' + (guests === 1 ? '' : 's') + '</div>'
+      +   '<button class="mg-pencil" type="button" aria-label="Manage guests">'
+      +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="M14 6l4 4"/></svg>'
+      +   '</button>'
+      + '</div>'
+      + '<button class="mg-btn" type="button">Show itinerary</button>'
+      + '<button class="mg-btn" type="button">Change reservation</button>'
+      + '<div class="mg-dates">'
+      +   '<div class="mg-date"><div class="mg-date-k">Check-in</div>'
+      +     '<div class="mg-date-v">' + longDate(b.start) + '<br>4:00 PM</div></div>'
+      +   '<div class="mg-date"><div class="mg-date-k">Checkout</div>'
+      +     '<div class="mg-date-v">' + longDate(b.start + b.nights) + '<br>11:00 AM</div></div>'
+      + '</div>'
+      + '<div class="mg-there">'
+      +   '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>'
+      +   '<div><div class="mg-there-k">Getting there</div>'
+      +     '<div class="mg-there-v">' + (1000 + hash(b) % 8000) + ' Woodrow Wilson Drive<br>' + esc(where) + '</div></div>'
+      + '</div>';
+  }
+  let list = [];
+  const chipEl = document.getElementById('mgChip');
+  function render(selectKey) {
+    list = threadsFor();
+    if (!list.length) return;
+    assignScripts(list);
+    // A thread asked for by another surface wins over whatever was open; otherwise the selection is kept, and
+    // clamped because a smaller tier can strand it past the end of the list.
+    if (selectKey) {
+      const ix = list.findIndex(b => threadKey(b) === selectKey);
+      if (ix >= 0) openIx = ix;
+    }
+    if (!unreadSet || staleSeed(list)) seedUnread(list);
+    /* First render lands on the check-in-note thread rather than on row 0. Row 0 is now an unread one, and
+       landing there would have cleared its dot before the host had done anything — the three that are waiting
+       stay waiting until they're actually opened. */
+    if (!landed) { const ni = list.findIndex(b => threadKey(b) === noteKey); if (ni >= 0) openIx = ni; landed = true; }
+    openIx = Math.min(openIx, list.length - 1);
+    if (chipEl) {
+      const l = filterLi != null ? LISTINGS[filterLi] : null;
+      chipEl.hidden = !l;
+      if (l) chipEl.innerHTML = '<span>' + esc(l.name) + '</span>'
+        + '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg>';
+    }
+    renderList(list);
+    renderConv(list[openIx]);
+    renderRes(list[openIx]);
+  }
+  window.renderMessagingPage = () => render();
+  if (chipEl) chipEl.addEventListener('click', () => { filterLi = null; openIx = 0; render(); });
+  /* THE TWO WAYS IN, from anywhere else in the prototype.
+     A reservation (a booking pill, the Today panel) opens ITS thread. A listing (a card on Listings) filters
+     the inbox to that home. Both go through enterMessagingMode first so the nav, the page animation and the
+     topbar all end up in the state the page expects — then re-render with the thread to select, because
+     entering already rendered once with the old selection. */
+  window.openMessagingFor = (li, start) => {
+    pinned = li + ':' + start;
+    filterLi = null;
+    if (typeof window.enterMessagingMode === 'function') window.enterMessagingMode();
+    render(pinned);
+  };
+  window.openMessagingForListing = li => {
+    filterLi = li; pinned = null; openIx = 0;
+    if (typeof window.enterMessagingMode === 'function') window.enterMessagingMode();
+    render();
+  };
+  // Delegated, so it survives every innerHTML rebuild (a tier switch replaces the whole list).
+  listEl.addEventListener('click', e => {
+    if (e.target.closest('.mg-th-cta')) return;      // the review button is its own affordance
+    const row = e.target.closest('.mg-thread'); if (!row) return;
+    openIx = +row.dataset.ix;
+    unreadSet.delete(row.dataset.key);                 // opening it is what marks it read
+    render();
+    document.body.classList.remove('msg-res-closed');  // picking a thread brings its reservation back
+  });
+  document.getElementById('mgResClose').addEventListener('click', () => document.body.classList.add('msg-res-closed'));
+  document.getElementById('mgOpenRes').addEventListener('click', () => document.body.classList.remove('msg-res-closed'));
+  /* ── THE MINI THREAD ──────────────────────────────────────────────────────────────────────────────────
+     Tapping the summary on a calendar pill opens the CONVERSATION on the spot: the middle column of Messages
+     and nothing else — the header, the guest's messages, the composer — so a question can be answered without
+     leaving the board. Built from the same booking, the same turns and the same `sent` store as the inbox, so a
+     reply typed here is in the thread when you get there. */
+  /* Answering takes the badge off the board. renderWindow() alone didn't do it — it's the virtualiser and skips
+     work when the mounted window hasn't moved — so the pills are updated in place instead. */
+  function clearPillBadges(name) {
+    document.querySelectorAll('#gridRows .booking-pill').forEach(pill => {
+      if (pill.dataset.guest !== name) return;
+      const dot = pill.querySelector('.bp-unread'); if (dot) dot.remove();
+      const ask = pill.querySelector('.bp-ask'); if (ask) ask.remove();
+    });
+  }
+  let mini = null;
+  const closeMini = () => {
+    if (!mini) return;
+    mini.remove(); mini = null;
+    document.removeEventListener('keydown', miniKey);
+  };
+  function miniKey(e) { if (e.key === 'Escape') closeMini(); }
+  window.openMiniThread = (li, start) => {
+    closeMini();
+    if (typeof BOOKINGS === 'undefined') return;
+    const b = BOOKINGS.find(x => x.listing === li && x.start === start);
+    if (!b || !LISTINGS[b.listing]) return;
+    const l = LISTINGS[b.listing];
+    if (unreadSet) unreadSet.delete(threadKey(b));      // reading it here reads it there
+    mini = document.createElement('div');
+    mini.className = 'mini-wrap';
+    mini.innerHTML =
+        '<div class="mini-catch"></div>'
+      + '<div class="mini-thread">'
+      +   '<div class="mini-head">'
+      +     '<div class="mg-faces"><img src="' + b.img + '" alt="">'
+      +       '<img src="' + HOST_FACE + '" alt=""></div>'
+      +     '<div class="mg-conv-who"><div class="mg-conv-title">' + esc(l.name) + '</div>'
+      +       '<div class="mg-conv-sub">'
+      +         '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M9 4v2c0 4-2.5 6.5-5 7.5"/><path d="M7 10c1.2 2.2 3.2 3.5 5 4"/><path d="M13 20l4-9 4 9M14.6 17h4.8"/></svg>'
+      +         'Translation on</div></div>'
+      +     '<button class="mg-hbtn mini-close" type="button" aria-label="Close">'
+      +       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg>'
+      +     '</button>'
+      +   '</div>'
+      +   '<div class="mg-body mini-body">' + bubblesHTML(b) + '</div>'
+      /* A tighter composer than the pane's: no response-time bar and no photo button, and the send arrow rides
+         on the same row as the text rather than below it. This panel is for answering one question on the board,
+         not for composing — every extra row is height taken off the conversation above it. */
+      +   '<div class="mg-comp mini-comp">'
+      +     '<div class="mg-box">'
+      +       '<textarea class="mg-input mini-input" rows="1" placeholder="Write a message..."></textarea>'
+      +       '<button class="mg-send mini-send" type="button" aria-label="Send">'
+      +         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5M6 11l6-6 6 6"/></svg>'
+      +       '</button>'
+      +     '</div></div>'
+      +   '<div class="mini-grip" aria-hidden="true"></div>'
+      +   '<div class="mini-grip-corner" aria-hidden="true"></div>'
+      + '</div>';
+    document.body.append(mini);
+    const body = mini.querySelector('.mini-body');
+    body.scrollTop = body.scrollHeight;
+    mini.querySelector('.mini-close').addEventListener('click', closeMini);
+    mini.querySelector('.mini-catch').addEventListener('click', closeMini);
+    document.addEventListener('keydown', miniKey);
+    // Same composer contract as the pane: send lights up only when there's something to send.
+    const inp = mini.querySelector('.mini-input'), snd = mini.querySelector('.mini-send');
+    const lit = () => snd.classList.toggle('is-live', inp.value.trim().length > 0);
+    inp.addEventListener('input', lit);
+    const post = () => {
+      const t = inp.value.trim(); if (!t) return;
+      const k = threadKey(b);
+      (sent[k] = sent[k] || []).push({ me: true, from: 'You', face: null, text: t });
+      answeredGuests.add(b.guest);                      // the pill's dot goes with the answer
+      clearPillBadges(b.guest);
+      if (unreadSet) unreadSet.delete(k);
+      inp.value = ''; lit();
+      body.innerHTML = bubblesHTML(b);
+      body.scrollTop = body.scrollHeight;
+      if (list.length) render();                                // and the inbox, for when it's opened
+    };
+    snd.addEventListener('click', post);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); post(); } });
+    /* DRAG IT ANYWHERE. By the header, which is the one strip with nothing else to do — the body scrolls and the
+       composer takes text, so making the whole card a handle would fight both. The panel opens centred via a
+       translate; the first drag converts that to plain left/top so the pointer maths is 1:1, and clamps it inside
+       the window so it can't be thrown off-screen. */
+    const card = mini.querySelector('.mini-thread'), head = mini.querySelector('.mini-head');
+    head.addEventListener('mousedown', e => {
+      if (e.target.closest('button')) return;                 // the ✕ is not a handle
+      const r = card.getBoundingClientRect();
+      card.style.transition = 'none';
+      card.style.transform = 'none';
+      card.style.left = r.left + 'px';
+      card.style.top = r.top + 'px';
+      const dx = e.clientX - r.left, dy = e.clientY - r.top;
+      const move = ev => {
+        card.style.left = Math.min(Math.max(8, ev.clientX - dx), innerWidth - r.width - 8) + 'px';
+        card.style.top = Math.min(Math.max(8, ev.clientY - dy), innerHeight - r.height - 8) + 'px';
+      };
+      const up = () => {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+        card.classList.remove('is-dragging');
+      };
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+      card.classList.add('is-dragging');
+      e.preventDefault();                                    // no text selection while dragging
+    });
+    /* RESIZE FROM THE RIGHT EDGE. Same conversion as the move drag: the panel opens centred on a translate, and
+       growing a centred box widens it BOTH ways, which is not what dragging one edge should do. So the first
+       resize pins it to left/top and only the width follows the pointer. Width only — the right edge is the
+       handle, so the height isn't its business. */
+    const startResize = (e, axes) => {
+      e.preventDefault(); e.stopPropagation();
+      const r = card.getBoundingClientRect();
+      card.style.transition = 'none';
+      card.style.transform = 'none';
+      card.style.left = r.left + 'px';
+      card.style.top = r.top + 'px';
+      const x0 = e.clientX, y0 = e.clientY, w0 = r.width, h0 = r.height;
+      const move = ev => {
+        if (axes.indexOf('x') >= 0)
+          card.style.width = Math.min(Math.max(320, w0 + (ev.clientX - x0)), innerWidth - r.left - 8) + 'px';
+        if (axes.indexOf('y') >= 0)
+          card.style.height = Math.min(Math.max(260, h0 + (ev.clientY - y0)), innerHeight - r.top - 8) + 'px';
+      };
+      const up = () => {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+        card.classList.remove('is-resizing');
+      };
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+      card.classList.add('is-resizing');
+    };
+    mini.querySelector('.mini-grip').addEventListener('mousedown', e => startResize(e, 'x'));
+    mini.querySelector('.mini-grip-corner').addEventListener('mousedown', e => startResize(e, 'xy'));
+    /* THE WHEEL BELONGS TO THE PANEL while the pointer is on it. The board takes the wheel at window level (the
+       header collapse) and inside the grid (horizontal scroll), so without this, scrolling the conversation
+       dragged the calendar along underneath it. Handled here and stopped dead: preventDefault so no scroller
+       claims it, stopPropagation so the window-level listener never sees it. Outside the panel nothing changes. */
+    card.addEventListener('wheel', e => {
+      body.scrollTop += e.deltaY;
+      e.preventDefault();
+      e.stopPropagation();
+    }, { passive: false });
+    requestAnimationFrame(() => mini.classList.add('is-in'));
+    inp.focus();
+  };
+  /* The summary is the affordance: tapping it opens the thread rather than the pill's guest menu. Capture phase
+     and stopPropagation, because the pill's own click handler is on the grid and would otherwise fire too. */
+  { const gr = document.getElementById('gridRows');
+    if (gr) gr.addEventListener('click', e => {
+      const ask = e.target.closest('.bp-ask'); if (!ask) return;
+      e.stopPropagation(); e.preventDefault();
+      const pill = ask.closest('.booking-pill'), row = pill && pill.closest('.price-row');
+      if (row) window.openMiniThread(+row.dataset.li, +pill.dataset.start);
+    }, true); }
+  // The composer works: what you type joins the transcript. Cheap, and it's the difference between a screen
+  // and something a host can be walked through.
+  const live = () => sendEl.classList.toggle('is-live', inputEl.value.trim().length > 0);
+  inputEl.addEventListener('input', live);
+  function send() {
+    const t = inputEl.value.trim(); if (!t || !list.length) return;
+    const k = threadKey(list[openIx]);
+    (sent[k] = sent[k] || []).push({ me: true, from: 'You', face: null, text: t });
+    unreadSet.delete(k);                       // answering a question is the strongest form of reading it
+    answeredGuests.add(list[openIx].guest);    // ...and it takes the dot off this guest's calendar pills too
+    clearPillBadges(list[openIx].guest);
+    inputEl.value = ''; live();
+    renderConv(list[openIx]);
+    renderList(list);                          // the list preview follows the thread, so it moves too
+  }
+  sendEl.addEventListener('click', send);
+  inputEl.addEventListener('keydown', e => {          // Enter sends, Shift+Enter is a new line
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   });
 })();
 // Header explainers: tap a header's ⓘ (or the header) to open, and it STAYS — no hover-out, no timer. It
@@ -15345,7 +16577,8 @@ const UPSELL_CONTENT = {
      ways, and every pixel of height is a night you can see. Today, Listings and Messaging keep their nav
      permanently: they're short pages where losing the nav buys nothing and costs orientation. */
   const isCalendar = () => !document.body.classList.contains('today-mode')
-                        && !document.body.classList.contains('listings-mode');
+                        && !document.body.classList.contains('listings-mode')
+                        && !document.body.classList.contains('messaging-mode');
   // The auto-hide is the ONE animated move here; scrolling is instant because it tracks the finger. So the
   // transition is switched on for its duration and switched straight back off.
   let autoT = 0, upPull = 0;
@@ -15361,6 +16594,11 @@ const UPSELL_CONTENT = {
     clearTimeout(autoT);
     autoT = setTimeout(() => { if (isCalendar() && off === 0) animateOff(); }, 1000);
   };
+  /* Leaving the calendar with the nav already collapsed used to CARRY that collapse onto Today, Listings and
+     Messaging — pages whose nav is permanent. Nothing put it back, because only a wheel event did, so the
+     three-pane inbox opened with no nav at all until you scrolled. Every page that owns a permanent nav
+     calls this on entry. */
+  window.mhcHeaderShow = () => { clearTimeout(autoT); if (off) { off = 0; paint(); } };
   const paint = () => {
     hdr.style.marginTop = (-off) + 'px';
     // Kept in sync because other rules key off it (pointer-events, and anything that asks "is the nav gone").
@@ -17561,6 +18799,7 @@ function loadTier(n) {
   _HOST_D.forEach((a, i) => { a.length = 0; (M.d ? M.d[i] : []).slice(0, n).forEach(x => a.push(JSON.parse(JSON.stringify(x))));
                               while (a.length < n) a.push(_HOST_D_DEF[i]()); }); // top up if MASTER predates this list
   customMinListings.clear(); M.customMin.forEach(x => { if (x < n) customMinListings.add(x); });
+  ensureOpenQuestionGuests();   // the tier's bookings were just replaced wholesale
 }
 // Write the working tier's edits back into the master prefix, so they persist at every size.
 function syncTierBack(n) {
@@ -17709,6 +18948,7 @@ function finishHostSwitch(enterFrom) {
   seedTodayStays();
   recomputeDerived(); rebuildBookedSet();
   dedupeBookingGuests();   // before the rows render, so no pill paints a duplicate face first
+  ensureOpenQuestionGuests();   // AFTER the dedupe, or it would rename the three straight back out again
   listingOrder = mixedListingOrder();
   regroupForTier();   // rebuild groups for the new inventory BEFORE the rows render, so nothing regroups on screen
   if (typeof rebuildSettingsGrids === 'function') rebuildSettingsGrids();
@@ -17730,6 +18970,7 @@ function finishHostSwitch(enterFrom) {
   // default stage width until it's actually on screen.
   if (typeof window.renderTodayPage === 'function') window.renderTodayPage();
   if (typeof window.renderListingsPage === 'function') window.renderListingsPage();
+  if (typeof window.renderMessagingPage === 'function') window.renderMessagingPage();
   // growing: ONLY the freshly added rows fade in — the rows that were already on screen don't blink
   if (enterFrom != null) document.querySelectorAll('#gridRows > .price-row, #listingThumbsInner .thumb-row')
     .forEach(r => { if (+r.dataset.li >= enterFrom) r.classList.add('row-enter'); });
