@@ -4022,6 +4022,24 @@ body.glow-hold .price-card.opt-min.opt-focus .min-badge { animation: none; opaci
   pointer-events: none;
 }
 .price-card.opt-min.blocked .price-val::after { content: none; } /* same as the unavailable case — a min-opportunity cell's idle "Min N" stays plain, never struck */
+/* Block/Open from the availability quick actions: the strike DRAWS itself out from the centre, and
+   wipes back into the centre when the night re-opens. Width only — the rule is already centred by
+   left:50% + translate(-50%,-50%), so animating width grows it evenly from the middle with no scale
+   (a transform would squash the 1.5px cap and blur the ends). */
+@keyframes strikeIn  { from { width: 0; } to { width: calc(100% + 14px); } }
+@keyframes strikeOut { from { width: calc(100% + 14px); } to { width: 0; } }
+/* Blocking: the .blocked rule above already paints a full-width strike — the animation just plays it on. */
+.price-card.blocked.strike-in .price-val::after { animation: strikeIn .24s cubic-bezier(.4, 0, .2, 1) both; }
+/* Opening: .blocked is gone by now, so its ::after is too. This transient class re-supplies ONLY the
+   rule's geometry — deliberately not the blocked grey backing, which must drop instantly, or the cell
+   would flash back to blocked while the line wipes away. */
+.price-card.strike-out .price-val { position: relative; }
+.price-card.strike-out .price-val::after {
+  content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  height: 1.5px; background: currentColor; border-radius: 1px; pointer-events: none;
+  animation: strikeOut .24s cubic-bezier(.4, 0, .2, 1) both;
+}
+.price-card.opt-min.strike-out .price-val::after { content: none; } /* min-opportunity cells never carry the strike — same guard as .blocked/.unavailable */
 /* Deselected (default) blocked cell: light-grey backing + grey #6C6C6C price & strike (::after uses currentColor) */
 .price-card.blocked:not(.selected) { background: #F2F2F2; border-color: #E8E8E8; }
 /* BLOCKED + opportunity cell: the grey backing fills the WAVE (not the square), and the suggested
@@ -5067,8 +5085,8 @@ body.settings-mode .opp-more, body.avail-mode .opp-more { display: none; }
     <div class="dev-hostwrap" id="hostToggle">
       <button class="host-opt" data-host="tiny" type="button">3</button>
       <button class="host-opt" data-host="small" type="button">5</button>
-      <button class="host-opt active" data-host="mid" type="button">7</button>
-      <button class="host-opt" data-host="big" type="button">12</button>
+      <button class="host-opt" data-host="mid" type="button">7</button>
+      <button class="host-opt active" data-host="big" type="button">12</button>
       <button class="host-opt" data-host="pro" type="button">32</button>
     </div>
     <button class="dev-reset" id="devRedlines" type="button">Redlines</button>
@@ -9322,10 +9340,27 @@ function setBlockState(block) {
     clearTimeout(setBlockState._t); setBlockState._t = setTimeout(closeAvailMenu, 500); // let the strike/backing register, a beat, then auto-close
     return;
   }
-  selectedLiDi().forEach(({ li, di }) => {
+  const _touched = selectedLiDi();
+  _touched.forEach(({ li, di }) => {
     if (block) hostBlocked[li].add(di); else hostBlocked[li].delete(di);
   });
   refreshCalendarPrices(); // re-apply .blocked (strike + grey backing) to the correct cells by data-di (grid is virtualized → can't index by DOM position)
+  // Play the strike on/off. Runs AFTER refreshCalendarPrices, which mutates cells in place (it only
+  // toggles classes and sets textContent), so .price-val survives and its ::after can animate. Cells are
+  // addressed by data-li/data-di for the same reason refreshCalendarPrices does: the grid is virtualized
+  // and grouping reorders rows, so DOM position means nothing.
+  _touched.forEach(({ li, di }) => {
+    const card = document.querySelector(`#gridRows > .price-row[data-li="${li}"] .price-card[data-di="${di}"]`);
+    if (!card || card.classList.contains('booked')) return;                 // off-screen (virtualized) or not a price cell
+    card.classList.remove('strike-in', 'strike-out');
+    void card.offsetWidth;                                                  // restart the animation if this cell is re-toggled mid-flight
+    card.classList.add(block ? 'strike-in' : 'strike-out');
+  });
+  clearTimeout(setBlockState._strikeT);
+  setBlockState._strikeT = setTimeout(() => {                               // drop the transient classes once the wipe has finished
+    document.querySelectorAll('#gridRows .price-card.strike-in, #gridRows .price-card.strike-out')
+      .forEach(c => c.classList.remove('strike-in', 'strike-out'));
+  }, 260);                                                                  // 240ms animation + a frame
   updateAvailMenu();       // state flips to all-blocked / all-open
   clearTimeout(setBlockState._t); setBlockState._t = setTimeout(closeAvailMenu, 500); // let the strike/backing register, a beat, then auto-close
 }
@@ -19124,13 +19159,13 @@ window.addEventListener('load', () => loadPlacesPhotos());
   const SHOW_WELCOME = false;
   if (SHOW_WELCOME && !skip) { document.body.classList.add('pills-cloaked'); overlay.classList.add('visible'); } // greet + hide the pills until dismiss
 })();
-// 7 Listings is always the boot default — every load/Reset starts fresh, regardless of any tier chosen earlier.
+// 12 Listings is always the boot default — every load/Reset starts fresh, regardless of any tier chosen earlier.
 // Runs synchronously (NOT on window 'load') — 'load' waits for every image to finish downloading, and
 // render() above has already painted the full pre-tier listing set by then, so the host would flash at
 // the old size for however long images take before snapping to 5. Switching in the same synchronous
 // pass as render() means the browser never gets a chance to paint the in-between state.
 {
-  const hk = 'mid';   // 7 listings is the load default
+  const hk = 'big';   // 12 listings is the load default
   if (activeHost === hk) activeHost = 'tiny'; // ensure switchHost doesn't early-return on boot
   switchHost(hk, true);
   // Boot GROUPED, every tier, with no grouping choreography — the board just opens tidy. Assigning
