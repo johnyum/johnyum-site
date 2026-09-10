@@ -9393,7 +9393,12 @@ document.addEventListener('mousedown', e => {
   // outside click — and because this handler also runs on mousedown, leaving it out meant the selection was
   // made and then dropped again inside the same event. Dragging appeared to work only because the drag kept
   // re-selecting on mouseover afterwards; a single tap had nothing to re-select it.
-  if (e.target.closest('#availMenu') || e.target.closest('#priceMenu') || e.target.closest('#promoMenu') || e.target.closest('#minNightsMenu') || e.target.closest('#customizeMenu') || e.target.closest('#discountsMenu') || e.target.closest('#rulesetsMenu') || e.target.closest('#multiAction') || e.target.closest('.price-card') || e.target.closest('.month-card') || e.target.closest('.date-cell')) return;
+  // .settings-sub-cell and .bp-card belong here for exactly the reason .date-cell does. A Pricing/
+  // Availability sub-cell tap STARTS a column selection, and the modal it opens is part of that same
+  // interaction — without them the cell selected itself on mousedown and this handler dropped it again
+  // inside the same event (measured: selected at +5ms, cleared at +11ms, before mouseup), so the black
+  // cell vanished the moment you reached for the modal's input.
+  if (e.target.closest('#availMenu') || e.target.closest('#priceMenu') || e.target.closest('#promoMenu') || e.target.closest('#minNightsMenu') || e.target.closest('#customizeMenu') || e.target.closest('#discountsMenu') || e.target.closest('#rulesetsMenu') || e.target.closest('#multiAction') || e.target.closest('.price-card') || e.target.closest('.month-card') || e.target.closest('.date-cell') || e.target.closest('.settings-sub-cell') || e.target.closest('.bp-card')) return;
   // The events/holidays icon band (.group-divider, holding the .gev icons): tapping an icon itself, or
   // the gap between two icons that belong to the SAME event/holiday run (e.g. within Comic-Con's string
   // of icons), leaves the selection alone. A gap between two DIFFERENT events (or empty band space with
