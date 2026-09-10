@@ -4652,7 +4652,7 @@ body.settings-mode .opp-more, body.avail-mode .opp-more { display: none; }
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="4" cy="10" r="1.75"/><circle cx="10" cy="10" r="1.75"/><circle cx="16" cy="10" r="1.75"/></svg>
       </button>
       <div class="tb-menu-dropdown" id="tbMenuDropdown" role="menu">
-        <button class="tb-menu-item" data-more="grouping" role="menuitem"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M2 19.5L16 30L30 19.5M16 2L3 12L16 22L29 12L16 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Grouping</button>
+        <button class="tb-menu-item" data-more="grouping" role="menuitem"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M2 19.5L16 30L30 19.5M16 2L3 12L16 22L29 12L16 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span id="groupingLabel">Group</span></button>
         <div class="tb-menu-divider"></div>
         <button class="tb-menu-item" data-more="rulesets" role="menuitem"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M28.4141 10L20 1.58594C19.6242 1.21199 19.1161 1.00142 18.5859 1H8C6.6744 1.00156 5.40353 1.52884 4.46619 2.46618C3.52884 3.40353 3.00156 4.6744 3 6V26C3.00156 27.3256 3.52884 28.5965 4.46619 29.5338C5.40353 30.4712 6.6744 30.9984 8 31H24C25.3256 30.9984 26.5965 30.4712 27.5338 29.5338C28.4712 28.5965 28.9984 27.3256 29 26V11.4141C29.0007 11.1513 28.9493 10.8911 28.8487 10.6483C28.7481 10.4056 28.6004 10.1852 28.4141 10ZM19 3.41406L26.5859 11H22C21.2046 10.9991 20.4421 10.6828 19.8796 10.1204C19.3172 9.55794 19.0009 8.79538 19 8V3.41406ZM27 26C26.9991 26.7954 26.6828 27.5579 26.1204 28.1204C25.5579 28.6828 24.7954 28.9991 24 29H8C7.20462 28.9991 6.44206 28.6828 5.87964 28.1204C5.31722 27.5579 5.00087 26.7954 5 26V6C5.00087 5.20462 5.31722 4.44206 5.87964 3.87964C6.44206 3.31722 7.20462 3.00087 8 3H17V8C17.0016 9.3256 17.5288 10.5965 18.4662 11.5338C19.4035 12.4712 20.6744 12.9984 22 13H27V26Z" fill="currentColor"/></svg>Rule sets</button>
         <button class="tb-menu-item" data-more="sync" role="menuitem"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 22H8C4.68629 22 2 19.3137 2 16C2 12.6863 4.68629 10 8 10H12C15.3137 10 18 12.6863 18 16" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M20 10H24C27.3137 10 30 12.6863 30 16C30 19.3137 27.3137 22 24 22H20C16.6863 22 14 19.3137 14 16" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Calendar sync</button>
@@ -10455,9 +10455,20 @@ function positionLeftToggle() {
     const menu = document.getElementById('tbMenu'), btn = document.getElementById('tbMoreBtn');
     if (!menu || !btn) return;
     const close = () => { menu.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); };
+    // The grouping row is a TOGGLE, not a one-way trip: it reads "Ungroup" while the board is grouped
+    // and "Group" once it isn't. Synced every time the menu opens rather than at wire-time, because
+    // grouping also changes from the Groups modal, Reset, and the onboarding Apply — none of which
+    // would think to tell this menu.
+    const syncGroupingLabel = () => {
+      const lbl = document.getElementById('groupingLabel'); if (!lbl) return;
+      const grouped = (typeof hasRealGroups === 'function') && hasRealGroups();
+      lbl.textContent = grouped ? 'Ungroup' : 'Group';
+    };
+    window._syncGroupingLabel = syncGroupingLabel;          // so the flows above can refresh it too
     btn.addEventListener('click', e => {
       e.stopPropagation();                                  // or the document handler below shuts it again
       const open = !menu.classList.contains('open');
+      if (open) syncGroupingLabel();                        // label reflects the board as it is right now
       menu.classList.toggle('open', open);
       btn.setAttribute('aria-expanded', String(open));
     });
@@ -10469,6 +10480,17 @@ function positionLeftToggle() {
       const what = item.dataset.more;
       if (what === 'grouping') {                            // the ⋯-menu grouping flow (thinking dots + sort)
         clearSelection();
+        if ((typeof hasRealGroups === 'function') && hasRealGroups()) {
+          // UNGROUP. Same teardown the Groups modal's Clear does — every listing back to the pool,
+          // one empty group left to build from — so both paths land on an identical state.
+          groups.length = 0; groups.push({ name: 'Group 1', members: [] });
+          if (typeof saveGroups === 'function') saveGroups();
+          if (typeof renderGroups === 'function') renderGroups();
+          if (typeof applyGroupsToCalendar === 'function') applyGroupsToCalendar();
+          if (window.updateMagicPill) updateMagicPill();    // tip count moves with the grouping
+          syncGroupingLabel();                              // next open reads "Group"
+          return;
+        }
         if (typeof animateGroupsByCity === 'function') animateGroupsByCity();
         else { renderGroups(); document.getElementById('groupsOverlay').classList.add('visible'); }
         return;
@@ -12286,12 +12308,10 @@ document.getElementById('devVariance').addEventListener('change', e => {
     const pill = e.target.closest('.booking-pill'); if (!pill) return;
     const row = pill.closest('.price-row'); if (!row) return;
     const li = +row.dataset.li, start = +pill.dataset.start, nights = +pill.dataset.nights;
-    /* The quick-actions pill, not this popover: the stay's actions belong in the same place the night actions
-       already are. `open` is kept — the Today panel still builds its rows from rowsHTML above — it just isn't
-       what a pill tap reaches for any more. */
-    if (typeof window.openBookingActions === 'function')
-      window.openBookingActions(li, start, nights, pill.dataset.guest || 'guest');
-    else open(pill.dataset.guest || 'guest', earningsFor(li, start, nights), e.clientX, e.clientY, row, li, start);
+    /* This popover, not the quick-actions pill (reverted 2026-09-10): a pill tap opens the guest dropdown
+       anchored to the pill, the way it used to. openBookingActions is kept as the fallback — the night
+       actions still use it, and the Today panel still builds its rows from rowsHTML above. */
+    open(pill.dataset.guest || 'guest', earningsFor(li, start, nights), e.clientX, e.clientY, row, li, start);
   });
   // Outside click closes; a tap on another pill falls through to the click handler above (re-opens).
   document.addEventListener('mousedown', e => {
@@ -19075,7 +19095,9 @@ window.addEventListener('load', () => loadPlacesPhotos());
       // If the rows are ALREADY grouped (the 5-listing tier boots that way), the sort has nothing to do —
       // and running it anyway tears the group label + event icons down and rebuilds them, which reads as
       // a flicker. Skip straight to the pill reveal so the header and icons stay put the whole time.
-      const alreadyGrouped = Array.isArray(groups) && groups.length > 0;
+      // hasRealGroups(), not groups.length: the UNGROUPED baseline is [{name:'Group 1',members:[]}],
+      // so a length test reads "already grouped" with nothing grouped and skips the sort entirely.
+      const alreadyGrouped = (typeof hasRealGroups === 'function') && hasRealGroups();
       const total = alreadyGrouped ? 0
         : ((typeof applyGroupingLive === 'function' ? applyGroupingLive() : 0) || 2400); // grouping sort (pills stay cloaked)
       setTimeout(revealPills, total + 200);                           // reveal AFTER the sort settles
