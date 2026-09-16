@@ -11,7 +11,7 @@ hand before you reach for a gear.
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from draw import SW, curve, poly, circ, scribble, I, A, S, render
+from draw import SW, curve, poly, circ, scribble, I, A, S, P, render
 
 OUT = os.path.dirname(os.path.abspath(__file__))
 DIR = os.path.join(OUT, "illustrations")
@@ -79,12 +79,138 @@ def idea():
           + I(curve([(107,150),(112,122),(128,133),(144,122),(149,150)],16,False,amt=1.8),"ink-thin")), \
            A(circ(140,92,64,17,amt=5))
 
+def artifacts():
+    """Empty state: three sheets fanned out — a spreadsheet, a document and
+    a slide. Each sheet gets a paper fill before its outline, so the one in
+    front actually covers the one behind; stroke-only sheets let the back
+    sheet's rules read straight through the front one."""
+    import math
+
+    def rect(cx, cy, w, h, deg):
+        c, s = math.cos(math.radians(deg)), math.sin(math.radians(deg))
+        return [(cx + x*c - y*s, cy + x*s + y*c)
+                for x, y in ((-w/2,-h/2),(w/2,-h/2),(w/2,h/2),(-w/2,h/2))]
+
+    def rule(C, x0, x1, y):
+        cx, cy, w, h, deg = C
+        c, s = math.cos(math.radians(deg)), math.sin(math.radians(deg))
+        return [(cx + (x*w/2)*c - (y*h/2)*s, cy + (x*w/2)*s + (y*h/2)*c)
+                for x in (x0, x1)]
+
+    def sheet(C, seed, detail):
+        """Paper, then outline, then whatever is printed on it."""
+        box = rect(*C)
+        return (P(poly(box, seed, amt=2.0, bow=1.8))
+                + I(poly(box, seed, amt=2.0, bow=1.8)) + detail(C)), box
+
+    # Back left: the spreadsheet, tipped out of the fan.
+    SC = (74, 132, 84, 112, -15)
+    def grid(C):
+        d = "".join(I(curve(rule(C, -.72, .72, y), 3005+i, False, amt=1.4), "ink-thin")
+                    for i, y in enumerate((-.42, -.10, .22)))
+        return d + "".join(I(curve([rule(C, x, x, -.70)[0], rule(C, x, x, .70)[0]],
+                                   3010+i, False, amt=1.4), "ink-thin")
+                           for i, x in enumerate((-.30, .10)))
+
+    # Back right: the slide, tipped the other way.
+    LC = (186, 136, 88, 106, 15)
+    def slide(C):
+        return (I(poly(rect(C[0]+2, C[1]-12, 54, 34, C[4]), 3020, amt=1.6, bow=1.4), "ink-thin")
+                + I(curve(rule(C, -.58, .30, .40), 3022, False, amt=1.4), "ink-thin"))
+
+    # Front centre: the document, upright and tallest, covering both.
+    DC = (128, 142, 88, 124, 2)
+    def doc(C):
+        return "".join(I(curve(rule(C, -.66, w, y), 3030+i, False, amt=1.4), "ink-thin")
+                       for i, (y, w) in enumerate(((-.54,.62),(-.34,.64),(-.14,.30),
+                                                   (.06,.62),(.26,.40))))
+
+    left,  boxS = sheet(SC, 3001, grid)
+    right, boxL = sheet(LC, 3002, slide)
+    front, boxD = sheet(DC, 3003, doc)
+
+    # Fan order: the two behind first, the document over both.
+    ink = left + right + front
+    accent = A(poly([(x-9, y+9) for x, y in boxD], 3003, amt=2.0, bow=1.8))
+    return ink, accent
+
+def artifacts_hand():
+    """Empty state: a hand offering a small sheaf of sheets. The hand is the
+    hero - same comb-of-fingers construction as hand() - and the fingers come
+    up IN FRONT of the paper, which is what makes it read as held rather than
+    floating. A paper-filled palm blob sits between the sheaf and the ink so
+    the sheets' ruling doesn't read through the hand."""
+    import math
+
+    def rect(cx, cy, w, h, deg):
+        c, s = math.cos(math.radians(deg)), math.sin(math.radians(deg))
+        return [(cx + x*c - y*s, cy + x*s + y*c)
+                for x, y in ((-w/2,-h/2),(w/2,-h/2),(w/2,h/2),(-w/2,h/2))]
+
+    def rule(C, x0, x1, y):
+        cx, cy, w, h, deg = C
+        c, s = math.cos(math.radians(deg)), math.sin(math.radians(deg))
+        return [(cx + (x*w/2)*c - (y*h/2)*s, cy + (x*w/2)*s + (y*h/2)*c)
+                for x in (x0, x1)]
+
+    def sheet(C, seed, detail):
+        box = rect(*C)
+        return (P(poly(box, seed, amt=2.0, bow=1.8))
+                + I(poly(box, seed, amt=2.0, bow=1.8)) + detail(C)), box
+
+    # Back left: the spreadsheet.
+    SC = (92, 122, 74, 160, -14)
+    def grid(C):
+        return ("".join(I(curve(rule(C, -.70, .70, y), 3105+i, False, amt=1.4), "ink-thin")
+                        for i, y in enumerate((-.56, -.40, -.24)))
+                + "".join(I(curve([rule(C, x, x, -.66)[0], rule(C, x, x, -.10)[0]],
+                                  3110+i, False, amt=1.4), "ink-thin")
+                          for i, x in enumerate((-.26, .16))))
+
+    # Back right: a slide, tipped the other way.
+    LC = (178, 122, 74, 154, 14)
+    def slide(C):
+        return (I(poly(rect(C[0]+5, C[1]-34, 44, 30, C[4]), 3120, amt=1.6, bow=1.4), "ink-thin")
+                + I(curve(rule(C, -.54, .26, -.20), 3122, False, amt=1.4), "ink-thin"))
+
+    # Front centre: the document, tallest, covering both.
+    DC = (134, 128, 80, 170, 2)
+    def doc(C):
+        return "".join(I(curve(rule(C, -.62, w, y), 3130+i, False, amt=1.4), "ink-thin")
+                       for i, (y, w) in enumerate(((-.68,.58),(-.55,.60),(-.42,.24),
+                                                   (-.29,.58),(-.16,.36))))
+
+    left,  _ = sheet(SC, 3101, grid)
+    right, _ = sheet(LC, 3102, slide)
+    front, _ = sheet(DC, 3103, doc)
+
+    # The hand: comb fingers rising in front of the sheaf, closed palm loop.
+    # No thumb: hand() carries the motif on the comb and the closed palm loop
+    # alone, and every thumb tried here read as a loop or a handle instead.
+    palm = [(84,240),(76,220),(82,196),
+            (90,188),(94,146),(104,146),(105,190),    # index
+            (109,186),(113,130),(123,130),(125,186),    # middle, longest
+            (129,186),(135,136),(144,137),(145,188),
+            (149,192),(157,156),(166,158),(163,196),    # little finger, shortest
+            (169,214),(165,230),(148,242),(120,246),(96,244)]
+    # Opaque palm body, kept inside the ink loop, so the sheaf stops where the
+    # hand starts instead of printing through it.
+    mask = [(90,238),(84,208),(98,196),(140,194),(160,210),(158,228),(142,240),(106,244)]
+
+    ink = (left + right + front
+           + P(curve(mask, 3140, amt=2.0))
+           + I(curve(palm, 3141, amt=2.0, t=.55)))
+    accent = A(circ(176, 80, 64, 3150, amt=5))
+    return ink, accent
+
 PIECES = [("hand","Hand","kraft",hand),
           ("care","Cupped hands","manilla",care),
           ("reasoning","Reasoning","clay",reasoning),
           ("untangle","Untangle","kraft",untangle),
           ("growth","Growth","olive",growth),
-          ("idea","Idea","manilla",idea)]
+          ("idea","Idea","manilla",idea),
+          ("artifacts","Artifacts","clay",artifacts),
+          ("artifacts-hand","Artifacts in hand","clay",artifacts_hand)]
 
 # --------------------------------------------------------------- build
 man = []

@@ -77,6 +77,10 @@ def scribble(cx, cy, r=46, steps=420, seed=0):
 def I(d, c="ink"):  return '<path class="%s" d="%s"/>' % (c, d)
 def A(d):           return '<path class="acc" d="%s"/>' % d
 def S(d):           return '<path class="solid" d="%s"/>' % d
+# Paper: an opaque sheet in the ground colour, so overlapping shapes can
+# occlude each other. Everything here is stroke-only otherwise, which means
+# a back shape's interior detail reads straight through whatever is in front.
+def P(d):           return '<path class="paper" d="%s"/>' % d
 
 
 TPL = """<svg viewBox="0 0 {g} {g}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="{label}">
@@ -94,6 +98,7 @@ TPL = """<svg viewBox="0 0 {g} {g}" xmlns="http://www.w3.org/2000/svg" role="img
 .ink{{fill:none;stroke:{slate};stroke-width:{sw};stroke-linecap:round;stroke-linejoin:round}}
 .ink-thin{{fill:none;stroke:{slate};stroke-width:{swt};stroke-linecap:round;stroke-linejoin:round}}
 .solid{{fill:{slate}}}
+.paper{{fill:{paper}}}
 .acc{{fill:var(--acc,{acc})}}
 .acc-line{{fill:none;stroke:var(--acc,{acc});stroke-width:{swt};stroke-linecap:round;stroke-linejoin:round}}
 </style>
@@ -108,7 +113,7 @@ def render(name, label, ink, accent="", acc="#d97757", seed=0, grid=256, sw=11, 
     k = grid / 256.0
     return TPL.format(
         n=name, label=label, g=grid, s=seed*7+3, s2=seed*13+11,
-        slate=SW["slate"], acc=acc, accent=accent, ink=ink,
+        slate=SW["slate"], paper=SW["ivoryL"], acc=acc, accent=accent, ink=ink,
         sw=round(sw, 2), swt=round(swt, 2),
         bf="%.4f %.4f" % (0.024/k, 0.031/k), ds=round(2.8*k, 2),
         bf2="%.4f %.4f" % (0.018/k, 0.026/k), ds2=round(5*k, 2))

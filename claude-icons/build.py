@@ -102,6 +102,15 @@ ICONS=[("big-green-egg","Big Green Egg","olive",big_green_egg),
        ("watch","Watch","kraft",watch),
        ("dice","Dice","clay",dice)]
 
+# Subject icons live one module per batch under subjects/, each exposing its
+# own ICONS list, so batches can be drawn independently without contending
+# for this file.
+import glob as _glob, importlib as _il
+for _m in sorted(_glob.glob(os.path.join(OUT, "subjects", "*.py"))):
+    _name = os.path.basename(_m)[:-3]
+    if not _name.startswith("_"):
+        ICONS = ICONS + _il.import_module("subjects." + _name).ICONS
+
 MONODIR=os.path.join(OUT,"icons-mono")
 os.makedirs(MONODIR,exist_ok=True)
 
