@@ -1,18 +1,30 @@
-import os, sys
+import os, sys, math
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from draw import SW, jit, curve, poly, circ, scribble, I, A, S, render
 
 
 def green_egg():
-    """Kamado with the lid swung open on its hinge - not the closed dome."""
-    bowl=[(44,138),(52,184),(86,216),(128,224),(170,216),(204,184),(212,138)]
-    lid=[(64,88),(76,36),(132,12),(186,26),(206,68),(138,74)]
-    return (I(curve(bowl,1800,False))
-          + I(curve([(38,138),(128,146),(218,138)],1801,False))
-          + I(curve(lid,1802))
-          + I(curve([(204,76),(214,132)],1803,False))
-          + I(curve([(66,226),(56,244),(200,244),(190,226)],1804,False),"ink-thin")), \
-           A(curve([(x-8,y+8) for x,y in bowl],1805,amt=4))
+    """The Big Green Egg as it stands: an egg wider at the base, split by
+    the dome seam, the daisy-wheel cap on top, the handle out at the seam,
+    and the nest's legs under it. The first cut swung the lid open and read
+    as a helmet over a bowl."""
+    egg = []
+    for i in range(20):
+        t = 2 * math.pi * i / 20
+        w = 1 - 0.13 * math.cos(t)          # narrower toward the top
+        egg.append((128 + 70 * math.sin(t) * w, 122 - 82 * math.cos(t)))
+    return (I(curve(egg, 1800, amt=1.8))
+          # dome seam, bowed down a touch for the three-quarter view
+          + I(curve([(60, 112), (128, 124), (196, 112)], 1801, False))
+          # daisy-wheel cap
+          + I(poly([(114, 44), (142, 44), (138, 24), (118, 24)], 1802))
+          # handle: a bar out past the edge at the seam. A loop drawn inside
+          # the body, with a door under it, read as a face at 32px.
+          + I(curve([(194, 114), (230, 106)], 1803, False))
+          # nest legs
+          + I(curve([(84, 188), (70, 238)], 1805, False))
+          + I(curve([(172, 188), (186, 238)], 1806, False))), \
+           A(curve([(x - 8, y + 8) for x, y in egg], 1809, amt=4))
 
 
 def guest():

@@ -9,12 +9,9 @@ from draw import SW, W, jit, curve, poly, circ, scribble, I, A, S, render
 
 # ---------------------------------------------------------------- the 12
 def big_green_egg():
-    body=[(128,50),(178,64),(206,104),(210,148),(190,188),(150,206),(106,206),(66,188),(46,148),(50,104),(78,64)]
-    ink=(I(curve(body,1))
-       + I(curve([(50,120),(128,128),(208,120)],2,False),"ink")
-       + I(poly([(112,52),(144,52),(138,28),(118,28)],3))
-       + I(poly([(74,204),(60,232),(196,232),(182,204)],4,False),"ink-thin"))
-    return ink, A(curve([(128,50),(178,64),(206,104),(210,148),(190,188),(150,206),(106,206),(66,188),(46,148),(50,104),(78,64)],9,amt=4))
+    """Same egg as subjects/b05.green_egg, so the set holds one drawing of it."""
+    from subjects.b05 import green_egg
+    return green_egg()
 
 def brisket():
     slab=[(42,152),(50,116),(78,94),(128,86),(180,90),(212,110),(222,144),(214,172),
