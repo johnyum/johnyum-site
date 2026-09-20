@@ -23,6 +23,8 @@
   MOTION
   Slides PUSH: the outgoing slide flows off, the incoming one flows in and
   lands centre (640ms expo-out). Honors prefers-reduced-motion (hard cut).
+  Navigation stays RESPONSIVE mid-flight: back during a forward push reverses
+  the motion in the air; another forward press snap-completes and flies on.
 
   BUILDS (Keynote-style, for live-demo slides like the calendar deep-dive)
   A slide that steps through its own animations claims the taps by defining,
@@ -182,8 +184,11 @@
 
   let SLIDES = [];
   let idx = 0;
-  let current = null;        // { pane, frame|null }
-  let moving = false;
+  let current = null;   // { pane, frame|null }
+  // in-flight transition — navigation stays RESPONSIVE during the 640ms:
+  // a reversal retargets both panes mid-air (CSS transitions interpolate from
+  // wherever they are); a same-direction press snap-completes and moves on.
+  let flight = null;    // { out, inc, fromIdx, toIdx, dir, timer }
   const cache = new Map();
 
   const src = i => 'slides/' + encodeURIComponent(SLIDES[i]);
@@ -204,9 +209,6 @@
     hideTimer = setTimeout(() => counter.classList.remove('show'), 1600);
   }
 
-  // build one slide's pane; `ready` resolves when it can be shown without
-  // flashing white (iframe loaded / image decoded), capped so a slow asset
-  // can never stall the show
   function makePane(i) {
     const pane = document.createElement('div');
     pane.className = 'pane';
@@ -249,8 +251,6 @@
   function settle(i, made) {
     current = made;
     idx = i;
-    // full tap zones by default; an interactive slide (window.presoInteractive)
-    // flips this from its load hook below — or right here if it beat us to it
     let inter = false;
     try { inter = !!(made.frame && made.frame.contentWindow && made.frame.contentWindow.presoInteractive === true); } catch (_) {}
     document.body.classList.toggle('interactive', inter);
@@ -265,21 +265,44 @@
     settle(i, made);
   }
 
+  function finishFlight() {               // the landed pane owns the stage
+    if (!flight) return;
+    clearTimeout(flight.timer);
+    if (flight.out) flight.out.pane.remove();
+    flight.inc.pane.style.transition = '';
+    flight.inc.pane.style.willChange = 'auto';
+    flight = null;
+  }
+  function snapFlight() {                 // complete the in-flight cut INSTANTLY
+    if (!flight) return;
+    clearTimeout(flight.timer);
+    if (flight.out) flight.out.pane.remove();
+    const p = flight.inc.pane;
+    p.style.transition = 'none';
+    p.style.transform = 'translateX(0)';
+    void p.offsetWidth;
+    p.style.transition = '';
+    p.style.willChange = 'auto';
+    flight = null;
+  }
+
   async function transitionTo(i, dir) {   // the push: off one way, land centre
-    moving = true;
     const outgoing = current;
     const made = makePane(i);
     made.pane.style.transform = 'translateX(' + (dir > 0 ? 100 : -100) + '%)';
     stage.appendChild(made.pane);
+    const token = flight = { out: outgoing, inc: made, fromIdx: idx, toIdx: i, dir, timer: 0 };
     settle(i, made);
     await made.ready;
+    if (flight !== token) return;         // reversed / snapped while loading
     if (REDUCED) {
       made.pane.style.transform = '';
       if (outgoing) outgoing.pane.remove();
-      moving = false;
+      flight = null;
       return;
     }
     requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (flight !== token) return;
       const t = 'transform ' + DUR + 'ms ' + EASE;
       made.pane.style.transition = t;
       made.pane.style.transform = 'translateX(0)';
@@ -288,15 +311,22 @@
         outgoing.pane.style.transform = 'translateX(' + (dir > 0 ? -100 : 100) + '%)';
       }
     }));
-    setTimeout(() => {
-      if (outgoing) outgoing.pane.remove();
-      made.pane.style.transition = '';
-      made.pane.style.willChange = 'auto';
-      moving = false;
-    }, DUR + 60);
+    token.timer = setTimeout(() => { if (flight === token) finishFlight(); }, DUR + 60);
   }
 
-  // a build-capable slide (window.presoNext / presoPrev) owns the step first
+  function reverseFlight() {              // turn the slides around, mid-air
+    const f = flight;
+    clearTimeout(f.timer);
+    // retarget: CSS transitions pick up from wherever the panes are right now
+    f.inc.pane.style.transform = 'translateX(' + (f.dir > 0 ? 100 : -100) + '%)';
+    if (f.out) f.out.pane.style.transform = 'translateX(0)';
+    const back = f.out;
+    flight = { out: f.inc, inc: back, fromIdx: f.toIdx, toIdx: f.fromIdx, dir: -f.dir, timer: 0 };
+    const token = flight;
+    settle(token.toIdx, back);
+    token.timer = setTimeout(() => { if (flight === token) finishFlight(); }, DUR + 60);
+  }
+
   function slideConsumes(dir) {
     if (!current || !current.frame) return false;
     try {
@@ -307,15 +337,24 @@
   }
 
   function navigate(dir) {
-    if (!SLIDES.length || moving) return;
+    if (!SLIDES.length) return;
+    if (flight) {
+      const n = Math.min(SLIDES.length - 1, Math.max(0, idx + dir));
+      if (n === idx) { flashCounter(); return; }
+      if (n === flight.fromIdx && flight.out) { reverseFlight(); return; }
+      snapFlight();                        // rapid same-direction: cut, then fly on
+      transitionTo(n, dir);
+      return;
+    }
     if (slideConsumes(dir)) return;
     const n = Math.min(SLIDES.length - 1, Math.max(0, idx + dir));
     if (n === idx) { flashCounter(); return; }
     transitionTo(n, dir);
   }
   function jumpTo(n) {
-    if (!SLIDES.length || moving) return;
+    if (!SLIDES.length) return;
     n = Math.min(SLIDES.length - 1, Math.max(0, n));
+    if (flight) snapFlight();
     if (n === idx) { flashCounter(); return; }
     transitionTo(n, n > idx ? 1 : -1);
   }
