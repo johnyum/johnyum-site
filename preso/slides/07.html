@@ -12,11 +12,16 @@
        load   the window is HERO-HEIGHT (1512 x 982, where the hero photo ends).
               The photo settles out of a slow 1.05 push-in, then the title,
               the guest line and the header rise in behind it.
-       1-4    the window HOLDS ITS SIZE and the page scrolls underneath it,
-              stop by stop: overview -> gallery -> sleeping -> bottom.
-       5      the bloom. The window grows to the full 3680px page and the
-              whole design lands centred on screen at once.
-       6      out of builds; the deck moves on.
+       tap 1  ONE CONTINUOUS MOVE, no further taps: the window holds its size
+              while the page pans slowly under it the whole 2698px to the
+              bottom (11s, soft ends and an even middle), holds for a beat,
+              then blooms — the window grows to the full 3680px page and the
+              whole design lands centred at once.
+       tap 2  out of builds; the deck moves on.
+
+     Tapping DURING the pan doesn't stall it, it cuts straight to the bloom;
+     tapping back at any point returns to the hero. Under
+     prefers-reduced-motion the whole thing is a cut.
 
      The window is a real object on the page: white, 32px radius, and the
      three-drop shadow off the design —
@@ -45,6 +50,11 @@
     --grey1000: #222;
     --grey700: #6c6c6c;
     --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    /* the pan and the bloom are different moves and want different clocks,
+       so both the duration and the curve are driven from script */
+    --dur-win: 1000ms;
+    --dur-page: 1000ms;
+    --ease-page: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   html, body {
@@ -69,10 +79,10 @@
       0 calc(4px * var(--k))  calc(8px * var(--k))  rgba(0, 0, 0, 0.08),
       0 calc(12px * var(--k)) calc(30px * var(--k)) rgba(0, 0, 0, 0.18);
     transition:
-      width  900ms var(--ease),
-      height 900ms var(--ease),
-      border-radius 900ms var(--ease),
-      box-shadow 900ms var(--ease),
+      width  var(--dur-win) var(--ease),
+      height var(--dur-win) var(--ease),
+      border-radius var(--dur-win) var(--ease),
+      box-shadow var(--dur-win) var(--ease),
       opacity 700ms ease,
       transform 1100ms var(--ease);
     opacity: 0;
@@ -86,7 +96,7 @@
     width: 1512px; height: 3680px;
     transform-origin: 0 0;
     transform: scale(var(--k)) translateY(calc(var(--y) * -1px));
-    transition: transform 900ms var(--ease);
+    transition: transform var(--dur-page) var(--ease-page);
   }
   .page img { display: block; user-select: none; -webkit-user-drag: none; }
 
@@ -354,26 +364,48 @@
 (() => {
   const DW = 1512, DH = 3680, HERO = 982;
   const MX = 64, MY = 88;          // breathing room; MY clears the deck chrome
+  const MAXY = DH - HERO;          // the page's true bottom, 2698
   const root = document.documentElement;
 
-  // scroll stops, in design px. The last one is the true bottom of the page.
-  const STOPS = [0, 1040, 1476, 2180, DH - HERO];
-  const BLOOM = STOPS.length;       // the step where the window grows
-  const LAST  = BLOOM;
-  let step = 0;
+  // ONE continuous move: a slow pan the whole length of the page, a short
+  // hold at the bottom, then the bloom — all off a single tap.
+  const PAN_MS   = 11000;
+  const HOLD_MS  = 420;
+  const BLOOM_MS = 1000;
+  const PAN_EASE = 'cubic-bezier(0.2, 0, 0.8, 1)';   // soft ends, even middle
+  const REDUCED  = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let phase = 'hero';              // 'hero' -> 'running' -> 'done'
+  let timer = 0;
 
   const fit = h => Math.min((innerWidth - MX * 2) / DW, (innerHeight - MY * 2) / h, 1.2);
 
-  function apply() {
-    const bloomed = step >= BLOOM;
-    const winh = bloomed ? DH : HERO;
+  // one place that writes the state; durations are per-move
+  function set(winh, y, durWin, durPage, easePage) {
+    root.style.setProperty('--dur-win', (REDUCED ? 0 : durWin) + 'ms');
+    root.style.setProperty('--dur-page', (REDUCED ? 0 : durPage) + 'ms');
+    root.style.setProperty('--ease-page', easePage || 'var(--ease)');
     root.style.setProperty('--winh', winh);
     root.style.setProperty('--k', fit(winh));
-    root.style.setProperty('--y', bloomed ? 0 : STOPS[step]);
+    root.style.setProperty('--y', y);
   }
 
-  apply();
-  addEventListener('resize', apply);
+  const toHero  = ms => { clearTimeout(timer); phase = 'hero'; set(HERO, 0, ms, ms); };
+  const toBloom = ms => { clearTimeout(timer); phase = 'done'; set(DH, 0, ms, ms); };
+
+  function run() {                  // the pan, chained straight into the bloom
+    phase = 'running';
+    set(HERO, MAXY, 0, PAN_MS, PAN_EASE);
+    if (REDUCED) { toBloom(0); return; }
+    timer = setTimeout(() => toBloom(BLOOM_MS), PAN_MS + HOLD_MS);
+  }
+
+  set(HERO, 0, 0, 0);
+  // a resize mid-move must not restart it — just re-fit at the current spot
+  addEventListener('resize', () => {
+    const winh = phase === 'done' ? DH : HERO;
+    root.style.setProperty('--k', fit(winh));
+  });
 
   // the entrance — hero settles, then the type and header rise in behind it.
   // Never hangs on the load event: a cached slide can fire it before this
@@ -393,14 +425,17 @@
   else addEventListener('load', start);
   setTimeout(reveal, 2500);        // backstop — the slide always shows up
 
-  // the deck's build hooks: true = "I consumed that tap, stay on me"
+  // the deck's build hooks: true = "I consumed that tap, stay on me".
+  // A tap mid-pan doesn't stall it — it cuts to the bloom.
   window.presoNext = () => {
-    if (step >= LAST) return false;
-    step++; apply(); return true;
+    if (phase === 'hero')    { run(); return true; }
+    if (phase === 'running') { toBloom(500); return true; }
+    return false;                    // bloomed — the deck moves on
   };
   window.presoPrev = () => {
-    if (step <= 0) return false;
-    step--; apply(); return true;
+    if (phase === 'hero') return false;
+    toHero(phase === 'running' ? 600 : BLOOM_MS);
+    return true;
   };
 })();
 </script>
