@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>09</title>
+<!-- Airbnb Beyond — Villa Mayana listing page, built from Figma
+     (Yum-Portfolio, node 5292:293536). The page is 1512 x 3680 design px,
+     reproduced 1:1 and then SCALED to whatever the viewport is.
+
+     THE BUILD (this slide claims the taps — presoNext / presoPrev below)
+       load   the window is HERO-HEIGHT (1512 x 982, where the hero photo ends).
+              The photo settles out of a slow 1.05 push-in, then the title,
+              the guest line and the header rise in behind it.
+       taps 1-3  the window HOLDS ITS SIZE and the page steps under it, one
+              stop per tap — see STOPS below for where each one lands and why.
+       tap 4  the bloom: the window grows to the full 3680px page and the
+              whole design lands centred at once.
+       tap 5  the bloom closes back up and Villa Mayana — chrome, title and all
+              — shrinks into the middle of a 5x3 wall. Fourteen neighbouring
+              listings start stacked underneath it and travel out to their own
+              cells, each one a real listing head: the same chrome, the same
+              lockup, its own name and destination.
+       tap 6  out of builds; the deck moves on.
+
+     Every step is reversible — tapping back walks the same route in reverse,
+     and backing off the hero hands the deck to the previous slide. Under
+     prefers-reduced-motion every move is a cut.
+
+     The window is a real object on the page: white, 32px radius, and the
+     three-drop shadow off the design —
+       0 0 0 1px  rgba(0,0,0,.02)   (spread 1, no blur)
+       0 4px 8px  rgba(0,0,0,.08)
+       0 12px 30px rgba(0,0,0,.18)
+     Shadow and radius are scaled with the window so the object stays the
+     same object at every size.
+
+     Type is Airbnb Cereal, reusing the variable font already in this repo at
+     multi/Font_Cereal/ rather than a second copy. Book 400 / Medium 500 /
+     SemiBold 600 / Light 300. -->
+<style>
+  @font-face {
+    font-family: 'Cereal';
+    src: url('../../multi/Font_Cereal/AirbnbCerealVF_Wght.ttf') format('truetype');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: block;
+  }
+
+  :root {
+    --k: 0.25;            /* design px -> screen px */
+    --winh: 982;          /* window height IN DESIGN PX */
+    --y: 0;               /* scroll offset IN DESIGN PX */
+    --grey1000: #222;
+    --grey700: #6c6c6c;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    /* the pan and the bloom are different moves and want different clocks,
+       so both the duration and the curve are driven from script */
+    --dur-win: 1000ms;
+    --dur-page: 1000ms;
+    --ease-page: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  html, body {
+    margin: 0; height: 100%;
+    background: #fff;
+    overflow: hidden;
+    font-family: 'Cereal', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--grey1000);
+  }
+  .stage { height: 100%; display: grid; place-items: center; }
+  /* the window and the grid occupy the SAME cell, so the grid's centre cell and
+     the window are the same point on screen — the window simply shrinks into it */
+  .stage > * { grid-area: 1 / 1; }
+
+  /* ── the 5x3 wall of listings, Villa Mayana in the middle ───────────── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(5, var(--cw));
+    grid-auto-rows: var(--ch);
+    gap: var(--gap);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 500ms ease;
+  }
+  body.gridmode .grid { opacity: 1; }
+  /* Each neighbour STARTS stacked on Villa Mayana and travels out to its own
+     cell, so the wall unpacks from the middle. --dx/--dy is the cell's offset
+     from centre; the tile begins translated back by exactly that. */
+  .grid .tile {
+    width: var(--cw); height: var(--ch);
+    border-radius: 0;
+    overflow: hidden;
+    background: #efeeea;
+    opacity: 0;
+    transform: translate(calc(var(--dx) * -1), calc(var(--dy) * -1)) scale(0.97);
+    transition: opacity 520ms ease, transform 880ms var(--ease);
+    box-shadow:
+      0 0 0 calc(1px * var(--k))  rgba(0, 0, 0, 0.02),
+      0 calc(4px * var(--k))  calc(8px * var(--k))  rgba(0, 0, 0, 0.08),
+      0 calc(12px * var(--k)) calc(30px * var(--k)) rgba(0, 0, 0, 0.18);
+  }
+  body.gridmode .grid .tile { opacity: 1; transform: translate(0, 0) scale(1); }
+  body.gridmode .window { border-radius: 0; }
+  .grid .hole { width: var(--cw); height: var(--ch); }   /* Villa Mayana sits here */
+
+  /* A neighbour is a real listing head drawn at full design size and scaled
+     down, so its chrome and type match Villa Mayana's exactly. */
+  .pdp {
+    position: absolute; left: 0; top: 0;
+    width: 1512px; height: 982px;
+    transform-origin: 0 0;
+    transform: scale(var(--k));
+  }
+  .pdp { color: var(--ink, #fff); }
+  .pdp .t-body16, .pdp .villa, .pdp .guests { color: inherit; }
+  .pdp svg { display: block; }
+  .pdp > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+  /* the window — sized in SCREEN px, so its shadow and radius scale with it */
+  .window {
+    position: relative;
+    width: calc(1512px * var(--k));
+    height: calc(var(--winh) * 1px * var(--k));
+    border-radius: calc(32px * var(--k));
+    background: #fff;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 calc(1px * var(--k))  rgba(0, 0, 0, 0.02),
+      0 calc(4px * var(--k))  calc(8px * var(--k))  rgba(0, 0, 0, 0.08),
+      0 calc(12px * var(--k)) calc(30px * var(--k)) rgba(0, 0, 0, 0.18);
+    transition:
+      width  var(--dur-win) var(--ease),
+      height var(--dur-win) var(--ease),
+      border-radius var(--dur-win) var(--ease),
+      box-shadow var(--dur-win) var(--ease),
+      opacity 700ms ease,
+      transform 1100ms var(--ease);
+    opacity: 0;
+    transform: scale(0.986);
+  }
+  body.in .window { opacity: 1; transform: scale(1); }
+
+  /* the page itself, drawn 1:1 in design px and scaled as a whole */
+  .page {
+    position: absolute; left: 0; top: 0;
+    width: 1512px; height: 3680px;
+    transform-origin: 0 0;
+    transform: scale(var(--k)) translateY(calc(var(--y) * -1px));
+    transition: transform var(--dur-page) var(--ease-page);
+  }
+  .page img { display: block; user-select: none; -webkit-user-drag: none; }
+
+  /* ── absolute-positioning helpers (design px) ───────────────────────── */
+  .abs  { position: absolute; }
+  .clip { position: absolute; overflow: hidden; }
+  .cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+  /* ── type ramp, straight off the Figma text styles ──────────────────── */
+  .t-title32 { font-weight: 600; font-size: 32px; line-height: 36px; letter-spacing: -0.96px; color: var(--grey1000); margin: 0; }
+  .t-title16 { font-weight: 600; font-size: 16px; line-height: 20px; margin: 0; color: #000; }
+  .t-title14 { font-weight: 500; font-size: 14px; line-height: 18px; margin: 0; }
+  .t-body16  { font-weight: 400; font-size: 16px; line-height: 20px; margin: 0; }
+  .t-para16  { font-weight: 400; font-size: 16px; line-height: 24px; margin: 0; }
+  .t-body14  { font-weight: 400; font-size: 14px; line-height: 18px; margin: 0; }
+
+  /* ── hero ───────────────────────────────────────────────────────────── */
+  /* The hero is the node's own render, so the crop is already baked in and it
+     just covers the band. The raw fill Figma serves for this node is a 480px
+     proxy — it has none of the real detail and must not be used here. */
+  /* The photo (2340x1682) is taller than the band, so 105px of it has to go.
+     Where that 105px is taken from is the whole composition: all off the
+     bottom and the hedge disappears; all off the top and the roof apex climbs
+     to within 25px of the guest line. 29% splits it the way the reference
+     does — apex at ~367, the title and its second line sitting clear between
+     the BEYOND lockup and the house, and the bushes still reading along the
+     bottom edge. */
+  .hero { left: 0; top: 0; width: 1512px; height: 982px; }
+  .hero img {
+    object-position: center 29%;
+    transform: scale(1.05);
+    opacity: 0;
+    transition: transform 1600ms var(--ease), opacity 800ms ease;
+  }
+  body.in .hero img { transform: scale(1); opacity: 1; }
+
+  /* the title lockup */
+  .titleblock {
+    left: 50%; top: 184px; width: 701px;
+    margin-left: -350.5px;
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    text-align: center;
+  }
+  .villa {
+    font-weight: 400; font-size: 40px; line-height: 1.2;
+    letter-spacing: 20px; text-indent: 20px;   /* indent cancels the trailing track */
+    color: #fff; margin: 0; width: 100%;
+  }
+  .guests { color: #fff; width: 100%; white-space: pre-wrap; }
+  .rise { opacity: 0; transform: translateY(14px); transition: opacity 700ms ease, transform 900ms var(--ease); }
+  body.in .rise { opacity: 1; transform: translateY(0); }
+  body.in .d1 { transition-delay: 260ms; }
+  body.in .d2 { transition-delay: 400ms; }
+  body.in .d3 { transition-delay: 540ms; }
+
+  /* ── header ─────────────────────────────────────────────────────────── */
+  .header {
+    left: 0; top: 0; width: 1512px;
+    box-sizing: border-box;
+    padding: 24px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .hdr-left  { display: flex; align-items: center; gap: 4px; }
+  .hdr-left p { color: #fff; }
+  .hdr-right { display: flex; align-items: center; justify-content: flex-end; gap: 16px; width: 120px; }
+  .rows-btn {
+    width: 40px; height: 40px; border-radius: 125px;
+    background: rgba(34, 34, 34, 0.2);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── overview + staff ───────────────────────────────────────────────── */
+  .overview {
+    left: 421px; top: 1046px; width: 669px;
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    text-align: center;
+  }
+  .overview .t-para16 { color: var(--grey700); width: 530px; white-space: pre-wrap; }
+
+  .staff { left: 50%; top: 1242px; transform: translateX(-50%); display: flex; align-items: center; gap: 32px; }
+  .person { width: 100px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .person img { width: 80px; height: 80px; }
+  .person .who { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; color: #000; }
+
+  /* ── gallery ────────────────────────────────────────────────────────── */
+  .g-exteriors  { left: 80px;   top: 1476px; width: 668px; height: 428px; border-radius: 16px 0 0 0; }
+  .g-bathroom   { left: 1106px; top: 1476px; width: 326px; height: 428px; border-radius: 0 16px 0 0; }
+  .g-entry      { left: 764px;  top: 1476px; width: 326px; height: 206px; }
+  .g-livingroom { left: 764px;  top: 1698px; width: 326px; height: 206px; }
+  .g-balcony    { left: 80px;   top: 1920px; width: 326px; height: 206px; border-radius: 0 0 0 16px; }
+  .g-villa18    { left: 422px;  top: 1920px; width: 326px; height: 206px; }
+  .g-patio      { left: 764px;  top: 1920px; width: 326px; height: 206px; }
+  .g-outdoor    { left: 1106px; top: 1920px; width: 326px; height: 206px; border-radius: 0 0 16px 0; }
+
+  .tour {
+    left: 100px; top: 1844px;
+    display: flex; align-items: center; gap: 12px;
+    padding: 4px 20px 4px 4px;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(15.5px); -webkit-backdrop-filter: blur(15.5px);
+  }
+  .tour .dot { background: var(--grey1000); border-radius: 100px; padding: 8px; display: flex; align-items: center; }
+  .tour .t-title14 { color: var(--grey1000); white-space: nowrap; }
+
+  /* ── sleeping arrangements ──────────────────────────────────────────── */
+  .beds { left: 50%; top: 2306px; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; }
+  .beds .cell { width: 212px; height: 132px; overflow: hidden; position: relative; }
+  .beds .cell:first-child { border-radius: 16px 0 0 16px; }
+  .beds .cell:last-child  { border-radius: 0 16px 16px 0; }
+  .beds .cell img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+
+  .bedlabel { top: 2462px; width: 212px; display: flex; flex-direction: column; gap: 8px; }
+  .bedlabel .t-body14 { color: var(--grey700); white-space: pre; }
+
+  /* ── what's included ────────────────────────────────────────────────── */
+  .included { left: 80px; top: 2706px; display: flex; align-items: center; gap: 16px; }
+  .svc { width: 326px; display: flex; flex-direction: column; gap: 24px; }
+  /* each card is its own flattened node render — the design stacks up to four
+     layers per card, and every one of those fills is served as a small proxy */
+  .svc .frame { position: relative; width: 326px; height: 248px; border-radius: 16px; overflow: hidden; }
+  .svc .cap { width: 212px; display: flex; flex-direction: column; gap: 8px; white-space: nowrap; }
+  .svc .cap .t-body14 { color: var(--grey700); }
+
+  /* ── available services ─────────────────────────────────────────────── */
+  .available { left: 80px; top: 3204px; display: flex; align-items: center; gap: 16px; }
+  .av { width: 212px; display: flex; flex-direction: column; gap: 24px; }
+  .av .shot { position: relative; width: 212px; height: 248px; border-radius: 16px; overflow: hidden; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .window, .page, .hero img, .rise { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="grid" id="grid" aria-hidden="true"></div>
+    <div class="window" id="window">
+      <div class="page" id="page">
+
+        <!-- hero -->
+        <div class="clip hero">
+          <img class="cover" src="assets/villa-mayana/hero.webp" alt="Villa Mayana at dusk — thatched pavilions and a lit pool in the Achiote Reserve">
+        </div>
+
+        <!-- stray annotation that lives in the design -->
+        <p class="abs" style="left:1260px; top:717px; font-weight:300; font-size:16px; line-height:22px; color:#000; margin:0; white-space:nowrap;">for 7 nights</p>
+        <div class="abs" style="left:1260px; top:740px; width:82px; height:1px; background:#000;"></div>
+        <div class="abs" style="left:589px; top:656px; width:12px; height:6px;">
+          <img src="assets/villa-mayana/ic-back.svg" alt="" style="width:100%; height:100%; transform:rotate(90deg) scaleX(-1);">
+        </div>
+
+        <!-- title lockup -->
+        <div class="abs titleblock">
+          <p class="villa rise d1">VILLA MAYANA</p>
+          <p class="t-body16 guests rise d2">12 Guests  ·  6 beds  ·  6 bedrooms  ·  8 baths</p>
+        </div>
+
+        <!-- header -->
+        <div class="abs header rise d3">
+          <div class="hdr-left">
+            <p class="t-body16">Destinations</p>
+            <img src="assets/villa-mayana/ic-chevron-down.svg" alt="" width="16" height="16">
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:flex-start; padding-bottom:6px;">
+            <img src="assets/villa-mayana/logo-beyond.svg" alt="Beyond" width="122.381" height="24">
+          </div>
+          <div class="hdr-right">
+            <img src="assets/villa-mayana/profile.webp" alt="" width="40" height="40">
+            <div class="rows-btn"><img src="assets/villa-mayana/ic-rows.svg" alt="" width="16" height="16"></div>
+          </div>
+        </div>
+
+        <!-- overview -->
+        <div class="abs overview">
+          <p class="t-title32">Open-air private reserve in Costa Rica</p>
+          <p class="t-para16">Perched in Costa Rica’s Achiote Reserve, Villa Mayana <br>offers Pacific views, open-air luxury, and world-class service in total <br>privacy with full staff service.</p>
+        </div>
+
+        <!-- staff -->
+        <div class="abs staff">
+          <div class="person">
+            <img src="assets/villa-mayana/person-alejandro.webp" alt="">
+            <div class="who"><p class="t-title16" style="width:100px;">Alejandro</p><p class="t-body14" style="width:100px;">Butler</p></div>
+          </div>
+          <div class="person">
+            <img src="assets/villa-mayana/person-maria.webp" alt="">
+            <div class="who"><p class="t-title16" style="width:100px;">María</p><p class="t-body14" style="width:100px;">Chef</p></div>
+          </div>
+          <div class="person">
+            <img src="assets/villa-mayana/person-fernanda.webp" alt="">
+            <div class="who"><p class="t-title16" style="width:100px;">Fernanda</p><p class="t-body14" style="width:100px;">Housekeeping</p></div>
+          </div>
+        </div>
+
+        <!-- gallery -->
+        <div class="clip g-exteriors"><img class="cover" src="assets/villa-mayana/g-exteriors.webp" alt="Villa Mayana exterior — deck, infinity pool and jungle canopy"></div>
+        <div class="clip g-bathroom"><img class="cover" src="assets/villa-mayana/g-bathroom.webp" alt="Freestanding tub against louvred teak shutters"></div>
+        <div class="clip g-entry"><img class="cover" src="assets/villa-mayana/g-entry.webp" alt="Carved stone head at the villa entry"></div>
+        <div class="clip g-livingroom"><img src="assets/villa-mayana/g-livingroom.webp" alt="Open-air living room" style="position:absolute; left:-9px; top:0; width:335px; height:224px; max-width:none;"></div>
+        <div class="clip g-balcony"><img src="assets/villa-mayana/g-balcony.webp" alt="Balcony over the reserve" style="position:absolute; left:-67px; top:-68px; width:448px; height:299px; max-width:none;"></div>
+        <div class="clip g-villa18"><img class="cover" src="assets/villa-mayana/g-villa18.webp" alt="Pool terrace at golden hour"></div>
+        <div class="clip g-patio"><img class="cover" src="assets/villa-mayana/g-patio.webp" alt="Covered patio with dining table"></div>
+        <div class="clip g-outdoor"><img class="cover" src="assets/villa-mayana/g-outdoor.webp" alt="Outdoor common area under the palms"></div>
+
+        <div class="abs tour">
+          <div class="dot"><img src="assets/villa-mayana/ic-3d.svg" alt="" width="16" height="16"></div>
+          <p class="t-title14">3D tour</p>
+        </div>
+
+        <!-- sleeping arrangements -->
+        <p class="abs t-title32" style="left:50%; margin-left:-334.5px; top:2222px; width:669px; text-align:center;">Sleeping arrangements</p>
+        <div class="abs beds">
+          <div class="cell"><img src="assets/villa-mayana/bed-4.webp" alt="Master bedroom"></div>
+          <div class="cell"><img src="assets/villa-mayana/bed-2.webp" alt="Bedroom 2"></div>
+          <div class="cell"><img src="assets/villa-mayana/bed-1.webp" alt="Bedroom 3"></div>
+          <div class="cell"><img src="assets/villa-mayana/bed-3.webp" alt="Bedroom 4"></div>
+          <div class="cell"><img src="assets/villa-mayana/bed-x.webp" alt="Bedroom 5"></div>
+          <div class="cell"><img src="assets/villa-mayana/bed-5.webp" alt="Bedroom 5"></div>
+        </div>
+        <div class="abs bedlabel" style="left:80px;"><p class="t-title16">Master bedroom</p><p class="t-body14">King size bed · <br>Ensuite bathroom</p></div>
+        <div class="abs bedlabel" style="left:308px;"><p class="t-title16">Bedroom 2</p><p class="t-body14">King size bed · <br>Ensuite bathroom</p></div>
+        <div class="abs bedlabel" style="left:536px;"><p class="t-title16">Bedroom 3</p><p class="t-body14">King size bed · <br>Ensuite bathroom</p></div>
+        <div class="abs bedlabel" style="left:764px;"><p class="t-title16">Bedroom 4</p><p class="t-body14">Queen size bed · <br>Ensuite bathroom</p></div>
+        <div class="abs bedlabel" style="left:992px;"><p class="t-title16">Bedroom 5</p><p class="t-body14">Queen size bed · <br>Ensuite bathroom</p></div>
+        <div class="abs bedlabel" style="left:1220px;"><p class="t-title16">Bedroom 5</p><p class="t-body14" style="width:175px; white-space:pre-wrap;">Two bunk beds · twin bed · <br>Shared bathroom</p></div>
+
+        <!-- what's included -->
+        <p class="abs t-title32" style="left:50%; margin-left:-334.5px; top:2622px; width:669px; text-align:center;">What’s included</p>
+        <div class="abs included">
+          <div class="svc">
+            <div class="frame"><img class="cover" src="assets/villa-mayana/svc-card-1.webp" alt="Butler service tray"></div>
+            <div class="cap"><p class="t-title16">Butler</p><p class="t-body14">Onsite 24/7</p></div>
+          </div>
+          <div class="svc">
+            <div class="frame"><img class="cover" src="assets/villa-mayana/svc-card-2.webp" alt="Chauffeur cap and gloves on a tray"></div>
+            <div class="cap"><p class="t-title16">Airport transfer</p><p class="t-body14">Drop off and pick up</p></div>
+          </div>
+          <div class="svc">
+            <div class="frame"><img class="cover" src="assets/villa-mayana/svc-card-3.webp" alt="Plated tasting course on a board"></div>
+            <div class="cap"><p class="t-title16">Personal Chef</p><p class="t-body14">Designed and curated manues</p></div>
+          </div>
+          <div class="svc">
+            <div class="frame"><img class="cover" src="assets/villa-mayana/svc-card-4.webp" alt="Folded linens"></div>
+            <div class="cap"><p class="t-title16">Housekeeping</p><p class="t-body14">Onsite 24/7</p></div>
+          </div>
+        </div>
+
+        <!-- available services -->
+        <p class="abs t-title32" style="left:50%; margin-left:-334.5px; top:3120px; width:669px; text-align:center;">Available services</p>
+        <div class="abs available">
+          <div class="av"><div class="shot"><img class="cover" src="assets/villa-mayana/av-fasttrack.webp" alt=""></div><p class="t-title16">Airport fast track</p></div>
+          <div class="av"><div class="shot"><img class="cover" src="assets/villa-mayana/av-nanny.webp" alt=""></div><p class="t-title16">Nanny</p></div>
+          <div class="av"><div class="shot"><img class="cover" src="assets/villa-mayana/av-event.webp" alt=""></div><p class="t-title16">Event planning</p></div>
+          <div class="av"><div class="shot"><img class="cover" src="assets/villa-mayana/av-car.webp" alt=""></div><p class="t-title16">Car rental</p></div>
+          <div class="av"><div class="shot"><img class="cover" src="assets/villa-mayana/av-excursion.webp" alt=""></div><p class="t-title16">Excursion planning</p></div>
+          <div class="av"><div class="shot"><img class="cover" src="assets/villa-mayana/av-photography.webp" alt=""></div><p class="t-title16">Photography</p></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const DW = 1512, DH = 3680, HERO = 982;
+  const MX = 64, MY = 88;          // breathing room; MY clears the deck chrome
+  const MAXY = DH - HERO;          // the page's true bottom, 2698
+  const root = document.documentElement;
+
+  // FOUR STOPS, one per tap. Each CENTRES a section of the page in the
+  // window rather than butting it against an edge — the stop is the section's
+  // own midpoint less half a window (491). Measured off the live layout:
+  //    722  'Open-air private reserve' through Alejandro/Butler  (1046-1380)
+  //   1310  the photo collage                                    (1476-2126)
+  //   1883  Sleeping arrangements, title through labels          (2222-2526)
+  //   2574  the tail — What's included and Available services — left as it was
+  const STOPS    = [0, 722, 1310, 1883, 2622 - 48];
+  const SCROLL_MS = 900;
+  const BLOOM_MS = 1500;    // the bloom takes its time
+  const GRID_MS  = 1000;
+  const COLS = 5, ROWS = 3, GAP = 24, TILES = COLS * ROWS - 1;  // 14 + Villa Mayana
+
+  // the neighbours, in wall order — Villa Mayana takes the centre slot
+  const HOMES = [
+    ['cipressa',  'VILLA CIPRESSA',  'Lucca, Italy', '#253d1c'],
+    ['lumen',     'CASA LUMEN',      'Punta Mita, Mexico', '#3d2b1c'],
+    ['uliveto',   'PODERE ULIVETO',  'Val d’Orcia, Italy', '#263d1c'],
+    ['falaise',   'MAISON FALAISE',  'St. Barthélemy', '#1c3d1d'],
+    ['larix',     'CHALET LARIX',    'Zermatt, Switzerland', '#ffffff'],
+    ['palmara',   'CASA PALMARA',    'Tulum, Mexico', '#203d1c'],
+    ['woolshed',  'THE WOOLSHED',    'Lake Wanaka, New Zealand', '#1c2a3d'],
+    ['solis',     'MESA SOLIS',      'Canyon Point, Utah', '#3d291c'],
+    ['solana',    'VILLA SOLANA',    'Menorca, Spain', '#1c3d3b'],
+    ['aurora',    'CASA AURORA',     'Vieques, Puerto Rico', '#293d1c'],
+    ['miramar',   'CASA MIRAMAR',    'Los Cabos, Mexico', '#3d2e1c'],
+    ['longhouse', 'CASA DUNA',       'Comporta, Portugal', '#ffffff'],
+    ['selvaalta', 'SELVA ALTA',      'Sayulita, Mexico', '#233d1c'],
+    ['solera',    'CASA SOLERA',     'Napa Valley, California', '#263d1c'],
+  ];
+  const REDUCED  = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const BLOOM = STOPS.length;      // step 4
+  const GRID  = BLOOM + 1;         // step 5
+  let step = 0;
+
+  // A slide can be measured before it has been laid out — a backgrounded tab or
+  // an iframe the deck has not shown yet reports innerHeight 0, which would make
+  // every size below negative and collapse the window to nothing.
+  const vw = () => Math.max(innerWidth, 320);
+  const vh = () => Math.max(innerHeight, 240);
+
+  const fit = h => Math.max(0.05, Math.min((vw() - MX * 2) / DW, (vh() - MY * 2) / h, 1.2));
+
+  // the centre cell of the wall — the size the listing shrinks into
+  function cellW() {
+    return Math.max(24, Math.min(
+      (vw() - MX * 2 - GAP * (COLS - 1)) / COLS,
+      (vh() - MY * 2 - GAP * (ROWS - 1)) / ROWS * (DW / HERO)
+    ));
+  }
+  function layoutGrid() {
+    const cw = cellW(), ch = cw / (DW / HERO);
+    root.style.setProperty('--cw', cw + 'px');
+    root.style.setProperty('--ch', ch + 'px');
+    root.style.setProperty('--gap', GAP + 'px');
+    // each tile's offset from the centre cell, so it can start stacked there
+    document.querySelectorAll('.grid .tile').forEach(t => {
+      t.style.setProperty('--dx', (+t.dataset.col - (COLS - 1) / 2) * (cw + GAP) + 'px');
+      t.style.setProperty('--dy', (+t.dataset.row - (ROWS - 1) / 2) * (ch + GAP) + 'px');
+    });
+    return cw;
+  }
+
+  // one place that writes the state; durations are per-move.
+  // kOverride is for grid mode, where the scale comes from the cell, not the fit.
+  function set(winh, y, durWin, durPage, easePage, kOverride) {
+    root.style.setProperty('--dur-win', (REDUCED ? 0 : durWin) + 'ms');
+    root.style.setProperty('--dur-page', (REDUCED ? 0 : durPage) + 'ms');
+    root.style.setProperty('--ease-page', easePage || 'var(--ease)');
+    root.style.setProperty('--winh', winh);
+    root.style.setProperty('--k', kOverride != null ? kOverride : fit(winh));
+    root.style.setProperty('--y', y);
+  }
+
+  // move to `next`. A step that resizes the window (the bloom, and coming back
+  // out of it) takes the slower clock; a plain scroll between stops is brisk.
+  function go(next) {
+    const resizes = step >= BLOOM || next >= BLOOM;
+    step = next;
+    if (step === GRID) {
+      buildGrid();
+      set(HERO, 0, GRID_MS, GRID_MS, null, layoutGrid() / DW);
+      void document.getElementById('grid').offsetWidth;   // flush the stacked start state
+      document.body.classList.add('gridmode');
+      return;
+    }
+    document.body.classList.remove('gridmode');
+    const ms = resizes ? BLOOM_MS : SCROLL_MS;
+    if (step === BLOOM) { set(DH, 0, ms, ms); return; }
+    set(HERO, STOPS[step], ms, ms);
+  }
+
+  // the wall is built once, on the way in — 34 photographs around the hole
+  // the listing drops into. Tiles wash in ring by ring from the centre out.
+  const CHROME =
+    '<div class="abs header">' +
+      '<div class="hdr-left"><p class="t-body16">Destinations</p>' + '<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"> <g id="Stroked / 2D Icon / ic_system_chevron_down_stroked"> <path id="Path" d="M14 6L8.35355 11.6464C8.15829 11.8417 7.84171 11.8417 7.64645 11.6464L2 6" stroke="currentColor" stroke-opacity="0.5" stroke-width="2"/> </g> </svg>' + '</div>' +
+      '<div style="display:flex;flex-direction:column;align-items:flex-start;padding-bottom:6px">' + '<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="122.381" height="24" viewBox="0 0 122.381 24" fill="none" xmlns="http://www.w3.org/2000/svg"> <g id="Group"> <path id="Fill 1" fill-rule="evenodd" clip-rule="evenodd" d="M6.90443 22.6358H1.41299C1.37705 22.6358 1.3479 22.6069 1.3479 22.5713V16.6108C1.3479 16.5752 1.37705 16.5461 1.41299 16.5461H6.97435C8.64915 16.5461 10.0151 17.8839 10.0433 19.5388C10.0724 21.2419 8.62176 22.6358 6.90443 22.6358ZM6.05947 15.1777H1.41299C1.37705 15.1777 1.3479 15.1488 1.3479 15.1131V9.34393C1.3479 9.30829 1.37705 9.27946 1.41299 9.27946H6.13254C7.81003 9.27946 9.16736 10.6646 9.10339 12.3424C9.04257 13.9382 7.66945 15.1777 6.05947 15.1777ZM8.95637 15.6626C8.91468 15.6414 8.90855 15.5865 8.94467 15.557C9.94136 14.7406 10.5287 13.5165 10.5287 12.2285C10.5287 9.84958 8.57744 7.91419 6.17922 7.91419H0.110596C0.0494985 7.91419 7.57421e-06 7.96328 7.57421e-06 8.02388V23.8904C7.57421e-06 23.9509 0.0494985 24 0.110596 24H6.84535C9.20206 24 11.2183 22.2169 11.3729 19.8843C11.4909 18.1038 10.5257 16.456 8.95637 15.6626V15.6626Z" fill="currentColor"/> <path id="Fill 2" fill-rule="evenodd" clip-rule="evenodd" d="M97.9047 8.02388V21.3491C97.9047 21.4104 97.8267 21.4372 97.7886 21.389L87.116 7.96337C87.091 7.93233 87.0529 7.91419 87.013 7.91419H86.0751C86.0148 7.91419 85.9647 7.96328 85.9647 8.02388V23.8904C85.9647 23.9509 86.0148 24 86.0751 24H87.1996C87.2609 24 87.3101 23.9509 87.3101 23.8904V10.5555C87.3101 10.4942 87.3881 10.4674 87.4271 10.5155L98.1108 23.9509C98.1359 23.9819 98.173 24 98.213 24H99.1396C99.2009 24 99.2501 23.9509 99.2501 23.8904V8.02388C99.2501 7.96328 99.2009 7.91419 99.1396 7.91419H98.0152C97.9548 7.91419 97.9047 7.96328 97.9047 8.02388" fill="currentColor"/> <path id="Fill 3" fill-rule="evenodd" clip-rule="evenodd" d="M114.273 22.6656H110.127C110.092 22.6656 110.062 22.6366 110.062 22.601V9.31326C110.062 9.27761 110.092 9.24869 110.127 9.24869H114.273C118 9.24869 121.032 12.2581 121.032 15.9571C121.032 19.6562 118 22.6656 114.273 22.6656ZM114.149 7.91419H108.827C108.767 7.91419 108.716 7.96328 108.716 8.02388V23.8904C108.716 23.9509 108.767 24 108.827 24H114.273C118.785 24 122.449 20.3241 122.38 15.8322C122.312 11.419 118.599 7.91419 114.149 7.91419V7.91419Z" fill="currentColor"/> <path id="Fill 4" fill-rule="evenodd" clip-rule="evenodd" d="M69.2315 15.0751C65.4013 15.0751 62.285 11.9838 62.285 8.18424C62.285 4.38464 65.4013 1.29342 69.2315 1.29342C73.0627 1.29342 76.1788 4.38464 76.1788 8.18424C76.1788 11.9838 73.0627 15.0751 69.2315 15.0751ZM69.2314 0C64.6822 0 60.9809 3.67148 60.9809 8.18424C60.9809 12.697 64.6822 16.3685 69.2314 16.3685C73.7813 16.3685 77.4824 12.697 77.4824 8.18424C77.4824 3.67148 73.7813 0 69.2314 0V0Z" fill="currentColor"/> <path id="Fill 5" fill-rule="evenodd" clip-rule="evenodd" d="M20.8026 8.02527V23.8889C20.8026 23.9494 20.852 23.9986 20.913 23.9986L31.6767 23.9993C31.7378 23.9993 31.7873 23.9502 31.7873 23.8897V22.7466C31.7873 22.6861 31.7378 22.6369 31.6767 22.6369H22.213C22.1771 22.6369 22.148 22.6081 22.148 22.5725V16.622C22.148 16.5863 22.1771 16.5574 22.213 16.5574H30.222C30.2831 16.5574 30.3326 16.5083 30.3326 16.4477V15.3048C30.3326 15.2442 30.2831 15.195 30.222 15.195H22.213C22.1771 15.195 22.148 15.1661 22.148 15.1305V9.34245C22.148 9.30681 22.1771 9.27798 22.213 9.27798H31.6767C31.7378 9.27798 31.7873 9.22889 31.7873 9.16828V8.02527C31.7873 7.96475 31.7378 7.91557 31.6767 7.91557H20.9131C20.852 7.91557 20.8026 7.96475 20.8026 8.02527" fill="currentColor"/> <path id="Fill 6" fill-rule="evenodd" clip-rule="evenodd" d="M52.1245 7.96438L46.4168 15.0984C46.3907 15.131 46.3409 15.131 46.3148 15.0984L40.6074 7.96438C40.5827 7.93353 40.5452 7.91557 40.5055 7.91557H38.9713C38.9169 7.91557 38.8866 7.97792 38.9204 8.0202L45.6749 16.4629C45.6931 16.4857 45.703 16.514 45.703 16.5431V23.8904C45.703 23.9509 45.7525 24 45.8136 24H46.9393C47.0003 24 47.0498 23.9509 47.0498 23.8904V16.5165C47.0498 16.4874 47.0597 16.4591 47.078 16.4363L53.8115 8.0202C53.8454 7.97792 53.815 7.91557 53.7606 7.91557H52.2264C52.1867 7.91557 52.1492 7.93353 52.1245 7.96438" fill="currentColor"/> </g> </svg>' + '</div>' +
+      '<div class="hdr-right"><img src="assets/villa-mayana/profile.webp" alt="" width="40" height="40">' +
+        '<div class="rows-btn">' + '<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"> <g id="Stroked / 2D Icon / ic_system_rows_stroked"> <path id="Path" d="M1 8H15M1 12H15M1 4H15" stroke="currentColor" stroke-width="1.5"/> </g> </svg>' + '</div>' +
+      '</div>' +
+    '</div>';
+
+  let built = false;
+  function buildGrid() {
+    if (built) return;
+    built = true;
+    const mid = Math.floor(TILES / 2);          // the hole, dead centre of 5x3
+    const frag = document.createDocumentFragment();
+    for (let i = 0, n = 0; i <= TILES; i++) {
+      if (i === mid) { frag.appendChild(Object.assign(document.createElement('div'), { className: 'hole' })); continue; }
+      const [file, name, where] = HOMES[n++];
+      const row = Math.floor(i / COLS), col = i % COLS;
+      const cell = document.createElement('div');
+      cell.className = 'tile';
+      cell.dataset.row = row; cell.dataset.col = col;
+      cell.style.setProperty('--ink', HOMES[n - 1][3]);
+      cell.style.transitionDelay = Math.round(n * 26) + 'ms';   // a fan, not a flash
+      cell.innerHTML =
+        '<div class="pdp">' +
+          '<img src="assets/pdp/' + file + '.webp" alt="' + name + ', ' + where + '">' +
+          CHROME +
+          '<div class="abs titleblock"><p class="villa">' + name + '</p>' +
+            '<p class="t-body16 guests">' + where + '</p></div>' +
+        '</div>';
+      frag.appendChild(cell);
+    }
+    document.getElementById('grid').appendChild(frag);
+  }
+
+  layoutGrid();
+  set(HERO, 0, 0, 0);
+  // a resize mid-move must not restart it — just re-fit at the current spot
+  addEventListener('resize', () => {
+    if (step === GRID) { root.style.setProperty('--k', layoutGrid() / DW); return; }
+    root.style.setProperty('--k', fit(step === BLOOM ? DH : HERO));
+  });
+
+  // the entrance — hero settles, then the type and header rise in behind it.
+  // Never hangs on the load event: a cached slide can fire it before this
+  // script registers, and a slide that misses its cue stays at opacity 0.
+  // No requestAnimationFrame here on purpose: rAF callbacks are suspended in a
+  // hidden document, so a slide that loads while its tab is backgrounded would
+  // never reveal. A forced reflow flushes the pre-transition state instead.
+  let revealed = false;
+  const reveal = () => {
+    if (revealed) return;
+    revealed = true;
+    void document.body.offsetWidth;
+    document.body.classList.add('in');
+  };
+  const start = () => (document.fonts ? document.fonts.ready : Promise.resolve()).then(reveal);
+  if (document.readyState === 'complete') start();
+  else addEventListener('load', start);
+  setTimeout(reveal, 2500);        // backstop — the slide always shows up
+
+  // the deck's build hooks: true = "I consumed that tap, stay on me".
+  // A tap mid-pan doesn't stall it — it cuts to the bloom.
+  window.presoNext = () => {
+    if (step >= GRID) return false;   // the wall is up — the deck moves on
+    go(step + 1);
+    return true;
+  };
+  window.presoPrev = () => {
+    if (step <= 0) return false;      // on the hero — the deck goes back a slide
+    go(step - 1);
+    return true;
+  };
+})();
+</script>
+</body>
+</html>

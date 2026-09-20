@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10a</title>
+<!-- TRANSPORTATION — Trip Creator, played live on a real map.
+     Built from Figma (Yum-Portfolio, node 5248:642447). The panel is the
+     design 1:1 at 402x534 design px; the map under it is not a screenshot but
+     Mapbox GL, the same system the Trips app runs on — Standard style, faded
+     theme, no POI labels, day light.
+
+     NUMBERING: 10.html is the chapter title, 10a.html is this build. The
+     manifest is a sorted listing, so 10.html, 10a.html, 11.html play in that
+     order and nothing downstream had to be renamed.
+
+     TOKEN: assets/mapbox-config.js sets window.MAPBOX_TOKEN. It is a copy of
+     Trips/config.js — a pk.* public token, restricted by URL in the Mapbox
+     account rather than by secrecy. Without that file the map never builds and
+     the slide falls back to the panel on a flat ivory field, which is ugly but
+     not broken.
+
+     THE BOUNDING BOX: the design is a 1572x1016 frame, so it plays inside a
+     WINDOW rather than bleeding to the slide edges — the same object slide 09
+     uses for the Villa Mayana page: white, 32px radius, and the three-drop
+     shadow off the design, every one of them scaled with the window so it
+     stays the same object at every size.
+       0 0 0 1px   rgba(0,0,0,.02)   (spread 1, no blur)
+       0 4px 8px   rgba(0,0,0,.08)
+       0 12px 30px rgba(0,0,0,.18)
+     The window fits the viewport less a 72px gutter, which keeps it clear of
+     the deck's own chrome (the kicker at top 32, the counter at bottom 32).
+     The MAP is NOT scaled with it — it fills the window at true screen px and
+     lets Mapbox render at the device's own pixel ratio, so the basemap stays
+     crisp on a projector. Only the panel and the pins are drawn in design px
+     and scaled by --k.
+
+     THE BUILD — one tap per mode, and the mode IS the camera. Each beat is a
+     designed frame: flights 5248:642447, cars 2456:55334, trains 2459:61718.
+       beat 0  Flights. The continent, Winnipeg to Mexico City, priced.
+       beat 1  Cars.    The West — Medford to Los Angeles, counted in hours.
+       beat 2  Trains.  One long line east to Chicago, drawn as well as pinned.
+       beat 3  Walking. San Francisco itself, counted in minutes.
+       beat 4  out of builds; the deck moves on.
+     Each tap flies rather than cuts: 2.6s, curve 1.5, the arc Mapbox gives a
+     big zoom. The pins fade out with the old mode, the camera travels, and the
+     new set lands as it settles — they never streak across the screen in
+     flight. The zooms are deliberately NOT a tidy ladder, because the designs
+     aren't one: four different sizes of "away" is the argument the chapter is
+     making.
+
+     WHAT IS MINE, NOT THE DESIGN'S: there is no walking frame yet, so that
+     mode's colour (Babu), its neighbourhoods and its minutes are invented and
+     should be replaced the moment one exists. The design also holds the travel
+     time at "Under 8 hours" in all three frames; here it walks down with the
+     mode, because a panel that never answers the tap is a panel the room stops
+     believing.
+
+     The map is NOT interactive (interactive: false): this is a slide, so the
+     taps belong to the deck, not to a pan gesture. Nothing here declares
+     window.presoInteractive.
+
+     SCALE: --k is the window's fit factor, set from JS (CSS cannot divide a
+     length by a length to reach the unitless number scale() needs). The panel
+     and the pins are drawn in design px and scaled by it; the camera padding is
+     derived from it too, so the pins always compose in the map's free area
+     rather than hiding under the panel.
+
+     Type is Airbnb Cereal, reusing the variable font already in this repo at
+     multi/Font_Cereal/. -->
+<style>
+  @font-face {
+    font-family: 'Cereal';
+    src: url('../../multi/Font_Cereal/AirbnbCerealVF_Wght.ttf') format('truetype');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: block;
+  }
+
+  :root {
+    --k: 1;                 /* design px -> screen px, set from JS */
+    --rausch: #ff385c;
+    --grey1000: #222;
+    --grey700: #6c6c6c;
+    --grey500: #c1c1c1;
+    --grey200: #f2f2f2;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  html, body {
+    margin: 0; height: 100%;
+    background: #fff;
+    overflow: hidden;
+    font-family: 'Cereal', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--grey1000);
+  }
+  .slide { height: 100%; display: grid; place-items: center; }
+
+  /* the window — the design's own 1572x1016 frame, sized in SCREEN px so its
+     radius and shadow scale with it and it stays the same object at any size */
+  .window {
+    position: relative;
+    width: calc(1572px * var(--k));
+    height: calc(1016px * var(--k));
+    border-radius: calc(32px * var(--k));
+    background: #e9e5df;            /* the water, until the basemap paints */
+    overflow: hidden;
+    box-shadow:
+      0 0 0 calc(1px * var(--k))  rgba(0, 0, 0, 0.02),
+      0 calc(4px * var(--k))  calc(8px * var(--k))  rgba(0, 0, 0, 0.08),
+      0 calc(12px * var(--k)) calc(30px * var(--k)) rgba(0, 0, 0, 0.18);
+    opacity: 0;
+    transform: scale(0.986);
+    transition: opacity 700ms ease, transform 1100ms var(--ease);
+  }
+  body.in .window { opacity: 1; transform: scale(1); }
+
+  /* the map fills the window at TRUE screen px — never CSS-scaled, so Mapbox
+     renders at the device pixel ratio and the basemap stays crisp */
+  #map { position: absolute; inset: 0; }
+  .mapboxgl-ctrl-attrib { font-size: 10px; }
+
+  /* ── the panel — Figma 1:1, scaled about its top-left corner ──────────── */
+  .panel {
+    position: absolute;
+    top: 0; left: 0;
+    margin: calc(32px * var(--k)) 0 0 calc(32px * var(--k));
+    width: 402px;
+    box-sizing: border-box;
+    padding: 24px 24px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    background: #fff;
+    border-radius: 24px;
+    /* Elevation_3 off the design */
+    box-shadow: 0 0 0 1px rgba(0,0,0,.05),
+                0 2px 16px rgba(0,0,0,.04),
+                0 8px 24px rgba(0,0,0,.10);
+    transform: scale(var(--k));
+    transform-origin: top left;
+    z-index: 3;
+  }
+
+  .logo { height: 24px; padding: 0 8px; }
+  .logo img { display: block; height: 23.97px; width: 77.52px; }
+
+  /* search */
+  .search {
+    height: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 8px;
+    box-sizing: border-box;
+    border: 1px solid var(--grey500);
+    border-radius: 100px;
+    background: #fff;
+  }
+  .search .ic { padding: 12px; display: flex; }
+  .search .ic img { width: 16px; height: 16px; display: block; }
+  .search .where {
+    width: 166px;
+    font-size: 14px; line-height: 18px; font-weight: 600;
+    text-align: center;
+  }
+  .search .ic.filter { opacity: 0; }
+
+  /* the four moods */
+  .moods { display: flex; gap: 4px; height: 106px; }
+  .mood { position: relative; width: 85.5px; height: 106px; }
+  .mood .shot {
+    position: absolute;
+    inset: 3.77% 4.68% 22.64% 4.68%;
+    border-radius: 8.55px;
+    overflow: hidden;
+  }
+  .mood .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .mood .bound {
+    position: absolute;
+    inset: 0 0 18.87% 0;
+    border: 2px solid var(--grey1000);
+    border-radius: 12px;
+    opacity: 0;
+  }
+  .mood.on .bound { opacity: 1; }
+  .mood .cap {
+    position: absolute; inset: 84.91% 0 0 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; line-height: 16px; font-weight: 600;
+  }
+
+  /* the mode toggle — the black button SLIDES between the four cells */
+  .modes {
+    position: relative;
+    height: 56px;
+    background: var(--grey200);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+  .modes .knob {
+    position: absolute;
+    top: 4px; left: 4px;
+    width: 80.5px; height: 48px;
+    background: var(--grey1000);
+    border-radius: 100px;
+    transform: translateX(var(--kx, 0px));
+    transition: transform 620ms var(--ease);
+  }
+  .modes .cell {
+    position: absolute;
+    top: 4px; height: 48px; width: 80.5px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--grey1000);
+    transition: color 320ms ease;
+  }
+  .modes .cell.on { color: #fff; }
+  .modes .cell svg { width: 20px; height: 20px; display: block; fill: currentColor; }
+
+  /* the two sliders */
+  .slider .row {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 14px; line-height: 18px;
+    margin-bottom: 16px;
+  }
+  .slider .row b { font-weight: 600; }
+  .slider .row .val {
+    font-weight: 400; color: var(--grey700);
+    transition: opacity 200ms ease;
+  }
+  .slider .track {
+    position: relative;
+    height: 20px;
+  }
+  .slider .track::before {
+    content: ''; position: absolute;
+    left: 0; right: 0; top: 9px; height: 2px;
+    background: #ddd; border-radius: 2px;
+  }
+  .slider .fill {
+    position: absolute; left: 0; top: 9px; height: 2px;
+    width: var(--t, 60%);
+    background: var(--grey1000); border-radius: 2px;
+    transition: width 620ms var(--ease);
+  }
+  .slider .thumb {
+    position: absolute; top: 2px;
+    left: var(--t, 60%);
+    width: 16px; height: 16px; margin-left: -8px;
+    border-radius: 50%;
+    background: var(--grey1000);
+    box-shadow: 0 1px 3px rgba(0,0,0,.25);
+    transition: left 620ms var(--ease);
+  }
+
+  /* ── the map pins ─────────────────────────────────────────────────────── */
+  /* Pin_Complete off the design (Figma 2436:104777) — 142x36, and every number
+     below is measured, not eyeballed:
+        Pin_Marker   the white pill: top 0, height 28, radius 100,
+                     padding 4 / 12 / 4 / 32, gap 2, 12px type on a 20px line,
+                     the name BOLD and carrying its own middot, the value BOOK
+        Pin_Large    20x32 at (4,4) — so it hangs 8px BELOW the pill
+        Pin_Head     a 20px bead with a soft white gloss at the upper left
+        Metal_Pin    1.5x20 at (9.25,12) in grey700 — the pin's actual SPIKE
+     The point on the map is the spike's tip, (14, 36) — NOT the bead. That is
+     the whole difference between a pin that stands on a city and a badge
+     floating next to one, and it is why these have to be anchored top-left with
+     an offset rather than dropped on the coordinate.
+
+     mapboxgl.Marker owns the wrapper's transform, so the scale lives on an
+     INNER element — otherwise every camera frame would stamp it out. Scaling
+     from 0 0 keeps that measured (14, 36) true at any --k. */
+  .pin {
+    position: relative;
+    height: 36px;
+    color: var(--rausch);          /* the bead's colour — set per mode */
+    transform: scale(var(--k));
+    transform-origin: 0 0;
+    opacity: 0;
+    transition: opacity 380ms ease;
+    white-space: nowrap;
+  }
+  .pin.in { opacity: 1; }
+
+  .pin .tag {
+    position: absolute; left: 0; top: 0;
+    height: 28px;
+    box-sizing: border-box;
+    display: flex; align-items: center; gap: 2px;
+    padding: 4px 12px 4px 32px;
+    border-radius: 100px;
+    background: #fff;
+    /* Elevation/2, off the design */
+    box-shadow: 0 0 0 1px rgba(0,0,0,.02),
+                0 2px 6px  rgba(0,0,0,.04),
+                0 4px 8px  rgba(0,0,0,.10);
+    font-size: 12px; line-height: 20px;
+    color: var(--grey1000);
+  }
+  .pin .tag b    { font-weight: 700; }   /* "Sacramento ·" */
+  .pin .tag span { font-weight: 400; }   /* "2.5 hrs" */
+
+  .pin .mark { position: absolute; left: 4px; top: 4px; width: 20px; height: 32px; }
+  .pin .stem {
+    position: absolute; left: 9.25px; top: 12px;
+    width: 1.5px; height: 20px;
+    background: var(--grey700); border-radius: 100px;
+  }
+  .pin .head  { position: absolute; left: 0; top: 0; width: 20px; height: 20px; display: block; }
+  .pin .glyph { position: absolute; left: 4px; top: 4px; width: 12px; height: 12px; fill: #fff; display: block; }
+
+  /* the unlabelled neighbours — the same pin with the pill and glyph taken off */
+  .pin.small { height: 22px; }
+  .pin.small .mark { left: 0; top: 0; width: 12px; height: 22px; }
+  .pin.small .stem { left: 5.25px; top: 8px; height: 14px; }
+  .pin.small .head { width: 12px; height: 12px; }
+
+  /* the origin — the traveller, held at San Francisco through every mode */
+  .pin.home { height: 52px; }
+  .pin.home .mark { left: 0; top: 0; width: 38px; height: 52px; }
+  .pin.home .stem { left: 18.25px; top: 36px; height: 16px; }
+  .pin.home .ring {
+    position: absolute; left: 0; top: 0;
+    width: 38px; height: 38px;
+    box-sizing: border-box;
+    border: 3px solid #1c1c1c;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #d9b3a7;
+  }
+  .pin.home .ring img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .modes .knob, .slider .fill, .slider .thumb, .pin, .window { transition: none; }
+  }
+</style>
+</head>
+<body>
+  <!-- the icon set, inlined so CSS can colour it (currentColor); paths are the
+       DLS compact icons exported from the same Figma node -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <!-- Pin_Head: a bead in the mode's colour, with Pin_Highlight — a white
+         gloss at the upper left, rotated -29.8deg. It is what keeps the pin
+         from reading as a flat circle, and it is drawn, not a box-shadow. -->
+    <radialGradient id="gloss" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+                    gradientTransform="translate(4.99702 5.36276) rotate(90) scale(2.57147 4.28578)">
+      <stop stop-color="#fff" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#DCB4B4" stop-opacity="0"/>
+    </radialGradient>
+    <symbol id="pin-head" viewBox="0 0 20 20">
+      <rect width="20" height="20" rx="10" fill="currentColor"/>
+      <ellipse cx="4.99702" cy="5.36276" rx="4.28578" ry="2.57147"
+               transform="rotate(-29.8054 4.99702 5.36276)" fill="url(#gloss)"/>
+    </symbol>
+
+    <symbol id="ic-plane" viewBox="0 0 20 20"><path d="M9.89 0.003125C9.41257 0.0311827 8.9639 0.240621 8.6358 0.588587C8.3077 0.936553 8.12497 1.39674 8.125 1.875V7.22562L0.625 11.5125V13.8981L8.125 12.2906V14.8731L5.625 16.5406V18.9919L10 17.5338L14.375 18.9919V16.5406L11.875 14.8731V12.2906L19.375 13.8981V11.5125L11.875 7.22625V1.875C11.875 1.37772 11.6775 0.900805 11.3258 0.549175C10.9742 0.197544 10.4973 0 10 0L9.89 0.003125Z"/></symbol>
+    <symbol id="ic-car" viewBox="0 0 20 20"><path d="M14.5669 2.8125C15.1764 2.8125 15.7303 3.16709 15.9856 3.72063L16.0294 3.82688L16.8219 5.9375H19.375V7.8125H17.5244L17.8225 8.60625C18.5719 9.22799 19.0218 10.1389 19.06 11.1119L19.0625 11.25V16.875C19.0627 17.5291 18.5585 18.0728 17.9062 18.1219L17.8125 18.125H16.5625C15.9084 18.1252 15.3647 17.621 15.3156 16.9687L15.3125 16.875V15.9375H4.6875V16.875C4.68771 17.5291 4.18355 18.0728 3.53125 18.1219L3.4375 18.125H2.1875C1.53336 18.1252 0.989686 17.621 0.940625 16.9687L0.9375 16.875V11.25C0.9375 10.1875 1.42 9.23688 2.1775 8.60625L2.475 7.8125H0.625V5.9375H3.17813L3.97 3.82625C4.18418 3.25549 4.71075 2.86141 5.31875 2.81687L5.43312 2.8125H14.5669ZM15.9375 10.9375C15.4197 10.9375 15 11.3572 15 11.875C15 12.3928 15.4197 12.8125 15.9375 12.8125C16.4553 12.8125 16.875 12.3928 16.875 11.875C16.875 11.3572 16.4553 10.9375 15.9375 10.9375ZM4.0625 10.9375C3.54473 10.9375 3.125 11.3572 3.125 11.875C3.125 12.3928 3.54473 12.8125 4.0625 12.8125C4.58027 12.8125 5 12.3928 5 11.875C5 11.3572 4.58027 10.9375 4.0625 10.9375ZM13.75 11.0625H6.25V12.6875H13.75V11.0625ZM14.35 4.6875H5.64937L4.4775 7.8125H15.5219L14.35 4.6875Z"/></symbol>
+    <symbol id="ic-train" viewBox="0 0 20 20"><path d="M14.375 17.8125V19.6875H5.625V17.8125H14.375ZM15 0C15.8053 4.65266e-05 16.5795 0.310963 17.1611 0.867912C17.7427 1.42486 18.0869 2.18484 18.1219 2.98937L18.125 3.125V13.125C18.125 13.9303 17.814 14.7045 17.2571 15.2861C16.7001 15.8677 15.9402 16.2119 15.1356 16.2469L15 16.25H5C4.19471 16.25 3.42052 15.939 2.83889 15.3821C2.25725 14.8251 1.91307 14.0652 1.87812 13.2606L1.875 13.125V3.125C1.87505 2.31971 2.18596 1.54552 2.74291 0.963889C3.29986 0.382254 4.05984 0.0380746 4.86437 0.003125L5 0H15ZM5.625 12.8125C5.37636 12.8125 5.1379 12.9113 4.96209 13.0871C4.78627 13.2629 4.6875 13.5014 4.6875 13.75C4.6875 13.9986 4.78627 14.2371 4.96209 14.4129C5.1379 14.5887 5.37636 14.6875 5.625 14.6875C5.87364 14.6875 6.1121 14.5887 6.28791 14.4129C6.46373 14.2371 6.5625 13.9986 6.5625 13.75C6.5625 13.5014 6.46373 13.2629 6.28791 13.0871C6.1121 12.9113 5.87364 12.8125 5.625 12.8125ZM14.375 12.8125C14.1264 12.8125 13.8879 12.9113 13.7121 13.0871C13.5363 13.2629 13.4375 13.5014 13.4375 13.75C13.4375 13.9986 13.5363 14.2371 13.7121 14.4129C13.8879 14.5887 14.1264 14.6875 14.375 14.6875C14.6236 14.6875 14.8621 14.5887 15.0379 14.4129C15.2137 14.2371 15.3125 13.9986 15.3125 13.75C15.3125 13.5014 15.2137 13.2629 15.0379 13.0871C14.8621 12.9113 14.6236 12.8125 14.375 12.8125ZM9.0625 5H3.125V10H9.0625V5ZM16.875 5H10.9375V10H16.875V5Z"/></symbol>
+    <symbol id="ic-walk" viewBox="0 0 20 20"><path d="M6.8125 13.75L8.4425 15.205L6.4425 20.005L4.0625 20L6.8125 13.75ZM9.375 5.20621e-08C9.92542 -0.000251041 10.4605 0.181156 10.8973 0.516077C11.3341 0.850998 11.6482 1.32071 11.7908 1.85234C11.9334 2.38397 11.8965 2.9478 11.686 3.45636C11.4754 3.96491 11.1029 4.38976 10.6262 4.665V5.39375C11.3187 5.60625 11.8875 6.1375 12.135 6.8475C12.4396 7.71784 12.9941 8.47902 13.7292 9.03576C14.4642 9.5925 15.3472 9.92008 16.2675 9.9775L16.5612 9.98625H17.1862V11.8613H16.5612C15.6862 11.8622 14.8199 11.6877 14.0134 11.3481C13.207 11.0084 12.4769 10.5105 11.8662 9.88375C11.6537 9.6675 11.4287 9.4375 11.25 9.195V13.125L13.5937 15.1225V20H11.4062V16.1275L7 12.25V7.815C6.32789 8.20684 5.76468 8.76083 5.36181 9.42639C4.95895 10.0919 4.72926 10.8478 4.69375 11.625L4.6875 12.5H2.8125V11.875C2.81265 10.3513 3.34279 8.87514 4.31205 7.69949C5.2813 6.52384 6.62931 5.72194 8.125 5.43125V4.665C7.64843 4.38982 7.27597 3.96508 7.06538 3.45665C6.8548 2.94822 6.81786 2.38451 6.9603 1.85294C7.10273 1.32138 7.41658 0.851667 7.85317 0.516648C8.28975 0.181628 8.82468 2.42639e-05 9.375 5.20621e-08V5.20621e-08Z"/></symbol>
+  </svg>
+
+  <div class="slide">
+   <div class="window" id="window">
+    <div id="map"></div>
+
+    <div class="panel">
+    <div class="logo"><img src="assets/transportation/logo.svg" alt="Airbnb"></div>
+
+    <div class="search">
+      <div class="ic"><img src="assets/transportation/ic-search.svg" alt=""></div>
+      <div class="where">Where to?</div>
+      <div class="ic filter"><img src="assets/transportation/ic-filter.svg" alt=""></div>
+    </div>
+
+    <div class="moods">
+      <div class="mood on">
+        <div class="shot"><img src="assets/transportation/mood-popular.png" alt=""></div>
+        <div class="bound"></div><div class="cap">Popular</div>
+      </div>
+      <div class="mood">
+        <div class="shot"><img src="assets/transportation/mood-unique.png" alt=""></div>
+        <div class="bound"></div><div class="cap">Unique</div>
+      </div>
+      <div class="mood">
+        <div class="shot"><img src="assets/transportation/mood-relax.png" alt=""></div>
+        <div class="bound"></div><div class="cap">Relax</div>
+      </div>
+      <div class="mood">
+        <div class="shot"><img src="assets/transportation/mood-adventure.png" alt=""></div>
+        <div class="bound"></div><div class="cap">Adventure</div>
+      </div>
+    </div>
+
+    <div class="modes" id="modes">
+      <div class="knob" id="knob"></div>
+      <div class="cell on" style="left:4px"><svg><use href="#ic-plane"></use></svg></div>
+      <div class="cell"     style="left:92.5px"><svg><use href="#ic-car"></use></svg></div>
+      <div class="cell"     style="left:181px"><svg><use href="#ic-train"></use></svg></div>
+      <div class="cell"     style="left:269.5px"><svg><use href="#ic-walk"></use></svg></div>
+    </div>
+
+    <div class="slider">
+      <div class="row"><b>Travel time</b><span class="val" id="timeval">Under 8 hours</span></div>
+      <div class="track"><div class="fill" id="timefill"></div><div class="thumb" id="timethumb"></div></div>
+    </div>
+
+    <div class="slider">
+      <div class="row"><b>Price</b><span class="val" id="priceval">Any price</span></div>
+      <div class="track"><div class="fill" style="--t:100%"></div><div class="thumb" style="--t:100%"></div></div>
+    </div>
+    </div>
+   </div>
+  </div>
+
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.13.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.13.0/mapbox-gl.js"></script>
+<script src="assets/mapbox-config.js"></script>
+<script>
+(() => {
+  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const SF = [-122.4194, 37.7749];
+
+  /* ── the four modes. Each one is a camera AND a set of places: the mode is
+        not a filter over one map, it is a different idea of how far away
+        "away" is. That is the whole slide.
+
+        Every colour, city and value below is READ OFF THE DESIGN — flights
+        (5248:642447), cars (2456:55334), trains (2459:61718). Flights are
+        priced; cars and trains are counted in hours, which is the point the
+        design is making: once you are not flying, the currency is time.
+        Walking has no frame yet, so it is the one set I invented — Babu for
+        the bead, minutes for the value, San Francisco's own neighbourhoods.
+
+        The zooms are not a tidy ladder, because the designs aren't: you fly
+        over a continent, drive the West, ride one long line east, and walk one
+        city. Four different sizes of "away", which is the argument. ──────── */
+  const MODES = [
+    {
+      id: 'plane', icon: 'ic-plane', color: '#ff385c',
+      time: 'Under 8 hours', t: 62,
+      center: [-97.1, 38.6], zoom: 3.68,
+      pins: [
+        ['Portland',    -122.676, 45.523, '$176'],
+        ['Winnipeg',     -97.138, 49.895, '$497'],
+        ['Montreal',     -73.567, 45.501, '$587'],
+        ['Chicago',      -87.630, 41.878, '$488'],
+        ['New York',     -74.006, 40.713, '$678'],
+        ['Denver',      -104.991, 39.739, '$201'],
+        ['Charlotte',    -80.843, 35.227, '$527'],
+        ['Los Angeles', -118.243, 34.052, '$126'],
+        ['Austin',       -97.743, 30.267, '$285'],
+        ['Miami',        -80.192, 25.761, '$634'],
+        ['Mexico City',  -99.133, 19.432, '$798']
+      ],
+      dots: [[-116.215, 43.618], [-111.891, 40.761], [-106.651, 35.085],
+             [-90.199, 38.627], [-84.388, 33.749], [-79.996, 40.440],
+             [-71.058, 42.360], [-106.485, 31.760], [-95.369, 29.760],
+             [-117.161, 32.716], [-123.116, 49.283]]
+    },
+    {
+      id: 'car', icon: 'ic-car', color: '#2f80ed',
+      time: 'Under 4 hours', t: 45,
+      center: [-119.35, 38.35], zoom: 5.78,
+      pins: [
+        ['Medford',         -122.875, 42.327, '7.5 hrs'],
+        ['Eureka',          -124.164, 40.802, '7 hrs'],
+        ['Tahoe',           -120.043, 39.096, '4 hrs'],
+        ['Sacramento',      -121.494, 38.582, '2.5 hrs'],
+        ['San Jose',        -121.887, 37.339, '2 hrs'],
+        ['Las Vegas',       -115.139, 36.170, '8 hrs'],
+        ['San Luis Obispo', -120.660, 35.283, '4.5 hrs'],
+        ['Los Angeles',     -118.243, 34.052, '7 hrs']
+      ],
+      dots: [[-122.390, 40.586], [-119.702, 39.523], [-121.290, 38.026],
+             [-119.538, 37.865], [-119.786, 36.748], [-121.895, 36.600],
+             [-118.395, 35.373], [-122.678, 45.515]]
+    },
+    {
+      id: 'train', icon: 'ic-train', color: '#ffa513',
+      time: 'Under 3 hours', t: 34,
+      center: [-103.6, 41.3], zoom: 4.28,
+      // the Zephyr: the design draws the LINE, not just the stops, so the
+      // route is data here rather than decoration
+      route: [[-122.419, 37.775], [-121.494, 38.582], [-119.814, 39.530],
+              [-115.137, 40.833], [-111.891, 40.761], [-108.548, 39.064],
+              [-104.991, 39.739], [-100.350, 40.925], [-95.938, 41.257],
+              [-91.530, 41.661], [-87.630, 41.878]],
+      pins: [
+        ['Reno',           -119.814, 39.530, '5 hrs'],
+        ['Salt Lake City', -111.891, 40.761, '12 hrs'],
+        ['Denver',         -104.991, 39.739, '16 hrs'],
+        ['Omaha',           -95.938, 41.257, '1 day'],
+        ['Chicago',         -87.630, 41.878, '1d 3 hrs']
+      ],
+      dots: [[-121.494, 38.582], [-115.137, 40.833], [-108.548, 39.064],
+             [-100.350, 40.925], [-91.530, 41.661]]
+    },
+    {
+      id: 'walk', icon: 'ic-walk', color: '#00a699',
+      time: 'Under 30 minutes', t: 11,
+      center: [-122.424, 37.780], zoom: 13.23,
+      pins: [
+        ['Marina',       -122.437, 37.8030, '34 min'],
+        ['North Beach',  -122.410, 37.8000, '26 min'],
+        ['Nob Hill',     -122.415, 37.7930, '18 min'],
+        ['Hayes Valley', -122.426, 37.7765, '9 min'],
+        ['SoMa',         -122.401, 37.7785, '14 min'],
+        ['Castro',       -122.435, 37.7609, '22 min'],
+        ['Mission',      -122.419, 37.7599, '20 min'],
+        ['Potrero Hill', -122.400, 37.7576, '31 min']
+      ],
+      dots: [[-122.447, 37.7850], [-122.431, 37.7680], [-122.408, 37.7860],
+             [-122.394, 37.7700], [-122.446, 37.7520]]
+    }
+  ];
+
+  /* ── scale. ONE number: the window's fit factor. It sizes the window, the
+        panel, the pins and the camera padding, so the whole composition holds
+        together from a laptop to a projector. The 72px gutter keeps the window
+        clear of the deck's own chrome — kicker at top 32, counter at bottom 32.
+        The design's 1572x1016 is the frame; nothing here is a magic number. ─ */
+  const KNOB_X = [0, 88.5, 177, 265.5];   // the cell lefts, minus the knob's own 4px
+  const W = 1572, H = 1016, GUTTER = 72;
+  let k = 1;
+  function setK() {
+    k = Math.min((innerWidth - GUTTER * 2) / W, (innerHeight - GUTTER * 2) / H);
+    k = Math.max(0.2, k);
+    document.documentElement.style.setProperty('--k', k);
+  }
+  setK();
+
+  /* Every `zoom` in MODES is written for the design's OWN 1572x1016 frame —
+     k = 1. Mercator zoom is absolute pixels-per-degree, so the same number in a
+     smaller window would crop the framing rather than shrink it. Halving the
+     window is exactly one zoom level, so the correction is log2(k) and the
+     composition the design drew survives every screen. */
+  function zoomAt(z) { return z + Math.log2(k); }
+
+  // What the camera must stay clear of, in screen px. Left is the panel's own
+  // footprint. The other three are the PINS: a pin's label grows to the RIGHT
+  // of its dot and its dot sits above the point, so the frame owes the set a
+  // label's width on the right and a pill's height top and bottom — otherwise
+  // the easternmost cities arrive with their prices cut off by the window.
+  function pad() {
+    // 32 margin + 402 panel + 56 gutter: the panel's own right edge, plus air
+    return { top: 56 * k, bottom: 56 * k, left: (32 + 402 + 56) * k, right: 180 * k };
+  }
+
+  // ── panel wiring ──────────────────────────────────────────────────────
+  const knob    = document.getElementById('knob');
+  const cells   = [...document.querySelectorAll('.modes .cell')];
+  const timeval = document.getElementById('timeval');
+  const timefill  = document.getElementById('timefill');
+  const timethumb = document.getElementById('timethumb');
+
+  function paintPanel(m, i) {
+    knob.style.setProperty('--kx', KNOB_X[i] + 'px');
+    cells.forEach((c, j) => c.classList.toggle('on', j === i));
+    timefill.style.setProperty('--t', m.t + '%');
+    timethumb.style.setProperty('--t', m.t + '%');
+    // the label crossfades rather than snapping mid-flight
+    timeval.style.opacity = 0;
+    setTimeout(() => { timeval.textContent = m.time; timeval.style.opacity = 1; }, REDUCED ? 0 : 200);
+  }
+
+  // ── the map ───────────────────────────────────────────────────────────
+  let map = null, markers = [], beat = 0, token = 0;
+
+  /* A pin is built once and anchored by its SPIKE TIP, which is why each kind
+     carries its own tip: the point the marker sits on, in design px. */
+  const SPIKE = { pin: [14, 36], small: [6, 22], home: [19, 52] };
+  const HEAD  = '<svg class="head" viewBox="0 0 20 20"><use href="#pin-head"></use></svg>';
+
+  function makePin(kind, m, p) {
+    const wrap = document.createElement('div');
+    const pin = document.createElement('div');
+    pin.className = 'pin' + (kind === 'pin' ? '' : ' ' + kind);
+    pin.style.color = m.color;
+    if (kind === 'home') {
+      pin.innerHTML =
+        '<div class="mark">' +
+          '<div class="stem"></div>' +
+          '<div class="ring"><img src="assets/transportation/avatar.png" alt=""></div>' +
+        '</div>';
+    } else if (kind === 'small') {
+      pin.innerHTML = '<div class="mark"><div class="stem"></div>' + HEAD + '</div>';
+    } else {
+      pin.innerHTML =
+        '<div class="tag"><b>' + p[0] + ' &middot;</b><span>' + p[3] + '</span></div>' +
+        '<div class="mark">' +
+          '<div class="stem"></div>' + HEAD +
+          '<svg class="glyph" viewBox="0 0 20 20"><use href="#' + m.icon + '"></use></svg>' +
+        '</div>';
+    }
+    wrap.appendChild(pin);
+    return { wrap, pin };
+  }
+
+  function addPin(kind, m, p, lngLat, n) {
+    const { wrap, pin } = makePin(kind, m, p);
+    const tip = SPIKE[kind];
+    // anchored top-left and offset by the measured tip, so the spike — not the
+    // bead, not the pill — stands on the coordinate at every scale
+    const marker = new mapboxgl.Marker({
+      element: wrap, anchor: 'top-left', offset: [-tip[0] * k, -tip[1] * k]
+    }).setLngLat(lngLat).addTo(map);
+    markers.push({ marker, el: pin });
+    setTimeout(() => pin.classList.add('in'), REDUCED ? 0 : 40 + n * 24);
+  }
+
+  function clearPins() {
+    markers.forEach(m => {
+      m.el.classList.remove('in');
+      const mk = m.marker;
+      setTimeout(() => mk.remove(), REDUCED ? 0 : 400);
+    });
+    markers = [];
+  }
+
+  function dropPins(m) {
+    // the quiet neighbours go down first, so the labelled set lands on top
+    (m.dots || []).forEach((d, n) => addPin('small', m, null, d, n * 0.3));
+    addPin('home', m, null, SF, 0);
+    m.pins.forEach((p, n) => addPin('pin', m, p, [p[1], p[2]], n));
+  }
+
+  /* The train's own line. Only the rail frame draws one, because only the rail
+     frame has one: a route you sit on for a day and a half is a thing you can
+     see, and the dashes are the design's. */
+  function setRoute(m) {
+    if (!map || !map.getSource('route')) return;
+    map.getSource('route').setData({
+      type: 'Feature',
+      geometry: { type: 'LineString', coordinates: m.route || [] }
+    });
+  }
+
+  function go(i, animate) {
+    const m = MODES[i];
+    const mine = ++token;
+    paintPanel(m, i);
+    if (!map) return;
+    clearPins();
+    setRoute(m);
+    const cam = { center: m.center, zoom: zoomAt(m.zoom), pitch: 0, bearing: 0, padding: pad(), essential: true };
+    if (!animate || REDUCED) {
+      map.jumpTo(cam);
+      dropPins(m);
+      return;
+    }
+    // the arc: a big zoom flown rather than cut — 2.6s, curve 1.5, the same
+    // clock the Trips app uses to travel between a globe and a city
+    map.flyTo(Object.assign({ duration: 2600, curve: 1.5 }, cam));
+    // the new set arrives as the camera lands, so nothing streaks in flight
+    setTimeout(() => { if (mine === token) dropPins(m); }, 2100);
+  }
+
+  if (window.mapboxgl && window.MAPBOX_TOKEN) {
+    mapboxgl.accessToken = window.MAPBOX_TOKEN;
+    map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/standard',
+      projection: 'mercator',        // the design is a flat map, not a globe
+      center: MODES[0].center,
+      zoom: zoomAt(MODES[0].zoom),
+      pitch: 0, bearing: 0,
+      interactive: false,            // a slide: the taps belong to the deck
+      attributionControl: true
+    });
+    map.on('style.load', () => {
+      const cfg = (key, v) => { try { map.setConfigProperty('basemap', key, v); } catch (e) {} };
+      cfg('lightPreset', 'day');
+      cfg('theme', 'faded');                  // the pale basemap the design is drawn over
+      cfg('colorPlaceLabels', '#8a8a8a');
+      cfg('showPointOfInterestLabels', false);
+      cfg('showLandmarkIcons', false);
+      cfg('showLandmarkIconLabels', false);
+      cfg('showTransitLabels', false);
+      cfg('show3dObjects', false);            // flat, so the pins own the surface
+      if (!map.getSource('route')) {
+        map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] } } });
+        map.addLayer({
+          id: 'route', type: 'line', source: 'route', slot: 'middle',
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': '#222', 'line-width': 2, 'line-dasharray': [2, 2.2] }
+        });
+      }
+    });
+    // The style can land AFTER the first tap — a presenter who walks on and
+    // advances immediately would otherwise get the flights set dropped on top
+    // of whatever mode they are already in. So the load handler serves the
+    // CURRENT beat, not the first one.
+    map.once('load', () => {
+      const m = MODES[beat];
+      map.jumpTo({ center: m.center, zoom: zoomAt(m.zoom), padding: pad() });
+      setRoute(m);
+      dropPins(m);
+    });
+  }
+
+  paintPanel(MODES[0], 0);
+
+  // the window arrives with the slide rather than being there before it
+  requestAnimationFrame(() => document.body.classList.add('in'));
+
+  addEventListener('resize', () => {
+    setK();
+    if (!map) return;
+    map.resize();                       // the window changed size, so the canvas did
+    map.jumpTo({ padding: pad() });
+  });
+
+  // ── the deck's taps ───────────────────────────────────────────────────
+  window.presoNext = () => {
+    if (beat >= MODES.length - 1) return false;   // out of builds — on to Host setup
+    go(++beat, true);
+    return true;
+  };
+  window.presoPrev = () => {
+    if (beat <= 0) return false;                  // back to the chapter title
+    go(--beat, true);
+    return true;
+  };
+})();
+</script>
+</body>
+</html>

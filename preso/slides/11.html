@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11</title>
+<!-- HOST SETUP — the flow, played live inside a drawn iPhone.
+
+     Sits after TRANSPORTATION (10, not built yet). The gap in the numbering is
+     deliberate: manifest.json is a sorted listing, so 11 plays after 09 until
+     10.html lands, and then slots in without renaming anything.
+
+     THE CHROME IS A HYBRID. The rail is the real photograph — anodised metal
+     and its buttons, which vector cannot fake. Everything that has to be EXACT
+     is drawn: the screen edge, the black bezel, and the Dynamic Island, whose
+     position is therefore an ADDRESS rather than a guess baked into pixels.
+     That is what lets the status bar centre on the island's own centreline.
+
+     THE GRID is the photograph's own 900x1840, measured off it by
+     tools/measure-frame.py, so drawn and photographed parts share one space:
+       body      16,14  868x1812 r161  photo
+       bezel out 30,28  840x1784 r147  drawn, black
+       screen    49,47  802x1746 r128  the hole
+       island   322,69  256x74   r37   drawn ON TOP of the UI
+     The --s* percentages under .phone are the hole over the viewBox, exact.
+
+     THE UI sits at Airbnb's own 375x812 and is scaled to fill 852pt of screen,
+     so the design's numbers stay untouched — 812 -> 852 is a 1.049 lift, which
+     leaves the width 0.5px proud of the hole and clipped, rather than short of
+     it and leaking a white seam. --k is set from JS because CSS cannot divide a
+     length by a length to reach the unitless number scale() needs, and it
+     carries a pixel of overscan so no hairline of backdrop survives at the
+     rounded edge. Nothing here waits on a network image, so there is no flash
+     of white before the chrome arrives — the chrome IS the markup.
+
+     THE BUILDS
+     BEATS is the tap-through. Each beat is a plain state — which row is chosen,
+     where the sheet sits, how far the progress bar has run — and the CSS
+     transitions carry the screen between them, so back steps reverse for free.
+
+       beat 0  property type, nothing chosen
+       beat 1  one tap: House selects, Next answers, the screen becomes privacy
+       beat 2  one tap: a room type selects, Next answers, the map takes over,
+               the address types itself and the map flies to the house
+       beat 3  out of builds; the deck moves on
+
+     Adding a step to the flow is adding an object to that array. -->
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.13.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.13.0/mapbox-gl.js"></script>
+<script src="assets/mapbox-config.js"></script>
+<style>
+  @font-face {
+    font-family: 'Cereal';
+    src: url('../../multi/Font_Cereal/AirbnbCerealVF_Wght.ttf') format('truetype');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: block;
+  }
+
+  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
+  .slide { height: 100%; display: grid; place-items: center; }
+
+  .phone {
+    --phone-h: min(88vh, 1180px);   /* the one number the assembly scales off */
+
+    /* the screen hole, as % of the 900x1840 viewBox */
+    --sx: 5.4444%;
+    --sy: 2.5543%;
+    --sw: 89.1111%;
+    --sh: 94.8913%;
+    --sr: 15.9601%;      /* 128 over the hole's own width  */
+    --sry: 7.3310%;      /* 128 over the hole's own height */
+
+    position: relative;
+    height: var(--phone-h);
+    aspect-ratio: 900 / 1840;
+  }
+  .chrome {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    display: block;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .screen {
+    position: absolute;
+    left: var(--sx); top: var(--sy);
+    width: var(--sw); height: var(--sh);
+    border-radius: var(--sr) / var(--sry);
+    overflow: hidden;
+    /* bezel black, not white: any sub-pixel seam between the UI and the hole's
+       rounded edge then reads as bezel instead of a bright hairline */
+    background: #0b0b0b;
+    z-index: 1;
+  }
+
+  /* ---- the UI, in Airbnb's own points ---- */
+  .ui {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    width: 375px; height: 812px;
+    margin: 0 auto;                  /* centre the unscaled box, then scale about it */
+    transform: scale(var(--k, 1));
+    transform-origin: top center;
+    font-family: 'Cereal', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 500;
+    color: #222;
+    background: #ff385c;
+    user-select: none;
+  }
+  .ui img { display: block; -webkit-user-drag: none; }
+
+  /* Built, not grabbed. Sampled off the reference: the ramp runs LEFT to RIGHT,
+     violet to magenta — but the bands are not straight. At mid-height the
+     violet reaches further right (#8a0096 at centre) than it does along the top
+     and bottom edges (#ab008c, #a2008f). That bow is the whole character of it.
+     So: a horizontal ramp carrying the MID-height colours, with two magenta
+     blooms anchored to the right corners. They pull the top and bottom edges
+     toward magenta while leaving the centre alone, which curves the bands
+     instead of tilting them — a diagonal ramp would tilt, not bow.
+     The two ellipses' size and alpha were FITTED against the reference over a
+     13x13 grid: 1.91 RMS per channel, under 1%. The lower bloom is the tighter
+     of the two (34% against 52%) because the reference's bottom edge turns
+     magenta later than its top edge does. */
+  .gradient {
+    position: absolute; left: 0; top: 0;
+    width: 375px; height: 812px;
+    background:
+      radial-gradient(ellipse 110% 52% at 100% 0%,   rgba(207, 0, 122, 0.80), rgba(207, 0, 122, 0) 100%),
+      radial-gradient(ellipse 110% 34% at 100% 100%, rgba(203, 0, 126, 0.62), rgba(203, 0, 126, 0) 100%),
+      linear-gradient(90deg,
+        #67019f   0%,
+        #75009c  25%,
+        #8a0096  50%,
+        #a2008f  75%,
+        #b60088 100%);
+  }
+
+  /* ---- status bar, hung off the island's centreline (27.64pt in UI space) ---- */
+  .status { position: absolute; left: 0; top: 0; width: 375px; height: 56px; color: #fff; }
+  .status .time {
+    position: absolute; left: 24.6px; top: 17.14px;
+    width: 80px; height: 21px;       /* centre 64, against the left ear's 63.9 */
+    display: grid; place-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: -0.3px;
+  }
+  /* the icon cluster is centred in the RIGHT EAR, not right-aligned as the mock
+     had it. the island is 125 of 393pt, so in this 375pt space it spans
+     127.85..247.15; the ear is 247.15..375, centre 311.1. the cluster measures
+     66.67 wide, so nominally it starts at 277.76 — less 0.67, because the UI
+     runs a hair proud of the hole and is clipped, moving the true right edge
+     in. Measured against the rendered box, not the spec: equal air each side. */
+  .status .signal  { position: absolute; left: 277.09px; top: 22.30px; width: 17px;    height: 10.67px; }
+  .status .wifi    { position: absolute; left: 299.13px; top: 22.15px; width: 15.27px; height: 10.97px; }
+  .status .battery { position: absolute; left: 319.43px; top: 21.97px; width: 24.33px; height: 11.33px; }
+
+  /* ---- header ---- */
+  .glass {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+  }
+  .close { left: 24px; top: 62px; width: 32px; height: 32px; }
+  .close svg { position: absolute; left: 8px; top: 8px; width: 16px; height: 16px; }
+  .help {
+    left: 289px; top: 62px; width: 62px; height: 31px;
+    display: grid; place-items: center;
+    font-size: 14px; line-height: 18px; color: #fff;
+  }
+  .title {
+    position: absolute;
+    left: 24px; width: 324px;
+    margin: 0;
+    font-size: 26px; line-height: 30px;
+    font-weight: 600;                /* SemiBold — heavier than the mock's Medium */
+    color: #fff;
+  }
+  /* the delays live in BOTH states, so the sequence reads the same either way */
+  .title-1 { top: 148px; opacity: 1; transition: opacity 260ms ease 620ms; }
+  .title-2 { top: 271px; opacity: 0; transition: opacity 200ms ease 0ms; }
+  .title-3 { top: 148px; opacity: 0; transition: opacity 200ms ease 0ms; }
+  body.step2 .title-1, body.step3 .title-1 { opacity: 0; transition: opacity 200ms ease 0ms; }
+  body.step2 .title-2 { opacity: 1; transition: opacity 300ms ease 600ms; }
+  body.step3 .title-3 { opacity: 1; transition: opacity 300ms ease 600ms; }
+  .title-4 { top: 271px; opacity: 0; transition: opacity 200ms ease 0ms; }
+  body.step4 .title-1, body.step4 .title-2, body.step4 .title-3 { opacity: 0; transition: opacity 200ms ease 0ms; }
+  body.step4 .title-4 { opacity: 1; transition: opacity 300ms ease 600ms; }
+  .title-5 { top: 140px; opacity: 0; transition: opacity 200ms ease 0ms; }
+  body.step5 .title-1, body.step5 .title-2, body.step5 .title-3, body.step5 .title-4 { opacity: 0; transition: opacity 200ms ease 0ms; }
+  body.step5 .title-5 { opacity: 1; transition: opacity 300ms ease 600ms; }
+
+  /* ---- the sheet ---- */
+  .sheet {
+    position: absolute;
+    left: 0; top: 0;
+    width: 375px; height: 812px;
+    background: #fff;
+    border-radius: 32px 32px 0 0;   /* the sheet's lip, deeper than the mock's 16 */
+    overflow: hidden;                /* the list never rides over the rounded lip */
+    /* waits for the outgoing content to clear before it travels */
+    transform: translateY(240px);
+    transition: transform 560ms cubic-bezier(0.16, 1, 0.3, 1) 220ms;
+    will-change: transform;
+  }
+  body.step2 .sheet { transform: translateY(363px); }
+  body.step3 .sheet { transform: translateY(240px); }
+  body.step4 .sheet { transform: translateY(363px); }
+  body.step5 .sheet { transform: translateY(221px); }
+
+  .list { position: absolute; left: 0; top: 32px; right: 0; }
+  .list-1 { opacity: 1; transition: opacity 260ms ease 620ms; }
+  body.step2 .list-1, body.step3 .list-1, body.step4 .list-1, body.step5 .list-1 { opacity: 0; transition: opacity 200ms ease 0ms; }
+
+  /* the incoming choices rise in, staggered, once the sheet has landed */
+  .list-2 .row {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 260ms ease, transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  body.step2 .list-2 .row { opacity: 1; transform: none; }
+  body.step2 .list-2 .row:nth-child(1) { transition-delay: 640ms; }
+  body.step2 .list-2 .row:nth-child(2) { transition-delay: 715ms; }
+  body.step2 .list-2 .row:nth-child(3) { transition-delay: 790ms; }
+  .row {
+    position: relative;
+    margin: 0 24px 12px;
+    height: 68px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px #ddd;   /* inset, so selecting never reflows */
+    transition: background 220ms ease, box-shadow 220ms ease;
+  }
+  .row.on {
+    background: #f7f7f7;
+    box-shadow: inset 0 0 0 1.5px #222;
+  }
+  .row .label { position: absolute; left: 16px; top: 24px; font-size: 16px; line-height: 20px; }
+  .row img    { position: absolute; right: 10px; top: 10px; width: 48px; height: 48px; border-radius: 8px; }
+
+  /* ---- the map page (step 3) ---- */
+  .map-page {
+    position: absolute;
+    left: 0; top: 0;
+    width: 375px; height: 572px;    /* 240 -> 812, the sheet's visible run */
+    opacity: 0;
+    transition: opacity 320ms ease 0ms;
+  }
+  body.step3 .map-page { opacity: 1; transition: opacity 420ms ease 520ms; }
+
+  .map-canvas { position: absolute; left: 0; top: 0; transform-origin: top left; }
+  /* what you get with no token, or with no network at the venue — a quiet
+     surface rather than a broken box, so the choreography still reads */
+  .map-fallback {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(115deg, #dfe8d8 0%, #eef0ea 32%, #f2f1ed 62%, #e7eef4 100%);
+  }
+  .map-fallback::after {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(28deg,  rgba(255,255,255,0.85) 0 2px, rgba(255,255,255,0) 2px 46px),
+      repeating-linear-gradient(-62deg, rgba(255,255,255,0.7)  0 2px, rgba(255,255,255,0) 2px 62px);
+  }
+
+  .search {
+    position: absolute;
+    left: 24px; top: 24px;          /* 264 in screen points, the sheet sits at 240 */
+    width: 327px; height: 48px;
+    background: #fff;
+    border-radius: 24px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 260ms ease 0ms, transform 380ms cubic-bezier(0.16, 1, 0.3, 1) 0ms;
+  }
+  body.step3 .search { opacity: 1; transform: none; transition-delay: 700ms; }
+  .search svg { position: absolute; left: 16px; top: 16px; width: 16px; height: 16px; }
+  .search .q {
+    position: absolute; left: 48px; top: 15px;
+    font-size: 14px; line-height: 18px;
+    color: #000;
+    white-space: nowrap;
+  }
+  .search .q.empty { color: #717171; }
+  .search .caret {
+    display: none;
+    width: 1px; height: 16px;
+    margin-left: 1px;
+    background: #222;
+    vertical-align: -3px;
+  }
+  .search.typing .caret { display: inline-block; animation: blink 1s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* the pin drops on the map's centre, which is what the fly-to lands on */
+  .pin {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 30px; height: 30px;
+    margin-left: -15px;
+    margin-top: -30px;              /* the tip sits on the centre point */
+    opacity: 0;
+    transform: translateY(-46px);
+  }
+  .pin svg { width: 30px; height: 30px; display: block; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.3)); }
+  .pin.drop { animation: pinDrop 620ms cubic-bezier(0.3, 1.4, 0.5, 1) forwards; }
+  @keyframes pinDrop {
+    0%   { opacity: 0; transform: translateY(-46px); }
+    35%  { opacity: 1; }
+    70%  { transform: translateY(2px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ---- the counts page (step 4) ---- */
+  .counts { position: absolute; left: 0; top: 36px; right: 0; }
+  .count-row {
+    position: relative;
+    height: 64px;                  /* 399, 463, 527, 591 — a 64 pitch */
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 260ms ease, transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  body.step4 .count-row { opacity: 1; transform: none; }
+  body.step4 .count-row:nth-child(1) { transition-delay: 620ms; }
+  body.step4 .count-row:nth-child(2) { transition-delay: 685ms; }
+  body.step4 .count-row:nth-child(3) { transition-delay: 750ms; }
+  body.step4 .count-row:nth-child(4) { transition-delay: 815ms; }
+
+  .count-row .label { position: absolute; left: 24px; top: 0; font-size: 18px; line-height: 24px; }
+  .stepper { position: absolute; left: 247px; top: 0; width: 104px; height: 32px; }
+  .step-btn {
+    position: absolute; top: 0;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    transition: border-color 200ms ease, transform 200ms ease;
+  }
+  .step-btn.minus { left: 0;  border: 1px solid #ddd; }
+  .step-btn.plus  { left: 72px; border: 1px solid #222; }
+  .step-btn svg { width: 12px; height: 12px; display: block; }
+  .step-btn.minus svg { stroke: #ddd; }
+  .step-btn.plus  svg { stroke: #222; }
+  .step-btn.live.minus { border-color: #717171; }
+  .step-btn.live.minus svg { stroke: #717171; }
+  .step-btn.tap { animation: btnTap 320ms cubic-bezier(0.3, 1.4, 0.5, 1); }
+  @keyframes btnTap { 0% { transform: scale(1); } 40% { transform: scale(0.82); } 100% { transform: scale(1); } }
+  .stepper .n {
+    position: absolute; left: 32px; top: 6px;
+    width: 40px;
+    text-align: center;
+    font-size: 16px; line-height: 20px;
+    color: #222;
+  }
+
+  /* ---- the amenities page (step 5) ---- */
+  .amen {
+    position: absolute;
+    left: 0; top: 0;
+    width: 375px; height: 492px;   /* 221 -> 713, the sheet's run above the footer */
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 320ms ease 0ms;
+  }
+  body.step5 .amen { opacity: 1; transition: opacity 400ms ease 500ms; }
+  .amen-scroll {
+    position: absolute; left: 0; top: 0; right: 0;
+    transform: translateY(0);
+    transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .amen-head {
+    position: absolute; left: 24px;
+    font-size: 16px; line-height: 20px;
+    color: #222;
+    white-space: nowrap;
+  }
+  .amen-card {
+    position: absolute;
+    width: 158px; height: 110px;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px #ddd;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 8px;
+    text-align: center;
+    transition: box-shadow 200ms ease, background 200ms ease, transform 260ms cubic-bezier(0.3, 1.4, 0.5, 1);
+  }
+  .amen-card .ic {
+    width: 24px; height: 24px;
+    background: #222;
+    -webkit-mask: var(--ic) center / contain no-repeat;
+    mask: var(--ic) center / contain no-repeat;
+  }
+  .amen-card .t { font-size: 14px; line-height: 18px; color: #222; padding: 0 12px; }
+  .amen-card.on {
+    background: #f7f7f7;
+    box-shadow: inset 0 0 0 2px #222;
+  }
+  .amen-card.pop { transform: scale(0.94); }
+
+  /* ---- footer ---- */
+  .footer { position: absolute; left: 0; top: 712px; width: 375px; height: 100px; background: #fff; }
+  .track  { position: absolute; left: 0; top: 0; width: 375px; height: 3px; background: #ebebeb; }
+  .fill {
+    position: absolute; left: 0; top: 0;
+    width: var(--progress, 34px); height: 3px;
+    background: #000;
+    border-radius: 0 10px 10px 0;
+    transition: width 620ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .back {
+    position: absolute; left: 24px; top: 33px;
+    font-size: 16px; line-height: 20px;
+    text-decoration: underline;
+    text-underline-position: from-font;
+  }
+  .next {
+    position: absolute; left: 266px; top: 19px;
+    width: 85px; height: 48px;
+    display: grid; place-items: center;
+    background: #222; color: #fff;
+    border-radius: 8px;
+    font-size: 16px; line-height: 20px;
+    transform-origin: 50% 50%;
+    transition: background 280ms ease 320ms, color 280ms ease 320ms;
+  }
+  /* squashes in, overshoots on the way back — meant to be seen from the back row */
+  @keyframes tapPress {
+    0%   { transform: scale(1); }
+    26%  { transform: scale(0.84); }
+    58%  { transform: scale(1.08); }
+    80%  { transform: scale(0.98); }
+    100% { transform: scale(1); }
+  }
+  .next.press { animation: tapPress 480ms cubic-bezier(0.33, 0.9, 0.35, 1); }
+  body.step2 .next, body.step3 .next { background: #ddd; color: #a8a8a8; }  /* nothing chosen yet */
+
+  @media (prefers-reduced-motion: reduce) {
+    .sheet, .list, .row, .fill, .title { transition: none; }
+    .next.press { animation: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="slide">
+    <div class="phone">
+      <div class="screen">
+        <div class="ui" id="ui">
+          <div class="gradient"></div>
+
+          <div class="status">
+            <div class="time">9:41</div>
+            <svg class="signal" viewBox="0 0 17 11" fill="#fff" aria-hidden="true">
+              <rect x="0"   y="7.5" width="3" height="3.5" rx="1"/>
+              <rect x="4.7" y="5"   width="3" height="6"   rx="1"/>
+              <rect x="9.3" y="2.5" width="3" height="8.5" rx="1"/>
+              <rect x="14"  y="0"   width="3" height="11"  rx="1"/>
+            </svg>
+            <svg class="wifi" viewBox="0 0 15.3 11" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+              <path d="M1 3.6a10 10 0 0 1 13.3 0"/>
+              <path d="M3.5 6.5a6.3 6.3 0 0 1 8.3 0"/>
+              <path d="M6 9.3a2.6 2.6 0 0 1 3.3 0"/>
+            </svg>
+            <svg class="battery" viewBox="0 0 24.3 11.3" fill="none" aria-hidden="true">
+              <rect x="0.6" y="0.6" width="20.5" height="10.1" rx="3" stroke="#fff" stroke-opacity="0.45" stroke-width="1.1"/>
+              <rect x="2.1" y="2.1" width="17.5" height="7.1" rx="1.9" fill="#fff"/>
+              <path d="M22.7 4.1c.9.35.9 2.75 0 3.1z" fill="#fff" fill-opacity="0.45"/>
+            </svg>
+          </div>
+
+          <div class="glass close">
+            <svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <path d="M3 3l10 10M13 3L3 13"/>
+            </svg>
+          </div>
+          <div class="glass help">Help</div>
+
+          <h1 class="title title-1">What kind of place will you host?</h1>
+          <h1 class="title title-2">What kind of space will guests have?</h1>
+          <h1 class="title title-3">Where&rsquo;s your place located?</h1>
+          <h1 class="title title-4">How many guests would you like to welcome?</h1>
+          <h1 class="title title-5">Let guests know what your place has to offer</h1>
+
+          <div class="sheet" id="sheet">
+            <div class="list list-1">
+              <div class="row"><span class="label">Apartment</span><img src="assets/host-setup/t-apartment.webp" alt=""></div>
+              <div class="row"><span class="label">House</span><img src="assets/host-setup/t-house.webp" alt=""></div>
+              <div class="row"><span class="label">Secondary unit</span><img src="assets/host-setup/t-secondary.webp" alt=""></div>
+              <div class="row"><span class="label">Unique space</span><img src="assets/host-setup/t-unique.webp" alt=""></div>
+              <div class="row"><span class="label">Bed and breakfast</span><img src="assets/host-setup/t-bnb.webp" alt=""></div>
+              <div class="row"><span class="label">Boutique hotel</span><img src="assets/host-setup/t-boutique.webp" alt=""></div>
+            </div>
+            <!-- step 5: every amenity, straight from the DLS set -->
+            <div class="amen">
+              <div class="amen-scroll" id="amenScroll">
+                <div class="amen-head" style="top:32px">Do you have any standout amenities?</div>
+                <div class="amen-card" data-i="0" style="left:24px;top:68px;--ic:url(assets/host-setup/amenities/pool.svg)"><i class="ic"></i><span class="t">Pool</span></div>
+                <div class="amen-card" data-i="1" style="left:193px;top:68px;--ic:url(assets/host-setup/amenities/hottub.svg)"><i class="ic"></i><span class="t">Hot tub</span></div>
+                <div class="amen-card" data-i="2" style="left:24px;top:190px;--ic:url(assets/host-setup/amenities/patio.svg)"><i class="ic"></i><span class="t">Patio</span></div>
+                <div class="amen-card" data-i="3" style="left:193px;top:190px;--ic:url(assets/host-setup/amenities/bbq.svg)"><i class="ic"></i><span class="t">BBQ grill</span></div>
+                <div class="amen-card" data-i="4" style="left:24px;top:312px;--ic:url(assets/host-setup/amenities/firepit.svg)"><i class="ic"></i><span class="t">Firepit</span></div>
+                <div class="amen-card" data-i="5" style="left:193px;top:312px;--ic:url(assets/host-setup/amenities/pooltable.svg)"><i class="ic"></i><span class="t">Pool table</span></div>
+                <div class="amen-card" data-i="6" style="left:24px;top:434px;--ic:url(assets/host-setup/amenities/fireplace.svg)"><i class="ic"></i><span class="t">Indoor fireplace</span></div>
+                <div class="amen-card" data-i="7" style="left:193px;top:434px;--ic:url(assets/host-setup/amenities/outdoordining.svg)"><i class="ic"></i><span class="t">Outdoor dining area</span></div>
+                <div class="amen-card" data-i="8" style="left:24px;top:556px;--ic:url(assets/host-setup/amenities/gym.svg)"><i class="ic"></i><span class="t">Excercise equipment</span></div>
+                <div class="amen-head" style="top:718px">What about these guest favorites?</div>
+                <div class="amen-card" data-i="9" style="left:24px;top:754px;--ic:url(assets/host-setup/amenities/wifi.svg)"><i class="ic"></i><span class="t">Wifi</span></div>
+                <div class="amen-card" data-i="10" style="left:193px;top:754px;--ic:url(assets/host-setup/amenities/tv.svg)"><i class="ic"></i><span class="t">TV</span></div>
+                <div class="amen-card" data-i="11" style="left:24px;top:876px;--ic:url(assets/host-setup/amenities/kitchen.svg)"><i class="ic"></i><span class="t">Kitchen</span></div>
+                <div class="amen-card" data-i="12" style="left:193px;top:876px;--ic:url(assets/host-setup/amenities/washer.svg)"><i class="ic"></i><span class="t">Washer</span></div>
+                <div class="amen-card" data-i="13" style="left:24px;top:998px;--ic:url(assets/host-setup/amenities/parking-free.svg)"><i class="ic"></i><span class="t">Free parking on premises</span></div>
+                <div class="amen-card" data-i="14" style="left:193px;top:998px;--ic:url(assets/host-setup/amenities/parking-paid.svg)"><i class="ic"></i><span class="t">Paid parking on premises</span></div>
+                <div class="amen-card" data-i="15" style="left:24px;top:1120px;--ic:url(assets/host-setup/amenities/ac.svg)"><i class="ic"></i><span class="t">Air conditioning</span></div>
+                <div class="amen-card" data-i="16" style="left:193px;top:1120px;--ic:url(assets/host-setup/amenities/workspace.svg)"><i class="ic"></i><span class="t">Dedicated workspace</span></div>
+                <div class="amen-card" data-i="17" style="left:24px;top:1242px;--ic:url(assets/host-setup/amenities/shower.svg)"><i class="ic"></i><span class="t">Outdoor shower</span></div>
+                <div class="amen-head" style="top:1404px">Have any of these safety items?</div>
+                <div class="amen-card" data-i="18" style="left:24px;top:1440px;--ic:url(assets/host-setup/amenities/smoke.svg)"><i class="ic"></i><span class="t">Smoke alarm</span></div>
+                <div class="amen-card" data-i="19" style="left:193px;top:1440px;--ic:url(assets/host-setup/amenities/firstaid.svg)"><i class="ic"></i><span class="t">First aid kit</span></div>
+                <div class="amen-card" data-i="20" style="left:24px;top:1562px;--ic:url(assets/host-setup/amenities/co2.svg)"><i class="ic"></i><span class="t">Carbon monoxide alarm</span></div>
+                <div class="amen-card" data-i="21" style="left:193px;top:1562px;--ic:url(assets/host-setup/amenities/lock.svg)"><i class="ic"></i><span class="t">Lock on bedroom door</span></div>
+                <div class="amen-card" data-i="22" style="left:24px;top:1684px;--ic:url(assets/host-setup/amenities/extinguisher.svg)"><i class="ic"></i><span class="t">Fire extinguisher</span></div>
+              </div>
+            </div>
+
+            <!-- step 4: the counts -->
+            <div class="counts">
+              <div class="count-row">
+                <span class="label">Guests</span>
+                <div class="stepper">
+                  <div class="step-btn minus"><svg viewBox="0 0 12 12" fill="none" stroke-width="1.5" stroke-linecap="round"><path d="M1.5 6h9"/></svg></div>
+                  <span class="n">0</span>
+                  <div class="step-btn plus"><svg viewBox="0 0 12 12" fill="none" stroke-width="1.5" stroke-linecap="round"><path d="M6 1.5v9M1.5 6h9"/></svg></div>
+                </div>
+              </div>
+              <div class="count-row">
+                <span class="label">Beds</span>
+                <div class="stepper">
+                  <div class="step-btn minus"><svg viewBox="0 0 12 12" fill="none" stroke-width="1.5" stroke-linecap="round"><path d="M1.5 6h9"/></svg></div>
+                  <span class="n">0</span>
+                  <div class="step-btn plus"><svg viewBox="0 0 12 12" fill="none" stroke-width="1.5" stroke-linecap="round"><path d="M6 1.5v9M1.5 6h9"/></svg></div>
+                </div>
+              </div>
+              <div class="count-row">
+                <span class="label">Bedrooms</span>
+                <div class="stepper">
+                  <div class="step-btn minus"><svg viewBox="0 0 12 12" fill="none" stroke-width="1.5" stroke-linecap="round"><path d="M1.5 6h9"/></svg></div>
+                  <span class="n">0</span>
+                  <div class="step-btn plus"><svg viewBox="0 0 12 12" fill="none" stroke-width="1.5" stroke-linecap="round"><path d="M6 1.5v9M1.5 6h9"/></svg></div>
+                </div>
+              </div>
+              <div class="count-row">
+                <span class="label">Bathrooms</span>
+                <div class="stepper">
+                  <div class="step-btn minus"><svg viewBox="0 0 12 12" fill="none" stroke-width="1.5" stroke-linecap="round"><path d="M1.5 6h9"/></svg></div>
+                  <span class="n">0</span>
+                  <div class="step-btn plus"><svg viewBox="0 0 12 12" fill="none" stroke-width="1.5" stroke-linecap="round"><path d="M6 1.5v9M1.5 6h9"/></svg></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- step 3: the map takes the sheet over -->
+            <div class="map-page">
+              <div class="map-fallback" id="mapFallback"></div>
+              <div class="map-canvas" id="map"></div>
+              <div class="pin" id="pin">
+                <svg viewBox="0 0 16 16" fill="#222"><path d="M8 0.5C4.9625 0.5 2.5 3 2.5 6C2.5 9 4.3335 12.0835 8 15.25C11.6665 12.0835 13.5 9 13.5 6C13.5 2.9625 11.0375 0.5 8 0.5ZM8 8C7.46957 8 6.96086 7.78929 6.58579 7.41421C6.21071 7.03914 6 6.53043 6 6C6 5.46957 6.21071 4.96086 6.58579 4.58579C6.96086 4.21071 7.46957 4 8 4C8.53043 4 9.03914 4.21071 9.41421 4.58579C9.78929 4.96086 10 5.46957 10 6C10 6.53043 9.78929 7.03914 9.41421 7.41421C9.03914 7.78929 8.53043 8 8 8Z"/></svg>
+              </div>
+              <div class="search" id="search">
+                <svg viewBox="0 0 16 16" fill="#222"><path d="M8 0.5C4.9625 0.5 2.5 3 2.5 6C2.5 9 4.3335 12.0835 8 15.25C11.6665 12.0835 13.5 9 13.5 6C13.5 2.9625 11.0375 0.5 8 0.5ZM8 8C7.46957 8 6.96086 7.78929 6.58579 7.41421C6.21071 7.03914 6 6.53043 6 6C6 5.46957 6.21071 4.96086 6.58579 4.58579C6.96086 4.21071 7.46957 4 8 4C8.53043 4 9.03914 4.21071 9.41421 4.58579C9.78929 4.96086 10 5.46957 10 6C10 6.53043 9.78929 7.03914 9.41421 7.41421C9.03914 7.78929 8.53043 8 8 8Z"/></svg>
+                <span class="q empty" id="query">Enter your address</span>
+              </div>
+            </div>
+
+            <div class="list list-2">
+              <div class="row"><span class="label">An entire place</span></div>
+              <div class="row"><span class="label">A private room</span></div>
+              <div class="row"><span class="label">A shared room</span></div>
+            </div>
+          </div>
+
+          <div class="footer">
+            <div class="track"></div>
+            <div class="fill" id="fill"></div>
+            <span class="back">Back</span>
+            <div class="next">Next</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HYBRID CHROME. Everything is drawn on the PHOTO's own 900x1840 grid,
+           so the two cannot drift: the rail band is the real photograph, and
+           the screen edge, the black bezel and the island are vector.
+
+             body      16,14  868x1812  r161
+             bezel out 30,28  840x1784  r147
+             hole      49,47  802x1746  r128
+             island   322,69  256x74    r37   (125x36pt, centred, 11pt down)
+
+           The photo is clipped to everything OUTSIDE the bezel boundary, so it
+           supplies the metal and the side buttons and never touches the screen
+           edge — which is the edge that has to be exact. A vector rail sits
+           under it in the same band, so the phone still reads as metal in the
+           instant before the photograph decodes. -->
+      <svg class="chrome" viewBox="0 0 900 1840" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="rail" x1="16" y1="0" x2="884" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0"     stop-color="#8f8f8c"/>
+            <stop offset="0.035" stop-color="#ececea"/>
+            <stop offset="0.10"  stop-color="#bfbfbc"/>
+            <stop offset="0.50"  stop-color="#f2f2f0"/>
+            <stop offset="0.90"  stop-color="#bfbfbc"/>
+            <stop offset="0.965" stop-color="#ececea"/>
+            <stop offset="1"     stop-color="#8f8f8c"/>
+          </linearGradient>
+          <clipPath id="outsideBezel" clipPathUnits="userSpaceOnUse">
+            <path clip-rule="evenodd" d="
+              M-60,-60 H960 V1900 H-60 Z
+              M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/>
+          </clipPath>
+        </defs>
+
+        <!-- vector rail: body minus bezel. the fallback the photo paints over -->
+        <path fill="url(#rail)" fill-rule="evenodd" d="
+          M177,14 H723 A161,161 0 0 1 884,175 V1665 A161,161 0 0 1 723,1826 H177 A161,161 0 0 1 16,1665 V175 A161,161 0 0 1 177,14 Z
+          M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/>
+
+        <!-- the photograph, kept off the screen edge -->
+        <image href="assets/device/iphone-frame.png" x="0" y="0" width="900" height="1840"
+               clip-path="url(#outsideBezel)" preserveAspectRatio="none"/>
+
+        <!-- bezel: overlaps the clip boundary by 1 so no sliver of photo survives -->
+        <path fill="#0b0b0b" fill-rule="evenodd" d="
+          M177,27 H723 A148,148 0 0 1 871,175 V1665 A148,148 0 0 1 723,1813 H177 A148,148 0 0 1 29,1665 V175 A148,148 0 0 1 177,27 Z
+          M177,47 H723 A128,128 0 0 1 851,175 V1665 A128,128 0 0 1 723,1793 H177 A128,128 0 0 1 49,1665 V175 A128,128 0 0 1 177,47 Z"/>
+
+        <!-- Dynamic Island, drawn over the UI -->
+        <rect x="322" y="69" width="256" height="74" rx="37" fill="#000"/>
+        <circle cx="529" cy="106" r="12.7" fill="#0f1420"/>
+        <circle cx="529" cy="106" r="5.3" fill="#243046"/>
+      </svg>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // the tap-through.
+  //
+  //   0  property type, nothing chosen
+  //   1  ONE tap does the whole answer: House highlights, and 280ms later —
+  //      long enough to read as cause and effect rather than a jump-cut — the
+  //      Next button answers it. The press and the progress bar run first, the
+  //      outgoing title and list clear, the sheet drops to 363 to suit three
+  //      choices, and the choices rise in behind it.
+  //   2  same shape again: An entire place highlights, Next answers, and the
+  //      sheet comes back UP to 240 — this time carrying the map. Once it has
+  //      landed the address types itself in and the map flies to the house.
+  //   3  the counts. the sheet returns to 363 and the screen answers itself
+  //      the way the address did: the + buttons tap up to 4 / 2 / 1 / 1.
+  //   4  the amenities. all 23 cards, DLS icons straight from the Figma file,
+  //      and the list picks the 18 this house has, scrolling only when the
+  //      next pick would fall below the fold.
+  const BEATS = [
+    { step: 1, pick: null, pick2: null, progress: 34  },
+    { step: 2, pick: 1,    pick2: null, progress: 68  },
+    { step: 3, pick: 1,    pick2: 0,    progress: 102 },
+    { step: 4, pick: 1,    pick2: 0,    progress: 136 },
+    { step: 5, pick: 1,    pick2: 0,    progress: 170 },
+  ];
+  // the 18 of 23 this house actually has — the rest stay unpicked on purpose
+  const PICKS = [0, 1, 3, 4, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 22];
+  // what the counts screen fills itself in to, once it has landed
+  const COUNTS = [4, 2, 1, 1];
+  const SELECT_HOLD = 280;   // the beat between choosing and the button reacting
+
+  // --- the map ---------------------------------------------------------
+  // The token comes from assets/mapbox-config.js (window.MAPBOX_TOKEN), the
+  // same file slide 10a reads — one place to rotate it, not two. A missing
+  // config, no network at the venue, or no WebGL all land on the same quiet
+  // fallback surface below rather than a broken box.
+  const MAPBOX_TOKEN = window.MAPBOX_TOKEN || '';
+  const ADDRESS = '123 W Camino Carmelita';
+  // Mapbox forward geocode of the address, "high" match confidence:
+  // 123 Camino Carmelita, Palm Springs, California 92264
+  const HOUSE   = [-116.545925, 33.79474];
+  const START   = [-118.4200, 34.0300];   // the wide LA view the mock opens on
+
+  // 812pt of design -> whatever the hole actually measures.
+  // +1px of overscan — fractional layout can otherwise leave a hairline of the
+  // backdrop showing along the rounded edge
+  const screen = document.querySelector('.screen');
+  const ui     = document.getElementById('ui');
+  // The map must NOT be CSS-scaled with the rest of the UI: a WebGL canvas has
+  // a fixed backing store, so scaling it ~2.15x up would render the basemap
+  // soft. Instead the container is sized k times LARGER in CSS pixels and
+  // scaled back down by 1/k — same size on screen, k times the device pixels.
+  const mapEl = document.getElementById('map');
+  function fit() {
+    const k = (screen.clientHeight + 1) / 812;
+    ui.style.setProperty('--k', k);
+    mapEl.style.width  = (375 * k) + 'px';
+    mapEl.style.height = (572 * k) + 'px';
+    mapEl.style.transform = 'scale(' + (1 / k) + ')';
+    if (map) map.resize();
+  }
+  new ResizeObserver(fit).observe(screen);
+
+  const fill   = document.getElementById('fill');
+  const next   = document.querySelector('.next');
+  const search = document.getElementById('search');
+  const query  = document.getElementById('query');
+  const pin    = document.getElementById('pin');
+  const amenScroll = document.getElementById('amenScroll');
+  const amenCards  = [...document.querySelectorAll('.amen-card')];
+  const countRows  = [...document.querySelectorAll('.count-row')];
+  const rows1  = [...document.querySelectorAll('.list-1 .row')];
+  const rows2  = [...document.querySelectorAll('.list-2 .row')];
+
+  let map = null;
+  if (MAPBOX_TOKEN && window.mapboxgl && mapboxgl.supported()) {
+    try {
+      mapboxgl.accessToken = MAPBOX_TOKEN;
+      map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: START, zoom: 10.2,
+        interactive: false, attributionControl: false
+      });
+      map.on('load', () => document.getElementById('mapFallback').style.display = 'none');
+    } catch (_) { map = null; }
+  }
+  fit();   // after `map` exists — fit() resizes it, and `let` would still be in TDZ above
+
+  // --- the address sequence, once the map page has landed ---------------
+  let seq = [];
+  const at = (ms, fn) => seq.push(setTimeout(fn, ms));
+  function clearSeq() { seq.forEach(clearTimeout); seq = []; }
+
+  function resetAddress() {
+    clearSeq();
+    search.classList.remove('typing');
+    query.classList.add('empty');
+    query.textContent = 'Enter your address';
+    pin.classList.remove('drop');
+    if (map) map.jumpTo({ center: START, zoom: 10.2 });
+  }
+
+  // one absolute timeline — nesting the per-character timers inside the settle
+  // timer would double their delay
+  const T_SETTLE = 1150;                                   // let the map arrive
+  const T_TYPED  = T_SETTLE + ADDRESS.length * 55;         // last character in
+  const T_FLY    = T_TYPED + 420;
+  const T_PIN    = T_FLY + 1900;                           // as the flight settles
+
+  function runAddress() {
+    clearSeq();
+    at(T_SETTLE, () => {
+      search.classList.add('typing');
+      query.classList.remove('empty');
+      query.textContent = '';
+    });
+    ADDRESS.split('').forEach((ch, i) => {
+      at(T_SETTLE + i * 55, () => { query.textContent += ch; });
+    });
+    at(T_FLY, () => {
+      search.classList.remove('typing');
+      if (map) map.flyTo({ center: HOUSE, zoom: 17.2, duration: 2600, essential: true });
+    });
+    at(T_PIN, () => pin.classList.add('drop'));
+  }
+
+  function resetCounts() {
+    countRows.forEach(r => {
+      r.querySelector('.n').textContent = '0';
+      r.querySelector('.minus').classList.remove('live');
+    });
+  }
+
+  // the screen answers itself, the same way the address types itself
+  function runCounts() {
+    clearSeq();
+    let t = 1000;
+    COUNTS.forEach((target, row) => {
+      const el   = countRows[row];
+      const n    = el.querySelector('.n');
+      const plus = el.querySelector('.plus');
+      for (let i = 1; i <= target; i++) {
+        at(t, () => {
+          n.textContent = i;
+          el.querySelector('.minus').classList.add('live');
+          plus.classList.remove('tap'); void plus.offsetWidth; plus.classList.add('tap');
+        });
+        t += 190;
+      }
+      t += 170;                      // a breath between rows
+    });
+  }
+
+  function resetAmenities() {
+    amenCards.forEach(c => c.classList.remove('on', 'pop'));
+    amenScroll.style.transform = 'translateY(0)';
+  }
+
+  // walks the list picking what the house has, scrolling only when the next
+  // pick would otherwise be below the fold
+  const AMEN_VIEW = 492;
+  function runAmenities() {
+    clearSeq();
+    let t = 1150, scroll = 0;
+    PICKS.forEach(i => {
+      const card = amenCards[i];
+      const top  = parseFloat(card.style.top);
+      if (top + 110 > scroll + AMEN_VIEW - 16) {
+        scroll = Math.max(0, top - 120);
+        const y = scroll;
+        at(t, () => { amenScroll.style.transform = 'translateY(' + (-y) + 'px)'; });
+        t += 620;
+      }
+      at(t, () => {
+        card.classList.add('on', 'pop');
+        setTimeout(() => card.classList.remove('pop'), 180);
+      });
+      t += 210;
+    });
+  }
+
+  let beat = -1;
+  let timer = 0;
+
+  function press() {
+    next.classList.remove('press');
+    void next.offsetWidth;            // restart the keyframes
+    next.classList.add('press');
+  }
+  function commit(b, pressed) {
+    document.body.classList.toggle('step2', b.step === 2);
+    document.body.classList.toggle('step3', b.step === 3);
+    document.body.classList.toggle('step4', b.step === 4);
+    document.body.classList.toggle('step5', b.step === 5);
+    fill.style.setProperty('--progress', b.progress + 'px');
+    if (pressed) press();
+
+    clearSeq();
+    if (b.step === 3) { if (map) map.resize(); runAddress(); }
+    else resetAddress();
+    if (b.step === 4) runCounts();
+    else resetCounts();
+    if (b.step === 5) runAmenities();
+    else resetAmenities();
+  }
+
+  function apply(n) {
+    if (n === beat) return;
+    const forward = n > beat;
+    beat = n;
+    const b = BEATS[n];
+
+    clearTimeout(timer);
+    rows1.forEach((r, i) => r.classList.toggle('on', i === b.pick));
+    rows2.forEach((r, i) => r.classList.toggle('on', i === b.pick2));
+
+    // forward into an answer: the choice lands, then the button answers it
+    if (forward && b.step > 1) timer = setTimeout(() => commit(b, true), SELECT_HOLD);
+    else commit(b, false);
+  }
+  next.addEventListener('animationend', () => next.classList.remove('press'));
+  apply(0);
+
+  window.presoNext = () => { if (beat >= BEATS.length - 1) return false; apply(beat + 1); return true; };
+  window.presoPrev = () => { if (beat <= 0) return false; apply(beat - 1); return true; };
+})();
+</script>
+</body>
+</html>

@@ -4,23 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>07</title>
-<!-- The work list, and the Luxé chapter title it turns into.
+<!-- The work list, and the four projects it narrows down to.
 
-     The deck pushes this slide in from the right in the usual way — the
-     Airbnb lockup on slide 6 just slides off left.
+     The deck pushes this slide in from the right in the usual way, and pushes
+     it off left to the Luxé title — no morph, no shared element.
 
-       beat 0  the list, condensed and all black, thirteen lines sized off
-               the viewport height so they always fit
-       beat 1  the rest of the list fades away and 'Luxé' GROWS INTO the
-               chapter title — the big Anton LUXÉ starts life sitting exactly
-               on top of the list's own first line, at its size and position,
-               then travels to the centre at full size. Tapping back reverses
-               it and the list comes home.
+       beat 0  all thirteen lines, condensed and all black, sized off the
+               viewport height so they always fit
+       beat 1  a two-part move on ONE tap: the nine that aren't the story fade
+               out where they stand, and only once they are gone do the
+               remaining four close the gaps and settle as a block of four in
+               the middle of the screen.
+       beat 2  out of builds; the deck moves on to Luxé.
 
-     The two words are different faces — Special Gothic Condensed in the list,
-     Anton for the title — so the flight cross-fades between them while the
-     geometry does the work. The start transform is MEASURED, not guessed, and
-     re-measured on resize, because both ends depend on the viewport. -->
+     The four keepers' travel is MEASURED against the list's own line box, not
+     hard-coded, because the type size comes from the viewport. Tapping back
+     sends them home and brings the other nine with them. -->
 <style>
   @font-face {
     font-family: "Special Gothic Condensed One";
@@ -28,17 +27,11 @@
     font-weight: 400;
     font-display: block;
   }
-  @font-face {
-    font-family: "Anton";
-    src: url("../fonts/Anton.woff2") format("woff2");
-    font-weight: 400;
-    font-display: block;
-  }
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .slide { height: 100%; display: grid; place-items: center; }
-  .slide > * { grid-area: 1 / 1; }
 
   .list {
+    position: relative;          /* so li.offsetTop is measured against the list */
     margin: 0; padding: 0; list-style: none;
     font-family: "Special Gothic Condensed One", "Helvetica Neue", sans-serif;
     font-weight: 400;
@@ -48,91 +41,72 @@
     color: #111;
     text-align: center;
   }
-  .list li { transition: opacity 420ms ease; }
-  /* the rest of the list clears out first, so the word is left on its own */
-  body.title .list li + li { opacity: 0; }
-  /* the source word hands off to the title and goes */
-  .list li:first-child { transition: opacity 260ms ease; }
-  body.title .list li:first-child { opacity: 0; }
-
-  #big {
-    justify-self: center;
-    font-family: "Anton", "Helvetica Neue", sans-serif;
-    font-weight: 400;
-    font-size: clamp(128px, 24vw, 320px);
-    line-height: 1;
-    letter-spacing: -0.02em;   /* -2% */
-    color: #111;
-    margin: 0;
-    opacity: 0;
-    transform-origin: 50% 50%;
-    transition: transform 820ms cubic-bezier(0.16, 1, 0.3, 1), opacity 420ms ease;
-    will-change: transform;
+  .list li {
+    transition: opacity 420ms ease, transform 760ms cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
   }
-  body.title #big { opacity: 1; transform: none !important; }
+  /* the nine go first ... */
+  body.four .list li:not(.keep) { opacity: 0; }
+  /* ... and only then do the four close up, which is what the delay buys */
+  body.four .list li.keep { transform: translateY(var(--ty, 0px)); transition-delay: 0ms, 430ms; }
 
-  @media (prefers-reduced-motion: reduce) {
-    .list li, #big { transition: none; }
-  }
+  @media (prefers-reduced-motion: reduce) { .list li { transition: none; } }
 </style>
 </head>
 <body>
   <div class="slide">
-    <ul class="list">
-      <li>Lux&eacute;</li>
+    <ul class="list" id="list">
+      <li class="keep">Lux&eacute;</li>
       <li>Business travel</li>
       <li>Design systems</li>
       <li>Search</li>
-      <li>Transportation</li>
+      <li class="keep">Transportation</li>
       <li>Host tools</li>
       <li>Earnings</li>
       <li>Gift cards</li>
-      <li>Host setup</li>
+      <li class="keep">Host setup</li>
       <li>Payments</li>
       <li>Photography</li>
       <li>Pricing</li>
-      <li>Host calendar</li>
+      <li class="keep">Host calendar</li>
     </ul>
-    <h1 id="big">LUX&Eacute;</h1>
   </div>
 <script>
 (() => {
-  const src = document.querySelector('.list li:first-child');
-  const big = document.getElementById('big');
-  let shown = false;
+  const list = document.getElementById('list');
+  const keep = [...list.querySelectorAll('.keep')];
+  let closed = false;
 
-  // Park the title exactly over the list's own 'Luxé' — measured, since both
-  // the list size and the title size come from the viewport.
-  function park() {
-    if (shown) return;                       // mid-flight or landed: leave it
-    big.style.transition = 'none';
-    big.style.transform = 'none';
-    const a = src.getBoundingClientRect(), b = big.getBoundingClientRect();
-    if (!a.width || !b.width) return;        // not laid out yet
-    const s = a.width / b.width;
-    const dx = (a.left + a.width / 2) - (b.left + b.width / 2);
-    const dy = (a.top + a.height / 2) - (b.top + b.height / 2);
-    big.style.transform = `translate(${dx}px, ${dy}px) scale(${s})`;
-    void big.offsetWidth;                    // flush before transitions return
-    big.style.transition = '';
+  // Where each keeper has to travel to sit as a centred block of four.
+  // Measured off the real line box, since the type is sized from the viewport.
+  function measure() {
+    if (closed) return;                       // don't move the goalposts mid-flight
+    const rows = [...list.children];
+    const lh = rows[1].offsetTop - rows[0].offsetTop;
+    if (!lh) return;                          // not laid out yet
+    const mid = list.offsetHeight / 2;
+    keep.forEach((el, i) => {
+      const target = mid - (keep.length / 2 - i) * lh;   // block of four, centred
+      el.style.setProperty('--ty', (target - el.offsetTop) + 'px');
+    });
   }
 
-  (document.fonts ? document.fonts.ready : Promise.resolve()).then(park);
-  setTimeout(park, 1200);                    // backstop if fonts never settle
-  addEventListener('resize', park);
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(measure);
+  setTimeout(measure, 1200);                  // backstop if fonts never settle
+  addEventListener('resize', measure);
 
   window.presoNext = () => {
-    if (shown) return false;                 // out of builds — on to Villa Mayana
-    park();
-    shown = true;
-    document.body.classList.add('title');
+    if (closed) return false;                 // out of builds — on to Luxé
+    measure();
+    closed = true;
+    document.body.classList.add('four');
     return true;
   };
   window.presoPrev = () => {
-    if (!shown) return false;                // the deck goes back to the lockup
-    shown = false;
-    document.body.classList.remove('title');
-    park();                                  // fly home to the list line
+    if (!closed) return false;                // the deck goes back to the lockup
+    closed = false;
+    document.body.classList.remove('four');
+    measure();
     return true;
   };
 })();
