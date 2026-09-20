@@ -25,10 +25,8 @@
     display: grid;
     place-items: center;
   }
-  /* the I + Loves — pure #FF0000 red, and the 2nd/3rd Love fade in, in place */
+  /* the growing Love — pure #FF0000 red against the black type */
   .rl { color: #FF0000; }
-  .lv { opacity: 0; transition: opacity 480ms ease; }
-  .lv.in { opacity: 1; }
   h1 {
     font-family: "Anton", "Helvetica Neue", sans-serif;
     font-weight: 400;
@@ -43,18 +41,27 @@
 </head>
 <body>
   <div class="slide">
-    <h1>I&rsquo;m John Yum and<br><span class="rl">I Love</span><span class="rl lv"> Love</span><span class="rl lv"> Love</span> to design.</h1>
+    <h1>I&rsquo;m John Yum and<br>I <span class="rl">L<span id="o">o</span>ve</span> to design.</h1>
   </div>
 <script>
 (() => {
-  const loves = [...document.querySelectorAll('.lv')];
+  const o = document.getElementById('o');
+  const MAX = 10;                 // Love -> Loooooooooove
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    loves.forEach(el => el.classList.add('in'));
+    o.textContent = 'o'.repeat(MAX);
     return;
   }
-  // land, hold the beat, then each Love dissolves in
-  setTimeout(() => loves[0].classList.add('in'), 1100);
-  setTimeout(() => loves[1].classList.add('in'), 1660);
+  // the deck pushes this slide in over ~640ms after load — hold the beat,
+  // then grow, each o landing a little sooner than the last
+  let n = 1, delay = 240;
+  setTimeout(function tick() {
+    n++;
+    o.textContent = 'o'.repeat(n);
+    if (n < MAX) {
+      delay = Math.max(80, delay * 0.86);
+      setTimeout(tick, delay);
+    }
+  }, 1100);
 })();
 </script>
 </body>
