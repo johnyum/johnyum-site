@@ -25,9 +25,6 @@
     display: grid;
     place-items: center;
   }
-  /* the growing Love — starts black; the script walks it to #FF0000,
-     one shade per added o, and it stays red after the rewind */
-  .rl { color: #111; }
   h1 {
     font-family: "Anton", "Helvetica Neue", sans-serif;
     font-weight: 400;
@@ -42,34 +39,22 @@
 </head>
 <body>
   <div class="slide">
-    <h1>I&rsquo;m John Yum and<br>I <span class="rl">L<span id="o">o</span>ve</span> to design.</h1>
+    <h1>I&rsquo;m John Yum and<br>I L<span id="o">o</span>ve to design.</h1>
   </div>
 <script>
 (() => {
   const o = document.getElementById('o');
-  const rl = document.querySelector('.rl');
   const MAX = 10;                 // Love -> Loooooooooove
-  // black #111 -> red #FF0000, one shade per added o
-  const shade = n => {
-    const t = (n - 1) / (MAX - 1);
-    const r = Math.round(17 + (255 - 17) * t);
-    const g = Math.round(17 * (1 - t));
-    return 'rgb(' + r + ',' + g + ',' + g + ')';
-  };
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    rl.style.color = shade(MAX);          // ends: 'Love', red
-    return;
-  }
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;   // rests as 'Love'
   let n = 1, delay = 240;
   setTimeout(function grow() {
     n++;
     o.textContent = 'o'.repeat(n);
-    rl.style.color = shade(n);
     if (n < MAX) {
       delay = Math.max(80, delay * 0.86);
       setTimeout(grow, delay);
     } else {
-      // fully red. take a beat, then rewind QUICK — the red stays.
+      // full stretch. take a beat, then rewind QUICK.
       setTimeout(function shrink() {
         n--;
         o.textContent = 'o'.repeat(n);
