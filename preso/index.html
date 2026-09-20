@@ -11,8 +11,7 @@
 
   Slides are FULL-BLEED HTML PAGES you build by hand — the viewport is the
   bounding box, there is no fixed canvas. Each slide is its own self-contained
-  file in preso/slides/ (same ethos as the rest of the repo: one hand-written
-  html per thing). Images and MP4s drop in as slides too, if ever needed.
+  file in preso/slides/. Images and MP4s drop in as slides too.
 
   ADDING A SLIDE
   1. Duplicate slides/01.html (or add a .png/.jpg/.mp4) into preso/slides/.
@@ -21,18 +20,35 @@
      python3 -c "import os,json;open('manifest.json','w').write(json.dumps(sorted(f for f in os.listdir('.') if f.lower().endswith(('.html','.png','.jpg','.jpeg','.webp','.gif','.mp4','.webm','.mov')))))"
   3. Push. johnyum.com/preso plays it.
 
+  MOTION
+  Slides PUSH: the outgoing slide flows off, the incoming one flows in and
+  lands centre (640ms expo-out). Honors prefers-reduced-motion (hard cut).
+
+  BUILDS (Keynote-style, for live-demo slides like the calendar deep-dive)
+  A slide that steps through its own animations claims the taps by defining,
+  in its own script:
+      window.presoNext = () => { advance a build; return true }
+      window.presoPrev = () => { reverse a build; return true }
+  Return true  = "I consumed that step, stay on me."
+  Return false = "out of builds" — the deck moves to the next/previous slide.
+  Slides without these hooks just advance normally.
+
   DRIVING IT
-  →  ␣  ⏎  PgDn   next        (PgUp/PgDn = presenter clickers)
-  ←  PgUp         back
-  Home / End      first / last
+  →  ␣  ⏎  PgDn   next build, else next slide   (PgUp/PgDn = clickers)
+  ←  PgUp         previous build, else previous slide
+  Home / End      first / last slide
   F               fullscreen
   Taps            image/video slides: left side back, right side forward.
                   HTML slides stay fully interactive — only a 32px rail on each
                   edge advances, so a live prototype can be driven mid-deck.
   #n in the URL   deep-link straight to slide n; position survives refresh.
 
-  Keys keep working even when focus is inside an HTML slide: same-origin
-  iframes get the deck's key handler injected on load.
+  Keys keep working with focus inside an HTML slide: same-origin iframes get
+  the deck's key handler injected on load.
+
+  CHROME: the 'Work 2026' kicker (top 32px) and the counter (bottom 32px) are
+  DECK chrome — IBM Plex Mono 12px grey 600 — they hold still while slides
+  flow underneath.
 -->
 <style>
   @font-face {
@@ -48,27 +64,27 @@
     overflow: hidden;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     color: #111;
-    letter-spacing: -0.01em;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
   }
   #stage { position: fixed; inset: 0; background: #fff; }
-  /* html slides: the viewport IS the slide */
-  #stage iframe {
+  .pane {
+    position: absolute; inset: 0;
+    background: #fff;
+    will-change: transform;
+  }
+  .pane iframe {
     position: absolute; inset: 0;
     width: 100%; height: 100%;
     border: 0; display: block;
     background: #fff;
   }
-  /* image / video slides: centred, never cropped */
-  #stage img, #stage video {
+  .pane img, .pane video {
     position: absolute; inset: 0; margin: auto;
     max-width: 100%; max-height: 100%;
     width: auto; height: auto;
   }
 
-  /* tap zones. Image/video slides: big halves. HTML slides (body.htmlslide):
-     slim edge rails so the slide itself stays fully interactive. */
   #tapback, #tapnext {
     position: fixed; top: 0; bottom: 0;
     z-index: 10;
@@ -79,18 +95,25 @@
   body.htmlslide #tapback { width: 32px; }
   body.htmlslide #tapnext { width: 32px; }
 
+  /* deck chrome — holds still while slides flow underneath */
+  #kicker {
+    position: fixed;
+    top: 32px; left: 0; right: 0;
+    text-align: center;
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 12px;
+    line-height: 1;
+    color: #8C8C8C;
+    pointer-events: none;
+    z-index: 20;
+  }
   #counter {
     position: fixed;
-    bottom: 24px; left: 50%;
+    bottom: 32px; left: 50%;
     transform: translateX(-50%);
     font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
-    font-size: 14px;
+    font-size: 12px;
     line-height: 1;
-    padding: 8px 14px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.72);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    backdrop-filter: blur(20px) saturate(180%);
     color: #8C8C8C;
     font-variant-numeric: tabular-nums;
     opacity: 0;
@@ -131,6 +154,7 @@
   <div id="stage" aria-live="polite"></div>
   <div id="tapback" aria-hidden="true"></div>
   <div id="tapnext" aria-hidden="true"></div>
+  <div id="kicker" aria-hidden="true">Work 2026</div>
   <div id="counter" aria-hidden="true"></div>
   <div id="empty">
     <div>
@@ -149,15 +173,21 @@
   const VID  = /\.(mp4|webm|mov)$/i;
   const HTML = /\.html?$/i;
 
+  const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';   // expo-out: flows in, LANDS
+  const DUR  = 640;
+  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   let SLIDES = [];
   let idx = 0;
+  let current = null;        // { pane, frame|null }
+  let moving = false;
   const cache = new Map();
 
   const src = i => 'slides/' + encodeURIComponent(SLIDES[i]);
 
   function preload(i) {
     if (i < 0 || i >= SLIDES.length || cache.has(i)) return;
-    if (VID.test(SLIDES[i]) || HTML.test(SLIDES[i])) return;   // only images preload
+    if (VID.test(SLIDES[i]) || HTML.test(SLIDES[i])) return;
     const im = new Image();
     im.src = src(i);
     cache.set(i, im);
@@ -171,56 +201,123 @@
     hideTimer = setTimeout(() => counter.classList.remove('show'), 1600);
   }
 
-  function render() {
-    stage.textContent = '';
-    const f = SLIDES[idx];
-    let el;
+  // build one slide's pane; `ready` resolves when it can be shown without
+  // flashing white (iframe loaded / image decoded), capped so a slow asset
+  // can never stall the show
+  function makePane(i) {
+    const pane = document.createElement('div');
+    pane.className = 'pane';
+    const f = SLIDES[i];
+    let frame = null, ready;
     if (HTML.test(f)) {
-      document.body.classList.add('htmlslide');
-      el = document.createElement('iframe');
-      el.src = src(idx);
-      el.setAttribute('title', 'slide ' + (idx + 1));
-      // keys must survive focus living INSIDE the slide (e.g. mid-demo of the
-      // calendar): same-origin, so wire the deck's handler into the frame.
-      el.addEventListener('load', () => {
-        try { el.contentWindow.addEventListener('keydown', onKey); } catch (_) {}
+      frame = document.createElement('iframe');
+      frame.src = src(i);
+      frame.setAttribute('title', 'slide ' + (i + 1));
+      ready = new Promise(res => {
+        frame.addEventListener('load', () => {
+          try { frame.contentWindow.addEventListener('keydown', onKey); } catch (_) {}
+          res();
+        });
+        setTimeout(res, 400);
       });
+      pane.appendChild(frame);
     } else if (VID.test(f)) {
-      document.body.classList.remove('htmlslide');
-      el = document.createElement('video');
-      el.src = src(idx);
-      el.muted = true; el.loop = true; el.autoplay = true;
-      el.playsInline = true; el.setAttribute('playsinline', '');
-      el.play && el.play().catch(() => {});
+      const v = document.createElement('video');
+      v.src = src(i);
+      v.muted = true; v.loop = true; v.autoplay = true;
+      v.playsInline = true; v.setAttribute('playsinline', '');
+      v.play && v.play().catch(() => {});
+      ready = new Promise(res => { v.addEventListener('canplay', res, { once: true }); setTimeout(res, 400); });
+      pane.appendChild(v);
     } else {
-      document.body.classList.remove('htmlslide');
-      el = document.createElement('img');
-      el.src = src(idx);
-      el.alt = '';
+      const im = document.createElement('img');
+      im.src = src(i);
+      im.alt = ''; im.draggable = false;
+      ready = (im.decode ? im.decode().catch(() => {}) : Promise.resolve());
+      pane.appendChild(im);
     }
-    stage.appendChild(el);
-    history.replaceState(null, '', '#' + (idx + 1));
-    flashCounter();
-    preload(idx + 1); preload(idx + 2); preload(idx - 1);
+    return { pane, frame, ready };
   }
 
-  function go(delta) {
-    const n = Math.min(SLIDES.length - 1, Math.max(0, idx + delta));
-    if (n === idx) { flashCounter(); return; }
-    idx = n;
-    render();
+  function settle(i, made) {
+    current = made;
+    idx = i;
+    document.body.classList.toggle('htmlslide', HTML.test(SLIDES[i]));
+    history.replaceState(null, '', '#' + (i + 1));
+    flashCounter();
+    preload(i + 1); preload(i + 2); preload(i - 1);
   }
-  function goTo(n) { idx = Math.min(SLIDES.length - 1, Math.max(0, n)); render(); }
+
+  function show(i) {                      // first paint: no motion
+    const made = makePane(i);
+    stage.appendChild(made.pane);
+    settle(i, made);
+  }
+
+  async function transitionTo(i, dir) {   // the push: off one way, land centre
+    moving = true;
+    const outgoing = current;
+    const made = makePane(i);
+    made.pane.style.transform = 'translateX(' + (dir > 0 ? 100 : -100) + '%)';
+    stage.appendChild(made.pane);
+    settle(i, made);
+    await made.ready;
+    if (REDUCED) {
+      made.pane.style.transform = '';
+      if (outgoing) outgoing.pane.remove();
+      moving = false;
+      return;
+    }
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const t = 'transform ' + DUR + 'ms ' + EASE;
+      made.pane.style.transition = t;
+      made.pane.style.transform = 'translateX(0)';
+      if (outgoing) {
+        outgoing.pane.style.transition = t;
+        outgoing.pane.style.transform = 'translateX(' + (dir > 0 ? -100 : 100) + '%)';
+      }
+    }));
+    setTimeout(() => {
+      if (outgoing) outgoing.pane.remove();
+      made.pane.style.transition = '';
+      made.pane.style.willChange = 'auto';
+      moving = false;
+    }, DUR + 60);
+  }
+
+  // a build-capable slide (window.presoNext / presoPrev) owns the step first
+  function slideConsumes(dir) {
+    if (!current || !current.frame) return false;
+    try {
+      const w = current.frame.contentWindow;
+      const fn = dir > 0 ? w.presoNext : w.presoPrev;
+      return !!(fn && fn());
+    } catch (_) { return false; }
+  }
+
+  function navigate(dir) {
+    if (!SLIDES.length || moving) return;
+    if (slideConsumes(dir)) return;
+    const n = Math.min(SLIDES.length - 1, Math.max(0, idx + dir));
+    if (n === idx) { flashCounter(); return; }
+    transitionTo(n, dir);
+  }
+  function jumpTo(n) {
+    if (!SLIDES.length || moving) return;
+    n = Math.min(SLIDES.length - 1, Math.max(0, n));
+    if (n === idx) { flashCounter(); return; }
+    transitionTo(n, n > idx ? 1 : -1);
+  }
 
   function onKey(e) {
     if (!SLIDES.length) return;
     switch (e.key) {
       case 'ArrowRight': case ' ': case 'Enter': case 'PageDown': case 'ArrowDown':
-        e.preventDefault(); go(1); break;
+        e.preventDefault(); navigate(1); break;
       case 'ArrowLeft': case 'PageUp': case 'ArrowUp':
-        e.preventDefault(); go(-1); break;
-      case 'Home': e.preventDefault(); goTo(0); break;
-      case 'End':  e.preventDefault(); goTo(SLIDES.length - 1); break;
+        e.preventDefault(); navigate(-1); break;
+      case 'Home': e.preventDefault(); jumpTo(0); break;
+      case 'End':  e.preventDefault(); jumpTo(SLIDES.length - 1); break;
       case 'f': case 'F':
         (document.fullscreenElement ? document.exitFullscreen()
                                     : document.documentElement.requestFullscreen()).catch(() => {});
@@ -229,14 +326,13 @@
   }
   addEventListener('keydown', onKey);
 
-  // editing the #n by hand (or navigating history) jumps live — no reload needed
   addEventListener('hashchange', () => {
     const h = parseInt(location.hash.slice(1), 10);
-    if (h >= 1 && h <= SLIDES.length && h - 1 !== idx) goTo(h - 1);
+    if (h >= 1 && h <= SLIDES.length && h - 1 !== idx) jumpTo(h - 1);
   });
 
-  document.getElementById('tapnext').addEventListener('click', () => go(1));
-  document.getElementById('tapback').addEventListener('click', () => go(-1));
+  document.getElementById('tapnext').addEventListener('click', () => navigate(1));
+  document.getElementById('tapback').addEventListener('click', () => navigate(-1));
 
   let cursorTimer = 0;
   addEventListener('pointermove', () => {
@@ -252,8 +348,7 @@
       SLIDES = Array.isArray(list) ? list : [];
       if (!SLIDES.length) { empty.classList.add('show'); return; }
       const h = parseInt(location.hash.slice(1), 10);
-      idx = (h >= 1 && h <= SLIDES.length) ? h - 1 : 0;
-      render();
+      show((h >= 1 && h <= SLIDES.length) ? h - 1 : 0);
     });
 })();
 </script>
