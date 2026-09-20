@@ -220,6 +220,7 @@
       frame.setAttribute('title', 'slide ' + (i + 1));
       ready = new Promise(res => {
         frame.addEventListener('load', () => {
+          frame._loaded = true;
           try {
             frame.contentWindow.addEventListener('keydown', onKey);
             if (current && current.frame === frame)
@@ -329,6 +330,11 @@
 
   function slideConsumes(dir) {
     if (!current || !current.frame) return false;
+    // An HTML slide that has not run its script yet cannot answer for its own
+    // builds, and answering "no" would SKIP them — slide 07's list would jump
+    // straight to Luxé. Swallow the tap instead; it is a sub-second window and
+    // a lost tap is far cheaper than a lost build.
+    if (!current.frame._loaded) return true;
     try {
       const w = current.frame.contentWindow;
       const fn = dir > 0 ? w.presoNext : w.presoPrev;
@@ -342,7 +348,11 @@
       const n = Math.min(SLIDES.length - 1, Math.max(0, idx + dir));
       if (n === idx) { flashCounter(); return; }
       if (n === flight.fromIdx && flight.out) { reverseFlight(); return; }
-      snapFlight();                        // rapid same-direction: cut, then fly on
+      snapFlight();                        // rapid same-direction: cut, then ...
+      // ... ask the slide that just landed whether this tap is one of ITS
+      // builds. Without this, any tap inside the 640ms push skipped the
+      // incoming slide's builds altogether and flew on to the next slide.
+      if (slideConsumes(dir)) return;
       transitionTo(n, dir);
       return;
     }

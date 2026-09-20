@@ -100,9 +100,14 @@
   /* ---- the UI, in Airbnb's own points ---- */
   .ui {
     position: absolute;
-    top: 0; left: 0; right: 0;
+    top: 0; left: 50%;
     width: 375px; height: 812px;
-    margin: 0 auto;                  /* centre the unscaled box, then scale about it */
+    /* Centre on the 50% line with a HALF-WIDTH margin, not `margin: 0 auto`.
+       Auto margins silently collapse to 0 once the box is wider than its
+       containing block — which is exactly what happens on smaller screens —
+       and the scale then pulls everything off to one side. margin-left is
+       unconditional, so it centres at every size. */
+    margin-left: -187.5px;
     transform: scale(var(--k, 1));
     transform-origin: top center;
     font-family: 'Cereal', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -183,6 +188,9 @@
   }
   /* the delays live in BOTH states, so the sequence reads the same either way */
   .title-1 { top: 148px; opacity: 1; transition: opacity 260ms ease 620ms; }
+  .title-1b { top: 148px; opacity: 0; transition: opacity 200ms ease 0ms; }
+  body.step1b .title-1 { opacity: 0; transition: opacity 200ms ease 0ms; }
+  body.step1b .title-1b { opacity: 1; transition: opacity 300ms ease 600ms; }
   .title-2 { top: 271px; opacity: 0; transition: opacity 200ms ease 0ms; }
   .title-3 { top: 148px; opacity: 0; transition: opacity 200ms ease 0ms; }
   body.step2 .title-1, body.step3 .title-1 { opacity: 0; transition: opacity 200ms ease 0ms; }
@@ -194,6 +202,19 @@
   .title-5 { top: 140px; opacity: 0; transition: opacity 200ms ease 0ms; }
   body.step5 .title-1, body.step5 .title-2, body.step5 .title-3, body.step5 .title-4 { opacity: 0; transition: opacity 200ms ease 0ms; }
   body.step5 .title-5 { opacity: 1; transition: opacity 300ms ease 600ms; }
+  .title-6 { top: 317px; width: 268px; opacity: 0; transition: opacity 200ms ease 0ms; }
+  body.step6 .title-1, body.step6 .title-2, body.step6 .title-3,
+  body.step6 .title-4, body.step6 .title-5 { opacity: 0; transition: opacity 200ms ease 0ms; }
+  body.step6 .title-6 { opacity: 1; transition: opacity 300ms ease 600ms; }
+  body.step0 .title-1, body.step7 .title-1, body.step8 .title-1,
+  body.step9 .title-1, body.step10 .title-1 { opacity: 0; transition: opacity 200ms ease 0ms; }
+  .title-7 { top: 322px; width: 290px; opacity: 0; transition: opacity 200ms ease 0ms; }
+  .title-8 { top: 312px; width: 290px; opacity: 0; transition: opacity 200ms ease 0ms; }
+  .title-9 { top: 196px; opacity: 0; transition: opacity 200ms ease 0ms; }
+  .title-10 { top: 130px; opacity: 0; transition: opacity 200ms ease 0ms; }
+  .sub-10 { position: absolute; left: 24px; top: 178px; width: 330px; margin: 0; font-size: 16px; line-height: 22px; font-weight: 400; color: rgba(255,255,255,0.92); opacity: 0; transition: opacity 200ms ease 0ms; }
+  body.step7 .title-7, body.step8 .title-8, body.step9 .title-9,
+  body.step10 .title-10, body.step10 .sub-10 { opacity: 1; transition: opacity 300ms ease 600ms; }
 
   /* ---- the sheet ---- */
   .sheet {
@@ -208,14 +229,27 @@
     transition: transform 560ms cubic-bezier(0.16, 1, 0.3, 1) 220ms;
     will-change: transform;
   }
+  body.step1b .sheet { transform: translateY(240px); }
   body.step2 .sheet { transform: translateY(363px); }
   body.step3 .sheet { transform: translateY(240px); }
   body.step4 .sheet { transform: translateY(363px); }
   body.step5 .sheet { transform: translateY(221px); }
+  /* once the list starts running, the sheet climbs over the title and settles
+     24 under the X / Help row (which is 48 + 32 tall) */
+  body.step5.grown .sheet { transform: translateY(104px); }
+  body.step5.grown .title-5 { opacity: 0; transition: opacity 260ms ease 0ms; }
+  body.step6 .sheet { transform: translateY(409px); }
+  body.step7 .sheet { transform: translateY(414px); }
+  body.step8 .sheet { transform: translateY(410px); }
+  body.step9 .sheet { transform: translateY(265px); }
+  body.step10 .sheet { transform: translateY(245px); }
+  body.step0 .sheet { transform: translateY(455px); }
 
   .list { position: absolute; left: 0; top: 32px; right: 0; }
   .list-1 { opacity: 1; transition: opacity 260ms ease 620ms; }
-  body.step2 .list-1, body.step3 .list-1, body.step4 .list-1, body.step5 .list-1 { opacity: 0; transition: opacity 200ms ease 0ms; }
+  body.step7 .list-1, body.step8 .list-1, body.step9 .list-1, body.step10 .list-1,
+  body.step0 .list-1, body.step1b .list-1, body.step2 .list-1, body.step3 .list-1, body.step4 .list-1,
+  body.step5 .list-1, body.step6 .list-1 { opacity: 0; transition: opacity 200ms ease 0ms; }
 
   /* the incoming choices rise in, staggered, once the sheet has landed */
   .list-2 .row {
@@ -234,7 +268,7 @@
     border-radius: 12px;
     background: #fff;
     box-shadow: inset 0 0 0 1px #ddd;   /* inset, so selecting never reflows */
-    transition: background 220ms ease, box-shadow 220ms ease;
+    transition: background 160ms ease, box-shadow 160ms ease;
   }
   .row.on {
     background: #f7f7f7;
@@ -253,7 +287,7 @@
   }
   body.step3 .map-page { opacity: 1; transition: opacity 420ms ease 520ms; }
 
-  .map-canvas { position: absolute; left: 0; top: 0; transform-origin: top left; }
+  .map-canvas { position: absolute; inset: 0; }
   /* what you get with no token, or with no network at the venue — a quiet
      surface rather than a broken box, so the choreography still reads */
   .map-fallback {
@@ -318,6 +352,47 @@
     100% { opacity: 1; transform: translateY(0); }
   }
 
+  /* ---- "which of these best describes your place" (step 1b) ---- */
+  .kinds {
+    position: absolute; left: 0; top: 24px; right: 0;   /* 32 -> 24, rule of 8 */
+    opacity: 0;
+    transition: opacity 200ms ease 0ms;
+  }
+  body.step1b .kinds { opacity: 1; transition: opacity 260ms ease 520ms; }
+  .kind {
+    position: relative;
+    margin: 0 24px 8px;
+    /* padded, not absolutely positioned — so the space UNDER the description
+       equals the space ABOVE the subhead by construction, at any line count */
+    padding: 22px 16px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px #ddd;
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 260ms ease, transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
+                background 160ms ease, box-shadow 160ms ease;
+  }
+  /* the stagger delays the ENTRANCE only. Listing all four delays keeps it off
+     background/box-shadow — those are the selected styling, and delaying them
+     made the card light up after Next had already gone black. */
+  body.step1b .kind { opacity: 1; transform: none; }
+  body.step1b .kind:nth-child(1) { transition-delay: 560ms, 560ms, 0ms, 0ms; }
+  body.step1b .kind:nth-child(2) { transition-delay: 615ms, 615ms, 0ms, 0ms; }
+  body.step1b .kind:nth-child(3) { transition-delay: 670ms, 670ms, 0ms, 0ms; }
+  body.step1b .kind:nth-child(4) { transition-delay: 725ms, 725ms, 0ms, 0ms; }
+  body.step1b .kind:nth-child(5) { transition-delay: 780ms, 780ms, 0ms, 0ms; }
+  body.step1b .kind:nth-child(n+6) { transition-delay: 835ms, 835ms, 0ms, 0ms; }
+  .kind.on { background: #f7f7f7; box-shadow: inset 0 0 0 1.5px #222; }
+  .kind h3 {
+    margin: 0;
+    font-size: 16px; line-height: 20px; font-weight: 500; color: #222;
+  }
+  .kind p {
+    margin: 6px 0 0;                 /* the title-to-description gap, unchanged */
+    font-size: 14px; line-height: 18px; font-weight: 400; color: #717171;
+  }
+
   /* ---- the counts page (step 4) ---- */
   .counts { position: absolute; left: 0; top: 36px; right: 0; }
   .count-row {
@@ -363,11 +438,14 @@
   .amen {
     position: absolute;
     left: 0; top: 0;
-    width: 375px; height: 492px;   /* 221 -> 713, the sheet's run above the footer */
+    width: 375px;
+    height: var(--amen-h, 492px);  /* 221 -> 713, the sheet's run above the footer */
     overflow: hidden;
     opacity: 0;
-    transition: opacity 320ms ease 0ms;
+    transition: opacity 320ms ease 0ms,
+                height 620ms cubic-bezier(0.16, 1, 0.3, 1);
   }
+  body.step5.grown .amen { --amen-h: 608px; }   /* 104 -> 712 */
   body.step5 .amen { opacity: 1; transition: opacity 400ms ease 500ms; }
   .amen-scroll {
     position: absolute; left: 0; top: 0; right: 0;
@@ -390,7 +468,7 @@
     align-items: center; justify-content: center;
     gap: 8px;
     text-align: center;
-    transition: box-shadow 200ms ease, background 200ms ease, transform 260ms cubic-bezier(0.3, 1.4, 0.5, 1);
+    transition: box-shadow 160ms ease, background 160ms ease, transform 260ms cubic-bezier(0.3, 1.4, 0.5, 1);
   }
   .amen-card .ic {
     width: 24px; height: 24px;
@@ -404,6 +482,265 @@
     box-shadow: inset 0 0 0 2px #222;
   }
   .amen-card.pop { transform: scale(0.94); }
+
+  /* ---- the intro (step 0) ---- */
+  /* the film sits where the gradient would be and plays ONCE, holding its last
+     frame — no loop, because the deck rebuilds the iframe on every visit, so
+     entering the slide is what starts it */
+  .film {
+    position: absolute; left: 0; top: 0;
+    width: 375px;
+    /* 45px taller than the sheet's lip at 455, so the sheet's 32px rounded
+       corners reveal MORE FILM rather than the gradient behind it */
+    height: 500px;
+    object-fit: cover;
+    object-position: top center;     /* never crop the top of the frame */
+    opacity: 0;
+    transition: opacity 300ms ease;
+  }
+  body.step0 .film { opacity: 1; }
+  .filmctl {
+    position: absolute; left: 24px; top: 399px;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+    display: grid; place-items: center;
+    opacity: 0;
+    transition: opacity 300ms ease;
+  }
+  body.step0 .filmctl { opacity: 1; transition-delay: 500ms; }
+  .filmctl i { width: 3px; height: 12px; background: #fff; border-radius: 1px; box-shadow: 6px 0 0 #fff; margin-right: 6px; }
+  .filmctl.ended i {                 /* the film has landed — offer it again */
+    width: 0; height: 0; margin: 0 0 0 3px;
+    background: none; box-shadow: none;
+    border-left: 10px solid #fff;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    border-radius: 0;
+  }
+
+  /* padded flow, so the 16 under the heading is a real gap rather than a
+     leftover between two absolute tops */
+  .intro { position: absolute; left: 0; top: 0; right: 0; padding: 44px 24px 0; box-sizing: border-box; opacity: 0; transition: opacity 260ms ease; }
+  body.step0 .intro { opacity: 1; transition-delay: 420ms; }
+  .intro h2 {
+    margin: 0;
+    font-size: 32px; line-height: 36px; font-weight: 600; color: #222;
+  }
+  .intro p {
+    margin: 16px 0 0;                /* 16 under the heading */
+    max-width: 250px;
+    font-size: 16px; line-height: 22px;
+    font-weight: 400;                /* Cereal Book, against the title's SemiBold */
+    color: #717171;                  /* grey 700 — it is the subhead */
+  }
+  .intro .rule { position: absolute; left: 0; top: 260px; width: 375px; height: 1px; background: #ebebeb; }
+  .cta {
+    position: absolute; left: 24px; top: 277px;
+    width: 327px; height: 48px;
+    display: grid; place-items: center;
+    border-radius: 8px;
+    /* Airbnb's Rausch CTA ramp */
+    background: linear-gradient(90deg, #e61e4d 0%, #e31c5f 50%, #d70466 100%);
+    color: #fff;
+    font-size: 16px; line-height: 20px;
+    transform-origin: 50% 50%;
+  }
+  .cta.press { animation: tapPress 480ms cubic-bezier(0.33, 0.9, 0.35, 1); }
+
+  /* the intro has no Back / Next and no progress — it is not a step yet */
+  body.step0 .footer { opacity: 0; }
+  .footer { transition: opacity 240ms ease; }
+
+  /* ---- the photos page (step 6) ---- */
+  /* the hero sits UNDER the gradient's siblings but over the gradient itself,
+     and only while step 6 is up — every other screen wants the gradient bare */
+  .hero {
+    position: absolute; left: 0; top: 0;
+    width: 375px; height: 440px;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 420ms ease 0ms;
+  }
+  body.step6 .hero { opacity: 1; transition: opacity 500ms ease 360ms; }
+  /* scrims: the DLS puts one at the top for the status bar, one over the
+     lower half so the title holds against whatever the photo is doing */
+  /* The titles are white over a photograph we do not control, so the lower
+     scrim has to actually carry them — it reaches ~47% black through the title
+     band (322-382) rather than the ~20% it managed before. The top scrim is
+     for the status bar. */
+  .hero-scrim {
+    position: absolute; left: 0; top: 0;
+    width: 375px; height: 470px;
+    opacity: 0;
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0.45) 0px,  rgba(0,0,0,0) 150px),
+      linear-gradient(180deg, rgba(0,0,0,0)    180px,
+                              rgba(0,0,0,0.25) 270px,
+                              rgba(0,0,0,0.50) 330px,
+                              rgba(0,0,0,0.72) 470px);
+    transition: opacity 420ms ease 0ms;
+  }
+  body.step6 .hero-scrim { opacity: 1; transition: opacity 500ms ease 360ms; }
+
+  .pause {
+    position: absolute; left: 24px; top: 269px;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    display: grid; place-items: center;
+    opacity: 0;
+    transition: opacity 300ms ease 0ms;
+  }
+  body.step6 .pause { opacity: 1; transition: opacity 300ms ease 640ms; }
+  /* a play triangle, not a pause bar — the still is waiting to be played */
+  .pause i {
+    width: 0; height: 0;
+    margin-left: 3px;
+    border-left: 10px solid #fff;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+  }
+
+  .photo-opts { position: absolute; left: 0; top: 32px; right: 0; }
+  .photo-opt {
+    position: relative;
+    margin: 0 24px 12px;
+    height: 72px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px #ddd;
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 260ms ease, transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
+                background 160ms ease, box-shadow 160ms ease;
+  }
+  body.step6 .photo-opt { opacity: 1; transform: none; }
+  body.step6 .photo-opt:nth-child(1) { transition-delay: 620ms, 620ms, 0ms, 0ms; }
+  body.step6 .photo-opt:nth-child(2) { transition-delay: 695ms, 695ms, 0ms, 0ms; }
+  .photo-opt.on { background: #f7f7f7; box-shadow: inset 0 0 0 1.5px #222; }
+  .photo-opt .ic {
+    position: absolute; left: 17px; top: 24px;
+    width: 24px; height: 24px;
+    background: #222;
+    -webkit-mask: var(--ic) center / contain no-repeat;
+    mask: var(--ic) center / contain no-repeat;
+  }
+  .photo-opt .label { position: absolute; left: 57px; top: 26px; font-size: 16px; line-height: 20px; }
+
+  /* ---- name / describe / questions / listing (steps 7-10) ---- */
+  /* both later screens reuse the photos screen's hero + scrim treatment */
+  .hero2, .hero3 {
+    position: absolute; left: 0; top: 0;
+    width: 375px; height: 470px;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 420ms ease 0ms;
+  }
+  body.step7 .hero2 { opacity: 1; transition: opacity 500ms ease 360ms; }
+  body.step8 .hero3 { opacity: 1; transition: opacity 500ms ease 360ms; }
+  body.step7 .hero-scrim, body.step8 .hero-scrim { opacity: 1; transition: opacity 500ms ease 360ms; }
+  body.step7 .pause, body.step8 .pause { opacity: 1; transition: opacity 300ms ease 640ms; }
+  body.step7 .pause { top: 269px; }
+  body.step8 .pause { top: 269px; }
+
+  .page { position: absolute; left: 0; top: 32px; right: 0; opacity: 0; transition: opacity 220ms ease 0ms; }
+  body.step7 .p7, body.step8 .p8, body.step9 .p9, body.step10 .p10 {
+    opacity: 1; transition: opacity 300ms ease 520ms;
+  }
+
+  /* the name field */
+  /* measured off the frame: box 24,440 327x183; text inset 16; counter at 26,635 */
+  .p7 { top: 26px; }
+  .namebox {
+    position: absolute; left: 24px; top: 0;
+    width: 327px; height: 183px;
+    box-sizing: border-box;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: inset 0 0 0 1px #ddd;
+    /* the header's line-height, so the two read as one system */
+    font-size: 24px; line-height: 30px;
+    font-weight: 600;                /* SemiBold — only the counter below is Book */
+    color: #717171;                  /* the suggestion, until it is replaced */
+  }
+  .namebox.typed { color: #222; }
+  .namecount {
+    position: absolute; left: 26px; top: 195px;   /* 26 off the SHEET, not the box */
+    font-size: 14px; line-height: 18px;
+    font-weight: 400;
+    color: #717171;
+  }
+
+  /* the highlight chips */
+  .chips { position: absolute; left: 24px; top: 28px; right: 24px;   /* 36 -> 28 */ display: flex; flex-wrap: wrap; gap: 12px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 44px; padding: 0 16px;
+    border-radius: 22px;
+    box-shadow: inset 0 0 0 1px #ddd;
+    font-size: 16px; line-height: 20px; color: #222;
+    opacity: 0; transform: translateY(12px);
+    transition: opacity 240ms ease, transform 380ms cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 160ms ease, background 160ms ease;
+  }
+  body.step8 .chip { opacity: 1; transform: none; }
+  body.step8 .chip:nth-child(1) { transition-delay: 600ms, 600ms, 0ms, 0ms; }
+  body.step8 .chip:nth-child(2) { transition-delay: 650ms, 650ms, 0ms, 0ms; }
+  body.step8 .chip:nth-child(3) { transition-delay: 700ms, 700ms, 0ms, 0ms; }
+  body.step8 .chip:nth-child(4) { transition-delay: 750ms, 750ms, 0ms, 0ms; }
+  body.step8 .chip:nth-child(5) { transition-delay: 800ms, 800ms, 0ms, 0ms; }
+  body.step8 .chip:nth-child(6) { transition-delay: 850ms, 850ms, 0ms, 0ms; }
+  .chip.on { background: #f7f7f7; box-shadow: inset 0 0 0 2px #222; }
+  .chip .ic { width: 16px; height: 16px; background: #222; -webkit-mask: var(--ic) center / contain no-repeat; mask: var(--ic) center / contain no-repeat; }
+
+  /* the last questions */
+  .qh { font-size: 16px; line-height: 20px; font-weight: 600; color: #222; }
+  .qrow {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 48px; font-size: 16px;
+    font-weight: 400;                /* Book — the question above it carries the weight */
+    color: #222;
+  }
+  .qmark { width: 20px; height: 20px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px #b0b0b0; }
+  .qmark.radio.on { box-shadow: inset 0 0 0 5px #222, inset 0 0 0 10px #fff; background: #222; }
+  .qmark.box { border-radius: 4px; position: relative; }
+  .qmark.box.on { background: #222; box-shadow: inset 0 0 0 1.5px #222; }
+  .qmark.box.on::after {
+    content: '';
+    position: absolute; left: 7px; top: 3px;
+    width: 4px; height: 9px;
+    border: solid #fff; border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+  .qnote { font-size: 12px; line-height: 18px; font-weight: 400; color: #717171; }
+  .qnote u { text-underline-position: from-font; }
+  /* the last two screens swap Next for their own call to action */
+  .foot-cta {
+    position: absolute; right: 24px; top: 19px;
+    height: 48px; padding: 0 20px;
+    display: grid; place-items: center;
+    border-radius: 8px;
+    font-size: 16px; line-height: 20px;
+    color: #fff;
+    opacity: 0; pointer-events: none;
+    transform-origin: 50% 50%;
+    transition: opacity 200ms ease;
+  }
+  .foot-cta.dark   { background: #222; }
+  .foot-cta.rausch { background: linear-gradient(90deg, #e61e4d 0%, #e31c5f 50%, #d70466 100%); }
+  body.step9  #ctaReview  { opacity: 1; }
+  body.step10 #ctaPublish { opacity: 1; }
+  body.step9 .next, body.step10 .next { opacity: 0; }
+  .foot-cta.press { animation: tapPress 480ms cubic-bezier(0.33, 0.9, 0.35, 1); }
+
+  /* the listing card */
+  .listing-photo { width: 327px; height: 220px; object-fit: cover; border-radius: 12px; display: block; margin: 0 24px; }
+  .listing-name { margin: 20px 24px 0; font-size: 22px; line-height: 28px; font-weight: 600; color: #222; }
+  .listing-rule { height: 1px; background: #ebebeb; margin: 20px 24px; }
+  .listing-host { display: flex; align-items: center; justify-content: space-between; margin: 0 24px; font-size: 16px; color: #222; }
+  .listing-host img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+  .listing-facts { margin: 0 24px 8px; font-size: 16px; color: #222; }
 
   /* ---- footer ---- */
   .footer { position: absolute; left: 0; top: 712px; width: 375px; height: 100px; background: #fff; }
@@ -429,7 +766,18 @@
     border-radius: 8px;
     font-size: 16px; line-height: 20px;
     transform-origin: 50% 50%;
-    transition: background 280ms ease 320ms, color 280ms ease 320ms;
+    /* Going grey is INSTANT — the transition lives only on the armed rule
+       below. A transition here would apply in both directions, so leaving a
+       screen left the button lingering black over the next page before
+       anything had been selected. */
+    transition: opacity 200ms ease;
+  }
+  /* nothing answered yet — the button has nothing to do */
+  .next { background: #ddd; color: #a8a8a8; }
+  /* arming is the only animated direction — going grey stays instant */
+  body.armed .next {
+    background: #222; color: #fff;
+    transition: background 200ms ease, color 200ms ease;
   }
   /* squashes in, overshoots on the way back — meant to be seen from the back row */
   @keyframes tapPress {
@@ -440,7 +788,6 @@
     100% { transform: scale(1); }
   }
   .next.press { animation: tapPress 480ms cubic-bezier(0.33, 0.9, 0.35, 1); }
-  body.step2 .next, body.step3 .next { background: #ddd; color: #a8a8a8; }  /* nothing chosen yet */
 
   @media (prefers-reduced-motion: reduce) {
     .sheet, .list, .row, .fill, .title { transition: none; }
@@ -454,6 +801,13 @@
       <div class="screen">
         <div class="ui" id="ui">
           <div class="gradient"></div>
+          <video class="film" id="film" src="assets/host-setup/hi.mp4" muted playsinline preload="auto"></video>
+          <div class="filmctl" id="filmctl"><i></i></div>
+          <img class="hero" src="assets/host-setup/photos-hero.webp" alt="">
+          <img class="hero2" src="assets/host-setup/name-hero.webp" alt="">
+          <img class="hero3" src="assets/host-setup/describe-hero.webp" alt="">
+          <div class="hero-scrim"></div>
+          <div class="pause"><i></i></div>
 
           <div class="status">
             <div class="time">9:41</div>
@@ -483,10 +837,17 @@
           <div class="glass help">Help</div>
 
           <h1 class="title title-1">What kind of place will you host?</h1>
+          <h1 class="title title-1b">Which of these best describes your place?</h1>
           <h1 class="title title-2">What kind of space will guests have?</h1>
           <h1 class="title title-3">Where&rsquo;s your place located?</h1>
           <h1 class="title title-4">How many guests would you like to welcome?</h1>
           <h1 class="title title-5">Let guests know what your place has to offer</h1>
+          <h1 class="title title-6">Next, let&rsquo;s add some photos of your place</h1>
+          <h1 class="title title-7">Let&rsquo;s give your place<br>a name</h1>
+          <h1 class="title title-8">Next, let&rsquo;s describe your place</h1>
+          <h1 class="title title-9">Just a few last questions&hellip;</h1>
+          <h1 class="title title-10">Check out your listing!</h1>
+          <p class="sub-10">This listing will be visible to guests 24 hours after you publish.</p>
 
           <div class="sheet" id="sheet">
             <div class="list list-1">
@@ -497,35 +858,111 @@
               <div class="row"><span class="label">Bed and breakfast</span><img src="assets/host-setup/t-bnb.webp" alt=""></div>
               <div class="row"><span class="label">Boutique hotel</span><img src="assets/host-setup/t-boutique.webp" alt=""></div>
             </div>
+            <!-- step 1b: which of these best describes your place -->
+            <div class="kinds">
+                <div class="kind"><h3>Residential home</h3><p>A converted space in a building used at any time for grain, livestock, or farming.</p></div>
+                <div class="kind"><h3>Bungalow</h3><p>A single-level house with a wide front porch and a sloping roof.</p></div>
+                <div class="kind"><h3>Cabin</h3><p>A house made with natural materials like wood and built in a natural setting.</p></div>
+                <div class="kind"><h3>Cottage</h3><p>A cozy house built in a rural area or near a lake or beach.</p></div>
+                <div class="kind"><h3>Tiny house</h3><p>A stand-alone house that&rsquo;s usually less than 400 square feet.</p></div>
+                <div class="kind"><h3>Casa particular</h3><p>A private room in a home that feels like a bed and breakfast.</p></div>
+                <div class="kind"><h3>Chalet</h3><p>A wooden house with a sloped roof popular for skiing or summer stays.</p></div>
+                <div class="kind"><h3>Cycladic house</h3><p>A whitewashed house with a flat roof found in the Greek Cycladic islands.</p></div>
+                <div class="kind"><h3>Dammuso</h3><p>A stone house with a domed roof on the island of Pantelleria.</p></div>
+            </div>
+
+            <!-- step 0: the intro -->
+            <div class="intro">
+              <h2>Become a Host in 10 easy steps</h2>
+              <p>Join us. We&rsquo;ll help you every step of the way.</p>
+              <div class="rule"></div>
+              <div class="cta" id="cta">Let&rsquo;s go!</div>
+            </div>
+
+            <!-- step 7: the name -->
+            <div class="page p7">
+              <div class="namebox" id="namebox">Cheerful 2-bedroom cabin with hot tub</div>
+              <div class="namecount" id="namecount">29/50</div>
+            </div>
+
+            <!-- step 8: the highlights -->
+            <div class="page p8">
+              <div class="amen-head" style="top:0">Choose up to 2 highlights</div>
+              <div class="chips">
+                <div class="chip" style="--ic:url(assets/host-setup/amenities/firepit.svg)"><i class="ic"></i>Peaceful</div>
+                <div class="chip" style="--ic:url(assets/host-setup/amenities/pooltable.svg)"><i class="ic"></i>Unique</div>
+                <div class="chip" style="--ic:url(assets/host-setup/amenities/gym.svg)"><i class="ic"></i>Family-friendly</div>
+                <div class="chip" style="--ic:url(assets/host-setup/amenities/fireplace.svg)"><i class="ic"></i>Stylish</div>
+                <div class="chip" style="--ic:url(assets/host-setup/amenities/patio.svg)"><i class="ic"></i>Spacious</div>
+                <div class="chip" style="--ic:url(assets/host-setup/amenities/parking-free.svg)"><i class="ic"></i>Central</div>
+              </div>
+            </div>
+
+            <!-- step 9: the last questions -->
+            <div class="page p9">
+              <div class="qh" style="position:absolute;left:24px;top:0">How are you hosting on Airbnb?</div>
+              <div style="position:absolute;left:24px;right:24px;top:28px">
+                <div class="qrow"><span>I&rsquo;m hosting as a private individual</span><i class="qmark radio on" id="q1"></i></div>
+                <div class="qrow"><span>I&rsquo;m hosting as a business</span><i class="qmark radio"></i></div>
+              </div>
+              <div class="qh" style="position:absolute;left:24px;top:152px">Do you have any of these at your place?</div>
+              <div style="position:absolute;left:24px;right:24px;top:180px">
+                <div class="qrow"><span>Security camera(s)</span><i class="qmark box on"></i></div>
+                <div class="qrow"><span>Weapons</span><i class="qmark box"></i></div>
+                <div class="qrow"><span>Dangerous animals</span><i class="qmark box"></i></div>
+              </div>
+              <div class="qh" style="position:absolute;left:24px;top:330px">Some important things to know</div>
+              <p class="qnote" style="position:absolute;left:24px;right:24px;top:358px;margin:0">
+                Be sure to comply with your <u>local laws</u> and review Airbnb&rsquo;s
+                <u>anti-discrimination policy</u> and <u>guest and host fees</u>. Update your
+                <u>cancellation policy</u> after you publish.</p>
+            </div>
+
+            <!-- step 10: the listing -->
+            <div class="page p10">
+              <img class="listing-photo" src="assets/host-setup/listing-photo.webp" alt="">
+              <h3 class="listing-name">Villa Carmelita</h3>
+              <div class="listing-rule"></div>
+              <div class="listing-host"><span>Entire home Hosted by John &amp; Julia</span><img src="assets/host-setup/host-avatar.webp" alt=""></div>
+              <div class="listing-rule"></div>
+              <div class="listing-facts">4 guests &middot; 2 beds &middot; 1 bath</div>
+            </div>
+
+            <!-- step 6: the two ways in -->
+            <div class="photo-opts">
+              <div class="photo-opt" style="--ic:url(assets/host-setup/ic-upload.svg)"><i class="ic"></i><span class="label">Upload photos</span></div>
+              <div class="photo-opt" style="--ic:url(assets/host-setup/ic-camera.svg)"><i class="ic"></i><span class="label">Take new photos</span></div>
+            </div>
+
             <!-- step 5: every amenity, straight from the DLS set -->
             <div class="amen">
               <div class="amen-scroll" id="amenScroll">
                 <div class="amen-head" style="top:32px">Do you have any standout amenities?</div>
-                <div class="amen-card" data-i="0" style="left:24px;top:68px;--ic:url(assets/host-setup/amenities/pool.svg)"><i class="ic"></i><span class="t">Pool</span></div>
-                <div class="amen-card" data-i="1" style="left:193px;top:68px;--ic:url(assets/host-setup/amenities/hottub.svg)"><i class="ic"></i><span class="t">Hot tub</span></div>
-                <div class="amen-card" data-i="2" style="left:24px;top:190px;--ic:url(assets/host-setup/amenities/patio.svg)"><i class="ic"></i><span class="t">Patio</span></div>
-                <div class="amen-card" data-i="3" style="left:193px;top:190px;--ic:url(assets/host-setup/amenities/bbq.svg)"><i class="ic"></i><span class="t">BBQ grill</span></div>
-                <div class="amen-card" data-i="4" style="left:24px;top:312px;--ic:url(assets/host-setup/amenities/firepit.svg)"><i class="ic"></i><span class="t">Firepit</span></div>
-                <div class="amen-card" data-i="5" style="left:193px;top:312px;--ic:url(assets/host-setup/amenities/pooltable.svg)"><i class="ic"></i><span class="t">Pool table</span></div>
-                <div class="amen-card" data-i="6" style="left:24px;top:434px;--ic:url(assets/host-setup/amenities/fireplace.svg)"><i class="ic"></i><span class="t">Indoor fireplace</span></div>
-                <div class="amen-card" data-i="7" style="left:193px;top:434px;--ic:url(assets/host-setup/amenities/outdoordining.svg)"><i class="ic"></i><span class="t">Outdoor dining area</span></div>
-                <div class="amen-card" data-i="8" style="left:24px;top:556px;--ic:url(assets/host-setup/amenities/gym.svg)"><i class="ic"></i><span class="t">Excercise equipment</span></div>
-                <div class="amen-head" style="top:718px">What about these guest favorites?</div>
-                <div class="amen-card" data-i="9" style="left:24px;top:754px;--ic:url(assets/host-setup/amenities/wifi.svg)"><i class="ic"></i><span class="t">Wifi</span></div>
-                <div class="amen-card" data-i="10" style="left:193px;top:754px;--ic:url(assets/host-setup/amenities/tv.svg)"><i class="ic"></i><span class="t">TV</span></div>
-                <div class="amen-card" data-i="11" style="left:24px;top:876px;--ic:url(assets/host-setup/amenities/kitchen.svg)"><i class="ic"></i><span class="t">Kitchen</span></div>
-                <div class="amen-card" data-i="12" style="left:193px;top:876px;--ic:url(assets/host-setup/amenities/washer.svg)"><i class="ic"></i><span class="t">Washer</span></div>
-                <div class="amen-card" data-i="13" style="left:24px;top:998px;--ic:url(assets/host-setup/amenities/parking-free.svg)"><i class="ic"></i><span class="t">Free parking on premises</span></div>
-                <div class="amen-card" data-i="14" style="left:193px;top:998px;--ic:url(assets/host-setup/amenities/parking-paid.svg)"><i class="ic"></i><span class="t">Paid parking on premises</span></div>
-                <div class="amen-card" data-i="15" style="left:24px;top:1120px;--ic:url(assets/host-setup/amenities/ac.svg)"><i class="ic"></i><span class="t">Air conditioning</span></div>
-                <div class="amen-card" data-i="16" style="left:193px;top:1120px;--ic:url(assets/host-setup/amenities/workspace.svg)"><i class="ic"></i><span class="t">Dedicated workspace</span></div>
-                <div class="amen-card" data-i="17" style="left:24px;top:1242px;--ic:url(assets/host-setup/amenities/shower.svg)"><i class="ic"></i><span class="t">Outdoor shower</span></div>
-                <div class="amen-head" style="top:1404px">Have any of these safety items?</div>
-                <div class="amen-card" data-i="18" style="left:24px;top:1440px;--ic:url(assets/host-setup/amenities/smoke.svg)"><i class="ic"></i><span class="t">Smoke alarm</span></div>
-                <div class="amen-card" data-i="19" style="left:193px;top:1440px;--ic:url(assets/host-setup/amenities/firstaid.svg)"><i class="ic"></i><span class="t">First aid kit</span></div>
-                <div class="amen-card" data-i="20" style="left:24px;top:1562px;--ic:url(assets/host-setup/amenities/co2.svg)"><i class="ic"></i><span class="t">Carbon monoxide alarm</span></div>
-                <div class="amen-card" data-i="21" style="left:193px;top:1562px;--ic:url(assets/host-setup/amenities/lock.svg)"><i class="ic"></i><span class="t">Lock on bedroom door</span></div>
-                <div class="amen-card" data-i="22" style="left:24px;top:1684px;--ic:url(assets/host-setup/amenities/extinguisher.svg)"><i class="ic"></i><span class="t">Fire extinguisher</span></div>
+                <div class="amen-card" data-i="0" style="left:24px;top:60px;--ic:url(assets/host-setup/amenities/pool.svg)"><i class="ic"></i><span class="t">Pool</span></div>
+                <div class="amen-card" data-i="1" style="left:193px;top:60px;--ic:url(assets/host-setup/amenities/hottub.svg)"><i class="ic"></i><span class="t">Hot tub</span></div>
+                <div class="amen-card" data-i="2" style="left:24px;top:182px;--ic:url(assets/host-setup/amenities/patio.svg)"><i class="ic"></i><span class="t">Patio</span></div>
+                <div class="amen-card" data-i="3" style="left:193px;top:182px;--ic:url(assets/host-setup/amenities/bbq.svg)"><i class="ic"></i><span class="t">BBQ grill</span></div>
+                <div class="amen-card" data-i="4" style="left:24px;top:304px;--ic:url(assets/host-setup/amenities/firepit.svg)"><i class="ic"></i><span class="t">Firepit</span></div>
+                <div class="amen-card" data-i="5" style="left:193px;top:304px;--ic:url(assets/host-setup/amenities/pooltable.svg)"><i class="ic"></i><span class="t">Pool table</span></div>
+                <div class="amen-card" data-i="6" style="left:24px;top:426px;--ic:url(assets/host-setup/amenities/fireplace.svg)"><i class="ic"></i><span class="t">Indoor fireplace</span></div>
+                <div class="amen-card" data-i="7" style="left:193px;top:426px;--ic:url(assets/host-setup/amenities/outdoordining.svg)"><i class="ic"></i><span class="t">Outdoor dining area</span></div>
+                <div class="amen-card" data-i="8" style="left:24px;top:548px;--ic:url(assets/host-setup/amenities/gym.svg)"><i class="ic"></i><span class="t">Excercise equipment</span></div>
+                <div class="amen-head" style="top:710px">What about these guest favorites?</div>
+                <div class="amen-card" data-i="9" style="left:24px;top:738px;--ic:url(assets/host-setup/amenities/wifi.svg)"><i class="ic"></i><span class="t">Wifi</span></div>
+                <div class="amen-card" data-i="10" style="left:193px;top:738px;--ic:url(assets/host-setup/amenities/tv.svg)"><i class="ic"></i><span class="t">TV</span></div>
+                <div class="amen-card" data-i="11" style="left:24px;top:860px;--ic:url(assets/host-setup/amenities/kitchen.svg)"><i class="ic"></i><span class="t">Kitchen</span></div>
+                <div class="amen-card" data-i="12" style="left:193px;top:860px;--ic:url(assets/host-setup/amenities/washer.svg)"><i class="ic"></i><span class="t">Washer</span></div>
+                <div class="amen-card" data-i="13" style="left:24px;top:982px;--ic:url(assets/host-setup/amenities/parking-free.svg)"><i class="ic"></i><span class="t">Free parking on premises</span></div>
+                <div class="amen-card" data-i="14" style="left:193px;top:982px;--ic:url(assets/host-setup/amenities/parking-paid.svg)"><i class="ic"></i><span class="t">Paid parking on premises</span></div>
+                <div class="amen-card" data-i="15" style="left:24px;top:1104px;--ic:url(assets/host-setup/amenities/ac.svg)"><i class="ic"></i><span class="t">Air conditioning</span></div>
+                <div class="amen-card" data-i="16" style="left:193px;top:1104px;--ic:url(assets/host-setup/amenities/workspace.svg)"><i class="ic"></i><span class="t">Dedicated workspace</span></div>
+                <div class="amen-card" data-i="17" style="left:24px;top:1226px;--ic:url(assets/host-setup/amenities/shower.svg)"><i class="ic"></i><span class="t">Outdoor shower</span></div>
+                <div class="amen-head" style="top:1388px">Have any of these safety items?</div>
+                <div class="amen-card" data-i="18" style="left:24px;top:1416px;--ic:url(assets/host-setup/amenities/smoke.svg)"><i class="ic"></i><span class="t">Smoke alarm</span></div>
+                <div class="amen-card" data-i="19" style="left:193px;top:1416px;--ic:url(assets/host-setup/amenities/firstaid.svg)"><i class="ic"></i><span class="t">First aid kit</span></div>
+                <div class="amen-card" data-i="20" style="left:24px;top:1538px;--ic:url(assets/host-setup/amenities/co2.svg)"><i class="ic"></i><span class="t">Carbon monoxide alarm</span></div>
+                <div class="amen-card" data-i="21" style="left:193px;top:1538px;--ic:url(assets/host-setup/amenities/lock.svg)"><i class="ic"></i><span class="t">Lock on bedroom door</span></div>
+                <div class="amen-card" data-i="22" style="left:24px;top:1660px;--ic:url(assets/host-setup/amenities/extinguisher.svg)"><i class="ic"></i><span class="t">Fire extinguisher</span></div>
               </div>
             </div>
 
@@ -590,6 +1027,8 @@
             <div class="fill" id="fill"></div>
             <span class="back">Back</span>
             <div class="next">Next</div>
+            <div class="foot-cta dark" id="ctaReview">Review your listing</div>
+            <div class="foot-cta rausch" id="ctaPublish">Publish listing</div>
           </div>
         </div>
       </div>
@@ -658,26 +1097,62 @@
   //      Next button answers it. The press and the progress bar run first, the
   //      outgoing title and list clear, the sheet drops to 363 to suit three
   //      choices, and the choices rise in behind it.
-  //   2  same shape again: An entire place highlights, Next answers, and the
-  //      sheet comes back UP to 240 — this time carrying the map. Once it has
-  //      landed the address types itself in and the map flies to the house.
+  //   2  Residential home highlights on "which of these best describes your
+  //      place", Next answers.
+  //   3  same shape again: An entire place highlights, Next answers, and the
+  //      sheet comes back UP to 240 — this time carrying the map, which arrives
+  //      on San Francisco and WAITS.
+  //   3  its own beat: the address types itself in and the map flies to the
+  //      house. no button to press — the tap IS the typing.
   //   3  the counts. the sheet returns to 363 and the screen answers itself
   //      the way the address did: the + buttons tap up to 4 / 2 / 1 / 1.
   //   4  the amenities. all 23 cards, DLS icons straight from the Figma file,
   //      and the list picks the 18 this house has, scrolling only when the
   //      next pick would fall below the fold.
+  //   5  the photos. the hero fades up over the gradient, the sheet drops to
+  //      409, and Upload photos answers it.
+  //   6  the name. the suggestion sits long enough to READ, then its own beat
+  //      replaces it with Villa Carmelita.
+  //   7  the highlights, two of six.
+  //   8  the last questions, then Review your listing.
+  //   9  the listing itself, then Publish listing.
+  // A screen arrives with nothing chosen and Next grey. After LAND_HOLD it
+  // makes its own choice, and ARM_GAP later Next turns black. Then it waits
+  // for your tap, which presses the button and turns the screen.
+  // Screens that fill themselves in (the map, the counts, the amenities, the
+  // name) do that on their own beat and arm when they are finished.
   const BEATS = [
-    { step: 1, pick: null, pick2: null, progress: 34  },
-    { step: 2, pick: 1,    pick2: null, progress: 68  },
-    { step: 3, pick: 1,    pick2: 0,    progress: 102 },
-    { step: 4, pick: 1,    pick2: 0,    progress: 136 },
-    { step: 5, pick: 1,    pick2: 0,    progress: 170 },
+    { step: 0,    progress: 0   },
+    { step: 1,    progress: 34  },
+    { step: 1,    progress: 34,  select: true, pick:  1 },   // House
+    { step: '1b', progress: 51  },
+    { step: '1b', progress: 51,  select: true, kind:  0 },   // Residential home
+    { step: 2,    progress: 68  },
+    { step: 2,    progress: 68,  select: true, pick2: 0 },   // An entire place
+    { step: 3,    progress: 102 },                            // map arrives on SF
+    { step: 3,    progress: 102, play: 'address' },
+    { step: 4,    progress: 136 },
+    { step: 5,    progress: 170 },
+    { step: 6,    progress: 204 },
+    { step: 6,    progress: 204, select: true, photo: 0 },   // Upload photos
+    { step: 7,    progress: 238 },
+    { step: 7,    progress: 238, play: 'name' },
+    { step: 8,    progress: 272 },
+    { step: 9,    progress: 306, read: true },
+    { step: 10,   progress: 375, read: true },
   ];
+  const PLACE_NAME = 'Villa Carmelita';
+  const HIGHLIGHTS = [3, 4];          // Stylish, Spacious
   // the 18 of 23 this house actually has — the rest stay unpicked on purpose
   const PICKS = [0, 1, 3, 4, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 22];
   // what the counts screen fills itself in to, once it has landed
   const COUNTS = [4, 2, 1, 1];
-  const SELECT_HOLD = 280;   // the beat between choosing and the button reacting
+  // ONE cadence for every beat, so no screen feels quicker than another:
+  //   0ms    the answer lands and Next goes black
+  //   ARM    the button is pressed
+  //   +LEAD  the screen changes, as the press bottoms out
+  const PRESS_HOLD = 160;    // tap -> the button goes down
+  const PRESS_LEAD = 150;    // press -> the screen turns
 
   // --- the map ---------------------------------------------------------
   // The token comes from assets/mapbox-config.js (window.MAPBOX_TOKEN), the
@@ -689,36 +1164,45 @@
   // Mapbox forward geocode of the address, "high" match confidence:
   // 123 Camino Carmelita, Palm Springs, California 92264
   const HOUSE   = [-116.545925, 33.79474];
-  const START   = [-118.4200, 34.0300];   // the wide LA view the mock opens on
+  const START   = [-122.4194, 37.7749];   // the map opens on San Francisco and waits
+  const START_Z = 11.4;
 
   // 812pt of design -> whatever the hole actually measures.
   // +1px of overscan — fractional layout can otherwise leave a hairline of the
   // backdrop showing along the rounded edge
   const screen = document.querySelector('.screen');
   const ui     = document.getElementById('ui');
-  // The map must NOT be CSS-scaled with the rest of the UI: a WebGL canvas has
-  // a fixed backing store, so scaling it ~2.15x up would render the basemap
-  // soft. Instead the container is sized k times LARGER in CSS pixels and
-  // scaled back down by 1/k — same size on screen, k times the device pixels.
+  // The map container is a plain 375x572 in design space. It used to be sized
+  // k times larger and counter-scaled by 1/k to win back device pixels, but
+  // Mapbox measures the TRANSFORMED box when it sizes its canvas, so it came
+  // out k times too narrow and left a white strip down the right-hand side.
+  // Not worth it: the UI scale sits near 1 at presentation sizes, so the
+  // basemap has no meaningful upscaling to survive anyway.
   const mapEl = document.getElementById('map');
   function fit() {
-    const k = (screen.clientHeight + 1) / 812;
-    ui.style.setProperty('--k', k);
-    mapEl.style.width  = (375 * k) + 'px';
-    mapEl.style.height = (572 * k) + 'px';
-    mapEl.style.transform = 'scale(' + (1 / k) + ')';
+    ui.style.setProperty('--k', (screen.clientHeight + 1) / 812);
     if (map) map.resize();
   }
   new ResizeObserver(fit).observe(screen);
 
   const fill   = document.getElementById('fill');
   const next   = document.querySelector('.next');
+  const cta        = document.getElementById('cta');
+  const ctaReview  = document.getElementById('ctaReview');
+  const ctaPublish = document.getElementById('ctaPublish');
+  const namebox    = document.getElementById('namebox');
+  const namecount  = document.getElementById('namecount');
+  const chips      = [...document.querySelectorAll('.chip')];
+  const film   = document.getElementById('film');
+  const filmctl = document.getElementById('filmctl');
   const search = document.getElementById('search');
   const query  = document.getElementById('query');
   const pin    = document.getElementById('pin');
+  const photoOpts  = [...document.querySelectorAll('.photo-opt')];
   const amenScroll = document.getElementById('amenScroll');
   const amenCards  = [...document.querySelectorAll('.amen-card')];
   const countRows  = [...document.querySelectorAll('.count-row')];
+  const kinds  = [...document.querySelectorAll('.kind')];
   const rows1  = [...document.querySelectorAll('.list-1 .row')];
   const rows2  = [...document.querySelectorAll('.list-2 .row')];
 
@@ -729,7 +1213,7 @@
       map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/streets-v12',
-        center: START, zoom: 10.2,
+        center: START, zoom: START_Z,
         interactive: false, attributionControl: false
       });
       map.on('load', () => document.getElementById('mapFallback').style.display = 'none');
@@ -748,7 +1232,7 @@
     query.classList.add('empty');
     query.textContent = 'Enter your address';
     pin.classList.remove('drop');
-    if (map) map.jumpTo({ center: START, zoom: 10.2 });
+    if (map) map.jumpTo({ center: START, zoom: START_Z });
   }
 
   // one absolute timeline — nesting the per-character timers inside the settle
@@ -773,6 +1257,12 @@
       if (map) map.flyTo({ center: HOUSE, zoom: 17.2, duration: 2600, essential: true });
     });
     at(T_PIN, () => pin.classList.add('drop'));
+    // a throttled tab (a hidden window, a backgrounded pane) cannot run the
+    // fly's animation frames, and the camera would be left behind with the pin
+    // sitting over the wrong city. land it regardless — a no-op when the fly
+    // completed normally, since it is the same camera.
+    at(T_PIN + 700, () => { if (map) map.jumpTo({ center: HOUSE, zoom: 17.2 }); });
+    at(T_PIN + 900, arm);            // answered — Next goes black
   }
 
   function resetCounts() {
@@ -800,24 +1290,41 @@
       }
       t += 170;                      // a breath between rows
     });
+    at(t + 260, arm);                // answered — Next goes black
   }
 
   function resetAmenities() {
     amenCards.forEach(c => c.classList.remove('on', 'pop'));
     amenScroll.style.transform = 'translateY(0)';
+    document.body.classList.remove('grown');
   }
 
   // walks the list picking what the house has, scrolling only when the next
   // pick would otherwise be below the fold
-  const AMEN_VIEW = 492;
+  const AMEN_VIEW = 492, AMEN_VIEW_GROWN = 608;
+  const AMEN_TAIL = 32;              // air left under the last card when it lands
   function runAmenities() {
     clearSeq();
-    let t = 1150, scroll = 0;
+    let t = 1150, scroll = 0, view = AMEN_VIEW, grown = false;
+    // never scroll past the point where the LAST card sits AMEN_TAIL above the
+    // progress bar — otherwise the run ends with the final card stranded near
+    // the top and a screenful of nothing under it
+    const last = amenCards[amenCards.length - 1];
+    const contentBottom = parseFloat(last.style.top) + 110;
     PICKS.forEach(i => {
       const card = amenCards[i];
       const top  = parseFloat(card.style.top);
-      if (top + 110 > scroll + AMEN_VIEW - 16) {
-        scroll = Math.max(0, top - 120);
+      if (top + 110 > scroll + view - 16) {
+        // the first time the list has to move, the sheet grows up over the
+        // title — so the scroll and the growth read as one gesture
+        if (!grown) {
+          grown = true;
+          view = AMEN_VIEW_GROWN;
+          at(t, () => document.body.classList.add('grown'));
+          t += 260;
+        }
+        const maxScroll = Math.max(0, contentBottom - view + AMEN_TAIL);
+        scroll = Math.max(0, Math.min(top - 120, maxScroll));
         const y = scroll;
         at(t, () => { amenScroll.style.transform = 'translateY(' + (-y) + 'px)'; });
         t += 620;
@@ -828,48 +1335,160 @@
       });
       t += 210;
     });
+    at(t + 260, arm);                // answered — Next goes black
+  }
+
+  // the name screen: the suggestion sits long enough to read, then is replaced
+  const SUGGESTION = 'Cheerful 2-bedroom cabin with hot tub';
+  function resetName() {
+    namebox.textContent = SUGGESTION;
+    namebox.classList.remove('typed');
+    namecount.textContent = SUGGESTION.length + '/50';
+  }
+  function runName() {
+    clearSeq();
+    at(400, () => { namebox.textContent = ''; namebox.classList.add('typed'); });
+    PLACE_NAME.split('').forEach((ch, i) => {
+      at(400 + i * 70, () => {
+        namebox.textContent += ch;
+        namecount.textContent = namebox.textContent.length + '/50';
+      });
+    });
+    at(400 + PLACE_NAME.length * 70 + 260, arm);
+  }
+
+  function resetChips() { chips.forEach(c => c.classList.remove('on')); }
+  function runChips() {
+    clearSeq();
+    HIGHLIGHTS.forEach((h, i) => at(900 + i * 320, () => chips[h].classList.add('on')));
+    at(900 + HIGHLIGHTS.length * 320 + 200, arm);
   }
 
   let beat = -1;
-  let timer = 0;
+  let timer = 0, timer2 = 0, autoTimer = 0, armTimer = 0;
 
-  function press() {
-    next.classList.remove('press');
-    void next.offsetWidth;            // restart the keyframes
-    next.classList.add('press');
+  function press(el) {
+    el.classList.remove('press');
+    void el.offsetWidth;              // restart the keyframes
+    el.classList.add('press');
   }
-  function commit(b, pressed) {
+  const arm   = () => document.body.classList.add('armed');
+  const disarm = () => document.body.classList.remove('armed');
+
+  // every screen answers ITSELF once it has landed: the choice highlights, Next
+  // goes black, and then it waits. the tap only ever presses the button.
+  // the page lands, settles, THEN answers itself; the button trails the choice
+  // by a clear gap so it can never read as arriving first
+  const LAND_HOLD = 1100;
+  const ARM_GAP   = 320;
+
+  function clearAnswers() {
+    rows1.forEach(r => r.classList.remove('on'));
+    rows2.forEach(r => r.classList.remove('on'));
+    kinds.forEach(r => r.classList.remove('on'));
+    photoOpts.forEach(o => o.classList.remove('on'));
+  }
+  function answer(b) {
+    if (b.pick  != null) rows1[b.pick].classList.add('on');
+    if (b.pick2 != null) rows2[b.pick2].classList.add('on');
+    if (b.kind  != null) kinds[b.kind].classList.add('on');
+    if (b.photo != null) photoOpts[b.photo].classList.add('on');
+    clearTimeout(armTimer);
+    armTimer = setTimeout(arm, ARM_GAP);    // the choice reads first
+  }
+
+  function commit(b) {
+    document.body.classList.toggle('step0', b.step === 0);
+    document.body.classList.toggle('step1b', b.step === '1b');
     document.body.classList.toggle('step2', b.step === 2);
     document.body.classList.toggle('step3', b.step === 3);
     document.body.classList.toggle('step4', b.step === 4);
     document.body.classList.toggle('step5', b.step === 5);
+    document.body.classList.toggle('step6', b.step === 6);
+    document.body.classList.toggle('step7', b.step === 7);
+    document.body.classList.toggle('step8', b.step === 8);
+    document.body.classList.toggle('step9', b.step === 9);
+    document.body.classList.toggle('step10', b.step === 10);
     fill.style.setProperty('--progress', b.progress + 'px');
-    if (pressed) press();
+    disarm();
 
     clearSeq();
-    if (b.step === 3) { if (map) map.resize(); runAddress(); }
+    clearAnswers();
+
+    if (b.step === 0) runIntro(); else stopFilm();
+    if (b.step === 3) { if (map) map.resize(); if (!b.play) resetAddress(); }
     else resetAddress();
-    if (b.step === 4) runCounts();
-    else resetCounts();
-    if (b.step === 5) runAmenities();
-    else resetAmenities();
+    if (b.play === 'address') runAddress();
+    if (b.step === 4) runCounts(); else resetCounts();
+    if (b.step === 5) runAmenities(); else resetAmenities();
+    if (b.step !== 7 || !b.play) resetName();
+    if (b.play === 'name') runName();
+    if (b.step === 8) runChips(); else resetChips();
+
+    if (b.select) answer(b);
+    // the following beat is this same screen making its own choice — it runs
+    // on its own, and the tap is reserved for the button
+    const nxt = BEATS[beat + 1];
+    if (nxt && nxt.select && nxt.step === b.step) {
+      autoTimer = setTimeout(() => apply(beat + 1), LAND_HOLD);
+    }
+    // the intro and the two read-only screens have nothing to answer
+    if (b.step === 0 || b.read) arm();
   }
 
   function apply(n) {
     if (n === beat) return;
     const forward = n > beat;
+    const prev = beat >= 0 ? BEATS[beat] : null;
     beat = n;
     const b = BEATS[n];
 
-    clearTimeout(timer);
-    rows1.forEach((r, i) => r.classList.toggle('on', i === b.pick));
-    rows2.forEach((r, i) => r.classList.toggle('on', i === b.pick2));
+    clearTimeout(timer); clearTimeout(timer2);
+    clearTimeout(autoTimer); clearTimeout(armTimer);
 
-    // forward into an answer: the choice lands, then the button answers it
-    if (forward && b.step > 1) timer = setTimeout(() => commit(b, true), SELECT_HOLD);
-    else commit(b, false);
+    // in place, on the screen you are already looking at
+    if (forward && b.play)   { commit(b); return; }   // it fills itself in
+    if (forward && b.select) { answer(b); return; }   // your tap makes the choice
+
+    // a step change: the button you are looking at goes down, then the screen turns
+    if (forward && prev) {
+      const btn = prev.step === 0  ? cta
+                : prev.step === 9  ? ctaReview
+                : prev.step === 10 ? ctaPublish
+                : next;
+      timer  = setTimeout(() => press(btn), PRESS_HOLD);
+      timer2 = setTimeout(() => commit(b), PRESS_HOLD + PRESS_LEAD);
+    } else {
+      commit(b);
+    }
   }
   next.addEventListener('animationend', () => next.classList.remove('press'));
+  cta.addEventListener('animationend', () => cta.classList.remove('press'));
+  ctaReview.addEventListener('animationend', () => ctaReview.classList.remove('press'));
+  ctaPublish.addEventListener('animationend', () => ctaPublish.classList.remove('press'));
+
+  // the film plays once and lands on its last frame
+  film.addEventListener('ended', () => filmctl.classList.add('ended'));
+  function runIntro() {
+    filmctl.classList.remove('ended');
+    // seeking before metadata arrives throws, and it used to share a try with
+    // play(), so the throw ate the play call and the film never started
+    const start = () => {
+      try { film.currentTime = 0; } catch (_) {}
+      film.play().catch(() => {});
+    };
+    if (film.readyState >= 2) start();
+    else film.addEventListener('loadeddata', start, { once: true });
+  }
+  // a hidden tab throttles playback, so if the deck was not on screen when the
+  // slide mounted, pick the film up the moment it is
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    if (!document.body.classList.contains('step0')) return;
+    if (film.ended || !film.paused) return;
+    film.play().catch(() => {});
+  });
+  function stopFilm() { try { film.pause(); } catch (_) {} }
   apply(0);
 
   window.presoNext = () => { if (beat >= BEATS.length - 1) return false; apply(beat + 1); return true; };
