@@ -14,11 +14,11 @@
      manifest is a sorted listing, so 10.html, 10a.html, 11.html play in that
      order and nothing downstream had to be renamed.
 
-     TOKEN: assets/mapbox-config.js sets window.MAPBOX_TOKEN. It is a copy of
-     Trips/config.js — a pk.* public token, restricted by URL in the Mapbox
-     account rather than by secrecy. Without that file the map never builds and
-     the slide falls back to the panel on a flat ivory field, which is ugly but
-     not broken.
+     TOKEN: window.MAPBOX_TOKEN, from assets/mapbox-config.js locally (git
+     ignored — see withToken() below for why) and from the proxied
+     /trips/config.js in production. With neither, the map never builds and the
+     slide falls back to the panel on a flat ivory field, which is ugly but not
+     broken.
 
      THE BOUNDING BOX: the design is a 1572x1016 frame, so it plays inside a
      WINDOW rather than bleeding to the slide edges — the same object slide 09
@@ -653,7 +653,27 @@
     setTimeout(() => { if (mine === token) dropPins(m); }, 2100);
   }
 
-  if (window.mapboxgl && window.MAPBOX_TOKEN) {
+  /* THE TOKEN, and why it arrives in two goes.
+     assets/mapbox-config.js is a local copy of Trips/config.js and is GIT
+     IGNORED: johnyum-site is a public repo, trips is a private one, so
+     committing the token here would publish something that has never been
+     public and cannot be un-published. Locally that file answers and this
+     resolves immediately.
+     In production it 404s, and the fallback is /trips/config.js — which is not
+     a second copy of anything: vercel.json already rewrites /trips/ to the
+     Trips deployment, so the live site reads the token from the app that owns
+     it. One token, one source, and nothing secret in the repo.
+     If Trips ever moves and that rewrite goes, this map goes with it. */
+  function withToken(then) {
+    if (window.MAPBOX_TOKEN) return then();
+    const s = document.createElement('script');
+    s.src = '/trips/config.js';
+    s.onload = s.onerror = () => then();
+    document.head.appendChild(s);
+  }
+
+  function boot() {
+    if (!window.mapboxgl || !window.MAPBOX_TOKEN) return;
     mapboxgl.accessToken = window.MAPBOX_TOKEN;
     map = new mapboxgl.Map({
       container: 'map',
@@ -697,6 +717,7 @@
   }
 
   paintPanel(MODES[0], 0);
+  withToken(boot);
 
   // the window arrives with the slide rather than being there before it
   requestAnimationFrame(() => document.body.classList.add('in'));
