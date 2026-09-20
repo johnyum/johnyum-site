@@ -4,27 +4,94 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>06</title>
-<!-- The Airbnb chapter opens: the lockup alone, centred, capped at 80px tall
-     (its native height — it never renders larger than drawn). -->
+<!-- The Airbnb chapter opens: the lockup alone, centred, capped at 80px tall.
+     This slide claims the taps (window.presoNext / presoPrev — see the deck).
+
+       beat 0  the lockup, centred
+       beat 1  the lockup pulls INWARD and goes — it does not slide off — and
+               the list of the work fades up in its place, condensed and all
+               black. The next tap is out of builds, so the deck moves on to
+               the Luxe title.
+
+     The list is Special Gothic Condensed One, the deck's alternate display
+     face; it is sized off the viewport height so all thirteen lines fit
+     without scrolling. -->
 <style>
-  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
-  .slide {
-    height: 100%;
-    display: grid;
-    place-items: center;
+  @font-face {
+    font-family: "Special Gothic Condensed One";
+    src: url("../fonts/SpecialGothicCondensedOne.woff2") format("woff2");
+    font-weight: 400;
+    font-display: block;
   }
-  img {
+  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
+  .slide { height: 100%; display: grid; place-items: center; }
+  .slide > * { grid-area: 1 / 1; }
+
+  #lockup {
     height: clamp(40px, 6vw, 80px);
     width: auto;
     display: block;
+    justify-self: center;
     user-select: none;
     -webkit-user-drag: none;
+    transition: transform 760ms cubic-bezier(0.16, 1, 0.3, 1), opacity 420ms ease;
+  }
+  body.out #lockup { transform: scale(0.78); opacity: 0; }
+
+  .list {
+    margin: 0; padding: 0; list-style: none;
+    font-family: "Special Gothic Condensed One", "Helvetica Neue", sans-serif;
+    font-weight: 400;
+    font-size: clamp(16px, 6.1vh, 62px);
+    line-height: 1.06;
+    letter-spacing: -0.01em;
+    color: #111;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 820ms ease 200ms;
+  }
+  body.out .list { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    #lockup, .list { transition: none; }
   }
 </style>
 </head>
 <body>
   <div class="slide">
-    <img src="assets/airbnb-logo.svg" alt="Airbnb">
+    <img id="lockup" src="assets/airbnb-logo.svg" alt="Airbnb">
+    <ul class="list">
+      <li>Luxe</li>
+      <li>Business travel</li>
+      <li>Design systems</li>
+      <li>Search</li>
+      <li>Transportation</li>
+      <li>Host tools</li>
+      <li>Earnings</li>
+      <li>Gift cards</li>
+      <li>Host setup</li>
+      <li>Payments</li>
+      <li>Photography</li>
+      <li>Pricing</li>
+      <li>Host calendar</li>
+    </ul>
   </div>
+<script>
+(() => {
+  let out = false;
+  window.presoNext = () => {
+    if (out) return false;            // out of builds — the deck goes to Luxe
+    out = true;
+    document.body.classList.add('out');
+    return true;
+  };
+  window.presoPrev = () => {
+    if (!out) return false;           // the deck goes back a slide
+    out = false;
+    document.body.classList.remove('out');
+    return true;
+  };
+})();
+</script>
 </body>
 </html>
