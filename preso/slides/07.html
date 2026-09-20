@@ -4,36 +4,138 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>07</title>
-<!-- The Luxe chapter title. One word, set at the same size as slide 01's
-     'Hello!' — clamp(128px, 24vw, 320px) Anton. The accent sits over the E.
-     (Swap É for Ē if the mark should read as a macron rather than an acute.) -->
+<!-- The work list, and the Luxé chapter title it turns into.
+
+     The deck pushes this slide in from the right in the usual way — the
+     Airbnb lockup on slide 6 just slides off left.
+
+       beat 0  the list, condensed and all black, thirteen lines sized off
+               the viewport height so they always fit
+       beat 1  the rest of the list fades away and 'Luxé' GROWS INTO the
+               chapter title — the big Anton LUXÉ starts life sitting exactly
+               on top of the list's own first line, at its size and position,
+               then travels to the centre at full size. Tapping back reverses
+               it and the list comes home.
+
+     The two words are different faces — Special Gothic Condensed in the list,
+     Anton for the title — so the flight cross-fades between them while the
+     geometry does the work. The start transform is MEASURED, not guessed, and
+     re-measured on resize, because both ends depend on the viewport. -->
 <style>
+  @font-face {
+    font-family: "Special Gothic Condensed One";
+    src: url("../fonts/SpecialGothicCondensedOne.woff2") format("woff2");
+    font-weight: 400;
+    font-display: block;
+  }
   @font-face {
     font-family: "Anton";
     src: url("../fonts/Anton.woff2") format("woff2");
     font-weight: 400;
     font-display: block;
   }
-  html, body {
-    margin: 0; height: 100%;
-    background: #fff; color: #111;
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    overflow: hidden;
-  }
+  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .slide { height: 100%; display: grid; place-items: center; }
-  h1 {
+  .slide > * { grid-area: 1 / 1; }
+
+  .list {
+    margin: 0; padding: 0; list-style: none;
+    font-family: "Special Gothic Condensed One", "Helvetica Neue", sans-serif;
+    font-weight: 400;
+    font-size: clamp(16px, 6.1vh, 62px);
+    line-height: 1.06;
+    letter-spacing: -0.01em;
+    color: #111;
+    text-align: center;
+  }
+  .list li { transition: opacity 420ms ease; }
+  /* the rest of the list clears out first, so the word is left on its own */
+  body.title .list li + li { opacity: 0; }
+  /* the source word hands off to the title and goes */
+  .list li:first-child { transition: opacity 260ms ease; }
+  body.title .list li:first-child { opacity: 0; }
+
+  #big {
+    justify-self: center;
     font-family: "Anton", "Helvetica Neue", sans-serif;
     font-weight: 400;
     font-size: clamp(128px, 24vw, 320px);
     line-height: 1;
     letter-spacing: -0.02em;   /* -2% */
+    color: #111;
     margin: 0;
+    opacity: 0;
+    transform-origin: 50% 50%;
+    transition: transform 820ms cubic-bezier(0.16, 1, 0.3, 1), opacity 420ms ease;
+    will-change: transform;
+  }
+  body.title #big { opacity: 1; transform: none !important; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .list li, #big { transition: none; }
   }
 </style>
 </head>
 <body>
   <div class="slide">
-    <h1>LUX&Eacute;</h1>
+    <ul class="list">
+      <li>Lux&eacute;</li>
+      <li>Business travel</li>
+      <li>Design systems</li>
+      <li>Search</li>
+      <li>Transportation</li>
+      <li>Host tools</li>
+      <li>Earnings</li>
+      <li>Gift cards</li>
+      <li>Host setup</li>
+      <li>Payments</li>
+      <li>Photography</li>
+      <li>Pricing</li>
+      <li>Host calendar</li>
+    </ul>
+    <h1 id="big">LUX&Eacute;</h1>
   </div>
+<script>
+(() => {
+  const src = document.querySelector('.list li:first-child');
+  const big = document.getElementById('big');
+  let shown = false;
+
+  // Park the title exactly over the list's own 'Luxé' — measured, since both
+  // the list size and the title size come from the viewport.
+  function park() {
+    if (shown) return;                       // mid-flight or landed: leave it
+    big.style.transition = 'none';
+    big.style.transform = 'none';
+    const a = src.getBoundingClientRect(), b = big.getBoundingClientRect();
+    if (!a.width || !b.width) return;        // not laid out yet
+    const s = a.width / b.width;
+    const dx = (a.left + a.width / 2) - (b.left + b.width / 2);
+    const dy = (a.top + a.height / 2) - (b.top + b.height / 2);
+    big.style.transform = `translate(${dx}px, ${dy}px) scale(${s})`;
+    void big.offsetWidth;                    // flush before transitions return
+    big.style.transition = '';
+  }
+
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(park);
+  setTimeout(park, 1200);                    // backstop if fonts never settle
+  addEventListener('resize', park);
+
+  window.presoNext = () => {
+    if (shown) return false;                 // out of builds — on to Villa Mayana
+    park();
+    shown = true;
+    document.body.classList.add('title');
+    return true;
+  };
+  window.presoPrev = () => {
+    if (!shown) return false;                // the deck goes back to the lockup
+    shown = false;
+    document.body.classList.remove('title');
+    park();                                  // fly home to the list line
+    return true;
+  };
+})();
+</script>
 </body>
 </html>
