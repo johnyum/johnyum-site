@@ -17,7 +17,11 @@
               bottom (11s, soft ends and an even middle), holds for a beat,
               then blooms — the window grows to the full 3680px page and the
               whole design lands centred at once.
-       tap 2  out of builds; the deck moves on.
+       tap 2  the bloom closes back up and the listing shrinks into the middle
+              of a 7x5 wall of homes — 34 photographs wash in ring by ring
+              around it. In grid mode the listing is ONLY its photograph; the
+              header, the title and the rest fade off.
+       tap 3  out of builds; the deck moves on.
 
      Tapping DURING the pan doesn't stall it, it cuts straight to the bloom;
      tapping back at any point returns to the hero. Under
@@ -65,6 +69,41 @@
     color: var(--grey1000);
   }
   .stage { height: 100%; display: grid; place-items: center; }
+  /* the window and the grid occupy the SAME cell, so the grid's centre cell and
+     the window are the same point on screen — the window simply shrinks into it */
+  .stage > * { grid-area: 1 / 1; }
+
+  /* ── the 7x5 wall of homes, Villa Mayana in the middle ──────────────── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(7, var(--cw));
+    grid-auto-rows: var(--ch);
+    gap: var(--gap);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 500ms ease;
+  }
+  body.gridmode .grid { opacity: 1; }
+  .grid .tile {
+    width: var(--cw); height: var(--ch);
+    border-radius: calc(32px * var(--k));
+    overflow: hidden;
+    background: #efeeea;
+    opacity: 0;
+    transform: scale(0.92);
+    transition: opacity 600ms ease, transform 700ms var(--ease);
+    box-shadow:
+      0 0 0 calc(1px * var(--k))  rgba(0, 0, 0, 0.02),
+      0 calc(4px * var(--k))  calc(8px * var(--k))  rgba(0, 0, 0, 0.08),
+      0 calc(12px * var(--k)) calc(30px * var(--k)) rgba(0, 0, 0, 0.18);
+  }
+  body.gridmode .grid .tile { opacity: 1; transform: scale(1); }
+  .grid .tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .grid .hole { width: var(--cw); height: var(--ch); }   /* Villa Mayana sits here */
+
+  /* in grid mode the listing is only its photograph — everything else goes */
+  body.gridmode .page > *:not(.hero) { opacity: 0; }
+  .page > *:not(.hero) { transition: opacity 350ms ease; }
 
   /* the window — sized in SCREEN px, so its shadow and radius scale with it */
   .window {
@@ -234,6 +273,7 @@
 </head>
 <body>
   <div class="stage">
+    <div class="grid" id="grid" aria-hidden="true"></div>
     <div class="window" id="window">
       <div class="page" id="page">
 
@@ -370,28 +410,62 @@
   // ONE continuous move: a slow pan the whole length of the page, a short
   // hold at the bottom, then the bloom — all off a single tap.
   const PAN_MS   = 11000;
-  const HOLD_MS  = 420;
-  const BLOOM_MS = 1000;
+  const HOLD_MS  = 1200;    // a beat to read the bottom of the page before it blooms
+  const BLOOM_MS = 1500;    // the bloom takes its time
+  const GRID_MS  = 1000;
+  const COLS = 7, ROWS = 5, GAP = 8, TILES = COLS * ROWS - 1;   // 34 + Villa Mayana
   const PAN_EASE = 'cubic-bezier(0.2, 0, 0.8, 1)';   // soft ends, even middle
   const REDUCED  = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let phase = 'hero';              // 'hero' -> 'running' -> 'done'
   let timer = 0;
 
-  const fit = h => Math.min((innerWidth - MX * 2) / DW, (innerHeight - MY * 2) / h, 1.2);
+  // A slide can be measured before it has been laid out — a backgrounded tab or
+  // an iframe the deck has not shown yet reports innerHeight 0, which would make
+  // every size below negative and collapse the window to nothing.
+  const vw = () => Math.max(innerWidth, 320);
+  const vh = () => Math.max(innerHeight, 240);
 
-  // one place that writes the state; durations are per-move
-  function set(winh, y, durWin, durPage, easePage) {
+  const fit = h => Math.max(0.05, Math.min((vw() - MX * 2) / DW, (vh() - MY * 2) / h, 1.2));
+
+  // the centre cell of the wall — the size the listing shrinks into
+  function cellW() {
+    return Math.max(24, Math.min(
+      (vw() - MX * 2 - GAP * (COLS - 1)) / COLS,
+      (vh() - MY * 2 - GAP * (ROWS - 1)) / ROWS * (DW / HERO)
+    ));
+  }
+  function layoutGrid() {
+    const cw = cellW();
+    root.style.setProperty('--cw', cw + 'px');
+    root.style.setProperty('--ch', cw / (DW / HERO) + 'px');
+    root.style.setProperty('--gap', GAP + 'px');
+    return cw;
+  }
+
+  // one place that writes the state; durations are per-move.
+  // kOverride is for grid mode, where the scale comes from the cell, not the fit.
+  function set(winh, y, durWin, durPage, easePage, kOverride) {
     root.style.setProperty('--dur-win', (REDUCED ? 0 : durWin) + 'ms');
     root.style.setProperty('--dur-page', (REDUCED ? 0 : durPage) + 'ms');
     root.style.setProperty('--ease-page', easePage || 'var(--ease)');
     root.style.setProperty('--winh', winh);
-    root.style.setProperty('--k', fit(winh));
+    root.style.setProperty('--k', kOverride != null ? kOverride : fit(winh));
     root.style.setProperty('--y', y);
   }
 
-  const toHero  = ms => { clearTimeout(timer); phase = 'hero'; set(HERO, 0, ms, ms); };
-  const toBloom = ms => { clearTimeout(timer); phase = 'done'; set(DH, 0, ms, ms); };
+  const ungrid = () => document.body.classList.remove('gridmode');
+  const toHero  = ms => { clearTimeout(timer); ungrid(); phase = 'hero'; set(HERO, 0, ms, ms); };
+  const toBloom = ms => { clearTimeout(timer); ungrid(); phase = 'done'; set(DH, 0, ms, ms); };
+
+  // close the bloom back up and shrink the listing into the middle of the wall
+  function toGrid() {
+    clearTimeout(timer);
+    phase = 'grid';
+    buildGrid();
+    set(HERO, 0, GRID_MS, GRID_MS, null, layoutGrid() / DW);
+    document.body.classList.add('gridmode');
+  }
 
   function run() {                  // the pan, chained straight into the bloom
     phase = 'running';
@@ -400,11 +474,37 @@
     timer = setTimeout(() => toBloom(BLOOM_MS), PAN_MS + HOLD_MS);
   }
 
+  // the wall is built once, on the way in — 34 photographs around the hole
+  // the listing drops into. Tiles wash in ring by ring from the centre out.
+  let built = false;
+  function buildGrid() {
+    if (built) return;
+    built = true;
+    const mid = Math.floor(TILES / 2);          // the hole, dead centre of 7x5
+    const frag = document.createDocumentFragment();
+    for (let i = 0, n = 1; i <= TILES; i++) {
+      const row = Math.floor(i / COLS), col = i % COLS;
+      if (i === mid) { frag.appendChild(Object.assign(document.createElement('div'), { className: 'hole' })); continue; }
+      const cell = document.createElement('div');
+      cell.className = 'tile';
+      const ring = Math.max(Math.abs(row - (ROWS - 1) / 2), Math.abs(col - (COLS - 1) / 2));
+      cell.style.transitionDelay = Math.round(ring * 70) + 'ms';
+      const img = document.createElement('img');
+      img.src = 'assets/luxe-homes/home-' + String(n++).padStart(2, '0') + '.webp';
+      img.alt = '';
+      img.loading = 'eager';
+      cell.appendChild(img);
+      frag.appendChild(cell);
+    }
+    document.getElementById('grid').appendChild(frag);
+  }
+
+  layoutGrid();
   set(HERO, 0, 0, 0);
   // a resize mid-move must not restart it — just re-fit at the current spot
   addEventListener('resize', () => {
-    const winh = phase === 'done' ? DH : HERO;
-    root.style.setProperty('--k', fit(winh));
+    if (phase === 'grid') { root.style.setProperty('--k', layoutGrid() / DW); return; }
+    root.style.setProperty('--k', fit(phase === 'done' ? DH : HERO));
   });
 
   // the entrance — hero settles, then the type and header rise in behind it.
@@ -430,10 +530,12 @@
   window.presoNext = () => {
     if (phase === 'hero')    { run(); return true; }
     if (phase === 'running') { toBloom(500); return true; }
-    return false;                    // bloomed — the deck moves on
+    if (phase === 'done')    { toGrid(); return true; }
+    return false;                    // the wall is up — the deck moves on
   };
   window.presoPrev = () => {
     if (phase === 'hero') return false;
+    if (phase === 'grid') { toBloom(GRID_MS); return true; }
     toHero(phase === 'running' ? 600 : BLOOM_MS);
     return true;
   };
