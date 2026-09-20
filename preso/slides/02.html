@@ -4,8 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>02</title>
-<!-- Nike lookbook spread — lands centre on the deck's push. -->
+<!-- "I love to design" — lands, takes a beat, then the o in love keeps getting
+     added on, accelerating: love → loove → looove → … loooooooooove.
+     Type is sized so the fully-grown line still fits on one line. -->
 <style>
+  @font-face {
+    font-family: "Anton";
+    src: url("../fonts/Anton.woff2") format("woff2");
+    font-weight: 400;
+    font-display: block;
+  }
   html, body {
     margin: 0; height: 100%;
     background: #fff; color: #111;
@@ -17,19 +25,41 @@
     display: grid;
     place-items: center;
   }
-  .slide img {
-    max-width: 88vw;
-    max-height: 72vh;
-    width: auto; height: auto;
-    display: block;
-    user-select: none;
-    -webkit-user-drag: none;
+  h1 {
+    font-family: "Anton", "Helvetica Neue", sans-serif;
+    font-weight: 400;
+    font-size: clamp(48px, 8vw, 120px);
+    line-height: 1;
+    letter-spacing: -0.02em;   /* -2% */
+    margin: 0;
+    white-space: nowrap;
   }
 </style>
 </head>
 <body>
   <div class="slide">
-    <img src="assets/nike-lookbook.webp" alt="Nike lookbook — Hunger cover, product spread, Seleção stadium spread">
+    <h1>I l<span id="o">o</span>ve to design</h1>
   </div>
+<script>
+(() => {
+  const o = document.getElementById('o');
+  const MAX = 10;                 // love -> loooooooooove
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    o.textContent = 'o'.repeat(MAX);
+    return;
+  }
+  // the deck pushes this slide in over ~640ms after load — hold the beat,
+  // then grow, each o landing a little sooner than the last
+  let n = 1, delay = 240;
+  setTimeout(function tick() {
+    n++;
+    o.textContent = 'o'.repeat(n);
+    if (n < MAX) {
+      delay = Math.max(80, delay * 0.86);
+      setTimeout(tick, delay);
+    }
+  }, 1100);
+})();
+</script>
 </body>
 </html>
