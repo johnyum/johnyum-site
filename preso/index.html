@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light">
+<title>John Yum — Preso</title>
+<!--
+  PRESO — a Keynote-style deck, presented by the browser.
+
+  Slides are FULL-BLEED HTML PAGES you build by hand — the viewport is the
+  bounding box, there is no fixed canvas. Each slide is its own self-contained
+  file in preso/slides/ (same ethos as the rest of the repo: one hand-written
+  html per thing). Images and MP4s drop in as slides too, if ever needed.
+
+  ADDING A SLIDE
+  1. Duplicate slides/01.html (or add a .png/.jpg/.mp4) into preso/slides/.
+     Name in play order: 01.html, 02.html, 03.mp4 …
+  2. Regenerate the manifest — from preso/slides/ run:
+     python3 -c "import os,json;open('manifest.json','w').write(json.dumps(sorted(f for f in os.listdir('.') if f.lower().endswith(('.html','.png','.jpg','.jpeg','.webp','.gif','.mp4','.webm','.mov')))))"
+  3. Push. johnyum.com/preso plays it.
+
+  DRIVING IT
+  →  ␣  ⏎  PgDn   next        (PgUp/PgDn = presenter clickers)
+  ←  PgUp         back
+  Home / End      first / last
+  F               fullscreen
+  Taps            image/video slides: left side back, right side forward.
+                  HTML slides stay fully interactive — only a 32px rail on each
+                  edge advances, so a live prototype can be driven mid-deck.
+  #n in the URL   deep-link straight to slide n; position survives refresh.
+
+  Keys keep working even when focus is inside an HTML slide: same-origin
+  iframes get the deck's key handler injected on load.
+-->
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    height: 100%;
+    background: #fff;
+    overflow: hidden;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #111;
+    letter-spacing: -0.01em;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  #stage { position: fixed; inset: 0; background: #fff; }
+  /* html slides: the viewport IS the slide */
+  #stage iframe {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    border: 0; display: block;
+    background: #fff;
+  }
+  /* image / video slides: centred, never cropped */
+  #stage img, #stage video {
+    position: absolute; inset: 0; margin: auto;
+    max-width: 100%; max-height: 100%;
+    width: auto; height: auto;
+  }
+
+  /* tap zones. Image/video slides: big halves. HTML slides (body.htmlslide):
+     slim edge rails so the slide itself stays fully interactive. */
+  #tapback, #tapnext {
+    position: fixed; top: 0; bottom: 0;
+    z-index: 10;
+    touch-action: manipulation;
+  }
+  #tapback { left: 0;  width: 30%; }
+  #tapnext { right: 0; width: 70%; }
+  body.htmlslide #tapback { width: 32px; }
+  body.htmlslide #tapnext { width: 32px; }
+
+  #counter {
+    position: fixed;
+    bottom: 16px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 14px;
+    line-height: 1;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.72);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    color: #111;
+    font-variant-numeric: tabular-nums;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    z-index: 20;
+  }
+  #counter.show { opacity: 1; }
+
+  #empty {
+    position: fixed; inset: 0;
+    display: none;
+    place-items: center;
+    text-align: center;
+    padding: 24px;
+  }
+  #empty.show { display: grid; }
+  #empty h1 { font-size: 18px; font-weight: 500; margin: 0 0 12px; }
+  #empty p  { font-size: 14px; color: #767676; margin: 0 0 6px; line-height: 1.6; }
+  #empty code {
+    display: inline-block;
+    margin-top: 12px;
+    font: 11px/1.6 ui-monospace, "SF Mono", Menlo, monospace;
+    color: #767676;
+    background: #f6f6f6;
+    border-radius: 8px;
+    padding: 10px 14px;
+    max-width: 82vw;
+    overflow-x: auto;
+    white-space: pre;
+    text-align: left;
+    user-select: text;
+  }
+  body.hidecursor, body.hidecursor iframe { cursor: none; }
+</style>
+</head>
+<body>
+  <div id="stage" aria-live="polite"></div>
+  <div id="tapback" aria-hidden="true"></div>
+  <div id="tapnext" aria-hidden="true"></div>
+  <div id="counter" aria-hidden="true"></div>
+  <div id="empty">
+    <div>
+      <h1>Preso</h1>
+      <p>No slides yet. Each slide is a full-bleed HTML file (or an image / MP4).</p>
+      <p>Add them to <b>preso/slides/</b> in play order, then from that folder run:</p>
+      <code>python3 -c "import os,json;open('manifest.json','w').write(json.dumps(sorted(f for f in os.listdir('.') if f.lower().endswith(('.html','.png','.jpg','.jpeg','.webp','.gif','.mp4','.webm','.mov')))))"</code>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const stage   = document.getElementById('stage');
+  const counter = document.getElementById('counter');
+  const empty   = document.getElementById('empty');
+  const VID  = /\.(mp4|webm|mov)$/i;
+  const HTML = /\.html?$/i;
+
+  let SLIDES = [];
+  let idx = 0;
+  const cache = new Map();
+
+  const src = i => 'slides/' + encodeURIComponent(SLIDES[i]);
+
+  function preload(i) {
+    if (i < 0 || i >= SLIDES.length || cache.has(i)) return;
+    if (VID.test(SLIDES[i]) || HTML.test(SLIDES[i])) return;   // only images preload
+    const im = new Image();
+    im.src = src(i);
+    cache.set(i, im);
+  }
+
+  let hideTimer = 0;
+  function flashCounter() {
+    counter.textContent = (idx + 1) + ' / ' + SLIDES.length;
+    counter.classList.add('show');
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => counter.classList.remove('show'), 1600);
+  }
+
+  function render() {
+    stage.textContent = '';
+    const f = SLIDES[idx];
+    let el;
+    if (HTML.test(f)) {
+      document.body.classList.add('htmlslide');
+      el = document.createElement('iframe');
+      el.src = src(idx);
+      el.setAttribute('title', 'slide ' + (idx + 1));
+      // keys must survive focus living INSIDE the slide (e.g. mid-demo of the
+      // calendar): same-origin, so wire the deck's handler into the frame.
+      el.addEventListener('load', () => {
+        try { el.contentWindow.addEventListener('keydown', onKey); } catch (_) {}
+      });
+    } else if (VID.test(f)) {
+      document.body.classList.remove('htmlslide');
+      el = document.createElement('video');
+      el.src = src(idx);
+      el.muted = true; el.loop = true; el.autoplay = true;
+      el.playsInline = true; el.setAttribute('playsinline', '');
+      el.play && el.play().catch(() => {});
+    } else {
+      document.body.classList.remove('htmlslide');
+      el = document.createElement('img');
+      el.src = src(idx);
+      el.alt = '';
+    }
+    stage.appendChild(el);
+    history.replaceState(null, '', '#' + (idx + 1));
+    flashCounter();
+    preload(idx + 1); preload(idx + 2); preload(idx - 1);
+  }
+
+  function go(delta) {
+    const n = Math.min(SLIDES.length - 1, Math.max(0, idx + delta));
+    if (n === idx) { flashCounter(); return; }
+    idx = n;
+    render();
+  }
+  function goTo(n) { idx = Math.min(SLIDES.length - 1, Math.max(0, n)); render(); }
+
+  function onKey(e) {
+    if (!SLIDES.length) return;
+    switch (e.key) {
+      case 'ArrowRight': case ' ': case 'Enter': case 'PageDown': case 'ArrowDown':
+        e.preventDefault(); go(1); break;
+      case 'ArrowLeft': case 'PageUp': case 'ArrowUp':
+        e.preventDefault(); go(-1); break;
+      case 'Home': e.preventDefault(); goTo(0); break;
+      case 'End':  e.preventDefault(); goTo(SLIDES.length - 1); break;
+      case 'f': case 'F':
+        (document.fullscreenElement ? document.exitFullscreen()
+                                    : document.documentElement.requestFullscreen()).catch(() => {});
+        break;
+    }
+  }
+  addEventListener('keydown', onKey);
+
+  // editing the #n by hand (or navigating history) jumps live — no reload needed
+  addEventListener('hashchange', () => {
+    const h = parseInt(location.hash.slice(1), 10);
+    if (h >= 1 && h <= SLIDES.length && h - 1 !== idx) goTo(h - 1);
+  });
+
+  document.getElementById('tapnext').addEventListener('click', () => go(1));
+  document.getElementById('tapback').addEventListener('click', () => go(-1));
+
+  let cursorTimer = 0;
+  addEventListener('pointermove', () => {
+    document.body.classList.remove('hidecursor');
+    clearTimeout(cursorTimer);
+    cursorTimer = setTimeout(() => document.body.classList.add('hidecursor'), 2000);
+  });
+
+  fetch('slides/manifest.json', { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : [])
+    .catch(() => [])
+    .then(list => {
+      SLIDES = Array.isArray(list) ? list : [];
+      if (!SLIDES.length) { empty.classList.add('show'); return; }
+      const h = parseInt(location.hash.slice(1), 10);
+      idx = (h >= 1 && h <= SLIDES.length) ? h - 1 : 0;
+      render();
+    });
+})();
+</script>
+</body>
+</html>
