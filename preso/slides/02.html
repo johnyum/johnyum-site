@@ -25,8 +25,9 @@
     display: grid;
     place-items: center;
   }
-  /* the growing Love — pure #FF0000 red against the black type */
-  .rl { color: #FF0000; }
+  /* the growing Love — starts black; the script walks it to #FF0000,
+     one shade per added o, and it stays red after the rewind */
+  .rl { color: #111; }
   h1 {
     font-family: "Anton", "Helvetica Neue", sans-serif;
     font-weight: 400;
@@ -46,20 +47,34 @@
 <script>
 (() => {
   const o = document.getElementById('o');
+  const rl = document.querySelector('.rl');
   const MAX = 10;                 // Love -> Loooooooooove
+  // black #111 -> red #FF0000, one shade per added o
+  const shade = n => {
+    const t = (n - 1) / (MAX - 1);
+    const r = Math.round(17 + (255 - 17) * t);
+    const g = Math.round(17 * (1 - t));
+    return 'rgb(' + r + ',' + g + ',' + g + ')';
+  };
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    o.textContent = 'o'.repeat(MAX);
+    rl.style.color = shade(MAX);          // ends: 'Love', red
     return;
   }
-  // the deck pushes this slide in over ~640ms after load — hold the beat,
-  // then grow, each o landing a little sooner than the last
   let n = 1, delay = 240;
-  setTimeout(function tick() {
+  setTimeout(function grow() {
     n++;
     o.textContent = 'o'.repeat(n);
+    rl.style.color = shade(n);
     if (n < MAX) {
       delay = Math.max(80, delay * 0.86);
-      setTimeout(tick, delay);
+      setTimeout(grow, delay);
+    } else {
+      // fully red. take a beat, then rewind QUICK — the red stays.
+      setTimeout(function shrink() {
+        n--;
+        o.textContent = 'o'.repeat(n);
+        if (n > 1) setTimeout(shrink, 40);
+      }, 800);
     }
   }, 1100);
 })();
