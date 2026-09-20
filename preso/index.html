@@ -38,9 +38,10 @@
   ←  PgUp         previous build, else previous slide
   Home / End      first / last slide
   F               fullscreen
-  Taps            image/video slides: left side back, right side forward.
-                  HTML slides stay fully interactive — only a 32px rail on each
-                  edge advances, so a live prototype can be driven mid-deck.
+  Taps            every slide: left side back, right side forward (Keynote
+                  click-to-advance). A LIVE-DEMO slide keeps its whole surface
+                  by declaring  window.presoInteractive = true  — navigation
+                  then shrinks to a 32px rail on each edge for that slide.
   #n in the URL   deep-link straight to slide n; position survives refresh.
 
   Keys keep working with focus inside an HTML slide: same-origin iframes get
@@ -92,8 +93,10 @@
   }
   #tapback { left: 0;  width: 30%; }
   #tapnext { right: 0; width: 70%; }
-  body.htmlslide #tapback { width: 32px; }
-  body.htmlslide #tapnext { width: 32px; }
+  /* a slide that declares window.presoInteractive = true keeps its whole
+     surface (live demos) — navigation shrinks to 32px edge rails */
+  body.interactive #tapback { width: 32px; }
+  body.interactive #tapnext { width: 32px; }
 
   /* deck chrome — holds still while slides flow underneath */
   #kicker {
@@ -215,7 +218,11 @@
       frame.setAttribute('title', 'slide ' + (i + 1));
       ready = new Promise(res => {
         frame.addEventListener('load', () => {
-          try { frame.contentWindow.addEventListener('keydown', onKey); } catch (_) {}
+          try {
+            frame.contentWindow.addEventListener('keydown', onKey);
+            if (current && current.frame === frame)
+              document.body.classList.toggle('interactive', frame.contentWindow.presoInteractive === true);
+          } catch (_) {}
           res();
         });
         setTimeout(res, 400);
@@ -242,7 +249,11 @@
   function settle(i, made) {
     current = made;
     idx = i;
-    document.body.classList.toggle('htmlslide', HTML.test(SLIDES[i]));
+    // full tap zones by default; an interactive slide (window.presoInteractive)
+    // flips this from its load hook below — or right here if it beat us to it
+    let inter = false;
+    try { inter = !!(made.frame && made.frame.contentWindow && made.frame.contentWindow.presoInteractive === true); } catch (_) {}
+    document.body.classList.toggle('interactive', inter);
     history.replaceState(null, '', '#' + (i + 1));
     flashCounter();
     preload(i + 1); preload(i + 2); preload(i - 1);
