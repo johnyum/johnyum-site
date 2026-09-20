@@ -25,22 +25,10 @@
     display: grid;
     place-items: center;
   }
-  /* an arriving love: the slot widens while the word rises in — then the DOM
-     is flattened back to plain text so the settled line is pixel-perfect */
-  .lvwrap {
-    display: inline-block;
-    overflow: hidden;
-    max-width: 0;
-    white-space: pre;
-    vertical-align: text-bottom;
-  }
-  .lvword {
-    display: inline-block;
-    opacity: 0;
-    transform: translateY(0.28em);
-  }
-  /* the Loves — rausch: vibrant love-red against the black type */
-  #l { color: #FF385C; }
+  /* the I + Loves — a true vibrant red, and the 2nd/3rd Love fade in, in place */
+  .rl { color: #FF1E1E; }
+  .lv { opacity: 0; transition: opacity 480ms ease; }
+  .lv.in { opacity: 1; }
   h1 {
     font-family: "Anton", "Helvetica Neue", sans-serif;
     font-weight: 400;
@@ -55,50 +43,18 @@
 </head>
 <body>
   <div class="slide">
-    <h1>I&rsquo;m John Yum and<br>I <span id="l">Love</span> to design.</h1>
+    <h1>I&rsquo;m John Yum and<br><span class="rl">I Love</span><span class="rl lv"> Love</span><span class="rl lv"> Love</span> to design.</h1>
   </div>
 <script>
 (() => {
-  const l = document.getElementById('l');
-  const MAX = 3;                  // Love -> Love Love -> Love Love Love
-  const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';   // same landing feel as the deck
+  const loves = [...document.querySelectorAll('.lv')];
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    l.textContent = Array(MAX).fill('Love').join(' ');
+    loves.forEach(el => el.classList.add('in'));
     return;
   }
-  let n = 1;
-  function drop() {
-    n++;
-    // measure the slot the new word needs, in place, invisibly
-    const probe = document.createElement('span');
-    probe.style.visibility = 'hidden';
-    probe.style.whiteSpace = 'pre';
-    probe.textContent = ' Love';
-    l.appendChild(probe);
-    const w = probe.getBoundingClientRect().width;
-    probe.remove();
-    // the slot widens while the word rises in
-    const wrap = document.createElement('span');
-    wrap.className = 'lvwrap';
-    const word = document.createElement('span');
-    word.className = 'lvword';
-    word.textContent = ' Love';
-    wrap.appendChild(word);
-    l.appendChild(wrap);
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      wrap.style.transition = 'max-width 480ms ' + EASE;
-      wrap.style.maxWidth = Math.ceil(w) + 'px';
-      word.style.transition = 'opacity 360ms ease-out 80ms, transform 480ms ' + EASE + ' 80ms';
-      word.style.opacity = '1';
-      word.style.transform = 'translateY(0)';
-    }));
-    setTimeout(() => {
-      // flatten: the settled line is plain text again, baselines exact
-      l.textContent = Array(n).fill('Love').join(' ');
-      if (n < MAX) setTimeout(drop, 200);
-    }, 620);
-  }
-  setTimeout(drop, 1100);
+  // land, hold the beat, then each Love dissolves in
+  setTimeout(() => loves[0].classList.add('in'), 1100);
+  setTimeout(() => loves[1].classList.add('in'), 1660);
 })();
 </script>
 </body>
