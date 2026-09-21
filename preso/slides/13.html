@@ -356,6 +356,14 @@ const BEATS = [
   },
   // 11 — the Custom settings card grows into the settings sheet, the ⨉ riding up with it
   m => m.setSettingsSheet(true),
+  // 12 — Minimum nights, visibly tapped: the settings sheet re-dresses as the minimum-nights editor, 7 by default
+  (m, instant) => {
+    if (instant) { m.setMinSheet(true); return; }
+    const g = ++gen;
+    const d = appDoc(), row = d && d.querySelector('.sqa-custom.open .ss-row');
+    if (row) { row.classList.add('pressing'); setTimeout(() => row.classList.remove('pressing'), 440); }
+    setTimeout(() => { if (g === gen) m.setMinSheet(true); }, 200);
+  },
 ];
 
 // A scripted finger on the price sheet's keypad. Each key pops (sqa.css key-tap) and its click lands mid-squash,
@@ -441,7 +449,7 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null;                         // BACK or a jump: reset everything, replay to the target instantly
-    m.setPriceSheet(false); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
+    m.setPriceSheet(false); m.setMinSheet(false); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
