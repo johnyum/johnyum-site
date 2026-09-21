@@ -17,25 +17,24 @@
 
      THE BUILD
        land    the phones start falling ~a beat after the slide lands
-       tap 1   the whole pile slides off LEFT (the deck's own push easing);
-               physics freezes the instant it goes so nothing shifts in flight
-       tap 2   out of builds — the deck moves on to the live calendar
+       tap     the pile DRAINS, exactly as the front page's did when you pressed
+               play: the floor is pulled out, gravity spikes, every phone pours
+               out the bottom. The moment the last one is through, the slide
+               presses "next" on the deck itself, so the live calendar pushes
+               in without a second tap.
+       back    (mid-drain) the floor comes back and the pile re-pours
 
      The PNGs are 450x920 with the iPhone chrome baked in and transparent
      corners, so a card IS a phone. Sized by viewport area, like the pile:
      the phones cover the same fraction of the screen at every size. -->
 <script src="../../js/matter.min.js"></script>
 <style>
-  :root { --ease: cubic-bezier(0.16, 1, 0.3, 1); --slide-ms: 1000ms; }
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   #pile {
     position: fixed; inset: 0;
     overflow: hidden;
     pointer-events: none;
-    transition: transform var(--slide-ms) var(--ease);
   }
-  /* the build: the pile leaves as one object, the way 09's walls do */
-  body.gone #pile { transform: translateX(calc(-100vw - 48px)); }
   .card {
     position: absolute; left: 0; top: 0;
     will-change: transform;
@@ -46,9 +45,6 @@
     width: 100%; height: 100%;
     user-select: none;
     -webkit-user-drag: none;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    #pile { transition: none; }
   }
 </style>
 </head>
@@ -71,7 +67,7 @@
   const pile = document.getElementById('pile');
   let engine = null, walls = [], cards = [], pendingCards = [];
   let frames = 0, nextDrop = 0, leak = 0;
-  let pileAsleep = false, calmFrames = 0, gone = false;
+  let pileAsleep = false, calmFrames = 0, draining = false, drained = false;
   function wakePile() { pileAsleep = false; calmFrames = 0; }
 
   function makeWalls(W, H) {
@@ -147,7 +143,7 @@
 
   function step() {
     frames++;
-    if (gone) return;                        // the pile left as one object; nothing may shift in flight
+    if (drained) return;
     if (pendingCards.length && frames >= nextDrop) spawnNext();
     if (!pileAsleep) {
       Engine.update(engine, 1000 / 120);
@@ -156,8 +152,10 @@
       for (const c of cards) {
         const b = c.body;
         if (b.isSleeping) continue;
+        // one speed cap for everything — lifted while the pile pours out
+        const cap = draining ? 70 : 11;
         const v = b.velocity, sp = Math.hypot(v.x, v.y);
-        if (sp > 11) Body.setVelocity(b, { x: v.x / sp * 11, y: v.y / sp * 11 });
+        if (sp > cap) Body.setVelocity(b, { x: v.x / sp * cap, y: v.y / sp * cap });
         let a = b.angle % (2 * Math.PI);
         if (a > Math.PI) a -= 2 * Math.PI; else if (a < -Math.PI) a += 2 * Math.PI;
         if (Math.abs(a) > MAX_TILT) { Body.setAngle(b, Math.sign(a) * MAX_TILT); Body.setAngularVelocity(b, b.angularVelocity * 0.25); }
@@ -168,16 +166,51 @@
         if (maxMotion < 0.12 ? calmFrames > 35 : calmFrames > 480) pileAsleep = true;
       } else calmFrames = 0;
       render();
+      // the last phone is through the floor: hand the deck its "next" — once
+      if (draining && cards.every(c => c.body.position.y - c.h > innerHeight)) {
+        drained = true;
+        parent.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        return;
+      }
     }
     requestAnimationFrame(step);
+  }
+
+  // THE DRAIN (drainPile on the front page): keep the two side walls, pull the
+  // floor, spike gravity, and give every phone a shove downward.
+  function drain() {
+    draining = true; wakePile();
+    for (let i = 2; i < walls.length; i++) World.remove(engine.world, walls[i]);
+    engine.gravity.y = 3.4;
+    for (const c of cards) {
+      Sleeping.set(c.body, false);
+      Body.setVelocity(c.body, { x: c.body.velocity.x * 0.5, y: 9 + Math.random() * 6 });
+    }
+  }
+  // back mid-drain: the floor returns and the pile re-pours from above
+  function repour() {
+    draining = false; drained = false;
+    makeWalls(innerWidth, innerHeight);
+    engine.gravity.y = 1.0;
+    for (const c of cards) {
+      Body.setPosition(c.body, { x: innerWidth * (0.14 + 0.72 * Math.random()), y: -c.h - Math.random() * innerHeight * 0.6 });
+      Body.setAngle(c.body, (Math.random() - 0.5) * 0.28);
+      Body.setVelocity(c.body, { x: (Math.random() - 0.5) * 1.4, y: 1.5 });
+      Body.setAngularVelocity(c.body, (Math.random() - 0.5) * 0.05);
+      Sleeping.set(c.body, false);
+    }
+    wakePile();
   }
 
   // the deck pushes this slide in over 640ms; the first phone falls once it has landed
   setTimeout(start, LAND_HOLD);
 
-  // THE BUILD: one tap sends the pile off left; the next lets the deck move on
-  window.presoNext = () => { if (gone) return false; gone = true; document.body.classList.add('gone'); return true; };
-  window.presoPrev = () => { if (!gone) return false; gone = false; document.body.classList.remove('gone'); wakePile(); requestAnimationFrame(step); return true; };
+  // THE BUILD: the tap drains the pile; the drain itself presses "next" when it
+  // is through, and by then this returns false so the deck moves on. A tap
+  // while the phones are still falling (or before the pile has built) just
+  // lets the deck go.
+  window.presoNext = () => { if (draining || drained || !engine || pendingCards.length) return false; drain(); return true; };
+  window.presoPrev = () => { if (!draining || drained) return false; repour(); return true; };
 })();
 </script>
 </body>
