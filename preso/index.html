@@ -198,7 +198,11 @@
   let flight = null;    // { out, inc, fromIdx, toIdx, dir, timer }
   const cache = new Map();
 
-  const src = i => 'slides/' + encodeURIComponent(SLIDES[i]);
+  // Stamped per deck load so a slide edited between two runs can never be served
+  // from the browser's cache of the old file (iframes are cached hard). Assets
+  // inside a slide keep their normal caching; only the slide document is fresh.
+  const STAMP = Date.now().toString(36);
+  const src = i => 'slides/' + encodeURIComponent(SLIDES[i]) + (HTML.test(SLIDES[i]) ? '?v=' + STAMP : '');
 
   function preload(i) {
     if (i < 0 || i >= SLIDES.length || cache.has(i)) return;
