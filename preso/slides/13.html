@@ -525,6 +525,26 @@ const BEATS = [
     press(d => [...d.querySelectorAll('.marker')].find(mk => mk.textContent.includes('Gap nights')));
     setTimeout(tail(g, open), TAP);
   },
+  // 27 — Apply, visibly tapped: the product's own flow — the dots, the tip applied (the three nights' rings go solid, their
+  //      minimum drops to 3), then the ✓ on the button
+  (m, instant) => {
+    const ns = [...m.selectedNights];
+    const land = () => { if (m.entryKind && m.entryAnchor !== null) m.applyTip(m.entryKind, m.entryAnchor, ns, true); };
+    if (instant) { land(); return; }
+    const g = ++gen; pendingTail = land;
+    const btn = press(d => d.querySelector('.apply'));
+    setTimeout(() => { if (g === gen) { pendingTail = null; if (btn) btn.click(); else land(); } }, 130);   // the click lands mid-squash; the product takes it from there
+  },
+  // 28, 29 — the tip is swiped away and the next one slides in with its own Apply; a beat; Apply, tapped. Twice: the second
+  //          gap (the 28th–30th), then the tip after it
+  ...[0, 1].map(() => (m, instant) => {
+    const list = m.actionEntries(0), i = list.findIndex(e => e.di === m.entryAnchor), target = list[i + 1]; if (!target) return;
+    const land = () => { const k = m.kindOf(target); if (!k) return; m.openEntry(target, 0, false); m.applyTip(k, target.di, m.nightsOf(target, 0), true); };
+    if (instant) { land(); return; }
+    const g = ++gen; pendingTail = land;
+    if (m.pageTips) m.pageTips(1); else m.stepEntry(1, 0);              // the swipe: the old header slides off, the next slides in
+    setTimeout(() => { if (g !== gen) return; const btn = press(d => d.querySelector('.apply')); setTimeout(() => { if (g === gen) { pendingTail = null; if (btn) btn.click(); else land(); } }, 130); }, 380 + 900);   // landed, a beat: Apply
+  }),
 ];
 // THE TIPS: the five weeks after today. Tuesdays to Thursdays in the second and third weeks come down to $480; Fridays and
 // Saturdays in the first, third and fifth go up to $535 — a spread that reads as an advisor's, not a rule's, and one that
