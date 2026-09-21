@@ -229,7 +229,11 @@
     hideTimer = setTimeout(() => counter.classList.remove('show'), 1600);
   }
 
-  function makePane(i) {
+  // dir < 0: the slide is being entered from the right, so a slide that can
+  // stand at its last build (it declares presoEnd) is put there on load —
+  // going back from the cells sheet lands on the grown phone at Zoe's ⨉, not
+  // on the grid of calendar styles the live build starts from.
+  function makePane(i, dir) {
     const pane = document.createElement('div');
     pane.className = 'pane';
     const f = SLIDES[i];
@@ -241,6 +245,7 @@
       ready = new Promise(res => {
         frame.addEventListener('load', () => {
           frame._loaded = true;
+          if (dir < 0) { try { const end = frame.contentWindow.presoEnd; if (end) end(); } catch (_) {} }
           try {
             frame.contentWindow.addEventListener('keydown', onKey);
             if (current && current.frame === frame) {
@@ -307,8 +312,16 @@
     if (!flight) return;
     clearTimeout(flight.timer);
     if (flight.out) flight.out.pane.remove();
-    flight.inc.pane.style.transition = '';
-    flight.inc.pane.style.willChange = 'auto';
+    const p = flight.inc.pane;
+    // The push is started from a frame callback AFTER the slide's load; a heavy
+    // load (12b replaying the live build to Zoe's ⨉) can hold that frame past
+    // this timer, and then the pane would be left parked off-stage. So the
+    // landing is asserted here, whatever the frame got to.
+    p.style.transition = 'none';
+    p.style.transform = 'translateX(0)';
+    void p.offsetWidth;
+    p.style.transition = '';
+    p.style.willChange = 'auto';
     flight = null;
   }
   function snapFlight() {                 // complete the in-flight cut INSTANTLY
@@ -326,7 +339,7 @@
 
   async function transitionTo(i, dir) {   // the push: off one way, land centre
     const outgoing = current;
-    const made = makePane(i);
+    const made = makePane(i, dir);
     made.pane.style.transform = 'translateX(' + (dir > 0 ? 100 : -100) + '%)';
     stage.appendChild(made.pane);
     const token = flight = { out: outgoing, inc: made, fromIdx: idx, toIdx: i, dir, timer: 0 };
