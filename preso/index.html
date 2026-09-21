@@ -49,7 +49,11 @@
   Keys keep working with focus inside an HTML slide: same-origin iframes get
   the deck's key handler injected on load.
 
-  CHROME: the 'John Yum · Work 2026' kicker (top 32px) and the counter (bottom 32px) are
+  KICKER: a slide can relabel the top kicker for its own stay by declaring
+      window.presoKicker = 'Post Mortem'
+  Leaving it unset gives the byline back.
+
+  CHROME: the 'John Yum · Work' kicker (top 32px) and the counter (bottom 32px) are
   DECK chrome — IBM Plex Mono 12px grey 600 — they hold still while slides
   flow underneath.
 -->
@@ -159,7 +163,7 @@
   <div id="stage" aria-live="polite"></div>
   <div id="tapback" aria-hidden="true"></div>
   <div id="tapnext" aria-hidden="true"></div>
-  <div id="kicker" aria-hidden="true">John Yum &middot; Work 2026</div>
+  <div id="kicker" aria-hidden="true">John Yum &middot; Work</div>
   <div id="counter" aria-hidden="true"></div>
   <div id="empty">
     <div>
@@ -223,8 +227,10 @@
           frame._loaded = true;
           try {
             frame.contentWindow.addEventListener('keydown', onKey);
-            if (current && current.frame === frame)
+            if (current && current.frame === frame) {
               document.body.classList.toggle('interactive', frame.contentWindow.presoInteractive === true);
+              syncKicker(current);
+            }
           } catch (_) {}
           res();
         });
@@ -249,12 +255,27 @@
     return { pane, frame, ready };
   }
 
+  // A slide may relabel the deck's kicker — the post-mortems say "Post Mortem"
+  // instead of the byline — by declaring window.presoKicker. Anything else
+  // gets the default back. Read at settle AND on the iframe's load, since the
+  // slide's script has usually not run yet when the push begins.
+  const KICKER_DEFAULT = 'John Yum \u00b7 Work';
+  function syncKicker(made) {
+    let label = KICKER_DEFAULT;
+    try {
+      const k = made && made.frame && made.frame.contentWindow && made.frame.contentWindow.presoKicker;
+      if (typeof k === 'string' && k.trim()) label = k.trim();
+    } catch (_) {}
+    document.getElementById('kicker').textContent = label;
+  }
+
   function settle(i, made) {
     current = made;
     idx = i;
     let inter = false;
     try { inter = !!(made.frame && made.frame.contentWindow && made.frame.contentWindow.presoInteractive === true); } catch (_) {}
     document.body.classList.toggle('interactive', inter);
+    syncKicker(made);
     history.replaceState(null, '', '#' + (i + 1));
     flashCounter();
     preload(i + 1); preload(i + 2); preload(i - 1);
