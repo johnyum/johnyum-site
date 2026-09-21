@@ -485,17 +485,17 @@ const BEATS = [
     setTimeout(() => { if (g === gen) { m.setTipsMode(true); m.setHeaderLock(true); } }, TAP + 500);   // the pill comes, and the header locks small with the grid riding up
     tips.forEach(([di, p], k) => setTimeout(() => { if (g === gen) { m.addTip(di, p); if (k === tips.length - 1) pendingTail = null; } }, TAP + 900 + k * 45));
   },
-  // 21 — five tipped nights get tapped — the 11th, 23rd, 16th, 17th, 22nd — and the Price tip sheet rises; a beat; Apply tips is
+  // 21 — every tipped September night gets tapped, in date order, and the Price tip sheet rises; a beat; Apply tips is
   //      tapped; the sheet drops and IN THE CELLS the old price folds away and a ✓ comes in (the cells' own raise scene), then
   //      they rest plain with their new prices in green, and an Undo pill joins Close tips (Figma 5248:641867)
   (m, instant) => {
-    const t = m.fx.todayIndex, picks = [11, 23, 16, 17, 22].map(d => t + (d - 9));
+    const t = m.fx.todayIndex, picks = TIPS(m).map(([di]) => di).filter(di => m.fx.date(di).m === m.fx.date(t).m);   // September's tips, in date order
     const land = () => { m.setTipSheet(false); m.applyTips(picks); m.clearSelection(); m.setUndoTile(true); };
     if (instant) { land(); return; }
     const g = ++gen;
     pendingTail = land;
-    picks.forEach((di, k) => setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, k * 110));
-    const T1 = (picks.length - 1) * 110 + 400;
+    picks.forEach((di, k) => setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, k * 90));
+    const T1 = (picks.length - 1) * 90 + 400;
     setTimeout(() => { if (g === gen) m.setTipSheet(true); }, T1);                                   // the five are in: the sheet
     setTimeout(() => { if (g === gen) press(d => d.querySelector('.pt-cta')); }, T1 + 600 + 1000);    // up, a beat: Apply tips, tapped
     setTimeout(tail(g, land), T1 + 600 + 1000 + TAP);                                                // the tap has played: sheet down, the cells' ✓, then plain with green prices, Undo
@@ -503,7 +503,7 @@ const BEATS = [
 ];
 // THE TIPS: the five weeks after today. Tuesdays to Thursdays in the second and third weeks come down to $480; Fridays and
 // Saturdays in the first, third and fifth go up to $535 — a spread that reads as an advisor's, not a rule's, and one that
-// covers the five nights beat 21 picks (the 11th, 16th, 17th, 22nd, 23rd).
+// gives September ten tipped nights (the 11th, 12th, 16th, 17th, 22nd–26th, 29th), which beat 21 picks.
 const TIPS = m => { const out = []; for (let di = m.fx.todayIndex + 1; di <= m.fx.todayIndex + 35; di++) { const x = m.fx.date(di), dow = new Date(x.y, x.m - 1, x.d).getDay(), wk = Math.floor((di - m.fx.todayIndex) / 7); if (dow >= 2 && dow <= 4 && (wk === 1 || wk === 2)) out.push([di, 480]); else if ((dow === 5 || dow === 6) && wk % 2 === 0) out.push([di, 535]); } return out; };
 const MARK_PARK = 120;   // an event's row parks this far under the header, with its week above for context
 const MARK_HOLD = 1100;  // the beat the last icon of a stop gets before the run scrolls on
