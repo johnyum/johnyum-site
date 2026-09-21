@@ -511,6 +511,13 @@ const BEATS = [
     if (instant) { close(); return; }
     const g = ++gen; press(d => d.querySelector('.close-tips')); setTimeout(tail(g, close), TAP);
   },
+  // 23 — a beat, and the guests arrive: the stays layer comes on and the pills pop in one after another down the calendar
+  (m, instant) => {
+    const on = () => m.setLayers({ stays: true });
+    if (instant) { on(); return; }
+    const g = ++gen; pendingTail = on;
+    setTimeout(tail(g, () => { on(); setTimeout(() => { const d = appDoc(); if (!d) return; [...d.querySelectorAll('.spill')].forEach((el, i) => el.style.setProperty('--pill-delay', (i * 70) + 'ms')); }, 0); }), 900);
+  },
 ];
 // THE TIPS: the five weeks after today. Tuesdays to Thursdays in the second and third weeks come down to $480; Fridays and
 // Saturdays in the first, third and fifth go up to $535 — a spread that reads as an advisor's, not a rule's, and one that
@@ -622,7 +629,7 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
-    m.setHeaderLock(false, false); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
+    m.setHeaderLock(false, false); m.setLayers({ stays: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
