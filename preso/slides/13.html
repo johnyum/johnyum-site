@@ -128,12 +128,12 @@
   /* the price-tips sheet's grey-400 scrim continues over the status band, which is this slide's, not the app's:
      multiplied, so 9:41 and the glyphs stay black under it; body.scrim follows the app's own wandSheet */
   .band-scrim { position: absolute; left: 0; top: 0; width: 375px; height: 56px; background: #C1C1C1; mix-blend-mode: multiply; z-index: 2; pointer-events: none; opacity: 0; transition: opacity .4s; }
-  body.scrim .band-scrim { opacity: 1; }
+  body.scrim .band-scrim { opacity: 1; transition-delay: 60ms; }   /* the app's own scrim starts its fade a tick after the model flips — the band waits the same tick, or it leads by a frame */
   /* the band's scrim and the app's own meet at 56, a fractional pixel two scales deep: their antialiased edges leave a white
      hairline. A plain grey-400 strip laid over the join hides it — the app's ground there is white, so grey × white is the
      same grey, and nothing is darkened twice. */
   .band-seam { position: absolute; left: 0; top: 54px; width: 375px; height: 4px; background: #C1C1C1; z-index: 3; pointer-events: none; opacity: 0; transition: opacity .4s; }
-  body.scrim .band-seam { opacity: 1; }
+  body.scrim .band-seam { opacity: 1; transition-delay: 60ms; }
   /* ---- status bar, hung off the island's centreline (27.64pt in UI space) ---- */
   .status { position: absolute; left: 0; top: 0; width: 375px; height: 56px; color: #000; z-index: 1; pointer-events: none; }
   .status .time {
@@ -485,10 +485,27 @@ const BEATS = [
     setTimeout(() => { if (g === gen) { m.setTipsMode(true); m.setHeaderLock(true); } }, TAP + 500);   // the pill comes, and the header locks small with the grid riding up
     tips.forEach(([di, p], k) => setTimeout(() => { if (g === gen) { m.addTip(di, p); if (k === tips.length - 1) pendingTail = null; } }, TAP + 900 + k * 45));
   },
+  // 21 — five tipped nights get tapped — the 11th, 23rd, 16th, 17th, 22nd — and the Price tip sheet rises; a beat; Apply tips is
+  //      tapped and collapses to a green disc with a ✓; the sheet drops, the five go back to plain cells with their new prices in
+  //      green, and an Undo pill joins Close tips (Figma 5248:641867)
+  (m, instant) => {
+    const t = m.fx.todayIndex, picks = [11, 23, 16, 17, 22].map(d => t + (d - 9));
+    const land = () => { m.setTipSheet(false); m.applyTips(picks); m.clearSelection(); m.setUndoTile(true); };
+    if (instant) { land(); return; }
+    const g = ++gen;
+    pendingTail = land;
+    picks.forEach((di, k) => setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, k * 110));
+    const T1 = (picks.length - 1) * 110 + 400;
+    setTimeout(() => { if (g === gen) m.setTipSheet(true); }, T1);                                   // the five are in: the sheet
+    setTimeout(() => { if (g === gen) press(d => d.querySelector('.pt-cta')); }, T1 + 600 + 1000);    // up, a beat: Apply tips, tapped
+    setTimeout(() => { if (g === gen) m.setTipApplyOn(true); }, T1 + 600 + 1000 + TAP);               // ...it collapses, the ✓
+    setTimeout(tail(g, land), T1 + 600 + 1000 + TAP + 900);                                          // and lands: sheet down, cells plain, prices green, Undo
+  },
 ];
-// THE TIPS: the five weeks after today. Tuesdays to Thursdays in the odd weeks come down to $480; Fridays and Saturdays in the
-// even weeks go up to $535 — a spread that reads as an advisor's, not a rule's.
-const TIPS = m => { const out = []; for (let di = m.fx.todayIndex + 1; di <= m.fx.todayIndex + 35; di++) { const x = m.fx.date(di), dow = new Date(x.y, x.m - 1, x.d).getDay(), wk = Math.floor((di - m.fx.todayIndex) / 7); if (dow >= 2 && dow <= 4 && wk % 2 === 1) out.push([di, 480]); else if ((dow === 5 || dow === 6) && wk % 2 === 0) out.push([di, 535]); } return out; };
+// THE TIPS: the five weeks after today. Tuesdays to Thursdays in the second and third weeks come down to $480; Fridays and
+// Saturdays in the first, third and fifth go up to $535 — a spread that reads as an advisor's, not a rule's, and one that
+// covers the five nights beat 21 picks (the 11th, 16th, 17th, 22nd, 23rd).
+const TIPS = m => { const out = []; for (let di = m.fx.todayIndex + 1; di <= m.fx.todayIndex + 35; di++) { const x = m.fx.date(di), dow = new Date(x.y, x.m - 1, x.d).getDay(), wk = Math.floor((di - m.fx.todayIndex) / 7); if (dow >= 2 && dow <= 4 && (wk === 1 || wk === 2)) out.push([di, 480]); else if ((dow === 5 || dow === 6) && wk % 2 === 0) out.push([di, 535]); } return out; };
 const MARK_PARK = 120;   // an event's row parks this far under the header, with its week above for context
 const MARK_HOLD = 1100;  // the beat the last icon of a stop gets before the run scrolls on
 const MARK_STAGGER = 220; // within a stop, one group's icons after another's
@@ -595,7 +612,7 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
-    m.setHeaderLock(false, false); m.clearTips(); m.setWandSheet(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
+    m.setHeaderLock(false, false); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
