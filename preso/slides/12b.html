@@ -8,50 +8,35 @@
 
      Sits between the "Airbnb hosts manage…" line (12a) and the live build (13).
      The 28 phones in assets/Calendar/ stand in three rows of 9 / 10 / 9, in
-     the order of John's reference board, and the deck simply pushes the whole
-     sheet in from the right like any slide. No build on the way in.
+     the order of John's reference board. The deck pushes the whole sheet in
+     from the right and out again like any slide — no build, no physics.
 
-     THE BUILD
-       tap     gravity. Each phone becomes a rigid body where it stands and is
-               let go one at a time, a few frames apart, so they drop
-               individually and pour out the bottom — the front page's drain,
-               without a floor to pull. The moment the last one is through,
-               the slide presses "next" on the deck itself and the live
-               calendar pushes in without a second tap.
-
-     SIZING: the rows are sized off the viewport HEIGHT (three rows plus air
-     under the deck's kicker and counter), then capped by WIDTH so the ten-
-     phone middle row always fits with its gutters. On 16:9 the height rule
-     wins and the sheet fills the frame edge to edge, as the reference does. -->
-<script src="../../js/matter.min.js"></script>
+     SIZING: the sheet is taller than the frame ON PURPOSE. The rows are sized
+     so that three of them plus their gutters come to 100vh + 20% of a phone,
+     and the sheet is centred — so the top row loses its top 10% above the
+     frame and the bottom row its bottom 10% below it, and the studies fill
+     the space instead of floating in it. HEIGHT alone sets the size: on a
+     wide screen the ten-phone middle row runs a little past both edges, which
+     is the reference board's edge-to-edge look, not a bug. -->
 <style>
   :root {
     --gap: 1vw;                                   /* gutter between phones */
-    --pad: 2.4vh;                                 /* air above and below the sheet, under the deck chrome */
     --rowgap: 1.6vh;
-    /* phone width: from the height (three rows) unless the ten-wide row would overflow */
-    --w: min(calc((100vh - 2 * var(--pad) - 2 * var(--rowgap)) / 3 * 450 / 920),
-             calc((100vw - 9 * var(--gap) - 2vw) / 10));
-    --h: calc(var(--w) * 920 / 450);
+    --crop: 0.1;                                  /* of a phone, off the top row's top and the bottom row's bottom */
+    /* three rows + two gutters = 100vh + 2·crop·h  →  h = (100vh − 2·gutter) / (3 − 2·crop) */
+    --h-fill: calc((100vh - 2 * var(--rowgap)) / (3 - 2 * var(--crop)));
+    --h: var(--h-fill);
+    --w: calc(var(--h) * 450 / 920);
   }
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   #sheet {
     position: fixed; inset: 0;
     display: flex; flex-direction: column; justify-content: center; align-items: center;
     gap: var(--rowgap);
-    padding: var(--pad) 0;
-    box-sizing: border-box;
   }
-  .row { display: flex; gap: var(--gap); justify-content: center; }
-  .phone {
-    width: var(--w); height: var(--h);
-    flex: none;
-  }
+  .row { display: flex; gap: var(--gap); justify-content: center; flex: none; }
+  .phone { width: var(--w); height: var(--h); flex: none; }
   .phone img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
-  /* once gravity takes over every phone is positioned by its body */
-  body.falling #sheet { display: block; padding: 0; }
-  body.falling .row { display: contents; }
-  body.falling .phone { position: absolute; left: 0; top: 0; will-change: transform; }
 </style>
 </head>
 <body>
@@ -92,75 +77,5 @@
     </div>
   </div>
 
-<script>
-(() => {
-  const { Engine, World, Bodies, Body } = Matter;
-  const RELEASE_EVERY = 3;                   // frames between one phone letting go and the next
-  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let engine = null, cards = [], queue = [], frames = 0, nextRelease = 0, falling = false, drained = false;
-
-  // THE DRAIN. Every phone gets a body exactly where it stands, static; then
-  // they are let go one at a time in a shuffled order, each with a little
-  // sideways drift and tumble, into strong gravity with nothing underneath.
-  function drop() {
-    falling = true;
-    const phones = [...document.querySelectorAll('.phone')];
-    const rects = phones.map(el => el.getBoundingClientRect());   // measured BEFORE the layout switches to absolute
-    document.body.classList.add('falling');
-    engine = Engine.create({ positionIterations: 6, velocityIterations: 4 });
-    engine.gravity.y = 1.6;
-    cards = phones.map((el, i) => {
-      const r = rects[i];
-      el.style.width = r.width + 'px'; el.style.height = r.height + 'px';
-      const body = Bodies.rectangle(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, {
-        restitution: 0, friction: 0.18, frictionAir: 0.008, density: 0.0012,
-        chamfer: { radius: Math.min(10, r.width * 0.08) }
-      });
-      // held AFTER creation, not born static: setStatic(true) is what stashes the
-      // real mass for setStatic(false) to restore — a body created static keeps
-      // infinite mass when let go and simply hangs there
-      Body.setStatic(body, true);
-      World.add(engine.world, body);
-      return { el, body, w: r.width, h: r.height };
-    });
-    render();
-    queue = [...cards].sort(() => Math.random() - 0.5);
-    if (REDUCED) { finish(); return; }
-    nextRelease = frames;
-    requestAnimationFrame(step);
-  }
-  function release(c) {
-    Body.setStatic(c.body, false);
-    Body.setVelocity(c.body, { x: (Math.random() - 0.5) * 2.4, y: 2 + Math.random() * 4 });
-    Body.setAngularVelocity(c.body, (Math.random() - 0.5) * 0.08);
-  }
-  function render() {
-    for (const c of cards) {
-      const b = c.body;
-      c.el.style.transform = `translate(${(b.position.x - c.w / 2).toFixed(2)}px, ${(b.position.y - c.h / 2).toFixed(2)}px) rotate(${b.angle.toFixed(4)}rad)`;
-    }
-  }
-  function step() {
-    frames++;
-    if (drained) return;
-    while (queue.length && frames >= nextRelease) { release(queue.shift()); nextRelease = frames + RELEASE_EVERY; }
-    Engine.update(engine, 1000 / 120);
-    Engine.update(engine, 1000 / 120);
-    render();
-    // the last phone is through the bottom: hand the deck its "next" — once
-    if (!queue.length && cards.every(c => c.body.position.y - c.h > innerHeight)) { finish(); return; }
-    requestAnimationFrame(step);
-  }
-  function finish() {
-    drained = true;
-    parent.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-  }
-
-  // THE BUILD: the tap drops the sheet; the drain presses "next" itself when it
-  // is through, and by then this returns false so the deck moves on.
-  window.presoNext = () => { if (falling) return false; drop(); return true; };
-  window.presoPrev = () => false;
-})();
-</script>
 </body>
 </html>
