@@ -264,12 +264,11 @@ window.presoInteractive = true;
 // exactly as the product does — nothing here re-implements a mechanic.
 //
 // GOING BACK REPLAYS rather than undoes. Stepping to beat n resets the model
-// with its own clearAll() and re-runs beats 1..n from the top. That is what lets
-// a beat be a one-way function you can write without also writing its inverse,
-// and the reverse still animates: the replay lands synchronously, React renders
-// once, and CSS interpolates from whatever was on screen. The cost is that a
-// beat must be a pure function of the seeded calendar — do not write one that
-// depends on the beat before it having run.
+// with its own clearAll() and re-runs beats 1..n from the top, instantly. That
+// is what lets a beat be a one-way function you can write without also writing
+// its inverse, and the reverse still animates: the replay lands synchronously,
+// React renders once, and CSS interpolates from whatever was on screen. Stepping
+// FORWARD by one runs just that beat, live, with its own timing.
 //
 // TO ADD A STEP: add a function. That is the whole ceremony.
 //
@@ -311,9 +310,15 @@ const cascade = (m, first, last, every) => {
   setTimeout(() => { if (g === gen) m.setHoldQuick(false); }, (last - first) * every + 260);   // the last cell has filled: now the sheet
 };
 
+// Each beat takes (model, instant). Stepping FORWARD runs the beat live, with
+// its timing. A replay (stepping back, or a jump) runs the beats up to the
+// target with instant = true: the same end state, no animation, no timers.
+const RUN = m => [m.fx.todayIndex, m.fx.todayIndex + 12];   // the 9th through the 21st
 const BEATS = [
-  // 1 — the 9th (today) through the 21st get tapped, 90ms apart
-  m => cascade(m, m.fx.todayIndex, m.fx.todayIndex + 12, 90),
+  // 1 — the run gets tapped, 90ms apart; then the quick actions rise
+  (m, instant) => { const [a, z] = RUN(m); if (instant) { const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); } else cascade(m, a, z, 90); },
+  // 2 — availability goes off, a beat, then back on (ends where it started)
+  (m, instant) => { if (instant) return; const g = ++gen; const ns = [...m.selectedNights]; m.setBlocked(true, 0, ns); setTimeout(() => { if (g === gen) m.setBlocked(false, 0, ns); }, 900); },
 ];
 
 // THE CLICKER HAS TO SURVIVE A TAP INTO THE PHONE. The deck injects its key
@@ -364,12 +369,13 @@ const BEATS = [
   function apply(n) {
     const m = model();
     if (!m) return false;
-    gen++;                                     // any cascade still tapping stops here
+    gen++;                                     // any beat still animating stops here
     m.setHoldQuick(false);
-    m.clearAll();
+    if (n === at + 1) { BEATS[n - 1](m, false); m.notify(); at = n; return true; }   // forward: the beat plays live
+    m.clearAll();                              // back or a jump: replay to the target, instantly
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
-    for (let i = 0; i < n; i++) BEATS[i](m);
+    for (let i = 0; i < n; i++) BEATS[i](m, true);
     m.notify();
     at = n;
     return true;
