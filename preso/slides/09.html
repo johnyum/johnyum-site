@@ -21,7 +21,13 @@
               listings start stacked underneath it and travel out to their own
               cells, each one a real listing head: the same chrome, the same
               lockup, its own name and destination.
-       tap 6  out of builds; the deck moves on.
+       tap 6  the second wall: the first fourteen and Villa Mayana slide off
+              LEFT as one object, and fifteen MORE listings — every cell this
+              time — slide in from the right onto the same cells. Unused
+              heroes, used as exported, cropping and all.
+       tap 7  the third wall, the same way. (WALLS below — a fourth is one
+              more array.)
+       tap 8  out of builds; the deck moves on.
 
      Every step is reversible — tapping back walks the same route in reverse,
      and backing off the hero hands the deck to the previous slide. Under
@@ -103,6 +109,44 @@
   body.gridmode .grid .tile { opacity: 1; transform: translate(0, 0) scale(1); }
   body.gridmode .window { border-radius: 0; }
   .grid .hole { width: var(--cw); height: var(--ch); }   /* Villa Mayana sits here */
+
+  /* ── MORE walls (taps 6, 7, …): fifteen listings each, all fifteen cells ──
+     Not a fade and not a fan. Each tap slides the wall that is up off to the
+     LEFT — the first wall takes Villa Mayana's window with it, as one object —
+     and the next wall slides in from the right onto the same cells. One
+     index drives it: --wall on the root is the wall that is up (0 = the
+     first, with Villa Mayana), and every extra wall carries its own --i, so
+     its place is a single expression —
+         clamp(-1, i - wall, 1)   →   -1 off left · 0 on · +1 parked right
+     — which is why adding a fourth wall is one more array, not more CSS.
+     Extra walls are sibling .grids, so they inherit the cells; their tiles
+     never do the stacked-from-centre fan, because the whole wall moves.
+     The NEXT wall is built the moment the current one lands, so its photos
+     are decoded before the tap that reveals them.
+     These photographs are used exactly as exported — no recrop, no retouch —
+     so object-fit crops them to the cell and the lockup lands wherever it
+     lands. That is the point. */
+  :root { --wall: 0; --slide-ms: 1000ms; }
+  .wall {
+    opacity: 1;                          /* never fades — offstage, not hidden */
+    transform: translateX(calc(clamp(-1, var(--i) - var(--wall), 1) * (100vw + 48px)));
+    transition: transform var(--slide-ms) var(--ease);
+  }
+  .wall .tile { opacity: 1; transform: none; transition: none; }
+  #grid {
+    transition: opacity 500ms ease, transform var(--slide-ms) var(--ease);
+    transform: translateX(calc(min(var(--wall), 1) * (-100vw - 48px)));
+  }
+  /* body.in.gridmode — NOT body.in. The reveal rule `body.in .window
+     { transform: scale(1) }` further down has the same specificity as
+     body.in and comes later, so it wins on source order and throws the
+     translate away: Villa Mayana snapped while the grid eased. The extra
+     class outranks it. gridmode is on for every wall, and at --wall 0 the
+     expression is translateX(0) scale(1) — the reveal state, unchanged. */
+  body.in.gridmode .window {
+    transform: translateX(calc(min(var(--wall), 1) * (-100vw - 48px))) scale(1);
+    transition-duration: var(--dur-win), var(--dur-win), var(--dur-win), var(--dur-win), 700ms, var(--slide-ms);
+  }
 
   /* A neighbour is a real listing head drawn at full design size and scaled
      down, so its chrome and type match Villa Mayana's exactly. */
@@ -279,13 +323,14 @@
   .av .shot { position: relative; width: 212px; height: 248px; border-radius: 16px; overflow: hidden; }
 
   @media (prefers-reduced-motion: reduce) {
-    .window, .page, .hero img, .rise { transition: none !important; }
+    .window, .page, .hero img, .rise, #grid, .wall { transition: none !important; }
   }
 </style>
 </head>
 <body>
   <div class="stage">
     <div class="grid" id="grid" aria-hidden="true"></div>
+    <!-- the extra walls are appended here by buildWall(), one .grid.wall each -->
     <div class="window" id="window">
       <div class="page" id="page">
 
@@ -449,10 +494,56 @@
     ['selvaalta', 'SELVA ALTA',      'Sayulita, Mexico', '#233d1c'],
     ['solera',    'CASA SOLERA',     'Napa Valley, California', '#263d1c'],
   ];
+  // the second wall — fifteen unused heroes, names and places off their files
+  const HOMES2 = [
+    ['tahoe',     'MAJESTIC MOUNTAINS',   'Lake Tahoe, California',      '#ffffff'],
+    ['setai',     'SETAI TOWNHOUSE',      'Miami Beach, Florida',        '#ffffff'],
+    ['lagunamar', 'VILLA LAGUNA DEL MAR', 'Dominican Republic',          '#ffffff'],
+    ['sunshine',  'SUNSHINE HOUSE',       'Queensland, Australia',       '#ffffff'],
+    ['campbell',  'CAMPBELL POINT',       'Melbourne, Australia',        '#ffffff'],
+    ['brejos',    'CASA DOS BREJOS',      'Lisbon, Portugal',            '#ffffff'],
+    ['eclipse',   'VILLA ECLIPSE',        'Ibiza, Spain',                '#ffffff'],
+    ['vik',       'ESTANCIA VIK',         'Punta del Este, Uruguay',     '#ffffff'],
+    ['vanille',   'CAN VANILLE',          'Ibiza, Spain',                '#ffffff'],
+    ['kloof',     'CAPE KLOOF',           'Cape Town, South Africa',     '#ffffff'],
+    ['xanadu',    'XANADU ESTATE',        'The Hamptons, New York',      '#ffffff'],
+    ['granit',    'CHALET GRANIT',        'French Alps, France',         '#ffffff'],
+    ['indublue',  'VILLA INDU BLUE',      'Koh Samui, Thailand',         '#ffffff'],
+    ['dubai',     'ULTIMATE LUXURY VILLA','Dubai, UAE',                  '#ffffff'],
+    ['cistes',    'VILLA DES CISTES',     'French Riviera, France',      '#ffffff'],
+  ];
+  // the third wall — the last five unused heroes, and ten of the home-NN set
+  // used as they are. The home-NN files carry no names, so these ten are
+  // named to fit; swap any of them for the real listing.
+  const HOMES3 = [
+    ['tussie',      'TUSSIE MUSSIE',        'Melbourne, Australia',        '#ffffff'],
+    ['home-01',     'CASA DEL VIENTO',      'Todos Santos, Mexico',        '#ffffff'],
+    ['miret',       'VILLA MIRET',          'Barcelona, Spain',            '#ffffff'],
+    ['home-04',     'THE STONE HOUSE',      'Cotswolds, England',          '#ffffff'],
+    ['skim',        'SKIM HAMPTON ROAD',    'The Hamptons, New York',      '#ffffff'],
+    ['home-07',     'VILLA ORO',            'Amalfi Coast, Italy',         '#ffffff'],
+    ['home-10',     'CASA NARANJA',         'Oaxaca, Mexico',              '#ffffff'],
+    ['colony',      'LAKE RETREAT',         'Park City, Utah',             '#ffffff'],
+    ['home-13',     'THE GLASS PAVILION',   'Big Sur, California',         '#ffffff'],
+    ['home-16',     'FINCA LA LUZ',         'Mallorca, Spain',             '#ffffff'],
+    ['warmsprings', 'WARM SPRINGS RETREAT', 'Napa & Sonoma, California',   '#ffffff'],
+    ['home-19',     'VILLA AZUL',           'Cabo San Lucas, Mexico',      '#ffffff'],
+    ['home-22',     'THE BOATHOUSE',        'Lake Como, Italy',            '#ffffff'],
+    ['home-25',     'CASA SERENA',          'Punta Cana, Dominican Republic','#ffffff'],
+    ['home-28',     'RIDGE HOUSE',          'Aspen, Colorado',             '#ffffff'],
+  ];
+  // the walls after the first, in order — one per tap. Add a fourth here.
+  // (The dir names are where the files landed, not the order: HOMES3 shows
+  // second and HOMES2 third, by request.)
+  const WALLS = [
+    { dir: 'wall3', homes: HOMES3 },
+    { dir: 'wall2', homes: HOMES2 },
+  ];
   const REDUCED  = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const BLOOM = STOPS.length;      // step 4
-  const GRID  = BLOOM + 1;         // step 5
+  const GRID  = BLOOM + 1;         // step 5 — the first wall, Villa Mayana in the middle
+  const LAST  = GRID + WALLS.length;   // the last wall; past it the deck moves on
   let step = 0;
 
   // A slide can be measured before it has been laid out — a backgrounded tab or
@@ -499,13 +590,20 @@
   function go(next) {
     const resizes = step >= BLOOM || next >= BLOOM;
     step = next;
-    if (step === GRID) {
+    if (step >= GRID) {
+      const n = step - GRID;                              // which wall is up
       buildGrid();
-      set(HERO, 0, GRID_MS, GRID_MS, null, layoutGrid() / DW);
+      buildWall(n);                                       // the one being shown …
+      buildWall(n + 1);                                   // … and the next, so it is decoded in time
+      const k = layoutGrid() / DW;
+      if (n === 0) set(HERO, 0, GRID_MS, GRID_MS, null, k);
+      else         root.style.setProperty('--k', k);
       void document.getElementById('grid').offsetWidth;   // flush the stacked start state
       document.body.classList.add('gridmode');
+      root.style.setProperty('--wall', n);                // and the walls slide to their places
       return;
     }
+    root.style.setProperty('--wall', 0);
     document.body.classList.remove('gridmode');
     const ms = resizes ? BLOOM_MS : SCROLL_MS;
     if (step === BLOOM) { set(DH, 0, ms, ms); return; }
@@ -550,11 +648,39 @@
     document.getElementById('grid').appendChild(frag);
   }
 
+  const wallsBuilt = new Set();
+  function buildWall(n) {                       // n = 1 is WALLS[0]
+    if (n < 1 || n > WALLS.length || wallsBuilt.has(n)) return;
+    wallsBuilt.add(n);
+    const { dir, homes } = WALLS[n - 1];
+    const wall = document.createElement('div');
+    wall.className = 'grid wall';
+    wall.id = 'wall-' + n;
+    wall.setAttribute('aria-hidden', 'true');
+    wall.style.setProperty('--i', n);
+    homes.forEach(([file, name, where, ink], i) => {
+      const row = Math.floor(i / COLS), col = i % COLS;
+      const cell = document.createElement('div');
+      cell.className = 'tile';
+      cell.dataset.row = row; cell.dataset.col = col;
+      cell.style.setProperty('--ink', ink);
+      cell.innerHTML =
+        '<div class="pdp">' +
+          '<img src="assets/luxe-homes/' + dir + '/' + file + '.webp" alt="' + name + ', ' + where + '">' +
+          CHROME +
+          '<div class="abs titleblock"><p class="villa">' + name + '</p>' +
+            '<p class="t-body16 guests">' + where + '</p></div>' +
+        '</div>';
+      wall.appendChild(cell);
+    });
+    document.getElementById('grid').after(wall);
+  }
+
   layoutGrid();
   set(HERO, 0, 0, 0);
   // a resize mid-move must not restart it — just re-fit at the current spot
   addEventListener('resize', () => {
-    if (step === GRID) { root.style.setProperty('--k', layoutGrid() / DW); return; }
+    if (step >= GRID) { root.style.setProperty('--k', layoutGrid() / DW); return; }
     root.style.setProperty('--k', fit(step === BLOOM ? DH : HERO));
   });
 
@@ -579,7 +705,7 @@
   // the deck's build hooks: true = "I consumed that tap, stay on me".
   // A tap mid-pan doesn't stall it — it cuts to the bloom.
   window.presoNext = () => {
-    if (step >= GRID) return false;   // the wall is up — the deck moves on
+    if (step >= LAST) return false;   // the last wall is up — the deck moves on
     go(step + 1);
     return true;
   };
