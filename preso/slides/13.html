@@ -343,17 +343,16 @@ const BEATS = [
   m => m.setPriceSheet(true),
   // 9 — on the keypad: ⌫ three times, then 4 8 0 — each key visibly pressed
   (m, instant) => typeKeys(['⌫', '⌫', '⌫', '4', '8', '0'], instant),
-  // 10 — Done: the sheet runs back into its card and the cards drop — the calendar is back to default, still
-  //      reading $500 — then, a beat later, the picked nights odometer down to $480
+  // 10 — Done: the sheet runs back into its card; the quick actions STAY UP (John, 2026-09-21) with the nights
+  //      still picked, the calendar still reading $500 — then, a beat later, the picked nights odometer down to $480
   (m, instant) => {
     const ns = [...m.selectedNights];
-    if (instant) { m.setPriceSheet(false); m.clearSelection(); m.setPrice(480, 0, ns, false); return; }
+    if (instant) { m.setPriceSheet(false); m.setPrice(480, 0, ns, false); return; }
     const g = ++gen;
     const d = appDoc(), btn = d && d.querySelector('.sqa-price.open .ps-done');
     if (btn) { btn.classList.add('pressing'); setTimeout(() => btn.classList.remove('pressing'), 440); }   // Done, visibly tapped
     setTimeout(() => { if (g === gen) m.setPriceSheet(false); }, 200);          // ...but nothing applied yet
-    setTimeout(() => { if (g === gen) m.clearSelection(); }, 1000);            // the sheet is home: the cards drop
-    setTimeout(() => { if (g === gen) m.setPrice(480, 0, ns, false); }, 1900);  // landed, a beat, then the odometer
+    setTimeout(() => { if (g === gen) m.setPrice(480, 0, ns, false); }, 1900);  // the sheet is home, a beat, then the odometer
   },
 ];
 
