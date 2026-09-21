@@ -131,6 +131,17 @@
     z-index: 20;
   }
   #counter.show { opacity: 1; }
+  /* GO — a quiet pill in the bottom-right corner that jumps to the last slide so far; from there the arrows and rails work
+     as ever. It hides with the cursor, like the counter, and sits above the tap rails. */
+  #go {
+    position: fixed; right: 20px; bottom: 20px; z-index: 50;
+    height: 32px; padding: 0 14px; border: 0; border-radius: 16px;
+    background: rgba(0,0,0,.06); color: #444;
+    font: 500 13px/32px "Helvetica Neue", Helvetica, Arial, sans-serif; letter-spacing: .02em;
+    cursor: pointer; opacity: .9; transition: opacity .25s, background .15s;
+  }
+  #go:hover { background: rgba(0,0,0,.12); }
+  body.hidecursor #go { opacity: 0; pointer-events: none; }
 
   #empty {
     position: fixed; inset: 0;
@@ -174,6 +185,7 @@
     </div>
   </div>
 
+<button id="go" type="button" aria-label="Go to the last slide">go</button>
 <script>
 (() => {
   const stage   = document.getElementById('stage');
@@ -416,6 +428,7 @@
     if (h >= 1 && h <= SLIDES.length && h - 1 !== idx) jumpTo(h - 1);
   });
 
+  document.getElementById('go').addEventListener('click', e => { e.stopPropagation(); jumpTo(SLIDES.length - 1); });   // to the last slide so far
   document.getElementById('tapnext').addEventListener('click', () => navigate(1));
   document.getElementById('tapback').addEventListener('click', () => navigate(-1));
 
