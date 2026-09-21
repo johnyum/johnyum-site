@@ -504,15 +504,16 @@ const BEATS = [
     if (instant) { m.setStaySheet(null); return; }
     const g = ++gen; press(d => d.querySelector('.st-icon[aria-label="Close"]')); setTimeout(tail(g, () => m.setStaySheet(null)), TAP);
   },
-  // 25 — the wand tile shrinks away and its slot folds shut, Today sliding back to its 8 from the gear; a beat; the Ask circle
-  //      springs in at the bottom right
+  // 25 — the wand tile shrinks away and its slot folds shut, Today sliding back to its 8 from the gear; a beat; the AI pills pop
+  //      onto the calendar and open with their labels — Gap nights, Weekday lull, the events — then fold, as the product's do
   (m, instant) => {
-    const land = () => { m.setWandTile(false); m.setLayers({ ask: true }); };
+    const nudge = () => { const d = appDoc(), v = d && d.querySelector('.vscroll'); if (!v) return; v.scrollTop += 1; setTimeout(() => { v.scrollTop -= 1; }, 60); };   // a hair of scroll: the pills' own open-with-labels
+    const land = () => { m.setWandTile(false); m.setLayers({ entries: true }); };
     if (instant) { land(); return; }
     const g = ++gen; pendingTail = land;
     m.setWandLeaving(true);
     setTimeout(() => { if (g === gen) m.setWandTile(false); }, 650);   // the fold has played
-    setTimeout(tail(g, land), 650 + 900);                             // a beat: the Ask
+    setTimeout(tail(g, () => { land(); setTimeout(() => { if (g === gen) nudge(); }, 700); }), 650 + 900);   // a beat: the pills, and once in, they open
   },
 ];
 // THE TIPS: the five weeks after today. Tuesdays to Thursdays in the second and third weeks come down to $480; Fridays and
@@ -624,7 +625,7 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
-    m.setHeaderLock(false, false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
+    m.setHeaderLock(false, false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
