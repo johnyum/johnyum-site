@@ -499,6 +499,15 @@ const BEATS = [
     setTimeout(() => { if (g === gen && m.pressedStay) { m.pressedStay = null; m.notify(); } }, 300);
     setTimeout(tail(g, () => m.setStaySheet(b)), TAP);
   },
+  // 24 — Zoe's ⨉, visibly tapped: the sheet drops; a beat; the Ask circle pops in at the bottom right, with a little spring
+  (m, instant) => {
+    const land = () => { m.setStaySheet(null); m.setLayers({ ask: true }); };
+    if (instant) { land(); return; }
+    const g = ++gen; pendingTail = land;
+    press(d => d.querySelector('.st-icon[aria-label="Close"]'));
+    setTimeout(() => { if (g === gen) m.setStaySheet(null); }, TAP);
+    setTimeout(tail(g, land), TAP + 900);
+  },
 ];
 // THE TIPS: the five weeks after today. Tuesdays to Thursdays in the second and third weeks come down to $480; Fridays and
 // Saturdays in the first, third and fifth go up to $535 — a spread that reads as an advisor's, not a rule's, and one that
@@ -609,7 +618,7 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
-    m.setHeaderLock(false, false); m.setStaySheet(null); m.setLayers({ stays: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
+    m.setHeaderLock(false, false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
