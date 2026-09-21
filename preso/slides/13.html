@@ -326,6 +326,7 @@ const cascade = (m, first, last, every) => {
 // its timing. A replay (stepping back, or a jump) runs the beats up to the
 // target with instant = true: the same end state, no animation, no timers.
 const RUN = m => [m.fx.todayIndex, m.fx.todayIndex + 12];   // the 9th through the 21st
+const MARK_GROUPS = 9;   // events and holidays shown, through Indian Wells 2027 (Feb 28 – Mar 14); Presidents' Day falls inside Modernism Week and carries no icon of its own
 const BEATS = [
   // 1 — every cell from this month on grows: 48 more UNDER the price, nothing
   //     above it — it can grow out — and STAYS out
@@ -413,11 +414,12 @@ const BEATS = [
   // 16 — ⨉, straight from the promotion page: the whole quick actions drop away and September rides back up to the big
   //      header; the 9th–21st keep their $384, −20% and min 5, untapped, on the default calendar
   (m, instant) => { if (instant) { m.clearSelection(); m.setHeaderLock(false, false); return; } const g = ++gen; press(d => d.querySelector('.sqa-close')); setTimeout(tail(g, () => { m.clearSelection(); m.setHeaderLock(false); }), TAP); },
-  // 17–21 — the next five events and holidays, one a tap: the calendar scrolls to it, then its icon pops in on its
-  //         days. The marks layer comes on empty at the first of these and fills group by group.
-  ...Array.from({ length: 5 }, (_, i) => (m, instant) => {
+  // 17–25 — the next NINE events and holidays, one a tap, out to Indian Wells in March 2027: the calendar scrolls to
+  //         each, then its icon pops in on its days. The marks layer comes on empty at the first and fills group by group.
+  //         Pride · Veterans Day · Thanksgiving · Christmas · New Year's · MLK · AMEX Cup · Modernism Week · Indian Wells
+  ...Array.from({ length: MARK_GROUPS }, (_, i) => (m, instant) => {
     if (m.shownMarks === null) { m.setLayers({ marks: true }); m.setShownMarks(new Set()); }
-    const grp = m.nextMarkGroups(5)[i]; if (!grp) return;
+    const grp = m.nextMarkGroups(MARK_GROUPS)[i]; if (!grp) return;
     m.revealOffset = MARK_PARK;
     if (instant) { m.showMarkGroup(grp.dis); m.reveal(grp.dis[0], null, 0, 0); return; }
     const g = ++gen;
