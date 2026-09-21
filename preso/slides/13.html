@@ -414,20 +414,27 @@ const BEATS = [
   // 16 — ⨉, straight from the promotion page: the whole quick actions drop away and September rides back up to the big
   //      header; the 9th–21st keep their $384, −20% and min 5, untapped, on the default calendar
   (m, instant) => { if (instant) { m.clearSelection(); m.setHeaderLock(false, false); return; } const g = ++gen; press(d => d.querySelector('.sqa-close')); setTimeout(tail(g, () => { m.clearSelection(); m.setHeaderLock(false); }), TAP); },
-  // 17–25 — the next NINE events and holidays, one a tap, out to Indian Wells in March 2027: the calendar scrolls to
-  //         each, then its icon pops in on its days. The marks layer comes on empty at the first and fills group by group.
-  //         Pride · Veterans Day · Thanksgiving · Christmas · New Year's · MLK · AMEX Cup · Modernism Week · Indian Wells
-  ...Array.from({ length: MARK_GROUPS }, (_, i) => (m, instant) => {
-    if (m.shownMarks === null) { m.setLayers({ marks: true }); m.setShownMarks(new Set()); }
-    const grp = m.nextMarkGroups(MARK_GROUPS)[i]; if (!grp) return;
-    m.revealOffset = MARK_PARK;
-    if (instant) { m.showMarkGroup(grp.dis); m.reveal(grp.dis[0], null, 0, 0); return; }
+  // 17 — the next NINE events and holidays, in one run, out to Indian Wells in March 2027: the calendar scrolls to each,
+  //      its icon pops in on its days, a beat, and on to the next. The marks layer comes on empty and fills group by group.
+  //      Pride · Veterans Day · Thanksgiving · Christmas · New Year's · MLK · AMEX Cup · Modernism Week · Indian Wells
+  (m, instant) => {
+    m.setLayers({ marks: true }); m.setShownMarks(new Set()); m.revealOffset = MARK_PARK;
+    const groups = m.nextMarkGroups(MARK_GROUPS), last = groups[groups.length - 1];
+    const landAll = () => { for (const grp of groups) m.showMarkGroup(grp.dis); m.reveal(last.dis[0], null, 0, 0); };
+    if (instant) { landAll(); return; }
     const g = ++gen;
-    m.reveal(grp.dis[0], null, 0, 0);
-    settled(g, tail(g, () => m.showMarkGroup(grp.dis)));   // the scroll has landed: the icon
-  }),
+    pendingTail = landAll;   // a tap before the run is through lands the rest whole
+    const go = i => {
+      if (g !== gen) return;
+      const grp = groups[i]; if (!grp) { pendingTail = null; return; }
+      m.reveal(grp.dis[0], null, 0, 0);
+      settled(g, () => { if (g !== gen) return; m.showMarkGroup(grp.dis); setTimeout(() => go(i + 1), MARK_HOLD); });   // landed: the icon; a beat; the next
+    };
+    go(0);
+  },
 ];
 const MARK_PARK = 120;   // an event's row parks this far under the header, with its week above for context
+const MARK_HOLD = 1100;  // the beat an icon gets before the run scrolls on
 // The calendar's smooth scroll takes as long as it takes (a jump of months, longer): fn runs once the scroll has
 // been still for two reads, 400ms in at the soonest, 2s at the latest.
 const settled = (g, fn) => {
