@@ -119,19 +119,17 @@
      card comes out from behind the bar. 21pt off the glass is the app's own
      design, tuned against that 32. */
   .app {
-    position: absolute; left: 0; top: 56px;
-    width: 430px; height: 867px;
+    /* THE FRAME SPANS THE WHOLE HOLE (John, 2026-09-21): top 0, the full 812 — and the app's own .phone is pushed down 56
+       (64.2 of its px, injected below) so its Today pill still sits 21 clear of the island. Why: a scrim inside the app can
+       then cover the status band and the calendar as ONE layer. Two scrims meeting at the frame's edge — one the slide's,
+       one the app's — always left a hairline there, thick or thin, whatever the snapping. */
+    position: absolute; left: 0; top: 0;
+    width: 430px; height: 931.1px;   /* 812 / 0.8720930 */
     border: 0; display: block;
     transform: scale(0.8720930);       /* 375 / 430 */
     transform-origin: top left;
   }
 
-  /* the price-tips sheet's grey-400 scrim continues over the status band, which is this slide's, not the app's: multiplied,
-     as the app's own is, so 9:41 and the glyphs stay black. Its bottom edge is SNAPPED to the app frame's top (see fit()):
-     the browser rounds an iframe to whole device pixels while a div's edge stays fractional, and the sliver between the
-     two edges read as a hairline. body.scrim follows the app's wandSheet. */
-  .band-scrim { position: absolute; left: 0; top: 0; width: 375px; height: 56px; background: #C1C1C1; mix-blend-mode: multiply; z-index: 2; pointer-events: none; opacity: 0; transition: opacity .4s; }
-  body.scrim .band-scrim { opacity: 1; transition-delay: 60ms; }
   /* ---- status bar, hung off the island's centreline (27.64pt in UI space) ---- */
   .status { position: absolute; left: 0; top: 0; width: 375px; height: 56px; color: #000; z-index: 1; pointer-events: none; }
   .status .time {
@@ -159,7 +157,6 @@
     <div class="phone">
       <div class="screen">
         <div class="ui" id="ui">
-          <div class="band-scrim"></div>
           <div class="status">
             <div class="time">9:41</div>
             <svg class="signal" viewBox="0 0 17 11" fill="#000" aria-hidden="true">
@@ -515,7 +512,7 @@ const BEATS = [
     pendingTail = () => { close(); m.setLayers({ stays: true }); };
     press(d => d.querySelector('.close-tips'));
     setTimeout(() => { if (g === gen) close(); }, TAP);
-    setTimeout(tail(g, guests), TAP + 900);   // closed, a beat: the guests
+    setTimeout(tail(g, () => { close(); guests(); }), TAP + 900);   // closed, a beat: the guests (the whole beat, so a tap mid-way closes too — tail() replaces pendingTail)
   },
   // 23 — Zoe's pill, visibly tapped (both its pieces, the 10th–12th and the 13th–14th), and her reservation rises (Figma 5248:641834)
   (m, instant) => {
@@ -596,11 +593,10 @@ function typeKeys(keys, instant) {
     // title and above the weekday rule. Overlapping the strip by a pixel each
     // way closes both seams; the extra pixel under .weekdays is white on white.
     // Set from the slide so the build stays untouched.
-    // the band's scrim follows the app's price-tips sheet, however it opens or closes (a beat, or a finger on ⨉ / Try now)
-    const follow = () => { const mm = w.__model; if (mm) document.body.classList.toggle('scrim', !!(mm.wandSheet || mm.staySheet)); };
-    const hook = setInterval(() => { const mm = w.__model; if (!mm) return; clearInterval(hook); mm.subscribe(follow); follow(); }, 50);
     const seal = w.document.createElement('style');
-    seal.textContent = '.single .cover{top:calc(var(--pin-top) - 1px);height:calc(var(--travel) - var(--rel) + 2px)}';
+    seal.textContent = '.single .cover{top:calc(var(--pin-top) - 1px);height:calc(var(--travel) - var(--rel) + 2px)}'
+      + '.phone{margin:64.2px auto 0;height:calc(100dvh - 64.2px)}'          // the status band's 56pt, in the app's px: the frame now starts at the hole's top
+      + '.ws-frost,.st-scrim{position:fixed;inset:0}';                        // and a sheet's scrim covers the whole frame, band included — one layer, no join
     w.document.head.appendChild(seal);
 
     w.addEventListener('keydown', e => {
@@ -655,15 +651,7 @@ function typeKeys(keys, instant) {
 (() => {
   const screen = document.querySelector('.screen');
   const ui     = document.getElementById('ui');
-  function fit() {
-    ui.style.setProperty('--k', (screen.clientHeight + 1) / 812);
-    // the band scrim's bottom edge lands exactly where the app frame's top edge is painted — measured, not computed
-    const band = document.querySelector('.band-scrim'), app = document.querySelector('.app'); if (!band || !app) return;
-    band.style.height = '';
-    const k = (screen.clientHeight + 1) / 812, dpr = devicePixelRatio || 1;
-    const painted = Math.round(app.getBoundingClientRect().top * dpr) / dpr;   // an iframe is painted on a whole device pixel; a rect only says where layout put it
-    band.style.height = ((painted - band.getBoundingClientRect().top) / k) + 'px';
-  }
+  function fit() { ui.style.setProperty('--k', (screen.clientHeight + 1) / 812); }
   new ResizeObserver(fit).observe(screen);
   fit();
 })();
