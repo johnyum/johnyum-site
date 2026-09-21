@@ -505,18 +505,17 @@ const BEATS = [
     setTimeout(tail(g, land), TAP);
   },
   // 22 — Close, visibly tapped: the tips still on offer come off, the applied ones stay as the nights' prices (plain, ✓ gone), the
-  //      bar's tiles return and the header lets go — the default calendar, with the host's new prices honoured
+  //      bar's tiles return and the header lets go — the default calendar, with the host's new prices honoured. A beat, and the
+  //      guests arrive: the stays layer comes on and the pills pop in one after another, laid OVER the prices
   (m, instant) => {
+    const guests = () => { m.setLayers({ stays: true }); setTimeout(() => { const d = appDoc(); if (!d) return; [...d.querySelectorAll('.spill')].forEach((el, i) => el.style.setProperty('--pill-delay', (i * 70) + 'ms')); }, 0); };
     const close = () => { m.clearTips(); m.setHeaderLock(false, !instant); };
-    if (instant) { close(); return; }
-    const g = ++gen; press(d => d.querySelector('.close-tips')); setTimeout(tail(g, close), TAP);
-  },
-  // 23 — a beat, and the guests arrive: the stays layer comes on and the pills pop in one after another down the calendar
-  (m, instant) => {
-    const on = () => m.setLayers({ stays: true });
-    if (instant) { on(); return; }
-    const g = ++gen; pendingTail = on;
-    setTimeout(tail(g, () => { on(); setTimeout(() => { const d = appDoc(); if (!d) return; [...d.querySelectorAll('.spill')].forEach((el, i) => el.style.setProperty('--pill-delay', (i * 70) + 'ms')); }, 0); }), 900);
+    if (instant) { close(); m.setLayers({ stays: true }); return; }
+    const g = ++gen;
+    pendingTail = () => { close(); m.setLayers({ stays: true }); };
+    press(d => d.querySelector('.close-tips'));
+    setTimeout(() => { if (g === gen) close(); }, TAP);
+    setTimeout(tail(g, guests), TAP + 900);   // closed, a beat: the guests
   },
 ];
 // THE TIPS: the five weeks after today. Tuesdays to Thursdays in the second and third weeks come down to $480; Fridays and
