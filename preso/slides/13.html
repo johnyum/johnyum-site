@@ -315,11 +315,14 @@ const cascade = (m, first, last, every) => {
 // target with instant = true: the same end state, no animation, no timers.
 const RUN = m => [m.fx.todayIndex, m.fx.todayIndex + 12];   // the 9th through the 21st
 const BEATS = [
-  // 1 — the run gets tapped, 90ms apart; then the quick actions rise
+  // 1 — every cell from this month on grows: 8 more above the price, 8 below —
+  //     it can grow out — holds a beat, then snaps back with a little elasticity
+  (m, instant) => { if (instant) return; const g = ++gen; m.setCellPad(8); setTimeout(() => { if (g === gen) m.setCellPad(0); }, 1000); },
+  // 2 — the run gets tapped, 90ms apart; then the quick actions rise
   (m, instant) => { const [a, z] = RUN(m); if (instant) { const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); } else cascade(m, a, z, 90); },
-  // 2 — availability goes off, a beat, then back on (ends where it started)
+  // 3 — availability goes off, a beat, then back on (ends where it started)
   (m, instant) => { if (instant) return; const g = ++gen; const ns = [...m.selectedNights]; m.setBlocked(true, 0, ns); setTimeout(() => { if (g === gen) m.setBlocked(false, 0, ns); }, 1500); },
-  // 3 — the Price per night card grows into the price sheet, the $500 riding up to the centre
+  // 4 — the Price per night card grows into the price sheet, the $500 riding up to the centre
   m => m.setPriceSheet(true),
 ];
 
@@ -373,8 +376,9 @@ const BEATS = [
     if (!m) return false;
     gen++;                                     // any beat still animating stops here
     m.setHoldQuick(false);
-    if (n < 3) m.setPriceSheet(false);         // back from beat 3: the sheet runs back into its card
+    if (n < 4) m.setPriceSheet(false);         // back from beat 4: the sheet runs back into its card
     m.setSettingsSheet(false);
+    m.setCellPad(0);
     if (n === at + 1) { BEATS[n - 1](m, false); m.notify(); at = n; return true; }   // forward: the beat plays live
     m.clearAll();                              // back or a jump: replay to the target, instantly
     m.set({ showSettings: false, openThread: null });
