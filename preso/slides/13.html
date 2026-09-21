@@ -364,6 +364,18 @@ const BEATS = [
     if (row) { row.classList.add('pressing'); setTimeout(() => row.classList.remove('pressing'), 440); }
     setTimeout(() => { if (g === gen) m.setMinSheet(true); }, 200);
   },
+  // 13 — the − ring tapped twice: 7 → 6 → 5, and under each picked night's $480 the "min 6" line arrives, then reads "min 5"
+  (m, instant) => {
+    const ns = [...m.selectedNights];
+    if (instant) { m.setMinSheetNights(5); m.setMin(5, 0, ns); return; }
+    const g = ++gen;
+    [6, 5].forEach((n, i) => setTimeout(() => {
+      if (g !== gen) return;
+      const d = appDoc(), btn = d && d.querySelector('.sqa-custom.min .mn-btn');
+      if (btn) { btn.classList.remove('pressing'); void btn.offsetWidth; btn.classList.add('pressing'); setTimeout(() => btn.classList.remove('pressing'), 440); }
+      setTimeout(() => { if (g === gen) { m.setMinSheetNights(n); m.setMin(n, 0, ns); } }, 130);   // the figure and the cells move at the bottom of the squash
+    }, i * 800));
+  },
 ];
 
 // A scripted finger on the price sheet's keypad. Each key pops (sqa.css key-tap) and its click lands mid-squash,
@@ -449,7 +461,7 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null;                         // BACK or a jump: reset everything, replay to the target instantly
-    m.setPriceSheet(false); m.setMinSheet(false); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
+    m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
