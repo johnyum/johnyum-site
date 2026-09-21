@@ -24,6 +24,12 @@
                in without a second tap.
        back    (mid-drain) the floor comes back and the pile re-pours
 
+     IT IS ALIVE, as the front page's pile was: hover a phone and it grows a
+     little and leans on its neighbours through real physics; grab one and it
+     dangles from a spring and flies when you let go; resize the window and the
+     whole pile re-scales in place. So the slide declares presoInteractive —
+     the deck's tap zones shrink to the edge rails and the clicker still drives.
+
      The PNGs are 450x920 with the iPhone chrome baked in and transparent
      corners, so a card IS a phone. Sized by viewport area, like the pile:
      the phones cover the same fraction of the screen at every size. -->
@@ -45,6 +51,9 @@
     width: 100%; height: 100%;
     user-select: none;
     -webkit-user-drag: none;
+    pointer-events: auto;
+    cursor: grab;
+    touch-action: none;
   }
 </style>
 </head>
@@ -53,20 +62,22 @@
 
 <script>
 (() => {
-  const { Engine, World, Bodies, Body, Sleeping } = Matter;
+  window.presoInteractive = true;           // the phones take the surface; navigation lives on the 32px rails + the clicker
+  const { Engine, World, Bodies, Body, Sleeping, Mouse, MouseConstraint } = Matter;
   const DIR = 'assets/Calendar/';
   const FILES = ["Component 100-1.png", "Component 100.png", "Component 101-1.png", "Component 101.png", "Component 102.png", "Component 92-1.png", "Component 92-10.png", "Component 92-11.png", "Component 92-12.png", "Component 92-13.png", "Component 92-14.png", "Component 92-2.png", "Component 92-3.png", "Component 92-4.png", "Component 92-5.png", "Component 92-6.png", "Component 92-7.png", "Component 92-8.png", "Component 92-9.png", "Component 92.png", "Component 93.png", "Component 94.png", "Component 95.png", "Component 96.png", "Component 97.png", "Component 98.png", "Component 99.png"];
   const NAT = { w: 450, h: 920 };            // every study is the same phone export
   const PAD = 2.5;                           // half the ~5px force field, on every side
   const MAX_TILT = Math.PI * 0.306;          // 55° max lean either side
   const COVER = 0.65;                        // fraction of the screen the phones cover (width scales with its root: 0.65 is 10% narrower than 0.8)
+  const HOVER_S = 1.18;                      // a hovered phone grows just slightly
   const CADENCE = 9;                         // frames between drops — even, no burst
   const LAND_HOLD = 700;                     // the deck's push is 640ms; the first phone falls after it lands
   const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const pile = document.getElementById('pile');
-  let engine = null, walls = [], cards = [], pendingCards = [];
-  let frames = 0, nextDrop = 0, leak = 0;
+  let engine = null, walls = [], cards = [], pendingCards = [], mouseCon = null;
+  let frames = 0, nextDrop = 0, leak = 0, mousePos = null, lastW = 0, lastH = 0;
   let pileAsleep = false, calmFrames = 0, draining = false, drained = false;
   function wakePile() { pileAsleep = false; calmFrames = 0; }
 
@@ -91,6 +102,7 @@
 
   function start() {
     const W = innerWidth, H = innerHeight;
+    lastW = W; lastH = H;
     engine = Engine.create({ enableSleeping: true, positionIterations: 16, velocityIterations: 10 });
     engine.gravity.y = 1.0;
     // sized by area so the pile covers the same fraction of any screen
@@ -109,6 +121,26 @@
       el.appendChild(img); pile.appendChild(el);
       return { el, w, h };
     });
+    // grabbing is a real spring constraint: cards dangle and swing from
+    // wherever you pick them up, and fly when you let go
+    const mouse = Mouse.create(document.body);
+    mouseCon = MouseConstraint.create(engine, { mouse, constraint: { stiffness: 0.12, damping: 0.1 } });
+    mouseCon.collisionFilter.mask = 0;       // no auto-pick: the grab is assigned from the DOM hit below
+    World.add(engine.world, mouseCon);
+    pile.addEventListener('pointerdown', e => {
+      const el = e.target.closest('.card'); if (!el) return;
+      const c = cards.find(x => x.el === el); if (!c) return;
+      const b = c.body;
+      mouseCon.constraint.pointB = { x: (e.clientX - b.position.x) / c.scale, y: (e.clientY - b.position.y) / c.scale };
+      mouseCon.constraint.pointA = { x: e.clientX, y: e.clientY };
+      mouseCon.constraint.angleB = b.angle;  // without this the solver rotates pointB by NaN
+      mouseCon.constraint.bodyB = b;
+      mouseCon.body = b;
+      Sleeping.set(b, false);
+      wakePile();
+    });
+    addEventListener('mousemove', e => { mousePos = { x: e.clientX, y: e.clientY }; });
+    document.documentElement.addEventListener('mouseleave', () => { mousePos = null; });
     if (REDUCED) {                            // hard cut: the pile is simply there
       while (pendingCards.length) spawnNext();
       for (let i = 0; i < 600; i++) Engine.update(engine, 1000 / 60);
@@ -116,6 +148,31 @@
     }
     requestAnimationFrame(step);
   }
+
+  // resize: the pile re-scales in place (front page's handler). Width changes
+  // only — a height-only change just keeps the floor under the pile.
+  addEventListener('resize', () => {
+    if (!engine || !lastW || !lastH) return;
+    const nw = innerWidth, nh = innerHeight;
+    if (nw < 200 || nh < 200) return;
+    if (Math.abs(nw - lastW) < 4) { lastH = nh; if (!draining) makeWalls(nw, nh); wakePile(); return; }
+    const fx = nw / lastW, fy = nh / lastH;
+    let fs = Math.sqrt(fx * fy);
+    if (!isFinite(fs) || fs <= 0) { lastW = nw; lastH = nh; return; }
+    fs = Math.max(0.5, Math.min(2, fs));
+    leak *= fs;
+    for (const c of [...cards, ...pendingCards]) {
+      c.w *= fs; c.h *= fs;
+      c.el.style.width = c.w + 'px'; c.el.style.height = c.h + 'px';
+      if (!c.body) continue;
+      Body.scale(c.body, fs, fs);
+      Body.setPosition(c.body, { x: c.body.position.x * fx, y: c.body.position.y * fy });
+      Sleeping.set(c.body, false);
+    }
+    lastW = nw; lastH = nh;
+    if (!draining) makeWalls(nw, nh);
+    wakePile();
+  });
 
   function spawnNext() {
     const def = pendingCards.shift();
@@ -129,15 +186,16 @@
     Body.setVelocity(body, { x: (Math.random() - 0.5) * 1.4, y: 1.2 });
     Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.05);
     World.add(engine.world, body);
-    cards.push({ ...def, body });
+    cards.push({ ...def, body, scale: 1, target: 1 });
     nextDrop = frames + CADENCE;
     wakePile();
   }
 
-  function render() {
+  function render(hoverCard, draggedBody) {
     for (const c of cards) {
       const b = c.body;
-      c.el.style.transform = `translate(${(b.position.x - c.w / 2).toFixed(2)}px, ${(b.position.y - c.h / 2).toFixed(2)}px) rotate(${b.angle.toFixed(4)}rad)`;
+      c.el.style.zIndex = b === draggedBody ? 20 : c === hoverCard ? 15 : Math.round(c.scale * 12);
+      c.el.style.transform = `translate(${(b.position.x - c.w / 2).toFixed(2)}px, ${(b.position.y - c.h / 2).toFixed(2)}px) rotate(${b.angle.toFixed(4)}rad) scale(${c.scale.toFixed(4)})`;
     }
   }
 
@@ -145,6 +203,35 @@
     frames++;
     if (drained) return;
     if (pendingCards.length && frames >= nextDrop) spawnNext();
+    const draggedBody = mouseCon && mouseCon.body;
+
+    // which phone is under the cursor — re-hit-tested every frame so a parked
+    // cursor keeps its phone grown. Never the dragged one, never mid-pour.
+    let hoverCard = null;
+    if (mousePos && pendingCards.length === 0 && !draining) {
+      const hit = document.elementFromPoint(mousePos.x, mousePos.y);
+      const wrap = hit && hit.closest ? hit.closest('.card') : null;
+      if (wrap) { const c = cards.find(x => x.el === wrap); if (c && c.body !== draggedBody) hoverCard = c; }
+    }
+    if (hoverCard || draggedBody) wakePile();
+
+    // hover grows ONLY that phone, a little — a real Body.scale, so the solver
+    // resolves the new overlap by nudging neighbours aside
+    for (const c of cards) c.target = c === hoverCard ? HOVER_S : 1;
+    for (const c of cards) {
+      if (c.scale === c.target) continue;
+      let ns = c.scale + (c.target - c.scale) * 0.2;
+      if (Math.abs(c.target - ns) < 0.002) ns = c.target;
+      Body.scale(c.body, ns / c.scale, ns / c.scale);
+      c.scale = ns;
+      Sleeping.set(c.body, false);
+    }
+    // wake the phones a growing hover is about to lean on
+    if (hoverCard) {
+      const hx = hoverCard.body.position.x, hy = hoverCard.body.position.y, r2 = (hoverCard.w * 2.4) ** 2;
+      for (const o of cards) { const dx = o.body.position.x - hx, dy = o.body.position.y - hy; if (dx * dx + dy * dy < r2) Sleeping.set(o.body, false); }
+    }
+
     if (!pileAsleep) {
       Engine.update(engine, 1000 / 120);
       Engine.update(engine, 1000 / 120);
@@ -152,8 +239,11 @@
       for (const c of cards) {
         const b = c.body;
         if (b.isSleeping) continue;
-        // one speed cap for everything — lifted while the pile pours out
-        const cap = draining ? 70 : 11;
+        // the hovered phone is held still so it stays under the cursor — it
+        // still grows and pushes, it just doesn't drift off
+        if (c === hoverCard) { Body.setVelocity(b, { x: 0, y: 0 }); Body.setAngularVelocity(b, 0); continue; }
+        // one speed cap for everything — larger while you drag it, lifted while the pile pours out
+        const cap = draining ? 70 : (b === draggedBody ? 24 : 11);
         const v = b.velocity, sp = Math.hypot(v.x, v.y);
         if (sp > cap) Body.setVelocity(b, { x: v.x / sp * cap, y: v.y / sp * cap });
         let a = b.angle % (2 * Math.PI);
@@ -161,11 +251,11 @@
         if (Math.abs(a) > MAX_TILT) { Body.setAngle(b, Math.sign(a) * MAX_TILT); Body.setAngularVelocity(b, b.angularVelocity * 0.25); }
         maxMotion = Math.max(maxMotion, sp, Math.abs(b.angularVelocity) * 40);
       }
-      if (pendingCards.length === 0) {
+      if (pendingCards.length === 0 && !draggedBody && !hoverCard) {
         calmFrames++;
         if (maxMotion < 0.12 ? calmFrames > 35 : calmFrames > 480) pileAsleep = true;
       } else calmFrames = 0;
-      render();
+      render(hoverCard, draggedBody);
       // the last phone is through the floor: hand the deck its "next" — once
       if (draining && cards.every(c => c.body.position.y - c.h > innerHeight)) {
         drained = true;
