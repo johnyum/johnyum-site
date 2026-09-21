@@ -309,12 +309,15 @@ const openRun = (m, days) => {
 // timers check it before every tap.
 let gen = 0;
 let pendingRun = null;   // a cascade still tapping; a forward tap finishes it before the next beat, a back tap drops it
+let pendingTail = null;  // the rest of a live beat still on a timer (the $480, the min 5, the 20%): a forward tap lands it whole first, a back tap drops it
+const tail = (g, fn) => { pendingTail = fn; return () => { if (g !== gen) return; pendingTail = null; fn(); }; };   // fn runs on time — or early, whole, on the next tap
 const cascade = (m, first, last, every) => {
   const g = ++gen;
   pendingRun = { first, last };
   m.setHoldQuick(true);
   for (let di = first, i = 0; di <= last; di++, i++) setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, i * every);
-  setTimeout(() => { if (g === gen) { pendingRun = null; m.setHoldQuick(false); m.setHeaderLock(true); } }, (last - first) * every + 260);   // the last cell has filled: now the sheet — and the header locks small, the grid riding up with it
+  const land = tail(g, () => { pendingRun = null; m.setHoldQuick(false); m.setHeaderLock(true); });   // the last cell has filled: now the sheet — and the header locks small, the grid riding up with it
+  setTimeout(land, (last - first) * every + 260);
 };
 
 // Each beat takes (model, instant). Stepping FORWARD runs the beat live, with
@@ -352,7 +355,7 @@ const BEATS = [
     const d = appDoc(), btn = d && d.querySelector('.sqa-price.open .ps-done');
     if (btn) { btn.classList.add('pressing'); setTimeout(() => btn.classList.remove('pressing'), 440); }   // Done, visibly tapped
     setTimeout(() => { if (g === gen) m.setPriceSheet(false); }, 200);          // ...but nothing applied yet
-    setTimeout(() => { if (g === gen) m.setPrice(480, 0, ns, false); }, 1900);  // the sheet is home, a beat, then the odometer
+    setTimeout(tail(g, () => m.setPrice(480, 0, ns, false)), 1900);  // the sheet is home, a beat, then the odometer
   },
   // 11 — the Custom settings card grows into the settings sheet, the ⨉ riding up with it
   m => m.setSettingsSheet(true),
@@ -369,11 +372,12 @@ const BEATS = [
     const ns = [...m.selectedNights];
     if (instant) { m.setMinSheetNights(5); m.setMin(5, 0, ns); return; }
     const g = ++gen;
+    pendingTail = () => { m.setMinSheetNights(5); m.setMin(5, 0, ns); };
     [6, 5].forEach((n, i) => setTimeout(() => {
       if (g !== gen) return;
       const d = appDoc(), btn = d && d.querySelector('.sqa-custom.min .mn-btn');
       if (btn) { btn.classList.remove('pressing'); void btn.offsetWidth; btn.classList.add('pressing'); setTimeout(() => btn.classList.remove('pressing'), 440); }
-      setTimeout(() => { if (g === gen) { m.setMinSheetNights(n); m.setMin(n, 0, ns); } }, 130);   // the figure and the cells move at the bottom of the squash
+      setTimeout(() => { if (g === gen) { m.setMinSheetNights(n); m.setMin(n, 0, ns); if (n === 5) pendingTail = null; } }, 130);   // the figure and the cells move at the bottom of the squash
     }, i * 800));
   },
   // 14 — Done, visibly tapped: the editor runs back to the three rows, and Minimum nights now reads 5 where its + was
@@ -405,8 +409,9 @@ const BEATS = [
       if (g !== gen) return;
       const t = Math.min(1, Math.max(0, (performance.now() - T0) / DRAG)), e = 1 - Math.pow(2, -10 * t);
       m.setPromoDrag(true); m.setPromoPct(20 * (t >= 1 ? 1 : e));
-      if (t < 1) requestAnimationFrame(step); else { m.setPromoDrag(false); if (knob) knob.classList.remove('pressing'); setTimeout(() => { if (g === gen) m.setPromo(0.2, 0, ns); }, 500); }   // lifted; a beat; the nights
+      if (t < 1) requestAnimationFrame(step); else { m.setPromoDrag(false); if (knob) knob.classList.remove('pressing'); setTimeout(tail(g, () => m.setPromo(0.2, 0, ns)), 500); }   // lifted; a beat; the nights
     };
+    pendingTail = () => { m.setPromoDrag(false); m.setPromoPct(20); m.setPromo(0.2, 0, ns); if (knob) knob.classList.remove('pressing'); };
     requestAnimationFrame(step);
   },
 ];
@@ -491,9 +496,10 @@ function typeKeys(keys, instant) {
     m.setHoldQuick(false);
     if (n === at + 1) {                        // FORWARD: a cascade cut short lands whole, then the next beat plays live
       if (pendingRun) { const s = new Set(m.selectedNights); for (let di = pendingRun.first; di <= pendingRun.last; di++) s.add(di); m.setSelectedNights(s); pendingRun = null; }
+      if (pendingTail) { const fn = pendingTail; pendingTail = null; fn(); }
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
-    pendingRun = null;                         // BACK or a jump: reset everything, replay to the target instantly
+    pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
     m.setHeaderLock(false, false); m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
