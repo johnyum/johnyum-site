@@ -33,12 +33,20 @@
      so that three of them plus their gutters come to 100vh + 20% of a phone,
      and the sheet is centred — so the top row loses its top 10% above the
      frame and the bottom row its bottom 10% below it, and the studies fill
-     the space instead of floating in it. HEIGHT alone sets the size: on a
-     wide screen the ten-phone middle row runs a little past both edges, which
-     is the reference board's edge-to-edge look, not a bug. -->
+     the space instead of floating in it. HEIGHT alone sets the size, so the
+     ten-phone middle row runs past both edges of the frame.
+
+     NO HARD CUT ON THE WAY IN. An iframe clips its content, so a sheet wider
+     than the frame would enter with its edge phones sliced off at the pane's
+     edge (visible in the recording). This slide therefore sizes ITS OWN FRAME
+     to the sheet's width (same origin: frameElement), centred in the deck's
+     pane, and the deck's stage does the clipping instead. In flight the whole
+     sheet rides in from the right, every phone intact; once landed, the
+     overhang bleeds off both sides of the screen. Gutters are in vh, not vw,
+     so widening the frame cannot change the sheet's width under itself. -->
 <style>
   :root {
-    --gap: 1vw;                                   /* gutter between phones */
+    --gap: 1.8vh;                                 /* gutter between phones — vh, never vw (see the note above) */
     --rowgap: 1.6vh;
     --crop: 0.1;                                  /* of a phone, off the top row's top and the bottom row's bottom */
     /* three rows + two gutters = 100vh + 2·crop·h  →  h = (100vh − 2·gutter) / (3 − 2·crop) */
@@ -124,6 +132,22 @@
 (() => {
   window.presoInteractive = true;   // the live phone keeps its surface; the clicker and the edge rails drive
   const live = document.getElementById('live'), slot = document.getElementById('slot'), sheet = document.getElementById('sheet');
+
+  // THE FRAME TAKES THE SHEET'S WIDTH. Sized off the widest row plus a gutter
+  // each side, centred in the deck's pane; the deck's stage clips it to the
+  // screen. Re-fitted when the DECK resizes (this frame's own width is pinned,
+  // so its own resize event only fires for height).
+  const frame = window.frameElement;
+  function fitFrame() {
+    if (!frame) return;
+    const rows = [...document.querySelectorAll('.row')];
+    const gap = parseFloat(getComputedStyle(sheet).gap) || 0;
+    const need = Math.max(...rows.map(r => r.getBoundingClientRect().width)) + 2 * gap;
+    const W = Math.max(parent.innerWidth, Math.ceil(need));
+    Object.assign(frame.style, { width: W + 'px', left: '50%', right: 'auto', marginLeft: (-W / 2) + 'px' });
+  }
+  fitFrame();
+  try { parent.addEventListener('resize', () => { fitFrame(); measure(); place(); }); } catch (_) {}
   const SHIFT_MS = 900;                      // movement 1's length; movement 2 starts as it lands
   let state = 0, timer = 0;                  // 0 in the sheet · 1 sliding to centre · 2 grown (13 drives)
   const grown = () => state === 2;
