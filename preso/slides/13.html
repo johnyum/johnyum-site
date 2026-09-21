@@ -546,11 +546,10 @@ const BEATS = [
     setTimeout(() => { if (g !== gen) return; const btn = press(d => d.querySelector('.apply')); setTimeout(() => { if (g === gen) { pendingTail = null; if (btn) btn.click(); else land(); } }, 130); }, 380 + 900);   // landed, a beat: Apply
   }),
   // 32 — the AI box's ⨉, tapped: it drops and the picks clear; Today, tapped: the calendar flies home (the header staying small);
-  //      landed, a beat, the Ask circle springs in; a beat, the tips puck — the 3 in Rausch — comes down and lands on it; a beat,
-  //      and the Ask is tapped: the chat rises
+  //      landed, a beat, the Ask circle springs in; a beat, the tips puck — the 3 in Rausch — comes down and lands on it
   (m, instant) => {
     const closeBox = () => { m.setSelectedNights(new Set()); m.entryKind = null; m.entryAnchor = null; m.notify(); };
-    const land = () => { closeBox(); m.homeLocked(!instant); m.setLayers({ ask: true }); m.showPuck(3); m.setSheet('ask'); };
+    const land = () => { closeBox(); m.homeLocked(!instant); m.setLayers({ ask: true }); m.showPuck(3); };
     if (instant) { land(); return; }
     const g = ++gen; pendingTail = land;
     const x = press(d => d.querySelector('.qa-corner button:last-child'));
@@ -558,12 +557,15 @@ const BEATS = [
     setTimeout(() => { if (g === gen) press(d => d.querySelector('.today-pill')); }, 130 + 900);                       // the box is down: Today, visibly tapped
     setTimeout(() => { if (g !== gen) return; m.homeLocked(); settled(g, () => setTimeout(() => {
       if (g !== gen) return; m.setLayers({ ask: true });                                                              // home, a beat: the Ask circle
-      setTimeout(() => { if (g === gen) m.showPuck(3); }, 900 + 900);                                                  // it has sprung in, a beat: the 3 comes down
-      setTimeout(() => { if (g === gen) press(d => d.querySelector('.bar .ask')); }, 900 + 900 + 1800 + 900);          // landed, a beat: the Ask, tapped
-      setTimeout(tail(g, () => m.setSheet('ask')), 900 + 900 + 1800 + 900 + 130);                                      // ...and the chat rises
+      setTimeout(tail(g, () => m.showPuck(3)), 900 + 900);                                                             // it has sprung in, a beat: the 3 comes down — and rests there
     }, 900)); }, 130 + 900 + 200);
   },
-  // 33 — "Block the first two weeks of January" is typed into the chat and sent; the product blocks January 1–14, night by night
+  // 33 — the Ask, tapped: the chat rises
+  (m, instant) => {
+    if (instant) { m.setSheet('ask'); return; }
+    const g = ++gen; press(d => d.querySelector('.bar .ask')); setTimeout(tail(g, () => m.setSheet('ask')), 130);
+  },
+  // 34 — "Block the first two weeks of January" is typed into the chat and sent; the product blocks January 1–14, night by night
   (m, instant) => {
     const janStart = m.fx.index({ y: 2027, m: 1, d: 1 }), jan = Array.from({ length: 14 }, (_, k) => janStart + k);
     const land = () => { m.setBlocked(true, 0, jan); };
@@ -571,7 +573,7 @@ const BEATS = [
     const g = ++gen; pendingTail = land;
     typeAsk(g, ASK_BLOCK, () => { pendingTail = null; });
   },
-  // 34 — the chat's ⨉, tapped: it drops, the puck still on the Ask
+  // 35 — the chat's ⨉, tapped: it drops, the puck still on the Ask
   (m, instant) => {
     if (instant) { m.setSheet('none'); return; }
     const g = ++gen;
