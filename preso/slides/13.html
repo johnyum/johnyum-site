@@ -319,6 +319,8 @@ const BEATS = [
   (m, instant) => { const [a, z] = RUN(m); if (instant) { const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); } else cascade(m, a, z, 90); },
   // 2 — availability goes off, a beat, then back on (ends where it started)
   (m, instant) => { if (instant) return; const g = ++gen; const ns = [...m.selectedNights]; m.setBlocked(true, 0, ns); setTimeout(() => { if (g === gen) m.setBlocked(false, 0, ns); }, 900); },
+  // 3 — the Price per night card grows into the price sheet, the $500 riding up to the centre
+  m => m.setPriceSheet(true),
 ];
 
 // THE CLICKER HAS TO SURVIVE A TAP INTO THE PHONE. The deck injects its key
@@ -371,6 +373,7 @@ const BEATS = [
     if (!m) return false;
     gen++;                                     // any beat still animating stops here
     m.setHoldQuick(false);
+    if (n < 3) m.setPriceSheet(false);         // back from beat 3: the sheet runs back into its card
     if (n === at + 1) { BEATS[n - 1](m, false); m.notify(); at = n; return true; }   // forward: the beat plays live
     m.clearAll();                              // back or a jump: replay to the target, instantly
     m.set({ showSettings: false, openThread: null });
