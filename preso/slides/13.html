@@ -421,13 +421,22 @@ const BEATS = [
     const groups = m.nextMarkGroups(16);
     const scenes = MARK_SCENES.map(names => names.map(n => groups.find(g => g.name === n)).filter(Boolean)).filter(sc => sc.length);
     const lastScene = scenes[scenes.length - 1];
-    const landAll = () => { for (const sc of scenes) for (const grp of sc) m.showMarkGroup(grp.dis); m.reveal(lastScene[0].dis[0], null, 0, 0); };
+    // ...and at the end, a beat after Indian Wells is in, its first week — Feb 28 through Mar 5 — gets tapped, 90ms apart, and
+    // the quick actions rise over it, naming the tournament; the run rests there (John, 2026-09-21)
+    const iw = lastScene[0].dis[0], week = Array.from({ length: 6 }, (_, k) => iw + k);
+    const landAll = () => { for (const sc of scenes) for (const grp of sc) m.showMarkGroup(grp.dis); m.reveal(iw, null, 0, 0); m.setHoldQuick(false); m.setSelectedNights(new Set(week)); };
     if (instant) { landAll(); return; }
     const g = ++gen;
     pendingTail = landAll;   // a tap before the run is through lands the rest whole
+    const tapWeek = () => {   // the cascade, but without the header lock: the calendar is parked on March, not September
+      if (g !== gen) return;
+      m.setHoldQuick(true);
+      week.forEach((di, k) => setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, k * 90));
+      setTimeout(() => { if (g === gen) { m.setHoldQuick(false); pendingTail = null; } }, (week.length - 1) * 90 + 260);
+    };
     const go = i => {
       if (g !== gen) return;
-      const sc = scenes[i]; if (!sc) { pendingTail = null; return; }
+      const sc = scenes[i]; if (!sc) { tapWeek(); return; }   // the last stop's hold has already run: one beat, not two
       m.reveal(sc[0].dis[0], null, 0, 0);
       settled(g, () => {
         if (g !== gen) return;
