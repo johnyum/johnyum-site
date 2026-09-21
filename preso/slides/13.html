@@ -125,6 +125,10 @@
     transform-origin: top left;
   }
 
+  /* the price-tips sheet's grey-400 scrim continues over the status band, which is this slide's, not the app's:
+     multiplied, so 9:41 and the glyphs stay black under it; body.scrim follows the app's own wandSheet */
+  .band-scrim { position: absolute; left: 0; top: 0; width: 375px; height: 56px; background: #C1C1C1; mix-blend-mode: multiply; z-index: 2; pointer-events: none; opacity: 0; transition: opacity .4s; }
+  body.scrim .band-scrim { opacity: 1; }
   /* ---- status bar, hung off the island's centreline (27.64pt in UI space) ---- */
   .status { position: absolute; left: 0; top: 0; width: 375px; height: 56px; color: #000; z-index: 1; pointer-events: none; }
   .status .time {
@@ -152,6 +156,7 @@
     <div class="phone">
       <div class="screen">
         <div class="ui" id="ui">
+          <div class="band-scrim"></div>
           <div class="status">
             <div class="time">9:41</div>
             <svg class="signal" viewBox="0 0 17 11" fill="#000" aria-hidden="true">
@@ -528,6 +533,9 @@ function typeKeys(keys, instant) {
     // title and above the weekday rule. Overlapping the strip by a pixel each
     // way closes both seams; the extra pixel under .weekdays is white on white.
     // Set from the slide so the build stays untouched.
+    // the band's scrim follows the app's price-tips sheet, however it opens or closes (a beat, or a finger on ⨉ / Try now)
+    const follow = () => { const mm = w.__model; if (mm) document.body.classList.toggle('scrim', !!mm.wandSheet); };
+    const hook = setInterval(() => { const mm = w.__model; if (!mm) return; clearInterval(hook); mm.subscribe(follow); follow(); }, 50);
     const seal = w.document.createElement('style');
     seal.textContent = '.single .cover{top:calc(var(--pin-top) - 1px);height:calc(var(--travel) - var(--rel) + 2px)}';
     w.document.head.appendChild(seal);
