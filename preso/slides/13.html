@@ -359,8 +359,12 @@ const BEATS = [
 // A scripted finger on the price sheet's keypad. Each key pops (sqa.css key-tap) and its click lands mid-squash,
 // Done included, 460ms apart. Instant: the clicks, at once, no look.
 const appDoc = () => { try { return document.querySelector('.app').contentDocument; } catch (_) { return null; } };
+// CADENCE: a finger moving to a new key takes 460ms; the same key tapped again (⌫ ⌫ ⌫) comes 200ms after the last —
+// a thumb drumming one button, not three considered presses (John, 2026-09-21).
+const KEY_GAP = 460, REPEAT_GAP = 200;
 function typeKeys(keys, instant) {
   const g = ++gen;
+  const at = keys.map((k, i) => 0); for (let i = 1; i < keys.length; i++) at[i] = at[i - 1] + (keys[i] === keys[i - 1] ? REPEAT_GAP : KEY_GAP);
   keys.forEach((k, i) => {
     const go = () => {
       if (g !== gen) return;
@@ -368,11 +372,13 @@ function typeKeys(keys, instant) {
       const el = k === 'Done' ? d.querySelector('.sqa-price.open .ps-done') : [...d.querySelectorAll('.sqa-price.open .ps-key')].find(b => b.getAttribute('aria-label') === k);
       if (!el) return;
       if (instant) { el.click(); return; }
+      const tap = el.__tap = (el.__tap || 0) + 1;                    // a repeat on the same key restarts its pop...
+      el.classList.remove('pressing'); void el.offsetWidth;
       el.classList.add('pressing');                                  // the key pops, a disc blooms (sqa.css key-tap, 420ms)
       setTimeout(() => { el.click(); }, 130);                        // the digit lands at the bottom of the squash
-      setTimeout(() => { el.classList.remove('pressing'); }, 440);
+      setTimeout(() => { if (el.__tap === tap) el.classList.remove('pressing'); }, 440);   // ...and only the last one lets go
     };
-    setTimeout(go, instant ? 30 : i * 460);   // instant still waits a tick: a replayed beat 8 has only just mounted the keypad
+    setTimeout(go, instant ? 30 : at[i]);   // instant still waits a tick: a replayed beat 8 has only just mounted the keypad
   });
 }
 
