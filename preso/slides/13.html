@@ -295,10 +295,26 @@ const openRun = (m, days) => {
   return m.openNights(ns, 0);
 };
 
-// EMPTY ON PURPOSE (John, 2026-09-20): the calendar does nothing he has not
-// asked for. Beats are added here one at a time, as he calls them; until then
-// a tap after the grow simply hands the deck the step.
-const BEATS = [];
+// Beats are added here one at a time, as John calls them (2026-09-20); the
+// calendar does nothing he has not asked for.
+
+// A run of nights tapped one after another, each tap landing BEFORE the one
+// before has finished animating (the cell's fill takes 200ms). The quick
+// actions are HELD BACK while the run taps and rise once, after the last one.
+// `gen` lets a replay or a step back kill a cascade still in flight — the
+// timers check it before every tap.
+let gen = 0;
+const cascade = (m, first, last, every) => {
+  const g = ++gen;
+  m.setHoldQuick(true);
+  for (let di = first, i = 0; di <= last; di++, i++) setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, i * every);
+  setTimeout(() => { if (g === gen) m.setHoldQuick(false); }, (last - first) * every + 260);   // the last cell has filled: now the sheet
+};
+
+const BEATS = [
+  // 1 — the 9th (today) through the 21st get tapped, 90ms apart
+  m => cascade(m, m.fx.todayIndex, m.fx.todayIndex + 12, 90),
+];
 
 // THE CLICKER HAS TO SURVIVE A TAP INTO THE PHONE. The deck injects its key
 // handler into each SLIDE frame on load, but it knows nothing about a frame
@@ -348,6 +364,8 @@ const BEATS = [];
   function apply(n) {
     const m = model();
     if (!m) return false;
+    gen++;                                     // any cascade still tapping stops here
+    m.setHoldQuick(false);
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
