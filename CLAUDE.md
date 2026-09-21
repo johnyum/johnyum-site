@@ -12,10 +12,51 @@ don't introduce bundlers, npm, or a component framework.
 | `index.html` | The site itself |
 | `homes/` | Eichler Hunt — Bay Area listings concept |
 | `multi/`, `multi2/` | Multi-guest booking concepts (Cereal type, event icons) |
+| `multical/` | **Build output — never hand-edit.** The Multi-Host Calendar web app, played live inside the phone on preso slide 13. See below. |
 | `bento-widgets/` | Standalone widget experiments |
 | `test/` | Scratch prototypes |
 | `playful/`, `claude-icons/`, `icons/` | Icon systems — see below |
 | `vercel.json` | Redirects, plus rewrites proxying `/trips/` to a separate deployment |
+
+## `multical/` — the live calendar on slide 13
+
+The one place in this repo with a build step, and it runs **outside** the repo.
+The source is a React + TypeScript + Vite app that lives in its own project at
+`~/Documents/multi-host-calendar-web` (intaken from `multi-host-calendar-web.zip`,
+a 1:1 web replica of the native iOS host calendar). `multical/` is only its
+output — **never hand-edit anything in it; the next build overwrites the lot.**
+
+To take in a new build of the app:
+
+```bash
+cd ~/Documents/multi-host-calendar-web
+npx vite build --base=/multical/ --outDir ~/Documents/johnyum-site/multical --emptyOutDir
+```
+
+`--base` is not optional: the app resolves its fixtures, icons and fonts off
+`import.meta.env.BASE_URL`, and its `base.css` font URLs are root-absolute, so
+without it everything 404s under `/multical/`.
+
+Two things that project needs and this one does not: Node (there is none on the
+Mac's PATH — `export PATH="$HOME/.local/node/bin:$PATH"`), and an Airbnb-internal
+npm registry for its `@irbnb/kyber-*` packages, whose auth token in `.npmrc`
+expires hourly. Neither matters once the build is in here: the output is plain
+static files. The only thing that needs the internal proxy at runtime is
+free-text Ask, which falls back gracefully.
+
+Slide 13 iframes it and steps it through a Keynote-style build — see the notes in
+that file for the 430pt scaling, the clicker relay and how a beat is written.
+
+**The app source carries one line for this deck**, in `src/App.tsx`:
+
+```js
+(window as any).__model = model;
+```
+
+That is what lets a beat call the app's own model instead of faking taps at
+coordinates. It is not in the upstream zip, so **re-apply it after taking in a
+new build** — otherwise slide 13 loads, looks right, and silently refuses to
+step (`apply()` returns false and the deck walks off the slide instead).
 
 ## Drawing in Claude's visual language
 

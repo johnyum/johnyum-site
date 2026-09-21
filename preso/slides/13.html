@@ -12,7 +12,15 @@
      from JS. The only difference: the screen's ground is white, so the status
      bar is set in black ink.
 
-     The calendar itself comes from a separate build and lands in .ui below. -->
+     THE CALENDAR IS THE REAL APP, STEPPED THROUGH A BUILD. /multical/ is the
+     React build of the native replica (multi-host-calendar-web.zip), built with
+     base=/multical/ so its fixtures, icons and fonts rebase off the site root.
+     It is same-origin, which is what lets the beats reach its model and the
+     clicker relay reach back into the deck.
+
+     The taps step BEATS (see the script) by calling the app's own model, so each
+     one is a real state change that animates as the product does. The phone
+     stays live underneath for anything the room asks to see. -->
 <style>
   @font-face {
     font-family: 'Cereal';
@@ -82,9 +90,41 @@
     user-select: none;
   }
   .ui img { display: block; -webkit-user-drag: none; }
+  /* THE APP IS A 430pt DESIGN, not 375. Its month grid is built from fixed
+     metrics — 48px cells on a 52px stride, 7 across, inside 10px of padding —
+     which comes to 384pt and clips its right-hand column in a 375pt box. So the
+     frame is given its own 430 and scaled by 375/430 to land back on the .ui
+     box, which then carries it to the hole with --k. Net: 430pt of UI across the
+     full screen width, which is what the phone it was drawn for shows.
+
+     THE STATUS BAND IS THIS SLIDE'S TO GIVE. The app draws from its own y=0 —
+     --safe-top is declared in its base.css and never used — and its first
+     control, the Today pill, sits only 8pt below that. So the frame starts at
+     56, the full height of .status above, and NOT a point less: at 47 the pill's
+     top edge landed 2pt inside the status bar and a hair under the island, which
+     is the crowding you see if you change this number back. 56 down leaves the
+     pill 21pt clear of the island.
+
+     Height is the rest of the hole — 812 less 56 is 756, which is 867 of the
+     app's own points — so its white ground still reaches the bezel and the
+     scroller runs to the bottom edge under the floating bar, as it does on the
+     phone.
+
+     DO NOT hand the app a bottom safe-area inset to lift its bar off the bezel.
+     Only .bar reads --safe-bottom; the quick-actions puck beside it hard-codes a
+     32pt gap in JS, so raising one slides it off the other and the puck's tip
+     card comes out from behind the bar. 21pt off the glass is the app's own
+     design, tuned against that 32. */
+  .app {
+    position: absolute; left: 0; top: 56px;
+    width: 430px; height: 867px;
+    border: 0; display: block;
+    transform: scale(0.8720930);       /* 375 / 430 */
+    transform-origin: top left;
+  }
 
   /* ---- status bar, hung off the island's centreline (27.64pt in UI space) ---- */
-  .status { position: absolute; left: 0; top: 0; width: 375px; height: 56px; color: #000; }
+  .status { position: absolute; left: 0; top: 0; width: 375px; height: 56px; color: #000; z-index: 1; pointer-events: none; }
   .status .time {
     position: absolute; left: 24.6px; top: 17.14px;
     width: 80px; height: 21px;       /* centre 64, against the left ear's 63.9 */
@@ -130,7 +170,17 @@
             </svg>
           </div>
 
-          <!-- the calendar goes here -->
+          <!-- THE CALENDAR, live. /multical/ is the React build of the native
+               replica, intaken 1:1 (multi-host-calendar-web.zip) and built with
+               base=/multical/, so its own fixture, icon and font URLs rebase.
+               Its shell is .phone { height: 100dvh; max-width: 430px }, so at
+               375x812 it fills the hole exactly — nothing is scaled twice. The
+               app leaves env(safe-area-inset-top, 47px) clear, which is the
+               band the drawn status bar above sits in. Same origin, so the
+               deck's key handler reaches it and the clicker still drives the
+               deck from inside the frame. -->
+          <!-- ?today pins the app's clock at Sept 9 — the deck must never drift with the real date -->
+          <iframe class="app" src="/multical/?today=2026-09-09" title="Multi-Host Calendar"></iframe>
         </div>
       </div>
 
@@ -189,6 +239,124 @@
   </div>
 
 <script>
+// HYBRID: SCRIPTED SPINE, LIVE SURFACE.
+// The taps step a Keynote-style build (BEATS below), and the phone stays a real
+// app underneath — so when someone asks "what happens if you tap that", you tap
+// it. That is why the slide still declares itself interactive: the deck's
+// navigation shrinks to a 32px rail down each edge and the rest of the surface
+// belongs to the calendar. Drive the build with the clicker or the arrows.
+window.presoInteractive = true;
+
+// ---- THE BUILD -------------------------------------------------------------
+//
+// A beat is a plain function handed the app's own model. It calls the SAME
+// public methods the UI calls, so a step is a real state change and animates
+// exactly as the product does — nothing here re-implements a mechanic.
+//
+// GOING BACK REPLAYS rather than undoes. Stepping to beat n resets the model
+// with its own clearAll() and re-runs beats 1..n from the top. That is what lets
+// a beat be a one-way function you can write without also writing its inverse,
+// and the reverse still animates: the replay lands synchronously, React renders
+// once, and CSS interpolates from whatever was on screen. The cost is that a
+// beat must be a pure function of the seeded calendar — do not write one that
+// depends on the beat before it having run.
+//
+// TO ADD A STEP: add a function. That is the whole ceremony.
+//
+// The model surface worth knowing (all of it is in the app's data/model.ts):
+//   set({ showSettings, tipsShown, askDocked, openThread, tourMode, ... })
+//   setPrice(p, li, nights) · adjustPrice(frac, li, nights) · setPromo(f, li, nights)
+//   setMin(n, li, nights) · setBlocked(on, li, nights)
+//   applyWeeklyDiscount(li) · fillGapNights(li) · messageGuest(booking)
+//   reveal(first, last, inset, duration) — the calendar's own spotlight
+//   gapNights(li) · openNights(nights, li) · upcomingStays · staysFor(li)
+//
+// REVEAL BEFORE YOU CHANGE ANYTHING. The calendar runs months deep in a scroller
+// and the interesting nights are usually below the fold — a beat that only
+// mutates fires perfectly and shows nothing. m.reveal(first, last, inset, ms) is
+// the app's own spotlight: it brings the run into view and marks it, and the
+// mutation then lands where the room is looking. Reveal, then change.
+
+/// The next `days` of nights that are actually the host's to price — no past, no
+/// stay, no block. The calendar's open runs start in October; September is let.
+const openRun = (m, days) => {
+  const ns = [];
+  for (let d = m.fx.todayIndex + 1; d < m.fx.todayIndex + days; d++) ns.push(d);
+  return m.openNights(ns, 0);
+};
+
+// The two below are REAL — they drive the product, not a mock-up — but they are
+// placeholders for a story. Replace them with the mechanics this section argues.
+const BEATS = [
+  // 1 — October comes into view and a 15% promotion lands across every open
+  //     night in the run at once: each price strikes and restrikes in place.
+  m => { const ns = openRun(m, 45); m.reveal(ns[0], ns.at(-1), 24, 700); m.setPromo(0.15, 0, ns); },
+
+  // 2 — the gap nights open up: the min-night walls that were closing them drop.
+  m => { const gaps = m.gapNights(0); if (gaps.length) m.reveal(gaps[0], gaps.at(-1), 24, 700); m.fillGapNights(0); },
+];
+
+// THE CLICKER HAS TO SURVIVE A TAP INTO THE PHONE. The deck injects its key
+// handler into each SLIDE frame on load, but it knows nothing about a frame
+// nested inside one — so the first tap on the calendar moves focus into the app
+// and every arrow and clicker press after that dies there. This relays them up.
+// Typing is left alone: with a text field focused (the Ask chat) the app keeps
+// every key, which is why the guard tests the app's own activeElement rather
+// than the key.
+(() => {
+  const NAV = new Set(['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'PageUp', 'PageDown', 'Home', 'End', 'f', 'F']);
+  const app = document.querySelector('.app');
+  app.addEventListener('load', () => {
+    const w = app.contentWindow;
+    // NOTHING SHOWS THROUGH THE HEADER. The app hides the month scrolling under
+    // its title with a white .cover strip, but the strip's edges land on
+    // fractional pixels here (two scales deep, 0.815 in all) and antialias to
+    // hairlines — the grey cell tops behind read as dashed lines above the
+    // title and above the weekday rule. Overlapping the strip by a pixel each
+    // way closes both seams; the extra pixel under .weekdays is white on white.
+    // Set from the slide so the build stays untouched.
+    const seal = w.document.createElement('style');
+    seal.textContent = '.single .cover{top:calc(var(--pin-top) - 1px);height:calc(var(--travel) - var(--rel) + 2px)}';
+    w.document.head.appendChild(seal);
+
+    w.addEventListener('keydown', e => {
+      if (!NAV.has(e.key)) return;
+      const el = w.document.activeElement;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      e.preventDefault();
+      parent.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: e.code, bubbles: true }));
+    });
+  });
+})();
+
+// ---- the build's driver ----------------------------------------------------
+// The deck rebuilds this slide's frame on every visit, so arriving at the slide
+// is what puts the build back at the start — there is no state to clear here.
+(() => {
+  const app = document.querySelector('.app');
+  let at = 0;                                  // beats applied, 0..BEATS.length
+
+  const model = () => { try { return app.contentWindow.__model; } catch (_) { return null; } };
+
+  // Reset, then replay — see the note on BEATS. Returns false while the app is
+  // still loading, which hands the step back to the DECK rather than swallowing
+  // it and stranding the presenter on a phone that will not move.
+  function apply(n) {
+    const m = model();
+    if (!m) return false;
+    m.clearAll();
+    m.set({ showSettings: false, openThread: null });
+    m.tab = 'calendar';                        // not part of clearAll's remit
+    for (let i = 0; i < n; i++) BEATS[i](m);
+    m.notify();
+    at = n;
+    return true;
+  }
+
+  window.presoNext = () => at >= BEATS.length ? false : apply(at + 1);
+  window.presoPrev = () => at <= 0 ? false : apply(at - 1);
+})();
+
 (() => {
   const screen = document.querySelector('.screen');
   const ui     = document.getElementById('ui');
