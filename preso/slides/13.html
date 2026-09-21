@@ -517,6 +517,16 @@ const BEATS = [
     setTimeout(() => { if (g === gen) close(); }, TAP);
     setTimeout(tail(g, guests), TAP + 900);   // closed, a beat: the guests
   },
+  // 23 — Zoe's pill, visibly tapped (both its pieces, the 10th–12th and the 13th–14th), and her reservation rises (Figma 5248:641834)
+  (m, instant) => {
+    const b = m.stay(m.fx.todayIndex + 1, 0);   // the stay over the 10th
+    if (!b) return;
+    if (instant) { m.setStaySheet(b); return; }
+    const g = ++gen; pendingTail = () => m.setStaySheet(b);
+    m.pressedStay = `${b.listing}:${b.startIndex}`; m.notify();
+    setTimeout(() => { if (g === gen && m.pressedStay) { m.pressedStay = null; m.notify(); } }, 300);
+    setTimeout(tail(g, () => m.setStaySheet(b)), TAP);
+  },
 ];
 // THE TIPS: the five weeks after today. Tuesdays to Thursdays in the second and third weeks come down to $480; Fridays and
 // Saturdays in the first, third and fifth go up to $535 — a spread that reads as an advisor's, not a rule's, and one that
@@ -587,7 +597,7 @@ function typeKeys(keys, instant) {
     // way closes both seams; the extra pixel under .weekdays is white on white.
     // Set from the slide so the build stays untouched.
     // the band's scrim follows the app's price-tips sheet, however it opens or closes (a beat, or a finger on ⨉ / Try now)
-    const follow = () => { const mm = w.__model; if (mm) document.body.classList.toggle('scrim', !!mm.wandSheet); };
+    const follow = () => { const mm = w.__model; if (mm) document.body.classList.toggle('scrim', !!(mm.wandSheet || mm.staySheet)); };
     const hook = setInterval(() => { const mm = w.__model; if (!mm) return; clearInterval(hook); mm.subscribe(follow); follow(); }, 50);
     const seal = w.document.createElement('style');
     seal.textContent = '.single .cover{top:calc(var(--pin-top) - 1px);height:calc(var(--travel) - var(--rel) + 2px)}';
@@ -628,7 +638,7 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
-    m.setHeaderLock(false, false); m.setLayers({ stays: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
+    m.setHeaderLock(false, false); m.setStaySheet(null); m.setLayers({ stays: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
