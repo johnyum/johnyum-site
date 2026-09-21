@@ -33,26 +33,15 @@
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   /* embedded in the studies sheet (12b) the page ground must not paint over the neighbours */
   html.embed, html.embed body { background: transparent; }
-  .slide { height: 100%; display: grid; place-items: center; position: relative; --phone-h: min(80vh, 1080px); }   /* --phone-h declared here so the sampler panel beside the phone can size off it too */
+  .slide { height: 100%; display: grid; place-items: center; }
 
-  /* ── THE CELL SAMPLER (the preso's beat 25, John 2026-09-21): the phone slides left to make room for a second phone 120px off
-     its right edge, and where that phone would stand a white sheet shows every state a date cell can be in — the app's own
-     sampler page (/multical/?sampler=1), the real cells, the moving ones looping. The next beat slides the phone home. ── */
-  .phone { transition: transform .9s cubic-bezier(.16, 1, .3, 1); }
-  body.split .phone { transform: translateX(calc((var(--phone-h) * 900 / 1840 + 120px) / -2)); }
-  .sampler-panel { position: absolute; left: 50%; top: 50%; width: calc(var(--phone-h) * 900 / 1840 * 1.3); height: calc(var(--phone-h) * 0.95);
-    transform: translate(calc(-50% + (var(--phone-h) * 900 / 1840 + 120px) / 2 + var(--phone-h) * 900 / 1840 * 0.15), -50%);
-    border-radius: 24px; overflow: hidden; background: #fff; box-shadow: 0 12px 40px rgba(0,0,0,.10), 0 0 0 .5px rgba(0,0,0,.06);
-    opacity: 0; transition: opacity .5s .35s; pointer-events: none; }
-  body.split .sampler-panel { opacity: 1; }
-  .sampler-panel iframe { position: absolute; left: 0; top: 0; width: 560px; height: 1220px; border: 0; transform: scale(var(--sk, 1)); transform-origin: top left; background: #fff; }
 
 
   .phone {
     /* the one number the assembly scales off. 80vh keeps it from crowding the
        deck's chrome, and the 1080 cap stops it ballooning on a 4K panel — that
        cap starts biting above a 1350px-tall viewport. */
-    /* --phone-h is declared on .slide above, so the sampler panel shares it */
+    --phone-h: min(80vh, 1080px);
 
     /* the screen hole, as % of the 900x1840 viewBox */
     --sx: 5.4444%;
@@ -155,7 +144,6 @@
 </head>
 <body>
   <div class="slide">
-    <div class="sampler-panel" id="sampler" aria-hidden="true"><iframe id="samplerframe" title="Every date cell"></iframe></div>
     <div class="phone">
       <div class="screen">
         <div class="ui" id="ui">
@@ -517,22 +505,18 @@ const BEATS = [
     if (instant) { m.setStaySheet(null); return; }
     const g = ++gen; press(d => d.querySelector('.st-icon[aria-label="Close"]')); setTimeout(tail(g, () => m.setStaySheet(null)), TAP);
   },
-  // 25 — the phone slides left, and where a second phone would stand, 120 off, a white sheet of every date-cell state — the app's
-  //      own sampler, the real cells, the moving ones looping
-  m => { const fr = document.getElementById('samplerframe'); if (fr && !fr.src) { const v = new URLSearchParams(location.search).get('v'); fr.src = '/multical/?sampler=1&preso=1&today=2026-09-09' + (v ? '&v=' + v : ''); } document.body.classList.add('split'); },
-  // 26 — the phone slides home; the wand tile shrinks away and its slot folds shut, Today sliding back to its 8 from the gear; a beat; the AI pills pop
+  // 25 — (the deck shows every date-cell state on its own slide between here and the next) the wand tile shrinks away and its slot folds shut, Today sliding back to its 8 from the gear; a beat; the AI pills pop
   //      onto the calendar and open with their labels — Gap nights, Weekday lull, the events — then fold, as the product's do
   (m, instant) => {
     const nudge = () => { const d = appDoc(), v = d && d.querySelector('.vscroll'); if (!v) return; v.scrollTop += 1; setTimeout(() => { v.scrollTop -= 1; }, 60); };   // a hair of scroll: the pills' own open-with-labels
     const land = () => { m.setWandTile(false); m.setLayers({ entries: true, gaps: true }); };   // gaps: the walled runs under the minimum close, and Gap nights come with the pills
-    document.body.classList.remove('split');   // the phone slides home first
     if (instant) { land(); return; }
     const g = ++gen; pendingTail = land;
     m.setWandLeaving(true);
     setTimeout(() => { if (g === gen) m.setWandTile(false); }, 650);   // the fold has played
     setTimeout(tail(g, () => { land(); setTimeout(() => { if (g === gen) nudge(); }, 700); }), 650 + 900);   // a beat: the pills, and once in, they open
   },
-  // 27 — the first Gap nights pill, visibly tapped: the product opens the entry — its three nights pick themselves, green and
+  // 26 — the first Gap nights pill, visibly tapped: the product opens the entry — its three nights pick themselves, green and
   //      dashed, the gap scene on them — and the product's own AI box rises at the bottom with its Apply
   (m, instant) => {
     const e = m.calendarEntries(0).find(x => x.label === 'Gap nights'); if (!e) return;
@@ -542,7 +526,7 @@ const BEATS = [
     press(d => [...d.querySelectorAll('.marker')].find(mk => mk.textContent.includes('Gap nights')));
     setTimeout(tail(g, open), TAP);
   },
-  // 28 — Apply, visibly tapped: the product's own flow — the dots, the tip applied (the three nights' rings go solid, their
+  // 27 — Apply, visibly tapped: the product's own flow — the dots, the tip applied (the three nights' rings go solid, their
   //      minimum drops to 3), then the ✓ on the button
   (m, instant) => {
     const ns = [...m.selectedNights];
@@ -552,7 +536,7 @@ const BEATS = [
     const btn = press(d => d.querySelector('.apply'));
     setTimeout(() => { if (g === gen) { pendingTail = null; if (btn) btn.click(); else land(); } }, 130);   // the click lands mid-squash; the product takes it from there
   },
-  // 29–32 — the tip is swiped away and the next one slides in with its own Apply; a beat; Apply, tapped. Four times over: the
+  // 28–31 — the tip is swiped away and the next one slides in with its own Apply; a beat; Apply, tapped. Four times over: the
   //         second gap (the 28th–30th), the Weekday lull, Halloween, Thanksgiving
   ...[0, 1, 2, 3].map(() => (m, instant) => {
     const list = m.actionEntries(0), i = list.findIndex(e => e.di === m.entryAnchor), target = list[i + 1]; if (!target) return;
@@ -562,7 +546,7 @@ const BEATS = [
     if (m.pageTips) m.pageTips(1); else m.stepEntry(1, 0);              // the swipe: the old header slides off, the next slides in
     setTimeout(() => { if (g !== gen) return; const btn = press(d => d.querySelector('.apply')); setTimeout(() => { if (g === gen) { pendingTail = null; if (btn) btn.click(); else land(); } }, 130); }, 380 + 900);   // landed, a beat: Apply
   }),
-  // 33 — the AI box's ⨉, tapped: it drops and the picks clear; Today, tapped: the calendar flies home (the header staying small);
+  // 32 — the AI box's ⨉, tapped: it drops and the picks clear; Today, tapped: the calendar flies home (the header staying small);
   //      landed, a beat, the Ask circle springs in; a beat, the tips puck — the 3 in Rausch — comes down and lands on it
   (m, instant) => {
     const closeBox = () => { m.setSelectedNights(new Set()); m.entryKind = null; m.entryAnchor = null; m.notify(); };
@@ -577,12 +561,12 @@ const BEATS = [
       setTimeout(tail(g, () => m.showPuck(3)), 900 + 900);                                                             // it has sprung in, a beat: the 3 comes down — and rests there
     }, 900)); }, 130 + 900 + 200);
   },
-  // 34 — the Ask, tapped: the chat rises
+  // 33 — the Ask, tapped: the chat rises
   (m, instant) => {
     if (instant) { m.setSheet('ask'); return; }
     const g = ++gen; press(d => d.querySelector('.bar .ask')); setTimeout(tail(g, () => m.setSheet('ask')), 130);
   },
-  // 35 — "Block the first two weeks of January" is typed into the chat and sent; the product blocks January 1–14, night by night
+  // 34 — "Block the first two weeks of January" is typed into the chat and sent; the product blocks January 1–14, night by night
   (m, instant) => {
     const janStart = m.fx.index({ y: 2027, m: 1, d: 1 }), jan = Array.from({ length: 14 }, (_, k) => janStart + k);
     const land = () => { m.setBlocked(true, 0, jan); };
@@ -590,7 +574,7 @@ const BEATS = [
     const g = ++gen; pendingTail = land;
     typeAsk(g, ASK_BLOCK, () => { pendingTail = null; });
   },
-  // 36 — the chat's ⨉, tapped: it drops, the puck still on the Ask
+  // 35 — the chat's ⨉, tapped: it drops, the puck still on the Ask
   (m, instant) => {
     if (instant) { m.setSheet('none'); return; }
     const g = ++gen;
@@ -716,7 +700,7 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
-    document.body.classList.remove('split'); m.setHeaderLock(false, false); m.hidePuck(); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
+    m.setHeaderLock(false, false); m.hidePuck(); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
@@ -726,8 +710,12 @@ function typeKeys(keys, instant) {
     return true;
   }
 
-  window.presoNext = () => at >= BEATS.length ? false : apply(at + 1);
-  window.presoPrev = () => at <= 0 ? false : apply(at - 1);
+  // THE BUILD SPANS DECK SLIDES. ?until=N: this embed steps beats 1..N and then hands the deck on (12b: through Zoe's ⨉).
+  // ?start=N: this embed opens already at beat N, replayed instantly once the app is up, and steps on from there (12d).
+  const Q = new URLSearchParams(location.search), UNTIL = +(Q.get('until') || BEATS.length), START = +(Q.get('start') || 0);
+  window.presoNext = () => at >= Math.min(UNTIL, BEATS.length) ? false : apply(at + 1);
+  window.presoPrev = () => at <= START ? false : apply(at - 1);
+  if (START > 0) { const go = () => { if (model()) apply(START); else setTimeout(go, 100); }; go(); }
   // the deck's GO: straight to the last beat, instantly — the replay path — as soon as the app is up to take it
   window.presoEnd = () => { const go = () => { if (model()) apply(BEATS.length); else setTimeout(go, 100); }; go(); };
 })();
@@ -735,10 +723,7 @@ function typeKeys(keys, instant) {
 (() => {
   const screen = document.querySelector('.screen');
   const ui     = document.getElementById('ui');
-  function fit() {
-    ui.style.setProperty('--k', (screen.clientHeight + 1) / 812);
-    const panel = document.getElementById('sampler'); if (panel) panel.style.setProperty('--sk', panel.clientWidth / 560);   // the sampler page is laid out 560 wide
-  }
+  function fit() { ui.style.setProperty('--k', (screen.clientHeight + 1) / 812); }
   new ResizeObserver(fit).observe(screen);
   fit();
 })();
