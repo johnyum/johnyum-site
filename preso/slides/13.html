@@ -535,9 +535,9 @@ const BEATS = [
     const btn = press(d => d.querySelector('.apply'));
     setTimeout(() => { if (g === gen) { pendingTail = null; if (btn) btn.click(); else land(); } }, 130);   // the click lands mid-squash; the product takes it from there
   },
-  // 28, 29 — the tip is swiped away and the next one slides in with its own Apply; a beat; Apply, tapped. Twice: the second
-  //          gap (the 28th–30th), then the tip after it
-  ...[0, 1].map(() => (m, instant) => {
+  // 28–31 — the tip is swiped away and the next one slides in with its own Apply; a beat; Apply, tapped. Four times over: the
+  //         second gap (the 28th–30th), the Weekday lull, Halloween, Thanksgiving
+  ...[0, 1, 2, 3].map(() => (m, instant) => {
     const list = m.actionEntries(0), i = list.findIndex(e => e.di === m.entryAnchor), target = list[i + 1]; if (!target) return;
     const land = () => { const k = m.kindOf(target); if (!k) return; m.openEntry(target, 0, false); m.applyTip(k, target.di, m.nightsOf(target, 0), true); };
     if (instant) { land(); return; }
@@ -545,6 +545,18 @@ const BEATS = [
     if (m.pageTips) m.pageTips(1); else m.stepEntry(1, 0);              // the swipe: the old header slides off, the next slides in
     setTimeout(() => { if (g !== gen) return; const btn = press(d => d.querySelector('.apply')); setTimeout(() => { if (g === gen) { pendingTail = null; if (btn) btn.click(); else land(); } }, 130); }, 380 + 900);   // landed, a beat: Apply
   }),
+  // 32 — the AI box's ⨉, tapped: it drops and the picks clear; Today, tapped: the calendar flies home (the header staying small);
+  //      landed, a beat, and the Ask circle springs in at the bottom right
+  (m, instant) => {
+    const closeBox = () => { m.setSelectedNights(new Set()); m.entryKind = null; m.entryAnchor = null; m.notify(); };
+    const land = () => { closeBox(); m.homeLocked(!instant); m.setLayers({ ask: true }); };
+    if (instant) { land(); return; }
+    const g = ++gen; pendingTail = land;
+    const x = press(d => d.querySelector('.qa-corner button:last-child'));
+    setTimeout(() => { if (g === gen) { if (x) x.click(); else closeBox(); } }, 130);
+    setTimeout(() => { if (g === gen) press(d => d.querySelector('.today-pill')); }, 130 + 900);                       // the box is down: Today, visibly tapped
+    setTimeout(() => { if (g !== gen) return; m.homeLocked(); settled(g, () => setTimeout(tail(g, () => m.setLayers({ ask: true })), 900)); }, 130 + 900 + 200);   // home; a beat; the Ask
+  },
 ];
 // THE TIPS: the five weeks after today. Tuesdays to Thursdays in the second and third weeks come down to $480; Fridays and
 // Saturdays in the first, third and fifth go up to $535 — a spread that reads as an advisor's, not a rule's, and one that
