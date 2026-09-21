@@ -428,7 +428,17 @@
     if (h >= 1 && h <= SLIDES.length && h - 1 !== idx) jumpTo(h - 1);
   });
 
-  document.getElementById('go').addEventListener('click', e => { e.stopPropagation(); jumpTo(SLIDES.length - 1); });   // to the last slide so far
+  // GO: to the last slide so far AND its last build step — the slide's own presoEnd, once its frame is up
+  async function goEnd() {
+    if (!SLIDES.length) return;
+    const n = SLIDES.length - 1;
+    if (flight) snapFlight();
+    if (n !== idx) await transitionTo(n, 1);
+    const t0 = Date.now();
+    const poke = () => { let f = null; try { f = current && current.frame && current.frame.contentWindow && current.frame.contentWindow.presoEnd; } catch (_) {} if (f) f(); else if (Date.now() - t0 < 8000) setTimeout(poke, 100); };
+    poke();
+  }
+  document.getElementById('go').addEventListener('click', e => { e.stopPropagation(); goEnd(); });
   document.getElementById('tapnext').addEventListener('click', () => navigate(1));
   document.getElementById('tapback').addEventListener('click', () => navigate(-1));
 
