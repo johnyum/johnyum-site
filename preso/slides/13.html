@@ -311,6 +311,8 @@ let gen = 0;
 let pendingRun = null;   // a cascade still tapping; a forward tap finishes it before the next beat, a back tap drops it
 let pendingTail = null;  // the rest of a live beat still on a timer (the $480, the min 5, the 20%): a forward tap lands it whole first, a back tap drops it
 const tail = (g, fn) => { pendingTail = fn; return () => { if (g !== gen) return; pendingTail = null; fn(); }; };   // fn runs on time — or early, whole, on the next tap
+const TAP = 480;   // a scripted tap on a row or a button: its pressed look plays out (.pressing, 440ms) before what it does happens
+const press = find => { const d = appDoc(), el = d && find(d); if (!el) return null; el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 440); return el; };
 const cascade = (m, first, last, every) => {
   const g = ++gen;
   pendingRun = { first, last };
@@ -363,9 +365,8 @@ const BEATS = [
   (m, instant) => {
     if (instant) { m.setMinSheet(true); return; }
     const g = ++gen;
-    const d = appDoc(), row = d && d.querySelector('.sqa-custom.open .ss-row');
-    if (row) { row.classList.add('pressing'); setTimeout(() => row.classList.remove('pressing'), 440); }
-    setTimeout(() => { if (g === gen) m.setMinSheet(true); }, 200);
+    press(d => d.querySelector('.sqa-custom.open .ss-row'));
+    setTimeout(tail(g, () => m.setMinSheet(true)), TAP);   // the tap plays out, then the sheet re-dresses
   },
   // 13 — the − ring tapped twice: 7 → 6 → 5, and under each picked night's $480 the "min 6" line arrives, then reads "min 5"
   (m, instant) => {
@@ -378,7 +379,7 @@ const BEATS = [
       const d = appDoc(), btn = d && d.querySelector('.sqa-custom.min .mn-btn');
       if (btn) { btn.classList.remove('pressing'); void btn.offsetWidth; btn.classList.add('pressing'); setTimeout(() => btn.classList.remove('pressing'), 440); }
       setTimeout(() => { if (g === gen) { m.setMinSheetNights(n); m.setMin(n, 0, ns); if (n === 5) pendingTail = null; } }, 130);   // the figure and the cells move at the bottom of the squash
-    }, i * 800));
+    }, i * 320));   // one thumb, twice, quick
   },
   // 14 — Done, visibly tapped: the editor runs back to the three rows, and Minimum nights now reads 5 where its + was
   (m, instant) => {
@@ -388,32 +389,33 @@ const BEATS = [
     if (btn) { btn.classList.add('pressing'); setTimeout(() => btn.classList.remove('pressing'), 440); }
     setTimeout(() => { if (g === gen) m.setMinSheet(false); }, 200);
   },
-  // 15 — Custom promotion, visibly tapped: the sheet re-dresses as the promotion editor, at 0%
-  (m, instant) => {
-    if (instant) { m.setPromoSheet(true); return; }
-    const g = ++gen;
-    const d = appDoc(), row = d && d.querySelectorAll('.sqa-custom.open .ss-row')[1];
-    if (row) { row.classList.add('pressing'); setTimeout(() => row.classList.remove('pressing'), 440); }
-    setTimeout(() => { if (g === gen) m.setPromoSheet(true); }, 200);
-  },
-  // 16 — a finger drags the knob to 20%: the figure counts up, the three ✓ pop in, then −20% lands on the picked
-  //      nights and their $480 rolls to $384
+  // 15 — Custom promotion, visibly tapped: the sheet re-dresses as the promotion editor and rests a beat on 0%; then a
+  //      finger drags the knob to 20% — the figure counting, the three ✓ popping in — and −20% lands on the picked nights,
+  //      their $480 rolling to $384
   (m, instant) => {
     const ns = [...m.selectedNights];
-    if (instant) { m.setPromoPct(20); m.setPromo(0.2, 0, ns); return; }
+    if (instant) { m.setPromoSheet(true); m.setPromoPct(20); m.setPromo(0.2, 0, ns); return; }
     const g = ++gen;
-    const d = appDoc(), knob = d && d.querySelector('.cp-knob');
-    if (knob) knob.classList.add('pressing');
-    const DRAG = 700, T0 = performance.now() + 250;   // a beat with the finger down, then the drag, expo-out
+    pendingTail = () => { m.setPromoSheet(true); m.setPromoDrag(false); m.setPromoPct(20); m.setPromo(0.2, 0, ns); };
+    press(d => d.querySelectorAll('.sqa-custom.open .ss-row')[1]);
+    setTimeout(() => { if (g === gen) m.setPromoSheet(true); }, TAP);
+    const T0 = performance.now() + TAP + 600 + 700 + 250;   // the tap, the re-dress, a beat on 0%, the finger down; then the drag, expo-out
+    const DRAG = 700; let knob = null;
+    setTimeout(() => { if (g !== gen) return; const d = appDoc(); knob = d && d.querySelector('.cp-knob'); if (knob) knob.classList.add('pressing'); }, TAP + 600 + 700);
     const step = () => {
       if (g !== gen) return;
       const t = Math.min(1, Math.max(0, (performance.now() - T0) / DRAG)), e = 1 - Math.pow(2, -10 * t);
-      m.setPromoDrag(true); m.setPromoPct(20 * (t >= 1 ? 1 : e));
+      if (t > 0) { m.setPromoDrag(true); m.setPromoPct(20 * (t >= 1 ? 1 : e)); }
       if (t < 1) requestAnimationFrame(step); else { m.setPromoDrag(false); if (knob) knob.classList.remove('pressing'); setTimeout(tail(g, () => m.setPromo(0.2, 0, ns)), 500); }   // lifted; a beat; the nights
     };
-    pendingTail = () => { m.setPromoDrag(false); m.setPromoPct(20); m.setPromo(0.2, 0, ns); if (knob) knob.classList.remove('pressing'); };
     requestAnimationFrame(step);
   },
+  // 16 — Done on the promotion, visibly tapped: back to the three rows, Custom promotion now reading 20%
+  (m, instant) => { if (instant) { m.setPromoSheet(false); return; } const g = ++gen; press(d => d.querySelector('.cp .mn-done')); setTimeout(tail(g, () => m.setPromoSheet(false)), TAP); },
+  // 17 — Done on the settings sheet: it runs back into its card
+  (m, instant) => { if (instant) { m.setSettingsSheet(false); return; } const g = ++gen; press(d => d.querySelector('.sqa-custom.open .ss-done')); setTimeout(tail(g, () => m.setSettingsSheet(false)), TAP); },
+  // 18 — ⨉: the quick actions drop; the nights keep their $384, −20% and min 5
+  (m, instant) => { if (instant) { m.clearSelection(); return; } const g = ++gen; press(d => d.querySelector('.sqa-close')); setTimeout(tail(g, () => m.clearSelection()), TAP); },
 ];
 
 // A scripted finger on the price sheet's keypad. Each key pops (sqa.css key-tap) and its click lands mid-squash,
