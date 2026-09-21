@@ -493,7 +493,7 @@ const BEATS = [
     const g = ++gen;
     pendingTail = land;
     picks.forEach((di, k) => setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, k * 90));
-    setTimeout(tail(g, () => m.setTipSheet(true)), (picks.length - 1) * 90 + 400);   // the picks are in: the sheet
+    setTimeout(tail(g, land), (picks.length - 1) * 90 + 400);   // the picks are in: the sheet (land is the whole beat, so a tap mid-cascade picks them all too — tail() replaces pendingTail)
   },
   // 21 — Apply tips, visibly tapped: the sheet drops and IN THE CELLS the old price folds away and a ✓ comes in (the cells' own
   //      raise scene) and stays; an Undo pill joins Close (Figma 5248:641867)
@@ -504,9 +504,10 @@ const BEATS = [
     press(d => d.querySelector('.pt-cta'));
     setTimeout(tail(g, land), TAP);
   },
-  // 22 — Close, visibly tapped: the tips come off, the ✓s with them, the bar's tiles return and the header lets go — the default calendar
+  // 22 — Close, visibly tapped: the tips still on offer come off, the applied ones stay as the nights' prices (plain, ✓ gone), the
+  //      bar's tiles return and the header lets go — the default calendar, with the host's new prices honoured
   (m, instant) => {
-    const close = () => { m.undoTips(); m.clearTips(); m.setHeaderLock(false, !instant); };
+    const close = () => { m.clearTips(); m.setHeaderLock(false, !instant); };
     if (instant) { close(); return; }
     const g = ++gen; press(d => d.querySelector('.close-tips')); setTimeout(tail(g, close), TAP);
   },
