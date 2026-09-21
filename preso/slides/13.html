@@ -341,7 +341,31 @@ const BEATS = [
   m => m.setBlocked(false, 0, [...m.selectedNights]),
   // 8 — the Price per night card grows into the price sheet, the $500 riding up to the centre
   m => m.setPriceSheet(true),
+  // 9 — on the keypad: ⌫ three times, then 4 8 0 — each key visibly pressed
+  (m, instant) => typeKeys(['⌫', '⌫', '⌫', '4', '8', '0'], instant),
+  // 10 — Done: $480 lands on the picked nights and the sheet runs back into its card
+  (m, instant) => { if (instant) { m.setPrice(480, 0, [...m.selectedNights], false); m.setPriceSheet(false); } else typeKeys(['Done'], false); },
 ];
+
+// A scripted finger on the price sheet's keypad. Each key gets the app's own pressed look (.pressing = :active)
+// for a moment, then its click — Done included — 220ms apart. Instant: the clicks, at once, no look.
+const appDoc = () => { try { return document.querySelector('.app').contentDocument; } catch (_) { return null; } };
+function typeKeys(keys, instant) {
+  const g = ++gen;
+  keys.forEach((k, i) => {
+    const go = () => {
+      if (g !== gen) return;
+      const d = appDoc(); if (!d) return;
+      const el = k === 'Done' ? d.querySelector('.sqa-price.open .ps-done') : [...d.querySelectorAll('.sqa-price.open .ps-key')].find(b => b.getAttribute('aria-label') === k);
+      if (!el) return;
+      if (instant) { el.click(); return; }
+      el.classList.add('pressing');
+      setTimeout(() => { el.click(); }, 90);
+      setTimeout(() => { el.classList.remove('pressing'); }, 170);
+    };
+    setTimeout(go, instant ? 30 : i * 220);   // instant still waits a tick: a replayed beat 8 has only just mounted the keypad
+  });
+}
 
 // THE CLICKER HAS TO SURVIVE A TAP INTO THE PHONE. The deck injects its key
 // handler into each SLIDE frame on load, but it knows nothing about a frame
