@@ -414,27 +414,40 @@ const BEATS = [
   // 16 — ⨉, straight from the promotion page: the whole quick actions drop away and September rides back up to the big
   //      header; the 9th–21st keep their $384, −20% and min 5, untapped, on the default calendar
   (m, instant) => { if (instant) { m.clearSelection(); m.setHeaderLock(false, false); return; } const g = ++gen; press(d => d.querySelector('.sqa-close')); setTimeout(tail(g, () => { m.clearSelection(); m.setHeaderLock(false); }), TAP); },
-  // 17 — the next NINE events and holidays, in one run, out to Indian Wells in March 2027: the calendar scrolls to each,
-  //      its icon pops in on its days, a beat, and on to the next. The marks layer comes on empty and fills group by group.
-  //      Pride · Veterans Day · Thanksgiving · Christmas · New Year's · MLK · AMEX Cup · Modernism Week · Indian Wells
+  // 17 — the events and holidays, in one run of five stops, out to Indian Wells in March 2027: the calendar scrolls to
+  //      each stop, its icons pop in one group after another, a beat, and on. The marks layer comes on empty and fills.
   (m, instant) => {
     m.setLayers({ marks: true }); m.setShownMarks(new Set()); m.revealOffset = MARK_PARK;
-    const groups = m.nextMarkGroups(MARK_GROUPS), last = groups[groups.length - 1];
-    const landAll = () => { for (const grp of groups) m.showMarkGroup(grp.dis); m.reveal(last.dis[0], null, 0, 0); };
+    const groups = m.nextMarkGroups(16);
+    const scenes = MARK_SCENES.map(names => names.map(n => groups.find(g => g.name === n)).filter(Boolean)).filter(sc => sc.length);
+    const lastScene = scenes[scenes.length - 1];
+    const landAll = () => { for (const sc of scenes) for (const grp of sc) m.showMarkGroup(grp.dis); m.reveal(lastScene[0].dis[0], null, 0, 0); };
     if (instant) { landAll(); return; }
     const g = ++gen;
     pendingTail = landAll;   // a tap before the run is through lands the rest whole
     const go = i => {
       if (g !== gen) return;
-      const grp = groups[i]; if (!grp) { pendingTail = null; return; }
-      m.reveal(grp.dis[0], null, 0, 0);
-      settled(g, () => { if (g !== gen) return; m.showMarkGroup(grp.dis); setTimeout(() => go(i + 1), MARK_HOLD); });   // landed: the icon; a beat; the next
+      const sc = scenes[i]; if (!sc) { pendingTail = null; return; }
+      m.reveal(sc[0].dis[0], null, 0, 0);
+      settled(g, () => {
+        if (g !== gen) return;
+        sc.forEach((grp, k) => setTimeout(() => { if (g === gen) m.showMarkGroup(grp.dis); }, k * MARK_STAGGER));   // landed: the icons, one group after another
+        setTimeout(() => go(i + 1), (sc.length - 1) * MARK_STAGGER + MARK_HOLD);                                   // a beat after the last; the next stop
+      });
     };
     go(0);
   },
 ];
 const MARK_PARK = 120;   // an event's row parks this far under the header, with its week above for context
-const MARK_HOLD = 1100;  // the beat an icon gets before the run scrolls on
+const MARK_HOLD = 1100;  // the beat the last icon of a stop gets before the run scrolls on
+const MARK_STAGGER = 220; // within a stop, one group's icons after another's
+const MARK_SCENES = [     // the stops (John, 2026-09-21)
+  ['Halloween', 'Palm Springs Pride', 'Veterans Day', 'Thanksgiving'],
+  ['Christmas', "New Year's Day"],
+  ['MLK Jr. Day', 'AMEX Cup'],
+  ['Modernism Week'],
+  ['Indian Wells 2027'],
+];
 // The calendar's smooth scroll takes as long as it takes (a jump of months, longer): fn runs once the scroll has
 // been still for two reads, 400ms in at the soonest, 2s at the latest.
 const settled = (g, fn) => {
