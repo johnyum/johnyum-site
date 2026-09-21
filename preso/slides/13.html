@@ -502,8 +502,8 @@ const BEATS = [
     tips.forEach(([di, p], k) => setTimeout(() => { if (g === gen) { m.addTip(di, p); if (k === tips.length - 1) pendingTail = null; } }, TAP + 900 + k * 45));
   },
   // 22 — every tipped September night gets tapped, in date order, and the Price tip sheet rises; a beat; Apply tips is
-  //      tapped; the sheet drops and IN THE CELLS the old price folds away and a ✓ comes in (the cells' own raise scene), then
-  //      they rest plain with their new prices in green, and an Undo pill joins Close tips (Figma 5248:641867)
+  //      tapped; the sheet drops and IN THE CELLS the old price folds away and a ✓ comes in (the cells' own raise scene) and
+  //      stays, and an Undo pill joins Close (Figma 5248:641867)
   (m, instant) => {
     const t = m.fx.todayIndex, picks = TIPS(m).map(([di]) => di).filter(di => m.fx.date(di).m === m.fx.date(t).m);   // September's tips, in date order
     const land = () => { m.setTipSheet(false); m.applyTips(picks); m.clearSelection(); m.setUndoTile(true); };
@@ -514,7 +514,13 @@ const BEATS = [
     const T1 = (picks.length - 1) * 90 + 400;
     setTimeout(() => { if (g === gen) m.setTipSheet(true); }, T1);                                   // the five are in: the sheet
     setTimeout(() => { if (g === gen) press(d => d.querySelector('.pt-cta')); }, T1 + 600 + 1000);    // up, a beat: Apply tips, tapped
-    setTimeout(tail(g, land), T1 + 600 + 1000 + TAP);                                                // the tap has played: sheet down, the cells' ✓, then plain with green prices, Undo
+    setTimeout(tail(g, land), T1 + 600 + 1000 + TAP);                                                // the tap has played: sheet down, the cells' ✓ (which stays), Undo
+  },
+  // 23 — Close, visibly tapped: the tips come off, the ✓s with them, the bar's tiles return and the header lets go — the default calendar
+  (m, instant) => {
+    const close = () => { m.undoTips(); m.clearTips(); m.setHeaderLock(false, !instant); };
+    if (instant) { close(); return; }
+    const g = ++gen; press(d => d.querySelector('.close-tips')); setTimeout(tail(g, close), TAP);
   },
 ];
 // THE TIPS: the five weeks after today. Tuesdays to Thursdays in the second and third weeks come down to $480; Fridays and
