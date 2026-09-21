@@ -391,9 +391,9 @@ const BEATS = [
     };
     requestAnimationFrame(step);
   },
-  // 16 — ⨉, straight from the promotion page: the whole quick actions drop away and September rides back up to the big
-  //      header; the 9th–21st keep their $384, −20% and min 5, untapped, on the default calendar
-  (m, instant) => { if (instant) { m.clearSelection(); m.setHeaderLock(false, false); return; } const g = ++gen; press(d => d.querySelector('.sqa-close')); setTimeout(tail(g, () => { m.clearSelection(); m.setHeaderLock(false); }), TAP); },
+  // 16 — ⨉, straight from the promotion page: the whole quick actions drop away; the header stays small (it does for the rest
+  //      of the preso); the 9th–21st keep their $384, −20% and min 5, untapped
+  (m, instant) => { if (instant) { m.clearSelection(); return; } const g = ++gen; press(d => d.querySelector('.sqa-close')); setTimeout(tail(g, () => m.clearSelection()), TAP); },
   // 17 — the events and holidays, in one run of five stops, out to Indian Wells in March 2027: the calendar scrolls to
   //      each stop, its icons pop in one group after another, a beat, and on. The marks layer comes on empty and fills.
   (m, instant) => {
@@ -433,13 +433,13 @@ const BEATS = [
   (m, instant) => {
     const [a, z] = RUN(m), ns = []; for (let di = a; di <= z; di++) ns.push(di);
     const undo = () => { m.setPrice(null, 0, ns); m.setPromo(null, 0, ns); m.setMin(null, 0, ns); };
-    if (instant) { m.clearSelection(); undo(); m.setWandTile(true); m.setWandSheet(true); setTimeout(() => m.goToday(), 80); return; }   // after 17's own deferred reveal (40ms), so home wins
+    if (instant) { m.clearSelection(); undo(); m.setWandTile(true); m.setWandSheet(true); setTimeout(() => m.homeLocked(false), 80); return; }   // after 17's own deferred reveal (40ms), so home wins
     const g = ++gen;
-    pendingTail = () => { m.clearSelection(); undo(); m.goToday(); m.setWandTile(true); m.setWandSheet(true); };   // a tap before it is through lands it all
+    pendingTail = () => { m.clearSelection(); undo(); m.homeLocked(); m.setWandTile(true); m.setWandSheet(true); };   // a tap before it is through lands it all
     press(d => d.querySelector('.sqa-close'));
     setTimeout(() => { if (g === gen) m.clearSelection(); }, TAP);
     setTimeout(() => { if (g === gen) press(d => d.querySelector('.today-pill')); }, TAP + 700);   // the cards are down: Today, visibly tapped
-    setTimeout(() => { if (g !== gen) return; undo(); setTimeout(() => { if (g !== gen) return; m.goToday(); settled(g, () => setTimeout(() => {
+    setTimeout(() => { if (g !== gen) return; undo(); setTimeout(() => { if (g !== gen) return; m.homeLocked(); settled(g, () => setTimeout(() => {
       if (g !== gen) return; m.setWandTile(true);                                                                   // landed, a beat: the wand
       setTimeout(() => { if (g === gen) press(d => d.querySelector('.wand-tile')); }, 800 + 900);                    // it has popped in, a beat: tapped
       setTimeout(tail(g, () => m.setWandSheet(true)), 800 + 900 + TAP);                                            // ...and the price-tips sheet rises (Figma 5248:641877)
@@ -481,7 +481,7 @@ const BEATS = [
   //      guests arrive: the stays layer comes on and the pills pop in one after another, laid OVER the prices
   (m, instant) => {
     const guests = () => { m.setLayers({ stays: true }); setTimeout(() => { const d = appDoc(); if (!d) return; [...d.querySelectorAll('.spill')].forEach((el, i) => el.style.setProperty('--pill-delay', (i * 70) + 'ms')); }, 0); };
-    const close = () => { m.clearTips(); m.setHeaderLock(false, !instant); };
+    const close = () => m.clearTips();   // the header stays small: collapsed for the rest of the preso (John, 2026-09-21)
     if (instant) { close(); m.setLayers({ stays: true }); return; }
     const g = ++gen;
     pendingTail = () => { close(); m.setLayers({ stays: true }); };
