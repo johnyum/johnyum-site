@@ -17,13 +17,18 @@
      until its phone sits exactly in the slot. So it comes in with the sheet,
      already running.
 
-     THE BUILD
-       tap     the other 27 fade and the live phone grows to full size, dead
-               centre — the transform simply animates back to none, which IS
-               slide 13's layout. From then on this slide is the live build:
-               the deck's 13.html is not in the manifest, it only lives here.
-               presoInteractive so the phone keeps its surface; the app's own
-               key relay reaches the deck through this window.
+     THE BUILD — one tap, two movements
+       1  the whole rigid sheet slides LEFT until the live phone is smack in
+          the centre of the frame (it is already on the centre row, so this is
+          a pure horizontal shift);
+       2  THEN the live phone grows to full size where it stands — its
+          transform simply animates back to none, which IS slide 13's
+          layout — while the other 27 rush inwards to the centre, shrinking
+          and fading out behind it.
+       From then on this slide is the live build: the deck's 13.html is not in
+       the manifest, it only lives here, and the taps forward to its beats.
+       presoInteractive so the phone keeps its surface; the app's own key
+       relay reaches the deck through this window.
 
      SIZING: the sheet is taller than the frame ON PURPOSE. The rows are sized
      so that three of them plus their gutters come to 100vh + 20% of a phone,
@@ -47,7 +52,14 @@
     position: fixed; inset: 0;
     display: flex; flex-direction: column; justify-content: center; align-items: center;
     gap: var(--rowgap);
+    --dx: 0px;                                    /* set by JS: how far left puts the live phone on centre */
+    transform-origin: 50% 50%;
+    transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1), opacity 600ms ease;
   }
+  /* 1: the sheet slides as one rigid thing */
+  body.shift #sheet { transform: translateX(var(--dx)); }
+  /* 2: everything but the live phone rushes to the centre and is gone */
+  body.grown #sheet { transform: translateX(var(--dx)) scale(0.2); opacity: 0; transition-duration: 800ms, 500ms; }
   .row { display: flex; gap: var(--gap); justify-content: center; flex: none; }
   .phone { width: var(--w); height: var(--h); flex: none; }
   .phone img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
@@ -63,11 +75,9 @@
     transform-origin: 50% 50%;
     z-index: 5;
   }
-  body.grown .live { transition: transform 1000ms cubic-bezier(0.16, 1, 0.3, 1); }
-  .phone { transition: opacity 420ms ease; }
-  body.grown .phone { opacity: 0; }
+  body.shift .live, body.grown .live { transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1); }
   @media (prefers-reduced-motion: reduce) {
-    body.grown .live, .phone { transition: none; }
+    #sheet, body.shift .live, body.grown .live { transition: none; }
   }
 </style>
 </head>
@@ -114,33 +124,51 @@
 <script>
 (() => {
   window.presoInteractive = true;   // the live phone keeps its surface; the clicker and the edge rails drive
-  const live = document.getElementById('live'), slot = document.getElementById('slot');
-  let grown = false;
-  // 13's phone is min(80vh, 1080px) tall, centred in its viewport — which is this one
-  function place() {
-    if (grown) return;
+  const live = document.getElementById('live'), slot = document.getElementById('slot'), sheet = document.getElementById('sheet');
+  const SHIFT_MS = 900;                      // movement 1's length; movement 2 starts as it lands
+  let state = 0, timer = 0;                  // 0 in the sheet · 1 sliding to centre · 2 grown (13 drives)
+  const grown = () => state === 2;
+  // 13's phone is min(80vh, 1080px) tall, centred in its viewport — which is
+  // this one. In the sheet the live frame is translated so that centre lands
+  // on the slot; sliding puts the slot's column on the frame's centre line,
+  // so the live frame's translate loses its x and the sheet gains --dx.
+  // The slot is measured with the sheet's transform switched OFF for the read
+  // (no transition, restored at once, the browser never paints it): once the
+  // sheet is sliding or shrinking, a rect read through it is scaled and shifted
+  // and every number below goes wrong.
+  let geo = null;
+  function measure() {
+    const t = sheet.style.transform, tr = sheet.style.transition;
+    sheet.style.transition = 'none'; sheet.style.transform = 'none';
     const r = slot.getBoundingClientRect();
-    const phoneH = Math.min(innerHeight * 0.8, 1080);
-    const s = r.height / phoneH;
-    live.style.transform = `translate(${(r.left + r.width / 2 - innerWidth / 2).toFixed(2)}px, ${(r.top + r.height / 2 - innerHeight / 2).toFixed(2)}px) scale(${s.toFixed(5)})`;
+    sheet.style.transform = t; void sheet.offsetWidth; sheet.style.transition = tr;
+    geo = { cx: r.left + r.width / 2, cy: r.top + r.height / 2, s: r.height / Math.min(innerHeight * 0.8, 1080) };
+    sheet.style.setProperty('--dx', (innerWidth / 2 - geo.cx).toFixed(2) + 'px');
+  }
+  function place() {
+    if (!geo) measure();
+    const { cx, cy, s } = geo;
+    if (state === 0) live.style.transform = `translate(${(cx - innerWidth / 2).toFixed(2)}px, ${(cy - innerHeight / 2).toFixed(2)}px) scale(${s.toFixed(5)})`;
+    else if (state === 1) live.style.transform = `translate(0px, ${(cy - innerHeight / 2).toFixed(2)}px) scale(${s.toFixed(5)})`;
+    else live.style.transform = 'none';
   }
   place();
-  addEventListener('resize', place);
+  addEventListener('resize', () => { measure(); place(); });
   // once grown, the taps are 13's: its own build steps until it says it is out
   const inner = fn => { try { const f = live.contentWindow[fn]; return f ? f() : false; } catch (_) { return false; } };
+  function grow() { state = 2; document.body.classList.add('grown'); place(); }
   window.presoNext = () => {
-    if (grown) return inner('presoNext');
-    grown = true;
-    document.body.classList.add('grown');
-    live.style.transform = 'none';
+    if (grown()) return inner('presoNext');
+    if (state === 1) return true;            // still sliding: movement 2 is already scheduled
+    state = 1; document.body.classList.add('shift'); place();
+    timer = setTimeout(grow, SHIFT_MS + 40);
     return true;
   };
   window.presoPrev = () => {
-    if (!grown) return false;
-    if (inner('presoPrev')) return true;   // 13 stepped back a beat
-    grown = false;                          // 13 is at its start: shrink back into the sheet
-    document.body.classList.remove('grown');
-    place();
+    if (state === 0) return false;
+    if (grown() && inner('presoPrev')) return true;   // 13 stepped back a beat
+    clearTimeout(timer);                     // 13 is at its start (or we never got there): back into the sheet
+    state = 0; document.body.classList.remove('grown', 'shift'); place();
     return true;
   };
 })();
