@@ -131,7 +131,8 @@
   const STAMP = new URLSearchParams(location.search).get('v') || Date.now().toString(36);
   live.src = '13.html?embed=1&v=' + STAMP;
   const SHIFT_MS = 900;                      // movement 1's length; movement 2 starts as it lands
-  let state = 0, timer = 0;                  // 0 in the sheet · 1 sliding to centre · 2 grown (13 drives)
+  const GROW_MS = 1000;                      // movement 2's length; the arrows stay ours until the phone has landed
+  let state = 0, timer = 0, landed = false;  // 0 in the sheet · 1 sliding to centre · 2 grown (13 drives, once landed)
   const grown = () => state === 2;
   // 13's phone is min(80vh, 1080px) tall, centred in its viewport — which is
   // this one. In the sheet the live frame is translated so that centre lands
@@ -161,9 +162,9 @@
   addEventListener('resize', () => { measure(); place(); });
   // once grown, the taps are 13's: its own build steps until it says it is out
   const inner = fn => { try { const f = live.contentWindow[fn]; return f ? f() : false; } catch (_) { return false; } };
-  function grow() { state = 2; document.body.classList.add('grown'); place(); }
+  function grow() { state = 2; landed = false; document.body.classList.add('grown'); place(); setTimeout(() => { landed = true; }, GROW_MS); }
   window.presoNext = () => {
-    if (grown()) return inner('presoNext');
+    if (grown()) return landed ? inner('presoNext') : true;   // an arrow during the grow-in is swallowed, not handed to the calendar
     if (state === 1) return true;            // still sliding: movement 2 is already scheduled
     state = 1; document.body.classList.add('shift'); place();
     timer = setTimeout(grow, SHIFT_MS + 40);
@@ -171,6 +172,7 @@
   };
   window.presoPrev = () => {
     if (state === 0) return false;
+    if (grown() && !landed) return true;     // same during the grow-in
     if (grown() && inner('presoPrev')) return true;   // 13 stepped back a beat
     clearTimeout(timer);                     // 13 is at its start (or we never got there): back into the sheet
     state = 0; document.body.classList.remove('grown', 'shift'); place();

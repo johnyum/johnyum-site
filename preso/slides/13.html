@@ -308,11 +308,13 @@ const openRun = (m, days) => {
 // `gen` lets a replay or a step back kill a cascade still in flight — the
 // timers check it before every tap.
 let gen = 0;
+let pendingRun = null;   // a cascade still tapping; a forward tap finishes it before the next beat, a back tap drops it
 const cascade = (m, first, last, every) => {
   const g = ++gen;
+  pendingRun = { first, last };
   m.setHoldQuick(true);
   for (let di = first, i = 0; di <= last; di++, i++) setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, i * every);
-  setTimeout(() => { if (g === gen) m.setHoldQuick(false); }, (last - first) * every + 260);   // the last cell has filled: now the sheet
+  setTimeout(() => { if (g === gen) { pendingRun = null; m.setHoldQuick(false); } }, (last - first) * every + 260);   // the last cell has filled: now the sheet
 };
 
 // Each beat takes (model, instant). Stepping FORWARD runs the beat live, with
@@ -321,17 +323,18 @@ const cascade = (m, first, last, every) => {
 const RUN = m => [m.fx.todayIndex, m.fx.todayIndex + 12];   // the 9th through the 21st
 const BEATS = [
   // 1 — every cell from this month on grows: 48 more UNDER the price, nothing
-  //     above it — it can grow out — holds a beat, then snaps back with a
-  //     little elasticity
-  (m, instant) => { if (instant) return; const g = ++gen; m.setCellPad(48); setTimeout(() => { if (g === gen) m.setCellPad(0); }, 1600); },   // held out a full beat and a half before it lets go
-  // 2 — every cell in view, Sep 1 through the second week of October, turns over
+  //     above it — it can grow out — and STAYS out
+  m => m.setCellPad(48),
+  // 2 — they let go: snap back with a little elasticity
+  m => m.setCellPad(0),
+  // 3 — every cell in view, Sep 1 through the second week of October, turns over
   //     like a card one after another and lands back where it was
   (m, instant) => { if (instant) return; const g = ++gen; const a = m.fx.todayIndex - 8, z = m.fx.todayIndex + 31; m.flipCells(a, z); setTimeout(() => { if (g === gen) m.clearFlip(); }, (z - a) * 40 + 900); },
-  // 3 — the run gets tapped, 90ms apart; then the quick actions rise
+  // 4 — the run gets tapped, 90ms apart; then the quick actions rise
   (m, instant) => { const [a, z] = RUN(m); if (instant) { const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); } else cascade(m, a, z, 90); },
-  // 4 — availability goes off, a beat, then back on (ends where it started)
+  // 5 — availability goes off, a beat, then back on (ends where it started)
   (m, instant) => { if (instant) return; const g = ++gen; const ns = [...m.selectedNights]; m.setBlocked(true, 0, ns); setTimeout(() => { if (g === gen) m.setBlocked(false, 0, ns); }, 1500); },
-  // 5 — the Price per night card grows into the price sheet, the $500 riding up to the centre
+  // 6 — the Price per night card grows into the price sheet, the $500 riding up to the centre
   m => m.setPriceSheet(true),
 ];
 
@@ -385,12 +388,13 @@ const BEATS = [
     if (!m) return false;
     gen++;                                     // any beat still animating stops here
     m.setHoldQuick(false);
-    if (n < 5) m.setPriceSheet(false);         // back from beat 5: the sheet runs back into its card
-    m.setSettingsSheet(false);
-    m.setCellPad(0);
-    m.clearFlip();
-    if (n === at + 1) { BEATS[n - 1](m, false); m.notify(); at = n; return true; }   // forward: the beat plays live
-    m.clearAll();                              // back or a jump: replay to the target, instantly
+    if (n === at + 1) {                        // FORWARD: a cascade cut short lands whole, then the next beat plays live
+      if (pendingRun) { const s = new Set(m.selectedNights); for (let di = pendingRun.first; di <= pendingRun.last; di++) s.add(di); m.setSelectedNights(s); pendingRun = null; }
+      BEATS[n - 1](m, false); m.notify(); at = n; return true;
+    }
+    pendingRun = null;                         // BACK or a jump: reset everything, replay to the target instantly
+    m.setPriceSheet(false); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip();
+    m.clearAll();
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
     for (let i = 0; i < n; i++) BEATS[i](m, true);
