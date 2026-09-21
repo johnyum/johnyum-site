@@ -9,7 +9,21 @@
      Sits between the "Airbnb hosts manage…" line (12a) and the live build (13).
      The 28 phones in assets/Calendar/ stand in three rows of 9 / 10 / 9, in
      the order of John's reference board. The deck pushes the whole sheet in
-     from the right and out again like any slide — no build, no physics.
+     from the right like any slide.
+
+     THE LAST PHONE IS THE REAL THING. The middle row's tenth slot is not a
+     picture: it is slide 13 — the live Host Calendar in its drawn iPhone —
+     loaded here in an iframe the size of the whole viewport and scaled down
+     until its phone sits exactly in the slot. So it comes in with the sheet,
+     already running.
+
+     THE BUILD
+       tap     the other 27 fade and the live phone grows to full size, dead
+               centre — the transform simply animates back to none, which IS
+               slide 13's layout. From then on this slide is the live build:
+               the deck's 13.html is not in the manifest, it only lives here.
+               presoInteractive so the phone keeps its surface; the app's own
+               key relay reaches the deck through this window.
 
      SIZING: the sheet is taller than the frame ON PURPOSE. The rows are sized
      so that three of them plus their gutters come to 100vh + 20% of a phone,
@@ -37,6 +51,24 @@
   .row { display: flex; gap: var(--gap); justify-content: center; flex: none; }
   .phone { width: var(--w); height: var(--h); flex: none; }
   .phone img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
+
+  /* the live build: a whole-viewport iframe of 13.html, scaled down so its
+     centred phone lands in the last slot; on the tap the transform goes to
+     none and it is simply slide 13 */
+  .live {
+    position: fixed; left: 0; top: 0;
+    width: 100vw; height: 100vh;
+    border: 0; display: block;
+    background: transparent;
+    transform-origin: 50% 50%;
+    z-index: 5;
+  }
+  body.grown .live { transition: transform 1000ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .phone { transition: opacity 420ms ease; }
+  body.grown .phone { opacity: 0; }
+  @media (prefers-reduced-motion: reduce) {
+    body.grown .live, .phone { transition: none; }
+  }
 </style>
 </head>
 <body>
@@ -62,7 +94,7 @@
       <div class="phone"><img src="assets/Calendar/Component 92-6.png" alt=""></div>
       <div class="phone"><img src="assets/Calendar/Component 92-7.png" alt=""></div>
       <div class="phone"><img src="assets/Calendar/Component 92-8.png" alt=""></div>
-      <div class="phone"><img src="assets/Calendar/Group 3.png" alt=""></div>
+      <div class="phone" id="slot"></div>
     </div>
     <div class="row">
       <div class="phone"><img src="assets/Calendar/Component 94.png" alt=""></div>
@@ -77,5 +109,41 @@
     </div>
   </div>
 
+  <iframe class="live" id="live" src="13.html?embed=1" title="Host Calendar"></iframe>
+
+<script>
+(() => {
+  window.presoInteractive = true;   // the live phone keeps its surface; the clicker and the edge rails drive
+  const live = document.getElementById('live'), slot = document.getElementById('slot');
+  let grown = false;
+  // 13's phone is min(80vh, 1080px) tall, centred in its viewport — which is this one
+  function place() {
+    if (grown) return;
+    const r = slot.getBoundingClientRect();
+    const phoneH = Math.min(innerHeight * 0.8, 1080);
+    const s = r.height / phoneH;
+    live.style.transform = `translate(${(r.left + r.width / 2 - innerWidth / 2).toFixed(2)}px, ${(r.top + r.height / 2 - innerHeight / 2).toFixed(2)}px) scale(${s.toFixed(5)})`;
+  }
+  place();
+  addEventListener('resize', place);
+  // once grown, the taps are 13's: its own build steps until it says it is out
+  const inner = fn => { try { const f = live.contentWindow[fn]; return f ? f() : false; } catch (_) { return false; } };
+  window.presoNext = () => {
+    if (grown) return inner('presoNext');
+    grown = true;
+    document.body.classList.add('grown');
+    live.style.transform = 'none';
+    return true;
+  };
+  window.presoPrev = () => {
+    if (!grown) return false;
+    if (inner('presoPrev')) return true;   // 13 stepped back a beat
+    grown = false;                          // 13 is at its start: shrink back into the sheet
+    document.body.classList.remove('grown');
+    place();
+    return true;
+  };
+})();
+</script>
 </body>
 </html>
