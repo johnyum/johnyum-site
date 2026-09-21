@@ -458,21 +458,20 @@ const BEATS = [
     go(0);
   },
   // 18 — ⨉ closes the quick actions; a beat; Today is tapped and the calendar flies home to September — and on the way the
-  //      host's edits come off the 9th–21st (the $480, the −20%, the min 5), so it lands on the default it started from
+  //      host's edits come off the 9th–21st (the $480, the −20%, the min 5), so it lands on the default it started from.
+  //      Landed, a beat: Today slides left to make room and a magic-wand tile pops in beside the gear
   (m, instant) => {
     const [a, z] = RUN(m), ns = []; for (let di = a; di <= z; di++) ns.push(di);
     const undo = () => { m.setPrice(null, 0, ns); m.setPromo(null, 0, ns); m.setMin(null, 0, ns); };
-    if (instant) { m.clearSelection(); undo(); m.goToday(); return; }
+    if (instant) { m.clearSelection(); undo(); m.setWandTile(true); setTimeout(() => m.goToday(), 80); return; }   // after 17's own deferred reveal (40ms), so home wins
     const g = ++gen;
-    pendingTail = () => { m.clearSelection(); undo(); m.goToday(); };
+    pendingTail = () => { m.clearSelection(); undo(); m.goToday(); m.setWandTile(true); };   // a tap before it is through lands it all
     press(d => d.querySelector('.sqa-close'));
     setTimeout(() => { if (g === gen) m.clearSelection(); }, TAP);
     setTimeout(() => { if (g === gen) press(d => d.querySelector('.today-pill')); }, TAP + 700);   // the cards are down: Today, visibly tapped
-    setTimeout(tail(g, () => { undo(); m.goToday(); }), TAP + 700 + 200);                         // ...and the flight home, the edits gone on the way
+    setTimeout(() => { if (g !== gen) return; undo(); setTimeout(() => { if (g !== gen) return; m.goToday(); settled(g, () => setTimeout(tail(g, () => m.setWandTile(true)), 900)); }, 60); }, TAP + 700 + 200);   // the edits come off, the rows settle, THEN the flight home (a reflow mid-flight can stall a smooth scroll); landed, a beat, the wand
   },
-  // 19 — Today slides left to make room, and a magic-wand tile pops in beside the gear
-  m => m.setWandTile(true),
-  // 20 — the wand, visibly tapped: the calendar frosts and the price-tips sheet rises (Figma 5248:641877)
+  // 19 — the wand, visibly tapped: the calendar frosts and the price-tips sheet rises (Figma 5248:641877)
   (m, instant) => { if (instant) { m.setWandSheet(true); return; } const g = ++gen; press(d => d.querySelector('.wand-tile')); setTimeout(tail(g, () => m.setWandSheet(true)), TAP); },
 ];
 const MARK_PARK = 120;   // an event's row parks this far under the header, with its week above for context
