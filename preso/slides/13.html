@@ -460,21 +460,24 @@ const BEATS = [
   },
   // 18 — ⨉ closes the quick actions; a beat; Today is tapped and the calendar flies home to September — and on the way the
   //      host's edits come off the 9th–21st (the $480, the −20%, the min 5), so it lands on the default it started from.
-  //      Landed, a beat: Today slides left to make room and a magic-wand tile pops in beside the gear
+  //      Landed, a beat: Today slides left to make room and a magic-wand tile pops in beside the gear; a beat, and the wand is tapped —
+  //      the calendar frosts and the price-tips sheet rises (Figma 5248:641877)
   (m, instant) => {
     const [a, z] = RUN(m), ns = []; for (let di = a; di <= z; di++) ns.push(di);
     const undo = () => { m.setPrice(null, 0, ns); m.setPromo(null, 0, ns); m.setMin(null, 0, ns); };
-    if (instant) { m.clearSelection(); undo(); m.setWandTile(true); setTimeout(() => m.goToday(), 80); return; }   // after 17's own deferred reveal (40ms), so home wins
+    if (instant) { m.clearSelection(); undo(); m.setWandTile(true); m.setWandSheet(true); setTimeout(() => m.goToday(), 80); return; }   // after 17's own deferred reveal (40ms), so home wins
     const g = ++gen;
-    pendingTail = () => { m.clearSelection(); undo(); m.goToday(); m.setWandTile(true); };   // a tap before it is through lands it all
+    pendingTail = () => { m.clearSelection(); undo(); m.goToday(); m.setWandTile(true); m.setWandSheet(true); };   // a tap before it is through lands it all
     press(d => d.querySelector('.sqa-close'));
     setTimeout(() => { if (g === gen) m.clearSelection(); }, TAP);
     setTimeout(() => { if (g === gen) press(d => d.querySelector('.today-pill')); }, TAP + 700);   // the cards are down: Today, visibly tapped
-    setTimeout(() => { if (g !== gen) return; undo(); setTimeout(() => { if (g !== gen) return; m.goToday(); settled(g, () => setTimeout(tail(g, () => m.setWandTile(true)), 900)); }, 60); }, TAP + 700 + 200);   // the edits come off, the rows settle, THEN the flight home (a reflow mid-flight can stall a smooth scroll); landed, a beat, the wand
+    setTimeout(() => { if (g !== gen) return; undo(); setTimeout(() => { if (g !== gen) return; m.goToday(); settled(g, () => setTimeout(() => {
+      if (g !== gen) return; m.setWandTile(true);                                                                   // landed, a beat: the wand
+      setTimeout(() => { if (g === gen) press(d => d.querySelector('.wand-tile')); }, 800 + 900);                    // it has popped in, a beat: tapped
+      setTimeout(tail(g, () => m.setWandSheet(true)), 800 + 900 + TAP);                                            // ...and the price-tips sheet rises (Figma 5248:641877)
+    }, 900)); }, 60); }, TAP + 700 + 200);   // the edits come off, the rows settle, THEN the flight home (a reflow mid-flight can stall a smooth scroll)
   },
-  // 19 — the wand, visibly tapped: the calendar frosts and the price-tips sheet rises (Figma 5248:641877)
-  (m, instant) => { if (instant) { m.setWandSheet(true); return; } const g = ++gen; press(d => d.querySelector('.wand-tile')); setTimeout(tail(g, () => m.setWandSheet(true)), TAP); },
-  // 20 — Try now, visibly tapped: the sheet drops, the top bar's tiles slip away for a Close tips pill, and the tips wash
+  // 19 — Try now, visibly tapped: the sheet drops, the top bar's tiles slip away for a Close tips pill, and the tips wash
   //      over the weeks ahead one night after another — weekdays down to $480, weekends up to $535 — each with its $500 struck
   (m, instant) => {
     const tips = TIPS(m);
@@ -486,20 +489,24 @@ const BEATS = [
     setTimeout(() => { if (g === gen) { m.setTipsMode(true); m.setHeaderLock(true); } }, TAP + 500);   // the pill comes, and the header locks small with the grid riding up
     tips.forEach(([di, p], k) => setTimeout(() => { if (g === gen) { m.addTip(di, p); if (k === tips.length - 1) pendingTail = null; } }, TAP + 900 + k * 45));
   },
-  // 21 — every tipped September night gets tapped, in date order, and the Price tip sheet rises; a beat; Apply tips is
-  //      tapped; the sheet drops and IN THE CELLS the old price folds away and a ✓ comes in (the cells' own raise scene) and
-  //      stays, and an Undo pill joins Close (Figma 5248:641867)
+  // 20 — every tipped September night gets tapped, in date order, and the Price tip sheet rises — and rests there
   (m, instant) => {
     const t = m.fx.todayIndex, picks = TIPS(m).map(([di]) => di).filter(di => m.fx.date(di).m === m.fx.date(t).m);   // September's tips, in date order
-    const land = () => { m.setTipSheet(false); m.applyTips(picks); m.clearSelection(); m.setUndoTile(true); };
+    const land = () => { m.setSelectedNights(new Set(picks)); m.setTipSheet(true); };
     if (instant) { land(); return; }
     const g = ++gen;
     pendingTail = land;
     picks.forEach((di, k) => setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, k * 90));
-    const T1 = (picks.length - 1) * 90 + 400;
-    setTimeout(() => { if (g === gen) m.setTipSheet(true); }, T1);                                   // the five are in: the sheet
-    setTimeout(() => { if (g === gen) press(d => d.querySelector('.pt-cta')); }, T1 + 600 + 1000);    // up, a beat: Apply tips, tapped
-    setTimeout(tail(g, land), T1 + 600 + 1000 + TAP);                                                // the tap has played: sheet down, the cells' ✓ (which stays), Undo
+    setTimeout(tail(g, () => m.setTipSheet(true)), (picks.length - 1) * 90 + 400);   // the picks are in: the sheet
+  },
+  // 21 — Apply tips, visibly tapped: the sheet drops and IN THE CELLS the old price folds away and a ✓ comes in (the cells' own
+  //      raise scene) and stays; an Undo pill joins Close (Figma 5248:641867)
+  (m, instant) => {
+    const land = () => { const ns = [...m.selectedNights]; m.setTipSheet(false); m.applyTips(ns); m.clearSelection(); m.setUndoTile(true); };
+    if (instant) { land(); return; }
+    const g = ++gen; pendingTail = land;
+    press(d => d.querySelector('.pt-cta'));
+    setTimeout(tail(g, land), TAP);
   },
   // 22 — Close, visibly tapped: the tips come off, the ✓s with them, the bar's tiles return and the header lets go — the default calendar
   (m, instant) => {
