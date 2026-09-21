@@ -42,7 +42,7 @@
   body.split .phone { transform: translateX(calc((var(--phone-h) * 900 / 1840 + 120px) / -2)); }
   .icons { position: absolute; left: 50%; top: 50%; width: calc(var(--phone-h) * 900 / 1840); height: var(--phone-h);
     transform: translate(calc(-50% + (var(--phone-h) * 900 / 1840 + 120px) / 2), -50%); display: grid; place-items: center; pointer-events: none; }
-  .icons .grid { display: grid; grid-template-columns: repeat(4, 40px); gap: 40px; transform: scale(var(--k, 1)); }
+  .icons .grid { display: grid; grid-template-columns: repeat(6, 40px); gap: 24px; transform: scale(var(--k, 1)); }   /* 51 icons: six across, 24 apart — 360 wide, 552 tall, inside the phone's 375 × 812 */
   .icons img { width: 40px; height: 40px; display: block; opacity: 0; transform: scale(0); transition: opacity .3s; }
   body.split .icons img { animation: icon-in .55s cubic-bezier(.34, 1.56, .64, 1) both; }
   @keyframes icon-in { to { opacity: 1; transform: scale(1); } }
@@ -470,7 +470,7 @@ const BEATS = [
     };
     go(0);
   },
-  // 18 — the phone slides left, and where a second phone would stand, 120 off, the icon sheet pops in
+  // 18 — the phone slides left, and where a second phone would stand, 120 off, the icon sheet pops in: fifty-one icons, six across
   m => { document.body.classList.add('split'); },
   // 19 — ⨉ closes the quick actions; a beat; Today is tapped and the calendar flies home to September — and on the way the
   //      host's edits come off the 9th–21st (the $480, the −20%, the min 5), so it lands on the default it started from.
@@ -651,9 +651,12 @@ function typeKeys(keys, instant) {
   const screen = document.querySelector('.screen');
   const ui     = document.getElementById('ui');
   function fit() { const k = (screen.clientHeight + 1) / 812; ui.style.setProperty('--k', k); document.getElementById('icons').style.setProperty('--k', k); }
-  // the icon sheet: every primary event and holiday icon the calendar carries, in one order, each with its place in the stagger
-  const ICONS = ['halloween', 'pride-heart', 'veterans-day', 'thanksgiving', 'christmas-eve', 'christmas-day', 'new-years', 'mlk-jr-day', 'golf-badge', 'eames-chair', 'presidents-day', 'tennis-racquet', 'coachella-flower-crown', 'cowboy-hat', 'memorial-day', 'juneteenth', 'july-4th', 'labor-day'];
-  ICONS.forEach((n, i) => { const img = document.createElement('img'); img.src = '/multical/icons/ev-' + n + '.png'; img.alt = ''; img.style.animationDelay = (500 + i * 60) + 'ms'; document.getElementById('icongrid').appendChild(img); });
+  // the icon sheet: every primary event icon from the multi-guest build (multi/event_icons — Coachella, Stagecoach, Comic-Con,
+  // Modernism Week, Pride, the film festival, the tennis…), the holidays (multi/holidays) and the calendar's own Halloween
+  const EVENTS = ['coachella-flower-crown', 'cowboy-hat', 'eames-chair', 'golf-badge', 'tennis-racquet', 'pride-heart', 'pride-rainbow', 'pride-arch', 'pride-progress', 'comic-pow', 'superhero-mask', 'manga', 'clapperboard', 'spotlight', 'award-statuette', 'microphone', 'electric-guitar', 'gramophone', 'french-horn', 'maracas', 'beer-stein', 'wine-glass', 'chili-pepper', 'rose', 'jockey-helmet', 'jockey-silks', 'carousel-horse', 'bicycle', 'running-shoe', 'swim-goggles', 'x-games-badge', 'flamingo-float', 'flamingo-floatie', 'sun', 'hot-thermometer', 'joshua-tree', 'cat-ears', 'graduation-cap', 'lightbulb'];
+  const HOLIDAYS = ['new-years', 'mlk-jr-day', 'presidents-day', 'memorial-day', 'juneteenth', 'july-4th', 'labor-day', 'veterans-day', 'thanksgiving', 'christmas-eve', 'christmas-day'];
+  const ICONS = [...EVENTS.map(n => '/multi/event_icons/' + n + '.png'), '/multical/icons/ev-halloween.png', ...HOLIDAYS.map(n => '/multi/holidays/' + n + '.png')];
+  ICONS.forEach((src, i) => { const img = document.createElement('img'); img.src = src; img.alt = ''; img.style.animationDelay = (500 + i * 35) + 'ms'; document.getElementById('icongrid').appendChild(img); });
   new ResizeObserver(fit).observe(screen);
   fit();
 })();
