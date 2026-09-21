@@ -314,7 +314,7 @@ const cascade = (m, first, last, every) => {
   pendingRun = { first, last };
   m.setHoldQuick(true);
   for (let di = first, i = 0; di <= last; di++, i++) setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, i * every);
-  setTimeout(() => { if (g === gen) { pendingRun = null; m.setHoldQuick(false); } }, (last - first) * every + 260);   // the last cell has filled: now the sheet
+  setTimeout(() => { if (g === gen) { pendingRun = null; m.setHoldQuick(false); m.setHeaderLock(true); } }, (last - first) * every + 260);   // the last cell has filled: now the sheet — and the header locks small, the grid riding up with it
 };
 
 // Each beat takes (model, instant). Stepping FORWARD runs the beat live, with
@@ -334,7 +334,7 @@ const BEATS = [
   //     the rows, and settles
   (m, instant) => { if (instant) return; const a = m.fx.todayIndex - 8, z = m.fx.todayIndex + 31; m.waveCells(a, z); setTimeout(() => m.clearWave(), (z - a) * 30 + 800); },   // likewise
   // 5 — the run gets tapped, 90ms apart; then the quick actions rise
-  (m, instant) => { const [a, z] = RUN(m); if (instant) { const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); } else cascade(m, a, z, 90); },
+  (m, instant) => { const [a, z] = RUN(m); if (instant) { const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); m.setHeaderLock(true, false); } else cascade(m, a, z, 90); },
   // 6 — availability goes off, and stays off
   m => m.setBlocked(true, 0, [...m.selectedNights]),
   // 7 — the nights open again
@@ -494,7 +494,7 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null;                         // BACK or a jump: reset everything, replay to the target instantly
-    m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
+    m.setHeaderLock(false, false); m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
