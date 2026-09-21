@@ -557,7 +557,36 @@ const BEATS = [
     setTimeout(() => { if (g === gen) press(d => d.querySelector('.today-pill')); }, 130 + 900);                       // the box is down: Today, visibly tapped
     setTimeout(() => { if (g !== gen) return; m.homeLocked(); settled(g, () => setTimeout(tail(g, () => m.setLayers({ ask: true })), 900)); }, 130 + 900 + 200);   // home; a beat; the Ask
   },
+  // 33 — the Ask circle, tapped: the chat rises; "Block the first two weeks of January" is typed, sent, and the product blocks
+  //      January 1–14, flying there to show it
+  (m, instant) => {
+    const janStart = m.fx.index({ y: 2027, m: 1, d: 1 }), jan = Array.from({ length: 14 }, (_, k) => janStart + k);
+    const land = () => { m.setBlocked(true, 0, jan); m.setSheet('none'); };
+    if (instant) { land(); return; }
+    const g = ++gen; pendingTail = land;
+    press(d => d.querySelector('.bar .ask'));
+    setTimeout(() => { if (g === gen) m.setSheet('ask'); }, 130);
+    setTimeout(() => { if (g === gen) typeAsk(g, ASK_BLOCK, () => { pendingTail = null; }); }, 130 + 900);   // the chat is up: the finger types, then sends
+  },
+  // 34 — the chat's ⨉, tapped: it drops; a beat; the tips puck — the 3 in Rausch — comes down and lands on the Ask circle
+  (m, instant) => {
+    const land = () => { m.setSheet('none'); m.showPuck(3); };
+    if (instant) { land(); return; }
+    const g = ++gen; pendingTail = land;
+    press(d => [...d.querySelectorAll('.glassbtn')].find(b => (b.querySelector('path') || {}).getAttribute && /^M0 0l10 10/.test(b.querySelector('path').getAttribute('d') || '')));   // the chat's ⨉ (its glyph is the 10×10 cross)
+    setTimeout(() => { if (g === gen) { m.clearSelection(); m.setSheet('none'); } }, 130);
+    setTimeout(tail(g, () => m.showPuck(3)), 130 + 900);
+  },
 ];
+const ASK_BLOCK = 'Block the first two weeks of January';
+// A scripted finger on the Ask chat: the phrase arrives a character at a time into the product's own field (React's value
+// setter, so it sees each keystroke), then Enter sends it and the product answers with the block. `done` runs once sent.
+function typeAsk(g, phrase, done) {
+  const d = appDoc(), w = d && d.defaultView, ta = d && d.querySelector('textarea'); if (!ta) { done(); return; }
+  const set = Object.getOwnPropertyDescriptor(w.HTMLTextAreaElement.prototype, 'value').set;
+  phrase.split('').forEach((ch, i) => setTimeout(() => { if (g !== gen) return; set.call(ta, phrase.slice(0, i + 1)); ta.dispatchEvent(new w.Event('input', { bubbles: true })); }, i * 45));
+  setTimeout(() => { if (g !== gen) return; ta.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); done(); }, phrase.length * 45 + 350);
+}
 // THE TIPS: the five weeks after today. Tuesdays to Thursdays in the second and third weeks come down to $480; Fridays and
 // Saturdays in the first, third and fifth go up to $535 — a spread that reads as an advisor's, not a rule's, and one that
 // gives September ten tipped nights (the 11th, 12th, 16th, 17th, 22nd–26th, 29th), which beat 21 picks.
@@ -667,7 +696,7 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
-    m.setHeaderLock(false, false); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
+    m.setHeaderLock(false, false); m.hidePuck(); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
