@@ -330,11 +330,16 @@ const BEATS = [
   // 3 — every cell in view, Sep 1 through the second week of October, turns over
   //     like a card one after another and lands back where it was
   (m, instant) => { if (instant) return; const g = ++gen; const a = m.fx.todayIndex - 8, z = m.fx.todayIndex + 31; m.flipCells(a, z); setTimeout(() => { if (g === gen) m.clearFlip(); }, (z - a) * 40 + 900); },
-  // 4 — the run gets tapped, 90ms apart; then the quick actions rise
+  // 4 — the price wave: every price in view lifts and brightens in turn, along
+  //     the rows, and settles
+  (m, instant) => { if (instant) return; const g = ++gen; const a = m.fx.todayIndex - 8, z = m.fx.todayIndex + 31; m.waveCells(a, z); setTimeout(() => { if (g === gen) m.clearWave(); }, (z - a) * 30 + 800); },
+  // 5 — the run gets tapped, 90ms apart; then the quick actions rise
   (m, instant) => { const [a, z] = RUN(m); if (instant) { const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); } else cascade(m, a, z, 90); },
-  // 5 — availability goes off, a beat, then back on (ends where it started)
-  (m, instant) => { if (instant) return; const g = ++gen; const ns = [...m.selectedNights]; m.setBlocked(true, 0, ns); setTimeout(() => { if (g === gen) m.setBlocked(false, 0, ns); }, 1500); },
-  // 6 — the Price per night card grows into the price sheet, the $500 riding up to the centre
+  // 6 — availability goes off, and stays off
+  m => m.setBlocked(true, 0, [...m.selectedNights]),
+  // 7 — the nights open again
+  m => m.setBlocked(false, 0, [...m.selectedNights]),
+  // 8 — the Price per night card grows into the price sheet, the $500 riding up to the centre
   m => m.setPriceSheet(true),
 ];
 
@@ -393,7 +398,7 @@ const BEATS = [
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null;                         // BACK or a jump: reset everything, replay to the target instantly
-    m.setPriceSheet(false); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip();
+    m.setPriceSheet(false); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
