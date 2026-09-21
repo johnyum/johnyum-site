@@ -126,15 +126,12 @@
     transform-origin: top left;
   }
 
-  /* the price-tips sheet's grey-400 scrim continues over the status band, which is this slide's, not the app's:
-     multiplied, so 9:41 and the glyphs stay black under it; body.scrim follows the app's own wandSheet */
+  /* the price-tips sheet's grey-400 scrim continues over the status band, which is this slide's, not the app's: multiplied,
+     as the app's own is, so 9:41 and the glyphs stay black. Its bottom edge is SNAPPED to the app frame's top (see fit()):
+     the browser rounds an iframe to whole device pixels while a div's edge stays fractional, and the sliver between the
+     two edges read as a hairline. body.scrim follows the app's wandSheet. */
   .band-scrim { position: absolute; left: 0; top: 0; width: 375px; height: 56px; background: #C1C1C1; mix-blend-mode: multiply; z-index: 2; pointer-events: none; opacity: 0; transition: opacity .4s; }
-  body.scrim .band-scrim { opacity: 1; transition-delay: 60ms; }   /* the app's own scrim starts its fade a tick after the model flips — the band waits the same tick, or it leads by a frame */
-  /* the band's scrim and the app's own meet at 56, a fractional pixel two scales deep: their antialiased edges leave a white
-     hairline. A plain grey-400 strip laid over the join hides it — the app's ground there is white, so grey × white is the
-     same grey, and nothing is darkened twice. */
-  .band-seam { position: absolute; left: 0; top: 54px; width: 375px; height: 4px; background: #C1C1C1; z-index: 3; pointer-events: none; opacity: 0; transition: opacity .4s; }
-  body.scrim .band-seam { opacity: 1; transition-delay: 60ms; }
+  body.scrim .band-scrim { opacity: 1; transition-delay: 60ms; }
   /* ---- status bar, hung off the island's centreline (27.64pt in UI space) ---- */
   .status { position: absolute; left: 0; top: 0; width: 375px; height: 56px; color: #000; z-index: 1; pointer-events: none; }
   .status .time {
@@ -163,7 +160,6 @@
       <div class="screen">
         <div class="ui" id="ui">
           <div class="band-scrim"></div>
-          <div class="band-seam"></div>
           <div class="status">
             <div class="time">9:41</div>
             <svg class="signal" viewBox="0 0 17 11" fill="#000" aria-hidden="true">
@@ -642,7 +638,15 @@ function typeKeys(keys, instant) {
 (() => {
   const screen = document.querySelector('.screen');
   const ui     = document.getElementById('ui');
-  function fit() { ui.style.setProperty('--k', (screen.clientHeight + 1) / 812); }
+  function fit() {
+    ui.style.setProperty('--k', (screen.clientHeight + 1) / 812);
+    // the band scrim's bottom edge lands exactly where the app frame's top edge is painted — measured, not computed
+    const band = document.querySelector('.band-scrim'), app = document.querySelector('.app'); if (!band || !app) return;
+    band.style.height = '';
+    const k = (screen.clientHeight + 1) / 812, dpr = devicePixelRatio || 1;
+    const painted = Math.round(app.getBoundingClientRect().top * dpr) / dpr;   // an iframe is painted on a whole device pixel; a rect only says where layout put it
+    band.style.height = ((painted - band.getBoundingClientRect().top) / k) + 'px';
+  }
   new ResizeObserver(fit).observe(screen);
   fit();
 })();
