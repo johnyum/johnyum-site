@@ -33,13 +33,25 @@
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   /* embedded in the studies sheet (12b) the page ground must not paint over the neighbours */
   html.embed, html.embed body { background: transparent; }
-  .slide { height: 100%; display: grid; place-items: center; }
+  .slide { height: 100%; display: grid; place-items: center; position: relative; --phone-h: min(80vh, 1080px); }   /* declared here so the icon sheet beside the phone can size off it too */
+
+  /* ── THE ICON SHEET (the preso's beat 18, John 2026-09-21): the phone slides left to make room for a second phone 120px
+     off its right edge, and where that phone would stand a grid of the event and holiday icons pops in — every primary,
+     40 × 40 in the phone's own points, the same --k as the UI. The ⨉ beat that follows slides the phone home and takes them. */
+  .phone { transition: transform .9s cubic-bezier(.16, 1, .3, 1); }
+  body.split .phone { transform: translateX(calc((var(--phone-h) * 900 / 1840 + 120px) / -2)); }
+  .icons { position: absolute; left: 50%; top: 50%; width: calc(var(--phone-h) * 900 / 1840); height: var(--phone-h);
+    transform: translate(calc(-50% + (var(--phone-h) * 900 / 1840 + 120px) / 2), -50%); display: grid; place-items: center; pointer-events: none; }
+  .icons .grid { display: grid; grid-template-columns: repeat(4, 40px); gap: 40px; transform: scale(var(--k, 1)); }
+  .icons img { width: 40px; height: 40px; display: block; opacity: 0; transform: scale(0); transition: opacity .3s; }
+  body.split .icons img { animation: icon-in .55s cubic-bezier(.34, 1.56, .64, 1) both; }
+  @keyframes icon-in { to { opacity: 1; transform: scale(1); } }
 
   .phone {
     /* the one number the assembly scales off. 80vh keeps it from crowding the
        deck's chrome, and the 1080 cap stops it ballooning on a 4K panel — that
        cap starts biting above a 1350px-tall viewport. */
-    --phone-h: min(80vh, 1080px);
+    /* --phone-h is declared on .slide above, so the icon sheet shares it */
 
     /* the screen hole, as % of the 900x1840 viewBox */
     --sx: 5.4444%;
@@ -158,6 +170,7 @@
 </head>
 <body>
   <div class="slide">
+    <div class="icons" id="icons" aria-hidden="true"><div class="grid" id="icongrid"></div></div>
     <div class="phone">
       <div class="screen">
         <div class="ui" id="ui">
@@ -457,12 +470,15 @@ const BEATS = [
     };
     go(0);
   },
-  // 18 — ⨉ closes the quick actions; a beat; Today is tapped and the calendar flies home to September — and on the way the
+  // 18 — the phone slides left, and where a second phone would stand, 120 off, the icon sheet pops in
+  m => { document.body.classList.add('split'); },
+  // 19 — ⨉ closes the quick actions; a beat; Today is tapped and the calendar flies home to September — and on the way the
   //      host's edits come off the 9th–21st (the $480, the −20%, the min 5), so it lands on the default it started from.
   //      Landed, a beat: Today slides left to make room and a magic-wand tile pops in beside the gear
   (m, instant) => {
     const [a, z] = RUN(m), ns = []; for (let di = a; di <= z; di++) ns.push(di);
     const undo = () => { m.setPrice(null, 0, ns); m.setPromo(null, 0, ns); m.setMin(null, 0, ns); };
+    document.body.classList.remove('split');   // the phone slides home and the icon sheet goes
     if (instant) { m.clearSelection(); undo(); m.setWandTile(true); setTimeout(() => m.goToday(), 80); return; }   // after 17's own deferred reveal (40ms), so home wins
     const g = ++gen;
     pendingTail = () => { m.clearSelection(); undo(); m.goToday(); m.setWandTile(true); };   // a tap before it is through lands it all
@@ -471,9 +487,9 @@ const BEATS = [
     setTimeout(() => { if (g === gen) press(d => d.querySelector('.today-pill')); }, TAP + 700);   // the cards are down: Today, visibly tapped
     setTimeout(() => { if (g !== gen) return; undo(); setTimeout(() => { if (g !== gen) return; m.goToday(); settled(g, () => setTimeout(tail(g, () => m.setWandTile(true)), 900)); }, 60); }, TAP + 700 + 200);   // the edits come off, the rows settle, THEN the flight home (a reflow mid-flight can stall a smooth scroll); landed, a beat, the wand
   },
-  // 19 — the wand, visibly tapped: the calendar frosts and the price-tips sheet rises (Figma 5248:641877)
+  // 20 — the wand, visibly tapped: the calendar frosts and the price-tips sheet rises (Figma 5248:641877)
   (m, instant) => { if (instant) { m.setWandSheet(true); return; } const g = ++gen; press(d => d.querySelector('.wand-tile')); setTimeout(tail(g, () => m.setWandSheet(true)), TAP); },
-  // 20 — Try now, visibly tapped: the sheet drops, the top bar's tiles slip away for a Close tips pill, and the tips wash
+  // 21 — Try now, visibly tapped: the sheet drops, the top bar's tiles slip away for a Close tips pill, and the tips wash
   //      over the weeks ahead one night after another — weekdays down to $480, weekends up to $535 — each with its $500 struck
   (m, instant) => {
     const tips = TIPS(m);
@@ -485,7 +501,7 @@ const BEATS = [
     setTimeout(() => { if (g === gen) { m.setTipsMode(true); m.setHeaderLock(true); } }, TAP + 500);   // the pill comes, and the header locks small with the grid riding up
     tips.forEach(([di, p], k) => setTimeout(() => { if (g === gen) { m.addTip(di, p); if (k === tips.length - 1) pendingTail = null; } }, TAP + 900 + k * 45));
   },
-  // 21 — every tipped September night gets tapped, in date order, and the Price tip sheet rises; a beat; Apply tips is
+  // 22 — every tipped September night gets tapped, in date order, and the Price tip sheet rises; a beat; Apply tips is
   //      tapped; the sheet drops and IN THE CELLS the old price folds away and a ✓ comes in (the cells' own raise scene), then
   //      they rest plain with their new prices in green, and an Undo pill joins Close tips (Figma 5248:641867)
   (m, instant) => {
@@ -611,7 +627,7 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
-    m.setHeaderLock(false, false); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
+    document.body.classList.remove('split'); m.setHeaderLock(false, false); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
@@ -628,7 +644,10 @@ function typeKeys(keys, instant) {
 (() => {
   const screen = document.querySelector('.screen');
   const ui     = document.getElementById('ui');
-  function fit() { ui.style.setProperty('--k', (screen.clientHeight + 1) / 812); }
+  function fit() { const k = (screen.clientHeight + 1) / 812; ui.style.setProperty('--k', k); document.getElementById('icons').style.setProperty('--k', k); }
+  // the icon sheet: every primary event and holiday icon the calendar carries, in one order, each with its place in the stagger
+  const ICONS = ['halloween', 'pride-heart', 'veterans-day', 'thanksgiving', 'christmas-eve', 'christmas-day', 'new-years', 'mlk-jr-day', 'golf-badge', 'eames-chair', 'presidents-day', 'tennis-racquet', 'coachella-flower-crown', 'cowboy-hat', 'memorial-day', 'juneteenth', 'july-4th', 'labor-day'];
+  ICONS.forEach((n, i) => { const img = document.createElement('img'); img.src = '/multical/icons/ev-' + n + '.png'; img.alt = ''; img.style.animationDelay = (500 + i * 60) + 'ms'; document.getElementById('icongrid').appendChild(img); });
   new ResizeObserver(fit).observe(screen);
   fit();
 })();
