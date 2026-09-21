@@ -424,7 +424,7 @@ const BEATS = [
     // ...and at the end, a beat after Indian Wells is in, its first week — Feb 28 through Mar 5 — gets tapped, 90ms apart, and
     // the quick actions rise over it, naming the tournament; the run rests there (John, 2026-09-21)
     const iw = lastScene[0].dis[0], week = Array.from({ length: 6 }, (_, k) => iw + k);
-    const landAll = () => { for (const sc of scenes) for (const grp of sc) m.showMarkGroup(grp.dis); m.reveal(iw, null, 0, 0); m.setHoldQuick(false); m.setSelectedNights(new Set(week)); };
+    const landAll = () => { for (const sc of scenes) for (const grp of sc) m.showMarkGroup(grp.dis); m.setHoldQuick(false); m.setSelectedNights(new Set(week)); setTimeout(() => m.reveal(iw, null, 0, 0), 40); };   // the reveal a tick later: on a replay the reset has just scrolled home in the same tick, and the later smooth scroll would lose to it
     if (instant) { landAll(); return; }
     const g = ++gen;
     pendingTail = landAll;   // a tap before the run is through lands the rest whole
@@ -445,6 +445,19 @@ const BEATS = [
       });
     };
     go(0);
+  },
+  // 18 — ⨉ closes the quick actions; a beat; Today is tapped and the calendar flies home to September — and on the way the
+  //      host's edits come off the 9th–21st (the $480, the −20%, the min 5), so it lands on the default it started from
+  (m, instant) => {
+    const [a, z] = RUN(m), ns = []; for (let di = a; di <= z; di++) ns.push(di);
+    const undo = () => { m.setPrice(null, 0, ns); m.setPromo(null, 0, ns); m.setMin(null, 0, ns); };
+    if (instant) { m.clearSelection(); undo(); m.goToday(); return; }
+    const g = ++gen;
+    pendingTail = () => { m.clearSelection(); undo(); m.goToday(); };
+    press(d => d.querySelector('.sqa-close'));
+    setTimeout(() => { if (g === gen) m.clearSelection(); }, TAP);
+    setTimeout(() => { if (g === gen) press(d => d.querySelector('.today-pill')); }, TAP + 700);   // the cards are down: Today, visibly tapped
+    setTimeout(tail(g, () => { undo(); m.goToday(); }), TAP + 700 + 200);                         // ...and the flight home, the edits gone on the way
   },
 ];
 const MARK_PARK = 120;   // an event's row parks this far under the header, with its week above for context
