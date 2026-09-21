@@ -110,6 +110,10 @@ body {
      until it's off-screen. */
   transition: margin-top .22s cubic-bezier(.2,.85,.25,1); }
 body.hdr-hidden .app-header { margin-top: -93px; pointer-events: none; }  /* -93 = height + rule */
+/* "Calendar-only" variant: hide the Airbnb site chrome (logo + Today/Calendar/Listings/Messages nav +
+   account controls) entirely. Reversible — drop the `no-header` class on <body> to bring it all back.
+   The scroll-coupled auto-hide is neutralised in JS (H=0) so the grid scrolls natively with no header. */
+body.no-header .app-header { display: none; }
 /* The nav is ABSOLUTELY centred on the header rather than balanced by equal flex sides. The flex trick works
    only while both sides are the same width — the logo's 8px inset made the left side wider and dragged the
    nav 4px off the toggle's axis. Absolute centring is immune to whatever the side clusters contain. */
@@ -4563,7 +4567,7 @@ body.settings-mode .opp-more, body.avail-mode .opp-more { display: none; }
 .group-drop .listing-card { flex: 0 0 calc(50% - 4px); min-width: 0; }
 </style>
 </head>
-<body class="info-d">   <!-- explainer affordance: dotted label, no icon. setInfoStyle('a'|'b'|'c'|null) to compare -->
+<body class="info-d no-header">   <!-- explainer affordance: dotted label, no icon. setInfoStyle('a'|'b'|'c'|null) to compare -->
 
 <!-- Airbnb app header. Scrolls away on scroll-down, returns on scroll-up (see wireHeaderScroll). -->
 <div class="app-header" id="appHeader">
@@ -5386,9 +5390,9 @@ function eventRangeLabelFor(city) {
     .map(ev => Math.round((eventPct[ev[0]] || 0) * 100)).filter(p => p > 0);
   if (!ps.length) return '';
   const hi = Math.max(...ps);
-  // ONE value, not a range: "+8 – 40%" parsed as a broken number at a glance. The ceiling is the useful
-  // half anyway — every event sits at or under it.
-  return ps.length === 1 ? '+' + hi + '%' : UPTO_PREFIX + hi + '%';
+  // Always "Up to N%" — one uniform format across every row (a lone event still reads fine as "Up to 8%",
+  // and mixing "+8%" into a column of "Up to …" cells looked like an error).
+  return UPTO_PREFIX + hi + '%';
 }
 // Trip-length discounts and fees — edited via the Pricing modal (not all feed the calendar)
 const tripWeekly     = ['-10%', '-8%',  '-12%', '-10%', '-15%', '-8%',  '-12%', '-10%', '-8%',  '-12%', '-10%', '-15%'];
@@ -16627,7 +16631,9 @@ const UPSELL_CONTENT = {
      We drive the scroll ourselves because the two have to share one delta. Only VERTICAL-dominant gestures
      are taken: the calendar's horizontal scroll is the primary interaction on this screen and must stay
      native. Same code for all three toggles, and for Listings, which just has a different scroller. */
-  const H = 93;                                     // header height + its 1px rule
+  // Calendar-only variant hides the header, so it must never eat scroll delta: H=0 makes the auto-hide inert
+  // (down-branch takes nothing → all delta reaches the board; up-branch never triggers since off stays 0).
+  const H = document.body.classList.contains('no-header') ? 0 : 93;   // header height + its 1px rule
   const hdr = document.querySelector('.app-header');
   if (!hdr) return;
   hdr.style.transition = 'none';                    // it tracks the finger; a transition would re-introduce lag
@@ -18897,7 +18903,11 @@ function regroupForTier() {
    and enterTodayMode measures the stage to lay the fan out, so running it before this pass has settled gives
    the wheel a stale width. The calendar stays fully built underneath, so switching to it is instant — and it
    keeps its own arrival behaviour, including the 1s header auto-hide. */
-requestAnimationFrame(() => { if (typeof window.enterTodayMode === 'function') window.enterTodayMode(); });
+/* Calendar-only variant (body.no-header): the Today/Listings/Messages nav is hidden, so landing on Today
+   would strand the host with no way back. Boot straight into the calendar instead. */
+if (!document.body.classList.contains('no-header')) {
+  requestAnimationFrame(() => { if (typeof window.enterTodayMode === 'function') window.enterTodayMode(); });
+}
 // ONE FACE AND ONE NAME PER BOOKING. The seeds draw guests from three places — a running `photoN % 70`
 // counter, a fixed 8-entry tier pool (pravatar ids 61-68) and random picks from GUEST_NAMES — so the same
 // face and the same name turned up twice on screen. This re-deals every booking from a single shuffled run
