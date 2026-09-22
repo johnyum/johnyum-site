@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12d</title>
+<!-- HOST CALENDAR — played live inside the same drawn iPhone as Host Setup (11).
+
+     Sits after the Host Calendar card (12). The chrome, the screen hole, the
+     375x812 UI scaling and the status bar are lifted from 11 verbatim — see the
+     long note at the top of that file for the 900x1840 grid and why --k comes
+     from JS. The only difference: the screen's ground is white, so the status
+     bar is set in black ink.
+
+     THE CALENDAR IS THE REAL APP, STEPPED THROUGH A BUILD. /multical/ is the
+     React build of the native replica (multi-host-calendar-web.zip), built with
+     base=/multical/ so its fixtures, icons and fonts rebase off the site root.
+     It is same-origin, which is what lets the beats reach its model and the
+     clicker relay reach back into the deck.
+
+     The taps step BEATS (see the script) by calling the app's own model, so each
+     one is a real state change that animates as the product does. The phone
+     stays live underneath for anything the room asks to see. -->
+<style>
+  @font-face {
+    font-family: 'Cereal';
+    src: url('../../multi/Font_Cereal/AirbnbCerealVF_Wght.ttf') format('truetype');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: block;
+  }
+
+  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
+  /* embedded in the studies sheet (12b) the page ground must not paint over the neighbours */
+  html.embed, html.embed body { background: transparent; }
+  .slide { height: 100%; display: grid; place-items: center; overflow: hidden; }
+  /* TWO PHONES, ONE CELL (John, 2026-09-22). Both stand in the same grid cell, centred; the second (the multi calendar,
+     .two) waits a viewport-width off to the right. body.multi is the last beat: the single moves half a phone and 60px to
+     the left and the multi comes in from the right to stand beside it — the two calendars side by side, 120px between,
+     centred as a pair — on the deck's own push curve. body.notrans cuts the motion for a replay. */
+  .slide > .phone { grid-area: 1 / 1; transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .phone.two, .phone.three { transform: translateX(100vw); }
+  body.multi .phone.one { transform: translateX(calc(-0.5 * var(--dx2))) scale(var(--s2)); }
+  body.multi .phone.two { transform: translateX(calc(0.5 * var(--dx2))) scale(var(--s2)); }
+  /* THE ROW GROWS (John, 2026-09-22): two, then three, then four phones, each arrival shrinking the row a step further —
+     the pair on 90% of the width, three on 84%, four on 76%, so the last stands with good air either side. --sN is the
+     scale and --dxN a scaled phone's width plus the gap, set by JS from the viewport. */
+  body.three .phone.one { transform: translateX(calc(-1 * var(--dx3))) scale(var(--s3)); }
+  body.three .phone.two { transform: scale(var(--s3)); }
+  body.three .phone.three { transform: translateX(var(--dx3)) scale(var(--s3)); }
+  /* FOUR UP: the day view joins — --s4 and --dx4 likewise */
+  .phone.four { transform: translateX(100vw); }
+  body.four .phone.one { transform: translateX(calc(-1.5 * var(--dx4))) scale(var(--s4)); }
+  body.four .phone.two { transform: translateX(calc(-0.5 * var(--dx4))) scale(var(--s4)); }
+  body.four .phone.three { transform: translateX(calc(0.5 * var(--dx4))) scale(var(--s4)); }
+  body.four .phone.four { transform: translateX(calc(1.5 * var(--dx4))) scale(var(--s4)); }
+  body.notrans .slide > .phone { transition: none; }
+
+
+
+  .phone {
+    /* the one number the assembly scales off. 80vh keeps it from crowding the
+       deck's chrome, and the 1080 cap stops it ballooning on a 4K panel — that
+       cap starts biting above a 1350px-tall viewport. */
+    --phone-h: min(80vh, 1080px);
+
+    /* the screen hole, as % of the 900x1840 viewBox */
+    --sx: 5.4444%;
+    --sy: 2.5543%;
+    --sw: 89.1111%;
+    --sh: 94.8913%;
+    --sr: 15.9601%;      /* 128 over the hole's own width  */
+    --sry: 7.3310%;      /* 128 over the hole's own height */
+
+    position: relative;
+    height: var(--phone-h);
+    aspect-ratio: 900 / 1840;
+  }
+  .chrome {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    display: block;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .screen {
+    position: absolute;
+    left: var(--sx); top: var(--sy);
+    width: var(--sw); height: var(--sh);
+    border-radius: var(--sr) / var(--sry);
+    overflow: hidden;
+    /* bezel black, not white: any sub-pixel seam between the UI and the hole's
+       rounded edge then reads as bezel instead of a bright hairline */
+    background: #0b0b0b;
+    z-index: 1;
+  }
+
+  /* ---- the UI, in Airbnb's own points ---- */
+  .ui {
+    position: absolute;
+    top: 0; left: 50%;
+    width: 375px; height: 812px;
+    /* Centre on the 50% line with a HALF-WIDTH margin, not `margin: 0 auto`.
+       Auto margins silently collapse to 0 once the box is wider than its
+       containing block — which is exactly what happens on smaller screens —
+       and the scale then pulls everything off to one side. margin-left is
+       unconditional, so it centres at every size. */
+    margin-left: -187.5px;
+    transform: scale(var(--k, 1));
+    transform-origin: top center;
+    font-family: 'Cereal', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 500;
+    color: #222;
+    background: #fff;
+    user-select: none;
+  }
+  .ui img { display: block; -webkit-user-drag: none; }
+  /* THE APP IS A 430pt DESIGN, not 375. Its month grid is built from fixed
+     metrics — 48px cells on a 52px stride, 7 across, inside 10px of padding —
+     which comes to 384pt and clips its right-hand column in a 375pt box. So the
+     frame is given its own 430 and scaled by 375/430 to land back on the .ui
+     box, which then carries it to the hole with --k. Net: 430pt of UI across the
+     full screen width, which is what the phone it was drawn for shows.
+
+     THE STATUS BAND IS THIS SLIDE'S TO GIVE. The app draws from its own y=0 —
+     --safe-top is declared in its base.css and never used — and its first
+     control, the Today pill, sits only 8pt below that. So the frame starts at
+     56, the full height of .status above, and NOT a point less: at 47 the pill's
+     top edge landed 2pt inside the status bar and a hair under the island, which
+     is the crowding you see if you change this number back. 56 down leaves the
+     pill 21pt clear of the island.
+
+     Height is the rest of the hole — 812 less 56 is 756, which is 867 of the
+     app's own points — so its white ground still reaches the bezel and the
+     scroller runs to the bottom edge under the floating bar, as it does on the
+     phone.
+
+     DO NOT hand the app a bottom safe-area inset to lift its bar off the bezel.
+     Only .bar reads --safe-bottom; the quick-actions puck beside it hard-codes a
+     32pt gap in JS, so raising one slides it off the other and the puck's tip
+     card comes out from behind the bar. 21pt off the glass is the app's own
+     design, tuned against that 32. */
+  .app, .app2, .app3, .app4 {
+    /* THE FRAME SPANS THE WHOLE HOLE (John, 2026-09-21): top 0, the full 812 — and the app's own .phone is pushed down 56
+       (64.2 of its px, injected below) so its Today pill still sits 21 clear of the island. Why: a scrim inside the app can
+       then cover the status band and the calendar as ONE layer. Two scrims meeting at the frame's edge — one the slide's,
+       one the app's — always left a hairline there, thick or thin, whatever the snapping. */
+    position: absolute; left: 0; top: 0;
+    width: 430px; height: 931.1px;   /* 812 / 0.8720930 */
+    border: 0; display: block;
+    transform: scale(0.8720930);       /* 375 / 430 */
+    transform-origin: top left;
+  }
+
+  /* ---- status bar, hung off the island's centreline (27.64pt in UI space) ---- */
+  .status { position: absolute; left: 0; top: 0; width: 375px; height: 56px; color: #000; z-index: 1; pointer-events: none; overflow: hidden; }
+  .status .statusbar { position: absolute; left: 0; top: -2.7px; width: 375px; height: auto; display: block; }   /* 62 × 375/402 = 57.8 tall; its centreline (32.5 × 0.933 = 30.3) on the island's 27.64 */
+  /* the icon cluster is centred in the RIGHT EAR, not right-aligned as the mock
+     had it. the island is 125 of 393pt, so in this 375pt space it spans
+     127.85..247.15; the ear is 247.15..375, centre 311.1. the cluster measures
+     66.67 wide, so nominally it starts at 277.76 — less 0.67, because the UI
+     runs a hair proud of the hole and is clipped, moving the true right edge
+     in. Measured against the rendered box, not the spec: equal air each side. */
+</style>
+</head>
+<body>
+  <div class="slide">
+    <div class="phone one">
+      <div class="screen">
+        <div class="ui" id="ui">
+          <div class="status">
+            <!-- the status bar as drawn (John's Status bar.svg, 2026-09-21): time, signal, wifi and battery in one piece, the
+                 402-wide frame scaled to the 375 UI, its glyphs' centreline hung off the island's (27.64) -->
+            <img class="statusbar" src="assets/status-bar.svg" alt="" draggable="false">
+          </div>
+
+          <!-- THE CALENDAR, live. /multical/ is the React build of the native
+               replica, intaken 1:1 (multi-host-calendar-web.zip) and built with
+               base=/multical/, so its own fixture, icon and font URLs rebase.
+               Its shell is .phone { height: 100dvh; max-width: 430px }, so at
+               375x812 it fills the hole exactly — nothing is scaled twice. The
+               app leaves env(safe-area-inset-top, 47px) clear, which is the
+               band the drawn status bar above sits in. Same origin, so the
+               deck's key handler reaches it and the clicker still drives the
+               deck from inside the frame. -->
+          <!-- ?today pins the app's clock at Sept 9 — the deck must never drift with the
+               real date. ?preso=1 opens it PRISTINE: no stays, no event or holiday marks,
+               no AI entries, no Ask, no nav, no gear or avatar, every night open at a flat
+               $500. The app's Model exposes setLayers() on window.__model, so the builds
+               that follow switch each layer back on live — no reload, the product's own
+               animation. -->
+          <iframe class="app" title="Multi-Host Calendar"></iframe>
+          <script>
+            // src set here, not in the markup, so it loads once: the deck's per-load stamp rides down to the app's
+            // document too — its bundles are content-hashed, only index.html could ever be stale
+            (() => { const v = new URLSearchParams(location.search).get('v'); document.querySelector('.app').src = '/multical/?today=2026-09-09&preso=1&multi=1' + (v ? '&v=' + v : ''); })();
+          </script>
+        </div>
+      </div>
+
+      <!-- HYBRID CHROME. Everything is drawn on the PHOTO's own 900x1840 grid,
+           so the two cannot drift: the rail band is the real photograph, and
+           the screen edge, the black bezel and the island are vector.
+
+             body      16,14  868x1812  r161
+             bezel out 30,28  840x1784  r147
+             hole      49,47  802x1746  r128
+             island   322,69  256x74    r37   (125x36pt, centred, 11pt down)
+
+           The photo is clipped to everything OUTSIDE the bezel boundary, so it
+           supplies the metal and the side buttons and never touches the screen
+           edge — which is the edge that has to be exact. A vector rail sits
+           under it in the same band, so the phone still reads as metal in the
+           instant before the photograph decodes. -->
+      <svg class="chrome" viewBox="0 0 900 1840" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="rail" x1="16" y1="0" x2="884" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0"     stop-color="#8f8f8c"/>
+            <stop offset="0.035" stop-color="#ececea"/>
+            <stop offset="0.10"  stop-color="#bfbfbc"/>
+            <stop offset="0.50"  stop-color="#f2f2f0"/>
+            <stop offset="0.90"  stop-color="#bfbfbc"/>
+            <stop offset="0.965" stop-color="#ececea"/>
+            <stop offset="1"     stop-color="#8f8f8c"/>
+          </linearGradient>
+          <clipPath id="outsideBezel" clipPathUnits="userSpaceOnUse">
+            <path clip-rule="evenodd" d="
+              M-60,-60 H960 V1900 H-60 Z
+              M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/>
+          </clipPath>
+        </defs>
+
+        <!-- vector rail: body minus bezel. the fallback the photo paints over -->
+        <path fill="url(#rail)" fill-rule="evenodd" d="
+          M177,14 H723 A161,161 0 0 1 884,175 V1665 A161,161 0 0 1 723,1826 H177 A161,161 0 0 1 16,1665 V175 A161,161 0 0 1 177,14 Z
+          M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/>
+
+        <!-- the photograph, kept off the screen edge -->
+        <image href="assets/device/iphone-frame.png" x="0" y="0" width="900" height="1840"
+               clip-path="url(#outsideBezel)" preserveAspectRatio="none"/>
+
+        <!-- bezel: overlaps the clip boundary by 1 so no sliver of photo survives -->
+        <path fill="#0b0b0b" fill-rule="evenodd" d="
+          M177,27 H723 A148,148 0 0 1 871,175 V1665 A148,148 0 0 1 723,1813 H177 A148,148 0 0 1 29,1665 V175 A148,148 0 0 1 177,27 Z
+          M177,47 H723 A128,128 0 0 1 851,175 V1665 A128,128 0 0 1 723,1793 H177 A128,128 0 0 1 49,1665 V175 A128,128 0 0 1 177,47 Z"/>
+
+        <!-- Dynamic Island, drawn over the UI -->
+        <rect x="322" y="69" width="256" height="74" rx="37" fill="#000"/>
+        <circle cx="529" cy="106" r="12.7" fill="#0f1420"/>
+        <circle cx="529" cy="106" r="5.3" fill="#243046"/>
+      </svg>
+    </div>
+  </div>
+  </div>
+
+<script>
+// THE NATIVE MULTI (John, 2026-09-22): after the web build, the deck pushes the multi-listing calendar as built for the phone —
+// the board, its guests in, the Ask circle bare — in the same drawn iPhone as the single. No taps of its own: once the deck has
+// landed it here (the deck says so with a "presoshown" event), a second passes, the board scrolls over into late September, a
+// beat, and Today is tapped to bring it home. The next tap moves the deck on.
+window.presoInteractive = true;
+(() => {
+  const app = document.querySelector('.app');
+  const model = () => { try { return app.contentWindow.__model; } catch (_) { return null; } };
+  const doc = () => { try { return app.contentDocument; } catch (_) { return null; } };
+  const NAV = new Set(['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'PageUp', 'PageDown', 'Home', 'End', 'f', 'F']);
+  app.addEventListener('load', () => {
+    const w = app.contentWindow;
+    const seal = w.document.createElement('style');
+    seal.textContent = '.phone{margin:64.2px auto 0;height:calc(100dvh - 64.2px)}';
+    w.document.head.appendChild(seal);
+    w.addEventListener('keydown', e => { if (!NAV.has(e.key) || !e.isTrusted) return; e.preventDefault(); e.stopImmediatePropagation(); window.top.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: e.code, bubbles: true })); }, true);
+  });
+  let played = false;
+  const play = () => {
+    if (played) return; played = true;
+    setTimeout(() => { const d = doc(), h = d && d.querySelector('.board .hscroll'); if (h) h.scrollTo({ left: h.scrollLeft + 21 * 52, behavior: 'smooth' }); }, 1000);   // a second, then over: three weeks on, into late September (52 = the board's stride)
+    setTimeout(() => { const d = doc(), b = d && d.querySelector('.today-pill'), m = model(); if (b) { b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440); } setTimeout(() => { if (m) m.goToday(); }, 130); }, 1000 + 1500 + 900);   // a beat, then Today, tapped: home
+  };
+  addEventListener('presoshown', play);
+  window.presoNext = () => false;
+  window.presoPrev = () => false;
+  window.presoEnd = () => { play(); };
+})();
+
+(() => {
+  const screen = document.querySelector('.screen');
+  const uis    = document.querySelectorAll('.ui');
+  function fit() { const k = (screen.clientHeight + 1) / 812; uis.forEach(ui => ui.style.setProperty('--k', k)); }
+  new ResizeObserver(fit).observe(screen);
+  fit();
+})();
+</script>
+</body>
+</html>

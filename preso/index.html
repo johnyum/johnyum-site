@@ -116,21 +116,23 @@
     pointer-events: none;
     z-index: 20;
   }
+  /* THE SECTIONS (John, 2026-09-22), in place of the counter: five names in the kicker's own type and grey, the one you are
+     in black; each is a tap to the start of its section. Sits above the tap rails. */
   #counter {
     position: fixed;
-    bottom: 32px; left: 50%;
-    transform: translateX(-50%);
+    bottom: 32px; left: 0; right: 0;
+    text-align: center;
     font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
     font-size: 12px;
     line-height: 1;
     color: #8C8C8C;
-    font-variant-numeric: tabular-nums;
-    opacity: 0;
-    transition: opacity 0.3s ease;
+    z-index: 50;
     pointer-events: none;
-    z-index: 20;
   }
-  #counter.show { opacity: 1; }
+  #counter .sec { pointer-events: auto; cursor: pointer; color: #8C8C8C; background: none; border: 0; padding: 6px 4px; margin: -6px 0; font: inherit; }
+  #counter .sec:hover { color: #444; }
+  #counter .sec.on { color: #111; }
+  #counter .dot { margin: 0 6px; }
   /* GO — a quiet pill in the bottom-right corner that jumps to the last slide so far; from there the arrows and rails work
      as ever. It hides with the cursor, like the counter, and sits above the tap rails. */
   #go {
@@ -222,11 +224,23 @@
   }
 
   let hideTimer = 0;
-  function flashCounter() {
-    counter.textContent = (idx + 1) + ' / ' + SLIDES.length;
-    counter.classList.add('show');
-    clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => counter.classList.remove('show'), 1600);
+  // the sections, each starting at a file: a tap goes to that slide's start
+  const SECTIONS = [['Intro', '01.html'], ['Lux\u00e9', '08.html'], ['Host setup', '10b.html'], ['Host calendar', '12.html'], ['Multi calendar', '12c.html']];
+  function sectionStarts() { return SECTIONS.map(([name, file]) => [name, SLIDES.indexOf(file)]).filter(([, i]) => i >= 0); }
+  function buildCounter() {
+    counter.innerHTML = '';
+    sectionStarts().forEach(([name, i], k) => {
+      if (k) { const d = document.createElement('span'); d.className = 'dot'; d.textContent = '\u00b7'; counter.appendChild(d); }
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'sec'; b.dataset.start = i; b.textContent = name;
+      b.addEventListener('click', e => { e.stopPropagation(); discardKept(); jumpTo(i); });
+      counter.appendChild(b);
+    });
+  }
+  function flashCounter() {   // the section you are in reads black
+    if (!counter.children.length) buildCounter();
+    const starts = sectionStarts(); let cur = -1;
+    starts.forEach(([, i], k) => { if (idx >= i) cur = k; });
+    counter.querySelectorAll('.sec').forEach((b, k) => b.classList.toggle('on', k === cur));
   }
 
   // dir < 0: the slide is being entered from the right, so a slide that can
@@ -344,6 +358,7 @@
     const made = makePane(i);
     stage.appendChild(made.pane);
     settle(i, made);
+    if (made.frame) made.ready.then(() => setTimeout(() => shown(made), 200));   // a first paint is on stage too
     if (state > 0 && made.frame) { const t0 = Date.now(); const poke = () => { let f = null; try { f = made.frame.contentWindow && made.frame.contentWindow.presoRestore; } catch (_) {} if (f) { f(state); syncHash(); } else if (Date.now() - t0 < 8000) setTimeout(poke, 100); }; made.ready.then(poke); }
   }
 
@@ -362,7 +377,10 @@
     p.style.transition = '';
     p.style.willChange = 'auto';
     flight = null;
+    shown(current);
   }
+  // a slide that plays something on arrival (the native multi) hears that it is on stage
+  function shown(made) { try { const w = made && made.frame && made.frame.contentWindow; if (w) w.dispatchEvent(new Event('presoshown')); } catch (_) {} }
   function snapFlight() {                 // complete the in-flight cut INSTANTLY
     if (!flight) return;
     clearTimeout(flight.timer);
@@ -374,6 +392,7 @@
     p.style.transition = '';
     p.style.willChange = 'auto';
     flight = null;
+    shown(current);
   }
 
   async function transitionTo(i, dir) {   // the push: off one way, land centre
