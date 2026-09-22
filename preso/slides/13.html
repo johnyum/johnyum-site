@@ -639,14 +639,19 @@ const BEATS = [
   // 36 — the end of the single flow: the phone moves left to make room and a second phone comes in from the right to stand
   // beside it, 120px between — the LIST calendar (the multi is saved for later): the same collapsed top, a card a day. The new
   // views only flow in — no scrolling, no build of their own (John, 2026-09-22); each arrival shrinks the row a step.
-  // The single keeps its collapsed September — all the phones wear the same collapsed top (John, 2026-09-22).
-  (m, instant) => { setMulti(true, instant); },
+  // As it moves the single goes HOME — today's September, the header staying collapsed like every other phone's — and its Ask
+  // circle goes bare: the 3 puck lifts off here, before any other phone arrives (John, 2026-09-22).
+  (m, instant) => {
+    setMulti(true, instant); m.hidePuck();
+    if (instant) { const g = gen; setTimeout(() => { if (g === gen) m.homeLocked(false); }, 120); return; }   // after 18's own deferred home (80ms), so this one wins
+    m.homeLocked(true);
+  },
   // 37 — THREE UP: the pair slides left and a third phone comes in from the right — the YEAR view (Figma 5248:641919), twelve months
   // two across, a dot a day — and all three scale down to stand side by side: the single, the list, the year (John, 2026-09-22).
   (m, instant) => { setStage('three', instant); },
   // 38 — FOUR UP: a fourth phone comes in from the right — the DAY view (Figma 5248:642014, an experience host's hours) — and the
-  // four scale down to stand in a row: the single, the list, the year, the day — and the single's Ask circle goes bare too: its 3 puck lifts off.
-  (m, instant) => { setStage('four', instant); m.hidePuck(); },
+  // four scale down to stand in a row: the single, the list, the year, the day.
+  (m, instant) => { setStage('four', instant); },
 ];
 const press2 = find => { const d = app2Doc(), el = d && find(d); if (!el) return null; el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 440); return el; };   // a scripted tap on the second phone
 const ASK_BLOCK = 'Block the first two weeks of January';
