@@ -614,33 +614,39 @@ const BEATS = [
     const g = ++gen; press(d => [...d.querySelectorAll('.bpill .head')].find(b => /Last-min/.test(b.textContent || '')));
     setTimeout(tail(g, () => m.openBriefTip('lastmin')), 130);
   },
-  // 35 — "Block the first two weeks of January" is typed into the chat and sent; the product blocks January 1–14, night by night
+  // 35 — "Block the first two weeks of January" is typed into the chat and sent; the product blocks January 1–14, night by night,
+  // and answers; a beat after the answer, the chat's ⨉ is tapped and it drops — one beat, start to finish (John, 2026-09-22)
   (m, instant) => {
     const jan = JAN(m);
     m.revealOffset = 0;   // the events fly-through parked its rows 120 under the header; the block lands January's first row 8 under the rule, its title in the header
-    const land = () => { m.setBlocked(true, 0, jan); };
+    const close = () => { m.clearSelection(); m.setSheet('none'); };
+    const land = () => { m.setBlocked(true, 0, jan); close(); };
     if (instant) { land(); return; }
     const g = ++gen; pendingTail = land;
-    typeAsk(g, ASK_BLOCK, () => { pendingTail = null; });
+    typeAsk(g, ASK_BLOCK, () => {
+      // the product strikes the nights one by one, then answers 1.5s on; once the last night is struck: the answer, a beat, the ⨉
+      const t0 = performance.now();
+      const poll = () => {
+        if (g !== gen) return;
+        if (jan.every(di => m.isBlocked(0, di)) || performance.now() - t0 > 15000) {
+          setTimeout(() => { if (g !== gen) return; press(d => [...d.querySelectorAll('.glassbtn')].find(b => (b.querySelector('path') || {}).getAttribute && /^M0 0l10 10/.test(b.querySelector('path').getAttribute('d') || '')));   // the chat's ⨉ (its glyph is the 10×10 cross)
+            setTimeout(tail(g, close), 130); }, 1500 + 900);
+        } else setTimeout(poll, 150);
+      };
+      poll();
+    });
   },
-  // 36 — the chat's ⨉, tapped: it drops, the puck still on the Ask
-  (m, instant) => {
-    if (instant) { m.setSheet('none'); return; }
-    const g = ++gen;
-    press(d => [...d.querySelectorAll('.glassbtn')].find(b => (b.querySelector('path') || {}).getAttribute && /^M0 0l10 10/.test(b.querySelector('path').getAttribute('d') || '')));   // the chat's ⨉ (its glyph is the 10×10 cross)
-    setTimeout(tail(g, () => { m.clearSelection(); m.setSheet('none'); }), 130);
-  },
-  // 37 — the end of the single flow: the phone moves left to make room and a second phone comes in from the right to stand
+  // 36 — the end of the single flow: the phone moves left to make room and a second phone comes in from the right to stand
   // beside it, 120px between — the LIST calendar (the multi is saved for later): the same collapsed top, a card a day. The new
   // views only flow in — no scrolling, no build of their own (John, 2026-09-22); each arrival shrinks the row a step.
   // The single keeps its collapsed September — all the phones wear the same collapsed top (John, 2026-09-22).
   (m, instant) => { setMulti(true, instant); },
-  // 38 — THREE UP: the pair slides left and a third phone comes in from the right — the YEAR view (Figma 5248:641919), twelve months
+  // 37 — THREE UP: the pair slides left and a third phone comes in from the right — the YEAR view (Figma 5248:641919), twelve months
   // two across, a dot a day — and all three scale down to stand side by side: the single, the list, the year (John, 2026-09-22).
   (m, instant) => { setStage('three', instant); },
-  // 39 — FOUR UP: a fourth phone comes in from the right — the DAY view (Figma 5248:642014, an experience host's hours) — and the
-  // four scale down to stand in a row: the single, the list, the year, the day — and every Ask circle is bare: the 3 pucks go.
-  (m, instant) => { setStage('four', instant); for (let n = 1; n <= 4; n++) { const mm = modelN(n); if (mm) mm.hidePuck(); } },
+  // 38 — FOUR UP: a fourth phone comes in from the right — the DAY view (Figma 5248:642014, an experience host's hours) — and the
+  // four scale down to stand in a row: the single, the list, the year, the day — and the single's Ask circle goes bare too: its 3 puck lifts off.
+  (m, instant) => { setStage('four', instant); m.hidePuck(); },
 ];
 const press2 = find => { const d = app2Doc(), el = d && find(d); if (!el) return null; el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 440); return el; };   // a scripted tap on the second phone
 const ASK_BLOCK = 'Block the first two weeks of January';
@@ -788,7 +794,7 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
-    setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } for (let n = 2; n <= 4; n++) { const mm = modelN(n); if (mm && !mm.puckOn) mm.showPuck(3); } for (const doc of [app2Doc(), app3Doc()]) { const v = doc && doc.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); } }   // the second phone back on its list, on today, its menu closed; the third on top
+    setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } for (const doc of [app2Doc(), app3Doc()]) { const v = doc && doc.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); } }   // the second phone back on its list, on today, its menu closed; the third on top
     m.setHeaderLock(false, false); m.hidePuck(); m.openBriefTip(null); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
