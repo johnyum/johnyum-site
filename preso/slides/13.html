@@ -621,8 +621,17 @@ const JAN = m => { const j = m.fx.index({ y: 2027, m: 1, d: 1 }); return Array.f
 function typeAsk(g, phrase, done) {
   const d = appDoc(), w = d && d.defaultView, ta = d && d.querySelector('textarea'); if (!ta) { done(); return; }
   const set = Object.getOwnPropertyDescriptor(w.HTMLTextAreaElement.prototype, 'value').set;
-  phrase.split('').forEach((ch, i) => setTimeout(() => { if (g !== gen) return; set.call(ta, phrase.slice(0, i + 1)); ta.dispatchEvent(new w.Event('input', { bubbles: true })); }, i * 45));
-  setTimeout(() => { if (g !== gen) return; ta.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); done(); }, phrase.length * 45 + 350);
+  // THE FIELD HAS FOCUS while the phrase is typed, so the product's keyboard comes up under it, and each key lights as its letter
+  // lands. The Enter is dispatched, not trusted, so the relay leaves it to the app — unfocused and trusted-looking, it once went
+  // up to the deck as a clicker press and fired the NEXT beat, which blocked January whole before the chat had scrolled there
+  // (John, 2026-09-22). The clicker keeps working meanwhile (__scriptedTyping), and the field lets go once the phrase is sent.
+  // focus() alone sets the app's activeElement but, the deck's window holding focus, fires no focus event — and the product's
+  // keyboard rises on that event. So it is dispatched as well (focusin: what React listens for), and the letting-go likewise.
+  w.__scriptedTyping = true; ta.focus(); ta.dispatchEvent(new w.FocusEvent('focusin', { bubbles: true }));
+  const KB_UP = 380;   // the keyboard's rise, then the first letter
+  const tap = k => { const el = d.querySelector('.ios-kb [data-key="' + k + '"]'); if (!el) return; el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 110); };
+  phrase.split('').forEach((ch, i) => setTimeout(() => { if (g !== gen) return; tap(ch.toLowerCase()); set.call(ta, phrase.slice(0, i + 1)); ta.dispatchEvent(new w.Event('input', { bubbles: true })); }, KB_UP + i * 45));
+  setTimeout(() => { if (g !== gen) return; tap('enter'); ta.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); w.__scriptedTyping = false; ta.blur(); ta.dispatchEvent(new w.FocusEvent('focusout', { bubbles: true })); done(); }, KB_UP + phrase.length * 45 + 350);
 }
 // THE TIPS: the five weeks after today. Tuesdays to Thursdays in the second and third weeks come down to $480; Fridays and
 // Saturdays in the first, third and fifth go up to $535 — a spread that reads as an advisor's, not a rule's, and one that
@@ -703,8 +712,9 @@ function typeKeys(keys, instant) {
 
     w.addEventListener('keydown', e => {
       if (!NAV.has(e.key)) return;
+      if (!e.isTrusted) return;                // a scripted key (typeAsk's Enter) is the app's alone — up to the deck it was a clicker press
       const el = w.document.activeElement;
-      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) && !w.__scriptedTyping) return;
       e.preventDefault();
       // to the DECK itself (window.top), not just the parent: this slide now lives inside 12b, and only the deck
       // and its top-level slide frame carry the key handler — a key relayed one level up would die here
@@ -729,6 +739,7 @@ function typeKeys(keys, instant) {
     const m = model();
     if (!m) return false;
     gen++;                                     // any beat still animating stops here
+    { const d = appDoc(); if (d) { d.defaultView.__scriptedTyping = false; const el = d.activeElement; if (el && el.blur) { el.blur(); el.dispatchEvent(new d.defaultView.FocusEvent('focusout', { bubbles: true })); } } }   // a phrase cut short lets the field (and its keyboard) go
     m.setHoldQuick(false);
     if (n === at + 1) {                        // FORWARD: a cascade cut short lands whole, then the next beat plays live
       if (pendingRun) { const s = new Set(m.selectedNights); for (let di = pendingRun.first; di <= pendingRun.last; di++) s.add(di); m.setSelectedNights(s); pendingRun = null; }
