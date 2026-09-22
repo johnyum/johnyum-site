@@ -261,7 +261,7 @@
           frame._loaded = true;
           if (dir < 0) { try { const end = frame.contentWindow.presoEnd; if (end) end(); } catch (_) {} }
           try {
-            frame.contentWindow.addEventListener('keydown', onKey);
+            hookKeys(frame.contentWindow);
             if (current && current.frame === frame) {
               document.body.classList.toggle('interactive', frame.contentWindow.presoInteractive === true);
               syncKicker(current);
@@ -380,7 +380,7 @@
     shown(current);
   }
   // a slide that plays something on arrival (the native multi) hears that it is on stage
-  function shown(made) { try { const w = made && made.frame && made.frame.contentWindow; if (w) w.dispatchEvent(new Event('presoshown')); } catch (_) {} }
+  function shown(made) { try { const w = made && made.frame && made.frame.contentWindow; if (w) { w.dispatchEvent(new Event('presoshown')); hookKeys(w); } } catch (_) {} }
   function snapFlight() {                 // complete the in-flight cut INSTANTLY
     if (!flight) return;
     clearTimeout(flight.timer);
@@ -482,8 +482,10 @@
     transitionTo(n, n > idx ? 1 : -1);
   }
 
+  const NAVKEYS = new Set(['ArrowRight', ' ', 'Enter', 'PageDown', 'ArrowDown', 'ArrowLeft', 'PageUp', 'ArrowUp', 'Home', 'End']);
   function onKey(e) {
     if (!SLIDES.length) return;
+    if (NAVKEYS.has(e.key)) { const t = performance.now(); if (t - lastKey < 40) { e.preventDefault(); return; } lastKey = t; }
     switch (e.key) {
       case 'ArrowRight': case ' ': case 'Enter': case 'PageDown': case 'ArrowDown':
         e.preventDefault(); navigate(1); break;
@@ -498,6 +500,38 @@
     }
   }
   addEventListener('keydown', onKey);
+
+  // Wherever the focus is, the clicker works. A slide is a frame, and some
+  // frames hold frames (12b holds 13, which holds the calendar apps): a key
+  // pressed with the focus in one of those documents — after a click on the
+  // phone's chrome, or coming back to the browser with the focus wherever the
+  // OS left it — never reached the deck, and the arrows died. Every same-origin
+  // document under the deck gets the handler, re-checked as frames load, when
+  // the window regains focus, and on a slow tick for frames made later (the
+  // three cloned phones). A key typed into a field stays the field's; an
+  // untrusted key is a slide's own relay or its scripted typing, and is left
+  // alone here (the relays already reach window.top). The same press arriving
+  // twice — once here, once relayed — is one press: a nav key within 40ms of
+  // the last is ignored.
+  let lastKey = 0;
+  function nestedKey(e) {
+    if (!e.isTrusted) return;
+    const el = e.target;
+    if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+    onKey(e);
+  }
+  function hookKeys(win) {
+    let doc; try { doc = win.document; } catch (_) { return; }
+    if (!doc) return;
+    if (!doc.__presoHooked) { doc.__presoHooked = true; if (win !== window) win.addEventListener('keydown', nestedKey); }
+    let frames; try { frames = doc.querySelectorAll('iframe'); } catch (_) { return; }
+    frames.forEach(f => {
+      if (!f.__presoWatched) { f.__presoWatched = true; f.addEventListener('load', () => hookKeys(f.contentWindow)); }
+      try { if (f.contentWindow) hookKeys(f.contentWindow); } catch (_) {}
+    });
+  }
+  addEventListener('focus', () => hookKeys(window));
+  setInterval(() => hookKeys(window), 1000);
 
   addEventListener('hashchange', () => {
     const h = parseInt(location.hash.slice(1), 10);
