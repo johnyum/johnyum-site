@@ -76,7 +76,9 @@
     setTimeout(() => { try { w.setDataMode('none', true); w.autoGroupByCity(false); } catch (_) {} landToday(); requestAnimationFrame(() => requestAnimationFrame(() => { landToday(); app.classList.add('ready'); })); }, 260);
     // the deck's keys keep working with focus inside the build
     const NAV = new Set(['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'PageUp', 'PageDown', 'Home', 'End', 'f', 'F']);
-    w.addEventListener('keydown', e => { if (!NAV.has(e.key) || !e.isTrusted) return; const el = d.activeElement; if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return; e.preventDefault(); window.top.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: e.code, bubbles: true })); });
+    // CAPTURED, and stopped: the build has arrow keys of its own (they page the dates), and with focus inside the frame a
+    // clicker press was driving both — the deck AND the calendar. The deck's keys never reach the build now (John, 2026-09-22).
+    w.addEventListener('keydown', e => { if (!NAV.has(e.key) || !e.isTrusted) return; const el = d.activeElement; if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return; e.preventDefault(); e.stopImmediatePropagation(); window.top.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: e.code, bubbles: true })); }, true);
   });
 
   // THE BEATS (John, 2026-09-22). Each has a forward (live, or instant for a replay) and a back. They call the build's own
