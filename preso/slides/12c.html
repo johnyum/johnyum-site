@@ -169,20 +169,34 @@
     //     DOWN to +65%, let go; then Apply. The drag is the build's own — pointer events on its master dot, 320px to 100%.
     { fwd: (w, instant) => {
         const d = w.document, press = el => { if (el) { el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 440); } };
-        const dot = d.querySelector('.ribbon-master-dot'), pct = () => { const p = d.querySelector('.ribbon-master-dot .rmd-pct'); return p ? parseInt(p.textContent.replace(/[^\d-]/g, ''), 10) : NaN; };
+        const dot = () => d.querySelector('.ribbon-master-dot'), pct = () => { const p = d.querySelector('.ribbon-master-dot .rmd-pct'); return p ? parseInt(p.textContent.replace(/[^\d-]/g, ''), 10) : NaN; };
         const applyBtn = () => d.querySelector('#magicPill [data-magic="apply"]');
-        if (!dot || instant) { const b = applyBtn(); if (b) b.click(); return; }
-        const r = dot.getBoundingClientRect(); let x = r.left + r.width / 2, y = r.top + r.height / 2;
+        if (instant) { const b = applyBtn(); if (b) b.click(); return; }
+        let x = 0, y = 0;
         const pe = (type, target, extra) => target.dispatchEvent(new w.PointerEvent(type, Object.assign({ bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', isPrimary: true, clientX: x, clientY: y, button: 0, buttons: 1 }, extra || {})));
-        pe('pointerdown', dot);
+        // THE RIBBON REBUILDS ITSELF after the fly-in and as the band scrolls, so the handle is taken only once it has stood
+        // still, and taken AGAIN, fresh, if the number stops answering the drag (the old handle was replaced under it)
+        const grab = () => { const el = dot(); if (!el) return false; const r = el.getBoundingClientRect(); x = r.left + r.width / 2; y = r.top + r.height / 2; pe('pointerdown', el); return true; };
         const STEP = 3, TICK = 16;   // 3px a frame: ~1% a frame, the numbers counting as it goes
-        const glide = (want, dir, then) => { const tick = () => { const v = pct(); if (isNaN(v) || (dir < 0 ? v >= want : v <= want)) { then(); return; } y += dir * STEP; pe('pointermove', w, { buttons: 1 }); setTimeout(tick, TICK); }; tick(); };
-        glide(115, -1, () => setTimeout(() => glide(65, 1, () => {
-          pe('pointerup', w, { buttons: 0 });
-          setTimeout(() => { const b = applyBtn(); press(b); setTimeout(() => { if (b) b.click(); }, 130); }, 700);
-        }), 900));
+        const glide = (want, dir, then) => { let last = NaN, still = 0, n = 0; const tick = () => {
+          const v = pct(); if (isNaN(v) || (dir < 0 ? v >= want : v <= want) || ++n > 600) { then(); return; }
+          if (v === last) { if (++still > 12) { pe('pointerup', w, { buttons: 0 }); grab(); still = 0; } } else still = 0; last = v;
+          y += dir * STEP; pe('pointermove', w, { buttons: 1 }); setTimeout(tick, TICK); }; tick(); };
+        const finish = () => { pe('pointerup', w, { buttons: 0 }); setTimeout(() => { const b = applyBtn(); press(b); setTimeout(() => { if (b) b.click(); }, 130); }, 700); };
+        // wait for the handle to stand still (its number unchanged for 400ms), then go
+        let seen = NaN, t0 = Date.now(); const ready = () => { const v = pct(); if (!isNaN(v) && v === seen) { if (!grab()) { finish(); return; } glide(115, -1, () => setTimeout(() => glide(65, 1, finish), 900)); return; } seen = v; if (Date.now() - t0 < 6000) setTimeout(ready, 400); else finish(); };
+        setTimeout(ready, 400);
       },
       back: w => { ev(w, "exitOptimize(); startOptimize();"); } },
+    // 9 — Turn on, tapped, for Automate events and holidays: the build's sweep runs behind the modal, then it goes
+    { fwd: (w, instant) => {
+        const d = w.document, on = d.getElementById('lmUpsellOn');
+        if (!on) return;
+        if (instant) { on.click(); return; }
+        on.classList.add('pressing'); setTimeout(() => on.classList.remove('pressing'), 440);
+        setTimeout(() => on.click(), 130);
+      },
+      back: w => { const d = w.document, o = d.getElementById('lmUpsellOverlay'); if (o) o.classList.add('visible'); } },
   ];
   let at = 0, pendingRestore = 0;   // a restore asked for before the build stands ready waits for it, and is applied before any tap
   const runTo = n => { for (; at < Math.min(n, BEATS.length); at++) BEATS[at].fwd(W(), true); };
