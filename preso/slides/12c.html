@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>12c</title>
 <!-- THE BIG WEB BUILD (John, 2026-09-22). After the four-up: the desktop Multi-Host Calendar — /multi/, the web app the iOS
-     replica was made from — live and tappable, in a 1440 × 900 bounding box scaled to fit the stage. No build here: the deck
+     replica was made from — live and tappable, in a 1440-wide bounding box scaled to the stage, 32 clear of the deck's type above and below and of the edges. No build here: the deck
      pushes straight through. -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
@@ -28,8 +28,10 @@
   const fit = () => {
     let top = 56, bottom = innerHeight - 56;
     try { const pd = window.parent.document, k = pd.getElementById('kicker'), c = pd.getElementById('counter'); if (k) top = k.getBoundingClientRect().bottom + 32; if (c) bottom = c.getBoundingClientRect().top - 32; } catch (_) {}
-    const bandH = Math.max(200, bottom - top), s = Math.min(innerWidth * 0.92 / 1440, bandH / 900);
-    box.style.setProperty('--s', s.toFixed(4));
+    // 32 at the sides too: the box is 1440 wide scaled to the width less 64, and as TALL as the band leaves — the web app
+    // fills whatever height it is given — so the 32 above and below always hold, whatever the stage's shape
+    const bandH = Math.max(200, bottom - top), s = Math.min(1, (innerWidth - 64) / 1440);
+    box.style.height = (bandH / s).toFixed(1) + 'px';
     box.style.transform = `translateY(${((top + bottom) / 2 - innerHeight / 2).toFixed(1)}px) scale(${s.toFixed(4)})`;
   };
   fit(); addEventListener('resize', fit); setTimeout(fit, 300);
@@ -47,6 +49,7 @@
     try { w.switchHost('pro', true); } catch (_) {}
     try { w.autoGroupByCity(false); } catch (_) {}
     try { w.setDataMode('none', true); } catch (_) {}
+    setTimeout(() => { try { w.scrollCalendarToToday(false); } catch (_) {} }, 60);   // and on today, instantly — the tier switch lands the grid on its first month
     // the deck's keys keep working with focus inside the build
     const NAV = new Set(['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'PageUp', 'PageDown', 'Home', 'End', 'f', 'F']);
     w.addEventListener('keydown', e => { if (!NAV.has(e.key) || !e.isTrusted) return; const el = d.activeElement; if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return; e.preventDefault(); window.top.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: e.code, bubbles: true })); });

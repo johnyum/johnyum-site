@@ -290,6 +290,23 @@
     document.getElementById('kicker').textContent = label;
   }
 
+  // THE NEXT SLIDE IS BUILT AHEAD (John, 2026-09-22). A heavy HTML slide — the web build is 1.4MB and renders 32 rows several
+  // times as it sets itself up — used to be created only on the tap that reached it, and the deck stalled on the main thread
+  // while it parsed and rendered. Now, once a slide has settled, the NEXT HTML slide's pane is created at once, hidden and in
+  // place, so by the tap it has loaded and painted; the tap just reveals it and pushes. Anything else — a jump, a step back —
+  // discards it.
+  let prepared = null;   // { i, made }
+  function discardPrepared() { if (prepared) { prepared.made.pane.remove(); prepared = null; } }
+  function prepareNext(i) {
+    if (prepared && prepared.i === i) return;
+    discardPrepared();
+    if (i < 0 || i >= SLIDES.length || !HTML.test(SLIDES[i])) return;
+    const made = makePane(i, 1);
+    made.pane.style.visibility = 'hidden';   // in place, unseen and untouchable — a slide that measures itself on load (12b) measures true geometry
+    stage.appendChild(made.pane);
+    prepared = { i, made };
+  }
+
   function settle(i, made) {
     current = made;
     idx = i;
@@ -300,6 +317,7 @@
     history.replaceState(null, '', '#' + (i + 1));
     flashCounter();
     preload(i + 1); preload(i + 2); preload(i - 1);
+    setTimeout(() => { if (idx === i && !flight) prepareNext(i + 1); }, DUR + 300);   // once this push has landed
   }
 
   function show(i) {                      // first paint: no motion
@@ -339,9 +357,11 @@
 
   async function transitionTo(i, dir) {   // the push: off one way, land centre
     const outgoing = current;
-    const made = makePane(i, dir);
+    let made;
+    if (prepared && prepared.i === i && dir > 0) { made = prepared.made; prepared = null; made.pane.style.visibility = ''; }   // built ahead: reveal it
+    else { discardPrepared(); made = makePane(i, dir); stage.appendChild(made.pane); }
     made.pane.style.transform = 'translateX(' + (dir > 0 ? 100 : -100) + '%)';
-    stage.appendChild(made.pane);
+    void made.pane.offsetWidth;   // the prepared pane sat at 0: its jump to the wing must land before the transition is set
     const token = flight = { out: outgoing, inc: made, fromIdx: idx, toIdx: i, dir, timer: 0 };
     settle(i, made);
     await made.ready;
