@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12d1</title>
+<!-- THE DESIGN SYSTEM — one sheet of every piece the calendars are built from.
+
+     After the native multi phone (12d) and before Lesson 3: the pieces come out of the product and stand on a white
+     sheet, numbered — the date cells in every state (the moving ones looping), the guest pills on both calendars, the
+     drawn events and holidays, one specimen from each view at its true size, and the chrome.
+
+     They are the app's OWN components under the app's OWN stylesheet: the sheet is the calendar served at
+     /multical/?sampler=1, which renders the real DayCell, the real .spill, the real .lrow — framed here and scaled to
+     fill the stage. Nothing is redrawn, so nothing can drift from the build.
+
+     No build of its own: the deck pushes straight through. -->
+<style>
+  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
+  /* flex, not grid: the sheet is taller than the frame before its scale, and a grid row grows to hold it — flex keeps its centre on the frame's */
+  .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  /* the sheet lays itself out at its own size; JS below reads that size and scales the box to the stage */
+  .sheet { position: relative; flex: none; width: 2280px; height: 1380px; transform: scale(var(--s, 1)); transform-origin: center; opacity: 0; transition: opacity .35s; }
+  .sheet.ready { opacity: 1; }
+  .sheet iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="sheet" id="sheet"><iframe id="cells" title="The design system"></iframe></div></div>
+<script>
+(() => {
+  const v = new URLSearchParams(location.search).get('v');
+  const frame = document.getElementById('cells'), sheet = document.getElementById('sheet');
+  frame.src = '/multical/?sampler=1&preso=1&today=2026-09-09' + (v ? '&v=' + v : '');
+  let W = 2280, H = 1380;
+  // THE SHEET KEEPS ITS DISTANCE from the deck's own type: 40 under the kicker ("John Yum · Work") and 40 above the
+  // section nav, the same clearance the web build's box keeps (12c).
+  const band = () => {
+    let top = 0, bottom = innerHeight;
+    try { const pd = window.parent.document, k = pd.getElementById('kicker'), c = pd.getElementById('counter');
+          if (k) top = k.getBoundingClientRect().bottom + 40; if (c) bottom = c.getBoundingClientRect().top - 40; } catch (_) {}
+    return Math.max(200, bottom - top);
+  };
+  const fit = () => { const s = Math.min((innerWidth - 64) / W, band() / H); if (s > 0) sheet.style.setProperty('--s', s.toFixed(4)); };
+  fit(); addEventListener('resize', fit);
+  // THE SHEET SIZES ITSELF. Its width comes from the sections' own content, so rather than hold a number here that
+  // would drift the moment a specimen is added, the box takes the size the sheet reports and re-takes it while the
+  // drawn marks and the guests' faces land (they can widen a row). Measured for two seconds, then left alone.
+  const measure = () => {
+    let d; try { d = frame.contentDocument; } catch (_) { return false; }
+    const el = d && d.querySelector('.ds'); if (!el) return false;
+    const r = el.getBoundingClientRect(); if (!r.width || !r.height) return false;
+    if (Math.abs(r.width - W) > 1 || Math.abs(r.height - H) > 1) {
+      W = Math.round(r.width); H = Math.round(r.height);
+      sheet.style.width = W + 'px'; sheet.style.height = H + 'px'; fit();
+    }
+    return true;
+  };
+  const t0 = Date.now();
+  const tick = () => { const got = measure(); if (got) sheet.classList.add('ready'); if (Date.now() - t0 < 2400) setTimeout(tick, 120); };
+  frame.addEventListener('load', tick); setTimeout(tick, 300);
+})();
+</script>
+</body>
+</html>
