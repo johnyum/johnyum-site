@@ -10,7 +10,7 @@
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
-  .box { position: relative; flex: none; width: 1440px; height: 900px; transform: scale(var(--s, 1)); transform-origin: center; border-radius: 32px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,.08), 0 24px 60px rgba(0,0,0,.14); background: #fff; }
+  .box { position: relative; flex: none; width: 1440px; height: 900px; transform-origin: center; border-radius: 32px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,.08), 0 24px 60px rgba(0,0,0,.14); background: #fff; }
   .box iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
 </style>
 </head>
@@ -20,10 +20,44 @@
 (() => {
   window.presoInteractive = true;   // the calendar is the product: tappable; the rails and the keys drive the deck
   const v = new URLSearchParams(location.search).get('v');
-  document.getElementById('app').src = '/multi/' + (v ? '?v=' + v : '');
+  const app = document.getElementById('app');
+  app.src = '/multi/' + (v ? '?v=' + v : '');
+  // THE BOX KEEPS ITS DISTANCE from the deck's own type: 32 under the kicker ("John Yum · Work") and 32 above the counter
+  // ("16 / 16") — read from the deck itself, so the band the box fills is exactly what those two leave (John, 2026-09-22).
   const box = document.getElementById('box');
-  const fit = () => box.style.setProperty('--s', Math.min(innerWidth * 0.92 / 1440, innerHeight * 0.92 / 900).toFixed(4));
-  fit(); addEventListener('resize', fit);
+  const fit = () => {
+    let top = 56, bottom = innerHeight - 56;
+    try { const pd = window.parent.document, k = pd.getElementById('kicker'), c = pd.getElementById('counter'); if (k) top = k.getBoundingClientRect().bottom + 32; if (c) bottom = c.getBoundingClientRect().top - 32; } catch (_) {}
+    const bandH = Math.max(200, bottom - top), s = Math.min(innerWidth * 0.92 / 1440, bandH / 900);
+    box.style.setProperty('--s', s.toFixed(4));
+    box.style.transform = `translateY(${((top + bottom) / 2 - innerHeight / 2).toFixed(1)}px) scale(${s.toFixed(4)})`;
+  };
+  fit(); addEventListener('resize', fit); setTimeout(fit, 300);
+
+  // THE FLOW (John, 2026-09-22). The web build opens PRISTINE — its own New Host mode: every night at base rate, no bookings,
+  // so no guest pills and none of a guest's questions — 32 homes, ungrouped; its dev bar and its tips pill put away. The beats
+  // below step it on.
+  const W = () => app.contentWindow;
+  app.addEventListener('load', () => {
+    const w = W(), d = w.document;
+    const seal = d.createElement('style');
+    seal.textContent = '#devBar{display:none!important}' + '#magicPill{display:none!important}';
+    d.head.appendChild(seal);
+    // 32 homes, ungrouped, New Host: the pro tier, the city groups off, then the fresh sheet (John, 2026-09-22)
+    try { w.switchHost('pro', true); } catch (_) {}
+    try { w.autoGroupByCity(false); } catch (_) {}
+    try { w.setDataMode('none', true); } catch (_) {}
+    // the deck's keys keep working with focus inside the build
+    const NAV = new Set(['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'PageUp', 'PageDown', 'Home', 'End', 'f', 'F']);
+    w.addEventListener('keydown', e => { if (!NAV.has(e.key) || !e.isTrusted) return; const el = d.activeElement; if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return; e.preventDefault(); window.top.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: e.code, bubbles: true })); });
+  });
+
+  // beats are added as John calls them; each is (w, instant) — w the build's window
+  const BEATS = [];
+  let at = 0;
+  window.presoNext = () => { if (at >= BEATS.length) return false; BEATS[at](W(), false); at++; return true; };
+  window.presoPrev = () => { if (at <= 0) return false; at--; return true; };
+  window.presoEnd = () => { for (; at < BEATS.length; at++) BEATS[at](W(), true); };
 })();
 </script>
 </body>
