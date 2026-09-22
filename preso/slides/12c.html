@@ -55,7 +55,11 @@
       // rows all follow, per the build's own row-height contract.
       + 'body.host-pro:not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .price-row{height:48px}'
       + 'body.host-pro:not(.super-collapse-2) .thumb-row{height:48px}'
-      + 'body.host-pro .settings-row{height:48px}';
+      + 'body.host-pro .settings-row{height:48px}'
+      // the beats' own looks: a menu item's press, and the guests' entrance
+      + '.tb-menu-item.pressing{background:var(--grey-200,#e8e8e8)}'
+      + '@keyframes preso-pill-in{from{opacity:0;transform:translateY(-50%) scale(.92)}to{opacity:1;transform:translateY(-50%) scale(1)}}'
+      + 'body.preso-pills-in .booking-pill{animation:preso-pill-in .5s cubic-bezier(.2,.8,.2,1) both}';
     d.head.appendChild(seal);
     // 32 homes, ungrouped, New Host: the pro tier, the city groups off, then the fresh sheet (John, 2026-09-22)
     try { w.switchHost('pro', true); } catch (_) {}
@@ -75,12 +79,34 @@
     w.addEventListener('keydown', e => { if (!NAV.has(e.key) || !e.isTrusted) return; const el = d.activeElement; if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return; e.preventDefault(); window.top.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: e.code, bubbles: true })); });
   });
 
-  // beats are added as John calls them; each is (w, instant) — w the build's window
-  const BEATS = [];
+  // THE BEATS (John, 2026-09-22). Each has a forward (live, or instant for a replay) and a back. They call the build's own
+  // functions, so every step is the product's own state change.
+  const ev = (w, code) => { try { return w.eval(code); } catch (_) { return undefined; } };
+  const BEATS = [
+    // 1 — the ⋯ menu, opened; Group, taken: the rows re-sort into their cities with the build's own FLIP — tiles trading
+    //     places round by round — and NOT its thinking dots (applyGroupingLive, not animateGroupsByCity)
+    { fwd: (w, instant) => {
+        const d = w.document, menu = d.getElementById('tbMenu');
+        if (instant) { ev(w, "groups.length = 0; smartGroups().forEach(g => groups.push(g)); saveGroups(); renderGroups(); applyGroupsToCalendar();"); return; }
+        d.getElementById('tbMoreBtn').click();                                   // the menu drops
+        setTimeout(() => { const item = d.querySelector('[data-more="grouping"]'); if (item) item.classList.add('pressing'); }, 700);
+        setTimeout(() => { menu.classList.remove('open'); d.getElementById('tbMoreBtn').setAttribute('aria-expanded', 'false'); ev(w, "applyGroupingLive()"); }, 900);
+      },
+      back: w => { ev(w, "groups.length = 0; groups.push({ name: 'Group 1', members: [] }); saveGroups(); renderGroups(); applyGroupsToCalendar();"); } },
+    // 2 — the guests come in: bookings on (the build's own toggle), every pill fading up into its row
+    { fwd: (w, instant) => {
+        const d = w.document, bk = d.getElementById('devBookings');
+        if (!instant) { d.body.classList.add('preso-pills-in'); setTimeout(() => d.body.classList.remove('preso-pills-in'), 1400); }
+        bk.checked = true; bk.dispatchEvent(new w.Event('change'));
+      },
+      back: w => { const d = w.document, bk = d.getElementById('devBookings'); bk.checked = false; bk.dispatchEvent(new w.Event('change')); } },
+  ];
   let at = 0;
-  window.presoNext = () => { if (at >= BEATS.length) return false; BEATS[at](W(), false); at++; return true; };
-  window.presoPrev = () => { if (at <= 0) return false; at--; return true; };
-  window.presoEnd = () => { for (; at < BEATS.length; at++) BEATS[at](W(), true); };
+  window.presoNext = () => { if (at >= BEATS.length) return false; BEATS[at].fwd(W(), false); at++; return true; };
+  window.presoPrev = () => { if (at <= 0) return false; at--; BEATS[at].back(W()); return true; };
+  window.presoEnd = () => { for (; at < BEATS.length; at++) BEATS[at].fwd(W(), true); };
+  window.presoState = () => at;
+  window.presoRestore = n => { const go = () => { if (app.classList.contains('ready')) { for (; at < Math.min(n, BEATS.length); at++) BEATS[at].fwd(W(), true); } else setTimeout(go, 100); }; go(); };
 })();
 </script>
 </body>
