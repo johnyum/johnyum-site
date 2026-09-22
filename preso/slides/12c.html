@@ -83,7 +83,9 @@
     const NAV = new Set(['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'PageUp', 'PageDown', 'Home', 'End', 'f', 'F']);
     // CAPTURED, and stopped: the build has arrow keys of its own (they page the dates), and with focus inside the frame a
     // clicker press was driving both — the deck AND the calendar. The deck's keys never reach the build now (John, 2026-09-22).
-    w.addEventListener('keydown', e => { if (!NAV.has(e.key) || !e.isTrusted) return; const el = d.activeElement; if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return; e.preventDefault(); e.stopImmediatePropagation(); window.top.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: e.code, bubbles: true })); }, true);
+    // ALWAYS — even with one of the build's inputs focused (the Price menu focuses its field as it opens, and that once left the
+    // clicker dead from that beat on): nothing in this flow is typed by the presenter, so every deck key goes up (John, 2026-09-22).
+    w.addEventListener('keydown', e => { if (!NAV.has(e.key) || !e.isTrusted) return; e.preventDefault(); e.stopImmediatePropagation(); window.top.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: e.code, bubbles: true })); }, true);
   });
 
   // THE BEATS (John, 2026-09-22). Each has a forward (live, or instant for a replay) and a back. They call the build's own
@@ -126,7 +128,7 @@
         setTimeout(() => { press('#maPill [data-act="edit-price"]'); }, 1400);
         setTimeout(() => ev(w, "openPriceMenu()"), 1530);
         const inp = () => d.getElementById('priceMenuInput'), set = Object.getOwnPropertyDescriptor(w.HTMLInputElement.prototype, 'value').set;
-        ['2', '25', '250'].forEach((v, i) => setTimeout(() => { const el = inp(); if (!el) return; set.call(el, '$' + v); el.dispatchEvent(new w.Event('input', { bubbles: true })); }, 2300 + i * 160));
+        ['2', '25', '250'].forEach((v, i) => setTimeout(() => { const el = inp(); if (!el) return; set.call(el, '$' + v); el.dispatchEvent(new w.Event('input', { bubbles: true })); if (i === 2) setTimeout(() => { try { el.blur(); } catch (_) {} }, 200); }, 2300 + i * 160));   // and the field lets go once the figure is in
       },
       back: w => { ev(w, "closePriceMenu(); closeAvailMenu(); selectedLiDi().forEach(({ li, di }) => { delete priceOverride[li][di]; }); refreshCalendarPrices();"); } },
     // 5 — Save, tapped: the price menu closes and the selection lets go, the bar folding away; a beat after it has gone, the Tips
