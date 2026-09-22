@@ -186,25 +186,26 @@
           y += dir * STEP; pe('pointermove', w, { buttons: 1 }); setTimeout(tick, TICK); }; tick(); };
         const finish = () => { pe('pointerup', w, { buttons: 0 }); setTimeout(() => { const b = applyBtn(); press(b); setTimeout(() => { if (b) b.click(); }, 130); }, 700); };
         // wait for the handle to stand still (its number unchanged for 400ms), then go
-        let seen = NaN, t0 = Date.now(); const ready = () => { const v = pct(); if (!isNaN(v) && v === seen) { if (!grab()) { finish(); return; } glide(115, -1, () => setTimeout(() => glide(65, 1, finish), 900)); return; } seen = v; if (Date.now() - t0 < 6000) setTimeout(ready, 400); else finish(); };
+        let seen = NaN, t0 = Date.now(); const ready = () => { const v = pct(); if (!isNaN(v) && v === seen) { if (!grab()) { finish(); return; } glide(115, -1, () => setTimeout(() => glide(65, 1, finish), 900)); return; } seen = v; if (Date.now() - t0 < 12000) setTimeout(ready, 400); else finish(); };
         setTimeout(ready, 400);
       },
       back: w => { ev(w, "exitOptimize(); startOptimize();"); } },
     // 9 — Turn on, tapped, for Automate events and holidays: the build's sweep runs behind the modal, then it goes
     { fwd: (w, instant) => {
-        const d = w.document, on = d.getElementById('lmUpsellOn');
-        if (!on) return;
-        if (instant) { on.click(); return; }
-        on.classList.add('pressing'); setTimeout(() => on.classList.remove('pressing'), 440);
-        setTimeout(() => on.click(), 130);
+        const d = w.document, on = () => d.getElementById('lmUpsellOn'), up = () => { const o = d.getElementById('lmUpsellOverlay'); return !!(o && o.classList.contains('visible')); };
+        // a tap that lands while the drag before is still running: wait for the modal to be up (up to 15s), then Turn on
+        const t0 = Date.now(); const go = () => { if (!up() && Date.now() - t0 < 15000) { setTimeout(go, 120); return; } const b = on(); if (!b) return; if (instant) { b.click(); return; } b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440); setTimeout(() => b.click(), 130); };
+        go();
       },
       back: w => { const d = w.document, o = d.getElementById('lmUpsellOverlay'); if (o) o.classList.add('visible'); } },
   ];
   let at = 0, pendingRestore = 0;   // a restore asked for before the build stands ready waits for it, and is applied before any tap
-  const runTo = n => { for (; at < Math.min(n, BEATS.length); at++) BEATS[at].fwd(W(), true); };
+  const runTo = n => { for (; at < Math.min(n, BEATS.length); at++) { const b = BEATS[at]; try { b.fwd(W(), true); } catch (e) { console.warn('beat failed', e); } } };
   const settleRestore = () => { if (pendingRestore && app.classList.contains('ready')) { const n = pendingRestore; pendingRestore = 0; runTo(n); } };
-  window.presoNext = () => { settleRestore(); if (at >= BEATS.length) return false; BEATS[at].fwd(W(), false); at++; return true; };
-  window.presoPrev = () => { settleRestore(); if (at <= 0) return false; at--; BEATS[at].back(W()); return true; };
+  // a beat that throws must never freeze the deck: the step is counted whatever happened inside it
+  const safe = fn => { try { fn(); } catch (e) { console.warn('beat failed', e); } };
+  window.presoNext = () => { settleRestore(); if (at >= BEATS.length) return false; const b = BEATS[at]; at++; safe(() => b.fwd(W(), false)); return true; };
+  window.presoPrev = () => { settleRestore(); if (at <= 0) return false; at--; safe(() => BEATS[at].back(W())); return true; };
   window.presoEnd = () => { settleRestore(); runTo(BEATS.length); };
   window.presoState = () => Math.max(at, pendingRestore);
   window.presoRestore = n => { pendingRestore = n; settleRestore(); };
