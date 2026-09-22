@@ -39,9 +39,14 @@
      the left and the multi comes in from the right to stand beside it — the two calendars side by side, 120px between,
      centred as a pair — on the deck's own push curve. body.notrans cuts the motion for a replay. */
   .slide > .phone { grid-area: 1 / 1; transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1); }
-  .phone.two { transform: translateX(100vw); }
+  .phone.two, .phone.three { transform: translateX(100vw); }
   body.multi .phone.one { transform: translateX(calc(-50% - 60px)); }
   body.multi .phone.two { transform: translateX(calc(50% + 60px)); }
+  /* THREE UP (John, 2026-09-22): the single, the list and the year side by side, all three scaled down to fit — --s3 and
+     --dx3 (a scaled phone's width plus the gap) are set by JS from the viewport. */
+  body.three .phone.one { transform: translateX(calc(-1 * var(--dx3))) scale(var(--s3)); }
+  body.three .phone.two { transform: scale(var(--s3)); }
+  body.three .phone.three { transform: translateX(var(--dx3)) scale(var(--s3)); }
   body.notrans .slide > .phone { transition: none; }
 
 
@@ -128,7 +133,7 @@
      32pt gap in JS, so raising one slides it off the other and the puck's tip
      card comes out from behind the bar. 21pt off the glass is the app's own
      design, tuned against that 32. */
-  .app, .app2 {
+  .app, .app2, .app3 {
     /* THE FRAME SPANS THE WHOLE HOLE (John, 2026-09-21): top 0, the full 812 — and the app's own .phone is pushed down 56
        (64.2 of its px, injected below) so its Today pill still sits 21 clear of the island. Why: a scrim inside the app can
        then cover the status band and the calendar as ONE layer. Two scrims meeting at the frame's edge — one the slide's,
@@ -245,12 +250,16 @@
     // its guests and events in, the wand button at the bottom right. (The multi board, ?multi=1, is saved for later.) It loads
     // now, off to the right, so the beat only has to slide it in.
     (() => {
-      const one = document.querySelector('.phone.one'), two = one.cloneNode(true);
-      two.classList.replace('one', 'two');
-      const f = two.querySelector('.app'); f.classList.replace('app', 'app2'); f.title = 'Multi-Host Calendar — multi';
-      two.querySelector('script').remove();
-      const v = new URLSearchParams(location.search).get('v'); f.src = '/multical/?today=2026-09-09&preso=1&list=1' + (v ? '&v=' + v : '');   // the LIST calendar for now (John, 2026-09-22); the multi (&multi=1) is saved for later
-      one.parentNode.appendChild(two);
+      const one = document.querySelector('.phone.one'), v = new URLSearchParams(location.search).get('v');
+      const clone = (name, cls, query, title) => {
+        const ph = one.cloneNode(true); ph.classList.replace('one', name);
+        const f = ph.querySelector('.app'); f.classList.replace('app', cls); f.title = title;
+        ph.querySelector('script').remove();
+        f.src = '/multical/?today=2026-09-09&preso=1&' + query + (v ? '&v=' + v : '');
+        one.parentNode.appendChild(ph);
+      };
+      clone('two', 'app2', 'list=1', 'Multi-Host Calendar — list');    // the LIST calendar (John, 2026-09-22); the multi (multi=1) is saved for later
+      clone('three', 'app3', 'year=1', 'Multi-Host Calendar — year');  // the YEAR view, the third phone
     })();
   </script>
 
@@ -628,20 +637,9 @@ const BEATS = [
     const d = app2Doc(), v = d && d.querySelector('.vscroll'); if (!v) return;
     v.scrollTo({ top: v.scrollTop + LIST_SCROLL, behavior: instant ? 'auto' : 'smooth' });
   },
-  // 39 — the list's Layers tile, tapped: its menu — Month · List · Year — with the check on List
-  (m, instant) => {
-    const m2 = model2(); if (!m2) return;
-    if (instant) { m2.setViewsMenu(true); return; }
-    const g = ++gen; press2(d => d.querySelector('.layers-tile'));
-    setTimeout(tail(g, () => m2.setViewsMenu(true)), 130);
-  },
-  // 40 — Year, tapped: the YEAR view (Figma 5248:641919) — twelve months two across, a dot a day, the stays small pills, the events their icons
-  (m, instant) => {
-    const m2 = model2(); if (!m2) return;
-    if (instant) { m2.setCalendarMode('year'); return; }
-    const g = ++gen; press2(d => d.querySelector('.views-menu .views-year'));
-    setTimeout(tail(g, () => m2.setCalendarMode('year')), 130);
-  },
+  // 39 — THREE UP: the pair slides left and a third phone comes in from the right — the YEAR view (Figma 5248:641919), twelve months
+  // two across, a dot a day — and all three scale down to stand side by side: the single, the list, the year (John, 2026-09-22).
+  (m, instant) => { setStage('three', instant); },
 ];
 const press2 = find => { const d = app2Doc(), el = d && find(d); if (!el) return null; el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 440); return el; };   // a scripted tap on the second phone
 const LIST_SCROLL = 10 * 80;   // ten cards, at the list's 80 stride
@@ -692,8 +690,12 @@ const settled = (g, fn) => {
 const appDoc = () => { try { return document.querySelector('.app').contentDocument; } catch (_) { return null; } };
 const app2Doc = () => { try { return document.querySelector('.app2').contentDocument; } catch (_) { return null; } };   // the second phone's (the multi calendar)
 const model2 = () => { try { return document.querySelector('.app2').contentWindow.__model; } catch (_) { return null; } };
+const app3Doc = () => { try { return document.querySelector('.app3').contentDocument; } catch (_) { return null; } };   // the third phone's (the year view)
 // The phones' places: the single on centre, or (the last beat) the single off left and the multi on centre. A replay cuts there.
-const setMulti = (on, instant) => { const b = document.body; if (instant) b.classList.add('notrans'); b.classList.toggle('multi', on); if (instant) { void b.offsetWidth; requestAnimationFrame(() => b.classList.remove('notrans')); } };
+const setMulti = (on, instant) => setStage(on ? 'multi' : '', instant);
+const setStage = (stage, instant) => { const b = document.body; if (instant) b.classList.add('notrans'); b.classList.toggle('multi', stage === 'multi'); b.classList.toggle('three', stage === 'three'); if (instant) { void b.offsetWidth; requestAnimationFrame(() => b.classList.remove('notrans')); } };
+// three up: the phones scale to fit three across with a gap between, centred; --dx3 is one scaled phone plus the gap
+(() => { const GAP = 48; const fit = () => { const ph = document.querySelector('.phone.one'); if (!ph) return; const W = ph.offsetWidth; /* layout width: a transform never touches it */ const s = Math.min(1, (innerWidth * 0.94 - 2 * GAP) / (3 * W)); document.documentElement.style.setProperty('--s3', s.toFixed(4)); document.documentElement.style.setProperty('--dx3', (W * s + GAP).toFixed(2) + 'px'); }; addEventListener('resize', fit); addEventListener('DOMContentLoaded', fit); fit(); })();
 // CADENCE: a finger moving to a new key takes 460ms; the same key tapped again (⌫ ⌫ ⌫) comes 200ms after the last —
 // a thumb drumming one button, not three considered presses (John, 2026-09-21).
 const KEY_GAP = 460, REPEAT_GAP = 200;
@@ -726,7 +728,7 @@ function typeKeys(keys, instant) {
 // than the key.
 (() => {
   const NAV = new Set(['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'PageUp', 'PageDown', 'Home', 'End', 'f', 'F']);
-  for (const app of document.querySelectorAll('.app, .app2')) app.addEventListener('load', () => {
+  for (const app of document.querySelectorAll('.app, .app2, .app3')) app.addEventListener('load', () => {
     const w = app.contentWindow;
     // NOTHING SHOWS THROUGH THE HEADER. The app hides the month scrolling under
     // its title with a white .cover strip, but the strip's edges land on
@@ -778,7 +780,7 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
-    setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } const d = app2Doc(), v = d && d.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); }   // the second phone back on its list, on today, its menu closed
+    setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } for (const doc of [app2Doc(), app3Doc()]) { const v = doc && doc.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); } }   // the second phone back on its list, on today, its menu closed; the third on top
     m.setHeaderLock(false, false); m.hidePuck(); m.openBriefTip(null); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
