@@ -40,10 +40,11 @@
      centred as a pair — on the deck's own push curve. body.notrans cuts the motion for a replay. */
   .slide > .phone { grid-area: 1 / 1; transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1); }
   .phone.two, .phone.three { transform: translateX(100vw); }
-  body.multi .phone.one { transform: translateX(calc(-50% - 60px)); }
-  body.multi .phone.two { transform: translateX(calc(50% + 60px)); }
-  /* THREE UP (John, 2026-09-22): the single, the list and the year side by side, all three scaled down to fit — --s3 and
-     --dx3 (a scaled phone's width plus the gap) are set by JS from the viewport. */
+  body.multi .phone.one { transform: translateX(calc(-0.5 * var(--dx2))) scale(var(--s2)); }
+  body.multi .phone.two { transform: translateX(calc(0.5 * var(--dx2))) scale(var(--s2)); }
+  /* THE ROW GROWS (John, 2026-09-22): two, then three, then four phones, each arrival shrinking the row a step further —
+     the pair on 90% of the width, three on 84%, four on 76%, so the last stands with good air either side. --sN is the
+     scale and --dxN a scaled phone's width plus the gap, set by JS from the viewport. */
   body.three .phone.one { transform: translateX(calc(-1 * var(--dx3))) scale(var(--s3)); }
   body.three .phone.two { transform: scale(var(--s3)); }
   body.three .phone.three { transform: translateX(var(--dx3)) scale(var(--s3)); }
@@ -630,27 +631,18 @@ const BEATS = [
     setTimeout(tail(g, () => { m.clearSelection(); m.setSheet('none'); }), 130);
   },
   // 37 — the end of the single flow: the phone moves left to make room and a second phone comes in from the right to stand
-  // beside it, 120px between — the LIST calendar (the multi is saved for later): the same collapsed top, a card a day.
+  // beside it, 120px between — the LIST calendar (the multi is saved for later): the same collapsed top, a card a day. The new
+  // views only flow in — no scrolling, no build of their own (John, 2026-09-22); each arrival shrinks the row a step.
   // The single keeps its collapsed September — all the phones wear the same collapsed top (John, 2026-09-22).
   (m, instant) => { setMulti(true, instant); },
-  // 38 — the list's build is a scroll: it runs down from today through the next two weeks, the month in its header following.
-  (m, instant) => {
-    const d = app2Doc(), v = d && d.querySelector('.vscroll'); if (!v) return;
-    v.scrollTo({ top: v.scrollTop + LIST_SCROLL, behavior: instant ? 'auto' : 'smooth' });
-  },
-  // 39 — THREE UP: the pair slides left and a third phone comes in from the right — the YEAR view (Figma 5248:641919), twelve months
+  // 38 — THREE UP: the pair slides left and a third phone comes in from the right — the YEAR view (Figma 5248:641919), twelve months
   // two across, a dot a day — and all three scale down to stand side by side: the single, the list, the year (John, 2026-09-22).
-  (m, instant) => {
-    setStage('three', instant);
-    const d = app2Doc(), v = d && d.querySelector('.vscroll');   // and the list comes home: Wed 9, today, its first card again
-    if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: instant ? 'auto' : 'smooth' });
-  },
-  // 40 — FOUR UP: a fourth phone comes in from the right — the DAY view (Figma 5248:642014, an experience host's hours) — and the
+  (m, instant) => { setStage('three', instant); },
+  // 39 — FOUR UP: a fourth phone comes in from the right — the DAY view (Figma 5248:642014, an experience host's hours) — and the
   // four scale down to stand in a row: the single, the list, the year, the day — and every Ask circle is bare: the 3 pucks go.
   (m, instant) => { setStage('four', instant); for (let n = 1; n <= 4; n++) { const mm = modelN(n); if (mm) mm.hidePuck(); } },
 ];
 const press2 = find => { const d = app2Doc(), el = d && find(d); if (!el) return null; el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 440); return el; };   // a scripted tap on the second phone
-const LIST_SCROLL = 10 * 80;   // ten cards, at the list's 80 stride
 const ASK_BLOCK = 'Block the first two weeks of January';
 const JAN = m => { const j = m.fx.index({ y: 2027, m: 1, d: 1 }); return Array.from({ length: 14 }, (_, k) => j + k); };   // January 1–14
 // A scripted finger on the Ask chat: the phrase arrives a character at a time into the product's own field (React's value
@@ -704,7 +696,14 @@ const modelN = n => { try { return document.querySelector(n === 1 ? '.app' : '.a
 const setMulti = (on, instant) => setStage(on ? 'multi' : '', instant);
 const setStage = (stage, instant) => { const b = document.body; if (instant) b.classList.add('notrans'); for (const k of ['multi', 'three', 'four']) b.classList.toggle(k, stage === k); if (instant) { void b.offsetWidth; requestAnimationFrame(() => b.classList.remove('notrans')); } };
 // three up: the phones scale to fit three across with a gap between, centred; --dx3 is one scaled phone plus the gap
-(() => { const GAP = 48; const fit = () => { const ph = document.querySelector('.phone.one'); if (!ph) return; const W = ph.offsetWidth; /* layout width: a transform never touches it */ const s = Math.min(1, (innerWidth * 0.94 - 2 * GAP) / (3 * W)); document.documentElement.style.setProperty('--s3', s.toFixed(4)); document.documentElement.style.setProperty('--dx3', (W * s + GAP).toFixed(2) + 'px'); const s4 = Math.min(1, (innerWidth * 0.94 - 3 * GAP) / (4 * W)); document.documentElement.style.setProperty('--s4', s4.toFixed(4)); document.documentElement.style.setProperty('--dx4', (W * s4 + GAP).toFixed(2) + 'px'); }; addEventListener('resize', fit); addEventListener('DOMContentLoaded', fit); fit(); })();
+(() => {
+  const GAP = { 2: 120, 3: 48, 4: 48 }, SHARE = { 2: 0.90, 3: 0.84, 4: 0.76 };   // the row's gap and its share of the width, by phones in it
+  const fit = () => {
+    const ph = document.querySelector('.phone.one'); if (!ph) return; const W = ph.offsetWidth;   /* layout width: a transform never touches it */
+    for (const n of [2, 3, 4]) { const s = Math.min(1, (innerWidth * SHARE[n] - (n - 1) * GAP[n]) / (n * W)); document.documentElement.style.setProperty('--s' + n, s.toFixed(4)); document.documentElement.style.setProperty('--dx' + n, (W * s + GAP[n]).toFixed(2) + 'px'); }
+  };
+  addEventListener('resize', fit); addEventListener('DOMContentLoaded', fit); fit();
+})();
 // CADENCE: a finger moving to a new key takes 460ms; the same key tapped again (⌫ ⌫ ⌫) comes 200ms after the last —
 // a thumb drumming one button, not three considered presses (John, 2026-09-21).
 const KEY_GAP = 460, REPEAT_GAP = 200;
