@@ -61,10 +61,15 @@
     try { w.switchHost('pro', true); } catch (_) {}
     try { w.autoGroupByCity(false); } catch (_) {}
     try { w.setDataMode('none', true); } catch (_) {}
-    setTimeout(() => { try { w.scrollCalendarToToday(false); } catch (_) {} }, 60);   // and on today, instantly — the tier switch lands the grid on its first month
+    // ON TODAY, INSTANTLY. The build's own scrollCalendarToToday always glides (it is the Today button's), and a glide queued
+    // while this pane stood hidden played out as the slide came in — the "weird animation". The boot's own instant landing is
+    // used instead (a straight scrollLeft), and the glide is replaced for this copy so nothing in it ever slides to today.
+    const landToday = () => { try { w.eval("gridWrap.scrollLeft = Math.max(0, (rowOffsets[calStartDi()] || 0) - GRID_GUTTER); gridWrap.scrollTop = 0;"); } catch (_) {} };
+    try { w.scrollCalendarToToday = landToday; } catch (_) {}
+    setTimeout(landToday, 60);
     // ONLY THE PRISTINE STATE IS EVER SEEN (John, 2026-09-22): the build boots on its own default — twelve homes, guests in — and
     // is switched over here; it stays unseen until that has landed, then fades in standing at 32 homes, base rate, no pills.
-    setTimeout(() => { try { w.setDataMode('none', true); w.autoGroupByCity(false); w.scrollCalendarToToday(false); } catch (_) {} requestAnimationFrame(() => requestAnimationFrame(() => app.classList.add('ready'))); }, 260);
+    setTimeout(() => { try { w.setDataMode('none', true); w.autoGroupByCity(false); } catch (_) {} landToday(); requestAnimationFrame(() => requestAnimationFrame(() => { landToday(); app.classList.add('ready'); })); }, 260);
     // the deck's keys keep working with focus inside the build
     const NAV = new Set(['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'PageUp', 'PageDown', 'Home', 'End', 'f', 'F']);
     w.addEventListener('keydown', e => { if (!NAV.has(e.key) || !e.isTrusted) return; const el = d.activeElement; if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return; e.preventDefault(); window.top.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: e.code, bubbles: true })); });
