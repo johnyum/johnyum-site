@@ -265,9 +265,14 @@
         f.src = '/multical/?today=2026-09-09&preso=1&' + query + (v ? '&v=' + v : '');
         one.parentNode.appendChild(ph);
       };
-      clone('two', 'app2', 'list=1', 'Multi-Host Calendar — list');    // the LIST calendar (John, 2026-09-22); the multi (multi=1) is saved for later
-      clone('three', 'app3', 'year=1', 'Multi-Host Calendar — year');  // the YEAR view, the third phone
-      clone('four', 'app4', 'day=1', 'Multi-Host Calendar — day');     // the DAY view (experiences), the fourth
+      // The three arrive one after another, not all at once with the single: four apps booting together held the main
+      // thread for over a second as the phone grew in (a hitch on the first beats). They are not needed until beat 36; a
+      // replay that needs them sooner (a refresh at the three- or four-up) calls ensureClones() first.
+      const ALL = [['two', 'app2', 'list=1', 'Multi-Host Calendar — list'], ['three', 'app3', 'year=1', 'Multi-Host Calendar — year'], ['four', 'app4', 'day=1', 'Multi-Host Calendar — day']];
+      let made = 0;
+      window.ensureClones = () => { while (made < ALL.length) clone(...ALL[made++]); };
+      const next = () => { if (made < ALL.length) { clone(...ALL[made++]); setTimeout(next, 1400); } };
+      setTimeout(next, 1600);   // the single first, on its own; then the list, the year, the day
     })();
   </script>
 
@@ -332,8 +337,8 @@ let gen = 0;
 let pendingRun = null;   // a cascade still tapping; a forward tap finishes it before the next beat, a back tap drops it
 let pendingTail = null;  // the rest of a live beat still on a timer (the $480, the min 5, the 20%): a forward tap lands it whole first, a back tap drops it
 const tail = (g, fn) => { pendingTail = fn; return () => { if (g !== gen) return; pendingTail = null; fn(); }; };   // fn runs on time — or early, whole, on the next tap
-const TAP = 480;   // a scripted tap on a row or a button: its pressed look plays out (.pressing, 440ms) before what it does happens
-const press = find => { const d = appDoc(), el = d && find(d); if (!el) return null; el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 440); return el; };
+const TAP = 340;   // a scripted tap on a row or a button: its pressed look plays out (.pressing, 300ms) before what it does happens (quicker: John, 2026-09-22)
+const press = find => { const d = appDoc(), el = d && find(d); if (!el) return null; el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 300); return el; };
 const cascade = (m, first, last, every) => {
   const g = ++gen;
   pendingRun = { first, last };
@@ -653,7 +658,7 @@ const BEATS = [
   // four scale down to stand in a row: the single, the list, the year, the day.
   (m, instant) => { setStage('four', instant); },
 ];
-const press2 = find => { const d = app2Doc(), el = d && find(d); if (!el) return null; el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 440); return el; };   // a scripted tap on the second phone
+const press2 = find => { const d = app2Doc(), el = d && find(d); if (!el) return null; el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 300); return el; };   // a scripted tap on the second phone
 const ASK_BLOCK = 'Block the first two weeks of January';
 const JAN = m => { const j = m.fx.index({ y: 2027, m: 1, d: 1 }); return Array.from({ length: 14 }, (_, k) => j + k); };   // January 1–14
 // A scripted finger on the Ask chat: the phrase arrives a character at a time into the product's own field (React's value
@@ -792,6 +797,7 @@ function typeKeys(keys, instant) {
     const m = model();
     if (!m) return false;
     gen++;                                     // any beat still animating stops here
+    if (n >= 36 && window.ensureClones) window.ensureClones();   // the other phones, now, if their turn came before their timer
     { const d = appDoc(); if (d) { d.defaultView.__scriptedTyping = false; const el = d.activeElement; if (el && el.blur) { el.blur(); el.dispatchEvent(new d.defaultView.FocusEvent('focusout', { bubbles: true })); } } }   // a phrase cut short lets the field (and its keyboard) go
     m.setHoldQuick(false);
     if (n === at + 1 && !replay) {             // FORWARD: a cascade cut short lands whole, then the next beat plays live
@@ -827,8 +833,7 @@ function typeKeys(keys, instant) {
 (() => {
   // both phones: the clone carries the same screen and .ui (and the same id, which is why the UIs are found by class)
   const screen = document.querySelector('.screen');
-  const uis    = document.querySelectorAll('.ui');
-  function fit() { const k = (screen.clientHeight + 1) / 812; uis.forEach(ui => ui.style.setProperty('--k', k)); }
+  function fit() { const k = (screen.clientHeight + 1) / 812; document.querySelectorAll('.ui').forEach(ui => ui.style.setProperty('--k', k)); }   // every phone's, the ones cloned later too
   new ResizeObserver(fit).observe(screen);
   fit();
 })();

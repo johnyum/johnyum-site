@@ -70,8 +70,24 @@
       // the same green line, a little lighter, so the focused one still leads.
       + '.season-ribbon path.rcurve[stroke="none"]{stroke:#038026;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;opacity:.55}'
       + '@keyframes preso-pill-in{from{opacity:0;transform:translateY(-50%) scale(.92)}to{opacity:1;transform:translateY(-50%) scale(1)}}'
-      + 'body.preso-pills-in .booking-pill{animation:preso-pill-in .5s cubic-bezier(.2,.8,.2,1) both}';
+      + 'body.preso-pills-in .booking-pill{animation:preso-pill-in .5s cubic-bezier(.2,.8,.2,1) both}'
+      // SNAPPIER (John, 2026-09-22): a home's row renders only while it is on screen. The board is 32 rows of 60 cells and a
+      // price change re-lays all of it — the golf ribbon's Apply held the main thread 1.6s; with the rows contained it is
+      // under 60ms. The pills and events live inside their rows (measured: none overflow), so the containment clips nothing.
+      + '.price-row{content-visibility:auto;contain-intrinsic-size:auto 48px}';
     d.head.appendChild(seal);
+    // SNAPPIER, THE BIG ONE (John, 2026-09-22): every price apply in the build ends by re-pinning the Pricing panel's column
+    // widths — syncHeaderWidths → floorSubCells measures each word of 672 settings cells through a probe span, a forced
+    // layout a word: 1.3s with the main thread held, on a panel that is not even showing. From the slide, the build's own
+    // function is wrapped: it runs only while the Pricing or Availability panel is up, and once, on the panel's way up,
+    // if an apply asked for it meanwhile. The build at /multi/ is untouched.
+    (() => {
+      const orig = w.syncHeaderWidths; if (typeof orig !== 'function') return;
+      const showing = () => d.body.classList.contains('settings-mode') || d.body.classList.contains('avail-mode');
+      let dirty = false;
+      w.syncHeaderWidths = function () { if (showing()) { dirty = false; return orig.apply(this, arguments); } dirty = true; };
+      new w.MutationObserver(() => { if (dirty && showing()) { dirty = false; orig(); } }).observe(d.body, { attributes: true, attributeFilter: ['class'] });
+    })();
     // 32 homes, ungrouped, New Host: the pro tier, the city groups off, then the fresh sheet (John, 2026-09-22)
     try { w.switchHost('pro', true); } catch (_) {}
     try { w.autoGroupByCity(false); } catch (_) {}
