@@ -646,8 +646,8 @@ const BEATS = [
     if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: instant ? 'auto' : 'smooth' });
   },
   // 40 — FOUR UP: a fourth phone comes in from the right — the DAY view (Figma 5248:642014, an experience host's hours) — and the
-  // four scale down to stand in a row: the single, the list, the year, the day.
-  (m, instant) => { setStage('four', instant); },
+  // four scale down to stand in a row: the single, the list, the year, the day — and every Ask circle is bare: the 3 pucks go.
+  (m, instant) => { setStage('four', instant); for (let n = 1; n <= 4; n++) { const mm = modelN(n); if (mm) mm.hidePuck(); } },
 ];
 const press2 = find => { const d = app2Doc(), el = d && find(d); if (!el) return null; el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 440); return el; };   // a scripted tap on the second phone
 const LIST_SCROLL = 10 * 80;   // ten cards, at the list's 80 stride
@@ -699,6 +699,7 @@ const appDoc = () => { try { return document.querySelector('.app').contentDocume
 const app2Doc = () => { try { return document.querySelector('.app2').contentDocument; } catch (_) { return null; } };   // the second phone's (the multi calendar)
 const model2 = () => { try { return document.querySelector('.app2').contentWindow.__model; } catch (_) { return null; } };
 const app3Doc = () => { try { return document.querySelector('.app3').contentDocument; } catch (_) { return null; } };   // the third phone's (the year view)
+const modelN = n => { try { return document.querySelector(n === 1 ? '.app' : '.app' + n).contentWindow.__model; } catch (_) { return null; } };   // any phone's model, 1..4
 // The phones' places: the single on centre, or (the last beat) the single off left and the multi on centre. A replay cuts there.
 const setMulti = (on, instant) => setStage(on ? 'multi' : '', instant);
 const setStage = (stage, instant) => { const b = document.body; if (instant) b.classList.add('notrans'); for (const k of ['multi', 'three', 'four']) b.classList.toggle(k, stage === k); if (instant) { void b.offsetWidth; requestAnimationFrame(() => b.classList.remove('notrans')); } };
@@ -788,7 +789,7 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
-    setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } for (const doc of [app2Doc(), app3Doc()]) { const v = doc && doc.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); } }   // the second phone back on its list, on today, its menu closed; the third on top
+    setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } for (let n = 2; n <= 4; n++) { const mm = modelN(n); if (mm && !mm.puckOn) mm.showPuck(3); } for (const doc of [app2Doc(), app3Doc()]) { const v = doc && doc.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); } }   // the second phone back on its list, on today, its menu closed; the third on top
     m.setHeaderLock(false, false); m.hidePuck(); m.openBriefTip(null); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
