@@ -35,12 +35,13 @@
   html.embed, html.embed body { background: transparent; }
   .slide { height: 100%; display: grid; place-items: center; overflow: hidden; }
   /* TWO PHONES, ONE CELL (John, 2026-09-22). Both stand in the same grid cell, centred; the second (the multi calendar,
-     .two) waits a viewport-width off to the right. body.multi is the last beat: the single flows off to the left and the
-     multi comes in to the centre, the deck's own push curve. body.notrans cuts the motion for a replay. */
+     .two) waits a viewport-width off to the right. body.multi is the last beat: the single moves half a phone and 60px to
+     the left and the multi comes in from the right to stand beside it — the two calendars side by side, 120px between,
+     centred as a pair — on the deck's own push curve. body.notrans cuts the motion for a replay. */
   .slide > .phone { grid-area: 1 / 1; transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1); }
   .phone.two { transform: translateX(100vw); }
-  body.multi .phone.one { transform: translateX(-100vw); }
-  body.multi .phone.two { transform: none; }
+  body.multi .phone.one { transform: translateX(calc(-50% - 60px)); }
+  body.multi .phone.two { transform: translateX(calc(50% + 60px)); }
   body.notrans .slide > .phone { transition: none; }
 
 
@@ -598,6 +599,7 @@ const BEATS = [
   // 35 — "Block the first two weeks of January" is typed into the chat and sent; the product blocks January 1–14, night by night
   (m, instant) => {
     const jan = JAN(m);
+    m.revealOffset = 0;   // the events fly-through parked its rows 120 under the header; the block lands January's first row 8 under the rule, its title in the header
     const land = () => { m.setBlocked(true, 0, jan); };
     if (instant) { land(); return; }
     const g = ++gen; pendingTail = land;
@@ -610,8 +612,8 @@ const BEATS = [
     press(d => [...d.querySelectorAll('.glassbtn')].find(b => (b.querySelector('path') || {}).getAttribute && /^M0 0l10 10/.test(b.querySelector('path').getAttribute('d') || '')));   // the chat's ⨉ (its glyph is the 10×10 cross)
     setTimeout(tail(g, () => { m.clearSelection(); m.setSheet('none'); }), 130);
   },
-  // 37 — the end of the single flow: the phone flows off to the left and a second phone comes in from the right, opened on
-  // the MULTI calendar — its own build, pristine: Today and the gear grey as before, no nav, the Ask circle there but bare.
+  // 37 — the end of the single flow: the phone moves left to make room and a second phone comes in from the right to stand
+  // beside it, 120px between — the MULTI calendar, its own build: Today and the gear grey as before, no nav, the Ask circle bare.
   (m, instant) => { setMulti(true, instant); },
 ];
 const ASK_BLOCK = 'Block the first two weeks of January';
