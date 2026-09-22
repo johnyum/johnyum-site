@@ -80,7 +80,9 @@
     // while this pane stood hidden played out as the slide came in — the "weird animation". The boot's own instant landing is
     // used instead (a straight scrollLeft), and the glide is replaced for this copy so nothing in it ever slides to today.
     const landToday = () => { try { w.eval("gridWrap.scrollLeft = Math.max(0, (rowOffsets[calStartDi()] || 0) - GRID_GUTTER); gridWrap.scrollTop = 0;"); } catch (_) {} };
-    try { w.scrollCalendarToToday = landToday; } catch (_) {}
+    // instant only while the build is being set up unseen; once it stands ready the build's own glide is back — the ✕ on an
+    // opportunity, which lands on Today, then flies there rather than cutting (John, 2026-09-22)
+    try { const glide = w.scrollCalendarToToday; w.scrollCalendarToToday = (...a) => app.classList.contains('ready') ? glide(...a) : landToday(); } catch (_) {}
     setTimeout(landToday, 60);
     // ONLY THE PRISTINE STATE IS EVER SEEN (John, 2026-09-22): the build boots on its own default — twelve homes, guests in — and
     // is switched over here; it stays unseen until that has landed, then fades in standing at 32 homes, base rate, no pills.
@@ -97,6 +99,12 @@
   // THE BEATS (John, 2026-09-22). Each has a forward (live, or instant for a replay) and a back. They call the build's own
   // functions, so every step is the product's own state change.
   const ev = (w, code) => { try { return w.eval(code); } catch (_) { return undefined; } };
+  // INSTANT REPLAYS RUN IN SERIES (John, 2026-09-22): a restore from the URL replays the beats with no one watching, but the
+  // build's applies and modals still need their moments (an apply takes ~850ms before its upsell shows). `later` queues each
+  // instant step after the one before, with the wait it needs, so a restore to state 12 lands exactly there.
+  let chain = Promise.resolve();
+  const closeUpsell = w => { ev(w, "(() => { const o = document.getElementById('lmUpsellOverlay'); if (o) o.classList.remove('visible'); const b = document.getElementById('lmUpsellOn'); if (b) { b.classList.remove('is-thinking'); } })()"); };   // whatever upsell the build has popped, gone
+  const later = (fn, ms) => { chain = chain.then(() => new Promise(r => setTimeout(() => { try { fn(); } catch (e) { console.warn('replay step failed', e); } r(); }, ms))); };
   const BEATS = [
     // 1 — the ⋯ menu, opened; Group, taken: the rows re-sort into their cities with the build's own FLIP — tiles trading
     //     places round by round — and NOT its thinking dots (applyGroupingLive, not animateGroupsByCity)
@@ -152,7 +160,8 @@
     //     first opportunity
     { fwd: (w, instant) => {
         const d = w.document, btn = d.querySelector('#magicPill [data-magic="go"]');
-        if (instant || !btn) { ev(w, "startOptimize()"); return; }
+        if (instant) { later(() => ev(w, "startOptimize()"), 0); later(() => {}, 3600); return; }   // the scan takes its time before there are results to apply
+        if (!btn) { ev(w, "startOptimize()"); return; }
         btn.classList.add('pressing'); setTimeout(() => btn.classList.remove('pressing'), 440);
         setTimeout(() => btn.click(), 130);
       },
@@ -163,6 +172,7 @@
         const d = w.document, press = el => { if (el) { el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 440); } };
         const when = (cond, then, ms = 8000) => { const t0 = Date.now(); const tick = () => { if (cond()) then(); else if (Date.now() - t0 < ms) setTimeout(tick, 80); else then(); }; tick(); };
         const overlay = () => d.getElementById('lmUpsellOverlay'), up = () => overlay() && overlay().classList.contains('visible');
+        if (instant) { later(() => ev(w, "applyCurrent()"), 0); later(() => { closeUpsell(w); ev(w, "optNav(1)"); }, 2200); return; }
         const apply = d.querySelector('#magicPill [data-magic="apply"]'); press(apply);
         setTimeout(() => { if (apply) apply.click(); }, 130);
         when(up, () => setTimeout(() => {                                             // the modal is up: a beat, then Turn on
@@ -179,7 +189,7 @@
         const d = w.document, press = el => { if (el) { el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 440); } };
         const dot = () => d.querySelector('.ribbon-master-dot'), pct = () => { const p = d.querySelector('.ribbon-master-dot .rmd-pct'); return p ? parseInt(p.textContent.replace(/[^\d-]/g, ''), 10) : NaN; };
         const applyBtn = () => d.querySelector('#magicPill [data-magic="apply"]');
-        if (instant) { const b = applyBtn(); if (b) b.click(); return; }
+        if (instant) { later(() => { closeUpsell(w); ev(w, "applyCurrent()"); }, 1200); return; }
         let x = 0, y = 0;
         const pe = (type, target, extra) => target.dispatchEvent(new w.PointerEvent(type, Object.assign({ bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', isPrimary: true, clientX: x, clientY: y, button: 0, buttons: 1 }, extra || {})));
         // THE RIBBON REBUILDS ITSELF after the fly-in and as the band scrolls, so the handle is taken only once it has stood
@@ -201,7 +211,7 @@
     { fwd: (w, instant) => {
         const d = w.document, on = () => d.getElementById('lmUpsellOn'), ov = () => d.getElementById('lmUpsellOverlay'), up = () => { const o = ov(); return !!(o && o.classList.contains('visible')); };
         const close = () => { const b = on(); if (b) b.classList.remove('is-thinking'); const o = ov(); if (o) o.classList.remove('visible'); };
-        if (instant) { close(); return; }
+        if (instant) { later(() => { close(); closeUpsell(w); }, 2200); return; }
         const t0 = Date.now(); const go = () => { if (!up() && Date.now() - t0 < 15000) { setTimeout(go, 120); return; } const b = on(); if (!b) return;
           b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440);
           setTimeout(() => { b.classList.add('is-thinking'); b.textContent = ''; b.innerHTML = '<span class="thinkdots"><i></i><i></i><i></i></span>'; }, 130);   // the dots, as the build draws them
@@ -211,17 +221,28 @@
       back: w => { const d = w.document, o = d.getElementById('lmUpsellOverlay'); if (o) o.classList.add('visible'); const b = d.getElementById('lmUpsellOn'); if (b) { b.classList.remove('is-thinking'); b.textContent = 'Turn on'; } } },
     // 10 — › to the midweek lull: the "Soften weeknights" opportunity, focused the build's own way (the camera flies, the cells glow)
     { fwd: (w, instant) => {
-        ev(w, "(() => { const o = window.__opt; const i = o.suggs.findIndex(s => s.bucket === 'weeknight'); if (i < 0) return; o.cur = i; renderMagicPill(); focusOpportunity(); })()");
+        const go = () => ev(w, "(() => { const o = window.__opt; const i = o.suggs.findIndex(s => s.bucket === 'weeknight'); if (i < 0) return; o.cur = i; renderMagicPill(); focusOpportunity(); })()");
+        if (instant) later(() => { closeUpsell(w); go(); }, 200); else go();
       },
       back: w => { ev(w, "(() => { const o = window.__opt; const i = o.suggs.findIndex(s => s.bucket === 'event'); if (i < 0) return; o.cur = i; renderMagicPill(); focusOpportunity(); })()"); } },
     // 11 — Apply, tapped: the lull's discount lands, the build's own check-sweep
     { fwd: (w, instant) => {
         const d = w.document, b = d.querySelector('#magicPill [data-magic="apply"]');
-        if (instant || !b) { ev(w, "applyCurrent()"); return; }
+        if (instant) { later(() => { closeUpsell(w); ev(w, "applyCurrent()"); }, 600); return; }
+        if (!b) { ev(w, "applyCurrent()"); return; }
         b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440);
         setTimeout(() => b.click(), 130);
       },
       back: w => { ev(w, "(() => { const o = window.__opt, g = o.suggs[o.cur]; if (g && g.applied && typeof undoCurrent === 'function') undoCurrent(); })()"); } },
+    // 12 — the ✕ on the opportunities, tapped: they close and the calendar FLIES home — back to today and up to the top — rather
+    //     than cutting there
+    { fwd: (w, instant) => {
+        const d = w.document, x = d.querySelector('#magicPill [data-magic="exit"], .multi-action .multi-action-close');
+        if (instant) { later(() => { closeUpsell(w); ev(w, "exitOptimize()"); setTimeout(() => { closeUpsell(w); ev(w, "gridWrap.scrollLeft = Math.max(0, (rowOffsets[calStartDi()] || 0) - GRID_GUTTER); gridWrap.scrollTop = 0;"); }, 80); }, 2200); later(() => closeUpsell(w), 1500); return; }
+        if (x) { x.classList.add('pressing'); setTimeout(() => x.classList.remove('pressing'), 440); }
+        setTimeout(() => { ev(w, "exitOptimize()"); setTimeout(() => ev(w, "scrollCalendarToToday(true)"), 80); }, 130);   // exitOptimize glides to today; a beat later the same glide with the rows carried up too (one scrollTo, both axes)
+      },
+      back: w => { ev(w, "startOptimize()"); } },
   ];
   let at = 0, pendingRestore = 0;   // a restore asked for before the build stands ready waits for it, and is applied before any tap
   const runTo = n => { for (; at < Math.min(n, BEATS.length); at++) { const b = BEATS[at]; try { b.fwd(W(), true); } catch (e) { console.warn('beat failed', e); } } };
@@ -233,6 +254,7 @@
   window.presoEnd = () => { settleRestore(); runTo(BEATS.length); };
   window.presoState = () => Math.max(at, pendingRestore);
   window.presoRestore = n => { pendingRestore = n; settleRestore(); };
+  window.presoSettled = () => chain;   // the deck may wait on this before trusting the state
   app.addEventListener('load', () => { const tick = () => { if (app.classList.contains('ready')) settleRestore(); else setTimeout(tick, 60); }; tick(); });
 })();
 </script>
