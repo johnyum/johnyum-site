@@ -614,7 +614,14 @@ const BEATS = [
   },
   // 37 — the end of the single flow: the phone moves left to make room and a second phone comes in from the right to stand
   // beside it, 120px between — the MULTI calendar, its own build: Today and the gear grey as before, no nav, the Ask circle bare.
-  (m, instant) => { setMulti(true, instant); },
+  // As they move, Today is tapped on the single: it flies home to September with the header let out to its full size again —
+  // the first time since the quick actions collapsed it (John, 2026-09-22).
+  (m, instant) => {
+    setMulti(true, instant);
+    if (instant) { const g = gen; setTimeout(() => { if (g === gen) m.setHeaderLock(false, false); }, 120); return; }   // after 18's own deferred lock (80ms), so the let-out wins
+    const g = ++gen; press(d => d.querySelector('.today-pill'));
+    setTimeout(tail(g, () => m.setHeaderLock(false, true)), 130);
+  },
 ];
 const ASK_BLOCK = 'Block the first two weeks of January';
 const JAN = m => { const j = m.fx.index({ y: 2027, m: 1, d: 1 }); return Array.from({ length: 14 }, (_, k) => j + k); };   // January 1–14
