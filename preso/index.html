@@ -314,6 +314,7 @@
   function slideState(made) { try { const f = made && made.frame && made.frame.contentWindow && made.frame.contentWindow.presoState; const n = f ? f() : 0; return n > 0 ? n : 0; } catch (_) { return 0; } }
   function writeHash() { const st = slideState(current); history.replaceState(null, '', '#' + (idx + 1) + (st ? '.' + st : '')); }
   // after a restore or a GO the slide reaches its state asynchronously (its app has to be up): the URL follows it for a while
+  addEventListener('presostate', () => writeHash());   // a slide whose state moved on its own (queued taps landing) asks the URL to catch up
   function syncHash(ms = 4000) { const t0 = Date.now(); let last = null; const tick = () => { const st = slideState(current); if (st !== last) { last = st; writeHash(); } if (Date.now() - t0 < ms) setTimeout(tick, 150); }; tick(); }
   function prepareNext(i) {
     if (prepared && prepared.i === i) return;

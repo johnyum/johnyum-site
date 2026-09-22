@@ -162,10 +162,13 @@
   addEventListener('resize', () => { measure(); place(); });
   // once grown, the taps are 13's: its own build steps until it says it is out
   const inner = fn => { try { const f = live.contentWindow[fn]; return f ? f() : false; } catch (_) { return false; } };
-  function grow() { state = 2; landed = false; document.body.classList.add('grown'); place(); setTimeout(() => { landed = true; }, GROW_MS); }
+  // A TAP DURING THE MOVE IS KEPT, not lost (John, 2026-09-22): arrows that land while the sheet slides or the phone grows
+  // used to be swallowed — the deck looked frozen for two seconds. They queue, and fire into the build the moment it lands.
+  let queued = 0;
+  function grow() { state = 2; landed = false; document.body.classList.add('grown'); place(); setTimeout(() => { landed = true; while (queued > 0) { queued--; inner('presoNext'); } try { window.top.dispatchEvent(new Event('presostate')); } catch (_) {} }, GROW_MS); }   // and the deck's URL catches up with the beats that fired on landing
   window.presoNext = () => {
-    if (grown()) return landed ? inner('presoNext') : true;   // an arrow during the grow-in is swallowed, not handed to the calendar
-    if (state === 1) return true;            // still sliding: movement 2 is already scheduled
+    if (grown()) { if (landed) return inner('presoNext'); queued++; return true; }   // during the grow-in: kept for the landing
+    if (state === 1) { queued++; return true; }   // still sliding: movement 2 is already scheduled; the tap waits for it
     state = 1; document.body.classList.add('shift'); place();
     timer = setTimeout(grow, SHIFT_MS + 40);
     return true;
@@ -192,6 +195,7 @@
   };
   window.presoPrev = () => {
     if (state === 0) return false;
+    if (queued > 0) { queued--; return true; }   // a queued forward tap is simply taken back
     if (grown() && !landed) return true;     // same during the grow-in
     if (grown() && inner('presoPrev')) return true;   // 13 stepped back a beat
     clearTimeout(timer);                     // 13 is at its start (or we never got there): back into the sheet
