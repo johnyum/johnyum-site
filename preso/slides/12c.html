@@ -58,7 +58,7 @@
       + 'body.host-pro:not(.super-collapse-2) .thumb-row{height:48px}'
       + 'body.host-pro .settings-row{height:48px}'
       // the beats' own looks: a menu item's press, and the guests' entrance
-      + '.tb-menu-item.pressing{background:var(--grey-200,#e8e8e8)}.ma-action.pressing,.ma-price.pressing,#priceMenuApply.pressing{opacity:.6}'
+      + '.tb-menu-item.pressing{background:var(--grey-200,#e8e8e8)}.ma-action.pressing,.ma-price.pressing,#priceMenuApply.pressing,.magic-cta.pressing{opacity:.6}'
       // no guest's question in this build: the "Kofi is asking…" bubbles and their unread dots stay away (John, 2026-09-22)
       + '.bp-ask{display:none!important}.bp-unread{display:none!important}.booking-face.has-ask::after{display:none!important}'
       + '@keyframes preso-pill-in{from{opacity:0;transform:translateY(-50%) scale(.92)}to{opacity:1;transform:translateY(-50%) scale(1)}}'
@@ -138,6 +138,15 @@
         setTimeout(tips, 130 + 900);
       },
       back: w => { const d = w.document; d.body.classList.add('preso-no-tips'); ev(w, "(() => { const order = [...document.querySelectorAll('#gridRows .price-row')].map(r => +r.dataset.li); selectRange({ li: order[0], di: todayDi + 1 }, { li: order[Math.min(9, order.length - 1)], di: todayDi + 14 }); })()"); } },
+    // 6 — Tips, tapped: the build's own scan — the cells' stroke sweeps left to right, three dots in the button — and then its
+    //     first opportunity
+    { fwd: (w, instant) => {
+        const d = w.document, btn = d.querySelector('#magicPill [data-magic="go"]');
+        if (instant || !btn) { ev(w, "startOptimize()"); return; }
+        btn.classList.add('pressing'); setTimeout(() => btn.classList.remove('pressing'), 440);
+        setTimeout(() => btn.click(), 130);
+      },
+      back: w => { ev(w, "exitOptimize()"); } },
   ];
   let at = 0, pendingRestore = 0;   // a restore asked for before the build stands ready waits for it, and is applied before any tap
   const runTo = n => { for (; at < Math.min(n, BEATS.length); at++) BEATS[at].fwd(W(), true); };
