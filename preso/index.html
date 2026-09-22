@@ -306,6 +306,7 @@
     if (!made) return;
     if (kept && kept.made !== made) discardKept();
     made.pane.style.transition = 'none'; made.pane.style.transform = 'translateX(0)'; made.pane.style.visibility = 'hidden';
+    made.pane.style.display = 'none';   // PARKED, not just unseen: a kept slide with four live phones in it kept painting and ate the stage's frames (John, 2026-09-22)
     void made.pane.offsetWidth; made.pane.style.transition = '';
     kept = { i, made };
   }
@@ -377,7 +378,7 @@
   async function transitionTo(i, dir) {   // the push: off one way, land centre
     const outgoing = current;
     let made;
-    if (kept && kept.i === i) { made = kept.made; kept = null; made.pane.style.visibility = ''; discardPrepared(); }   // the slide just left: back to it as it was
+    if (kept && kept.i === i) { made = kept.made; kept = null; made.pane.style.display = ''; made.pane.style.visibility = ''; discardPrepared(); }   // the slide just left: back to it as it was
     else if (prepared && prepared.i === i && dir > 0) { made = prepared.made; prepared = null; made.pane.style.visibility = ''; }   // built ahead: reveal it
     else { discardPrepared(); made = makePane(i, dir); stage.appendChild(made.pane); }
     made.pane.style.transform = 'translateX(' + (dir > 0 ? 100 : -100) + '%)';
