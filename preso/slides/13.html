@@ -628,7 +628,22 @@ const BEATS = [
     const d = app2Doc(), v = d && d.querySelector('.vscroll'); if (!v) return;
     v.scrollTo({ top: v.scrollTop + LIST_SCROLL, behavior: instant ? 'auto' : 'smooth' });
   },
+  // 39 — the list's Layers tile, tapped: its menu — Month · List · Year — with the check on List
+  (m, instant) => {
+    const m2 = model2(); if (!m2) return;
+    if (instant) { m2.setViewsMenu(true); return; }
+    const g = ++gen; press2(d => d.querySelector('.layers-tile'));
+    setTimeout(tail(g, () => m2.setViewsMenu(true)), 130);
+  },
+  // 40 — Year, tapped: the YEAR view (Figma 5248:641919) — twelve months two across, a dot a day, the stays small pills, the events their icons
+  (m, instant) => {
+    const m2 = model2(); if (!m2) return;
+    if (instant) { m2.setCalendarMode('year'); return; }
+    const g = ++gen; press2(d => d.querySelector('.views-menu .views-year'));
+    setTimeout(tail(g, () => m2.setCalendarMode('year')), 130);
+  },
 ];
+const press2 = find => { const d = app2Doc(), el = d && find(d); if (!el) return null; el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 440); return el; };   // a scripted tap on the second phone
 const LIST_SCROLL = 10 * 80;   // ten cards, at the list's 80 stride
 const ASK_BLOCK = 'Block the first two weeks of January';
 const JAN = m => { const j = m.fx.index({ y: 2027, m: 1, d: 1 }); return Array.from({ length: 14 }, (_, k) => j + k); };   // January 1–14
@@ -763,7 +778,7 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
-    setMulti(false, false); { const d = app2Doc(), v = d && d.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); }   // the second phone's list back on today
+    setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } const d = app2Doc(), v = d && d.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); }   // the second phone back on its list, on today, its menu closed
     m.setHeaderLock(false, false); m.hidePuck(); m.openBriefTip(null); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
