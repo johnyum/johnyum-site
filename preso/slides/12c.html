@@ -196,20 +196,32 @@
         setTimeout(ready, 400);
       },
       back: w => { ev(w, "exitOptimize(); startOptimize();"); } },
-    // 9 — Turn on, tapped, for Automate events and holidays: the build's sweep runs behind the modal, then it goes
+    // 9 — Turn on, tapped, for Automate events and holidays: the button holds its three dots a few beats, then the modal goes —
+    //     and that is all (John, 2026-09-22): the build's autopilot, which would price every event and holiday, is not run
     { fwd: (w, instant) => {
-        const d = w.document, on = () => d.getElementById('lmUpsellOn'), up = () => { const o = d.getElementById('lmUpsellOverlay'); return !!(o && o.classList.contains('visible')); };
-        // a tap that lands while the drag before is still running: wait for the modal to be up (up to 15s), then Turn on
-        const t0 = Date.now(); const go = () => { if (!up() && Date.now() - t0 < 15000) { setTimeout(go, 120); return; } const b = on(); if (!b) return; if (instant) { b.click(); return; } b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440); setTimeout(() => b.click(), 130); };
+        const d = w.document, on = () => d.getElementById('lmUpsellOn'), ov = () => d.getElementById('lmUpsellOverlay'), up = () => { const o = ov(); return !!(o && o.classList.contains('visible')); };
+        const close = () => { const b = on(); if (b) b.classList.remove('is-thinking'); const o = ov(); if (o) o.classList.remove('visible'); };
+        if (instant) { close(); return; }
+        const t0 = Date.now(); const go = () => { if (!up() && Date.now() - t0 < 15000) { setTimeout(go, 120); return; } const b = on(); if (!b) return;
+          b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440);
+          setTimeout(() => { b.classList.add('is-thinking'); b.textContent = ''; b.innerHTML = '<span class="thinkdots"><i></i><i></i><i></i></span>'; }, 130);   // the dots, as the build draws them
+          setTimeout(close, 130 + 2400); };
         go();
-        // THE ACTION IS SEEN (John, 2026-09-22): the build's autopilot prices each event and holiday wherever its cells are, on or
-        // off screen, and the calendar sits still behind the scrim. Here the camera follows: each time the autopilot moves to the
-        // next card the calendar flies to its nights with the build's own scrollToOpportunity, so the prices roll in view.
-        let last = -1; const t1 = Date.now();
-        const follow = () => { const o = w.__opt; if (!o) return; if (o._autopilot && o.cur !== last) { last = o.cur; const g = o.suggs[o.cur]; try { if (g) w.scrollToOpportunity(g); } catch (_) {} } if (o._autopilot || Date.now() - t1 < 20000) setTimeout(follow, 80); };
-        follow();
       },
-      back: w => { const d = w.document, o = d.getElementById('lmUpsellOverlay'); if (o) o.classList.add('visible'); } },
+      back: w => { const d = w.document, o = d.getElementById('lmUpsellOverlay'); if (o) o.classList.add('visible'); const b = d.getElementById('lmUpsellOn'); if (b) { b.classList.remove('is-thinking'); b.textContent = 'Turn on'; } } },
+    // 10 — › to the midweek lull: the "Soften weeknights" opportunity, focused the build's own way (the camera flies, the cells glow)
+    { fwd: (w, instant) => {
+        ev(w, "(() => { const o = window.__opt; const i = o.suggs.findIndex(s => s.bucket === 'weeknight'); if (i < 0) return; o.cur = i; renderMagicPill(); focusOpportunity(); })()");
+      },
+      back: w => { ev(w, "(() => { const o = window.__opt; const i = o.suggs.findIndex(s => s.bucket === 'event'); if (i < 0) return; o.cur = i; renderMagicPill(); focusOpportunity(); })()"); } },
+    // 11 — Apply, tapped: the lull's discount lands, the build's own check-sweep
+    { fwd: (w, instant) => {
+        const d = w.document, b = d.querySelector('#magicPill [data-magic="apply"]');
+        if (instant || !b) { ev(w, "applyCurrent()"); return; }
+        b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440);
+        setTimeout(() => b.click(), 130);
+      },
+      back: w => { ev(w, "(() => { const o = window.__opt, g = o.suggs[o.cur]; if (g && g.applied && typeof undoCurrent === 'function') undoCurrent(); })()"); } },
   ];
   let at = 0, pendingRestore = 0;   // a restore asked for before the build stands ready waits for it, and is applied before any tap
   const runTo = n => { for (; at < Math.min(n, BEATS.length); at++) { const b = BEATS[at]; try { b.fwd(W(), true); } catch (e) { console.warn('beat failed', e); } } };
