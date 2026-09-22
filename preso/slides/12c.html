@@ -49,7 +49,8 @@
   app.addEventListener('load', () => {
     const w = W(), d = w.document;
     const seal = d.createElement('style');
-    seal.textContent = '#devBar{display:none!important}' + '#magicPill{display:none!important}'
+    d.body.classList.add('preso-no-tips');   // the Tips button waits for its beat
+    seal.textContent = '#devBar{display:none!important}' + 'body.preso-no-tips #magicPill{display:none!important}'
       // THE PRESO'S OWN DENSITY (John, 2026-09-22): the 32-home rows 56 → 48 here only — the build at /multi/ is untouched. The
       // cell is 100% of its row and the pill centres geometrically, so card, pill, thumbnail column and the Pricing/Availability
       // rows all follow, per the build's own row-height contract.
@@ -57,7 +58,9 @@
       + 'body.host-pro:not(.super-collapse-2) .thumb-row{height:48px}'
       + 'body.host-pro .settings-row{height:48px}'
       // the beats' own looks: a menu item's press, and the guests' entrance
-      + '.tb-menu-item.pressing{background:var(--grey-200,#e8e8e8)}'
+      + '.tb-menu-item.pressing{background:var(--grey-200,#e8e8e8)}.ma-action.pressing,.ma-price.pressing,#priceMenuApply.pressing{opacity:.6}'
+      // no guest's question in this build: the "Kofi is asking…" bubbles and their unread dots stay away (John, 2026-09-22)
+      + '.bp-ask{display:none!important}.bp-unread{display:none!important}.booking-face.has-ask::after{display:none!important}'
       + '@keyframes preso-pill-in{from{opacity:0;transform:translateY(-50%) scale(.92)}to{opacity:1;transform:translateY(-50%) scale(1)}}'
       + 'body.preso-pills-in .booking-pill{animation:preso-pill-in .5s cubic-bezier(.2,.8,.2,1) both}';
     d.head.appendChild(seal);
@@ -102,13 +105,49 @@
         bk.checked = true; bk.dispatchEvent(new w.Event('change'));
       },
       back: w => { const d = w.document, bk = d.getElementById('devBookings'); bk.checked = false; bk.dispatchEvent(new w.Event('change')); } },
+    // 3 — a big swath of nights, selected: the first ten homes across the next two weeks, the rectangle growing a column at a
+    //     time like a drag (the build's own selectRange: rows in their visual order, the open nights only), then its bar
+    { fwd: (w, instant) => {
+        const pick = k => ev(w, `(() => { const order = [...document.querySelectorAll('#gridRows .price-row')].map(r => +r.dataset.li); const a = { li: order[0], di: todayDi + 1 }, b = { li: order[Math.min(9, order.length - 1)], di: todayDi + 1 + ${k} }; selectRange(a, b); selAnchor = a; })()`);
+        if (instant) { pick(13); return; }
+        for (let k = 0; k <= 13; k++) setTimeout(() => pick(k), 120 + k * 45);
+      },
+      back: w => { ev(w, "clearSelection()"); } },
+    // 4 — Availability, tapped (its menu drops); then Price, tapped (its menu takes over); then $250 typed into it, a digit at a
+    //     time — the build applies each keystroke live, every selected night rolling from $200 to $250
+    { fwd: (w, instant) => {
+        const d = w.document;
+        if (instant) { ev(w, "selectedLiDi().forEach(({ li, di }) => { priceOverride[li][di] = 250; }); refreshCalendarPrices();"); return; }
+        const press = sel => { const b = d.querySelector(sel); if (b) { b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440); } };
+        setTimeout(() => { press('#maPill [data-act="edit-avail"]'); }, 0);
+        setTimeout(() => ev(w, "openAvailMenu()"), 130);
+        setTimeout(() => { press('#maPill [data-act="edit-price"]'); }, 1400);
+        setTimeout(() => ev(w, "openPriceMenu()"), 1530);
+        const inp = () => d.getElementById('priceMenuInput'), set = Object.getOwnPropertyDescriptor(w.HTMLInputElement.prototype, 'value').set;
+        ['2', '25', '250'].forEach((v, i) => setTimeout(() => { const el = inp(); if (!el) return; set.call(el, '$' + v); el.dispatchEvent(new w.Event('input', { bubbles: true })); }, 2300 + i * 160));
+      },
+      back: w => { ev(w, "closePriceMenu(); closeAvailMenu(); selectedLiDi().forEach(({ li, di }) => { delete priceOverride[li][di]; }); refreshCalendarPrices();"); } },
+    // 5 — Save, tapped: the price menu closes and the selection lets go, the bar folding away; a beat after it has gone, the Tips
+    //     button comes in at the bottom middle with its own pop
+    { fwd: (w, instant) => {
+        const d = w.document;
+        const tips = () => { d.body.classList.remove('preso-no-tips'); try { w._oppWandEnter = true; w.renderMagicPill(); } catch (_) {} };
+        if (instant) { ev(w, "closePriceMenu(); clearSelection();"); tips(); return; }
+        const b = d.getElementById('priceMenuApply'); if (b) { b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440); }
+        setTimeout(() => ev(w, "closePriceMenu(); clearSelection();"), 130);
+        setTimeout(tips, 130 + 900);
+      },
+      back: w => { const d = w.document; d.body.classList.add('preso-no-tips'); ev(w, "(() => { const order = [...document.querySelectorAll('#gridRows .price-row')].map(r => +r.dataset.li); selectRange({ li: order[0], di: todayDi + 1 }, { li: order[Math.min(9, order.length - 1)], di: todayDi + 14 }); })()"); } },
   ];
-  let at = 0;
-  window.presoNext = () => { if (at >= BEATS.length) return false; BEATS[at].fwd(W(), false); at++; return true; };
-  window.presoPrev = () => { if (at <= 0) return false; at--; BEATS[at].back(W()); return true; };
-  window.presoEnd = () => { for (; at < BEATS.length; at++) BEATS[at].fwd(W(), true); };
-  window.presoState = () => at;
-  window.presoRestore = n => { const go = () => { if (app.classList.contains('ready')) { for (; at < Math.min(n, BEATS.length); at++) BEATS[at].fwd(W(), true); } else setTimeout(go, 100); }; go(); };
+  let at = 0, pendingRestore = 0;   // a restore asked for before the build stands ready waits for it, and is applied before any tap
+  const runTo = n => { for (; at < Math.min(n, BEATS.length); at++) BEATS[at].fwd(W(), true); };
+  const settleRestore = () => { if (pendingRestore && app.classList.contains('ready')) { const n = pendingRestore; pendingRestore = 0; runTo(n); } };
+  window.presoNext = () => { settleRestore(); if (at >= BEATS.length) return false; BEATS[at].fwd(W(), false); at++; return true; };
+  window.presoPrev = () => { settleRestore(); if (at <= 0) return false; at--; BEATS[at].back(W()); return true; };
+  window.presoEnd = () => { settleRestore(); runTo(BEATS.length); };
+  window.presoState = () => Math.max(at, pendingRestore);
+  window.presoRestore = n => { pendingRestore = n; settleRestore(); };
+  app.addEventListener('load', () => { const tick = () => { if (app.classList.contains('ready')) settleRestore(); else setTimeout(tick, 60); }; tick(); });
 })();
 </script>
 </body>
