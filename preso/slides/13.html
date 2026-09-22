@@ -241,14 +241,15 @@
   </div>
   <script>
     // THE SECOND PHONE is the first one cloned — same chrome, same status bar, same frame geometry — with its app opened on the
-    // MULTI calendar (?multi=1): the board of listings, pristine like the single was, the Today pill and gear grey, no nav, the
-    // Ask circle already there and bare (no puck). It loads now, off to the right, so the last beat only has to slide it in.
+    // LIST calendar (?list=1; Figma 5248:641906): a card a day with the same collapsed top — the month, Today, Layers, gear —
+    // its guests and events in, the wand button at the bottom right. (The multi board, ?multi=1, is saved for later.) It loads
+    // now, off to the right, so the beat only has to slide it in.
     (() => {
       const one = document.querySelector('.phone.one'), two = one.cloneNode(true);
       two.classList.replace('one', 'two');
       const f = two.querySelector('.app'); f.classList.replace('app', 'app2'); f.title = 'Multi-Host Calendar — multi';
       two.querySelector('script').remove();
-      const v = new URLSearchParams(location.search).get('v'); f.src = '/multical/?today=2026-09-09&preso=1&multi=1' + (v ? '&v=' + v : '');
+      const v = new URLSearchParams(location.search).get('v'); f.src = '/multical/?today=2026-09-09&preso=1&list=1' + (v ? '&v=' + v : '');   // the LIST calendar for now (John, 2026-09-22); the multi (&multi=1) is saved for later
       one.parentNode.appendChild(two);
     })();
   </script>
@@ -613,7 +614,7 @@ const BEATS = [
     setTimeout(tail(g, () => { m.clearSelection(); m.setSheet('none'); }), 130);
   },
   // 37 — the end of the single flow: the phone moves left to make room and a second phone comes in from the right to stand
-  // beside it, 120px between — the MULTI calendar, its own build: Today and the gear grey as before, no nav, the Ask circle bare.
+  // beside it, 120px between — the LIST calendar (the multi is saved for later): the same collapsed top, a card a day.
   // As they move, Today is tapped on the single: it flies home to September with the header let out to its full size again —
   // the first time since the quick actions collapsed it (John, 2026-09-22).
   (m, instant) => {
@@ -622,7 +623,13 @@ const BEATS = [
     const g = ++gen; press(d => d.querySelector('.today-pill'));
     setTimeout(tail(g, () => m.setHeaderLock(false, true)), 130);
   },
+  // 38 — the list's build is a scroll: it runs down from today through the next two weeks, the month in its header following.
+  (m, instant) => {
+    const d = app2Doc(), v = d && d.querySelector('.vscroll'); if (!v) return;
+    v.scrollTo({ top: v.scrollTop + LIST_SCROLL, behavior: instant ? 'auto' : 'smooth' });
+  },
 ];
+const LIST_SCROLL = 10 * 80;   // ten cards, at the list's 80 stride
 const ASK_BLOCK = 'Block the first two weeks of January';
 const JAN = m => { const j = m.fx.index({ y: 2027, m: 1, d: 1 }); return Array.from({ length: 14 }, (_, k) => j + k); };   // January 1–14
 // A scripted finger on the Ask chat: the phrase arrives a character at a time into the product's own field (React's value
@@ -756,7 +763,8 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
-    setMulti(false, false); m.setHeaderLock(false, false); m.hidePuck(); m.openBriefTip(null); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
+    setMulti(false, false); { const d = app2Doc(), v = d && d.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); }   // the second phone's list back on today
+    m.setHeaderLock(false, false); m.hidePuck(); m.openBriefTip(null); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
