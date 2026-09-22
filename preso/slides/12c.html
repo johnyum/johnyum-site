@@ -196,6 +196,12 @@
         // a tap that lands while the drag before is still running: wait for the modal to be up (up to 15s), then Turn on
         const t0 = Date.now(); const go = () => { if (!up() && Date.now() - t0 < 15000) { setTimeout(go, 120); return; } const b = on(); if (!b) return; if (instant) { b.click(); return; } b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440); setTimeout(() => b.click(), 130); };
         go();
+        // THE ACTION IS SEEN (John, 2026-09-22): the build's autopilot prices each event and holiday wherever its cells are, on or
+        // off screen, and the calendar sits still behind the scrim. Here the camera follows: each time the autopilot moves to the
+        // next card the calendar flies to its nights with the build's own scrollToOpportunity, so the prices roll in view.
+        let last = -1; const t1 = Date.now();
+        const follow = () => { const o = w.__opt; if (!o) return; if (o._autopilot && o.cur !== last) { last = o.cur; const g = o.suggs[o.cur]; try { if (g) w.scrollToOpportunity(g); } catch (_) {} } if (o._autopilot || Date.now() - t1 < 20000) setTimeout(follow, 80); };
+        follow();
       },
       back: w => { const d = w.document, o = d.getElementById('lmUpsellOverlay'); if (o) o.classList.add('visible'); } },
   ];
