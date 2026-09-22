@@ -782,13 +782,13 @@ function typeKeys(keys, instant) {
   // Reset, then replay — see the note on BEATS. Returns false while the app is
   // still loading, which hands the step back to the DECK rather than swallowing
   // it and stranding the presenter on a phone that will not move.
-  function apply(n) {
+  function apply(n, replay) {
     const m = model();
     if (!m) return false;
     gen++;                                     // any beat still animating stops here
     { const d = appDoc(); if (d) { d.defaultView.__scriptedTyping = false; const el = d.activeElement; if (el && el.blur) { el.blur(); el.dispatchEvent(new d.defaultView.FocusEvent('focusout', { bubbles: true })); } } }   // a phrase cut short lets the field (and its keyboard) go
     m.setHoldQuick(false);
-    if (n === at + 1) {                        // FORWARD: a cascade cut short lands whole, then the next beat plays live
+    if (n === at + 1 && !replay) {             // FORWARD: a cascade cut short lands whole, then the next beat plays live
       if (pendingRun) { const s = new Set(m.selectedNights); for (let di = pendingRun.first; di <= pendingRun.last; di++) s.add(di); m.setSelectedNights(s); pendingRun = null; }
       if (pendingTail) { const fn = pendingTail; pendingTail = null; fn(); }
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
@@ -813,6 +813,9 @@ function typeKeys(keys, instant) {
   if (START > 0) { const go = () => { if (model()) apply(START); else setTimeout(go, 100); }; go(); }
   // the deck's GO: straight to the last beat, instantly — the replay path — as soon as the app is up to take it
   window.presoEnd = () => { const go = () => { if (model()) apply(Math.min(UNTIL, BEATS.length)); else setTimeout(go, 100); }; go(); };
+  // the beat this build is at, and a jump straight to one — the replay path, so a refresh lands where it left off (John, 2026-09-22)
+  window.presoAt = () => at;
+  window.presoGo = n => { const go = () => { if (model()) apply(Math.max(0, Math.min(n, UNTIL, BEATS.length)), true); else setTimeout(go, 100); }; go(); };
 })();
 
 (() => {

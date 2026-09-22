@@ -297,8 +297,26 @@
   // discards it.
   let prepared = null;   // { i, made }
   function discardPrepared() { if (prepared) { prepared.made.pane.remove(); prepared = null; } }
+  // THE SLIDE JUST LEFT IS KEPT (John, 2026-09-22): hidden in place rather than removed, so a step back is instant and lands on
+  // the exact state it was left in — the live build at its beat, not rebuilt and replayed. One is kept; leaving another
+  // slide replaces it. A jump discards it.
+  let kept = null;       // { i, made }
+  function discardKept() { if (kept) { kept.made.pane.remove(); kept = null; } }
+  function stash(made, i) {
+    if (!made) return;
+    if (kept && kept.made !== made) discardKept();
+    made.pane.style.transition = 'none'; made.pane.style.transform = 'translateX(0)'; made.pane.style.visibility = 'hidden';
+    void made.pane.offsetWidth; made.pane.style.transition = '';
+    kept = { i, made };
+  }
+  // A slide may carry its own progress (a build's beat) in the URL: presoState() reports it, presoRestore(n) puts it back.
+  function slideState(made) { try { const f = made && made.frame && made.frame.contentWindow && made.frame.contentWindow.presoState; const n = f ? f() : 0; return n > 0 ? n : 0; } catch (_) { return 0; } }
+  function writeHash() { const st = slideState(current); history.replaceState(null, '', '#' + (idx + 1) + (st ? '.' + st : '')); }
+  // after a restore or a GO the slide reaches its state asynchronously (its app has to be up): the URL follows it for a while
+  function syncHash(ms = 4000) { const t0 = Date.now(); let last = null; const tick = () => { const st = slideState(current); if (st !== last) { last = st; writeHash(); } if (Date.now() - t0 < ms) setTimeout(tick, 150); }; tick(); }
   function prepareNext(i) {
     if (prepared && prepared.i === i) return;
+    if (kept && kept.i === i) return;   // the slide just left IS the next one (we stepped back onto this): it stands ready already
     discardPrepared();
     if (i < 0 || i >= SLIDES.length || !HTML.test(SLIDES[i])) return;
     const made = makePane(i, 1);
@@ -314,22 +332,23 @@
     try { inter = !!(made.frame && made.frame.contentWindow && made.frame.contentWindow.presoInteractive === true); } catch (_) {}
     document.body.classList.toggle('interactive', inter);
     syncKicker(made);
-    history.replaceState(null, '', '#' + (i + 1));
+    writeHash();
     flashCounter();
     preload(i + 1); preload(i + 2); preload(i - 1);
     setTimeout(() => { if (idx === i && !flight) prepareNext(i + 1); }, DUR + 300);   // once this push has landed
   }
 
-  function show(i) {                      // first paint: no motion
+  function show(i, state) {               // first paint: no motion; `state` (from the URL) is put back once the frame is up
     const made = makePane(i);
     stage.appendChild(made.pane);
     settle(i, made);
+    if (state > 0 && made.frame) { const t0 = Date.now(); const poke = () => { let f = null; try { f = made.frame.contentWindow && made.frame.contentWindow.presoRestore; } catch (_) {} if (f) { f(state); syncHash(); } else if (Date.now() - t0 < 8000) setTimeout(poke, 100); }; made.ready.then(poke); }
   }
 
   function finishFlight() {               // the landed pane owns the stage
     if (!flight) return;
     clearTimeout(flight.timer);
-    if (flight.out) flight.out.pane.remove();
+    if (flight.out) stash(flight.out, flight.fromIdx);
     const p = flight.inc.pane;
     // The push is started from a frame callback AFTER the slide's load; a heavy
     // load (12b replaying the live build to Zoe's ⨉) can hold that frame past
@@ -345,7 +364,7 @@
   function snapFlight() {                 // complete the in-flight cut INSTANTLY
     if (!flight) return;
     clearTimeout(flight.timer);
-    if (flight.out) flight.out.pane.remove();
+    if (flight.out) stash(flight.out, flight.fromIdx);
     const p = flight.inc.pane;
     p.style.transition = 'none';
     p.style.transform = 'translateX(0)';
@@ -358,7 +377,8 @@
   async function transitionTo(i, dir) {   // the push: off one way, land centre
     const outgoing = current;
     let made;
-    if (prepared && prepared.i === i && dir > 0) { made = prepared.made; prepared = null; made.pane.style.visibility = ''; }   // built ahead: reveal it
+    if (kept && kept.i === i) { made = kept.made; kept = null; made.pane.style.visibility = ''; discardPrepared(); }   // the slide just left: back to it as it was
+    else if (prepared && prepared.i === i && dir > 0) { made = prepared.made; prepared = null; made.pane.style.visibility = ''; }   // built ahead: reveal it
     else { discardPrepared(); made = makePane(i, dir); stage.appendChild(made.pane); }
     made.pane.style.transform = 'translateX(' + (dir > 0 ? 100 : -100) + '%)';
     void made.pane.offsetWidth;   // the prepared pane sat at 0: its jump to the wing must land before the transition is set
@@ -398,7 +418,8 @@
     token.timer = setTimeout(() => { if (flight === token) finishFlight(); }, DUR + 60);
   }
 
-  function slideConsumes(dir) {
+  function slideConsumes(dir) { const r = consumes(dir); if (r) writeHash(); return r; }
+  function consumes(dir) {
     if (!current || !current.frame) return false;
     // An HTML slide that has not run its script yet cannot answer for its own
     // builds, and answering "no" would SKIP them — slide 07's list would jump
@@ -436,6 +457,7 @@
     n = Math.min(SLIDES.length - 1, Math.max(0, n));
     if (flight) snapFlight();
     if (n === idx) { flashCounter(); return; }
+    if (kept && kept.i !== n) discardKept();
     transitionTo(n, n > idx ? 1 : -1);
   }
 
@@ -468,7 +490,7 @@
     if (flight) snapFlight();
     if (n !== idx) await transitionTo(n, 1);
     const t0 = Date.now();
-    const poke = () => { let f = null; try { f = current && current.frame && current.frame.contentWindow && current.frame.contentWindow.presoEnd; } catch (_) {} if (f) f(); else if (Date.now() - t0 < 8000) setTimeout(poke, 100); };
+    const poke = () => { let f = null; try { f = current && current.frame && current.frame.contentWindow && current.frame.contentWindow.presoEnd; } catch (_) {} if (f) { f(); syncHash(); } else if (Date.now() - t0 < 8000) setTimeout(poke, 100); };
     poke();
   }
   document.getElementById('go').addEventListener('click', e => { e.stopPropagation(); goEnd(); });
@@ -488,8 +510,9 @@
     .then(list => {
       SLIDES = Array.isArray(list) ? list : [];
       if (!SLIDES.length) { empty.classList.add('show'); return; }
-      const h = parseInt(location.hash.slice(1), 10);
-      show((h >= 1 && h <= SLIDES.length) ? h - 1 : 0);
+      const m = /^#?(\d+)(?:\.(\d+))?/.exec(location.hash) || [];
+      const h = parseInt(m[1], 10), st = parseInt(m[2], 10) || 0;
+      show((h >= 1 && h <= SLIDES.length) ? h - 1 : 0, st);
     });
 })();
 </script>
