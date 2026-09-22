@@ -33,7 +33,15 @@
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   /* embedded in the studies sheet (12b) the page ground must not paint over the neighbours */
   html.embed, html.embed body { background: transparent; }
-  .slide { height: 100%; display: grid; place-items: center; }
+  .slide { height: 100%; display: grid; place-items: center; overflow: hidden; }
+  /* TWO PHONES, ONE CELL (John, 2026-09-22). Both stand in the same grid cell, centred; the second (the multi calendar,
+     .two) waits a viewport-width off to the right. body.multi is the last beat: the single flows off to the left and the
+     multi comes in to the centre, the deck's own push curve. body.notrans cuts the motion for a replay. */
+  .slide > .phone { grid-area: 1 / 1; transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .phone.two { transform: translateX(100vw); }
+  body.multi .phone.one { transform: translateX(-100vw); }
+  body.multi .phone.two { transform: none; }
+  body.notrans .slide > .phone { transition: none; }
 
 
 
@@ -119,7 +127,7 @@
      32pt gap in JS, so raising one slides it off the other and the puck's tip
      card comes out from behind the bar. 21pt off the glass is the app's own
      design, tuned against that 32. */
-  .app {
+  .app, .app2 {
     /* THE FRAME SPANS THE WHOLE HOLE (John, 2026-09-21): top 0, the full 812 — and the app's own .phone is pushed down 56
        (64.2 of its px, injected below) so its Today pill still sits 21 clear of the island. Why: a scrim inside the app can
        then cover the status band and the calendar as ONE layer. Two scrims meeting at the frame's edge — one the slide's,
@@ -144,7 +152,7 @@
 </head>
 <body>
   <div class="slide">
-    <div class="phone">
+    <div class="phone one">
       <div class="screen">
         <div class="ui" id="ui">
           <div class="status">
@@ -230,6 +238,19 @@
       </svg>
     </div>
   </div>
+  <script>
+    // THE SECOND PHONE is the first one cloned — same chrome, same status bar, same frame geometry — with its app opened on the
+    // MULTI calendar (?multi=1): the board of listings, pristine like the single was, the Today pill and gear grey, no nav, the
+    // Ask circle already there and bare (no puck). It loads now, off to the right, so the last beat only has to slide it in.
+    (() => {
+      const one = document.querySelector('.phone.one'), two = one.cloneNode(true);
+      two.classList.replace('one', 'two');
+      const f = two.querySelector('.app'); f.classList.replace('app', 'app2'); f.title = 'Multi-Host Calendar — multi';
+      two.querySelector('script').remove();
+      const v = new URLSearchParams(location.search).get('v'); f.src = '/multical/?today=2026-09-09&preso=1&multi=1' + (v ? '&v=' + v : '');
+      one.parentNode.appendChild(two);
+    })();
+  </script>
 
 <script>
 // Loaded inside the studies sheet (12b, ?embed=1): transparent ground, and the
@@ -566,23 +587,35 @@ const BEATS = [
     if (instant) { m.setSheet('ask'); return; }
     const g = ++gen; press(d => d.querySelector('.bar .ask')); setTimeout(tail(g, () => m.setSheet('ask')), 130);
   },
-  // 34 — "Block the first two weeks of January" is typed into the chat and sent; the product blocks January 1–14, night by night
+  // 34 — Last-min discount, tapped in the chat's brief: the pill grows in place into its editor (and stays open). January is
+  // put open here, whatever came before, so the next beat's block has something to do.
   (m, instant) => {
-    const janStart = m.fx.index({ y: 2027, m: 1, d: 1 }), jan = Array.from({ length: 14 }, (_, k) => janStart + k);
+    m.setBlocked(false, 0, JAN(m));
+    if (instant) { m.openBriefTip('lastmin'); return; }
+    const g = ++gen; press(d => [...d.querySelectorAll('.bpill .head')].find(b => /Last-min/.test(b.textContent || '')));
+    setTimeout(tail(g, () => m.openBriefTip('lastmin')), 130);
+  },
+  // 35 — "Block the first two weeks of January" is typed into the chat and sent; the product blocks January 1–14, night by night
+  (m, instant) => {
+    const jan = JAN(m);
     const land = () => { m.setBlocked(true, 0, jan); };
     if (instant) { land(); return; }
     const g = ++gen; pendingTail = land;
     typeAsk(g, ASK_BLOCK, () => { pendingTail = null; });
   },
-  // 35 — the chat's ⨉, tapped: it drops, the puck still on the Ask
+  // 36 — the chat's ⨉, tapped: it drops, the puck still on the Ask
   (m, instant) => {
     if (instant) { m.setSheet('none'); return; }
     const g = ++gen;
     press(d => [...d.querySelectorAll('.glassbtn')].find(b => (b.querySelector('path') || {}).getAttribute && /^M0 0l10 10/.test(b.querySelector('path').getAttribute('d') || '')));   // the chat's ⨉ (its glyph is the 10×10 cross)
     setTimeout(tail(g, () => { m.clearSelection(); m.setSheet('none'); }), 130);
   },
+  // 37 — the end of the single flow: the phone flows off to the left and a second phone comes in from the right, opened on
+  // the MULTI calendar — its own build, pristine: Today and the gear grey as before, no nav, the Ask circle there but bare.
+  (m, instant) => { setMulti(true, instant); },
 ];
 const ASK_BLOCK = 'Block the first two weeks of January';
+const JAN = m => { const j = m.fx.index({ y: 2027, m: 1, d: 1 }); return Array.from({ length: 14 }, (_, k) => j + k); };   // January 1–14
 // A scripted finger on the Ask chat: the phrase arrives a character at a time into the product's own field (React's value
 // setter, so it sees each keystroke), then Enter sends it and the product answers with the block. `done` runs once sent.
 function typeAsk(g, phrase, done) {
@@ -617,6 +650,10 @@ const settled = (g, fn) => {
 // A scripted finger on the price sheet's keypad. Each key pops (sqa.css key-tap) and its click lands mid-squash,
 // Done included, 460ms apart. Instant: the clicks, at once, no look.
 const appDoc = () => { try { return document.querySelector('.app').contentDocument; } catch (_) { return null; } };
+const app2Doc = () => { try { return document.querySelector('.app2').contentDocument; } catch (_) { return null; } };   // the second phone's (the multi calendar)
+const model2 = () => { try { return document.querySelector('.app2').contentWindow.__model; } catch (_) { return null; } };
+// The phones' places: the single on centre, or (the last beat) the single off left and the multi on centre. A replay cuts there.
+const setMulti = (on, instant) => { const b = document.body; if (instant) b.classList.add('notrans'); b.classList.toggle('multi', on); if (instant) { void b.offsetWidth; requestAnimationFrame(() => b.classList.remove('notrans')); } };
 // CADENCE: a finger moving to a new key takes 460ms; the same key tapped again (⌫ ⌫ ⌫) comes 200ms after the last —
 // a thumb drumming one button, not three considered presses (John, 2026-09-21).
 const KEY_GAP = 460, REPEAT_GAP = 200;
@@ -649,8 +686,7 @@ function typeKeys(keys, instant) {
 // than the key.
 (() => {
   const NAV = new Set(['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'PageUp', 'PageDown', 'Home', 'End', 'f', 'F']);
-  const app = document.querySelector('.app');
-  app.addEventListener('load', () => {
+  for (const app of document.querySelectorAll('.app, .app2')) app.addEventListener('load', () => {
     const w = app.contentWindow;
     // NOTHING SHOWS THROUGH THE HEADER. The app hides the month scrolling under
     // its title with a white .cover strip, but the strip's edges land on
@@ -700,7 +736,7 @@ function typeKeys(keys, instant) {
       BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
-    m.setHeaderLock(false, false); m.hidePuck(); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
+    setMulti(false, false); m.setHeaderLock(false, false); m.hidePuck(); m.openBriefTip(null); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
     m.tab = 'calendar';                        // not part of clearAll's remit
@@ -721,9 +757,10 @@ function typeKeys(keys, instant) {
 })();
 
 (() => {
+  // both phones: the clone carries the same screen and .ui (and the same id, which is why the UIs are found by class)
   const screen = document.querySelector('.screen');
-  const ui     = document.getElementById('ui');
-  function fit() { ui.style.setProperty('--k', (screen.clientHeight + 1) / 812); }
+  const uis    = document.querySelectorAll('.ui');
+  function fit() { const k = (screen.clientHeight + 1) / 812; uis.forEach(ui => ui.style.setProperty('--k', k)); }
   new ResizeObserver(fit).observe(screen);
   fit();
 })();
