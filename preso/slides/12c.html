@@ -165,6 +165,24 @@
         }, instant ? 0 : 700));
       },
       back: w => { ev(w, "exitOptimize(); startOptimize();"); } },
+    // 8 — the golf tournament's curve, taken by its ⇕ handle: dragged UP until the pill reads +115%, held a beat, brought back
+    //     DOWN to +65%, let go; then Apply. The drag is the build's own — pointer events on its master dot, 320px to 100%.
+    { fwd: (w, instant) => {
+        const d = w.document, press = el => { if (el) { el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 440); } };
+        const dot = d.querySelector('.ribbon-master-dot'), pct = () => { const p = d.querySelector('.ribbon-master-dot .rmd-pct'); return p ? parseInt(p.textContent.replace(/[^\d-]/g, ''), 10) : NaN; };
+        const applyBtn = () => d.querySelector('#magicPill [data-magic="apply"]');
+        if (!dot || instant) { const b = applyBtn(); if (b) b.click(); return; }
+        const r = dot.getBoundingClientRect(); let x = r.left + r.width / 2, y = r.top + r.height / 2;
+        const pe = (type, target, extra) => target.dispatchEvent(new w.PointerEvent(type, Object.assign({ bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', isPrimary: true, clientX: x, clientY: y, button: 0, buttons: 1 }, extra || {})));
+        pe('pointerdown', dot);
+        const STEP = 3, TICK = 16;   // 3px a frame: ~1% a frame, the numbers counting as it goes
+        const glide = (want, dir, then) => { const tick = () => { const v = pct(); if (isNaN(v) || (dir < 0 ? v >= want : v <= want)) { then(); return; } y += dir * STEP; pe('pointermove', w, { buttons: 1 }); setTimeout(tick, TICK); }; tick(); };
+        glide(115, -1, () => setTimeout(() => glide(65, 1, () => {
+          pe('pointerup', w, { buttons: 0 });
+          setTimeout(() => { const b = applyBtn(); press(b); setTimeout(() => { if (b) b.click(); }, 130); }, 700);
+        }), 900));
+      },
+      back: w => { ev(w, "exitOptimize(); startOptimize();"); } },
   ];
   let at = 0, pendingRestore = 0;   // a restore asked for before the build stands ready waits for it, and is applied before any tap
   const runTo = n => { for (; at < Math.min(n, BEATS.length); at++) BEATS[at].fwd(W(), true); };
