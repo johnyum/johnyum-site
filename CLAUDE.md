@@ -21,20 +21,27 @@ don't introduce bundlers, npm, or a component framework.
 
 ## `index.html` — what the knock opens onto
 
-The password (`KnockKnock`; spaces are stripped, so "Knock Knock" lands too) is a
-curtain, not a lock — it is in the page. Past it the site shows **the portfolio
-stage**: John's name and bio on the left, three columns of work on the right that
-animate in. Built to Figma frame `5445:843924` in the *Yum Portfolio* file.
+johnyum.com goes **straight to the portfolio stage** — there is no password.
+John's name and bio on the left, three columns of work on the right that animate
+in on load. Built to Figma frame `5445:843924` in the *Yum Portfolio* file.
 
-Two things sit behind flags in that file, both switched OFF, both intact:
+Three things sit behind flags, all switched OFF, all intact — nothing was
+deleted to make room for the stage:
 
 | Flag | Where | What it brings back |
 |---|---|---|
-| `FILM_ENABLED` | top of the first `<script>` | the play button and the portfolio film |
+| `GATE_ENABLED` | `<head>` | the password curtain (`KnockKnock`; spaces stripped, so "Knock Knock" also lands) |
+| `FILM_ENABLED` | `<head>` | the play button and the portfolio film |
 | `PILE_ENABLED` | the Matter.js block | the falling-work pile (retired 2026-08-30) |
 
-Flip `FILM_ENABLED` to true and the film is the destination again; the portfolio
-stage stops mounting. Nothing was deleted to make room for it.
+The first two are declared in the `<head>` rather than beside their code for one
+reason: `GATE_ENABLED` puts `nogate` on `<html>`, and that has to land **before
+the first paint** or the password line and the wordmark bar flash up for a frame
+on a site that no longer has a password.
+
+With the gate off, nothing learns a second way in — the page fires the same
+`unlocked` event the password would have fired, on `DOMContentLoaded`, and the
+one path runs.
 
 The stage's geometry is the frame's, not invented: a flat **120px gutter**, an
 854-wide text column, three 180-wide columns of work **56 apart with 48 between
@@ -47,10 +54,10 @@ bleeds further off the top and bottom, and that overflow is the design.
 Under 1100px the stage stacks: the words on top, the ten screens becoming one
 horizontal rail. The work is never hidden — hiding it would hide the portfolio.
 
-**Nothing is fetched while the page is locked.** The ten PNGs start loading on
-the first keystroke, so they are decoded by the time the columns animate in, and
-someone who never types never pays for them. The film is `preload="none"` for
-the same reason.
+The ten PNGs load as soon as the page does, and the film is `preload="none"` —
+it is never fetched for a stage nobody is going to see. (With `GATE_ENABLED`
+on, the PNGs instead wait for the first keystroke, so a visitor who never types
+never pays for them.)
 
 Type is **Anton** (the name) and **IBM Plex Sans** (everything else), both
 open-licence, off Google Fonts. Not to be confused with the Anthropic faces

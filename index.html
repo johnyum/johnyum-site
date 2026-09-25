@@ -15,6 +15,23 @@
 <!-- Chromium only: flags the control-inversion hack below. Safari must NOT get it
      (it washes the video grey there). Runs before paint so there's no flash. -->
 <script>if(/Chrome\//.test(navigator.userAgent))document.documentElement.classList.add('chrome-media');</script>
+<!-- ══ THE TWO SWITCHES ══════════════════════════════════════════════════════
+     Both live here, above the fold of the page, because `nogate` has to land on
+     <html> BEFORE the first paint — set any later and the password line and the
+     wordmark bar flash up for a frame on a site that no longer has a password.
+
+     GATE_ENABLED  false = johnyum.com goes straight to the portfolio (current).
+                   true  = the password curtain comes back, exactly as it was.
+     FILM_ENABLED  false = the stage is the portfolio (current).
+                   true  = the stage is the play button and the film.
+
+     Neither curtain nor film was deleted to switch them off. Same spirit as
+     PILE_ENABLED further down: the code stays, the flag decides. -->
+<script>
+  const GATE_ENABLED = false;
+  const FILM_ENABLED = false;
+  if (!GATE_ENABLED) document.documentElement.classList.add('nogate');
+</script>
 <!-- Vercel Web Analytics queue shim. Defined early so events fired before the
      analytics script finishes loading are queued, not lost. track() is a safe
      no-op if analytics is disabled or blocked, so nothing here can break the page. -->
@@ -516,6 +533,13 @@
   body.unlocked.portfolio #videostage { display: none; }
   body.portfolio #wm-bar { opacity: 0; pointer-events: none; }
   body.portfolio { cursor: default; }
+  /* No curtain: the password line, its hidden input and the wordmark bar are
+     not rendered at all — not merely faded — so nothing of the gate can show
+     for a frame on the way in. Set on <html> from the head, before first paint. */
+  html.nogate #line,
+  html.nogate #key,
+  html.nogate #wm-bar { display: none; }
+  html.nogate body { cursor: default; }
 
   #portfolio .stage {
     flex: 1;
@@ -762,15 +786,23 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
   </button>
   <script>
-  // ⤵ THE switch for what the knock opens onto. false = the portfolio stage
-  //   (current). true = hand it back to the play button and the film, which
-  //   are still wired up and untouched. Read in two places: here, to decide
-  //   whether unlocking is worth buffering 100MB of film for, and by the
-  //   portfolio stage below, to decide whether to mount at all.
-  const FILM_ENABLED = false;
-
+  // GATE_ENABLED and FILM_ENABLED are declared in the <head> — see the note
+  // there. Both are read below.
   (() => {
     const PASSWORD = 'KnockKnock'; // client-side only: a curtain, not a lock
+
+    // No curtain: the site is simply open. Everything downstream still keys off
+    // the `unlocked` class and event, so rather than teach the stage a second
+    // way in, fire the same event the password would have fired and let the one
+    // path run. DOMContentLoaded, not now — the stage's own listener is further
+    // down this very script and does not exist yet.
+    if (!GATE_ENABLED) {
+      addEventListener('DOMContentLoaded', () => {
+        document.body.classList.add('unlocked');
+        dispatchEvent(new CustomEvent('unlocked'));
+      }, { once: true });
+      return;   // nothing below here — no focus stealing, no key handlers
+    }
     const key = document.getElementById('key');
     const line = document.getElementById('line');
     const dots = document.getElementById('dots');
@@ -935,8 +967,12 @@
     function warm() {
       imgs().forEach(img => { if (img.dataset.src && !img.getAttribute('src')) img.src = img.dataset.src; });
     }
-    const keyEl = document.getElementById('key');
-    if (keyEl) keyEl.addEventListener('input', warm, { once: true });
+    if (GATE_ENABLED) {
+      const keyEl = document.getElementById('key');
+      if (keyEl) keyEl.addEventListener('input', warm, { once: true });
+    } else {
+      warm();   // no keystroke to wait for — the stage is the landing page
+    }
 
     addEventListener('unlocked', () => {
       warm();   // idempotent — covers a paste, or anything that skipped `input`
