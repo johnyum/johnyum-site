@@ -9,7 +9,8 @@ don't introduce bundlers, npm, or a component framework.
 
 | Path | What it is |
 |---|---|
-| `index.html` | The site itself |
+| `index.html` | The site itself — see below |
+| `Website_Images/` | The ten iPhone screens on the portfolio stage. Figma exports, 450x920 |
 | `homes/` | Eichler Hunt — Bay Area listings concept |
 | `multi/`, `multi2/` | Multi-guest booking concepts (Cereal type, event icons) |
 | `multical/` | **Build output — never hand-edit.** The Multi-Host Calendar web app, played live inside the phone on preso slide 13. See below. |
@@ -17,6 +18,43 @@ don't introduce bundlers, npm, or a component framework.
 | `test/` | Scratch prototypes |
 | `playful/`, `claude-icons/`, `icons/` | Icon systems — see below |
 | `vercel.json` | Redirects, plus rewrites proxying `/trips/` to a separate deployment |
+
+## `index.html` — what the knock opens onto
+
+The password (`KnockKnock`; spaces are stripped, so "Knock Knock" lands too) is a
+curtain, not a lock — it is in the page. Past it the site shows **the portfolio
+stage**: John's name and bio on the left, three columns of work on the right that
+animate in. Built to Figma frame `5445:843924` in the *Yum Portfolio* file.
+
+Two things sit behind flags in that file, both switched OFF, both intact:
+
+| Flag | Where | What it brings back |
+|---|---|---|
+| `FILM_ENABLED` | top of the first `<script>` | the play button and the portfolio film |
+| `PILE_ENABLED` | the Matter.js block | the falling-work pile (retired 2026-08-30) |
+
+Flip `FILM_ENABLED` to true and the film is the destination again; the portfolio
+stage stops mounting. Nothing was deleted to make room for it.
+
+The stage's geometry is the frame's, not invented: a flat **120px gutter**, an
+854-wide text column, three 180-wide columns of work **56 apart with 48 between
+the screens down each one**, the lot ending 120 from the right edge. Those three
+numbers are flat — only the phone width scales with the viewport. `space-between` reproduces the frame's own
+174 between the words and the work, so that number is never typed in. All three
+columns are centred on the same middle line — the taller middle column just
+bleeds further off the top and bottom, and that overflow is the design.
+
+Under 1100px the stage stacks: the words on top, the ten screens becoming one
+horizontal rail. The work is never hidden — hiding it would hide the portfolio.
+
+**Nothing is fetched while the page is locked.** The ten PNGs start loading on
+the first keystroke, so they are decoded by the time the columns animate in, and
+someone who never types never pays for them. The film is `preload="none"` for
+the same reason.
+
+Type is **Anton** (the name) and **IBM Plex Sans** (everything else), both
+open-licence, off Google Fonts. Not to be confused with the Anthropic faces
+below, which must never be vendored here.
 
 ## `multical/` — the live calendar on slide 13
 

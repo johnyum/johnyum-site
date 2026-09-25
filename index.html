@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light">
 <title>John Yum</title>
+<!-- The portfolio stage's two faces, straight off the Figma frame: Anton for the
+     name, IBM Plex Sans for everything else. Both are open-licence Google fonts —
+     nothing proprietary is vendored here. display=swap so the locked password
+     screen (Helvetica) never waits on them. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Sans:wght@400;600&display=swap">
 <!-- Chromium only: flags the control-inversion hack below. Safari must NOT get it
      (it washes the video grey there). Runs before paint so there's no flash. -->
 <script>if(/Chrome\//.test(navigator.userAgent))document.documentElement.classList.add('chrome-media');</script>
@@ -463,6 +470,217 @@
     #caret { animation: none; }
     #line.shake { animation: none; }
   }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     THE PORTFOLIO STAGE — what the knock opens onto (2026-09-25)
+     ══════════════════════════════════════════════════════════════════════
+     Built to Figma frame 5445:843924. Unlock used to reveal a play button and
+     the film; it now reveals this. The film is NOT deleted — only switched
+     off, behind FILM_ENABLED in the script below, the same way the pile was
+     retired. `body.portfolio` is a second class precisely so these rules
+     outrank the single-class `body.unlocked` ones that reveal #playbtn and
+     #videostage; no !important anywhere.
+
+     The frame is 1920x1080 with 120px gutters: an 854-wide text column on the
+     left, three 180-wide columns of work on the right with 56 between them.
+     854 + 174 + 652 + the two gutters = 1920, which is exactly what
+     space-between reproduces — so the gap between the words and the work is
+     the design's own, not a number typed in here.
+
+     Every one of the three columns is centred on the frame's middle line
+     (each spans symmetrically about y=540 in Figma), so the taller middle
+     column simply bleeds further off the top and bottom. That overflow IS
+     the design — #portfolio clips it.
+
+     The phone WIDTH is clamped, so the columns shrink continuously from 1920
+     down instead of snapping at a breakpoint. The two gaps do not shrink with
+     it — 48 down a column and 56 between columns are flat, as specified. */
+  #portfolio {
+    position: fixed; inset: 0;
+    display: none;
+    z-index: 30;
+    background: #fff;
+    overflow: hidden;
+    cursor: default;
+    --gutter:  120px;          /* as specified — held flat, not scaled */
+    --phone-w: clamp(116px, 10.5vw, 180px);
+    --phone-gap: 48px;         /* between screens down a column — flat */
+    --col-gap:   56px;         /* between the columns themselves — flat */
+    font-family: "IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #222;
+  }
+  body.portfolio #portfolio { display: flex; }
+  /* the stage takes over: no play button, no film, no top bar, and the body's
+     text caret goes away with the password line. */
+  body.unlocked.portfolio #playbtn,
+  body.unlocked.portfolio #videostage { display: none; }
+  body.portfolio #wm-bar { opacity: 0; pointer-events: none; }
+  body.portfolio { cursor: default; }
+
+  #portfolio .stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: clamp(32px, 9vw, 174px);
+    padding: 0 var(--gutter);
+    min-width: 0;
+  }
+
+  /* ── the words ───────────────────────────────────────────────────────── */
+  #portfolio .bio {
+    flex: 0 1 854px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 40px;
+  }
+  #portfolio h1 {
+    margin: 0;
+    font-family: "Anton", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-weight: 400;
+    font-size: clamp(30px, 2.08vw, 40px);
+    line-height: 1;
+    letter-spacing: 0;
+    color: #222;
+  }
+  #portfolio .lede {
+    margin: 0;
+    font-size: clamp(17px, 1.25vw, 24px);
+    line-height: clamp(28px, 2.08vw, 40px);
+    letter-spacing: -1px;
+    color: #222;
+    max-width: 854px;
+  }
+  #portfolio .teams { max-width: 548px; }
+  #portfolio .teams h2 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+    letter-spacing: -1px;
+    color: #222;
+  }
+  #portfolio .teams p {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 24px;
+    letter-spacing: -1px;
+    color: #6c6c6c;     /* grey-700, straight off the frame */
+  }
+  #portfolio .contact {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 24px;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+    letter-spacing: -1px;
+  }
+  #portfolio .contact span { white-space: nowrap; }
+  #portfolio .contact a {
+    color: #222;
+    text-decoration: none;
+    white-space: nowrap;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s ease;
+  }
+  #portfolio .contact a:hover { border-bottom-color: #222; }
+
+  /* ── the work ────────────────────────────────────────────────────────── */
+  #portfolio .work {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;           /* all three centred on the same middle line */
+    gap: var(--col-gap);
+  }
+  #portfolio .col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--phone-gap);
+    width: var(--phone-w);
+    flex: 0 0 auto;
+  }
+  #portfolio .col img {
+    display: block;
+    width: 100%;
+    height: auto;
+    /* the export is a tight crop of the device, so the aspect is fixed and
+       declaring it reserves the box before the PNG lands — no reflow when the
+       ten images decode mid-animation. */
+    aspect-ratio: 450 / 920;
+  }
+
+  /* ── the animation in ────────────────────────────────────────────────────
+     Everything rests at its final position and is moved OFF it by .pre, which
+     is removed one frame after mount. Two transitions, one language: the words
+     rise 20px, the work rises 56px and comes from nothing. The per-element
+     delays are set in the script, not here, so the order lives in one place. */
+  #portfolio .bio > *,
+  #portfolio .col {
+    transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  #portfolio.pre .bio > * { opacity: 0; transform: translateY(20px); }
+  #portfolio.pre .col     { opacity: 0; transform: translateY(56px); }
+
+  @media (prefers-reduced-motion: reduce) {
+    #portfolio .bio > *, #portfolio .col {
+      transition: opacity 0.3s linear;
+      transform: none;
+    }
+    #portfolio.pre .bio > *, #portfolio.pre .col { transform: none; }
+  }
+
+  /* ── narrow ──────────────────────────────────────────────────────────────
+     Under 1100 the three columns cannot stand beside 854 of text without
+     either crushing the measure or shrinking the phones past legibility. So
+     the stage stacks: the words on top, and the work becomes one horizontal
+     rail of all ten screens that the reader swipes. Nothing is dropped —
+     hiding the work on a phone would hide the portfolio. */
+  @media (max-width: 1100px) {
+    #portfolio { overflow-y: auto; --phone-w: 148px; --gutter: clamp(20px, 5vw, 48px); }
+    #portfolio .stage {
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: center;
+      gap: 40px;
+      padding: 48px var(--gutter);
+      min-height: 100%;
+    }
+    #portfolio .bio { flex: 0 0 auto; gap: 28px; }
+    /* The frame's hierarchy is 24 over 16 — a third again. Left to the desktop
+       clamps that collapses to 17 over 16 here and the three ranks read as one,
+       so the small type steps down with the lede rather than holding at 16. */
+    #portfolio .lede { font-size: 17px; line-height: 27px; letter-spacing: -0.5px; }
+    #portfolio .teams h2,
+    #portfolio .teams p,
+    #portfolio .contact { font-size: 14px; line-height: 21px; letter-spacing: -0.3px; }
+    #portfolio .contact { gap: 8px 20px; }
+    #portfolio .work {
+      display: flex;
+      gap: 16px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      /* bleed the rail into the gutters so it reads as scrollable */
+      margin: 0 calc(var(--gutter) * -1);
+      padding: 0 var(--gutter);
+    }
+    #portfolio .work::-webkit-scrollbar { display: none; }
+    /* the columns stop being columns — every screen sits in one row */
+    #portfolio .col {
+      flex-direction: row;
+      gap: 16px;
+      width: auto;
+    }
+    #portfolio .col img { width: var(--phone-w); }
+    #portfolio.pre .col { transform: translateY(32px); }
+  }
 </style>
 </head>
 <body>
@@ -473,6 +691,44 @@
   <input id="key" type="password" autocomplete="off" autocapitalize="off" enterkeyhint="go" spellcheck="false" aria-label="Password" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
   <div id="line" aria-hidden="true"><span id="dots"><span id="caret"></span></span></div>
   <div id="pile" aria-hidden="true"></div>
+  <!-- The portfolio stage. Hidden until the knock lands; the script below
+       mounts it, fills in the image srcs (nothing here is fetched while the
+       page is still locked) and runs the reveal. -->
+  <div id="portfolio" class="pre" aria-hidden="true">
+    <div class="stage">
+      <div class="bio">
+        <h1>John Yum</h1>
+        <p class="lede">Designer with 15+ years of experience, including 11 at Airbnb, where I've designed across nearly every side of the business, from guest travel, payments to design systems. For the last 5 years I've focused on host tools, leading design for the pricing, calendar, and earnings experiences hosts rely on to run their business.</p>
+        <div class="teams">
+          <h2>Teams at Airbnb</h2>
+          <p>Host calendar &middot; Pricing &middot; Earnings &middot; Host setup &middot; Search &middot; Airbnb Luxe &middot; Business travel &middot; Transportation &middot; Gift cards &middot; Payments &middot; Design systems &amp; more.</p>
+        </div>
+        <div class="contact">
+          <span>Full portfolio available upon request</span>
+          <a href="mailto:yum@johnyum.com">yum@johnyum.com</a>
+          <a href="tel:+13618163515">1.361.816.3515</a>
+        </div>
+      </div>
+      <div class="work" aria-label="Selected work">
+      <div class="col">
+        <img data-src="Website_Images/Villa_Mayana_Mobile.png" alt="Villa Mayana listing on iPhone" width="450" height="920" decoding="async">
+        <img data-src="Website_Images/Group%202147237324.png" alt="Airbnb listing detail on iPhone" width="450" height="920" decoding="async">
+        <img data-src="Website_Images/Component%205.png" alt="Listing setup flow on iPhone" width="450" height="920" decoding="async">
+      </div>
+      <div class="col">
+        <img data-src="Website_Images/Group%202147237327.png" alt="Price tips on the host calendar, on iPhone" width="450" height="920" decoding="async">
+        <img data-src="Website_Images/Villa_Mayana_Mobile-1.png" alt="Villa Mayana listing on iPhone" width="450" height="920" decoding="async">
+        <img data-src="Website_Images/Component%204.png" alt="Host calendar on iPhone" width="450" height="920" decoding="async">
+        <img data-src="Website_Images/Group%202147237328.png" alt="Airbnb listing detail on iPhone" width="450" height="920" decoding="async">
+      </div>
+      <div class="col">
+        <img data-src="Website_Images/Group%202147237326.png" alt="Host earnings chart on iPhone" width="450" height="920" decoding="async">
+        <img data-src="Website_Images/Group%202147237324-1.png" alt="Airbnb listing detail on iPhone" width="450" height="920" decoding="async">
+        <img data-src="Website_Images/Group%202147237325.png" alt="Host calendar views on iPhone" width="450" height="920" decoding="async">
+      </div>
+      </div>
+    </div>
+  </div>
   <a id="playbtn" href="/test" aria-label="Play film">
     <svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="40" fill="#111"/><path d="M30 22 L58 40 L30 58 Z" fill="#fff"/></svg>
   </a>
@@ -485,7 +741,7 @@
     <button class="chip cc-btn" id="ccToggle" type="button">Captions</button>
   </div>
   <div id="videostage" aria-hidden="true">
-    <video width="1920" height="1080" controls playsinline webkit-playsinline preload="metadata" poster="img/Videos/Portfolio_Updated_HB-poster.jpg"
+    <video width="1920" height="1080" controls playsinline webkit-playsinline preload="none" poster="img/Videos/Portfolio_Updated_HB-poster.jpg"
            controlslist="nodownload noplaybackrate noremoteplayback" disablepictureinpicture>
       <source src="img/Videos/Portfolio_Updated_2_HB.mp4" type="video/mp4">
       <!-- ?v= bumps whenever the cues change: without it browsers keep serving a cached
@@ -506,6 +762,13 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
   </button>
   <script>
+  // ⤵ THE switch for what the knock opens onto. false = the portfolio stage
+  //   (current). true = hand it back to the play button and the film, which
+  //   are still wired up and untouched. Read in two places: here, to decide
+  //   whether unlocking is worth buffering 100MB of film for, and by the
+  //   portfolio stage below, to decide whether to mount at all.
+  const FILM_ENABLED = false;
+
   (() => {
     const PASSWORD = 'KnockKnock'; // client-side only: a curtain, not a lock
     const key = document.getElementById('key');
@@ -603,7 +866,10 @@
 
     key.addEventListener('keydown', e => {
       if (e.key !== 'Enter') return;
-      if (key.value === PASSWORD) {
+      // Spaces are stripped before the comparison: the password is spoken and
+      // written as two words, so "Knock Knock" has to land as surely as
+      // "KnockKnock". Case is still exact.
+      if (key.value.replace(/\s+/g, '') === PASSWORD) {
         key.value = '';
         // Start buffering the film so it plays instantly when the play button is
         // tapped. Deliberately does NOT call play() here: a muted play()->pause()
@@ -612,10 +878,15 @@
         // the pile page and then unmuted itself — audible video with nothing on
         // screen. Mobile playback is handled properly elsewhere: the film is made
         // visible (behind the draining pile) before play() runs inside the tap.
-        try {
-          const film = document.querySelector('#videostage video');
-          if (film) film.preload = 'auto';
-        } catch (_) {}
+        // Only worth doing when the film is actually the destination — with
+        // FILM_ENABLED false this would pull down the whole mp4 for a stage
+        // nobody is going to see.
+        if (FILM_ENABLED) {
+          try {
+            const film = document.querySelector('#videostage video');
+            if (film) film.preload = 'auto';
+          } catch (_) {}
+        }
         line.classList.add('gone');
         // iOS keeps the keyboard up after a bare blur() called from the input's
         // own keydown. Making the field readonly (+ disabled) first forces
@@ -636,6 +907,58 @@
         line.addEventListener('animationend', () => line.classList.remove('shake'), { once: true });
       }
     });
+  })();
+
+  // ══════════════════════════════════════════════════════════════════════
+  // THE PORTFOLIO STAGE (2026-09-25) — where the knock now lands.
+  //
+  // It used to land on the play button and the film. The film is NOT gone:
+  // every line of it below still works and is still wired to #videostage.
+  // FILM_ENABLED is the switch, in the same spirit as PILE_ENABLED further
+  // down — flip it to true and the old stage comes straight back.
+  // ══════════════════════════════════════════════════════════════════════
+  (() => {
+    const stage = document.getElementById('portfolio');
+    if (!stage || FILM_ENABLED) return;
+
+    // The reveal, in ms from the moment the stage mounts. The words come up
+    // one after another, then the three columns of work — the work's stagger
+    // is the slower of the two because it is the thing being shown.
+    const TEXT_FROM = 60,  TEXT_STEP = 90;
+    const COL_FROM  = 420, COL_STEP  = 150;
+
+    const imgs = () => stage.querySelectorAll('.col img');
+    // Warm the ten screens the moment someone starts typing. By the time the
+    // last character lands they are usually decoded, so the columns animate in
+    // already carrying their work instead of catching up to it a beat later.
+    // Anyone who never types never fetches them — the locked page stays light.
+    function warm() {
+      imgs().forEach(img => { if (img.dataset.src && !img.getAttribute('src')) img.src = img.dataset.src; });
+    }
+    const keyEl = document.getElementById('key');
+    if (keyEl) keyEl.addEventListener('input', warm, { once: true });
+
+    addEventListener('unlocked', () => {
+      warm();   // idempotent — covers a paste, or anything that skipped `input`
+
+      stage.querySelectorAll('.bio > *').forEach((el, i) => {
+        el.style.transitionDelay = (TEXT_FROM + i * TEXT_STEP) + 'ms';
+      });
+      stage.querySelectorAll('.col').forEach((el, i) => {
+        el.style.transitionDelay = (COL_FROM + i * COL_STEP) + 'ms';
+      });
+
+      document.body.classList.add('portfolio');
+      stage.setAttribute('aria-hidden', 'false');
+
+      // Drop .pre a full frame AFTER the stage has been laid out in its offset
+      // state. Removing it in the same frame as the display flip lets the
+      // browser coalesce both states into one — there is then nothing to
+      // transition from and everything simply appears.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        stage.classList.remove('pre');
+      }));
+    }, { once: true });
   })();
 
   document.querySelectorAll('.wm-pill').forEach(pill => {
