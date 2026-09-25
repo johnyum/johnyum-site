@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11cut</title>
+<!-- WHAT WAS CUT — the last beat of Host setup, before Lesson 2.
+
+     Eleven things that did not make the flow, set in slide 07's list exactly:
+     Special Gothic Condensed One at clamp(16px, 6.1vh, 62px), 1.06, centred.
+     The two lists rhyme on purpose — 07 is everything worked on, this is
+     everything given up, in the same voice at the same size.
+
+       beat 0  the eleven arrive one after another, 55ms apart, fast enough that
+               it reads as a list landing rather than an animation playing.
+               The presenter talks over it.
+       beat 1  ONE tap and all eleven are struck through at once — same duration,
+               same delay, no stagger. The cut was a single decision, so it
+               lands as a single movement. That is the whole point of the beat
+               before it: the list has to be read as real before it is taken
+               away.
+       beat 2  out of builds; the deck moves on to Lesson 2.
+
+     The rule is a scaled pseudo-element, not text-decoration, because
+     line-through cannot be animated. It runs 24px past the word at each end,
+     and each line is only as wide as its own text, so no two strikes come out
+     the same length.
+
+     Tapping back lifts the rules and leaves the list standing. -->
+<style>
+  @font-face {
+    font-family: "Special Gothic Condensed One";
+    src: url("../fonts/SpecialGothicCondensedOne.woff2") format("woff2");
+    font-weight: 400;
+    font-display: block;
+  }
+  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
+  .slide { height: 100%; display: grid; place-items: center; }
+
+  .list {
+    margin: 0; padding: 0; list-style: none;
+    font-family: "Special Gothic Condensed One", "Helvetica Neue", sans-serif;
+    font-weight: 400;
+    font-size: clamp(16px, 6.1vh, 62px);   /* slide 07's list, exactly */
+    line-height: 1.06;
+    letter-spacing: -0.01em;
+    color: #111;
+    text-align: center;
+  }
+  .list li {
+    position: relative;                     /* the rule is positioned on the line */
+    /* SHRINK TO THE WORDS. A list-item is as wide as the widest line, so a rule
+       pinned to the li came out identical on every row — eleven strikes of the
+       same length, which read as a ruled table rather than as crossing things
+       out. fit-content makes each line only as wide as its own text, so
+       "Promotions" gets a short rule and "Weekly / Monthly discounts" a long
+       one; the auto margins keep the column centred. */
+    width: fit-content;
+    margin-inline: auto;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 340ms ease, transform 340ms cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: calc(var(--i) * 55ms);
+    will-change: opacity, transform;
+  }
+  body.in .list li { opacity: 1; transform: none; }
+
+  /* THE RULE. Scaled from the left so it draws rather than appears. Its own
+     transition carries NO delay, so every line is struck on the same frame
+     however late that line arrived. */
+  .list li::after {
+    content: '';
+    position: absolute;
+    left: -24px; right: -24px;              /* 24 past the word at each end */
+    top: 52%;                               /* optically centred on this face */
+    height: 0.055em;
+    background: #111;
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  body.cut .list li::after { transform: scaleX(1); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .list li, .list li::after { transition: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="slide">
+    <ul class="list" id="list">
+      <li>Weekend prices</li>
+      <li>Extra fees</li>
+      <li>Smart pricing</li>
+      <li>Weekly / Monthly discounts</li>
+      <li>Last-minute discounts</li>
+      <li>Promotions</li>
+      <li>Minimum nights</li>
+      <li>Bank account setup</li>
+      <li>Check-out restrictions</li>
+      <li>Cancellation policy</li>
+      <li>Local rental laws</li>
+    </ul>
+  </div>
+<script>
+(() => {
+  const list = document.getElementById('list');
+  const rows = [...list.children];
+  rows.forEach((el, i) => el.style.setProperty('--i', i));   // the 55ms cascade
+
+  let cut = false;
+
+  // WHEN THE CASCADE STARTS. Not on load: the deck builds slides ahead and
+  // parks them display:none / visibility:hidden (see prepare() in index.html),
+  // so a rAF here never fires and the list sits at opacity 0 forever — the
+  // slide comes up blank. The deck fires `presoshown` on this window the
+  // moment the slide is actually on stage; that is the signal.
+  //
+  // The poll is the belt to that braces: it watches for the frame genuinely
+  // having a box and no hidden ancestor, so the cascade cannot start while the
+  // slide is still parked (which would spend the whole animation unseen and
+  // land the list already complete). The 10s stop is a last resort — whatever
+  // else goes wrong, the words appear.
+  const reveal = () => document.body.classList.add('in');
+  addEventListener('presoshown', reveal);
+
+  function onStage() {
+    try {
+      const fe = window.frameElement;
+      if (!fe) return true;                       // opened directly, not in the deck
+      if (!fe.getClientRects().length) return false;          // display:none somewhere above
+      for (let n = fe; n && n.nodeType === 1; n = n.parentElement) {
+        const cs = getComputedStyle(n);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+      }
+      return true;
+    } catch (_) { return true; }                  // cross-origin: don't hold the slide hostage
+  }
+  const t0 = Date.now();
+  (function watch() {
+    if (document.body.classList.contains('in')) return;
+    if (onStage() || Date.now() - t0 > 10000) { reveal(); return; }
+    setTimeout(watch, 150);
+  })();
+
+  window.presoNext = () => {
+    if (cut) return false;                  // out of builds — on to Lesson 2
+    // A fast presenter can tap before the cascade lands. Put every line in
+    // place first so nothing is still arriving while it is being struck out.
+    document.body.classList.add('in');
+    rows.forEach(el => el.style.setProperty('--i', 0));
+    cut = true;
+    document.body.classList.add('cut');
+    return true;
+  };
+  window.presoPrev = () => {
+    if (!cut) return false;                 // the deck goes back to the flow
+    cut = false;
+    document.body.classList.remove('cut');
+    rows.forEach((el, i) => el.style.setProperty('--i', i));
+    return true;
+  };
+  window.presoState = () => cut ? 1 : 0;    // the deck's URL carries this slide's build
+  window.presoRestore = n => {
+    if (n > 0 && !cut) {
+      document.body.classList.add('in');
+      rows.forEach(el => el.style.setProperty('--i', 0));
+      cut = true;
+      document.body.classList.add('cut');
+    }
+  };
+})();
+</script>
+</body>
+</html>
