@@ -58,6 +58,13 @@ on its own, the email and phone side by side beneath it. The screens are not
 merely hidden; the script never fetches them below that width, so a phone
 downloads **none** of the 2.3MB. Widen past it and they load then.
 
+The narrow type is set small and quiet — the name carries the page at 30, the
+blurb sits at 12 and the teams and contact a step under it at 11, so they never
+outrank the thing they qualify. The block **snaps back to centre** above 420px
+tall, where the words fit outright and a snap can only return a rubber-band
+drag; below that they genuinely have to scroll and any snap fights the reader
+for the last line, so there is none.
+
 The rag on narrow is deliberate, because centred text shows a bad break far more
 plainly than ragged-right does. The short blocks take `text-wrap: balance` and
 the bio `pretty`; and every interpunct in the teams list is bound to the word

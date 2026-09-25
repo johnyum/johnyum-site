@@ -543,6 +543,10 @@
   html.nogate body { cursor: default; }
 
   #portfolio .stage {
+    /* border-box or the narrow layout's 48px of vertical padding lands ON TOP
+       of its min-height:100%, making the stage 96px taller than the viewport
+       and the page scroll for no reason at all. */
+    box-sizing: border-box;
     flex: 1;
     display: flex;
     align-items: center;
@@ -669,11 +673,21 @@
      hidden either — the script below never fetches them below this width, so
      a phone does not pay 2.3MB for a rail it will not see. */
   @media (max-width: 1100px) {
-    #portfolio { overflow-y: auto; --phone-w: 148px; --gutter: clamp(20px, 5vw, 48px); }
+    #portfolio {
+      overflow-y: auto;
+      overscroll-behavior: contain;   /* a drag here never escapes to the page behind */
+      --phone-w: 148px;
+      --gutter: clamp(20px, 5vw, 48px);
+    }
     #portfolio .stage {
       flex-direction: column;
       align-items: stretch;
-      justify-content: center;
+      /* `safe` matters on a short window: plain centring overflows in BOTH
+         directions, and the part above the centre line is not scrollable —
+         the top of the name simply becomes unreachable. safe centre falls back
+         to flex-start the moment it would overflow, so nothing is ever cut off
+         with no way to reach it. */
+      justify-content: safe center;
       gap: 40px;
       padding: 48px var(--gutter);
       min-height: 100%;
@@ -684,7 +698,7 @@
        row inside it. */
     #portfolio .bio {
       flex: 0 0 auto;
-      gap: 28px;
+      gap: 20px;               /* 28 was set for 17px text; a gulf at this scale */
       align-items: center;
       text-align: center;
     }
@@ -709,15 +723,34 @@
        breaks the row — the two links then wrap together onto the next one. */
     #portfolio .contact { justify-content: center; }
     #portfolio .contact > span { flex: 0 0 100%; }
-    /* The frame's hierarchy is 24 over 16 — a third again. Left to the desktop
-       clamps that collapses to 17 over 16 here and the three ranks read as one,
-       so the small type steps down with the lede rather than holding at 16. */
-    #portfolio .lede { font-size: 17px; line-height: 27px; letter-spacing: -0.5px; }
+    /* A quiet scale on narrow: the name carries the page and everything under it
+       is set small. The teams and contact sit a step BELOW the blurb, not level
+       with it — at 12 over 14 they would outrank the thing they qualify. */
+    #portfolio .lede { font-size: 12px; line-height: 19px; letter-spacing: -0.2px; }
     #portfolio .teams h2,
     #portfolio .teams p,
-    #portfolio .contact { font-size: 14px; line-height: 21px; letter-spacing: -0.3px; }
-    #portfolio .contact { gap: 8px 20px; }
+    #portfolio .contact { font-size: 11px; line-height: 17px; letter-spacing: -0.1px; }
+    #portfolio .contact { gap: 6px 16px; }
     #portfolio .work { display: none; }
+  }
+
+  /* ── snap back to the middle ─────────────────────────────────────────────
+     Only where it is purely cosmetic. Above 420px tall the words fit the screen
+     outright (321 of text inside 96 of padding), so there is nothing to scroll
+     and a snap can do exactly one thing: return a rubber-band drag to the
+     centre instead of leaving it resting half off. Below 420 the text genuinely
+     has to scroll, and ANY snap there fights the reader for the last line — it
+     kept pulling the phone number back out of view — so there is none.
+
+     `proximity`, not `mandatory`, for the same reason: it returns you to centre
+     from near it and otherwise leaves the scroll alone.
+
+     The BIO is the target, not the stage. A snap area taller than the scrollport
+     counts as oversized, and browsers ignore `center` on it and simply clamp —
+     which parked the content at the top instead of the middle. */
+  @media (max-width: 1100px) and (min-height: 420px) {
+    #portfolio { scroll-snap-type: y proximity; }
+    #portfolio .bio { scroll-snap-align: center; }
   }
 </style>
 </head>
