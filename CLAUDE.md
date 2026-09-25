@@ -52,12 +52,17 @@ phone width scales with the viewport. `space-between` reproduces the frame's own
 columns are centred on the same middle line — the taller middle column just
 bleeds further off the top and bottom, and that overflow is the design.
 
-Under 1100px the stage stacks and **centres**: the words on top, centred on the
-measure, the ten screens becoming one horizontal rail beneath. The work is never
-hidden — hiding it would hide the portfolio. The rail uses `justify-content:
-safe center`, so it centres only while it fits; once it overflows it starts at
-the left edge, because a centred overflowing flex row puts its first screen
-above the scroll origin where no swipe can reach it.
+Under 1100px **the work comes off** and the page is the words alone, centred:
+the name, the bio, the teams, then the contact on two lines — the standing offer
+on its own, the email and phone side by side beneath it. The screens are not
+merely hidden; the script never fetches them below that width, so a phone
+downloads **none** of the 2.3MB. Widen past it and they load then.
+
+The rag on narrow is deliberate, because centred text shows a bad break far more
+plainly than ragged-right does. The short blocks take `text-wrap: balance` and
+the bio `pretty`; and every interpunct in the teams list is bound to the word
+before it with `&nbsp;`, so a line can only break *after* a separator — lines
+end with `·` and never start with one.
 
 The ten PNGs load as soon as the page does, and the film is `preload="none"` —
 it is never fetched for a stage nobody is going to see. (With `GATE_ENABLED`

@@ -662,10 +662,12 @@
 
   /* ── narrow ──────────────────────────────────────────────────────────────
      Under 1100 the three columns cannot stand beside 854 of text without
-     either crushing the measure or shrinking the phones past legibility. So
-     the stage stacks: the words on top, and the work becomes one horizontal
-     rail of all ten screens that the reader swipes. Nothing is dropped —
-     hiding the work on a phone would hide the portfolio. */
+     either crushing the measure or shrinking the phones past legibility, and
+     a rail of ten 148px screens on a phone shows none of them properly. So on
+     narrow the work comes OFF and the page is the words alone, centred: the
+     name, the bio, the teams, and the contact. The screens are not merely
+     hidden either — the script below never fetches them below this width, so
+     a phone does not pay 2.3MB for a rail it will not see. */
   @media (max-width: 1100px) {
     #portfolio { overflow-y: auto; --phone-w: 148px; --gutter: clamp(20px, 5vw, 48px); }
     #portfolio .stage {
@@ -687,11 +689,26 @@
       text-align: center;
     }
     #portfolio .teams { max-width: none; }
+
+    /* The rag. Centred text shows a bad break far more plainly than ragged-
+       right does — a stranded last word reads as a mistake rather than as the
+       end of a paragraph. `balance` evens the line lengths of the short blocks
+       (browsers cap it at a handful of lines, which is exactly what the name,
+       the teams list and the contact are); the bio is too long to qualify, so
+       it takes `pretty`, which leaves the rag alone but refuses to end the
+       paragraph on an orphan. Both degrade to normal wrapping where
+       unsupported — nothing depends on them. */
+    #portfolio h1,
+    #portfolio .teams h2,
+    #portfolio .teams p,
+    #portfolio .contact { text-wrap: balance; }
+    #portfolio .lede { text-wrap: pretty; }
+
+    /* The contact splits across two lines: the standing offer on its own,
+       then the two ways to act on it side by side. flex-basis 100% is what
+       breaks the row — the two links then wrap together onto the next one. */
     #portfolio .contact { justify-content: center; }
-    /* The rail only centres while it FITS. Once it overflows it must start at
-       the left edge — a centred overflowing flex row puts its first screen
-       out of reach above the scroll origin, unreachable by swiping. */
-    #portfolio .work { justify-content: safe center; }
+    #portfolio .contact > span { flex: 0 0 100%; }
     /* The frame's hierarchy is 24 over 16 — a third again. Left to the desktop
        clamps that collapses to 17 over 16 here and the three ranks read as one,
        so the small type steps down with the lede rather than holding at 16. */
@@ -700,26 +717,7 @@
     #portfolio .teams p,
     #portfolio .contact { font-size: 14px; line-height: 21px; letter-spacing: -0.3px; }
     #portfolio .contact { gap: 8px 20px; }
-    #portfolio .work {
-      display: flex;
-      gap: 16px;
-      overflow-x: auto;
-      overflow-y: hidden;
-      scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
-      /* bleed the rail into the gutters so it reads as scrollable */
-      margin: 0 calc(var(--gutter) * -1);
-      padding: 0 var(--gutter);
-    }
-    #portfolio .work::-webkit-scrollbar { display: none; }
-    /* the columns stop being columns — every screen sits in one row */
-    #portfolio .col {
-      flex-direction: row;
-      gap: 16px;
-      width: auto;
-    }
-    #portfolio .col img { width: var(--phone-w); }
-    #portfolio.pre .col { transform: translateY(32px); }
+    #portfolio .work { display: none; }
   }
 </style>
 </head>
@@ -741,7 +739,10 @@
         <p class="lede">Designer with 15+ years of experience, including 11 at Airbnb, where I've designed across nearly every side of the business, from guest travel, payments to design systems. For the last 5 years I've focused on host tools, leading design for the pricing, calendar, and earnings experiences hosts rely on to run their business.</p>
         <div class="teams">
           <h2>Teams at Airbnb</h2>
-          <p>Host calendar &middot; Pricing &middot; Earnings &middot; Host setup &middot; Search &middot; Airbnb Luxe &middot; Business travel &middot; Transportation &middot; Gift cards &middot; Payments &middot; Design systems &middot; and more.</p>
+          <!-- The &nbsp; before each interpunct binds it to the word it follows, so a
+               line can only break AFTER a separator: lines end with · and never start
+               with one. That is the whole of the rag on this list. -->
+          <p>Host calendar&nbsp;&middot; Pricing&nbsp;&middot; Earnings&nbsp;&middot; Host setup&nbsp;&middot; Search&nbsp;&middot; Airbnb Luxe&nbsp;&middot; Business travel&nbsp;&middot; Transportation&nbsp;&middot; Gift cards&nbsp;&middot; Payments&nbsp;&middot; Design systems&nbsp;&middot; and more.</p>
         </div>
         <div class="contact">
           <span>Full portfolio available upon request</span>
@@ -983,15 +984,24 @@
     function warm() {
       imgs().forEach(img => { if (img.dataset.src && !img.getAttribute('src')) img.src = img.dataset.src; });
     }
+    // Below 1100 the work is not rendered at all (see the CSS), so a phone must
+    // not pay 2.3MB for it. Warm only at a width that can show it — and warm
+    // late if the window is ever widened past the breakpoint, so a desktop
+    // that started narrow still fills in. 1101 is the CSS's 1100 + 1: the two
+    // have to be changed together.
+    const WIDE = matchMedia('(min-width: 1101px)');
+    const warmIfShown = () => { if (WIDE.matches) warm(); };
+    WIDE.addEventListener('change', warmIfShown);
+
     if (GATE_ENABLED) {
       const keyEl = document.getElementById('key');
-      if (keyEl) keyEl.addEventListener('input', warm, { once: true });
+      if (keyEl) keyEl.addEventListener('input', warmIfShown, { once: true });
     } else {
-      warm();   // no keystroke to wait for — the stage is the landing page
+      warmIfShown();   // no keystroke to wait for — the stage is the landing page
     }
 
     addEventListener('unlocked', () => {
-      warm();   // idempotent — covers a paste, or anything that skipped `input`
+      warmIfShown();   // idempotent — covers a paste, or anything that skipped `input`
 
       stage.querySelectorAll('.bio > *').forEach((el, i) => {
         el.style.transitionDelay = (TEXT_FROM + i * TEXT_STEP) + 'ms';
