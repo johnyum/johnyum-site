@@ -52,8 +52,12 @@ phone width scales with the viewport. `space-between` reproduces the frame's own
 columns are centred on the same middle line — the taller middle column just
 bleeds further off the top and bottom, and that overflow is the design.
 
-Under 1100px the stage stacks: the words on top, the ten screens becoming one
-horizontal rail. The work is never hidden — hiding it would hide the portfolio.
+Under 1100px the stage stacks and **centres**: the words on top, centred on the
+measure, the ten screens becoming one horizontal rail beneath. The work is never
+hidden — hiding it would hide the portfolio. The rail uses `justify-content:
+safe center`, so it centres only while it fits; once it overflows it starts at
+the left edge, because a centred overflowing flex row puts its first screen
+above the scroll origin where no swipe can reach it.
 
 The ten PNGs load as soon as the page does, and the film is `preload="none"` —
 it is never fetched for a stage nobody is going to see. (With `GATE_ENABLED`
