@@ -44,9 +44,10 @@ With the gate off, nothing learns a second way in — the page fires the same
 one path runs.
 
 The stage's geometry is the frame's, not invented: a flat **120px gutter**, an
-854-wide text column, three 180-wide columns of work **56 apart with 48 between
-the screens down each one**, the lot ending 120 from the right edge. Those three
-numbers are flat — only the phone width scales with the viewport. `space-between` reproduces the frame's own
+854-wide text column, and three 180-wide columns of work ending 120 from the
+right edge. The gaps are **28 between the columns and 24 down each one** — half
+the frame's own 56/48, tightened on purpose. All of these are flat; only the
+phone width scales with the viewport. `space-between` reproduces the frame's own
 174 between the words and the work, so that number is never typed in. All three
 columns are centred on the same middle line — the taller middle column just
 bleeds further off the top and bottom, and that overflow is the design.
