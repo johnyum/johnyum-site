@@ -11,22 +11,28 @@
      The two lists rhyme on purpose — 07 is everything worked on, this is
      everything given up, in the same voice at the same size.
 
-       beat 0  the eleven arrive one after another, 55ms apart, fast enough that
-               it reads as a list landing rather than an animation playing.
-               The presenter talks over it.
-       beat 1  ONE tap and all eleven are struck through at once — same duration,
-               same delay, no stagger. The cut was a single decision, so it
-               lands as a single movement. That is the whole point of the beat
-               before it: the list has to be read as real before it is taken
-               away.
-       beat 2  out of builds; the deck moves on to Lesson 2.
+     THE SLIDE HAS NO BUILDS. It plays itself and a tap moves on to Lesson 2.
+
+       on arrival   the eleven land one after another, 55ms apart, fast enough
+                    that it reads as a list arriving rather than an animation
+                    playing. The presenter talks over it.
+       the beat     2.6s of nothing once the last one lands. The list has to be
+                    read as real before it can be taken away, and eleven short
+                    phrases take about that long to read.
+       the cut      all eleven struck at once — same duration, same delay, no
+                    stagger. It was a single decision, so it lands as a single
+                    movement.
+
+     Automatic, not on a tap: crossing out eleven things is one gesture, and
+     making the presenter ask for it turns a beat of silence into a button
+     press. Tapping during the beat simply leaves for Lesson 2.
 
      The rule is a scaled pseudo-element, not text-decoration, because
      line-through cannot be animated. It runs 24px past the word at each end,
      and each line is only as wide as its own text, so no two strikes come out
      the same length.
 
-     Tapping back lifts the rules and leaves the list standing. -->
+     Coming back to the slide leaves it struck rather than replaying it. -->
 <style>
   @font-face {
     font-family: "Special Gothic Condensed One";
@@ -108,20 +114,32 @@
   const rows = [...list.children];
   rows.forEach((el, i) => el.style.setProperty('--i', i));   // the 55ms cascade
 
-  let cut = false;
+  // The cascade, and then the cut, on a clock rather than on a tap.
+  //   (n-1) * 55ms of stagger + 340ms for the last line to finish arriving,
+  //   then HOLD, then every rule is drawn at once.
+  const STEP = 55, LAND = 340, HOLD = 2600;
+  const LANDED = (rows.length - 1) * STEP + LAND;
 
-  // WHEN THE CASCADE STARTS. Not on load: the deck builds slides ahead and
-  // parks them display:none / visibility:hidden (see prepare() in index.html),
-  // so a rAF here never fires and the list sits at opacity 0 forever — the
-  // slide comes up blank. The deck fires `presoshown` on this window the
-  // moment the slide is actually on stage; that is the signal.
+  let armed = false;
+  function cut() { document.body.classList.add('cut'); }
+
+  // WHEN IT STARTS. Not on load: the deck builds slides ahead and parks them
+  // display:none / visibility:hidden (see prepare() in index.html), so a rAF
+  // here never fires and the list sits at opacity 0 forever — the slide comes
+  // up blank. The deck fires `presoshown` on this window the moment the slide
+  // is actually on stage; that is the signal.
   //
   // The poll is the belt to that braces: it watches for the frame genuinely
   // having a box and no hidden ancestor, so the cascade cannot start while the
-  // slide is still parked (which would spend the whole animation unseen and
-  // land the list already complete). The 10s stop is a last resort — whatever
-  // else goes wrong, the words appear.
-  const reveal = () => document.body.classList.add('in');
+  // slide is still parked, which would spend the whole thing unseen and leave
+  // the list already struck by the time anyone looked. The 10s stop is a last
+  // resort — whatever else goes wrong, the words appear.
+  function reveal() {
+    if (armed) return;                            // coming back: leave it struck
+    armed = true;
+    document.body.classList.add('in');
+    setTimeout(cut, LANDED + HOLD);
+  }
   addEventListener('presoshown', reveal);
 
   function onStage() {
@@ -138,37 +156,17 @@
   }
   const t0 = Date.now();
   (function watch() {
-    if (document.body.classList.contains('in')) return;
+    if (armed) return;
     if (onStage() || Date.now() - t0 > 10000) { reveal(); return; }
     setTimeout(watch, 150);
   })();
 
-  window.presoNext = () => {
-    if (cut) return false;                  // out of builds — on to Lesson 2
-    // A fast presenter can tap before the cascade lands. Put every line in
-    // place first so nothing is still arriving while it is being struck out.
-    document.body.classList.add('in');
-    rows.forEach(el => el.style.setProperty('--i', 0));
-    cut = true;
-    document.body.classList.add('cut');
-    return true;
-  };
-  window.presoPrev = () => {
-    if (!cut) return false;                 // the deck goes back to the flow
-    cut = false;
-    document.body.classList.remove('cut');
-    rows.forEach((el, i) => el.style.setProperty('--i', i));
-    return true;
-  };
-  window.presoState = () => cut ? 1 : 0;    // the deck's URL carries this slide's build
-  window.presoRestore = n => {
-    if (n > 0 && !cut) {
-      document.body.classList.add('in');
-      rows.forEach(el => el.style.setProperty('--i', 0));
-      cut = true;
-      document.body.classList.add('cut');
-    }
-  };
+  // No builds: a tap goes straight on to Lesson 2, and back goes to the flow.
+  // presoState stays 0 so the deck's URL never carries a beat for this slide.
+  window.presoNext = () => false;
+  window.presoPrev = () => false;
+  window.presoState = () => 0;
+  window.presoRestore = () => {};
 })();
 </script>
 </body>
