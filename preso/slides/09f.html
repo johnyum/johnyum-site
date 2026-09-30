@@ -104,25 +104,21 @@
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .slide { position: relative; height: 100%; display: grid; place-items: center; }
 
-  .row {
-    display: flex;
-    flex-direction: column;          /* two lines of five */
-    align-items: center;
-    justify-content: center;
-    gap: var(--gapy, 24px);
+  /* THE PUSH is the entrance, and belongs to the wrapper; THE PAN is the
+     choreography, and belongs to the row. Two elements because they are two
+     transforms with two durations that overlap — one element would have the
+     pan fighting the push for the same property. */
+  .push {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%) translateX(var(--push, 0px));
     /* THE DECK'S OWN PUSH, to the millisecond: index.html pushes a slide with
-       DUR 520 on EASE cubic-bezier(0.16, 1, 0.3, 1). The row arrives the way a
-       slide arrives, because that is what it is meant to read as. */
-    transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
+       DUR 520 on EASE cubic-bezier(0.16, 1, 0.3, 1). */
+    transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 200ms linear;
     will-change: transform;
   }
-  .row.offstage { transform: translateX(100vw); }
-  .line {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--gap, 60px);
-  }
+  .push.offstage { --push: 100vw; }
   /* WAITING IS NOT THE SAME AS OFFSTAGE. While the intro holds the stage the
      row sits exactly where it belongs and is merely invisible, so its ten
      iframes lay out and RASTERISE. Parked off the right instead, they are
@@ -130,7 +126,16 @@
      delivered ten blank phones that filled in a second later. It is moved off
      the right for a single frame at the tap — too short to be throttled — and
      released from there. */
-  .row.waiting { opacity: 0; }
+  .push.waiting { opacity: 0; }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: var(--gap, 60px);
+    transform: translateX(var(--pan, 0px));
+    transition: transform var(--move, 0ms) cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
 
   .cell {
     position: relative;
@@ -142,6 +147,8 @@
     width: calc(391.3px * var(--k, 0.3));
     height: calc(800px * var(--k, 0.3));
     overflow: hidden;
+    transition: width var(--move, 0ms) cubic-bezier(0.22, 1, 0.36, 1),
+                height var(--move, 0ms) cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   /* The lead-in, centred on the stage by the stage. --s is how much bigger
@@ -171,12 +178,14 @@
     border: 0; display: block;
     transform: scale(var(--k, 0.3));
     transform-origin: top left;
+    transition: transform var(--move, 0ms) cubic-bezier(0.22, 1, 0.36, 1),
+                top var(--move, 0ms) cubic-bezier(0.22, 1, 0.36, 1);
   }
 </style>
 </head>
 <body>
   <div class="slide" id="slide">
-    <div class="row" id="row"></div>
+    <div class="push" id="push"><div class="row" id="row"></div></div>
   </div>
 <script>
 (() => {
@@ -199,6 +208,7 @@
   const VW = 391.3, PH = 800;
 
   const slide = document.getElementById('slide');
+  const push = document.getElementById('push');
   const row = document.getElementById('row');
   // the deck's per-load stamp, passed down so a cell is never a stale copy
   const v = new URLSearchParams(location.search).get('v');
@@ -242,22 +252,17 @@
     return cell;
   }
 
-  const PER = 5;                            // five across, two down
+  const HALF = 5;                           // how many are centred at a time
   const cells = STEPS.map((cls, i) => cellFor(cls, PARK[i], true));   // the ten
-  const lines = [0, 1].map(() => {
-    const l = document.createElement('div');
-    l.className = 'line';
-    row.append(l);
-    return l;
-  });
-  cells.forEach((c, i) => lines[Math.floor(i / PER)].append(c));
+  cells.forEach(c => row.append(c));
 
   const intro = cellFor(INTRO, INTRO_BEAT, false); // the lead-in, outside the row
   intro.classList.add('intro');
   slide.append(intro);
 
-  let step = 0;
-  let K = 0;                                // the scale fit() last set
+  let step = 0;                             // 0 intro, 1 first five, 2 last five, 3 all ten
+  let K = 0;                                // the scale the cells are at
+  let KBIG = 0, KALL = 0, PAN = 0;          // the two sizes, and the pan either side of centre
 
   function filmOf() {                       // the intro video inside the lead-in
     try { return intro.querySelector('iframe').contentDocument.getElementById('film'); }
@@ -286,98 +291,138 @@
     el.style.transition = t;
   }
 
-  function setLead() {                      // beat 0
-    step = 0;
-    clearTimeout(nextT);
-    cells.forEach(park);                   // back to ten unanswered questions
-    hold(row, () => {
-      row.classList.add('waiting');        // in place, invisible, rendering
-      row.classList.remove('offstage');
-    });
-    hold(intro, () => { intro.classList.remove('gone'); });
-    // ONCE, THEN REST — and once means once. Slide 11 starts the film itself
-    // when it commits beat 0, so there is nothing to start here; all this does
-    // is turn off the loop attribute it ships with, and it never seeks. Seeking
-    // to 0 on a film that is already running is what made it stutter, and doing
-    // it again on the way back made a single pass look like three.
-    unloop();
+  // THE ARITHMETIC — TWO SIZES, NOT ONE.
+  //
+  //   KBIG  five across fill the stage: 5 + 0.4 gaps = 5.4 cells wide. The
+  //         other five are off the right edge, which is the point — the row
+  //         is longer than the room and you are looking at part of it.
+  //   KALL  all ten across: 10 + 0.9 = 10.9 cells wide. Half the size, and
+  //         the whole flow at once.
+  //
+  // THE PAN is two and a half slots either side of centre. A slot is a cell
+  // plus a gap and cell i sits at i slots, so the first five run 0 to 4 and
+  // the last five 5 to 9; the distance from the row's own centre to either
+  // block's centre falls out at 2.5 slots, and the cell width cancels.
+  const GAPC = 0.1, MOVE = 700;
+  const fit = (w, h) => {
+    if (!(w > 0 && h > 0)) return;
+    const kw = n => (w * 0.94 / (n + GAPC * (n - 1))) / VW;
+    const kh = (h * 0.88) / PH;
+    KBIG = Math.min(kw(HALF), kh);
+    KALL = Math.min(kw(cells.length), kh);
+    PAN = VW * KBIG * (1 + GAPC) * 2.5;
+    apply(true);                            // a resize must not animate
+    // how much bigger the lead-in is than a cell at the size it lands on:
+    // slide 11's own phone height over the height a cell gives it.
+    slide.style.setProperty('--s', Math.min(h * 0.8, 1080) / (PH * KBIG));
+  };
+
+  // Put the row where the beat says, at the size the beat says.
+  function apply(snap) {
+    K = step > 2 ? KALL : KBIG;
+    const pan = step === 1 ? PAN : step === 2 ? -PAN : 0;
+    const set = () => {
+      slide.style.setProperty('--k', K);
+      slide.style.setProperty('--gap', VW * K * GAPC + 'px');
+      row.style.setProperty('--pan', pan + 'px');
+    };
+    if (!snap) { set(); return; }
+    // A snap has to hold the row AND every cell: the cells transition their
+    // own width and height off --k, so setting it on the slide alone would
+    // still animate all ten.
+    const held = [row, ...cells];
+    const keep = held.map(e => e.style.transition);
+    held.forEach(e => { e.style.transition = 'none'; });
+    set();
+    void row.offsetWidth;
+    held.forEach((e, i) => { e.style.transition = keep[i]; });
   }
 
   const DOWN = 460, BEAT = 60;
-  // ALL TEN AT ONCE. This ran left to right, 420ms apart, and the stagger was
-  // the thing you watched — the eye tracked the wave and read the row as a
-  // queue being worked through. Fired together there is no wave to follow, and
-  // the row reads as one flow answering itself, which is what it is. Nothing
-  // is scheduled any more, so there is nothing to cancel either.
-  let nextT = 0;
+  let nextT = 0, actT = [];
+  function stopActs() { actT.forEach(clearTimeout); actT = []; }
 
-  function openRow() {                      // tap 1 — the row arrives
+  // A half answers itself once it has arrived — all five together, the way the
+  // whole row did. Left to right read as a queue being worked through.
+  function answer(from) {
+    stopActs();
+    actT.push(setTimeout(() => {
+      for (let i = from; i < from + HALF && i < cells.length; i++) act(cells[i]);
+    }, MOVE + 120));
+  }
+
+  function setLead() {                      // beat 0
+    step = 0;
+    clearTimeout(nextT); stopActs();
+    cells.forEach(park);                    // back to ten unanswered questions
+    hold(push, () => {
+      push.classList.add('waiting');        // in place, invisible, rendering
+      push.classList.remove('offstage');
+    });
+    row.style.setProperty('--move', '0ms');
+    apply(true);
+    hold(intro, () => { intro.classList.remove('gone'); });
+    // ONCE, THEN REST — and once means once. Slide 11 starts the film itself
+    // when it commits beat 0, so there is nothing to start here; all this does
+    // is clear the loop attribute it ships with, and it never seeks.
+    unloop();
+  }
+
+  function openRow() {                      // tap 1 — in from the right, on the first five
     step = 1;
-    clearTimeout(nextT);
-    cells.forEach(park);
+    clearTimeout(nextT); stopActs();
     intro.classList.add('gone');            // down to the size of the ten, and out
     nextT = setTimeout(() => {
-      // One frame off the right, visible, then let go: the push, from content
-      // that is already drawn.
-      hold(row, () => {
-        row.classList.add('offstage');
-        row.classList.remove('waiting');
+      row.style.setProperty('--move', '0ms');
+      apply(true);                          // in place at the big size, unanimated
+      hold(push, () => {                    // one frame off the right, visible
+        push.classList.add('offstage');
+        push.classList.remove('waiting');
       });
-      row.classList.remove('offstage');
+      push.classList.remove('offstage');    // then let go: the push
+      row.style.setProperty('--move', MOVE + 'ms');
+      answer(0);
     }, DOWN + BEAT);
   }
 
-  // THE ARITHMETIC. Five across with a tenth of a cell between them is
-  // 5 + 0.4 = 5.4 cells wide; two down with a gap is 2 + 0.06 cells tall. The
-  // cell size falls out of whichever of the two binds, and on a 16:9 stage
-  // that is the height: 201 x 411, against the 138 x 282 a single line of ten
-  // allowed. Nothing here grows or moves, so the height budget is exactly two
-  // cells — there is no headroom to keep back.
-  const GAPC = 0.1, GAPY = 0.06;
-  const fit = (w, h) => {
-    if (!(w > 0 && h > 0)) return;
-    const kW = (w * 0.94 / (PER + GAPC * (PER - 1))) / VW;
-    const kH = (h * 0.94) / (PH * (2 + GAPY));
-    K = Math.min(kW, kH);
-    slide.style.setProperty('--k', K);
-    slide.style.setProperty('--gap', VW * K * GAPC + 'px');
-    slide.style.setProperty('--gapy', PH * K * GAPY + 'px');
-    // how much bigger the lead-in is than a row cell: slide 11's own phone
-    // height over the height a cell gives it.
-    slide.style.setProperty('--s', Math.min(h * 0.8, 1080) / (PH * K));
-  };
+  function beat(n) {                        // taps 2 and 3 — pan, then pull back
+    step = n;
+    clearTimeout(nextT);
+    row.style.setProperty('--move', MOVE + 'ms');
+    apply(false);
+  }
+
   new ResizeObserver(([e]) => fit(e.contentRect.width, e.contentRect.height)).observe(slide);
   const r0 = slide.getBoundingClientRect(); fit(r0.width, r0.height);
   setLead();
 
-  // tap 2 — every screen answers itself, together. It NEVER presses a phone's
-  // Next button: the row stays on the ten screens it is showing.
-  function sweep() {
-    step = 2;
-    cells.forEach(act);
-  }
-
   window.presoNext = () => {
-    if (step === 0) { openRow(); return true; }
-    if (step === 1) { sweep();   return true; }
-    return false;                           // out of builds — on to the tweet
+    if (step === 0) { openRow();            return true; }
+    if (step === 1) { beat(2); answer(HALF); return true; }
+    if (step === 2) { beat(3); stopActs();   return true; }
+    return false;                           // out of builds — on to the tweets
   };
   window.presoPrev = () => {
-    if (step === 2) { openRow(); return true; }   // ten unanswered again
+    if (step === 3) { beat(2); return true; }
+    if (step === 2) { beat(1); return true; }
     if (step === 1) { setLead(); return true; }
     return false;                           // on the lead-in — the deck goes back
   };
   window.presoState = () => step;
-  // Landing on the beat from the hash gets the end state, not the move.
+  // Landing on a beat from the hash gets the end state, not the moves.
   window.presoRestore = n => {
     if (!(n > 0)) return;
-    step = n > 1 ? 2 : 1;
-    clearTimeout(nextT);
+    step = Math.min(n, 3);
+    clearTimeout(nextT); stopActs();
     hold(intro, () => intro.classList.add('gone'));
-    hold(row, () => { row.classList.remove('offstage'); row.classList.remove('waiting'); });
-    // Landing on the hash gets the end state, so the sweep runs at once rather
-    // than 420ms apart. The frames may still be loading, so it is retried.
-    if (n > 1) [0, 400, 1200, 2000].forEach(t => setTimeout(() => cells.forEach(act), t));
+    hold(push, () => { push.classList.remove('offstage'); push.classList.remove('waiting'); });
+    row.style.setProperty('--move', '0ms');
+    apply(true);
+    // The frames may still be loading, so the answers are retried.
+    [0, 400, 1200, 2000].forEach(t => setTimeout(() => {
+      if (step >= 3) cells.forEach(act);
+      else for (let i = 0; i < step * HALF; i++) act(cells[i]);
+    }, t));
   };
 })();
 </script>
