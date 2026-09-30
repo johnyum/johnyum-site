@@ -67,8 +67,14 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .hdr-tab img { width: 32px; height: 32px; border-radius: 6px; }
 .hdr-tab span { font-size: 16px; line-height: 20px; font-weight: 500; }
 .hdr-tab.is-on span { font-weight: 600; }
+/* The rule sits ON the bottom edge of the bar, not floating 2px above it: the
+   tab is 40 tall centred in an 88 header, so its own bottom is at 64 and the
+   bar's is at 88 — that is the -24, and anything less leaves a white strip
+   under the rule that reads as a mistake. The extra 4 on the right is optical:
+   the 3D icons carry transparent padding on their left, so the mark the eye
+   sees sits right of the box, and a rule spanning the box alone reads short. */
 .hdr-tab.is-on::after {
-  content: ''; position: absolute; left: 0; right: 0; bottom: -22px; height: 2px;
+  content: ''; position: absolute; left: 0; right: -4px; bottom: -24px; height: 2px;
   background: var(--grey1000); border-radius: 2px;
 }
 .hdr-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
@@ -203,6 +209,19 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   box-shadow: var(--elev2); font-size: 14px; line-height: 18px; font-weight: 600;
   white-space: nowrap;
 }
+
+/* The duration chip that rides the hovered route — black pill, 12 clock, 10/14
+   bold white, exactly as the Traffic component in the frames. It sits above
+   every marker because it is the thing the hover is there to say. */
+.mk-chip { z-index: 5; pointer-events: none; }
+.mk-chip .chip {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: flex; align-items: center; gap: 6px; padding: 4px 8px 4px 4px;
+  background: var(--grey1000); border-radius: 100px; white-space: nowrap;
+  font-size: 10px; line-height: 14px; font-weight: 700; color: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,.24);
+}
+.mk-chip .chip img { width: 12px; height: 12px; }
 
 /* ── Zoom control ───────────────────────────────────────────────────────── */
 .zoom {
@@ -506,9 +525,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     { n: 'New Jersey',    p: 374, ll: [-74.190, 40.760] }
   ];
 
+  var LGA = [-73.873, 40.777];   // the arrival the card quotes, and where the drive leg starts
+
   var AIRPORTS = [
     { n: 'Newark Airport',     p: 781, ll: [-74.175, 40.690] },
-    { n: 'LaGuardia Airport',  p: 678, ll: [-73.873, 40.777] },
+    { n: 'LaGuardia Airport',  p: 678, ll: LGA },
     { n: 'John F. Kennedy Int…', p: 509, ll: [-73.778, 40.641] }
   ];
 
@@ -672,8 +693,14 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       '<div class="pill"><b>' + c.n + ' ·</b><span>$' + c.p + '</span></div>' + PIN,
       'bottom-left', [-14, 0]);
     o.marker.setLngLat(c.ll);
-    o.el.addEventListener('click', function () { if (c.hero) go('nyc'); });
-    if (!c.hero) o.el.style.cursor = 'default';
+    if (c.hero) {
+      // Hovering the city you can fly to draws the leg you would fly.
+      o.el.addEventListener('click', function () { go('nyc'); });
+      o.el.addEventListener('mouseenter', function () { showRoute(ME, c.ll, '5h 30m', 0.12); });
+      o.el.addEventListener('mouseleave', hideRoute);
+    } else {
+      o.el.style.cursor = 'default';
+    }
     return o;
   }
   function makeDot(ll) {
@@ -689,6 +716,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     if (h.hero) {
       o.el.style.cursor = 'pointer';
       o.el.addEventListener('click', function () { go('hood'); });
+      // At city depth the leg is the drive in from the airport the card is
+      // quoting — LaGuardia, whose $678 is the "Flights to New York" price.
+      o.el.addEventListener('mouseenter', function () { showRoute(LGA, h.ll, '38 min', 0.16); });
+      o.el.addEventListener('mouseleave', hideRoute);
     } else {
       o.el.style.cursor = 'default';
     }
@@ -736,10 +767,57 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       type: 'Feature', geometry: { type: 'LineString', coordinates: WBURG } } });
     map.addLayer({ id: 'wburg-dim', type: 'fill', source: 'wburg', slot: 'top',
       paint: { 'fill-color': '#6c6c6c', 'fill-opacity': 0 } });
+    map.addSource('route', { type: 'geojson', data: {
+      type: 'Feature', geometry: { type: 'LineString', coordinates: [] } } });
+    map.addLayer({ id: 'route-line', type: 'line', source: 'route', slot: 'top',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#222222', 'line-width': 2, 'line-dasharray': [2, 2],
+               'line-opacity': 0, 'line-emissive-strength': 1,
+               'line-opacity-transition': { duration: 220 } } });
     map.addLayer({ id: 'wburg-edge', type: 'line', source: 'wburg-line', slot: 'top',
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: { 'line-color': '#ff385c', 'line-width': 1, 'line-opacity': 0 } });
   }
+  // ── The hovered route ───────────────────────────────────────────────────
+  // A dotted line and a duration chip, the way the Trips build draws a leg.
+  // The line is a quadratic bezier rather than a straight segment: a straight
+  // line between two pins reads as a ruler, and the bow is what makes it read
+  // as a journey. `k` is the bow as a fraction of the leg's own length, so a
+  // short hop and a transcontinental flight curve by the same amount visually.
+  function arc(a, b, k) {
+    var dx = b[0] - a[0], dy = b[1] - a[1];
+    var len = Math.sqrt(dx * dx + dy * dy) || 1e-6;
+    var cx = (a[0] + b[0]) / 2 + (-dy / len) * len * k;
+    var cy = (a[1] + b[1]) / 2 + ( dx / len) * len * k;
+    var pts = [], n = 64;
+    for (var i = 0; i <= n; i++) {
+      var t = i / n, u = 1 - t;
+      pts.push([u * u * a[0] + 2 * u * t * cx + t * t * b[0],
+                u * u * a[1] + 2 * u * t * cy + t * t * b[1]]);
+    }
+    return pts;
+  }
+  function arcMid(a, b, k) { var p = arc(a, b, k); return p[32]; }
+
+  var chip = mk('mk-chip', 0, 0, '', 'center');
+  var chipOn = false;
+
+  function showRoute(from, to, label, k) {
+    if (!map.getSource('route')) return;
+    map.getSource('route').setData({
+      type: 'Feature', geometry: { type: 'LineString', coordinates: arc(from, to, k) } });
+    map.setPaintProperty('route-line', 'line-opacity', 0.9);
+    chip.el.querySelector('.mi').innerHTML =
+      '<div class="chip"><img src="assets/icons/clock.svg" alt="">' + label + '</div>';
+    chip.marker.setLngLat(arcMid(from, to, k));
+    if (!chipOn) { chip.marker.addTo(map); chipOn = true; }
+    requestAnimationFrame(function () { chip.el.classList.add('in'); });
+  }
+  function hideRoute() {
+    if (map.getLayer('route-line')) map.setPaintProperty('route-line', 'line-opacity', 0);
+    chip.el.classList.remove('in');
+  }
+
   function paintHoodMask(on) {
     if (!map.getLayer('wburg-dim')) return;
     map.setPaintProperty('wburg-dim', 'fill-opacity', on ? 0.22 : 0);
@@ -786,6 +864,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     var deeper = ['usa', 'nyc', 'hood'].indexOf(next) > ['usa', 'nyc', 'hood'].indexOf(state);
     busy = true;
     var prev = state; state = next;
+    hideRoute();   // a leg belongs to the beat that drew it
 
     // Going deeper, the marker you aimed at holds its ground while the field
     // around it clears — it is the thing the camera is travelling toward, so

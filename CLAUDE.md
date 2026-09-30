@@ -182,6 +182,16 @@ Things that were learned the hard way and should not be undone:
 - `cam()` gives back one octave of zoom per halving of viewport width, so a phone
   sees the same ground rather than a sliver of it.
 
+Hovering whichever marker is the way down draws the leg you would travel, the
+way the Trips build draws one: a `[2,2]` dashed line in `#222` plus the frames'
+own black `Traffic` chip (12 clock, 10/14 bold white). SF→New York on the
+continent, LaGuardia→Brooklyn in the city — LGA because its $678 is the price
+the "Flights to New York" row is quoting. The line is a quadratic bezier, not a
+segment: a straight line between two pins reads as a ruler, and the bow is what
+makes it read as a journey. The bow is a fraction of the leg's own length, so a
+transcontinental flight and a drive from the airport curve the same amount to
+the eye. A beat change clears it — a leg belongs to the beat that drew it.
+
 `?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
 it without faking clicks.
