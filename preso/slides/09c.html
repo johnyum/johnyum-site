@@ -38,24 +38,30 @@
 
      No entrance of its own — the deck pushes it in from the right.
 
-     TWO BUILDS, AND IT HOVERS BEFORE EACH ONE. The hover is not part of the
-     tap: it happens on its own so the line it draws can be talked over, and
-     the tap is what John does when he is ready.
+     TWO BUILDS. The hover is never part of the tap — it happens on its own so
+     the line it draws can be talked over, and the tap is what John does when
+     he is ready.
 
-       on arrival   a pause, then New York hovers by itself — mouseenter,
-                    which is what draws the dotted flight leg. It stays.
-       tap 1        New York is clicked. The page flies there, and once it has
-                    landed and held a beat, Brooklyn hovers by itself — which
-                    draws the drives from all three airports.
-       tap 2        Brooklyn is clicked.
+       on arrival   a pause, then Eureka hovers by itself, drawing the road up
+                    from San Francisco. The page opens on cars, so this is the
+                    question a car asks: how far, in hours.
+       tap 1        trains, a beat, then flights — the same map answering the
+                    same question three ways. Then New York hovers, drawing
+                    the dotted flight leg, and it stops there.
+       tap 2        New York is clicked; it flies, lands, Brooklyn hovers for a
+                    moment and is clicked too.
        tap 3        out of builds; the deck moves on.
 
-     No mouseleave is ever sent, which is deliberate: the leg stays drawn for
-     as long as the hover is meant to be read.
+     No mouseleave is ever sent, which is deliberate: a leg stays drawn for as
+     long as the hover is meant to be read.
+
+     THE MAP MOVES ARE FASTER than the page ships with — its flyTo went from
+     2400/2100 to 1500/1250 in explore/index.html. The move is the same, it
+     just does not dawdle between beats.
 
      THE ARRIVAL HOVER IS GATED the way 09e's video is — presoshown first, then
      a poll that asks the DECK's window for computed style. The deck parks
-     slides ahead of time, and a hover fired while parked would spend the whole
+     slides ahead of time, and a hover fired while parked would spend its whole
      pause where nobody can see it and land with the line already drawn.
 
      It drives the PAGE'S OWN handlers rather than faking anything — the pins
@@ -118,9 +124,12 @@
   fit(screen.getBoundingClientRect().width);   // if it is already on stage
 
   // ── the flow-through ──────────────────────────────────────────────────
-  const LAND_PAUSE = 900;    // the slide lands, holds, then hovers New York
-  const FLY        = 2400;   // the page's own flyTo, going deeper
-  const SETTLE     = 520;    // after the camera lands, before the next hover
+  const LAND_PAUSE = 900;    // the slide lands, holds, then hovers Eureka
+  const FLY        = 1500;   // the page's own flyTo going deeper, sped up
+  const MODE       = 1250;   // a sideways move — drive to rail, rail to flights
+  const SETTLE     = 380;    // after the camera lands, before the next hover
+  const BEAT       = 520;    // the pause on trains before flights
+  const TOUCH      = 620;    // a hover held just long enough to read
 
   const doc = () => { try { return page.contentDocument; } catch (_) { return null; } };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -193,39 +202,57 @@
     el.click();                            // the page's own handler, not a fake
   }
 
-  let step = 0;            // 0 = New York hovered, 1 = Brooklyn hovered, 2 = done
+  // Eureka is one of the drive pins; the pill carries its name, so match on
+  // that rather than on an index that would move if the list ever changed.
+  async function findText(sel, text, ms = 4000) {
+    const t0 = Date.now();
+    for (;;) {
+      const d = doc();
+      const hit = d && [...d.querySelectorAll(sel)].find(e => e.textContent.includes(text));
+      if (hit) return hit;
+      if (Date.now() - t0 > ms) return null;
+      await sleep(80);
+    }
+  }
+
+  let step = 0;            // 0 = Eureka hovered, 1 = New York hovered, 2 = done
   let busy = false;
 
-  async function hoverNY() {
-    const ny = await find('.mk-city.hero');
-    if (ny) hover(ny);
-  }
-  async function hoverBK() {
-    const bk = await find('.mk-hood.hero');
-    if (bk) hover(bk);
+  async function hoverEureka() {
+    const e = await findText('.mk-drive', 'Eureka');
+    if (e) hover(e);
   }
 
-  async function clickNY() {               // tap 1
+  async function modesThenNY() {          // tap 1
+    busy = true;
+    const d = doc();
+    const rail = d && d.querySelector('.mode[data-beat="rail"]');
+    if (rail) { tap(rail); await sleep(MODE + BEAT); }
+    const air = d && d.querySelector('.mode[data-beat="usa"]');
+    if (air) { tap(air); await sleep(MODE + SETTLE); }
+    const ny = await find('.mk-city.hero');
+    if (ny) hover(ny);                    // and stop here
+    busy = false;
+  }
+
+  async function intoBrooklyn() {         // tap 2
     busy = true;
     const ny = await find('.mk-city.hero');
     if (ny) { tap(ny); await sleep(FLY + SETTLE); }
-    await hoverBK();                       // land, hold, then hover the borough
-    busy = false;
-  }
-  async function clickBK() {               // tap 2
-    busy = true;
     const bk = await find('.mk-hood.hero');
-    if (bk) tap(bk);
+    if (bk) { hover(bk); await sleep(TOUCH); tap(bk); }
     busy = false;
   }
 
-  async function rewind() {                // back out through the page's own buttons
+  async function rewind() {               // back out through the page's own buttons
     const d = doc(); if (!d) return;
     if (cur) cur.classList.remove('on');
     const bh = d.getElementById('backHood'); if (bh) { bh.click(); await sleep(FLY); }
     const b = d.getElementById('back'); if (b) { b.click(); await sleep(FLY); }
+    const drive = d.querySelector('.mode[data-beat="drive"]');
+    if (drive) { drive.click(); await sleep(MODE); }
     step = 0; busy = false;
-    hoverNY();
+    hoverEureka();
   }
 
   // THE ARRIVAL. Gated, not fired on load: the deck parks slides ahead of time
@@ -234,7 +261,7 @@
   function land() {
     if (arrived) return;
     arrived = true;
-    setTimeout(hoverNY, LAND_PAUSE);
+    setTimeout(hoverEureka, LAND_PAUSE);
   }
   function onStage() {
     try {
@@ -257,9 +284,9 @@
   })();
 
   window.presoNext = () => {
-    if (busy) return true;                 // mid-fly: swallow rather than skip a beat
-    if (step === 0) { step = 1; clickNY(); return true; }
-    if (step === 1) { step = 2; clickBK(); return true; }
+    if (busy) return true;                 // mid-move: swallow rather than skip a beat
+    if (step === 0) { step = 1; modesThenNY(); return true; }
+    if (step === 1) { step = 2; intoBrooklyn(); return true; }
     return false;                          // out of builds — on to Host setup
   };
   window.presoPrev = () => {
@@ -271,7 +298,7 @@
   window.presoRestore = n => {
     if (!(n > 0)) return;
     arrived = true;                        // do not also run the arrival hover
-    (async () => { step = 1; await clickNY(); if (n > 1) { step = 2; await clickBK(); } })();
+    (async () => { step = 1; await modesThenNY(); if (n > 1) { step = 2; await intoBrooklyn(); } })();
   };
 })();
 </script>

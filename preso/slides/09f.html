@@ -29,9 +29,9 @@
      twelve of those is twelve WebGL contexts — at the browser's cap, where
      they start getting dropped. Only the address cell asks for one.
 
-     SIX ACROSS, TWO DOWN. As one row of twelve the phones came out 117 wide;
-     on a 6x2 grid they are half again bigger, because the row was starved by
-     width while the grid can spend the height.
+     ONE ROW, THREE PARTS. The intro on the left, then a gap, then the ten
+     steps fanned so each covers the one before it by 20%, then the same gap,
+     then the listing it all ends on. Was a 6x2 grid.
 
      THE CELL IS CROPPED TO THE PHONE. Slide 11 sizes its phone at 80vh of its
      own viewport, so a cell showing the whole viewport carries 20% dead
@@ -41,43 +41,54 @@
      cell exactly: 800 x 900/1840 = 391.3.
 
      THE SCALE IS COMPUTED, NOT GUESSED. It is the smaller of what the width
-     allows and what the height allows, so the grid never overflows either way.
+     allows and what the height allows, so the row never overflows either way.
      CSS cannot divide a length by a length, so this cannot be a calc(); a
      ResizeObserver also fires when the deck un-parks the slide, which a
      load-time read would miss — it measures zero while parked.
 
      ONE BUILD, A LEAD-IN. The slide arrives showing only the first screen, at
      the size slide 11 gives its phone on its own — min(80vh, 1080px) — parked
-     in the middle of the stage with its intro film looping. The tap sends it
-     to its own cell, the top left of the grid, and the other eleven arrive one
+     in the middle of the stage, its intro film playing once. The tap sends it
+     to its place at the far left of the row, and the other eleven arrive one
      after another, 90ms apart.
 
-     The tap stops the LOOP, not the film. It plays out the pass it is on and
-     rests on its last frame, rather than being cut off mid-motion. -->
+     THE FILM PLAYS ONCE. Slide 11's video carries a loop attribute; it is
+     turned off on arrival, so the intro runs a single pass and holds its last
+     frame. It does not loop, and it does not restart when the row opens. -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .slide { height: 100%; display: grid; place-items: center; }
 
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(6, auto);
+  .row {
+    display: flex;
+    align-items: center;
     justify-content: center;
-    align-content: center;
-    column-gap: var(--gap, 10px);
-    row-gap: var(--rowgap, 14px);
+    gap: var(--gap, 60px);
   }
+  /* the ten middle steps, fanned. Each sits 80% of a width further along, so
+     it covers the one before it by 20%. Later ones ride on top. */
+  .stack {
+    position: relative;
+    flex: none;
+    width: var(--stackw, 0px);
+    height: calc(800px * var(--k, 0.3));
+  }
+  .stack .cell { position: absolute; top: 0; }
+
   .cell {
     position: relative;
-    opacity: 1;
-    transition: transform 820ms cubic-bezier(0.22, 1, 0.36, 1),
-                opacity 380ms ease;
-    will-change: transform, opacity;
+    flex: none;
     /* 391.3 x 800 of slide 11's viewport — the phone alone, not the 1000 the
        viewport is tall. The 100pt of margin above it is cropped out below. */
     width: calc(391.3px * var(--k, 0.3));
     height: calc(800px * var(--k, 0.3));
     overflow: hidden;
+    opacity: 1;
+    transition: transform 820ms cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 380ms ease;
+    will-change: transform, opacity;
   }
+
   /* the eleven that are not the lead, before they arrive */
   .cell.waiting { opacity: 0; transform: scale(0.94); }
   /* the lead sits above them while it is large */
@@ -95,7 +106,7 @@
 </head>
 <body>
   <div class="slide">
-    <div class="grid" id="grid"></div>
+    <div class="row" id="row"></div>
   </div>
 <script>
 (() => {
@@ -110,12 +121,12 @@
   // cell exactly (800 x 900/1840), 1000 tall of which the phone is the middle
   // 800 — the rest is cropped.
   const VW = 391.3, VH = 1000, PH = 800;
-  const COLS = 6, ROWS = 2;
 
-  const grid = document.getElementById('grid');
+  const row = document.getElementById('row');
   // the deck's per-load stamp, passed down so a cell is never a stale copy
   const v = new URLSearchParams(location.search).get('v');
-  STEPS.forEach(cls => {
+
+  function cellFor(cls) {
     const cell = document.createElement('div');
     cell.className = 'cell';
     const f = document.createElement('iframe');
@@ -131,24 +142,33 @@
       setTimeout(set, 120); setTimeout(set, 600); setTimeout(set, 1400);
     });
     cell.appendChild(f);
-    grid.appendChild(cell);
-  });
+    return cell;
+  }
 
-  // CSS cannot divide a length by a length, so the per-cell scale cannot be a
-  // calc(). It is the smaller of what the width allows and what the height
-  // allows. The ResizeObserver also fires when the deck un-parks the slide,
-  // which a load-time read would miss — that measures zero while parked.
+  // THREE PARTS, LEFT TO RIGHT: the intro, the ten steps fanned, the listing.
+  const first = cellFor(STEPS[0]);
+  const stack = document.createElement('div');
+  stack.className = 'stack';
+  const middle = STEPS.slice(1, -1).map((cls, i) => {
+    const c = cellFor(cls);
+    c.style.zIndex = i + 1;               // each rides on the one before it
+    stack.appendChild(c);
+    return c;
+  });
+  const last = cellFor(STEPS[STEPS.length - 1]);
+  row.append(first, stack, last);
+
   const slide = document.querySelector('.slide');
   let K = 0;                               // the scale fit() last set
 
   // ── the lead-in ───────────────────────────────────────────────────────
   // Beat 0 shows ONLY the first screen, at the size slide 11 gives its phone
   // on its own — min(80vh, 1080px) — parked in the middle of the stage. Its
-  // intro film loops there. The tap sends it to its own cell, which is the top
-  // left of the grid, and brings the other eleven in one after another.
+  // intro film plays once there. The tap sends it to its own cell, the top
+  // left of the row, and brings the other eleven in one after another.
   let step = 0;
-  const cells = [...grid.querySelectorAll('.cell')];
-  const lead = cells[0];
+  const cells = [first, ...middle, last];
+  const lead = first;
 
   function filmOf() {                      // the intro video inside the lead cell
     try { return lead.querySelector('iframe').contentDocument.getElementById('film'); }
@@ -172,15 +192,14 @@
     step = 0;
     lead.classList.add('lead');
     cells.forEach((c, i) => { if (i) { c.classList.add('waiting'); c.style.transitionDelay = '0ms'; } });
-    const f = filmOf(); if (f) { f.loop = true; f.play().catch(() => {}); }
+    // ONCE, THEN REST. Slide 11's film carries a loop attribute; it is turned
+    // off here so the intro plays a single pass and holds its last frame.
+    const f = filmOf(); if (f) { f.loop = false; f.currentTime = 0; f.play().catch(() => {}); }
     placeLead();
   }
 
   function openGrid() {                    // the tap
     step = 1;
-    // Stop the LOOP, not the film — it plays out the pass it is on and rests
-    // on its last frame, which is what "let it rest at the end" means.
-    const f = filmOf(); if (f) f.loop = false;
     lead.style.transform = 'none';         // back to its own cell: the top left
     lead.classList.remove('lead');
     cells.forEach((c, i) => {
@@ -190,15 +209,21 @@
     });
   }
 
+  // THE ARITHMETIC. Left to right the row is: one cell, a gap, the fan, a gap,
+  // one cell. The fan of ten at 80% pitch is 1 + 9 x 0.8 = 8.2 cells wide, so
+  // the row is 10.2 cells plus two gaps. With the gap set at half a cell that
+  // is 11.2 cells across, and the cell width falls out of the space available.
+  const PITCH = 0.8, FAN = 1 + (middle.length - 1) * PITCH, GAPC = 0.5;
   const fit = (w, h) => {
     if (!(w > 0 && h > 0)) return;
-    const gap = Math.max(6, w * 0.008), rowgap = Math.max(8, h * 0.02);
-    const kW = ((w * 0.94 - gap * (COLS - 1)) / COLS) / VW;
-    const kH = ((h * 0.84 - rowgap * (ROWS - 1)) / ROWS) / PH;
+    const kW = (w * 0.94 / (2 + FAN + 2 * GAPC)) / VW;
+    const kH = (h * 0.84) / PH;
     K = Math.min(kW, kH);
-    grid.style.setProperty('--gap', gap + 'px');
-    grid.style.setProperty('--rowgap', rowgap + 'px');
-    grid.style.setProperty('--k', K);
+    const cw = VW * K;
+    row.style.setProperty('--k', K);
+    row.style.setProperty('--gap', cw * GAPC + 'px');
+    row.style.setProperty('--stackw', cw * FAN + 'px');
+    middle.forEach((c, i) => { c.style.left = (cw * PITCH * i) + 'px'; });
     placeLead();                           // the lead's offset is in screen px
   };
   new ResizeObserver(([e]) => fit(e.contentRect.width, e.contentRect.height)).observe(slide);
