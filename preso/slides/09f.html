@@ -38,21 +38,27 @@
      cell between them, which is 10 + 0.9 = 10.9 cells across; the cell width
      falls out of the space rather than being chosen.
 
-     TWO MOVES, NOT TEN. The tap sends the intro DOWN and OUT together: it
-     shrinks from the size slide 11 gives its phone on its own to the size the
-     ten are, and fades on the same curve, so the splash leaves WITH the
-     movement rather than standing at full strength until it is cut. Then, a
+     TWO MOVES, NOT TEN. The tap sends the intro DOWN, LEFT and OUT on one
+     curve: it shrinks from the size slide 11 gives its phone on its own to the
+     size the ten are, travels off toward where the row begins, and fades as it
+     goes — so the splash leaves WITH the movement rather than standing at full
+     strength until it is cut, and crosses the row coming the other way. Then, a
      beat later, the whole row is pushed in from the right in one piece — the
      deck's own push, to the millisecond, lifted from index.html: DUR 520 on
      EASE cubic-bezier(0.16, 1, 0.3, 1). Nothing staggers, nothing deals.
 
-     TAP TWO SWEEPS THE ROW. Each screen answers its own question, left to
-     right, 420ms apart — House is chosen, then Home, then an entire place,
-     then the address types itself in and the map flies to it, and so on to the
-     price counting up. Nothing waits for the screen before it to finish; the
-     map is still moving while the amenities are picking themselves. That
-     overlap is the point, because ten screens answering at once reads as a
-     flow working where ten in series reads as a queue.
+     TAP TWO ANSWERS THE WHOLE ROW AT ONCE. Every screen makes its own choice
+     in the same moment — House is chosen, the address types itself in and the
+     map flies to it, the counts count up, the amenities pick themselves, the
+     name types, the price ticks to $500 — all of it together. This was a 420ms
+     stagger left to right, and the stagger was the thing you watched: the eye
+     tracked the wave and read the row as a queue being worked through. Fired
+     together there is no wave to follow, and ten screens answering at once
+     reads as one flow working.
+
+     The amenities screen runs a SHORT form here — four cards and a stop, no
+     scrolling. At full length it travels down its list, and among nine still
+     screens the one that moves is the only one anybody watches.
 
      IT NEVER PRESSES A PHONE'S NEXT BUTTON. The row has to stay on the ten
      screens it is showing, so the sweep uses slide 11's presoAct(), which
@@ -127,7 +133,14 @@
                 opacity   460ms cubic-bezier(0.16, 1, 0.3, 1);
     will-change: transform, opacity;
   }
-  .cell.intro.gone { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+  /* It goes DOWN, LEFT and OUT on one curve — shrinking to the size the ten
+     are while travelling off toward where the row begins, rather than
+     collapsing on the spot. The row it hands over to arrives from the right,
+     so the two moves cross and the stage never sits empty. */
+  .cell.intro.gone {
+    transform: translate(calc(-50% - 22vw), -50%) scale(1);
+    opacity: 0;
+  }
 
   .cell iframe {
     position: absolute; left: 0;
@@ -229,7 +242,7 @@
 
   function setLead() {                      // beat 0
     step = 0;
-    clearTimeout(nextT); stopSweep();
+    clearTimeout(nextT);
     cells.forEach(park);                   // back to ten unanswered questions
     hold(row, () => {
       row.classList.add('waiting');        // in place, invisible, rendering
@@ -242,19 +255,16 @@
   }
 
   const DOWN = 460, BEAT = 60;
-  // THE SWEEP. One fixed interval between screens, left to right, and nothing
-  // waits for the screen before it to finish — the address map is still flying
-  // while the amenities are picking themselves and the price is counting up.
-  // That overlap is the point: ten screens answering at once reads as a flow
-  // working, where ten in series reads as a queue.
-  const SWEEP = 420;
-  let nextT = 0, sweepT = [];
-
-  function stopSweep() { sweepT.forEach(clearTimeout); sweepT = []; }
+  // ALL TEN AT ONCE. This ran left to right, 420ms apart, and the stagger was
+  // the thing you watched — the eye tracked the wave and read the row as a
+  // queue being worked through. Fired together there is no wave to follow, and
+  // the row reads as one flow answering itself, which is what it is. Nothing
+  // is scheduled any more, so there is nothing to cancel either.
+  let nextT = 0;
 
   function openRow() {                      // tap 1 — the row arrives
     step = 1;
-    clearTimeout(nextT); stopSweep();
+    clearTimeout(nextT);
     cells.forEach(park);
     intro.classList.add('gone');            // down to the size of the ten, and out
     nextT = setTimeout(() => {
@@ -287,12 +297,11 @@
   const r0 = slide.getBoundingClientRect(); fit(r0.width, r0.height);
   setLead();
 
-  // tap 2 — each screen answers itself, left to right. It NEVER presses a
-  // phone's Next button: the row stays on the ten screens it is showing.
+  // tap 2 — every screen answers itself, together. It NEVER presses a phone's
+  // Next button: the row stays on the ten screens it is showing.
   function sweep() {
     step = 2;
-    stopSweep();
-    cells.forEach((c, i) => { sweepT.push(setTimeout(() => act(c), i * SWEEP)); });
+    cells.forEach(act);
   }
 
   window.presoNext = () => {
@@ -310,7 +319,7 @@
   window.presoRestore = n => {
     if (!(n > 0)) return;
     step = n > 1 ? 2 : 1;
-    clearTimeout(nextT); stopSweep();
+    clearTimeout(nextT);
     hold(intro, () => intro.classList.add('gone'));
     hold(row, () => { row.classList.remove('offstage'); row.classList.remove('waiting'); });
     // Landing on the hash gets the end state, so the sweep runs at once rather

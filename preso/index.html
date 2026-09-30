@@ -133,17 +133,6 @@
   #counter .sec:hover { color: #444; }
   #counter .sec.on { color: #111; }
   #counter .dot { margin: 0 6px; }
-  /* GO — a quiet pill in the bottom-right corner that jumps to the last slide so far; from there the arrows and rails work
-     as ever. It hides with the cursor, like the counter, and sits above the tap rails. */
-  #go {
-    position: fixed; right: 20px; bottom: 20px; z-index: 50;
-    height: 32px; padding: 0 14px; border: 0; border-radius: 16px;
-    background: rgba(0,0,0,.06); color: #444;
-    font: 500 13px/32px "Helvetica Neue", Helvetica, Arial, sans-serif; letter-spacing: .02em;
-    cursor: pointer; opacity: .9; transition: opacity .25s, background .15s;
-  }
-  #go:hover { background: rgba(0,0,0,.12); }
-  body.hidecursor #go { opacity: 0; pointer-events: none; }
 
   #empty {
     position: fixed; inset: 0;
@@ -187,7 +176,6 @@
     </div>
   </div>
 
-<button id="go" type="button" aria-label="Go to the last slide">go</button>
 <script>
 (() => {
   const stage   = document.getElementById('stage');
@@ -542,7 +530,11 @@
     if (h >= 1 && h <= SLIDES.length && h - 1 !== idx) jumpTo(h - 1);
   });
 
-  // GO: to the last slide so far AND its last build step — the slide's own presoEnd, once its frame is up
+  // To the last slide so far AND its last build step — the slide's own
+  // presoEnd, once its frame is up. The pill in the bottom-right corner that
+  // used to call this is gone (John, 2026-09-29); this is kept because it is
+  // the only path that reaches a slide's presoEnd, and because it costs
+  // nothing to leave a working jump in place for a key or a hash to use.
   async function goEnd() {
     if (!SLIDES.length) return;
     const n = SLIDES.length - 1;
@@ -552,7 +544,6 @@
     const poke = () => { let f = null; try { f = current && current.frame && current.frame.contentWindow && current.frame.contentWindow.presoEnd; } catch (_) {} if (f) { f(); syncHash(); } else if (Date.now() - t0 < 8000) setTimeout(poke, 100); };
     poke();
   }
-  document.getElementById('go').addEventListener('click', e => { e.stopPropagation(); goEnd(); });
   document.getElementById('tapnext').addEventListener('click', () => navigate(1));
   document.getElementById('tapback').addEventListener('click', () => navigate(-1));
 

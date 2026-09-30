@@ -1189,6 +1189,7 @@
   const HIGHLIGHTS = [3, 4];          // Stylish, Spacious
   // the 18 of 23 this house actually has — the rest stay unpicked on purpose
   const PICKS = [0, 1, 3, 4, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 22];
+  const AMEN_SHORT = 4;          // what the ten-steps row runs: no scroll, then stop
   // what the counts screen fills itself in to, once it has landed
   const COUNTS = [6, 3, 3, 3];   // guests, beds, bedrooms, bathrooms
   // ONE cadence for every beat, so no screen feels quicker than another:
@@ -1352,18 +1353,25 @@
   // pick would otherwise be below the fold
   const AMEN_VIEW = 492, AMEN_VIEW_GROWN = 608;
   const AMEN_TAIL = 32;              // air left under the last card when it lands
-  function runAmenities() {
+  // `limit` is the short form the ten-steps row asks for: the first few cards
+  // tapped and then a stop, with no scroll and no sheet growth. On its own
+  // this screen is the whole answer and earns the full 18 picks and the travel
+  // that takes; eleven of these running side by side, the scroll is the one
+  // thing the eye follows, and it pulls attention off the nine screens either
+  // side of it. Four cards say the same thing and stay still.
+  function runAmenities(limit) {
     clearSeq();
+    const picks = limit ? PICKS.slice(0, limit) : PICKS;
     let t = 1150, scroll = 0, view = AMEN_VIEW, grown = false;
     // never scroll past the point where the LAST card sits AMEN_TAIL above the
     // progress bar — otherwise the run ends with the final card stranded near
     // the top and a screenful of nothing under it
     const last = amenCards[amenCards.length - 1];
     const contentBottom = parseFloat(last.style.top) + 110;
-    PICKS.forEach(i => {
+    picks.forEach(i => {
       const card = amenCards[i];
       const top  = parseFloat(card.style.top);
-      if (top + 110 > scroll + view - 16) {
+      if (!limit && top + 110 > scroll + view - 16) {
         // the first time the list has to move, the sheet grows up over the
         // title — so the scroll and the growth read as one gesture
         if (!grown) {
@@ -1600,7 +1608,7 @@
       return true;
     }
     if (b.step === 4)    { resetCounts();    runCounts();    return true; }
-    if (b.step === 5)    { resetAmenities(); runAmenities(); return true; }
+    if (b.step === 5)    { resetAmenities(); runAmenities(AMEN_SHORT); return true; }
     if (b.step === 8)    { resetChips();     runChips();     return true; }
     if (b.step === '8b') { resetPrice();     runPrice();     return true; }
     return false;

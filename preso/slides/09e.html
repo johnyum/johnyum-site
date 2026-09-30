@@ -4,90 +4,231 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>09e</title>
-<!-- PRICE DISPLAY — the payoff, straight after the host-only fee screens.
+<!-- ONE PRICE — the payoff, straight after the host-only fee screens. What a
+     guest sees once the single fee is in place: airbnb.com, the scrim, and the
+     modal that tells them the number they are looking at is the number.
 
-     THE FILE IS USED EXACTLY AS JOHN CUT IT. 1920x1147, 4.03s. He cropped and
-     trimmed it himself, so there is no CSS crop and no in/out here — earlier
-     passes did both against the original 1920x1228 / 10.84s export and neither
-     belongs now. It plays from 0 to the end.
+     IT IS BUILT, NOT FILMED. This used to be a screen recording. The page, the
+     scrim and the modal are real elements now — the only frames left are the
+     backdrop (John's capture of airbnb.com) and the tag, which is his 5s
+     export playing inside the modal where the still illustration sits. A
+     recording could not be re-timed, could not be re-cut when the modal
+     changed, and went soft the moment the stage was wider than the capture.
 
-     NO ENTRANCE OF ITS OWN. The deck pushes it in from the right, as it does
-     every slide, and the video starts once it has landed.
+     THE GEOMETRY IS THE FIGMA FRAME'S, MEASURED OFF IT. Frame 5492:1007157 is
+     393 x 396, and every number below is read from that render rather than
+     guessed:
 
-     IT DOES NOT AUTOPLAY, and that part still matters. The deck builds slides
-     ahead and parks them (prepare() in index.html), so a plain `autoplay`
-     would run the payoff where nobody can see it and leave a finished video
-     sitting there when the slide arrived. The gate below is the one that
-     works — see 09b for the three ways this goes wrong:
+       card      393 x 396, 18px corners, 24 down each side
+       art       118 x 118 centred, 56 from the top   (the tag's own ink is
+                 628 x 658 inside a 1000 square, which is what sets the box)
+       headline  22.5 / 26, two lines, ink starting at 204
+       button    345 x 48, 10px corners, 56 up from the bottom — the same 56
+                 the art has above it, which is why it sits square in the card
+       close     16px glyph, top right
+
+     THE MODAL IS AT TRUE SCALE. The backdrop is a 1512-wide viewport (2000 x
+     1255 is 1.3228x of 1512 x 949), so a 393 modal is 393/1512 of it — about a
+     quarter of the width. Blown up to read from the back of a room it would be
+     a different design, and the whole point of the shot is how small the thing
+     is against the page it covers. CSS cannot divide a length by a length, so
+     the scale is computed in JS off a ResizeObserver, which also fires when
+     the deck un-parks the slide — a load-time read measures zero while parked.
+
+     THE SEQUENCE RUNS ITSELF, ONCE, ON ARRIVAL. 900ms on the page, then the
+     scrim takes 620ms to go black, the modal comes up 240ms into that so the
+     two overlap rather than queue, and the tag starts the moment the modal has
+     landed. The video does not loop; it plays once and holds its last frame,
+     because it is a conclusion rather than a texture.
+
+     IT DOES NOT AUTOPLAY, and that part matters. The deck builds slides ahead
+     and parks them (prepare() in index.html), so a plain `autoplay` would run
+     the payoff where nobody can see it. The gate below is the one that works —
+     see 09b for the three ways this goes wrong:
        - a class added while parked is never recalculated
        - requestAnimationFrame does not run in a parked iframe
        - the CHILD frame's getComputedStyle reports a parent node hidden for
          ever, so the deck's own window has to be asked
      `presoshown` gets first go; the poll is the backstop; the 10s stop means
-     the video always plays even if both somehow miss.
+     it always runs even if both somehow miss.
 
-     Muted and playsinline, which is what lets it start without a user gesture.
-     It does not loop — it plays once and holds its last frame, because it is a
-     conclusion rather than a texture. Stepping back to it replays it.
-
-     12px corners and the deck's three-drop shadow, the same shape the receipt
-     and slide 09's window use. overflow:hidden on the frame is what makes the
-     radius actually clip the video; a border-radius on a <video> alone is
-     ignored by some engines while it paints. -->
+     Muted and playsinline, which is what lets the tag start without a gesture.
+     Stepping back to the slide replays the whole thing. -->
 <style>
+  @font-face {
+    font-family: "Instrument Sans";
+    src: url("../fonts/InstrumentSans-VF.woff2") format("woff2");
+    font-weight: 400 700;
+    font-stretch: 75% 100%;
+    font-style: normal;
+    font-display: block;
+  }
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .slide { height: 100%; display: grid; place-items: center; }
 
-  .frame {
+  /* The screen. The deck's card treatment, as on the receipt, the tweet and
+     the Forbes piece — the scrim and the modal are clipped to its corners, so
+     the black stops where the page stops. */
+  .screen {
     position: relative;
-    display: block;
-    line-height: 0;                  /* no descender gap under the video */
+    aspect-ratio: 2000 / 1255;
+    width: min(92vw, calc(84vh * 2000 / 1255));
     border-radius: 12px;
-    overflow: hidden;                /* clips the video to the radius */
+    overflow: hidden;
+    background: #fff;
     box-shadow:
       0 0 0 1px rgba(0, 0, 0, 0.02),
       0 4px 8px rgba(0, 0, 0, 0.08),
       0 12px 30px rgba(0, 0, 0, 0.18);
   }
-  video {
+  .page {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
     display: block;
-    max-width: 88vw;
-    max-height: 82vh;
-    width: auto; height: auto;
-    border-radius: 12px;             /* belt and braces for engines that paint past the clip */
+    object-fit: cover;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+
+  .scrim {
+    position: absolute; inset: 0;
+    background: #000;
+    opacity: 0;
+    transition: opacity 620ms cubic-bezier(0.33, 0, 0.2, 1);
+  }
+  .on .scrim { opacity: 0.62; }
+
+  /* THE CARD, in the frame's own 393 x 396, scaled as one piece. Keeping the
+     numbers literal is the point: they are the design's, and a reader can
+     check any of them against the frame. */
+  .modal {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 393px; height: 396px;
+    box-sizing: border-box;
+    margin: -198px 0 0 -196.5px;
+    transform: scale(calc(var(--m, 1) * 0.94)) translateY(10px);
+    transform-origin: center center;
     background: #fff;
+    border-radius: 18px;
+    padding: 0 24px;
+    opacity: 0;
+    transition: opacity 340ms ease, transform 480ms cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: "Instrument Sans", -apple-system, "Helvetica Neue", Arial, sans-serif;
+    color: #222;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.26);
+  }
+  .up .modal { opacity: 1; transform: scale(var(--m, 1)) translateY(0); }
+
+  .x {
+    position: absolute; top: 16px; right: 16px;
+    width: 32px; height: 32px;
+    display: grid; place-items: center;
+    border: 0; background: none; padding: 0;
+    color: #222;
+  }
+  .x svg { display: block; }
+
+  /* 118 square, 56 down from the top. The tag's ink is 628 x 658 inside a 1000
+     square, so the box has to be bigger than the ink that shows. */
+  .art {
+    width: 118px; height: 118px;
+    margin: 56px auto 0;
+    display: block;
+  }
+  .art video { width: 100%; height: 100%; display: block; }
+
+  h2 {
+    margin: 0;
+    padding-top: 30px;                /* ink lands on 204, as it does in the frame */
+    font-size: 22.5px;
+    line-height: 26px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-align: center;
+  }
+
+  .cta {
+    position: absolute;
+    left: 24px; right: 24px; bottom: 56px;
+    height: 48px;
+    border-radius: 10px;
+    background: #222;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 48px;
+    text-align: center;
   }
 </style>
 </head>
 <body>
   <div class="slide">
-    <div class="frame">
-      <video muted playsinline preload="auto"
-             src="assets/price-display.mp4"
-             aria-label="Price display: what a guest sees once the single host fee is in place"></video>
+    <div class="screen" id="screen">
+      <img class="page" src="assets/airbnb-home.webp" width="2000" height="1255"
+           alt="airbnb.com: search, destinations for you, popular homes in Lake Tahoe">
+      <div class="scrim"></div>
+      <div class="modal">
+        <button class="x" type="button" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M2.5 2.5 L13.5 13.5 M13.5 2.5 L2.5 13.5"
+                  stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <div class="art">
+          <video muted playsinline preload="auto" poster="assets/price-tag.webp"
+                 src="assets/price-modal.mp4"
+                 aria-label="A price tag"></video>
+        </div>
+        <h2>Now you&rsquo;ll see one price for<br>your trip, all fees included.</h2>
+        <div class="cta">Got it</div>
+      </div>
     </div>
   </div>
 <script>
 (() => {
-  const v = document.querySelector('video');
-  let armed = false;
+  const screen = document.getElementById('screen');
+  const v = screen.querySelector('video');
 
-  function play() {
-    try { v.currentTime = 0; } catch (_) {}
-    const p = v.play();
-    if (p && p.catch) p.catch(() => {});      // a blocked play must never throw into the deck
+  // THE MODAL IS 393 OF A 1512-WIDE VIEWPORT. The backdrop is that viewport at
+  // 1.3228x, so the card is 393/1512 of whatever the screen measures here.
+  const RATIO = 393 / 1512;
+  const fit = w => { if (w > 0) screen.style.setProperty('--m', (w * RATIO) / 393); };
+  new ResizeObserver(([e]) => fit(e.contentRect.width)).observe(screen);
+  fit(screen.getBoundingClientRect().width);
+
+  const HOLD = 900;     // the page, on its own
+  const LIFT = 240;     // into the scrim, the card starts coming up
+  const LAND = 480;     // the card's own transition
+
+  let armed = false, t = [];
+  const clear = () => { t.forEach(clearTimeout); t = []; };
+
+  function run() {
+    clear();
+    screen.classList.remove('on', 'up');
+    try { v.pause(); v.currentTime = 0; } catch (_) {}
+    t.push(setTimeout(() => screen.classList.add('on'), HOLD));
+    t.push(setTimeout(() => screen.classList.add('up'), HOLD + LIFT));
+    t.push(setTimeout(() => {
+      const p = v.play();
+      // A blocked play must never throw into the deck — and it must never
+      // leave a hole in the middle of the modal either. Chrome pauses muted,
+      // video-only media when the window is not in front ("video-only
+      // background media was paused to save power"), which is exactly what a
+      // deck left on a second display can look like. The tag is drawn on the
+      // last frame as well as the first, so landing there shows the
+      // illustration at rest rather than an empty box.
+      if (p && p.catch) p.catch(() => { try { v.currentTime = v.duration - 0.01; } catch (_) {} });
+    }, HOLD + LIFT + LAND));
   }
 
-  function start() {
-    if (armed) return;
-    armed = true;
-    play();
-  }
+  function start() { if (armed) return; armed = true; run(); }
 
   function shown() {
     try {
       const fe = window.frameElement;
-      if (!fe) return true;                   // opened on its own, not in the deck
+      if (!fe) return true;                    // opened on its own, not in the deck
       const deck = fe.ownerDocument.defaultView;   // the DECK's window, not this one
       for (let n = fe; n && n.nodeType === 1; n = n.parentElement) {
         const cs = deck.getComputedStyle(n);
@@ -107,17 +248,17 @@
     setTimeout(watch, 100);
   })();
 
-  // Coming back replays it — the deck keeps the slide, so without this it
-  // would sit on its last frame for ever after one viewing.
-  //
-  // The `v.paused` guard is not cosmetic: the deck fires presoshown more than
-  // once on a single arrival, and without it the second one restarted a video
-  // that was already half a second in. On the page that was a visible stutter
-  // — 0.39s, then back to 0.13. A video already running is mid-arrival and is
-  // left alone; one sitting paused on its last frame is a genuine return.
-  addEventListener('presoshown', () => { if (armed && v.paused) play(); });
+  // Coming back plays it again — the deck keeps the slide, so without this it
+  // would sit on its end state for ever after one viewing. The guard is not
+  // cosmetic: the deck fires presoshown more than once on a single arrival,
+  // and re-running mid-sequence restarts a scrim that is halfway down. A
+  // sequence already in flight is mid-arrival and is left alone; one that has
+  // finished is a genuine return.
+  addEventListener('presoshown', () => {
+    if (armed && screen.classList.contains('up') && v.paused && v.currentTime > 0) run();
+  });
 
-  window.presoNext = () => false;             // no builds
+  window.presoNext = () => false;              // no builds
   window.presoPrev = () => false;
   window.presoState = () => 0;
   window.presoRestore = () => {};
