@@ -396,17 +396,40 @@
   const r0 = slide.getBoundingClientRect(); fit(r0.width, r0.height);
   setLead();
 
+  // TAPS QUEUE; THEY DO NOT STACK (2026-09-30). A double-tap on the intro used to strand the slide: the first tap
+  // scheduled the push, the second went straight to the pan, and the pan's clearTimeout(nextT) cancelled the push — the
+  // row never came in and the stage sat blank. Same fix as 12c and 12b: a tap that lands mid-move is held, and fires
+  // once the move in front of it has played. Going back is never queued; it drops anything waiting and acts at once.
+  //
+  // HOLD per beat, from this file's own timings: the intro's shrink and the push (DOWN + BEAT + the 520ms push), then
+  // the pan (MOVE), each with the first answers under way before the next move starts.
+  const HOLD = [DOWN + BEAT + 520 + 200, MOVE + 200, MOVE];
+  let busyUntil = 0, queued = 0, qT = 0;
+  function go() {
+    if (step === 0) openRow();
+    else if (step === 1) { beat(2); answer(HALF); }
+    else if (step === 2) { beat(3); stopActs(); }
+    busyUntil = performance.now() + HOLD[step - 1];
+  }
+  function pump() {
+    clearTimeout(qT);
+    if (!queued) return;
+    const wait = busyUntil - performance.now();
+    if (wait > 0) { qT = setTimeout(pump, wait); return; }
+    if (step >= 3) { queued = 0; return; }
+    queued--; go(); pump();
+  }
   window.presoNext = () => {
-    if (step === 0) { openRow();            return true; }
-    if (step === 1) { beat(2); answer(HALF); return true; }
-    if (step === 2) { beat(3); stopActs();   return true; }
-    return false;                           // out of builds — on to the tweets
+    if (step >= 3 && !queued) return false;  // out of builds — on to the tweets
+    if (step + queued >= 3) return true;      // already queued to the last beat: hold, do not leave mid-queue
+    queued++; pump(); return true;
   };
   window.presoPrev = () => {
+    queued = 0; clearTimeout(qT); busyUntil = 0;
     if (step === 3) { beat(2); return true; }
     if (step === 2) { beat(1); return true; }
     if (step === 1) { setLead(); return true; }
-    return false;                           // on the lead-in — the deck goes back
+    return false;                             // on the lead-in — the deck goes back
   };
   window.presoState = () => step;
   // Landing on a beat from the hash gets the end state, not the moves.

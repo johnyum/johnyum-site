@@ -14886,10 +14886,15 @@ function startOptimize() {
   if (typeof setIndicatorStyle === 'function') { setIndicatorStyle('default'); setIndicatorFilled(true); } // every session starts on Default, FILLED (the wash shows behind the tips cells by default)
   updateBookingDim(); // guest pills step back to the grey edit-mode look for the whole session
   // stagger each cell's stroke pulse by its on-screen x → the wave sweeps left → right (800px/s)
+  // ALL THE READS, THEN ALL THE WRITES (2026-09-30). This read each card's offsetLeft and wrote its --swd in the same
+  // loop, so every read after the first came after a write and forced the browser to recompute style for the whole
+  // grid — once per card, and there are thousands. Measured, tapping Tips blocked the main thread for ~270ms right as
+  // the sweep was meant to start, which is why the sweep hitched on its first frames. Reading every position first costs
+  // one layout; the writes after it cost none. Same numbers, same sweep.
   const swBase = gridWrap.scrollLeft;
-  document.querySelectorAll('#gridRows .price-card').forEach(c => {
-    c.style.setProperty('--swd', Math.max(0, (c.parentElement.offsetLeft - swBase) / 800) + 's');
-  });
+  const swCards = [...document.querySelectorAll('#gridRows .price-card')];
+  const swLeft = swCards.map(c => c.parentElement.offsetLeft);
+  swCards.forEach((c, i) => c.style.setProperty('--swd', Math.max(0, (swLeft[i] - swBase) / 800) + 's'));
   document.body.classList.add('opt-scanning');
   // pill stays pinned at the idle Tips-pill's width for the whole scan — no shrink, no wand to glide;
   // the three dots (rendered by renderMagicPill's 'scanning' branch) just centre inside it.
