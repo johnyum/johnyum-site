@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>09f</title>
+<!-- HOST SETUP, EVERY STEP AT ONCE — the whole flow in one row, straight
+     before the host-only fee screens.
+
+     THIRTEEN INSTANCES OF SLIDE 11, ONE PER STEP. Slide 11 is a single phone
+     whose steps are toggled by a body class — every step's content is already
+     in its DOM, hidden — so there is no set of step elements to lay out. The
+     only faithful way to show them side by side is to load the slide once per
+     step and set that class. Nothing is re-drawn or re-exported: each cell is
+     the real screen.
+
+       step 0    the splash            step 6    photos
+       step 1    place type  (no class, it is the default)
+       step 1b   home type            step 7    name
+       step 2    space type           step 8    describe
+       step 3    address              step 8b   price
+       step 4    guests               step 9    last questions
+       step 5    amenities            step 10   preview
+
+     ?nomap=1 ON TWELVE OF THEM. Slide 11 builds a live Mapbox map at load, and
+     thirteen of those is thirteen WebGL contexts — at the browser's cap, where
+     they start getting dropped. Only the address cell asks for one.
+
+     THE SCALE IS COMPUTED, NOT GUESSED. Each instance gets a 391.3 x 1000
+     viewport: slide 11 sizes its phone at 80vh with a 900/1840 aspect, so at
+     that viewport the phone spans the full width and 80% of the height, and
+     the cell can be scaled as one block. A ResizeObserver divides the row's
+     width by thirteen — CSS cannot divide a length by a length, so this cannot
+     be a calc() — and sets the scale from it.
+
+     No entrance of its own; the deck pushes it in from the right. No builds. -->
+<style>
+  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
+  .slide { height: 100%; display: grid; place-items: center; }
+
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--gap, 8px);
+    width: 94vw;
+  }
+  .cell {
+    position: relative;
+    flex: none;
+    width: calc(391.3px * var(--k, 0.3));
+    height: calc(1000px * var(--k, 0.3));
+    overflow: hidden;
+  }
+  .cell iframe {
+    position: absolute; left: 0; top: 0;
+    width: 391.3px; height: 1000px;
+    border: 0; display: block;
+    transform: scale(var(--k, 0.3));
+    transform-origin: top left;
+  }
+</style>
+</head>
+<body>
+  <div class="slide">
+    <div class="row" id="row"></div>
+  </div>
+<script>
+(() => {
+  // step -> the body class slide 11 uses. Step 1 is the default and carries no
+  // class at all, which is why one entry is empty rather than 'step1'.
+  const STEPS = ['step0', '', 'step1b', 'step2', 'step3', 'step4', 'step5',
+                 'step6', 'step7', 'step8', 'step8b', 'step9', 'step10'];
+  const MAP_STEP = 'step3';                 // the only one that gets a real map
+  const VW = 391.3, VH = 1000;
+
+  const row = document.getElementById('row');
+  const v = new URLSearchParams(location.search).get('v');
+
+  STEPS.forEach(cls => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    const f = document.createElement('iframe');
+    f.title = 'Host setup — ' + (cls || 'step 1');
+    f.setAttribute('scrolling', 'no');
+    f.src = '11.html?' + (cls === MAP_STEP ? '' : 'nomap=1&') + 'still=1' + (v ? '&v=' + v : '');
+    f.addEventListener('load', () => {
+      const d = f.contentDocument; if (!d) return;
+      const set = () => { d.body.className = cls; };
+      set();
+      // Slide 11 runs its own opening beat on load, which would put every cell
+      // back on step 1. Re-assert after it has had its go.
+      setTimeout(set, 120); setTimeout(set, 600); setTimeout(set, 1400);
+    });
+    cell.appendChild(f);
+    row.appendChild(cell);
+  });
+
+  // CSS cannot divide a length by a length, so the per-cell scale cannot be a
+  // calc(). A ResizeObserver also fires when the deck un-parks the slide, which
+  // a load-time measurement would miss — it reads zero while parked.
+  const fit = w => {
+    if (!(w > 0)) return;
+    const gap = Math.max(4, w * 0.006);
+    const cw = (w - gap * (STEPS.length - 1)) / STEPS.length;
+    row.style.setProperty('--gap', gap + 'px');
+    row.style.setProperty('--k', cw / VW);
+  };
+  new ResizeObserver(([e]) => fit(e.contentRect.width)).observe(row);
+  fit(row.getBoundingClientRect().width);
+})();
+</script>
+</body>
+</html>

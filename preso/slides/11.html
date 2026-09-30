@@ -1251,7 +1251,12 @@
   const rows2  = [...document.querySelectorAll('.list-2 .row')];
 
   let map = null;
-  if (MAPBOX_TOKEN && window.mapboxgl && mapboxgl.supported()) {
+  // ?nomap=1 — the all-steps row (09f) loads this slide thirteen times, once
+  // per step, and thirteen live Mapbox maps is thirteen WebGL contexts, which
+  // is at the browser's cap. Only the instance actually showing the address
+  // step asks for one; the rest opt out here. No effect on the slide itself.
+  const NOMAP = /[?&]nomap=1/.test(location.search);
+  if (!NOMAP && MAPBOX_TOKEN && window.mapboxgl && mapboxgl.supported()) {
     try {
       mapboxgl.accessToken = MAPBOX_TOKEN;
       map = new mapboxgl.Map({
