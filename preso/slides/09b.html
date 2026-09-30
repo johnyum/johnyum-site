@@ -5,34 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>09b</title>
 <!-- BUSINESS TRAVEL — flight search on web, with the departing-flights list on
-     the phone arriving over it. Straight after the Villa Mayana wall.
+     the phone beside it. Straight after the Villa Mayana wall.
 
-     TWO LAYERS, NOT A COMPOSITE. The first pass used the flattened export and
-     could not animate the two apart: the phone was baked into it, covering the
-     web design's "Includes $150 Airbnb credit" and its Book button, so cutting
-     the phone out left a phone-shaped hole.
+     NO ANIMATION OF ITS OWN. The deck pushes it in from the right and off to
+     the left, and that is the whole movement. Earlier passes had the two
+     layers rise and fade, first with the phone lagging and then together; both
+     were noise on top of a slide that is simply a picture being shown.
+
+     STILL TWO LAYERS, NOT A COMPOSITE — and worth keeping that way. The
+     flattened export could not be taken apart: the phone was baked into it,
+     covering the web design's "Includes $150 Airbnb credit" and its Book
+     button, so cutting the phone out left a phone-shaped hole.
 
      THE GEOMETRY IS MEASURED, NOT EYEBALLED. The composite John supplied
      (4668x2935) was diffed against the web export placed at the origin; the
      difference is exactly the phone, at (3605, 686). The phone's own artwork
      starts (11, 16) inside its 1075x2198 canvas, so the canvas sits at
      (3594, 670). Everything below is that, as a percentage of the 4668x2935
-     stage, which is why the two layers land in John's composition at any size:
+     stage, which is why the two land in John's composition at any size:
 
        web    left 0        top 0        width 94.687%   (4420 / 4668)
        phone  left 76.993%  top 22.828%  width 23.029%   (3594, 670, 1075)
 
-     BOTH AT ONCE. They rise and fade on the same travel, curve and timing,
-     with no delay between them. An earlier pass had the phone lag the web
-     design by 200ms; it reads better as one composition arriving whole.
-
-     WHEN IT STARTS. Not on load: the deck builds slides ahead and parks them
-     display:none (prepare() in index.html), so a rAF here never fires and both
-     layers sit at opacity 0 forever. `presoshown` is the signal, with a poll
-     watching for a real box as a backstop and a 10s stop so the work always
-     appears. Same pattern as 11cut.html.
-
-     No builds — one tap moves on to Lesson 1. -->
+     No script at all. Nothing to reveal means nothing that can fail to reveal —
+     which, given how many ways a parked iframe breaks an entrance, is the
+     point. -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .slide { height: 100%; display: grid; place-items: center; }
@@ -50,24 +47,9 @@
     height: auto;
     user-select: none;
     -webkit-user-drag: none;
-    opacity: 0;
-    will-change: opacity, transform;
   }
-  .web   { left: 0;        top: 0;         width: 94.687%; }
-  .phone { left: 76.993%;  top: 22.828%;   width: 23.029%; }
-
-  /* BOTH TOGETHER. Same travel, same curve, same timing, no delay — the web
-     design and the phone are one composition arriving, not one thing landing
-     on another. */
-  .stage img {
-    transform: translateY(28px);
-    transition: opacity 620ms ease, transform 760ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .stage img { transition: opacity 240ms linear; transform: none !important; }
-    .web, .phone { transition-delay: 0ms; }
-  }
+  .web   { left: 0;       top: 0;       width: 94.687%; }
+  .phone { left: 76.993%; top: 22.828%; width: 23.029%; }
 </style>
 </head>
 <body>
@@ -79,67 +61,5 @@
            alt="The same search on iPhone: departing flights with fare details and a Select button">
     </div>
   </div>
-<script>
-(() => {
-  const layers = [...document.querySelectorAll('.stage img')];
-  let armed = false;
-
-  // SET THE END STATE INLINE. A `body.in` class did not work here: the element
-  // matched `body.in .web` and still computed opacity 0, because the class went
-  // on while the deck had this iframe parked at display:none and the style was
-  // never recalculated once it came back. Inline styles cannot lose that race —
-  // and the transitions stay in the CSS, so the movement is unchanged.
-  function reveal() {
-    if (armed) return;                   // coming back: leave it settled
-    armed = true;
-    // SYNCHRONOUSLY, no requestAnimationFrame. rAF does not run in a parked
-    // iframe, so scheduling the change inside one meant that if reveal() was
-    // ever reached while parked it set armed = true and then never applied
-    // anything — the slide stayed blank for good. The from-state is committed
-    // at load, so setting the end state straight away still transitions.
-    layers.forEach(el => {
-      el.style.opacity = '1';
-      el.style.transform = 'translateY(0)';
-    });
-  }
-  // WHEN IT STARTS. The deck builds slides ahead and parks them display:none
-  // (prepare() in index.html), so neither a rAF at load nor a class added while
-  // parked survives to the moment the slide is on stage — both were tried and
-  // both left this blank. The signal used here is the simplest thing that
-  // cannot lie: while the slide is parked its own elements have no box, so a
-  // zero width means "not shown yet". `presoshown` still gets first go when the
-  // deck sends it; the 10s stop guarantees the work appears regardless.
-  function shown() {
-    try {
-      const fe = window.frameElement;
-      if (!fe) return true;                       // opened on its own, not in the deck
-      // getComputedStyle from the DECK's window, not this one. Calling the
-      // child frame's getComputedStyle on a parent node is what failed before
-      // and left this slide blank.
-      const deck = fe.ownerDocument.defaultView;
-      for (let n = fe; n && n.nodeType === 1; n = n.parentElement) {
-        const cs = deck.getComputedStyle(n);
-        // prepare() parks a slide at visibility:hidden and a kept one at
-        // display:none. Both still report a box, so width alone says yes far
-        // too early and the whole move burns where nobody can see it.
-        if (cs.display === 'none' || cs.visibility === 'hidden') return false;
-      }
-      return fe.getBoundingClientRect().width > 0;
-    } catch (_) { return true; }                  // never hold the slide hostage
-  }
-  addEventListener('presoshown', reveal);
-  const t0 = Date.now();
-  (function watch() {
-    if (armed) return;
-    if (shown() || Date.now() - t0 > 10000) { reveal(); return; }
-    setTimeout(watch, 100);
-  })();
-
-  window.presoNext = () => false;        // no builds — on to Lesson 1
-  window.presoPrev = () => false;
-  window.presoState = () => 0;
-  window.presoRestore = () => {};
-})();
-</script>
 </body>
 </html>
