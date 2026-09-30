@@ -46,7 +46,14 @@
      ResizeObserver also fires when the deck un-parks the slide, which a
      load-time read would miss — it measures zero while parked.
 
-     No entrance of its own; the deck pushes it in from the right. No builds. -->
+     ONE BUILD, A LEAD-IN. The slide arrives showing only the first screen, at
+     the size slide 11 gives its phone on its own — min(80vh, 1080px) — parked
+     in the middle of the stage with its intro film looping. The tap sends it
+     to its own cell, the top left of the grid, and the other eleven arrive one
+     after another, 90ms apart.
+
+     The tap stops the LOOP, not the film. It plays out the pass it is on and
+     rests on its last frame, rather than being cut off mid-motion. -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .slide { height: 100%; display: grid; place-items: center; }
@@ -61,12 +68,21 @@
   }
   .cell {
     position: relative;
+    opacity: 1;
+    transition: transform 820ms cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 380ms ease;
+    will-change: transform, opacity;
     /* 391.3 x 800 of slide 11's viewport — the phone alone, not the 1000 the
        viewport is tall. The 100pt of margin above it is cropped out below. */
     width: calc(391.3px * var(--k, 0.3));
     height: calc(800px * var(--k, 0.3));
     overflow: hidden;
   }
+  /* the eleven that are not the lead, before they arrive */
+  .cell.waiting { opacity: 0; transform: scale(0.94); }
+  /* the lead sits above them while it is large */
+  .cell.lead { z-index: 2; }
+
   .cell iframe {
     position: absolute; left: 0;
     top: calc(-100px * var(--k, 0.3));      /* lift the phone's top margin out */
@@ -122,19 +138,85 @@
   // calc(). It is the smaller of what the width allows and what the height
   // allows. The ResizeObserver also fires when the deck un-parks the slide,
   // which a load-time read would miss — that measures zero while parked.
+  const slide = document.querySelector('.slide');
+  let K = 0;                               // the scale fit() last set
+
+  // ── the lead-in ───────────────────────────────────────────────────────
+  // Beat 0 shows ONLY the first screen, at the size slide 11 gives its phone
+  // on its own — min(80vh, 1080px) — parked in the middle of the stage. Its
+  // intro film loops there. The tap sends it to its own cell, which is the top
+  // left of the grid, and brings the other eleven in one after another.
+  let step = 0;
+  const cells = [...grid.querySelectorAll('.cell')];
+  const lead = cells[0];
+
+  function filmOf() {                      // the intro video inside the lead cell
+    try { return lead.querySelector('iframe').contentDocument.getElementById('film'); }
+    catch (_) { return null; }
+  }
+
+  function placeLead() {
+    if (step !== 0 || !K) return;
+    // Measure UNTRANSFORMED, or the offset compounds every time this runs.
+    lead.style.transform = 'none';
+    void lead.offsetWidth;
+    const s = slide.getBoundingClientRect(), c = lead.getBoundingClientRect();
+    const full = Math.min(s.height * 0.8, 1080);        // slide 11's own phone height
+    const S = full / (PH * K);
+    const dx = (s.left + s.width / 2) - (c.left + c.width / 2);
+    const dy = (s.top + s.height / 2) - (c.top + c.height / 2);
+    lead.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + S + ')';
+  }
+
+  function setLead() {                     // beat 0
+    step = 0;
+    lead.classList.add('lead');
+    cells.forEach((c, i) => { if (i) { c.classList.add('waiting'); c.style.transitionDelay = '0ms'; } });
+    const f = filmOf(); if (f) { f.loop = true; f.play().catch(() => {}); }
+    placeLead();
+  }
+
+  function openGrid() {                    // the tap
+    step = 1;
+    // Stop the LOOP, not the film — it plays out the pass it is on and rests
+    // on its last frame, which is what "let it rest at the end" means.
+    const f = filmOf(); if (f) f.loop = false;
+    lead.style.transform = 'none';         // back to its own cell: the top left
+    lead.classList.remove('lead');
+    cells.forEach((c, i) => {
+      if (!i) return;
+      c.style.transitionDelay = (60 + (i - 1) * 90) + 'ms';   // one after another
+      c.classList.remove('waiting');
+    });
+  }
+
   const fit = (w, h) => {
     if (!(w > 0 && h > 0)) return;
     const gap = Math.max(6, w * 0.008), rowgap = Math.max(8, h * 0.02);
     const kW = ((w * 0.94 - gap * (COLS - 1)) / COLS) / VW;
     const kH = ((h * 0.84 - rowgap * (ROWS - 1)) / ROWS) / PH;
-    const k = Math.min(kW, kH);
+    K = Math.min(kW, kH);
     grid.style.setProperty('--gap', gap + 'px');
     grid.style.setProperty('--rowgap', rowgap + 'px');
-    grid.style.setProperty('--k', k);
+    grid.style.setProperty('--k', K);
+    placeLead();                           // the lead's offset is in screen px
   };
-  const slide = document.querySelector('.slide');
   new ResizeObserver(([e]) => fit(e.contentRect.width, e.contentRect.height)).observe(slide);
-  const r = slide.getBoundingClientRect(); fit(r.width, r.height);
+  const r0 = slide.getBoundingClientRect(); fit(r0.width, r0.height);
+  setLead();
+
+  window.presoNext = () => {
+    if (step) return false;                // out of builds — on to the fee screens
+    openGrid();
+    return true;
+  };
+  window.presoPrev = () => {
+    if (!step) return false;               // on the lead — the deck goes back a slide
+    setLead();
+    return true;
+  };
+  window.presoState = () => step;
+  window.presoRestore = n => { if (n > 0) openGrid(); };
 })();
 </script>
 </body>
