@@ -264,6 +264,10 @@
         ph.querySelector('script').remove();
         f.src = '/multical/?today=2026-09-09&preso=1&' + query + (v ? '&v=' + v : '');
         one.parentNode.appendChild(ph);
+        // Wire it NOW. The sweep at the bottom of this file runs once, long
+        // before these exist, so without this the list, year and day frames
+        // never get the seal and their headers sit under the status bar.
+        if (window.sealApp) window.sealApp(f);
       };
       // The three arrive one after another, not all at once with the single: four apps booting together held the main
       // thread for over a second as the phone grew in (a hitch on the first beats). They are not needed until beat 36; a
@@ -752,7 +756,22 @@ function typeKeys(keys, instant) {
 // than the key.
 (() => {
   const NAV = new Set(['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'PageUp', 'PageDown', 'Home', 'End', 'f', 'F']);
-  for (const app of document.querySelectorAll('.app, .app2, .app3, .app4')) app.addEventListener('load', () => {
+  // WIRE EVERY APP FRAME, INCLUDING THE ONES THAT DO NOT EXIST YET.
+  // This used to be a one-shot querySelectorAll over .app/.app2/.app3/.app4 at
+  // script time — but the list, year and day phones are cloned 1.6s and 1.4s
+  // apart, long after this runs, so only the single was ever wired. The three
+  // clones never got the seal below, so the app's own .phone was never pushed
+  // down 64.2px and their headers sat UNDER the drawn status bar: "September"
+  // and "2026" colliding with the time and the island on phones two, three and
+  // four while the first one sat correctly clear.
+  //
+  // window.sealApp is called by clone() the moment a phone is built, so every
+  // frame is wired whenever it appears. A frame that has already loaded by then
+  // gets sealed straight away, since its load event is gone.
+  window.sealApp = app => {
+    if (app.__sealed) return;                 // clone() and any later sweep can both call this
+    app.__sealed = true;
+    const wire = () => {
     const w = app.contentWindow;
     // NOTHING SHOWS THROUGH THE HEADER. The app hides the month scrolling under
     // its title with a white .cover strip, but the strip's edges land on
@@ -778,7 +797,14 @@ function typeKeys(keys, instant) {
       // and its top-level slide frame carry the key handler — a key relayed one level up would die here
       window.top.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: e.code, bubbles: true }));
     });
-  });
+    };
+    app.addEventListener('load', wire);
+    // A frame cloned from one already in the document can finish loading before
+    // sealApp reaches it; its load event is then spent and wire() would never
+    // run. Same-origin, so this is a safe test.
+    try { if (app.contentDocument && app.contentDocument.readyState === 'complete') wire(); } catch (_) {}
+  };
+  document.querySelectorAll('.app, .app2, .app3, .app4').forEach(window.sealApp);
 })();
 
 // ---- the build's driver ----------------------------------------------------

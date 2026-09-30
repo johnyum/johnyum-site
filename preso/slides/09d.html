@@ -11,12 +11,11 @@
      ALL FOUR AT ONCE. No stagger, no build: they are one flow, so they arrive
      as one thing and the story is told over them.
 
-     THE PHONE HEIGHT IS THE CALENDAR BUILD'S. 12d sizes its device with
-     --phone-h: min(80vh, 1080px); this uses the same expression, so a phone is
-     the same height here as it is when the live calendar comes up later in the
-     deck. Four of them at 0.4895 aspect need 4 x 0.4895 x that height plus the
-     gaps, so on a short, wide window the width cap takes over and they shrink
-     together rather than overflowing.
+     THE SIZE AND THE SPACING ARE THE FOUR-UP CALENDAR'S. Slide 13 stands its
+     single, list, year and day phones on 76% of the width with 48px between
+     them, scaled down from a base of min(80vh, 1080px); this matches both, so
+     a phone here is the same size as a phone there and the gaps are the same
+     gaps. See the .row rule for the arithmetic.
 
      The reveal is set INLINE and SYNCHRONOUSLY, and waits on a stage check that
      asks the DECK's window for computed style. All three matter — see 09b:
@@ -32,10 +31,22 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: clamp(8px, 1.5vw, 28px);
-    /* The height the calendar build gives its phone, capped so four of them
-       never run past the sides. 0.4895 is the export's aspect. */
-    --phone-h: min(80vh, 1080px, calc((94vw - 3 * clamp(8px, 1.5vw, 28px)) / 4 / 0.4895));
+    /* THE FOUR-UP CALENDAR'S SIZING, EXACTLY. Slide 13 lays its four phones —
+       the single, the list, the year, the day — with
+         GAP[4] = 48        SHARE[4] = 0.76
+         s4 = min(1, (innerWidth * 0.76 - 3 * 48) / (4 * W))
+       off a base phone of min(80vh, 1080px), where W is that phone's width.
+
+       CSS cannot divide by a length, so a unitless s4 is not expressible here.
+       Solving for the final height instead is the same arithmetic: four phones
+       plus three 48px gaps fill 76vw, so
+
+         h * 0.4895 * 4 + 144px = 76vw   ->   h = (76vw - 144px) / 1.958
+
+       and min() caps it at the unscaled phone, which is what s4's min(1, ...)
+       does. 0.4895 is this export's aspect; 1.958 is 4 x that. */
+    gap: 48px;
+    --phone-h: min(80vh, 1080px, calc((76vw - 144px) / 1.958));
   }
   .row img {
     height: var(--phone-h);
