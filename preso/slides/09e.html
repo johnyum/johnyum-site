@@ -21,10 +21,30 @@
      `presoshown` gets first go; the poll is the backstop; the 10s stop means
      the video always plays even if both somehow miss.
 
+     IT PLAYS ONE BEAT, NOT THE WHOLE FILE. The clip runs 10.84s, but the
+     moment worth showing is the scrim and the modal arriving. Frame-differenced
+     at 0.1s across the whole file, the only movement is:
+
+       0.5 - 0.7   a small settle
+       1.9 - 2.2   the scrim and the modal        <- this is the payoff
+       8.3         the mini modal at the bottom   <- deliberately never reached
+       10.6        a last change
+
+     So it starts at 1.75, just before the modal begins, and pauses at 2.45 once
+     it has settled. The stop is held by a setTimeout AND a rAF loop AND
+     timeupdate: rAF alone is not enough, because it does not run while the
+     deck's push is still animating this iframe, and the video sailed past OUT
+     until rendering resumed.
+
      Muted and playsinline, which is what lets it start without a user gesture.
-     It does NOT loop: it plays once and holds its last frame, because it is a
-     conclusion rather than a texture. Stepping back to it and forward again
-     replays it from the top.
+     Stepping back to it and forward again replays the same beat.
+
+     THE LETTERBOX IS CROPPED. The source is 1920x1228 with a 23px black band
+     at the top and 19px at the bottom (the sides are clean), so the visible
+     picture is 1920x1186. The frame carries that aspect and the video is pulled
+     up by 23/1186 of the frame's height; overflow:hidden does the rest. Both
+     bands go — leaving the bottom one under a 12px radius would read worse than
+     the top one did.
 
      12px corners and the deck's three-drop shadow — the same shape slide 09's
      window and the receipt use, so the video reads as an object on the stage
@@ -39,19 +59,26 @@
     position: relative;
     display: block;
     line-height: 0;                  /* no descender gap under the video */
+    /* the CROPPED picture's aspect, 1920 x 1186 — 1.6189 */
+    width: min(88vw, calc(82vh * 1.6189));
+    aspect-ratio: 1920 / 1186;
     border-radius: 12px;
-    overflow: hidden;                /* clips the video to the radius */
+    overflow: hidden;                /* clips the letterbox AND the radius */
     box-shadow:
       0 0 0 1px rgba(0, 0, 0, 0.02),
       0 4px 8px rgba(0, 0, 0, 0.08),
       0 12px 30px rgba(0, 0, 0, 0.18);
   }
   video {
+    position: absolute;
+    left: 0;
+    /* 23px of black off the top, as a share of the CROPPED height: 23/1186.
+       A percentage top resolves against the frame's height, which is exactly
+       the cropped height, so this lands the picture's first real row at 0. */
+    top: -1.9393%;
+    width: 100%;
+    height: auto;
     display: block;
-    max-width: 88vw;
-    max-height: 82vh;
-    width: auto; height: auto;
-    border-radius: 12px;             /* belt and braces for engines that paint past the clip */
     background: #fff;
   }
 </style>
@@ -67,14 +94,39 @@
 <script>
 (() => {
   const v = document.querySelector('video');
-  let armed = false;
+  // The one beat worth showing: in just before the modal starts, out once it
+  // has settled. Measured off the file, not guessed — see the note above.
+  const IN = 1.75, OUT = 2.45;
+  let armed = false, raf = 0, timer = 0;
+
+  function hold() {                           // stop ON the frame, not a tick later
+    if (v.currentTime < OUT) { raf = requestAnimationFrame(hold); return; }
+    v.pause();
+    try { v.currentTime = OUT; } catch (_) {}
+    cancelAnimationFrame(raf); clearTimeout(timer); raf = timer = 0;
+  }
+
+  function play() {
+    cancelAnimationFrame(raf); clearTimeout(timer);
+    try { v.currentTime = IN; } catch (_) {}
+    const p = v.play();
+    if (p && p.catch) p.catch(() => {});      // a blocked play must never throw into the deck
+    raf = requestAnimationFrame(hold);
+    // THE TIMER IS NOT BELT-AND-BRACES, IT IS THE ONE THAT FIRES. rAF does not
+    // run while the deck's push is still animating this iframe, so the rAF
+    // check alone let the video run unchecked past OUT and only snapped back
+    // once rendering resumed — visible as an overshoot on stage. A timeout
+    // keeps time regardless. 60ms of slack so it lands just past OUT, never
+    // just short of it.
+    timer = setTimeout(hold, (OUT - IN) * 1000 + 60);
+  }
+  // A third net, free: timeupdate fires a few times a second while playing.
+  v.addEventListener('timeupdate', () => { if (!v.paused && v.currentTime >= OUT) hold(); });
 
   function start() {
     if (armed) return;
     armed = true;
-    try { v.currentTime = 0; } catch (_) {}
-    const p = v.play();
-    if (p && p.catch) p.catch(() => {});      // a blocked play must never throw into the deck
+    play();
   }
 
   function shown() {
@@ -100,9 +152,9 @@
     setTimeout(watch, 100);
   })();
 
-  // Leaving and coming back replays it — the deck keeps the slide, so without
-  // this the payoff would sit on its last frame for ever after one viewing.
-  addEventListener('presoshown', () => { if (armed && v.ended) { v.currentTime = 0; v.play().catch(() => {}); } });
+  // Leaving and coming back replays the beat — the deck keeps the slide, so
+  // without this it would sit on the OUT frame for ever after one viewing.
+  addEventListener('presoshown', () => { if (armed) play(); });
 
   window.presoNext = () => false;             // no builds
   window.presoPrev = () => false;
