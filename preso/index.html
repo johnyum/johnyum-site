@@ -333,12 +333,32 @@
     prepared = { i, made };
   }
 
+  // A SLIDE MAY NOT HAVE RUN YET when we settle on it. makePane gives up
+  // waiting after 400ms, and a slide that builds its own iframes — 09f loads
+  // ten — fires `load` seconds later, so reading presoInteractive here gets
+  // undefined and the tap rails stay across the whole stage. The rails sit at
+  // z-index 10, so the slide underneath never sees the pointer and anything it
+  // does on hover looks broken while working perfectly. Re-read for a few
+  // seconds, for as long as this is still the slide we are on. The frame's own
+  // load handler also does this; between them one of the two always lands.
+  function applyInteractive(made) {
+    const read = () => {
+      try { return made.frame && made.frame.contentWindow && made.frame.contentWindow.presoInteractive === true; }
+      catch (_) { return false; }
+    };
+    document.body.classList.toggle('interactive', !!read());
+    const t0 = Date.now();
+    (function again() {
+      if (current !== made || Date.now() - t0 > 8000) return;
+      document.body.classList.toggle('interactive', !!read());
+      setTimeout(again, 150);
+    })();
+  }
+
   function settle(i, made) {
     current = made;
     idx = i;
-    let inter = false;
-    try { inter = !!(made.frame && made.frame.contentWindow && made.frame.contentWindow.presoInteractive === true); } catch (_) {}
-    document.body.classList.toggle('interactive', inter);
+    applyInteractive(made);
     syncKicker(made);
     writeHash();
     flashCounter();
