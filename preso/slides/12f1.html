@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12f1</title>
+<!-- TRIPS, LIVE — straight after the A.I. card.
+
+     IT IS THE BUILD, NOT A PICTURE OF IT. The frame loads /trips/, which
+     vercel.json rewrites to the Trip Creator's own deployment, so what is on
+     the stage is the app running: its globe is a real canvas, its map is the
+     same Mapbox the Explore concept borrowed its recipe from. Nothing here is
+     exported, so nothing here can go stale.
+
+     THAT MEANS IT NEEDS THE NETWORK, and more of it than the other slides —
+     this is a whole application on another origin, not a file on this server.
+     It is also the one thing in the deck that cannot be made to fall back to a
+     still, because a still of it would be the picture this deliberately is not.
+
+     LOCALLY IT IS BLANK. The rewrite lives in vercel.json, so /trips/ only
+     resolves in production; a local run of the deck shows an empty device.
+     That is expected, and is not a fault to go chasing.
+
+     THE DEVICE IS 09B'S AND 09C'S, number for number — the 32px stroke and
+     112px radius measured off trip-creator.webp, carried as fractions of the
+     same --canvas. The three live surfaces in this deck sit in the same
+     browser, at the same size, with the same weight of line.
+
+     THE PAGE IS 1512 x 977, which is the viewport 09c gives Explore. The app
+     lays itself out to whatever it is given, and matching the other two means
+     the type inside all three comes out the same size on the stage.
+
+     THE SCALE IS COMPUTED, NOT GUESSED: CSS cannot divide a length by a
+     length, and a ResizeObserver also fires when the deck un-parks the slide,
+     which a load-time read would miss — it measures zero while parked.
+
+     No builds. The deck pushes it in from the right and off to the left. -->
+<style>
+  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
+  .slide { height: 100%; display: grid; place-items: center; }
+
+  .device {
+    /* the export's own canvas width, so the device matches its height exactly */
+    --canvas: min(92vw, calc(82vh * 1.59046));
+    box-sizing: border-box;
+    width: calc(var(--canvas) * 0.91901);     /* 3106/3200 of the canvas, x 0.94687 */
+    aspect-ratio: 3106 / 2031;
+    border: calc(var(--canvas) * 0.009468) solid #000;   /* the 32px stroke */
+    border-radius: calc(var(--canvas) * 0.035);          /* the 112px radius */
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.02),
+      0 4px 8px rgba(0, 0, 0, 0.08),
+      0 12px 30px rgba(0, 0, 0, 0.18);
+  }
+  .screen { position: relative; width: 100%; height: 100%; overflow: hidden; background: #fff; }
+  .page {
+    position: absolute; left: 0; top: 0;
+    width: 1512px; height: 977px;            /* 1512 : 977 is the screen's 3041 : 1965 */
+    border: 0; display: block;
+    transform: scale(var(--k, 1));
+    transform-origin: top left;
+  }
+</style>
+</head>
+<body>
+  <div class="slide">
+    <div class="device" id="device">
+      <div class="screen" id="screen">
+        <iframe class="page" id="page" title="Trip Creator, running"
+                src="/trips/" scrolling="no"></iframe>
+      </div>
+    </div>
+  </div>
+<script>
+(() => {
+  const screen = document.getElementById('screen');
+  const page = document.getElementById('page');
+  const fit = ([e]) => {
+    const w = e.contentRect.width;
+    if (w > 0) page.style.setProperty('--k', w / 1512);
+  };
+  new ResizeObserver(fit).observe(screen);
+  const r = screen.getBoundingClientRect();
+  if (r.width > 0) page.style.setProperty('--k', r.width / 1512);
+
+  window.presoNext = () => false;             // no builds
+  window.presoPrev = () => false;
+  window.presoState = () => 0;
+  window.presoRestore = () => {};
+})();
+</script>
+</body>
+</html>
