@@ -7,7 +7,7 @@
 <!-- HOST SETUP, EVERY STEP AT ONCE — the whole flow in one row, straight
      before the host-only fee screens.
 
-     TWELVE INSTANCES OF SLIDE 11, ONE PER STEP. Slide 11 is a single phone
+     ELEVEN INSTANCES OF SLIDE 11, ONE PER STEP. Slide 11 is a single phone
      whose steps are toggled by a body class — every step's content is already
      in its DOM, hidden — so there is no set of step elements to lay out. The
      only faithful way to show them side by side is to load the slide once per
@@ -19,19 +19,26 @@
        step 1b   home type            step 7    name
        step 2    space type           step 8    describe
        step 3    address              step 8b   price
-       step 4    guests               step 10   preview
+       step 4    guests
        step 5    amenities
 
-     step 9, "Just a few last questions", is left out — twelve cells, not
-     thirteen.
+     step 9 ("Just a few last questions") and step 10 (the listing preview) are
+     both left out — the row ends on the price. Eleven cells, not thirteen.
 
-     ?nomap=1 ON TWELVE OF THEM. Slide 11 builds a live Mapbox map at load, and
-     twelve of those is twelve WebGL contexts — at the browser's cap, where
+     ?nomap=1 ON TEN OF THEM. Slide 11 builds a live Mapbox map at load, and
+     eleven of those is eleven WebGL contexts — at the browser's cap, where
      they start getting dropped. Only the address cell asks for one.
 
-     ONE ROW, THREE PARTS. The intro on the left, then a gap, then the ten
-     steps fanned so each covers the one before it by 20%, then the same gap,
-     then the listing it all ends on. Was a 6x2 grid.
+     ONE ROW, EVENLY SPACED, NOTHING OVERLAPPING. Eleven screens: the intro,
+     then the flow, ending on the price. The last two screens of slide 11 — the
+     questions and the listing preview — are left out, so it lands on the money.
+
+     THEY DEAL OUT FROM UNDER THE FIRST PHONE. Before the tap every cell but
+     the first is parked exactly one slot to its left, which puts it behind the
+     cell before it; earlier cells carry the higher z-index. The tap sends each
+     one home, 90ms apart, so a phone slides out from BENEATH its neighbour
+     rather than fading in over the top. Nothing uses opacity — a phone is
+     hidden because another phone is in front of it.
 
      THE CELL IS CROPPED TO THE PHONE. Slide 11 sizes its phone at 80vh of its
      own viewport, so a cell showing the whole viewport carries 20% dead
@@ -49,8 +56,8 @@
      ONE BUILD, A LEAD-IN. The slide arrives showing only the first screen, at
      the size slide 11 gives its phone on its own — min(80vh, 1080px) — parked
      in the middle of the stage, its intro film playing once. The tap sends it
-     to its place at the far left of the row, and the other eleven arrive one
-     after another, 90ms apart.
+     to its place at the far left of the row, and the other ten deal out from
+     under it, 90ms apart.
 
      THE FILM PLAYS ONCE. Slide 11's video carries a loop attribute; it is
      turned off on arrival, so the intro runs a single pass and holds its last
@@ -65,16 +72,6 @@
     justify-content: center;
     gap: var(--gap, 60px);
   }
-  /* the ten middle steps, fanned. Each sits 80% of a width further along, so
-     it covers the one before it by 20%. Later ones ride on top. */
-  .stack {
-    position: relative;
-    flex: none;
-    width: var(--stackw, 0px);
-    height: calc(800px * var(--k, 0.3));
-  }
-  .stack .cell { position: absolute; top: 0; }
-
   .cell {
     position: relative;
     flex: none;
@@ -83,16 +80,19 @@
     width: calc(391.3px * var(--k, 0.3));
     height: calc(800px * var(--k, 0.3));
     overflow: hidden;
-    opacity: 1;
-    transition: transform 820ms cubic-bezier(0.22, 1, 0.36, 1),
-                opacity 380ms ease;
-    will-change: transform, opacity;
+    transition: transform 820ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
   }
+  /* Opacity is NOT transitioned. It flips in one frame, underneath the lead,
+     and a fade would be visible through the 820ms the deal takes. */
+  .cell.tucked { opacity: 0; }
 
-  /* the eleven that are not the lead, before they arrive */
-  .cell.waiting { opacity: 0; transform: scale(0.94); }
-  /* the lead sits above them while it is large */
-  .cell.lead { z-index: 2; }
+  /* Before they arrive they are stacked UNDER the first phone, each one slot
+     further left than its home. Earlier cells carry the higher z-index, so a
+     phone slides out from beneath the one before it rather than over the top
+     of it. Once the lead is home nothing needs opacity — a phone is hidden
+     because another phone is in front of it. */
+  .cell.lead { z-index: 99; }
 
   .cell iframe {
     position: absolute; left: 0;
@@ -112,10 +112,10 @@
 (() => {
   // step -> the body class slide 11 uses. Step 1 is the default and carries no
   // class at all, which is why one entry is empty rather than 'step1'.
-  // step9 — "Just a few last questions…" — is deliberately not here. Twelve
-  // cells, not thirteen.
+  // Ends on the price screen. step9 ("a few last questions") and step10 ("check
+  // out your listing") are both left out — the flow lands on the money.
   const STEPS = ['step0', '', 'step1b', 'step2', 'step3', 'step4', 'step5',
-                 'step6', 'step7', 'step8', 'step8b', 'step10'];
+                 'step6', 'step7', 'step8', 'step8b'];
   const MAP_STEP = 'step3';                 // the only one that gets a real map
   // the slide-11 viewport each cell renders: 391.3 wide so the phone spans the
   // cell exactly (800 x 900/1840), 1000 tall of which the phone is the middle
@@ -145,30 +145,16 @@
     return cell;
   }
 
-  // THREE PARTS, LEFT TO RIGHT: the intro, the ten steps fanned, the listing.
-  const first = cellFor(STEPS[0]);
-  const stack = document.createElement('div');
-  stack.className = 'stack';
-  const middle = STEPS.slice(1, -1).map((cls, i) => {
-    const c = cellFor(cls);
-    c.style.zIndex = i + 1;               // each rides on the one before it
-    stack.appendChild(c);
-    return c;
-  });
-  const last = cellFor(STEPS[STEPS.length - 1]);
-  row.append(first, stack, last);
-
   const slide = document.querySelector('.slide');
   let K = 0;                               // the scale fit() last set
 
-  // ── the lead-in ───────────────────────────────────────────────────────
-  // Beat 0 shows ONLY the first screen, at the size slide 11 gives its phone
-  // on its own — min(80vh, 1080px) — parked in the middle of the stage. Its
-  // intro film plays once there. The tap sends it to its own cell, the top
-  // left of the row, and brings the other eleven in one after another.
+  // A PLAIN ROW, evenly spaced, nothing overlapping.
+  const made = STEPS.map(cellFor);
+  made.forEach((c, i) => { c.style.zIndex = STEPS.length - i; row.append(c); });
+
   let step = 0;
-  const cells = [first, ...middle, last];
-  const lead = first;
+  const cells = made;
+  const lead = made[0];
 
   function filmOf() {                      // the intro video inside the lead cell
     try { return lead.querySelector('iframe').contentDocument.getElementById('film'); }
@@ -177,7 +163,13 @@
 
   function placeLead() {
     if (step !== 0 || !K) return;
-    // Measure UNTRANSFORMED, or the offset compounds every time this runs.
+    // Measure UNTRANSFORMED, or the offset compounds every time this runs —
+    // and kill the transition first. Without that, `transform = 'none'` only
+    // STARTS an 820ms journey towards none, and the rect read on the next line
+    // is wherever the cell happens to be part-way through it. That read landed
+    // the lead 122px left of the stage centre.
+    const keep = lead.style.transition;
+    lead.style.transition = 'none';
     lead.style.transform = 'none';
     void lead.offsetWidth;
     const s = slide.getBoundingClientRect(), c = lead.getBoundingClientRect();
@@ -186,46 +178,68 @@
     const dx = (s.left + s.width / 2) - (c.left + c.width / 2);
     const dy = (s.top + s.height / 2) - (c.top + c.height / 2);
     lead.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + S + ')';
+    void lead.offsetWidth;               // land it before the transition is back
+    lead.style.transition = keep;
   }
 
   function setLead() {                     // beat 0
     step = 0;
     lead.classList.add('lead');
-    cells.forEach((c, i) => { if (i) { c.classList.add('waiting'); c.style.transitionDelay = '0ms'; } });
+    cells.forEach((c, i) => {
+      if (!i) return;
+      c.style.transitionDelay = '0ms';
+      c.classList.add('tucked');   // the lead is out in the middle: nothing to hide behind
+    });
+    tuck();
+    clearTimeout(dealT);
     // ONCE, THEN REST. Slide 11's film carries a loop attribute; it is turned
     // off here so the intro plays a single pass and holds its last frame.
     const f = filmOf(); if (f) { f.loop = false; f.currentTime = 0; f.play().catch(() => {}); }
     placeLead();
   }
 
+  // THE DEAL WAITS FOR THE LEAD. The ten are parked in the first cell's slot,
+  // and for the 820ms the lead spends travelling back to that slot there is
+  // nothing in front of them — shown then, they would be a stack sitting in an
+  // empty corner. So they stay at opacity 0 until the lead has landed on top
+  // of them, and only then deal out, 90ms apart.
+  let dealT = 0;
   function openGrid() {                    // the tap
     step = 1;
-    lead.style.transform = 'none';         // back to its own cell: the top left
+    lead.style.transform = 'none';         // back to its own cell, the far left
     lead.classList.remove('lead');
-    cells.forEach((c, i) => {
-      if (!i) return;
-      c.style.transitionDelay = (60 + (i - 1) * 90) + 'ms';   // one after another
-      c.classList.remove('waiting');
-    });
+    clearTimeout(dealT);
+    dealT = setTimeout(() => {
+      cells.forEach((c, i) => {
+        if (!i) return;
+        c.classList.remove('tucked');      // still invisible: it is behind a phone
+        c.style.transitionDelay = ((i - 1) * 90) + 'ms';
+        c.style.transform = 'none';        // out from under the one before it
+      });
+    }, 820);                               // the lead's own transition
   }
 
-  // THE ARITHMETIC. Left to right the row is: one cell, a gap, the fan, a gap,
-  // one cell. The fan of ten at 80% pitch is 1 + 9 x 0.8 = 8.2 cells wide, so
-  // the row is 10.2 cells plus two gaps. With the gap set at half a cell that
-  // is 11.2 cells across, and the cell width falls out of the space available.
-  const PITCH = 0.8, FAN = 1 + (middle.length - 1) * PITCH, GAPC = 0.5;
+  const GAPC = 0.1;
+  let SLOT = 0;                            // a cell plus a gap: one step right
   const fit = (w, h) => {
     if (!(w > 0 && h > 0)) return;
-    const kW = (w * 0.94 / (2 + FAN + 2 * GAPC)) / VW;
+    const n = cells.length;
+    const kW = (w * 0.94 / (n + GAPC * (n - 1))) / VW;
     const kH = (h * 0.84) / PH;
     K = Math.min(kW, kH);
     const cw = VW * K;
+    SLOT = cw * (1 + GAPC);
     row.style.setProperty('--k', K);
     row.style.setProperty('--gap', cw * GAPC + 'px');
-    row.style.setProperty('--stackw', cw * FAN + 'px');
-    middle.forEach((c, i) => { c.style.left = (cw * PITCH * i) + 'px'; });
-    placeLead();                           // the lead's offset is in screen px
+    if (step === 0) tuck();                // the offsets are in screen px
+    placeLead();
   };
+
+  // Park every cell but the first exactly one slot left of its home, which
+  // puts it behind the cell before it.
+  function tuck() {
+    cells.forEach((c, i) => { if (i) c.style.transform = 'translateX(' + (-i * SLOT) + 'px)'; });
+  }
   new ResizeObserver(([e]) => fit(e.contentRect.width, e.contentRect.height)).observe(slide);
   const r0 = slide.getBoundingClientRect(); fit(r0.width, r0.height);
   setLead();
@@ -241,7 +255,20 @@
     return true;
   };
   window.presoState = () => step;
-  window.presoRestore = n => { if (n > 0) openGrid(); };
+  // Landing on the beat from the hash gets the end state, not the deal.
+  window.presoRestore = n => {
+    if (!(n > 0)) return;
+    step = 1;
+    clearTimeout(dealT);
+    lead.style.transform = 'none';
+    lead.classList.remove('lead');
+    cells.forEach((c, i) => {
+      if (!i) return;
+      c.classList.remove('tucked');
+      c.style.transitionDelay = '0ms';
+      c.style.transform = 'none';
+    });
+  };
 })();
 </script>
 </body>

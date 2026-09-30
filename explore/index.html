@@ -585,10 +585,16 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     { n: 'New York',       t: '2d 8hrs', ll: [ -74.01, 40.71] },
     { n: 'Miami',          t: '3d 2hrs', ll: [ -80.19, 25.76] }
   ];
+  // The unnamed stops. The line is not twelve cities, it is a hundred places
+  // you have never heard of with a platform, so the field is mostly dots.
   var RAIL_DOTS = [
     [-121.49, 38.58], [-117.70, 40.78], [-108.55, 39.06], [-102.00, 40.60],
     [ -94.58, 39.10], [ -90.05, 35.15], [ -84.39, 33.75], [ -79.99, 40.44],
-    [ -81.69, 41.50], [-106.49, 31.76], [ -98.49, 29.42], [ -93.27, 44.98]
+    [ -81.69, 41.50], [-106.49, 31.76], [ -98.49, 29.42], [ -93.27, 44.98],
+    [-120.55, 43.62], [-116.20, 43.62], [-111.04, 45.68], [-104.82, 41.14],
+    [ -97.34, 37.69], [ -91.53, 41.66], [ -86.16, 39.77], [ -83.05, 42.33],
+    [ -77.44, 37.54], [ -80.84, 35.23], [ -85.76, 38.25], [ -95.37, 29.76],
+    [ -71.06, 42.36], [ -75.17, 39.95], [ -78.88, 42.89], [ -73.76, 42.65]
   ];
 
   var HOODS = [
@@ -860,6 +866,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
   // A drive and a rail leg are the same pill as a city price — bold name, the
   // interpunct, then the value in Book. Only the value is hours, not dollars.
+  // hover: 'drive' follows the road, 'rail' draws a dotted leg the way a flight
+  // does — a train is not a car, and only the station being pointed at draws.
   function makeTimed(cls, glyph, d, hover) {
     var pin = '<div class="pin"><i class="stem"></i><i class="head">' +
               '<img src="assets/icons/' + glyph + '" alt=""></i></div>';
@@ -869,10 +877,12 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     o.marker.setLngLat(d.ll);
     o.el.style.cursor = 'default';
     if (hover) {
-      // The road, and only the road. The pill is already carrying the hours,
-      // so a chip sitting on the line just says the same thing twice.
+      o.el.style.cursor = 'pointer';
       o.el.addEventListener('mouseenter', function () {
-        showDrives([{ ll: ME, fallback: null }], d.ll);
+        // The road, and only the road. The pill is already carrying the hours,
+        // so a chip sitting on the line just says the same thing twice.
+        if (hover === 'rail') showFlight(ME, d.ll, null, 0.14);
+        else showDrives([{ ll: ME, fallback: null }], d.ll);
       });
       o.el.addEventListener('mouseleave', hideRoute);
     }
@@ -889,9 +899,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   var usaSet  = CITIES.map(makeCity).concat(DOTS.map(makeDot), [makeMe()]);
   var citySet = HOODS.map(makeHood).concat(AIRPORTS.map(makeAir), NYC_DOTS.map(makeDot));
   var hoodSet = PRICES.map(makePrice);
-  var driveSet = DRIVES.map(function (d) { return makeTimed('mk-drive', 'pin-car.svg', d, true); })
+  var driveSet = DRIVES.map(function (d) { return makeTimed('mk-drive', 'pin-car.svg', d, 'drive'); })
     .concat(DRIVE_DOTS.map(function (ll) { return makeDot(ll, 'mk-drive'); }), [makeMe()]);
-  var railSet = RAILS.map(function (d) { return makeTimed('mk-rail', 'pin-train.svg', d); })
+  var railSet = RAILS.map(function (d) { return makeTimed('mk-rail', 'pin-train.svg', d, 'rail'); })
     .concat(RAIL_DOTS.map(function (ll) { return makeDot(ll, 'mk-rail'); }), [makeMe()]);
 
   // ── The neighbourhood mask ──────────────────────────────────────────────
