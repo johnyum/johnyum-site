@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>09b</title>
 <!-- BUSINESS TRAVEL — flight search on web, with the departing-flights list on
-     the phone beside it. Straight after the Villa Mayana wall.
+     the phone beside it. Straight after the Forbes piece.
 
      NO ANIMATION OF ITS OWN. The deck pushes it in from the right and off to
      the left, and that is the whole movement. Earlier passes had the two
@@ -17,15 +17,28 @@
      covering the web design's "Includes $150 Airbnb credit" and its Book
      button, so cutting the phone out left a phone-shaped hole.
 
-     THE GEOMETRY IS MEASURED, NOT EYEBALLED. The composite John supplied
-     (4668x2935) was diffed against the web export placed at the origin; the
-     difference is exactly the phone, at (3605, 686). The phone's own artwork
-     starts (11, 16) inside its 1075x2198 canvas, so the canvas sits at
-     (3594, 670). Everything below is that, as a percentage of the 4668x2935
-     stage, which is why the two land in John's composition at any size:
+     THE FRAME IS DRAWN HERE, NOT EXPORTED. The design arrives as bare artwork,
+     so the browser round it is CSS: the 32px stroke and 112px radius measured
+     off trip-creator.webp on the slide after this one, carried as fractions of
+     the same --canvas so the two devices are the SAME SIZE on the stage and
+     the same weight of line. Change one and change both.
 
-       web    left 0        top 0        width 94.687%   (4420 / 4668)
-       phone  left 76.993%  top 22.828%  width 23.029%   (3594, 670, 1075)
+       --canvas   min(92vw, 82vh x 1.59046)     the composition's own width
+       device     0.91901 --canvas, 3106 : 2031 outer, 0.009468 stroke,
+                  0.035 radius — every number 09c's
+
+     THE CROP COMES OFF THE TOP. The export is 2000x1293 and the device's
+     screen is 3041 : 1965, so one row had to go; it came off the top, where
+     the search bar has air above it, rather than the bottom, where the next
+     result is already cut. object-position: bottom keeps that true if the
+     artwork is ever re-exported at a different height.
+
+     THE PHONE KEEPS ITS PLACE IN THE COMPOSITION. John's original composite
+     (4668x2935) put the phone at (3594, 670) at 1075 wide — 81.313% across the
+     big design, 36.303% down it, 24.322% of its width. Those are fractions OF
+     THE BIG DESIGN rather than of the stage, so the pair holds its
+     relationship now the design is the trip creator's size rather than the
+     export's.
 
      No script at all. Nothing to reveal means nothing that can fail to reveal —
      which, given how many ways a parked iframe breaks an entrance, is the
@@ -34,29 +47,52 @@
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .slide { height: 100%; display: grid; place-items: center; }
 
-  /* The stage carries the composite's own aspect, so both layers can be placed
-     in percentages and never need re-measuring at a different size. */
+  /* The stage IS the device's outer box, so the phone can be placed against
+     the big design directly and the two slides measure the same. */
   .stage {
+    --canvas: min(92vw, calc(82vh * 1.59046));
     position: relative;
-    aspect-ratio: 4668 / 2935;
-    width: min(92vw, calc(82vh * 4668 / 2935));
+    width: calc(var(--canvas) * 0.91901);
+    aspect-ratio: 3106 / 2031;
   }
-  .stage img {
-    position: absolute;
+
+  /* 09c's device, number for number. */
+  .device {
+    position: absolute; inset: 0;
+    box-sizing: border-box;
+    border: calc(var(--canvas) * 0.009468) solid #000;   /* the 32px stroke */
+    border-radius: calc(var(--canvas) * 0.035);          /* the 112px radius */
+    overflow: hidden;
+    background: #fff;
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.02),
+      0 4px 8px rgba(0, 0, 0, 0.08),
+      0 12px 30px rgba(0, 0, 0, 0.18);
+  }
+  .device img {
     display: block;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    object-position: bottom;        /* anything over height comes off the TOP */
+  }
+
+  .phone {
+    position: absolute;
+    left: 81.313%; top: 36.303%; width: 24.322%;
     height: auto;
+    display: block;
     user-select: none;
     -webkit-user-drag: none;
   }
-  .web   { left: 0;       top: 0;       width: 94.687%; }
-  .phone { left: 76.993%; top: 22.828%; width: 23.029%; }
 </style>
 </head>
 <body>
   <div class="slide">
     <div class="stage">
-      <img class="web" src="assets/flights-web.webp" width="3200" height="2125"
-           alt="Airbnb flight search on web: San Francisco to Tokyo, roundtrip results with a Japan Airlines itinerary expanded">
+      <div class="device">
+        <img src="assets/flights-web.webp" width="2000" height="1292"
+             alt="Airbnb flight search on web: San Francisco to Tokyo, roundtrip, with a Japan Airlines itinerary expanded through Honolulu">
+      </div>
       <img class="phone" src="assets/flights-phone.webp" width="1075" height="2198"
            alt="The same search on iPhone: departing flights with fare details and a Select button">
     </div>
