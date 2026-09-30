@@ -71,7 +71,13 @@
     align-items: center;
     justify-content: center;
     gap: var(--gap, 60px);
+    /* THE DECK'S OWN PUSH, to the millisecond: index.html pushes a slide with
+       DUR 520 on EASE cubic-bezier(0.16, 1, 0.3, 1). The row arrives the way a
+       slide arrives, because that is what it is meant to read as. */
+    transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform;
   }
+  .row.offstage { transform: translateX(100vw); }
   .cell {
     position: relative;
     flex: none;
@@ -87,11 +93,8 @@
      and a fade would be visible through the 820ms the deal takes. */
   .cell.tucked { opacity: 0; }
 
-  /* Before they arrive they are stacked UNDER the first phone, each one slot
-     further left than its home. Earlier cells carry the higher z-index, so a
-     phone slides out from beneath the one before it rather than over the top
-     of it. Once the lead is home nothing needs opacity — a phone is hidden
-     because another phone is in front of it. */
+  /* While the lead is out in the middle the rest are simply not there. They
+     never travel on their own — the row brings all eleven in at once. */
   .cell.lead { z-index: 99; }
 
   .cell iframe {
@@ -185,12 +188,9 @@
   function setLead() {                     // beat 0
     step = 0;
     lead.classList.add('lead');
-    cells.forEach((c, i) => {
-      if (!i) return;
-      c.style.transitionDelay = '0ms';
-      c.classList.add('tucked');   // the lead is out in the middle: nothing to hide behind
-    });
-    tuck();
+    lead.style.opacity = '';
+    row.classList.remove('offstage');
+    cells.forEach((c, i) => { if (i) c.classList.add('tucked'); });
     clearTimeout(dealT);
     // ONCE, THEN REST. Slide 11's film carries a loop attribute; it is turned
     // off here so the intro plays a single pass and holds its last frame.
@@ -198,29 +198,51 @@
     placeLead();
   }
 
-  // THE DEAL WAITS FOR THE LEAD. The ten are parked in the first cell's slot,
-  // and for the 820ms the lead spends travelling back to that slot there is
-  // nothing in front of them — shown then, they would be a stack sitting in an
-  // empty corner. So they stay at opacity 0 until the lead has landed on top
-  // of them, and only then deal out, 90ms apart.
+  // TWO MOVES, NOT ELEVEN. The lead goes DOWN and OUT together: it shrinks
+  // from the middle of the stage to the size the other phones are and fades
+  // as it goes, so the splash leaves with the movement rather than sitting
+  // there at full strength until it is cut. Then, a beat later, the whole row
+  // is pushed in from the right in one piece — the deck's own 520ms push, on
+  // the deck's own easing. Nothing staggers and nothing deals.
+  const DOWN = 460, BEAT = 60;
   let dealT = 0;
+
   function openGrid() {                    // the tap
     step = 1;
-    lead.style.transform = 'none';         // back to its own cell, the far left
-    lead.classList.remove('lead');
     clearTimeout(dealT);
-    dealT = setTimeout(() => {
-      cells.forEach((c, i) => {
-        if (!i) return;
-        c.classList.remove('tucked');      // still invisible: it is behind a phone
-        c.style.transitionDelay = ((i - 1) * 90) + 'ms';
-        c.style.transform = 'none';        // out from under the one before it
+    lead.style.transition =
+      'transform ' + DOWN + 'ms cubic-bezier(0.16, 1, 0.3, 1), ' +
+      'opacity '   + DOWN + 'ms cubic-bezier(0.16, 1, 0.3, 1)';
+    lead.style.transform = 'none';         // down to the size of the other ten
+    lead.style.opacity = '0';              // and out, on the same curve
+    dealT = setTimeout(showRow, DOWN + BEAT);
+  }
+
+  // Everything in place, off to the right, in a single frame — then released.
+  function showRow() {
+    const hold = (el, f) => {              // change it without animating it
+      const t = el.style.transition;
+      el.style.transition = 'none';
+      f();
+      void el.offsetWidth;
+      el.style.transition = t === 'none' ? '' : t;
+    };
+    hold(row, () => {
+      row.classList.add('offstage');
+      lead.classList.remove('lead');
+      cells.forEach(c => {
+        c.style.transition = 'none';
+        c.classList.remove('tucked');
+        c.style.transform = 'none';
+        c.style.opacity = '';
       });
-    }, 820);                               // the lead's own transition
+      lead.style.transition = '';
+    });
+    cells.forEach(c => { c.style.transition = ''; });
+    row.classList.remove('offstage');      // in from the right, all of it
   }
 
   const GAPC = 0.1;
-  let SLOT = 0;                            // a cell plus a gap: one step right
   const fit = (w, h) => {
     if (!(w > 0 && h > 0)) return;
     const n = cells.length;
@@ -228,18 +250,10 @@
     const kH = (h * 0.84) / PH;
     K = Math.min(kW, kH);
     const cw = VW * K;
-    SLOT = cw * (1 + GAPC);
     row.style.setProperty('--k', K);
     row.style.setProperty('--gap', cw * GAPC + 'px');
-    if (step === 0) tuck();                // the offsets are in screen px
     placeLead();
   };
-
-  // Park every cell but the first exactly one slot left of its home, which
-  // puts it behind the cell before it.
-  function tuck() {
-    cells.forEach((c, i) => { if (i) c.style.transform = 'translateX(' + (-i * SLOT) + 'px)'; });
-  }
   new ResizeObserver(([e]) => fit(e.contentRect.width, e.contentRect.height)).observe(slide);
   const r0 = slide.getBoundingClientRect(); fit(r0.width, r0.height);
   setLead();
@@ -262,12 +276,9 @@
     clearTimeout(dealT);
     lead.style.transform = 'none';
     lead.classList.remove('lead');
-    cells.forEach((c, i) => {
-      if (!i) return;
-      c.classList.remove('tucked');
-      c.style.transitionDelay = '0ms';
-      c.style.transform = 'none';
-    });
+    lead.style.opacity = '';
+    row.classList.remove('offstage');
+    cells.forEach(c => { c.classList.remove('tucked'); c.style.transform = 'none'; });
   };
 })();
 </script>
