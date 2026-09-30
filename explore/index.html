@@ -543,10 +543,12 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
   var LGA = [-73.873, 40.777];   // the arrival the card quotes, and where the drive leg starts
 
+  // `fallback` is the typical drive time, shown for the moment between the
+  // hover and the Directions answer — and left standing if there is no network.
   var AIRPORTS = [
-    { n: 'Newark Airport',     p: 781, ll: [-74.175, 40.690] },
-    { n: 'LaGuardia Airport',  p: 678, ll: LGA },
-    { n: 'John F. Kennedy Int…', p: 509, ll: [-73.778, 40.641] }
+    { n: 'Newark Airport',       p: 781, ll: [-74.175, 40.690], fallback: '45 min' },
+    { n: 'LaGuardia Airport',    p: 678, ll: LGA,               fallback: '32 min' },
+    { n: 'John F. Kennedy Int…', p: 509, ll: [-73.778, 40.641], fallback: '38 min' }
   ];
 
   // Placed in the gaps between the named markers, not scattered — an unnamed
@@ -748,7 +750,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     if (c.hero) {
       // Hovering the city you can fly to draws the leg you would fly.
       o.el.addEventListener('click', function () { go('nyc'); });
-      o.el.addEventListener('mouseenter', function () { showRoute(ME, c.ll, '5h 30m', 0.24); });
+      o.el.addEventListener('mouseenter', function () { showFlight(ME, c.ll, '5h 30m', 0.24); });
       o.el.addEventListener('mouseleave', hideRoute);
     } else {
       o.el.style.cursor = 'default';
@@ -768,9 +770,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     if (h.hero) {
       o.el.style.cursor = 'pointer';
       o.el.addEventListener('click', function () { go('hood'); });
-      // At city depth the leg is the drive in from the airport the card is
-      // quoting — LaGuardia, whose $678 is the "Flights to New York" price.
-      o.el.addEventListener('mouseenter', function () { showRoute(LGA, h.ll, '38 min', 0.16); });
+      // At city depth the question is not which airport the card quotes, it is
+      // how far this borough is from each of them — so all three draw at once,
+      // along the roads, with the durations traffic is giving them now.
+      o.el.addEventListener('mouseenter', function () { showDrives(AIRPORTS, h.ll); });
       o.el.addEventListener('mouseleave', hideRoute);
     } else {
       o.el.style.cursor = 'default';
@@ -831,11 +834,14 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       paint: { 'line-color': '#ff385c', 'line-width': 1, 'line-opacity': 0 } });
   }
   // ── The hovered route ───────────────────────────────────────────────────
-  // A dotted line and a duration chip, the way the Trips build draws a leg.
-  // The line is a quadratic bezier rather than a straight segment: a straight
-  // line between two pins reads as a ruler, and the bow is what makes it read
-  // as a journey. `k` is the bow as a fraction of the leg's own length, so a
-  // short hop and a transcontinental flight curve by the same amount visually.
+  // Two kinds of leg, and they are drawn differently because they ARE
+  // different. A flight has no road under it, so it is a quadratic bezier —
+  // a straight segment between two pins reads as a ruler, and the bow is what
+  // makes it read as a journey. A drive does have a road under it, on a map
+  // that is drawing that road, so guessing its shape is not an option: those
+  // come back from the Directions API on the driving-traffic profile, which
+  // also gives the duration the chip shows — a real number under real traffic,
+  // not one typed in here.
   function arc(a, b, k) {
     var dx = b[0] - a[0], dy = b[1] - a[1];
     var len = Math.sqrt(dx * dx + dy * dy) || 1e-6;
@@ -849,25 +855,105 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     }
     return pts;
   }
-  function arcMid(a, b, k) { var p = arc(a, b, k); return p[32]; }
 
-  var chip = mk('mk-chip', 0, 0, '', 'center');
-  var chipOn = false;
+  // The chip rides the HALFWAY POINT BY LENGTH, not the middle of the point
+  // list: a road route is densely sampled through turns and sparsely sampled
+  // down a straight, so the middle index can sit a long way from the middle of
+  // the drive.
+  function midpoint(line) {
+    var d = [0], i;
+    for (i = 1; i < line.length; i++) {
+      var dx = line[i][0] - line[i - 1][0], dy = (line[i][1] - line[i - 1][1]) * 1.32;
+      d.push(d[i - 1] + Math.sqrt(dx * dx + dy * dy));
+    }
+    var half = d[d.length - 1] / 2;
+    for (i = 1; i < d.length; i++) if (d[i] >= half) {
+      var t = (half - d[i - 1]) / (d[i] - d[i - 1] || 1);
+      return [line[i - 1][0] + (line[i][0] - line[i - 1][0]) * t,
+              line[i - 1][1] + (line[i][1] - line[i - 1][1]) * t];
+    }
+    return line[Math.floor(line.length / 2)];
+  }
 
-  function showRoute(from, to, label, k) {
+  function mins(sec) {
+    var m = Math.round(sec / 60);
+    return m < 60 ? m + ' min' : Math.floor(m / 60) + 'h ' + (m % 60) + 'm';
+  }
+
+  // One chip per leg, pooled — three airports means three at once.
+  var chips = [];
+  function chipAt(i) {
+    if (!chips[i]) { chips[i] = mk('mk-chip', 0, 0, '', 'center'); chips[i].added = false; }
+    return chips[i];
+  }
+
+  var hoverGen = 0;              // a hover that ended must not paint when its fetch lands
+  var driveCache = {};           // the Directions answer, kept for the session
+
+  function paint(legs) {
     if (!map.getSource('route')) return;
     map.getSource('route').setData({
-      type: 'Feature', geometry: { type: 'LineString', coordinates: arc(from, to, k) } });
+      type: 'FeatureCollection',
+      features: legs.map(function (l) {
+        return { type: 'Feature', geometry: { type: 'LineString', coordinates: l.line } };
+      })
+    });
     map.setPaintProperty('route-line', 'line-opacity', 0.9);
-    chip.el.querySelector('.mi').innerHTML =
-      '<div class="chip"><img src="assets/icons/clock.svg" alt="">' + label + '</div>';
-    chip.marker.setLngLat(arcMid(from, to, k));
-    if (!chipOn) { chip.marker.addTo(map); chipOn = true; }
-    requestAnimationFrame(function () { chip.el.classList.add('in'); });
+    legs.forEach(function (l, i) {
+      var c = chipAt(i);
+      c.el.querySelector('.mi').innerHTML =
+        '<div class="chip"><img src="assets/icons/clock.svg" alt="">' + l.label + '</div>';
+      c.marker.setLngLat(midpoint(l.line));
+      if (!c.added) { c.marker.addTo(map); c.added = true; }
+      requestAnimationFrame(function () { c.el.classList.add('in'); });
+    });
+    for (var j = legs.length; j < chips.length; j++) chips[j].el.classList.remove('in');
   }
+
   function hideRoute() {
+    hoverGen++;
     if (map.getLayer('route-line')) map.setPaintProperty('route-line', 'line-opacity', 0);
-    chip.el.classList.remove('in');
+    chips.forEach(function (c) { c.el.classList.remove('in'); });
+  }
+
+  // A flight: one bezier, one typed duration, nothing to ask a server about.
+  function showFlight(from, to, label, k) {
+    hoverGen++;
+    paint([{ line: arc(from, to, k), label: label }]);
+  }
+
+  // Drives: every airport to the destination, along the actual roads, with the
+  // duration traffic is giving them right now. The bezier is drawn immediately
+  // as a stand-in so the hover is never dead while the network works, and each
+  // leg is replaced by its real road the moment that leg comes back.
+  function showDrives(from, to) {
+    var gen = ++hoverGen;
+    var legs = from.map(function (o) {
+      return { line: arc(o.ll, to, 0.14), label: o.fallback };
+    });
+    paint(legs);
+
+    from.forEach(function (o, i) {
+      var key = o.ll.join(',') + ';' + to.join(',');
+      var done = function (r) {
+        if (gen !== hoverGen || !r) return;
+        legs[i] = { line: r.line, label: mins(r.dur) };
+        paint(legs);
+      };
+      if (driveCache[key]) { done(driveCache[key]); return; }
+      var url = 'https://api.mapbox.com/directions/v5/mapbox/driving-traffic/' +
+        o.ll.join(',') + ';' + to.join(',') +
+        '?geometries=geojson&overview=full&access_token=' + mapboxgl.accessToken;
+      fetch(url).then(function (res) { return res.json(); }).then(function (j) {
+        var rt = j && j.routes && j.routes[0];
+        if (!rt) return;
+        driveCache[key] = { line: rt.geometry.coordinates, dur: rt.duration };
+        done(driveCache[key]);
+      }).catch(function () {
+        // no network, or the Directions endpoint said no — the bezier stand-in
+        // and its typical-traffic label are already on screen, so nothing to do.
+      });
+    });
   }
 
   function paintHoodMask(on) {

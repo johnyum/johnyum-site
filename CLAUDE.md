@@ -195,13 +195,26 @@ Things that were learned the hard way and should not be undone:
 
 Hovering whichever marker is the way down draws the leg you would travel, the
 way the Trips build draws one: a `[2,2]` dashed line in `#222` plus the frames'
-own black `Traffic` chip (12 clock, 10/14 bold white). SF→New York on the
-continent, LaGuardia→Brooklyn in the city — LGA because its $678 is the price
-the "Flights to New York" row is quoting. The line is a quadratic bezier, not a
-segment: a straight line between two pins reads as a ruler, and the bow is what
-makes it read as a journey. The bow is a fraction of the leg's own length, so a
-transcontinental flight and a drive from the airport curve the same amount to
-the eye. A beat change clears it — a leg belongs to the beat that drew it.
+own black `Traffic` chip (12 clock, 10/14 bold white). Two kinds of leg, drawn
+differently because they are different:
+
+- **The flight** (SF→New York on the continent) is a quadratic bezier. There is
+  no road under it. A straight segment between two pins reads as a ruler; the
+  bow is what makes it read as a journey, and at 0.24 of the leg's own length it
+  climbs over the plains rather than skimming the pins it passes.
+- **The drives** (all three airports→Brooklyn, in the city) come back from the
+  **Mapbox Directions API** on the `driving-traffic` profile: the real road
+  geometry, and the duration traffic is giving it right now. Guessing the shape
+  is not an option on a map that is drawing the roads underneath. A bezier
+  stand-in with a typical-traffic label paints instantly so the hover is never
+  dead, and each leg is replaced the moment its road lands; answers are cached
+  for the session, and a `hoverGen` counter stops a fetch painting after the
+  hover that asked for it has ended.
+
+Each chip rides the halfway point **by length**, not the middle of the point
+list — a road route is densely sampled through turns and sparsely down a
+straight. A beat change clears everything: a leg belongs to the beat that drew
+it.
 
 `?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
