@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>09c</title>
+<!-- THE TRIP CREATOR — New York on the map, with flights, homes and
+     experiences priced into one plan. Straight after the flights slide.
+
+     SAME SIZE AS THE FLIGHTS WEB LAYER, CENTRED. 09b lays its web design out
+     as 94.687% of a stage sized min(92vw, 82vh * 4668/2935); this is the same
+     artwork at the same 4420x2935, so repeating that expression lands it at
+     exactly the same width — it just sits in the middle of the slide instead
+     of to the left, because there is no phone beside it here.
+
+       4668 / 2935 = 1.59046   the flights stage's aspect
+       0.94687                 the web layer's share of that stage
+
+     One image, no build. It rises and fades the way the flights web layer
+     does, on the same curve, so the two slides feel like one move.
+
+     The reveal is set INLINE rather than by a class — see 09b for why: the
+     deck parks slides at display:none and a class added while parked was not
+     recalculated when the slide came back, leaving it at opacity 0. -->
+<style>
+  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
+  .slide { height: 100%; display: grid; place-items: center; }
+  img {
+    display: block;
+    width: calc(min(92vw, 82vh * 1.59046) * 0.94687);
+    height: auto;
+    user-select: none;
+    -webkit-user-drag: none;
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 620ms ease, transform 760ms cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    img { transition: opacity 240ms linear; transform: none !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="slide">
+    <img src="assets/trip-creator.webp" width="3200" height="2125"
+         alt="Airbnb trip creator: a map of New York with airport and borough prices, and a panel offering flights, homes and experiences">
+  </div>
+<script>
+(() => {
+  const img = document.querySelector('img');
+  let armed = false;
+  function reveal() {
+    if (armed) return;
+    armed = true;
+    // Synchronously — rAF does not run in a parked iframe; see 09b.
+    img.style.opacity = '1';
+    img.style.transform = 'translateY(0)';
+  }
+  // WHEN IT STARTS. The deck builds slides ahead and parks them display:none
+  // (prepare() in index.html), so neither a rAF at load nor a class added while
+  // parked survives to the moment the slide is on stage — both were tried and
+  // both left this blank. The signal used here is the simplest thing that
+  // cannot lie: while the slide is parked its own elements have no box, so a
+  // zero width means "not shown yet". `presoshown` still gets first go when the
+  // deck sends it; the 10s stop guarantees the work appears regardless.
+  function shown() {
+    try {
+      const fe = window.frameElement;
+      if (!fe) return true;                       // opened on its own, not in the deck
+      // getComputedStyle from the DECK's window, not this one. Calling the
+      // child frame's getComputedStyle on a parent node is what failed before
+      // and left this slide blank.
+      const deck = fe.ownerDocument.defaultView;
+      for (let n = fe; n && n.nodeType === 1; n = n.parentElement) {
+        const cs = deck.getComputedStyle(n);
+        // prepare() parks a slide at visibility:hidden and a kept one at
+        // display:none. Both still report a box, so width alone says yes far
+        // too early and the whole move burns where nobody can see it.
+        if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+      }
+      return fe.getBoundingClientRect().width > 0;
+    } catch (_) { return true; }                  // never hold the slide hostage
+  }
+  addEventListener('presoshown', reveal);
+  const t0 = Date.now();
+  (function watch() {
+    if (armed) return;
+    if (shown() || Date.now() - t0 > 10000) { reveal(); return; }
+    setTimeout(watch, 100);
+  })();
+
+  window.presoNext = () => false;
+  window.presoPrev = () => false;
+  window.presoState = () => 0;
+  window.presoRestore = () => {};
+})();
+</script>
+</body>
+</html>
