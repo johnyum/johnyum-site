@@ -420,19 +420,24 @@ const BEATS = [
     if (btn) { btn.classList.add('pressing'); setTimeout(() => btn.classList.remove('pressing'), 440); }
     setTimeout(() => { if (g === gen) m.setMinSheet(false); }, 200);
   },
-  // 15 — Custom promotion, visibly tapped: the sheet re-dresses as the promotion editor and rests a beat on 0%; then a
-  //      finger drags the knob to 20% — the figure counting, the three ✓ popping in — and −20% lands on the picked nights,
-  //      their $480 rolling to $384
+  // 15 — Custom promotion, visibly tapped: the sheet re-dresses as the promotion editor and RESTS ON 0% (John, 2026-09-30:
+  //      "don't go straight to 20%, let me tap next"). The editor is the thing being shown here; the drag is its own beat.
+  (m, instant) => {
+    if (instant) { m.setPromoSheet(true); m.setPromoDrag(false); m.setPromoPct(0); return; }
+    const g = ++gen;
+    press(d => d.querySelectorAll('.sqa-custom.open .ss-row')[1]);
+    setTimeout(tail(g, () => { m.setPromoSheet(true); m.setPromoPct(0); }), TAP);
+  },
+  // 16 — ...and on the tap, a finger drags the knob to 20% — the figure counting, the three ✓ popping in — and −20% lands on
+  //      the picked nights, their $480 rolling to $384
   (m, instant) => {
     const ns = [...m.selectedNights];
-    if (instant) { m.setPromoSheet(true); m.setPromoPct(20); m.setPromo(0.2, 0, ns); return; }
+    if (instant) { m.setPromoSheet(true); m.setPromoDrag(false); m.setPromoPct(20); m.setPromo(0.2, 0, ns); return; }
     const g = ++gen;
     pendingTail = () => { m.setPromoSheet(true); m.setPromoDrag(false); m.setPromoPct(20); m.setPromo(0.2, 0, ns); };
-    press(d => d.querySelectorAll('.sqa-custom.open .ss-row')[1]);
-    setTimeout(() => { if (g === gen) m.setPromoSheet(true); }, TAP);
-    const T0 = performance.now() + TAP + 600 + 700 + 250;   // the tap, the re-dress, a beat on 0%, the finger down; then the drag, expo-out
-    const DRAG = 700; let knob = null;
-    setTimeout(() => { if (g !== gen) return; const d = appDoc(); knob = d && d.querySelector('.cp-knob'); if (knob) knob.classList.add('pressing'); }, TAP + 600 + 700);
+    const d0 = appDoc(), knob = d0 && d0.querySelector('.cp-knob');
+    if (knob) knob.classList.add('pressing');                // the finger goes down on the tap
+    const T0 = performance.now() + 250, DRAG = 700;          // a beat on the knob, then the drag, expo-out
     const step = () => {
       if (g !== gen) return;
       const t = Math.min(1, Math.max(0, (performance.now() - T0) / DRAG)), e = 1 - Math.pow(2, -10 * t);
@@ -441,48 +446,48 @@ const BEATS = [
     };
     requestAnimationFrame(step);
   },
-  // 16 — ⨉, straight from the promotion page: the whole quick actions drop away; the header stays small (it does for the rest
+  // 17 — ⨉, straight from the promotion page: the whole quick actions drop away; the header stays small (it does for the rest
   //      of the preso); the 9th–21st keep their $384, −20% and min 5, untapped
   (m, instant) => { if (instant) { m.clearSelection(); return; } const g = ++gen; press(d => d.querySelector('.sqa-close')); setTimeout(tail(g, () => m.clearSelection()), TAP); },
-  // 17 — the events and holidays: they ALL come on at once, a beat, and then the calendar makes ONE uninterrupted run
-  //      down to Indian Wells in March 2027. The marks layer comes on empty and fills in a single stroke.
-  //      MARK_SCENES is now only the order the groups are listed in; there are no stops and no per-group timing.
+  // 18 — the events and holidays: they ALL come on at once, a beat, and then ONE uninterrupted scroll down to Christmas and
+  //      New Year's — and it STOPS there (John, 2026-09-30). The marks layer comes on empty and fills in a single stroke.
   (m, instant) => {
     m.setLayers({ marks: true }); m.setShownMarks(new Set()); m.revealOffset = MARK_PARK;
-    const groups = m.nextMarkGroups(16);
-    const scenes = MARK_SCENES.map(names => names.map(n => groups.find(g => g.name === n)).filter(Boolean)).filter(sc => sc.length);
-    const lastScene = scenes[scenes.length - 1];
-    // ...and at the end, a beat after Indian Wells is in, its first week — Feb 28 through Mar 5 — gets tapped, 90ms apart, and
-    // the quick actions rise over it, naming the tournament; the run rests there (John, 2026-09-21)
-    const iw = lastScene[0].dis[0], week = Array.from({ length: 6 }, (_, k) => iw + k);
-    const landAll = () => { for (const sc of scenes) for (const grp of sc) m.showMarkGroup(grp.dis); m.setHoldQuick(false); m.setSelectedNights(new Set(week)); setTimeout(() => m.reveal(iw, null, 0, 0), 40); };   // the reveal a tick later: on a replay the reset has just scrolled home in the same tick, and the later smooth scroll would lose to it
+    const run = markRun(m), xmas = run.find(g => g.name === 'Christmas');
+    const land = () => { for (const grp of run) m.showMarkGroup(grp.dis); if (xmas) setTimeout(() => m.reveal(xmas.dis[0], null, 0, 0), 40); };   // the reveal a tick later: on a replay the reset has just scrolled home in the same tick, and the later smooth scroll would lose to it
+    if (instant) { land(); return; }
+    const g = ++gen;
+    pendingTail = land;                              // a tap before the scroll is through lands it whole
+    for (const grp of run) m.showMarkGroup(grp.dis); // every icon, in the same frame
+    setTimeout(() => { if (g !== gen) return; if (xmas) m.reveal(xmas.dis[0], null, 0, 0); pendingTail = null; }, MARK_ALL);
+  },
+  // 19 — ...and on the tap, ONE more scroll, from the holidays on down to Indian Wells in March 2027; a beat after it lands its
+  //      first week — Feb 28 through Mar 5 — gets tapped, 90ms apart, and the quick actions rise over it, naming the tournament
+  (m, instant) => {
+    const iwg = markRun(m).find(g => g.name === 'Indian Wells 2027'); if (!iwg) return;
+    const iw = iwg.dis[0], week = Array.from({ length: 6 }, (_, k) => iw + k);
+    const landAll = () => { m.setHoldQuick(false); m.setSelectedNights(new Set(week)); setTimeout(() => m.reveal(iw, null, 0, 0), 40); };
     if (instant) { landAll(); return; }
     const g = ++gen;
-    pendingTail = landAll;   // a tap before the run is through lands the rest whole
-    const run = scenes.flat();   // the ten groups in order — the scenes are only their sequence now
-    const tapWeek = () => {   // the cascade, but without the header lock: the calendar is parked on March, not September
+    pendingTail = landAll;                           // a tap before the run is through lands the rest whole
+    const tapWeek = () => {                          // the cascade, but without the header lock: the calendar is parked on March
       if (g !== gen) return;
       m.setHoldQuick(true);
       week.forEach((di, k) => setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, k * 90));
       setTimeout(() => { if (g === gen) { m.setHoldQuick(false); pendingTail = null; } }, (week.length - 1) * 90 + 260);
     };
-    for (const grp of run) m.showMarkGroup(grp.dis);   // every icon, in the same frame
-    setTimeout(() => {
-      if (g !== gen) return;
-      m.reveal(iw, null, 0, 0);                       // ONE scroll, all the way, uninterrupted
-      // settled() is armed only after the scroll is under way — armed before,
-      // it would see a calendar that has not started moving and call it done.
-      settled(g, () => setTimeout(() => { if (g === gen) tapWeek(); }, MARK_LAND));
-    }, MARK_ALL);
+    m.reveal(iw, null, 0, 0);                        // one scroll, uninterrupted
+    // settled() is armed only after the scroll is under way — armed before, it sees a calendar that has not started moving
+    settled(g, () => setTimeout(() => { if (g === gen) tapWeek(); }, MARK_LAND));
   },
-  // 18 — ⨉ closes the quick actions; a beat; Today is tapped and the calendar flies home to September — and on the way the
+  // 20 — ⨉ closes the quick actions; a beat; Today is tapped and the calendar flies home to September — and on the way the
   //      host's edits come off the 9th–21st (the $480, the −20%, the min 5), so it lands on the default it started from.
   //      Landed, a beat: Today slides left to make room and a magic-wand tile pops in beside the gear; a beat, and the wand is tapped —
   //      the calendar frosts and the price-tips sheet rises (Figma 5248:641877)
   (m, instant) => {
     const [a, z] = RUN(m), ns = []; for (let di = a; di <= z; di++) ns.push(di);
     const undo = () => { m.setPrice(null, 0, ns); m.setPromo(null, 0, ns); m.setMin(null, 0, ns); };
-    if (instant) { m.clearSelection(); undo(); m.setWandTile(true); m.setWandSheet(true); setTimeout(() => m.homeLocked(false), 80); return; }   // after 17's own deferred reveal (40ms), so home wins
+    if (instant) { m.clearSelection(); undo(); m.setWandTile(true); m.setWandSheet(true); setTimeout(() => m.homeLocked(false), 80); return; }   // after 19's own deferred reveal (40ms), so home wins
     const g = ++gen;
     pendingTail = () => { m.clearSelection(); undo(); m.homeLocked(); m.setWandTile(true); m.setWandSheet(true); };   // a tap before it is through lands it all
     press(d => d.querySelector('.sqa-close'));
@@ -494,7 +499,7 @@ const BEATS = [
       setTimeout(tail(g, () => m.setWandSheet(true)), 800 + 900 + TAP);                                            // ...and the price-tips sheet rises (Figma 5248:641877)
     }, 900)); }, 60); }, TAP + 700 + 200);   // the edits come off, the rows settle, THEN the flight home (a reflow mid-flight can stall a smooth scroll)
   },
-  // 19 — Try now, visibly tapped: the sheet drops, the top bar's tiles slip away for a Close tips pill, and the tips wash
+  // 21 — Try now, visibly tapped: the sheet drops, the top bar's tiles slip away for a Close tips pill, and the tips wash
   //      over the weeks ahead one night after another — weekdays down to $480, weekends up to $535 — each with its $500 struck
   (m, instant) => {
     const tips = TIPS(m);
@@ -506,7 +511,7 @@ const BEATS = [
     setTimeout(() => { if (g === gen) { m.setTipsMode(true); m.setHeaderLock(true); } }, TAP + 500);   // the pill comes, and the header locks small with the grid riding up
     tips.forEach(([di, p], k) => setTimeout(() => { if (g === gen) { m.addTip(di, p); if (k === tips.length - 1) pendingTail = null; } }, TAP + 900 + k * 45));
   },
-  // 20 — every tipped September night gets tapped, in date order, and the Price tip sheet rises — and rests there
+  // 22 — every tipped September night gets tapped, in date order, and the Price tip sheet rises — and rests there
   (m, instant) => {
     const t = m.fx.todayIndex, picks = TIPS(m).map(([di]) => di).filter(di => m.fx.date(di).m === m.fx.date(t).m);   // September's tips, in date order
     const land = () => { m.setSelectedNights(new Set(picks)); m.setTipSheet(true); };
@@ -516,7 +521,7 @@ const BEATS = [
     picks.forEach((di, k) => setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, k * 90));
     setTimeout(tail(g, land), (picks.length - 1) * 90 + 400);   // the picks are in: the sheet (land is the whole beat, so a tap mid-cascade picks them all too — tail() replaces pendingTail)
   },
-  // 21 — Apply tips, visibly tapped: the sheet drops and IN THE CELLS the old price folds away and a ✓ comes in (the cells' own
+  // 23 — Apply tips, visibly tapped: the sheet drops and IN THE CELLS the old price folds away and a ✓ comes in (the cells' own
   //      raise scene) and stays; an Undo pill joins Close (Figma 5248:641867)
   (m, instant) => {
     const land = () => { const ns = [...m.selectedNights]; m.setTipSheet(false); m.applyTips(ns); m.clearSelection(); m.setUndoTile(true); };
@@ -525,7 +530,7 @@ const BEATS = [
     press(d => d.querySelector('.pt-cta'));
     setTimeout(tail(g, land), TAP);
   },
-  // 22 — Close, visibly tapped: the tips still on offer come off, the applied ones stay as the nights' prices (plain, ✓ gone), the
+  // 24 — Close, visibly tapped: the tips still on offer come off, the applied ones stay as the nights' prices (plain, ✓ gone), the
   //      bar's tiles return and the header lets go — the default calendar, with the host's new prices honoured. A beat, and the
   //      guests arrive: the stays layer comes on and the pills pop in one after another, laid OVER the prices
   (m, instant) => {
@@ -538,7 +543,7 @@ const BEATS = [
     setTimeout(() => { if (g === gen) close(); }, TAP);
     setTimeout(tail(g, () => { close(); guests(); }), TAP + 260);   // closed, a breath: the guests (the whole beat, so a tap mid-way closes too — tail() replaces pendingTail)
   },
-  // 23 — Zoe's pill, visibly tapped (both its pieces, the 10th–12th and the 13th–14th), and her reservation rises (Figma 5248:641834)
+  // 25 — Zoe's pill, visibly tapped (both its pieces, the 10th–12th and the 13th–14th), and her reservation rises (Figma 5248:641834)
   (m, instant) => {
     const b = m.stay(m.fx.todayIndex + 1, 0);   // the stay over the 10th
     if (!b) return;
@@ -548,12 +553,12 @@ const BEATS = [
     setTimeout(() => { if (g === gen && m.pressedStay) { m.pressedStay = null; m.notify(); } }, 300);
     setTimeout(tail(g, () => m.setStaySheet(b)), TAP);
   },
-  // 24 — Zoe's ⨉, visibly tapped: the sheet drops — back to the calendar as it was when she was tapped
+  // 26 — Zoe's ⨉, visibly tapped: the sheet drops — back to the calendar as it was when she was tapped
   (m, instant) => {
     if (instant) { m.setStaySheet(null); return; }
     const g = ++gen; press(d => d.querySelector('.st-icon[aria-label="Close"]')); setTimeout(tail(g, () => m.setStaySheet(null)), TAP);
   },
-  // 25 — (the deck shows every date-cell state on its own slide between here and the next) the wand tile shrinks away and its slot folds shut, Today sliding back to its 8 from the gear; a beat; the AI pills pop
+  // 27 — (the deck shows every date-cell state on its own slide between here and the next) the wand tile shrinks away and its slot folds shut, Today sliding back to its 8 from the gear; a beat; the AI pills pop
   //      onto the calendar and open with their labels — Gap nights, Weekday lull, the events — then fold, as the product's do
   (m, instant) => {
     const nudge = () => { const d = appDoc(), v = d && d.querySelector('.vscroll'); if (!v) return; v.scrollTop += 1; setTimeout(() => { v.scrollTop -= 1; }, 60); };   // a hair of scroll: the pills' own open-with-labels
@@ -564,7 +569,7 @@ const BEATS = [
     setTimeout(() => { if (g === gen) m.setWandTile(false); }, 650);   // the fold has played
     setTimeout(tail(g, () => { land(); setTimeout(() => { if (g === gen) nudge(); }, 700); }), 650 + 900);   // a beat: the pills, and once in, they open
   },
-  // 26 — the first Gap nights pill, visibly tapped: the product opens the entry — its three nights pick themselves, green and
+  // 28 — the first Gap nights pill, visibly tapped: the product opens the entry — its three nights pick themselves, green and
   //      dashed, the gap scene on them — and the product's own AI box rises at the bottom with its Apply
   (m, instant) => {
     const e = m.calendarEntries(0).find(x => x.label === 'Gap nights'); if (!e) return;
@@ -574,7 +579,7 @@ const BEATS = [
     press(d => [...d.querySelectorAll('.marker')].find(mk => mk.textContent.includes('Gap nights')));
     setTimeout(tail(g, open), TAP);
   },
-  // 27 — Apply, visibly tapped: the product's own flow — the dots, the tip applied (the three nights' rings go solid, their
+  // 29 — Apply, visibly tapped: the product's own flow — the dots, the tip applied (the three nights' rings go solid, their
   //      minimum drops to 3), then the ✓ on the button
   (m, instant) => {
     const ns = [...m.selectedNights];
@@ -594,7 +599,7 @@ const BEATS = [
     if (m.pageTips) m.pageTips(1); else m.stepEntry(1, 0);              // the swipe: the old header slides off, the next slides in
     setTimeout(() => { if (g !== gen) return; const btn = press(d => d.querySelector('.apply')); setTimeout(() => { if (g === gen) { pendingTail = null; if (btn) btn.click(); else land(); } }, 130); }, 380 + 900);   // landed, a beat: Apply
   }),
-  // 32 — the AI box's ⨉, tapped: it drops and the picks clear; Today, tapped: the calendar flies home (the header staying small);
+  // 34 — the AI box's ⨉, tapped: it drops and the picks clear; Today, tapped: the calendar flies home (the header staying small);
   //      landed, a beat, the Ask circle springs in; a beat, the tips puck — the 3 in Rausch — comes down and lands on it
   (m, instant) => {
     const closeBox = () => { m.setSelectedNights(new Set()); m.entryKind = null; m.entryAnchor = null; m.notify(); };
@@ -609,12 +614,12 @@ const BEATS = [
       setTimeout(tail(g, () => m.showPuck(3)), 900 + 900);                                                             // it has sprung in, a beat: the 3 comes down — and rests there
     }, 900)); }, 130 + 900 + 200);
   },
-  // 33 — the Ask, tapped: the chat rises
+  // 35 — the Ask, tapped: the chat rises
   (m, instant) => {
     if (instant) { m.setSheet('ask'); return; }
     const g = ++gen; press(d => d.querySelector('.bar .ask')); setTimeout(tail(g, () => m.setSheet('ask')), 130);
   },
-  // 34 — Last-min discount, tapped in the chat's brief: the pill grows in place into its editor (and stays open). January is
+  // 36 — Last-min discount, tapped in the chat's brief: the pill grows in place into its editor (and stays open). January is
   // put open here, whatever came before, so the next beat's block has something to do.
   (m, instant) => {
     m.setBlocked(false, 0, JAN(m));
@@ -622,7 +627,7 @@ const BEATS = [
     const g = ++gen; press(d => [...d.querySelectorAll('.bpill .head')].find(b => /Last-min/.test(b.textContent || '')));
     setTimeout(tail(g, () => m.openBriefTip('lastmin')), 130);
   },
-  // 35 — "Block the first two weeks of January" is typed into the chat and sent; the product blocks January 1–14, night by night,
+  // 37 — "Block the first two weeks of January" is typed into the chat and sent; the product blocks January 1–14, night by night,
   // and answers; a beat after the answer, the chat's ⨉ is tapped and it drops — one beat, start to finish (John, 2026-09-22)
   (m, instant) => {
     const jan = JAN(m);
@@ -644,7 +649,7 @@ const BEATS = [
       poll();
     });
   },
-  // 36 — the end of the single flow: the phone moves left to make room and a second phone comes in from the right to stand
+  // 38 — the end of the single flow: the phone moves left to make room and a second phone comes in from the right to stand
   // beside it, 120px between — the LIST calendar (the multi is saved for later): the same collapsed top, a card a day. The new
   // views only flow in — no scrolling, no build of their own (John, 2026-09-22); each arrival shrinks the row a step.
   // As it moves the single goes HOME — today's September, the header staying collapsed like every other phone's — and its Ask
@@ -654,10 +659,10 @@ const BEATS = [
     if (instant) { const g = gen; setTimeout(() => { if (g === gen) m.homeLocked(false); }, 120); return; }   // after 18's own deferred home (80ms), so this one wins
     m.homeLocked(true);
   },
-  // 37 — THREE UP: the pair slides left and a third phone comes in from the right — the YEAR view (Figma 5248:641919), twelve months
+  // 39 — THREE UP: the pair slides left and a third phone comes in from the right — the YEAR view (Figma 5248:641919), twelve months
   // two across, a dot a day — and all three scale down to stand side by side: the single, the list, the year (John, 2026-09-22).
   (m, instant) => { setStage('three', instant); },
-  // 38 — FOUR UP: a fourth phone comes in from the right — the DAY view (Figma 5248:642014, an experience host's hours) — and the
+  // 40 — FOUR UP: a fourth phone comes in from the right — the DAY view (Figma 5248:642014, an experience host's hours) — and the
   // four scale down to stand in a row: the single, the list, the year, the day.
   (m, instant) => { setStage('four', instant); },
 ];
@@ -692,20 +697,22 @@ const MARK_PARK = 120;   // an event's row parks this far under the header, with
 // reveal retargets a scroll that is still moving, so its speed changed ten
 // times on the way down and the whole thing juddered.
 //
-// The scroll is now one move and nothing interrupts it: the marks all come on
-// together, a beat is held so that lands as its own event, and then the
-// calendar makes a single uninterrupted run to Indian Wells. The scroll no
-// longer depends on the animation, because there is no longer an animation
-// for it to depend on.
+// Each scroll is one move and nothing interrupts it: the marks all come on
+// together, a beat is held so that lands as its own event, and the calendar
+// makes one uninterrupted run to Christmas and New Year's and STOPS; the next
+// tap makes a second uninterrupted run on to Indian Wells. Neither scroll
+// depends on an animation, because there is no animation for it to depend on.
 const MARK_ALL = 700;     // the beat the icons get before the calendar starts moving
 const MARK_LAND = 500;    // after the scroll settles, before Indian Wells' week is tapped
-const MARK_SCENES = [     // only the order now — there are no stops (John, 2026-09-30)
+const MARK_SCENES = [     // the order the groups are listed in (John, 2026-09-21)
   ['Halloween', 'Palm Springs Pride', 'Veterans Day', 'Thanksgiving'],
   ['Christmas', "New Year's Day"],
   ['MLK Jr. Day', 'AMEX Cup'],
   ['Modernism Week'],
   ['Indian Wells 2027'],
 ];
+// the ten groups in MARK_SCENES order — resolved by NAME in both halves of the run, so the two agree on which is which
+const markRun = m => { const groups = m.nextMarkGroups(16); return MARK_SCENES.flat().map(n => groups.find(g => g.name === n)).filter(Boolean); };
 // The calendar's smooth scroll takes as long as it takes (a jump of months, longer): fn runs once the scroll has
 // been still for two reads, 400ms in at the soonest, 2s at the latest.
 const settled = (g, fn) => {
