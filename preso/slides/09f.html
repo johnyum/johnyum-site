@@ -46,6 +46,20 @@
      deck's own push, to the millisecond, lifted from index.html: DUR 520 on
      EASE cubic-bezier(0.16, 1, 0.3, 1). Nothing staggers, nothing deals.
 
+     TAP TWO SWEEPS THE ROW. Each screen answers its own question, left to
+     right, 420ms apart — House is chosen, then Home, then an entire place,
+     then the address types itself in and the map flies to it, and so on to the
+     price counting up. Nothing waits for the screen before it to finish; the
+     map is still moving while the amenities are picking themselves. That
+     overlap is the point, because ten screens answering at once reads as a
+     flow working where ten in series reads as a queue.
+
+     IT NEVER PRESSES A PHONE'S NEXT BUTTON. The row has to stay on the ten
+     screens it is showing, so the sweep uses slide 11's presoAct(), which
+     answers in place and stops. Those answers come out of slide 11's own BEATS
+     table — the same choices it makes when you tap through it on its own — so
+     nothing here is a second copy of what the flow does.
+
      THE CELL IS CROPPED TO THE PHONE. Slide 11 sizes its phone at 80vh of its
      own viewport, so a cell showing the whole viewport carries 20% dead
      margin. Each cell is therefore 800 of the 1000pt viewport tall, with the
@@ -136,6 +150,13 @@
   const INTRO = 'step0';                    // the splash — the lead-in, not a step
   const STEPS = ['', 'step1b', 'step2', 'step3', 'step4', 'step5',
                  'step6', 'step7', 'step8', 'step8b'];
+  // Which of slide 11's BEATS each cell is parked on — the beat where that
+  // screen has ARRIVED and has not yet answered. presoAct() is what answers
+  // it. Read straight off the BEATS table in 11.html; if a beat is inserted
+  // there, these move.
+  //        step1  1b  2   3   4   5   6   7   8   8b
+  const PARK = [1,  3,  5,  7,  9, 10, 11, 13, 15, 16];
+  const INTRO_BEAT = 0;
   const MAP_STEP = 'step3';                 // the only one that gets a real map
   // the slide-11 viewport each cell renders: 391.3 wide so the phone spans the
   // cell exactly (800 x 900/1840), 1000 tall of which the phone is the middle
@@ -147,29 +168,45 @@
   // the deck's per-load stamp, passed down so a cell is never a stale copy
   const v = new URLSearchParams(location.search).get('v');
 
-  function cellFor(cls) {
+  // THROUGH THE BEAT SYSTEM, NOT THE BODY CLASS. This used to write
+  // body.className straight into the frame, which put the right screen up and
+  // skipped slide 11's beats entirely — so the counts, the amenities, the
+  // chips and the price had no animation left in them to play. presoPark()
+  // lands the frame on the beat properly and holds it there: the screen as a
+  // question, waiting.
+  function park(cell) {
+    try { cell._w.presoPark(cell._beat); return true; } catch (_) { return false; }
+  }
+  function act(cell) {
+    try { return !!cell._w.presoAct(); } catch (_) { return false; }
+  }
+
+  function cellFor(cls, beat) {
     const cell = document.createElement('div');
     cell.className = 'cell';
+    cell._beat = beat;
     const f = document.createElement('iframe');
     f.title = 'Host setup — ' + (cls || 'step 1');
     f.setAttribute('scrolling', 'no');
     f.src = '11.html?' + (cls === MAP_STEP ? '' : 'nomap=1&') + 'still=1' + (v ? '&v=' + v : '');
     f.addEventListener('load', () => {
-      const d = f.contentDocument; if (!d) return;
-      const set = () => { d.body.className = cls; };
-      set();
+      cell._w = f.contentWindow;
+      park(cell);
       // Slide 11 runs its own opening beat on load, which would put every cell
-      // back on step 1. Re-assert after it has had its go.
-      setTimeout(set, 120); setTimeout(set, 600); setTimeout(set, 1400);
+      // back on step 1. Re-assert after it has had its go. Parking is
+      // idempotent, and all of this is long finished before the tap.
+      setTimeout(() => park(cell), 120);
+      setTimeout(() => park(cell), 600);
+      setTimeout(() => park(cell), 1400);
     });
     cell.appendChild(f);
     return cell;
   }
 
-  const cells = STEPS.map(cellFor);         // the ten, and only the ten
+  const cells = STEPS.map((cls, i) => cellFor(cls, PARK[i]));   // the ten
   cells.forEach(c => row.append(c));
 
-  const intro = cellFor(INTRO);             // the lead-in, outside the row
+  const intro = cellFor(INTRO, INTRO_BEAT); // the lead-in, outside the row
   intro.classList.add('intro');
   slide.append(intro);
 
@@ -192,7 +229,8 @@
 
   function setLead() {                      // beat 0
     step = 0;
-    clearTimeout(nextT);
+    clearTimeout(nextT); stopSweep();
+    cells.forEach(park);                   // back to ten unanswered questions
     hold(row, () => {
       row.classList.add('waiting');        // in place, invisible, rendering
       row.classList.remove('offstage');
@@ -204,11 +242,20 @@
   }
 
   const DOWN = 460, BEAT = 60;
-  let nextT = 0;
+  // THE SWEEP. One fixed interval between screens, left to right, and nothing
+  // waits for the screen before it to finish — the address map is still flying
+  // while the amenities are picking themselves and the price is counting up.
+  // That overlap is the point: ten screens answering at once reads as a flow
+  // working, where ten in series reads as a queue.
+  const SWEEP = 420;
+  let nextT = 0, sweepT = [];
 
-  function openRow() {                      // the tap
+  function stopSweep() { sweepT.forEach(clearTimeout); sweepT = []; }
+
+  function openRow() {                      // tap 1 — the row arrives
     step = 1;
-    clearTimeout(nextT);
+    clearTimeout(nextT); stopSweep();
+    cells.forEach(park);
     intro.classList.add('gone');            // down to the size of the ten, and out
     nextT = setTimeout(() => {
       // One frame off the right, visible, then let go: the push, from content
@@ -240,24 +287,35 @@
   const r0 = slide.getBoundingClientRect(); fit(r0.width, r0.height);
   setLead();
 
+  // tap 2 — each screen answers itself, left to right. It NEVER presses a
+  // phone's Next button: the row stays on the ten screens it is showing.
+  function sweep() {
+    step = 2;
+    stopSweep();
+    cells.forEach((c, i) => { sweepT.push(setTimeout(() => act(c), i * SWEEP)); });
+  }
+
   window.presoNext = () => {
-    if (step) return false;                 // out of builds — on to the tweet
-    openRow();
-    return true;
+    if (step === 0) { openRow(); return true; }
+    if (step === 1) { sweep();   return true; }
+    return false;                           // out of builds — on to the tweet
   };
   window.presoPrev = () => {
-    if (!step) return false;                // on the lead-in — the deck goes back
-    setLead();
-    return true;
+    if (step === 2) { openRow(); return true; }   // ten unanswered again
+    if (step === 1) { setLead(); return true; }
+    return false;                           // on the lead-in — the deck goes back
   };
   window.presoState = () => step;
   // Landing on the beat from the hash gets the end state, not the move.
   window.presoRestore = n => {
     if (!(n > 0)) return;
-    step = 1;
-    clearTimeout(nextT);
+    step = n > 1 ? 2 : 1;
+    clearTimeout(nextT); stopSweep();
     hold(intro, () => intro.classList.add('gone'));
     hold(row, () => { row.classList.remove('offstage'); row.classList.remove('waiting'); });
+    // Landing on the hash gets the end state, so the sweep runs at once rather
+    // than 420ms apart. The frames may still be loading, so it is retried.
+    if (n > 1) [0, 400, 1200, 2000].forEach(t => setTimeout(() => cells.forEach(act), t));
   };
 })();
 </script>

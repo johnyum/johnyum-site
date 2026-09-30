@@ -1463,6 +1463,14 @@
     armTimer = setTimeout(arm, ARM_GAP);    // the choice reads first
   }
 
+  // PARKED — set only by presoPark(), which slide 09f uses to stand ten of
+  // these side by side, each holding one screen. A parked screen is the
+  // QUESTION: it does not answer itself after LAND_HOLD, and the four screens
+  // that fill themselves in on arrival (the counts, the amenities, the chips,
+  // the price) hold still until presoAct() asks them to. Left alone, this flag
+  // is false and nothing below it changes.
+  let parked = false;
+
   function commit(b) {
     document.body.classList.toggle('step0', b.step === 0);
     document.body.classList.toggle('step1b', b.step === '1b');
@@ -1486,18 +1494,18 @@
     if (b.step === 3) { if (map) map.resize(); if (!b.play) resetAddress(); }
     else resetAddress();
     if (b.play === 'address') runAddress();
-    if (b.step === 4) runCounts(); else resetCounts();
-    if (b.step === 5) runAmenities(); else resetAmenities();
+    if (b.step === 4 && !parked) runCounts(); else resetCounts();
+    if (b.step === 5 && !parked) runAmenities(); else resetAmenities();
     if (b.step !== 7 || !b.play) resetName();
     if (b.play === 'name') runName();
-    if (b.step === 8) runChips(); else resetChips();
-    if (b.step === '8b') runPrice(); else resetPrice();
+    if (b.step === 8 && !parked) runChips(); else resetChips();
+    if (b.step === '8b' && !parked) runPrice(); else resetPrice();
 
     if (b.select) answer(b);
     // the following beat is this same screen making its own choice — it runs
     // on its own, and the tap is reserved for the button
     const nxt = BEATS[beat + 1];
-    if (nxt && nxt.select && nxt.step === b.step) {
+    if (nxt && nxt.select && nxt.step === b.step && !parked) {
       autoTimer = setTimeout(() => apply(beat + 1), LAND_HOLD);
     }
     // the intro and the two read-only screens have nothing to answer
@@ -1561,6 +1569,43 @@
 
   window.presoNext = () => { if (beat >= BEATS.length - 1) return false; apply(beat + 1); return true; };
   window.presoPrev = () => { if (beat <= 0) return false; apply(beat - 1); return true; };
+  // --- what slide 09f drives ------------------------------------------
+  // It shows the ten steps side by side, each phone parked on one of them, and
+  // needs two things the deck's own tap-through does not give it.
+  //
+  // presoPark(n) lands on beat n and STAYS: see `parked` above. 09f used to do
+  // this by writing body.className straight in, which put the right screen up
+  // but skipped the beat system entirely — so the counts, the amenities, the
+  // chips and the price had no animation left in them to play.
+  //
+  // presoAct() performs THIS screen's own answer, in place, and NEVER presses
+  // Next — the row must stay on the ten screens it is showing. Where the next
+  // beat belongs to the same screen (the choice being made, the address
+  // typing, the name typing) that beat is the answer; where it does not, the
+  // screen is one that fills itself in and is simply run again.
+  window.presoPark = n => {
+    parked = true;
+    clearTimeout(timer); clearTimeout(timer2);
+    clearTimeout(autoTimer); clearTimeout(armTimer);
+    beat = Math.max(0, Math.min(n, BEATS.length - 1));
+    commit(BEATS[beat]);
+  };
+  window.presoAct = () => {
+    const b = BEATS[beat]; if (!b) return false;
+    const nxt = BEATS[beat + 1];
+    if (nxt && nxt.step === b.step) {       // the same screen's own next beat
+      parked = false;                       // let that one beat happen
+      apply(beat + 1);
+      parked = true;
+      return true;
+    }
+    if (b.step === 4)    { resetCounts();    runCounts();    return true; }
+    if (b.step === 5)    { resetAmenities(); runAmenities(); return true; }
+    if (b.step === 8)    { resetChips();     runChips();     return true; }
+    if (b.step === '8b') { resetPrice();     runPrice();     return true; }
+    return false;
+  };
+
   window.presoState = () => Math.max(0, beat);   // the deck's URL carries this slide's beat (John, 2026-09-22)
   window.presoRestore = n => { if (n > 0) apply(Math.min(n, BEATS.length - 1)); };
 })();
