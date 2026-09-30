@@ -444,9 +444,9 @@ const BEATS = [
   // 16 — ⨉, straight from the promotion page: the whole quick actions drop away; the header stays small (it does for the rest
   //      of the preso); the 9th–21st keep their $384, −20% and min 5, untapped
   (m, instant) => { if (instant) { m.clearSelection(); return; } const g = ++gen; press(d => d.querySelector('.sqa-close')); setTimeout(tail(g, () => m.clearSelection()), TAP); },
-  // 17 — the events and holidays, in ONE CONTINUOUS SCROLL out to Indian Wells in March 2027: the calendar runs down
-  //      through the season and each group's icons pop in as its row arrives. The marks layer comes on empty and fills.
-  //      MARK_SCENES still gives the order; it no longer gives the stops, because there are none.
+  // 17 — the events and holidays: they ALL come on at once, a beat, and then the calendar makes ONE uninterrupted run
+  //      down to Indian Wells in March 2027. The marks layer comes on empty and fills in a single stroke.
+  //      MARK_SCENES is now only the order the groups are listed in; there are no stops and no per-group timing.
   (m, instant) => {
     m.setLayers({ marks: true }); m.setShownMarks(new Set()); m.revealOffset = MARK_PARK;
     const groups = m.nextMarkGroups(16);
@@ -466,12 +466,14 @@ const BEATS = [
       week.forEach((di, k) => setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, k * 90));
       setTimeout(() => { if (g === gen) { m.setHoldQuick(false); pendingTail = null; } }, (week.length - 1) * 90 + 260);
     };
-    // The whole descent, issued up front: nothing here waits on anything.
-    run.forEach((grp, i) => {
-      setTimeout(() => { if (g === gen) m.reveal(grp.dis[0], null, 0, 0); }, i * MARK_STRIDE);
-      setTimeout(() => { if (g === gen) m.showMarkGroup(grp.dis); }, i * MARK_STRIDE + MARK_POP);
-    });
-    setTimeout(() => { if (g === gen) tapWeek(); }, (run.length - 1) * MARK_STRIDE + MARK_LAND);
+    for (const grp of run) m.showMarkGroup(grp.dis);   // every icon, in the same frame
+    setTimeout(() => {
+      if (g !== gen) return;
+      m.reveal(iw, null, 0, 0);                       // ONE scroll, all the way, uninterrupted
+      // settled() is armed only after the scroll is under way — armed before,
+      // it would see a calendar that has not started moving and call it done.
+      settled(g, () => setTimeout(() => { if (g === gen) tapWeek(); }, MARK_LAND));
+    }, MARK_ALL);
   },
   // 18 — ⨉ closes the quick actions; a beat; Today is tapped and the calendar flies home to September — and on the way the
   //      host's edits come off the 9th–21st (the $480, the −20%, the min 5), so it lands on the default it started from.
@@ -684,21 +686,20 @@ function typeAsk(g, phrase, done) {
 // gives September ten tipped nights (the 11th, 12th, 16th, 17th, 22nd–26th, 29th), which beat 21 picks.
 const TIPS = m => { const out = []; for (let di = m.fx.todayIndex + 1; di <= m.fx.todayIndex + 35; di++) { const x = m.fx.date(di), dow = new Date(x.y, x.m - 1, x.d).getDay(), wk = Math.floor((di - m.fx.todayIndex) / 7); if (dow >= 2 && dow <= 4 && (wk === 1 || wk === 2)) out.push([di, 480]); else if ((dow === 5 || dow === 6) && wk % 2 === 0) out.push([di, 535]); } return out; };
 const MARK_PARK = 120;   // an event's row parks this far under the header, with its week above for context
-// ONE LONG TAKE, NOT FIVE STOPS (John, 2026-09-30). The run used to scroll to a
-// stop, WAIT for the scroll to settle, pop that stop's icons, hold, and only
-// then move on — five reveals with a dead beat between each, which read as
-// four or five separate moves rather than one journey down the calendar.
+// ALL THE ICONS AT ONCE, THEN ONE SCROLL (John, 2026-09-30). This ran as a
+// stop-start descent: scroll a bit, pop a group, scroll a bit, pop the next.
+// Even issued on a tight timeline it was the SCROLL that suffered — every
+// reveal retargets a scroll that is still moving, so its speed changed ten
+// times on the way down and the whole thing juddered.
 //
-// It is now a flat timeline over the ten groups, and the stride is the whole
-// trick: a reveal's own scroll runs about half a second, so issuing the next
-// one at 380ms RETARGETS a scroll that is still moving. The calendar never
-// comes to rest between groups, and the icons pop as their rows arrive.
-// Measured across the run: 4 still frames out of 52, none of them backwards.
-// Widen this past ~500 and the stops come back.
-const MARK_STRIDE = 380;  // one reveal to the next — must stay under the scroll's own duration
-const MARK_POP = 170;     // after a reveal is issued, its icons land
-const MARK_LAND = 900;    // after the last icon, before Indian Wells' week is tapped
-const MARK_SCENES = [     // the stops (John, 2026-09-21)
+// The scroll is now one move and nothing interrupts it: the marks all come on
+// together, a beat is held so that lands as its own event, and then the
+// calendar makes a single uninterrupted run to Indian Wells. The scroll no
+// longer depends on the animation, because there is no longer an animation
+// for it to depend on.
+const MARK_ALL = 700;     // the beat the icons get before the calendar starts moving
+const MARK_LAND = 500;    // after the scroll settles, before Indian Wells' week is tapped
+const MARK_SCENES = [     // only the order now — there are no stops (John, 2026-09-30)
   ['Halloween', 'Palm Springs Pride', 'Veterans Day', 'Thanksgiving'],
   ['Christmas', "New Year's Day"],
   ['MLK Jr. Day', 'AMEX Cup'],
