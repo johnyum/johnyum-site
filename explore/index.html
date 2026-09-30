@@ -571,19 +571,22 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // Twelve long-distance lines is a national network, so the destinations are
   // national too: every one of these is reachable from SF on the routes drawn
   // under it, and the hours are the whole way, changes included.
+  // `via` is the line you would actually ride, and it is what hovering the pill
+  // draws — two names where the journey needs a change.
+  var Z = 'California Zephyr', CS = 'Coast Starlight';
   var RAILS = [
-    { n: 'Reno',           t: '5hrs',    ll: [-119.81, 39.53] },
-    { n: 'Portland',       t: '18hrs',   ll: [-122.68, 45.52] },
-    { n: 'Seattle',        t: '23hrs',   ll: [-122.33, 47.61] },
-    { n: 'Los Angeles',    t: '12hrs',   ll: [-118.24, 34.05] },
-    { n: 'Salt Lake City', t: '12hrs',   ll: [-111.89, 40.76] },
-    { n: 'Denver',         t: '16hrs',   ll: [-104.99, 39.74] },
-    { n: 'Albuquerque',    t: '1d 8hrs', ll: [-106.65, 35.08] },
-    { n: 'Omaha',          t: '1 day',   ll: [ -95.94, 41.26] },
-    { n: 'New Orleans',    t: '2d 5hrs', ll: [ -90.07, 29.95] },
-    { n: 'Chicago',        t: '1d 3hrs', ll: [ -87.63, 41.88] },
-    { n: 'New York',       t: '2d 8hrs', ll: [ -74.01, 40.71] },
-    { n: 'Miami',          t: '3d 2hrs', ll: [ -80.19, 25.76] }
+    { n: 'Reno',           t: '5hrs',    ll: [-119.81, 39.53], via: [Z] },
+    { n: 'Portland',       t: '18hrs',   ll: [-122.68, 45.52], via: [CS] },
+    { n: 'Seattle',        t: '23hrs',   ll: [-122.33, 47.61], via: [CS] },
+    { n: 'Los Angeles',    t: '12hrs',   ll: [-118.24, 34.05], via: [CS] },
+    { n: 'Salt Lake City', t: '12hrs',   ll: [-111.89, 40.76], via: [Z] },
+    { n: 'Denver',         t: '16hrs',   ll: [-104.99, 39.74], via: [Z] },
+    { n: 'Albuquerque',    t: '1d 8hrs', ll: [-106.65, 35.08], via: [CS, 'Southwest Chief'] },
+    { n: 'Omaha',          t: '1 day',   ll: [ -95.94, 41.26], via: [Z] },
+    { n: 'New Orleans',    t: '2d 5hrs', ll: [ -90.07, 29.95], via: [CS, 'Sunset Limited'] },
+    { n: 'Chicago',        t: '1d 3hrs', ll: [ -87.63, 41.88], via: [Z] },
+    { n: 'New York',       t: '2d 8hrs', ll: [ -74.01, 40.71], via: [Z, 'Lake Shore Limited'] },
+    { n: 'Miami',          t: '3d 2hrs', ll: [ -80.19, 25.76], via: [Z, 'Floridian'] }
   ];
   // The unnamed stops. The line is not twelve cities, it is a hundred places
   // you have never heard of with a platform, so the field is mostly dots.
@@ -876,15 +879,20 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       'bottom-left', [-14, 0]);
     o.marker.setLngLat(d.ll);
     o.el.style.cursor = 'default';
-    if (hover) {
+    if (hover === 'drive') {
+      // The road, and only the road. The pill is already carrying the hours,
+      // so a chip sitting on the line just says the same thing twice.
       o.el.style.cursor = 'pointer';
       o.el.addEventListener('mouseenter', function () {
-        // The road, and only the road. The pill is already carrying the hours,
-        // so a chip sitting on the line just says the same thing twice.
-        if (hover === 'rail') showFlight(ME, d.ll, null, 0.14);
-        else showDrives([{ ll: ME, fallback: null }], d.ll);
+        showDrives([{ ll: ME, fallback: null }], d.ll);
       });
       o.el.addEventListener('mouseleave', hideRoute);
+    } else if (hover === 'rail') {
+      // The line you would actually ride, on its real alignment — not a curve
+      // drawn from SF to the dot, which is the one thing a rail map cannot be.
+      o.el.style.cursor = 'pointer';
+      o.el.addEventListener('mouseenter', function () { showRail(d.via || []); });
+      o.el.addEventListener('mouseleave', hideRail);
     }
     return o;
   }
@@ -1065,17 +1073,27 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // A transport beat draws its own line and keeps it for as long as the beat
   // lasts — unlike a hover leg, which belongs to the pointer. Rail is the
   // real Amtrak long-distance network; driving draws nothing until you hover.
+  // The named routes a destination is reached by, drawn on the beat's own layer
+  // so a hover here never fights a hovered drive leg on the other one.
+  function showRail(names) {
+    if (!map.getLayer('mode-route-line')) return;
+    var lines = (window.RAIL_LINES || {});
+    var segs = names.reduce(function (a, n) { return a.concat(lines[n] || []); }, []);
+    map.getSource('mode-route').setData({
+      type: 'Feature', geometry: { type: 'MultiLineString', coordinates: segs } });
+    map.setPaintProperty('mode-route-line', 'line-opacity', 0.9);
+  }
+  function hideRail() {
+    if (map.getLayer('mode-route-line')) map.setPaintProperty('mode-route-line', 'line-opacity', 0);
+  }
+
   function showModeRoute(beat) {
     if (!map.getLayer('mode-route-line')) return;
     var src = map.getSource('mode-route');
-    if (beat === 'rail') {
-      src.setData({ type: 'Feature', geometry: { type: 'MultiLineString', coordinates: window.RAIL_LINES || [] } });
-      map.setPaintProperty('mode-route-line', 'line-opacity', 0.9);
-      return;
-    }
-    // Driving draws nothing by itself. One road standing on the map says Tahoe
-    // is the trip, when the whole point of the beat is the eight places you
-    // could pick — so the road is the answer to a hover, not the opening state.
+    // Neither transport beat draws anything by itself. Twelve alignments laid
+    // over the country at once is a system diagram, and one road standing on
+    // California says Tahoe is the trip — when the point of both beats is the
+    // places you could pick. The line is the answer to a hover.
     map.setPaintProperty('mode-route-line', 'line-opacity', 0);
   }
 
@@ -1131,7 +1149,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     var deeper = to.depth > from.depth;
     busy = true;
     var prev = state; state = next;
-    hideRoute();   // a leg belongs to the beat that drew it
+    hideRoute(); hideRail();   // a line belongs to the beat that drew it
 
     // Going deeper, the marker you aimed at holds its ground while the field
     // around it clears — it is the thing the camera is travelling toward, so
