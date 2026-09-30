@@ -164,6 +164,12 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   transition: background 200ms var(--ease), border-color 200ms var(--ease);
 }
 .mode img { width: 20px; height: 20px; }
+/* Every glyph ships dark, and the selected one is knocked out white against the
+   black circle. Swapping in a white file for the selected mode is how the
+   unselected plane ended up white-on-white and invisible — there was no dark
+   plane in the set at all. brightness(0) flattens the art to black, invert(1)
+   takes it to pure white; #222 inverted alone would only reach #ddd. */
+.mode.is-on img { filter: brightness(0) invert(1); }
 .mode.is-on { background: var(--grey1000); border-color: var(--grey1000); }
 .dur { width: 324px; display: flex; flex-direction: column; gap: 16px; flex: none; }
 .dur-row { display: flex; align-items: center; justify-content: space-between; font-size: 14px; line-height: 18px; white-space: nowrap; }
@@ -279,6 +285,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .pin { position: absolute; width: 20px; z-index: 1; }
 .pin .stem { position: absolute; left: 9.25px; top: 12px; width: 1.5px; border-radius: 100px; background: var(--grey700); }
 .pin .head { position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--rausch600); }
+/* The head carries the mode: rausch for a flight, Blue 1 for a drive, amber
+   for the train. Same pin, same pill — only the colour and the glyph move. */
+.mk-drive .pin .head, .mk-drive .pin-sm .head { background: var(--blue1); }
+.mk-rail  .pin .head, .mk-rail  .pin-sm .head { background: #ffa513; }
 .pin .head::after {
   content: ''; position: absolute; left: 1px; top: .5px; width: 9px; height: 5.5px; border-radius: 50%;
   background: radial-gradient(closest-side, rgba(255,255,255,.55), rgba(220,180,180,0));
@@ -427,9 +437,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     <div class="stack">
       <div class="rule"></div>
       <div class="modes">
-        <button class="mode is-on"><img src="assets/icons/plane-white.svg" alt="Flights"></button>
-        <button class="mode"><img src="assets/icons/car.svg" alt="Cars"></button>
-        <button class="mode"><img src="assets/icons/train.svg" alt="Trains"></button>
+        <button class="mode is-on" data-beat="drive"><img src="assets/icons/car.svg" alt="Cars"></button>
+        <button class="mode" data-beat="usa"><img src="assets/icons/mode-plane.svg" alt="Flights"></button>
+        <button class="mode" data-beat="rail"><img src="assets/icons/train.svg" alt="Trains"></button>
         <button class="mode"><img src="assets/icons/walk.svg" alt="Walking"></button>
       </div>
       <div class="rule"></div>
@@ -496,6 +506,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 </div>
 
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.13.0/mapbox-gl.js"></script>
+<script src="assets/zephyr.js"></script>
 <script>
 (function () {
   'use strict';
@@ -531,6 +542,39 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   ];
 
   var ME = [-122.42, 37.77];   // San Francisco — where the traveller is standing
+
+  // ── Driving: everywhere you can reach from SF in a day, priced in hours
+  // rather than dollars, because the question a car asks is how far.
+  var DRIVES = [
+    { n: 'Medford',         t: '7.5 hrs', ll: [-122.87, 42.33] },
+    { n: 'Eureka',          t: '7 hrs',   ll: [-124.16, 40.80] },
+    { n: 'Tahoe',           t: '4 hrs',   ll: [-120.04, 39.09] },
+    { n: 'Sacramento',      t: '2.5 hrs', ll: [-121.49, 38.58] },
+    { n: 'San Jose',        t: '2 hrs',   ll: [-121.89, 37.34] },
+    { n: 'Las Vegas',       t: '8 hrs',   ll: [-115.14, 36.17] },
+    { n: 'San Luis Obispo', t: '4.5 hrs', ll: [-120.66, 35.28] },
+    { n: 'Los Angeles',     t: '7 hrs',   ll: [-118.24, 34.05] }
+  ];
+  var DRIVE_DOTS = [
+    [-122.27, 37.80], [-121.30, 38.68], [-119.70, 36.75], [-118.39, 37.36],
+    [-120.69, 38.35], [-123.21, 39.15], [-122.71, 38.44], [-121.29, 40.49],
+    [-116.98, 36.46], [-119.29, 34.27], [-117.16, 32.72], [-122.03, 36.97],
+    [-121.64, 41.49], [-118.78, 39.53]
+  ];
+  var TAHOE = [-120.04, 39.09];   // the leg the driving map draws, SF to the lake
+
+  // ── Rail: the California Zephyr, and what the whole way costs you in time.
+  var RAILS = [
+    { n: 'Reno',           t: '5hrs',    ll: [-119.81, 39.53] },
+    { n: 'Salt Lake City', t: '12hrs',   ll: [-111.89, 40.76] },
+    { n: 'Denver',         t: '16hrs',   ll: [-104.99, 39.74] },
+    { n: 'Omaha',          t: '1 day',   ll: [ -95.94, 41.26] },
+    { n: 'Chicago',        t: '1d 3hrs', ll: [ -87.63, 41.88] }
+  ];
+  var RAIL_DOTS = [
+    [-121.49, 38.58], [-117.70, 40.78], [-114.00, 40.74], [-108.55, 39.06],
+    [-105.85, 39.74], [-102.00, 40.60], [ -98.50, 40.90], [ -91.53, 41.52]
+  ];
 
   var HOODS = [
     { n: 'Manhattan',     p: 893, ll: [-73.970, 40.780] },
@@ -681,6 +725,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   var USA_CAM  = { center: [-95.5, 36.8], zoom: 3.42, narrow: 6 };
   var NYC_CAM  = { center: [-73.95, 40.72], zoom: 10.05, narrow: 0.1 };
   var HOOD_CAM = { center: [-73.9560, 40.7117], zoom: 13.8, narrow: 0.01 };
+  var DRIVE_CAM = { center: [-119.0, 38.2], zoom: 5.75, narrow: 2 };
+  var RAIL_CAM  = { center: [-103.8, 40.3], zoom: 4.0,  narrow: 8 };
 
   // ── Map ─────────────────────────────────────────────────────────────────
   var map = new mapboxgl.Map({
@@ -757,8 +803,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     }
     return o;
   }
-  function makeDot(ll) {
-    var o = mk('mk-dot', 28, 36, PIN_SM, 'bottom');
+  function makeDot(ll, cls) {
+    var o = mk('mk-dot' + (cls ? ' ' + cls : ''), 28, 36, PIN_SM, 'bottom');
     o.marker.setLngLat(ll);
     return o;
   }
@@ -797,6 +843,19 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     return o;
   }
 
+  // A drive and a rail leg are the same pill as a city price — bold name, the
+  // interpunct, then the value in Book. Only the value is hours, not dollars.
+  function makeTimed(cls, glyph, d) {
+    var pin = '<div class="pin"><i class="stem"></i><i class="head">' +
+              '<img src="assets/icons/' + glyph + '" alt=""></i></div>';
+    var o = mk('mk-city ' + cls, 142, 36,
+      '<div class="pill"><b>' + d.n + ' ·</b><span>' + d.t + '</span></div>' + pin,
+      'bottom-left', [-14, 0]);
+    o.marker.setLngLat(d.ll);
+    o.el.style.cursor = 'default';
+    return o;
+  }
+
   function makePrice(d) {
     var o = mk('mk-price', 57, 32, '<div class="pill">$' + d[0] + '</div>', 'center');
     o.marker.setLngLat([d[1], d[2]]);
@@ -807,6 +866,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   var usaSet  = CITIES.map(makeCity).concat(DOTS.map(makeDot), [makeMe()]);
   var citySet = HOODS.map(makeHood).concat(AIRPORTS.map(makeAir), NYC_DOTS.map(makeDot));
   var hoodSet = PRICES.map(makePrice);
+  var driveSet = DRIVES.map(function (d) { return makeTimed('mk-drive', 'pin-car.svg', d); })
+    .concat(DRIVE_DOTS.map(function (ll) { return makeDot(ll, 'mk-drive'); }), [makeMe()]);
+  var railSet = RAILS.map(function (d) { return makeTimed('mk-rail', 'pin-train.svg', d); })
+    .concat(RAIL_DOTS.map(function (ll) { return makeDot(ll, 'mk-rail'); }), [makeMe()]);
 
   // ── The neighbourhood mask ──────────────────────────────────────────────
   // A world-sized polygon with Williamsburg punched out of it dims everything
@@ -829,6 +892,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       paint: { 'line-color': '#222222', 'line-width': 2, 'line-dasharray': [2, 2],
                'line-opacity': 0, 'line-emissive-strength': 1,
                'line-opacity-transition': { duration: 220 } } });
+    map.addSource('mode-route', { type: 'geojson', data: {
+      type: 'Feature', geometry: { type: 'MultiLineString', coordinates: [] } } });
+    map.addLayer({ id: 'mode-route-line', type: 'line', source: 'mode-route', slot: 'top',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#222222', 'line-width': 2, 'line-dasharray': [2, 2],
+               'line-opacity': 0, 'line-emissive-strength': 1,
+               'line-opacity-transition': { duration: 260 } } });
     map.addLayer({ id: 'wburg-edge', type: 'line', source: 'wburg-line', slot: 'top',
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: { 'line-color': '#ff385c', 'line-width': 1, 'line-opacity': 0 } });
@@ -956,6 +1026,41 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     });
   }
 
+  // A transport beat draws its own line and keeps it for as long as the beat
+  // lasts — unlike a hover leg, which belongs to the pointer. Rail is the
+  // California Zephyr's real alignment; driving is SF to the lake, asked of
+  // Directions like every other drive in here rather than guessed.
+  function showModeRoute(beat) {
+    if (!map.getLayer('mode-route-line')) return;
+    var src = map.getSource('mode-route');
+    if (beat === 'rail') {
+      src.setData({ type: 'Feature', geometry: { type: 'MultiLineString', coordinates: window.ZEPHYR || [] } });
+      map.setPaintProperty('mode-route-line', 'line-opacity', 0.9);
+      return;
+    }
+    if (beat === 'drive') {
+      var key = ME.join(',') + ';' + TAHOE.join(',');
+      var put = function (coords) {
+        if (state !== 'drive') return;
+        src.setData({ type: 'Feature', geometry: { type: 'MultiLineString', coordinates: [coords] } });
+        map.setPaintProperty('mode-route-line', 'line-opacity', 0.9);
+      };
+      if (driveCache[key]) { put(driveCache[key].line); return; }
+      put(arc(ME, TAHOE, 0.1));   // a stand-in until the road lands
+      fetch('https://api.mapbox.com/directions/v5/mapbox/driving-traffic/' +
+            ME.join(',') + ';' + TAHOE.join(',') +
+            '?geometries=geojson&overview=full&access_token=' + mapboxgl.accessToken)
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          var rt = j && j.routes && j.routes[0]; if (!rt) return;
+          driveCache[key] = { line: rt.geometry.coordinates, dur: rt.duration };
+          put(driveCache[key].line);
+        }).catch(function () {});
+      return;
+    }
+    map.setPaintProperty('mode-route-line', 'line-opacity', 0);
+  }
+
   function paintHoodMask(on) {
     if (!map.getLayer('wburg-dim')) return;
     map.setPaintProperty('wburg-dim', 'fill-opacity', on ? 0.22 : 0);
@@ -986,20 +1091,26 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // the camera flies, and the card morphs. The card starts a beat AFTER the
   // camera, so the eye is already moving by the time the panel changes under
   // it; start them together and it reads as two separate cuts.
+  // The three transport beats share the one card — the picker is the only
+  // thing that changes on it — so `depth` rather than the key order is what
+  // says which way a move is going. Same depth means a sideways move: the whole
+  // field leaves together and the new one arrives, no marker held back.
   var BEATS = {
-    usa:  { cam: USA_CAM,  set: usaSet,  layer: 'layerUsa',  cls: '',        tab: 0 },
-    nyc:  { cam: NYC_CAM,  set: citySet, layer: 'layerCity', cls: 'is-city', tab: 0 },
-    hood: { cam: HOOD_CAM, set: hoodSet, layer: 'layerHood', cls: 'is-hood', tab: 1 }
+    drive: { cam: DRIVE_CAM, set: driveSet, layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 0 },
+    usa:   { cam: USA_CAM,   set: usaSet,   layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 1 },
+    rail:  { cam: RAIL_CAM,  set: railSet,  layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 2 },
+    nyc:   { cam: NYC_CAM,   set: citySet,  layer: 'layerCity', cls: 'is-city', tab: 0, depth: 1 },
+    hood:  { cam: HOOD_CAM,  set: hoodSet,  layer: 'layerHood', cls: 'is-hood', tab: 1, depth: 2 }
   };
 
-  var state = 'usa', busy = false;
+  var state = 'drive', busy = false;   // the car is where this opens
   var card = document.getElementById('card');
   var tabs = document.querySelectorAll('.hdr-tab');
 
   function go(next) {
     if (busy || next === state) return;
     var from = BEATS[state], to = BEATS[next];
-    var deeper = ['usa', 'nyc', 'hood'].indexOf(next) > ['usa', 'nyc', 'hood'].indexOf(state);
+    var deeper = to.depth > from.depth;
     busy = true;
     var prev = state; state = next;
     hideRoute();   // a leg belongs to the beat that drew it
@@ -1020,9 +1131,14 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     setTimeout(function () {
       card.classList.remove('is-city', 'is-hood');
       if (to.cls) card.classList.add(to.cls);
-      document.getElementById(from.layer).setAttribute('data-hidden', '');
-      document.getElementById(to.layer).removeAttribute('data-hidden');
+      // Only cross-fade the layers when they actually differ — the transport
+      // beats share one, and hiding then showing the same element would flash it.
+      if (from.layer !== to.layer) {
+        document.getElementById(from.layer).setAttribute('data-hidden', '');
+        document.getElementById(to.layer).removeAttribute('data-hidden');
+      }
       tabs.forEach(function (t, i) { t.classList.toggle('is-on', i === to.tab); });
+      syncModes(to);
     }, deeper ? 180 : 160);
 
     if (deeper) setTimeout(function () {
@@ -1032,6 +1148,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     setTimeout(function () {
       from.set.forEach(function (o) { o.marker.remove(); });
       paintHoodMask(next === 'hood');
+      showModeRoute(next);
       show(to.set, deeper ? 55 : 32);
       busy = false;
     }, deeper ? 1650 : 1400);
@@ -1074,30 +1191,37 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       v.classList.add('is-on');
     });
   });
+  // The picker is three beats and a fourth chip. Walking has no map of its own
+  // in the frames, so it highlights and stops there rather than inventing one.
+  var modeBtns = document.querySelectorAll('.modes .mode');
+  function syncModes(beat) {
+    if (beat.mode === undefined) return;
+    modeBtns.forEach(function (x, i) { x.classList.toggle('is-on', i === beat.mode); });
+  }
   document.querySelector('.modes').addEventListener('click', function (e) {
     var m = e.target.closest('.mode'); if (!m) return;
-    this.querySelectorAll('.mode').forEach(function (x) { x.classList.remove('is-on'); });
+    modeBtns.forEach(function (x) { x.classList.remove('is-on'); });
     m.classList.add('is-on');
-    // the flight icon is the only white-on-black one; swap the art to match
-    this.querySelectorAll('.mode').forEach(function (x, i) {
-      var on = x.classList.contains('is-on');
-      if (i === 0) x.querySelector('img').src = on ? 'assets/icons/plane-white.svg' : 'assets/icons/plane16.svg';
-      else x.querySelector('img').style.filter = on ? 'invert(1) brightness(2)' : '';
-    });
+    if (m.dataset.beat) go(m.dataset.beat);
   });
 
   // Deep link for a deck: ?state=nyc / ?state=hood opens straight on that
   // beat. Decided BEFORE the load handler, so only one set is ever revealed.
-  var m0 = /[?&]state=(nyc|hood)\b/.exec(location.search);
+  var m0 = /[?&]state=(usa|nyc|hood|drive|rail)\b/.exec(location.search);
   if (m0) {
     state = m0[1];
-    var b0 = BEATS[state];
-    map.jumpTo({ center: cam(b0.cam).center, zoom: cam(b0.cam).zoom, padding: PAD() });
-    if (b0.cls) card.classList.add(b0.cls);
-    document.getElementById('layerUsa').setAttribute('data-hidden', '');
-    document.getElementById(b0.layer).removeAttribute('data-hidden');
-    tabs.forEach(function (t, i) { t.classList.toggle('is-on', i === b0.tab); });
   }
+
+  // Whatever beat we open on, the camera, the card and the picker start on it.
+  var b0 = BEATS[state];
+  map.jumpTo({ center: cam(b0.cam).center, zoom: cam(b0.cam).zoom, padding: PAD() });
+  card.classList.remove('is-city', 'is-hood');
+  if (b0.cls) card.classList.add(b0.cls);
+  ['layerUsa', 'layerCity', 'layerHood'].forEach(function (id) {
+    document.getElementById(id).toggleAttribute('data-hidden', id !== b0.layer);
+  });
+  tabs.forEach(function (t, i) { t.classList.toggle('is-on', i === b0.tab); });
+  syncModes(b0);
 
   // The markers wait on nothing. They are DOM over the canvas, and hanging
   // them off `load` (the first full tile set) or `style.load` means that on a
@@ -1111,6 +1235,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     try {
       addHoodMask();
       paintHoodMask(state === 'hood');
+      showModeRoute(state);
     } catch (e) {
       if (tries < 100) setTimeout(function () { armMask(tries + 1); }, 150);
     }
