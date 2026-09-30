@@ -80,6 +80,24 @@
     display: grid;
     place-items: center;
   }
+  /* HELLO! FILLS THE STAGE, and stops at the deck's chrome. index.html puts
+     #kicker at top:32px and #counter at bottom:32px, both 12px on a
+     line-height of 1, so the chrome owns the first and last 44px. 76px of
+     clearance leaves 32px of air between the word and each of them — enough
+     that they read as separate things rather than a near miss. */
+  h1 {
+    margin: 0;
+    display: block;
+    width: 92vw;
+    height: calc(100vh - 152px);
+  }
+  h1 svg { display: block; width: 100%; height: 100%; }
+  h1 text {
+    font-family: "Anton", "Helvetica Neue", sans-serif;
+    font-weight: 400;
+    letter-spacing: -0.02em;   /* -2% */
+    fill: #111;
+  }
   /* the headline voice — swap the family here to try the alternates:
      "Anton"  |  "Special Gothic Condensed One" */
   h1 {
@@ -98,7 +116,51 @@
 </head>
 <body>
   <div class="slide">
-    <h1>Hello!</h1>
+    <h1><svg id="hello" role="img" aria-label="Hello!"
+             preserveAspectRatio="xMidYMid meet" viewBox="0 0 100 100">
+      <text x="0" y="0" font-size="100">Hello!</text>
+    </svg></h1>
   </div>
+<script>
+(() => {
+  // THE VIEWBOX IS THE WORD'S INK, MEASURED. A font-size cannot fill a box on
+  // its own: the em box carries ascender and descender room this word does not
+  // use — "Hello!" has no descender at all — so type sized to the box always
+  // sits high in it with a band of nothing underneath. Measuring the actual
+  // ink and making THAT the viewBox hands the fitting to preserveAspectRatio,
+  // which lands it exactly, centred, at any stage size, with no magic number
+  // for the cap height and no second guess about the baseline.
+  //
+  // canvas rather than a DOM measurement because it reports the ink box
+  // directly — actualBoundingBox* is the painted extent, not the line box —
+  // and because it works while the deck has the slide PARKED, where a layout
+  // read measures zero and requestAnimationFrame never runs.
+  const svg = document.getElementById('hello');
+  const t = svg.querySelector('text');
+  const WORD = 'Hello!';
+
+  function fit() {
+    const c = document.createElement('canvas').getContext('2d');
+    c.font = '400 100px Anton, sans-serif';
+    try { c.letterSpacing = '-0.02em'; } catch (_) {}   // match the CSS; ignored where unsupported
+    const m = c.measureText(WORD);
+    const l = m.actualBoundingBoxLeft, r = m.actualBoundingBoxRight;
+    const a = m.actualBoundingBoxAscent, d = m.actualBoundingBoxDescent;
+    const w = l + r, h = a + d;
+    if (!(w > 0 && h > 0)) return false;
+    // the text sits with its baseline on the origin, so the ink runs from
+    // -left to +right across and -ascent to +descent down.
+    svg.setAttribute('viewBox', (-l) + ' ' + (-a) + ' ' + w + ' ' + h);
+    return true;
+  }
+
+  fit();
+  // Anton is font-display: block, so the first read can land on nothing.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.load('400 100px Anton').catch(() => {}).then(() => fit());
+    document.fonts.ready.then(fit).catch(() => {});
+  }
+})();
+</script>
 </body>
 </html>
