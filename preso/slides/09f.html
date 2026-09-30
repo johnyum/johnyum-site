@@ -66,6 +66,14 @@
      table — the same choices it makes when you tap through it on its own — so
      nothing here is a second copy of what the flow does.
 
+     HOVER MAGNIFIES, AND THE ROW HOLDS ITS WIDTH. Three sizes, the way a dock
+     has them: the phone under the pointer full size, the two either side of it
+     at a middle size, everything else smaller than it was. The ten scales are
+     solved to sum to ten whichever one is hot, so whatever the big one takes
+     is exactly what the others give up and the row pushes rather than spills.
+     An iframe swallows the pointer, so each cell carries a transparent pane
+     over its frame and that is what is hovered.
+
      THE CELL IS CROPPED TO THE PHONE. Slide 11 sizes its phone at 80vh of its
      own viewport, so a cell showing the whole viewport carries 20% dead
      margin. Each cell is therefore 800 of the 1000pt viewport tall, with the
@@ -116,11 +124,28 @@
     position: relative;
     flex: none;
     /* 391.3 x 800 of slide 11's viewport — the phone alone, not the 1000 the
-       viewport is tall. The 100pt of margin above it is cropped out below. */
+       viewport is tall. The 100pt of margin above it is cropped out below.
+       A cell carries its OWN --k when the row is magnified, which resizes the
+       box, rescales the frame inside it and moves the crop in one go. */
     width: calc(391.3px * var(--k, 0.3));
     height: calc(800px * var(--k, 0.3));
     overflow: hidden;
+    transition: width var(--mag, 0ms) var(--spring),
+                height var(--mag, 0ms) var(--spring);
   }
+  /* A LITTLE OVERSHOOT, then it settles — a phone that arrives dead on the
+     number reads as a value being set, and one that carries a touch past and
+     comes back reads as a thing being moved. Not a real spring: one back-out
+     curve on every cell at once stays in step, where ten independent springs
+     drift apart and the row stops looking like a row. */
+  .row { --spring: cubic-bezier(0.34, 1.4, 0.64, 1); }
+
+  /* AN IFRAME SWALLOWS THE POINTER. Hover never reaches this document through
+     one, so each cell carries a transparent pane over its frame and that is
+     what is actually hovered. It takes the clicks too, which is right: a cell
+     is a picture of a screen here, not a screen. */
+  .hit { position: absolute; inset: 0; z-index: 2; }
+  .row.waiting { pointer-events: none; }        /* not while the intro holds */
 
   /* The lead-in, centred on the stage by the stage. --s is how much bigger
      than a row cell it is; the tap takes it to 1 and to nothing. */
@@ -149,6 +174,8 @@
     border: 0; display: block;
     transform: scale(var(--k, 0.3));
     transform-origin: top left;
+    transition: transform var(--mag, 0ms) var(--spring),
+                top var(--mag, 0ms) var(--spring);
   }
 </style>
 </head>
@@ -213,6 +240,9 @@
       setTimeout(() => park(cell), 1400);
     });
     cell.appendChild(f);
+    const hit = document.createElement('i');    // the pointer's surface, over the frame
+    hit.className = 'hit';
+    cell.appendChild(hit);
     return cell;
   }
 
@@ -225,6 +255,7 @@
 
   let step = 0;
   let K = 0;                                // the scale fit() last set
+  let hot = -1;                             // the magnified cell, or -1
 
   function filmOf() {                       // the intro video inside the lead-in
     try { return intro.querySelector('iframe').contentDocument.getElementById('film'); }
@@ -243,6 +274,8 @@
   function setLead() {                      // beat 0
     step = 0;
     clearTimeout(nextT);
+    row.style.setProperty('--mag', '0ms');
+    hot = -1; magnify();
     cells.forEach(park);                   // back to ten unanswered questions
     hold(row, () => {
       row.classList.add('waiting');        // in place, invisible, rendering
@@ -275,8 +308,52 @@
         row.classList.remove('waiting');
       });
       row.classList.remove('offstage');
+      // The spring is armed only once the push has landed. Left on, a resize,
+      // a park or the push itself would each spring the ten for no reason.
+      setTimeout(() => row.style.setProperty('--mag', MAG + 'ms'), 560);
     }, DOWN + BEAT);
   }
+
+  // THE MAGNIFIER. Three sizes, the way a dock has them: the one under the
+  // pointer at full size, the two either side of it at a middle size, and
+  // everything else smaller than it was.
+  //
+  // THE ROW NEVER CHANGES WIDTH, which is what makes it push rather than
+  // spill. The ten scales are solved to sum to ten whichever cell is hot, so
+  // whatever the big one takes is exactly what the small ones give up — the
+  // small size is worked out rather than chosen. An end cell has one
+  // neighbour instead of two, so the arithmetic is done per hover.
+  const BIG = 1.6, MID = 1.25, MAG = 320;
+  function magnify() {
+    if (!K) return;
+    const n = cells.length;
+    // A short stage would let the big one grow past the top and bottom, so it
+    // is capped by what the height allows before anything else is solved.
+    const big = Math.min(BIG, (slide.clientHeight * 0.94) / (PH * K));
+    const near = hot < 0 ? [] : [hot - 1, hot + 1].filter(i => i >= 0 && i < n);
+    const small = (n - big - near.length * MID) / (n - 1 - near.length);
+    cells.forEach((c, i) => {
+      const f = hot < 0 ? 1 : i === hot ? big : near.indexOf(i) >= 0 ? MID : small;
+      c.style.setProperty('--k', K * f);
+    });
+  }
+
+  // ONE LISTENER ON THE ROW, and the cell is worked out from where the pointer
+  // is — not a mouseenter per cell. Crossing from one cell to the next would
+  // fire a leave and then an enter, dropping the whole row back to rest for a
+  // frame on every crossing, and the gaps between cells belong to whichever
+  // cell is nearest rather than to nobody.
+  row.addEventListener('mousemove', e => {
+    let best = -1, d = Infinity;
+    cells.forEach((c, i) => {
+      const r = c.getBoundingClientRect();
+      const gap = e.clientX < r.left ? r.left - e.clientX
+                : e.clientX > r.right ? e.clientX - r.right : 0;
+      if (gap < d) { d = gap; best = i; }
+    });
+    if (best !== hot) { hot = best; magnify(); }
+  });
+  row.addEventListener('mouseleave', () => { hot = -1; magnify(); });
 
   // THE ARITHMETIC. Ten cells in a row with a tenth of a cell between them is
   // 10 + 0.9 = 10.9 cells across, and the cell width falls out of the space.
@@ -287,8 +364,9 @@
     const kW = (w * 0.94 / (n + GAPC * (n - 1))) / VW;
     const kH = (h * 0.84) / PH;
     K = Math.min(kW, kH);
-    slide.style.setProperty('--k', K);
+    slide.style.setProperty('--k', K);        // the lead-in reads this one
     slide.style.setProperty('--gap', VW * K * GAPC + 'px');
+    magnify();                                // the cells carry their own
     // how much bigger the lead-in is than a row cell: slide 11's own phone
     // height over the height a cell gives it.
     slide.style.setProperty('--s', Math.min(h * 0.8, 1080) / (PH * K));
