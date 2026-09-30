@@ -175,8 +175,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .dur-row { display: flex; align-items: center; justify-content: space-between; font-size: 14px; line-height: 18px; white-space: nowrap; }
 .dur-row .k { font-weight: 600; }
 .dur-row .v { font-weight: 400; color: var(--grey700); }
-.dur-track { position: relative; height: 20px; }
-.dur-track img { position: absolute; left: 0; top: -4px; width: 100%; height: 36px; }
+/* Built rather than dropped in as the exported SVG, because the knob has to
+   move: rail is any duration, so it sits hard right, where flights and driving
+   sit at the frame's 62%. --pos is the one number that says where. */
+.dur-track { position: relative; height: 20px; --pos: 62%; }
+.dur-track .rail { position: absolute; left: 0; right: 0; top: 9px; height: 2px; border-radius: 2px; background: var(--grey400); }
+.dur-track .fill { position: absolute; left: 0; top: 9px; height: 2px; border-radius: 2px; background: var(--grey1000); width: var(--pos); transition: width 420ms var(--ease); }
+.dur-track .knob { position: absolute; top: 0; left: var(--pos); width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: var(--grey1000); transition: left 420ms var(--ease); }
 
 /* City layer rows */
 .rows { display: flex; flex-direction: column; gap: 12px; flex: none; }
@@ -447,7 +452,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
     <div class="dur">
       <div class="dur-row"><p class="k">Travel time</p><p class="v">Under 8 hours</p></div>
-      <div class="dur-track"><img src="assets/icons/slider.svg" alt=""></div>
+      <div class="dur-track"><i class="rail"></i><i class="fill"></i><i class="knob"></i></div>
     </div>
   </div>
 
@@ -506,7 +511,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 </div>
 
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.13.0/mapbox-gl.js"></script>
-<script src="assets/zephyr.js"></script>
+<script src="assets/rail.js"></script>
 <script>
 (function () {
   'use strict';
@@ -561,19 +566,29 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     [-116.98, 36.46], [-119.29, 34.27], [-117.16, 32.72], [-122.03, 36.97],
     [-121.64, 41.49], [-118.78, 39.53]
   ];
-  var TAHOE = [-120.04, 39.09];   // the leg the driving map draws, SF to the lake
 
   // ── Rail: the California Zephyr, and what the whole way costs you in time.
+  // Twelve long-distance lines is a national network, so the destinations are
+  // national too: every one of these is reachable from SF on the routes drawn
+  // under it, and the hours are the whole way, changes included.
   var RAILS = [
     { n: 'Reno',           t: '5hrs',    ll: [-119.81, 39.53] },
+    { n: 'Portland',       t: '18hrs',   ll: [-122.68, 45.52] },
+    { n: 'Seattle',        t: '23hrs',   ll: [-122.33, 47.61] },
+    { n: 'Los Angeles',    t: '12hrs',   ll: [-118.24, 34.05] },
     { n: 'Salt Lake City', t: '12hrs',   ll: [-111.89, 40.76] },
     { n: 'Denver',         t: '16hrs',   ll: [-104.99, 39.74] },
+    { n: 'Albuquerque',    t: '1d 8hrs', ll: [-106.65, 35.08] },
     { n: 'Omaha',          t: '1 day',   ll: [ -95.94, 41.26] },
-    { n: 'Chicago',        t: '1d 3hrs', ll: [ -87.63, 41.88] }
+    { n: 'New Orleans',    t: '2d 5hrs', ll: [ -90.07, 29.95] },
+    { n: 'Chicago',        t: '1d 3hrs', ll: [ -87.63, 41.88] },
+    { n: 'New York',       t: '2d 8hrs', ll: [ -74.01, 40.71] },
+    { n: 'Miami',          t: '3d 2hrs', ll: [ -80.19, 25.76] }
   ];
   var RAIL_DOTS = [
-    [-121.49, 38.58], [-117.70, 40.78], [-114.00, 40.74], [-108.55, 39.06],
-    [-105.85, 39.74], [-102.00, 40.60], [ -98.50, 40.90], [ -91.53, 41.52]
+    [-121.49, 38.58], [-117.70, 40.78], [-108.55, 39.06], [-102.00, 40.60],
+    [ -94.58, 39.10], [ -90.05, 35.15], [ -84.39, 33.75], [ -79.99, 40.44],
+    [ -81.69, 41.50], [-106.49, 31.76], [ -98.49, 29.42], [ -93.27, 44.98]
   ];
 
   var HOODS = [
@@ -726,7 +741,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   var NYC_CAM  = { center: [-73.95, 40.72], zoom: 10.05, narrow: 0.1 };
   var HOOD_CAM = { center: [-73.9560, 40.7117], zoom: 13.8, narrow: 0.01 };
   var DRIVE_CAM = { center: [-119.0, 38.2], zoom: 5.75, narrow: 2 };
-  var RAIL_CAM  = { center: [-103.8, 40.3], zoom: 4.0,  narrow: 8 };
+  var RAIL_CAM  = { center: [-95.5, 37.4],  zoom: 3.4,  narrow: 6 };
 
   // ── Map ─────────────────────────────────────────────────────────────────
   var map = new mapboxgl.Map({
@@ -845,7 +860,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
   // A drive and a rail leg are the same pill as a city price — bold name, the
   // interpunct, then the value in Book. Only the value is hours, not dollars.
-  function makeTimed(cls, glyph, d) {
+  function makeTimed(cls, glyph, d, hover) {
     var pin = '<div class="pin"><i class="stem"></i><i class="head">' +
               '<img src="assets/icons/' + glyph + '" alt=""></i></div>';
     var o = mk('mk-city ' + cls, 142, 36,
@@ -853,6 +868,14 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       'bottom-left', [-14, 0]);
     o.marker.setLngLat(d.ll);
     o.el.style.cursor = 'default';
+    if (hover) {
+      // The road, and only the road. The pill is already carrying the hours,
+      // so a chip sitting on the line just says the same thing twice.
+      o.el.addEventListener('mouseenter', function () {
+        showDrives([{ ll: ME, fallback: null }], d.ll);
+      });
+      o.el.addEventListener('mouseleave', hideRoute);
+    }
     return o;
   }
 
@@ -866,7 +889,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   var usaSet  = CITIES.map(makeCity).concat(DOTS.map(makeDot), [makeMe()]);
   var citySet = HOODS.map(makeHood).concat(AIRPORTS.map(makeAir), NYC_DOTS.map(makeDot));
   var hoodSet = PRICES.map(makePrice);
-  var driveSet = DRIVES.map(function (d) { return makeTimed('mk-drive', 'pin-car.svg', d); })
+  var driveSet = DRIVES.map(function (d) { return makeTimed('mk-drive', 'pin-car.svg', d, true); })
     .concat(DRIVE_DOTS.map(function (ll) { return makeDot(ll, 'mk-drive'); }), [makeMe()]);
   var railSet = RAILS.map(function (d) { return makeTimed('mk-rail', 'pin-train.svg', d); })
     .concat(RAIL_DOTS.map(function (ll) { return makeDot(ll, 'mk-rail'); }), [makeMe()]);
@@ -969,15 +992,17 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       })
     });
     map.setPaintProperty('route-line', 'line-opacity', 0.9);
-    legs.forEach(function (l, i) {
-      var c = chipAt(i);
+    var shown = 0;
+    legs.forEach(function (l) {
+      if (!l.label) return;               // the pill already says how long it takes
+      var c = chipAt(shown++);
       c.el.querySelector('.mi').innerHTML =
         '<div class="chip"><img src="assets/icons/clock.svg" alt="">' + l.label + '</div>';
       c.marker.setLngLat(midpoint(l.line));
       if (!c.added) { c.marker.addTo(map); c.added = true; }
       requestAnimationFrame(function () { c.el.classList.add('in'); });
     });
-    for (var j = legs.length; j < chips.length; j++) chips[j].el.classList.remove('in');
+    for (var j = shown; j < chips.length; j++) chips[j].el.classList.remove('in');
   }
 
   function hideRoute() {
@@ -1007,7 +1032,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       var key = o.ll.join(',') + ';' + to.join(',');
       var done = function (r) {
         if (gen !== hoverGen || !r) return;
-        legs[i] = { line: r.line, label: mins(r.dur) };
+        // A leg that asked for no chip keeps none when its road lands.
+        legs[i] = { line: r.line, label: o.fallback === null ? null : mins(r.dur) };
         paint(legs);
       };
       if (driveCache[key]) { done(driveCache[key]); return; }
@@ -1028,36 +1054,18 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
   // A transport beat draws its own line and keeps it for as long as the beat
   // lasts — unlike a hover leg, which belongs to the pointer. Rail is the
-  // California Zephyr's real alignment; driving is SF to the lake, asked of
-  // Directions like every other drive in here rather than guessed.
+  // real Amtrak long-distance network; driving draws nothing until you hover.
   function showModeRoute(beat) {
     if (!map.getLayer('mode-route-line')) return;
     var src = map.getSource('mode-route');
     if (beat === 'rail') {
-      src.setData({ type: 'Feature', geometry: { type: 'MultiLineString', coordinates: window.ZEPHYR || [] } });
+      src.setData({ type: 'Feature', geometry: { type: 'MultiLineString', coordinates: window.RAIL_LINES || [] } });
       map.setPaintProperty('mode-route-line', 'line-opacity', 0.9);
       return;
     }
-    if (beat === 'drive') {
-      var key = ME.join(',') + ';' + TAHOE.join(',');
-      var put = function (coords) {
-        if (state !== 'drive') return;
-        src.setData({ type: 'Feature', geometry: { type: 'MultiLineString', coordinates: [coords] } });
-        map.setPaintProperty('mode-route-line', 'line-opacity', 0.9);
-      };
-      if (driveCache[key]) { put(driveCache[key].line); return; }
-      put(arc(ME, TAHOE, 0.1));   // a stand-in until the road lands
-      fetch('https://api.mapbox.com/directions/v5/mapbox/driving-traffic/' +
-            ME.join(',') + ';' + TAHOE.join(',') +
-            '?geometries=geojson&overview=full&access_token=' + mapboxgl.accessToken)
-        .then(function (r) { return r.json(); })
-        .then(function (j) {
-          var rt = j && j.routes && j.routes[0]; if (!rt) return;
-          driveCache[key] = { line: rt.geometry.coordinates, dur: rt.duration };
-          put(driveCache[key].line);
-        }).catch(function () {});
-      return;
-    }
+    // Driving draws nothing by itself. One road standing on the map says Tahoe
+    // is the trip, when the whole point of the beat is the eight places you
+    // could pick — so the road is the answer to a hover, not the opening state.
     map.setPaintProperty('mode-route-line', 'line-opacity', 0);
   }
 
@@ -1096,9 +1104,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // says which way a move is going. Same depth means a sideways move: the whole
   // field leaves together and the new one arrives, no marker held back.
   var BEATS = {
-    drive: { cam: DRIVE_CAM, set: driveSet, layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 0 },
-    usa:   { cam: USA_CAM,   set: usaSet,   layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 1 },
-    rail:  { cam: RAIL_CAM,  set: railSet,  layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 2 },
+    drive: { cam: DRIVE_CAM, set: driveSet, layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 0, dur: ['62%', 'Under 8 hours'] },
+    usa:   { cam: USA_CAM,   set: usaSet,   layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 1, dur: ['62%', 'Under 8 hours'] },
+    rail:  { cam: RAIL_CAM,  set: railSet,  layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 2, dur: ['100%', 'Any duration'] },
     nyc:   { cam: NYC_CAM,   set: citySet,  layer: 'layerCity', cls: 'is-city', tab: 0, depth: 1 },
     hood:  { cam: HOOD_CAM,  set: hoodSet,  layer: 'layerHood', cls: 'is-hood', tab: 1, depth: 2 }
   };
@@ -1194,9 +1202,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // The picker is three beats and a fourth chip. Walking has no map of its own
   // in the frames, so it highlights and stops there rather than inventing one.
   var modeBtns = document.querySelectorAll('.modes .mode');
+  var durTrack = document.querySelector('.dur-track');
+  var durValue = document.querySelector('.dur-row .v');
   function syncModes(beat) {
     if (beat.mode === undefined) return;
     modeBtns.forEach(function (x, i) { x.classList.toggle('is-on', i === beat.mode); });
+    // Two days on a train is not "under 8 hours" — the filter has to say so.
+    if (beat.dur) { durTrack.style.setProperty('--pos', beat.dur[0]); durValue.textContent = beat.dur[1]; }
   }
   document.querySelector('.modes').addEventListener('click', function (e) {
     var m = e.target.closest('.mode'); if (!m) return;
