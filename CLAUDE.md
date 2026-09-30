@@ -177,6 +177,17 @@ Things that were learned the hard way and should not be undone:
   limb behind the pins is a different drawing.
 - **The camera is padded, not re-centred.** The card eats the left column, so
   `PAD()` carries it (428 wide, 764 on the neighbourhood beat).
+- **The Williamsburg outline is real data**, not a sketch: the union of the
+  Williamsburg (BK0102) and South Williamsburg (BK0103) Neighborhood Tabulation
+  Areas from NYC Open Data, simplified to 3e-6 degrees (about a third of a
+  screen pixel at z13.8). Hand-drawn chords read as wrong here because the
+  streets and the shoreline are visible underneath them. The price pills are
+  scattered inside that polygon — regenerate them if the boundary ever changes.
+- **The Figma icon exports carry `preserveAspectRatio="none"`**, so putting one
+  in a box of the wrong ratio silently stretches it: the 22.5×19.66 wishlist
+  heart in a 24×24 box was 22% too tall. The like button is the Trips one,
+  inline (the fill has to change when saved), and the star is sized to its own
+  7.88×7.52.
 - **The frames' pins are placed by hand in Figma, not projected**, so their
   positions are approximate. The composition is matched; the coordinates are real.
 - `cam()` gives back one octave of zoom per halving of viewport width, so a phone

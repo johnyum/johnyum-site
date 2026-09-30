@@ -122,6 +122,14 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
    full content width of the (much wider) card rather than the frames' 340 —
    at 340 the title and the filter icon simply run out past the white. */
 #layerHood .search { width: 668px; }
+/* The listings run to the bottom edge of the card. The shell's 48 bottom
+   padding sits OUTSIDE the scroll box, so it reads as a permanent white band
+   under a list that is visibly still going — a scrim, not breathing room. The
+   padding moves inside the scroller, where it is only spent once you have
+   actually reached the end. The card's own overflow clips the last row to the
+   rounded corner. */
+#layerHood { padding-bottom: 0; }
+#layerHood .grid { padding-bottom: 24px; }
 
 /* Vibe cards */
 .vibes { display: flex; align-items: center; gap: 4px; flex: none; }
@@ -194,12 +202,20 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .home { display: flex; flex-direction: column; gap: 12px; }
 .home .shot { position: relative; }
 .home .shot img.ph { width: 100%; aspect-ratio: 219.33 / 210; object-fit: cover; border-radius: 16.55px; }
+/* The like button is the Trips one, inline rather than an <img>, because the
+   fill has to change when it is saved. The Figma export could not be used as
+   drawn: it is a 22.5x19.66 viewBox carrying preserveAspectRatio="none", so
+   asking for the design's 24x24 box stretched the heart 22% tall. */
 .home .heart { position: absolute; right: 12px; top: 12px; width: 24px; height: 24px; }
+.home .heart svg { width: 24px; height: 24px; display: block; transition: transform 150ms cubic-bezier(.2,.9,.3,1.3); }
+.home .heart:active svg { transform: scale(.86); }
+.home .heart path { fill: rgba(0,0,0,.45); stroke: #fff; stroke-width: 2; transition: fill 180ms var(--ease); }
+.home .heart.saved path { fill: var(--rausch600); }
 .home .meta { padding: 0 4px; display: flex; flex-direction: column; gap: 2px; }
 .home .ht { font-size: 13px; line-height: 16px; font-weight: 500; }
 .home .hp { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 12px; line-height: 16px; color: #6a6a6a; }
 .home .hp .sep { color: var(--grey500); }
-.home .hp .star { width: 11px; height: 11px; }
+.home .hp .star { width: 11px; height: 10.5px; }   /* its viewBox is 7.88x7.52, not square */
 
 /* price pills at neighbourhood depth — the number is the whole label */
 .mk-price { cursor: default; }
@@ -544,42 +560,78 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // The neighbourhood's own outline. Everything outside it is dimmed by a
   // world-sized polygon with this ring punched out of it — the one honest way
   // to say "this is the area" without redrawing the basemap.
+  // Williamsburg's actual boundary, not a sketch of one: the union of the
+  // Williamsburg (BK0102) and South Williamsburg (BK0103) Neighborhood
+  // Tabulation Areas from NYC Open Data, simplified to 3e-6 degrees — about a
+  // third of a screen pixel at this zoom, so every bend the render can show
+  // survives and nothing below that is carried. It follows the real East River
+  // shoreline (the piers at N 5th, the Domino slip, the Navy Yard bulkhead)
+  // and the real street lines inland: Union, Broadway, Flushing, the BQE.
+  // Hand-drawn chords read as wrong here, because the streets are underneath.
   var WBURG = [
-    // The waterfront, north to south: Bushwick Inlet down past the ferry, the
-    // Domino site and the bridge to Wallabout. The river is the one edge that
-    // has to be drawn properly — a straight line here reads as a mistake,
-    // because everyone can see the shoreline underneath it.
-    [-73.9680, 40.7243], [-73.9690, 40.7228], [-73.9700, 40.7210],
-    [-73.9706, 40.7196], [-73.9712, 40.7178], [-73.9718, 40.7162],
-    [-73.9722, 40.7146], [-73.9718, 40.7130], [-73.9712, 40.7114],
-    [-73.9716, 40.7100], [-73.9730, 40.7086], [-73.9738, 40.7070],
-    [-73.9736, 40.7052], [-73.9722, 40.7036], [-73.9706, 40.7022],
-    [-73.9690, 40.7008], [-73.9668, 40.6996],
-    // Flushing Avenue, west to east along the Navy Yard and Bed-Stuy line.
-    [-73.9640, 40.6982], [-73.9600, 40.6972], [-73.9560, 40.6968],
-    [-73.9510, 40.6972], [-73.9460, 40.6980], [-73.9420, 40.6988],
-    [-73.9390, 40.6996],
-    // Up Bushwick Avenue and the BQE.
-    [-73.9374, 40.7020], [-73.9366, 40.7048], [-73.9370, 40.7076],
-    [-73.9382, 40.7100], [-73.9396, 40.7122], [-73.9412, 40.7142],
-    [-73.9430, 40.7162],
-    // Meeker and Metropolitan, back west under McCarren to the river.
-    [-73.9452, 40.7180], [-73.9478, 40.7196], [-73.9506, 40.7214],
-    [-73.9532, 40.7232], [-73.9556, 40.7244], [-73.9584, 40.7250],
-    [-73.9612, 40.7252], [-73.9640, 40.7248], [-73.9680, 40.7243]
+    [-73.949838, 40.705229], [-73.948665, 40.704565], [-73.947052, 40.703664], [-73.946251, 40.703209],
+    [-73.943825, 40.701862], [-73.943064, 40.701424], [-73.941931, 40.700725], [-73.944388, 40.700425],
+    [-73.944618, 40.700405], [-73.947128, 40.700123], [-73.947248, 40.700105], [-73.950091, 40.699791],
+    [-73.951952, 40.699563], [-73.953370, 40.699405], [-73.956075, 40.699090], [-73.957020, 40.698974],
+    [-73.962840, 40.698039], [-73.962180, 40.700221], [-73.962519, 40.700473], [-73.963869, 40.701542],
+    [-73.964518, 40.702075], [-73.965874, 40.703158], [-73.966537, 40.703697], [-73.967210, 40.704256],
+    [-73.967615, 40.704962], [-73.967951, 40.705731], [-73.968383, 40.706829], [-73.967289, 40.707002],
+    [-73.965932, 40.707244], [-73.964423, 40.707534], [-73.963424, 40.707704], [-73.964423, 40.707534],
+    [-73.965932, 40.707244], [-73.967289, 40.707002], [-73.968383, 40.706829], [-73.969293, 40.707093],
+    [-73.969849, 40.708003], [-73.969942, 40.709302], [-73.969615, 40.710148], [-73.969605, 40.710271],
+    [-73.969686, 40.710322], [-73.970018, 40.710389], [-73.970042, 40.710402], [-73.970061, 40.710423],
+    [-73.970069, 40.710460], [-73.970060, 40.710485], [-73.970041, 40.710506], [-73.970013, 40.710520],
+    [-73.969981, 40.710526], [-73.969662, 40.710500], [-73.969631, 40.710657], [-73.969775, 40.710686],
+    [-73.969786, 40.710725], [-73.969785, 40.710745], [-73.969771, 40.710784], [-73.969739, 40.710821],
+    [-73.969692, 40.710847], [-73.969418, 40.710938], [-73.969374, 40.711021], [-73.969908, 40.711268],
+    [-73.969310, 40.711108], [-73.969235, 40.711241], [-73.969291, 40.711270], [-73.969234, 40.711433],
+    [-73.969145, 40.711457], [-73.969096, 40.711563], [-73.969080, 40.711623], [-73.968866, 40.712232],
+    [-73.968816, 40.712252], [-73.968865, 40.712272], [-73.968838, 40.712390], [-73.968941, 40.712419],
+    [-73.968872, 40.712579], [-73.968824, 40.712661], [-73.968784, 40.712757], [-73.968722, 40.712738],
+    [-73.968666, 40.712857], [-73.968498, 40.712807], [-73.968470, 40.712825], [-73.968473, 40.712853],
+    [-73.968442, 40.712938], [-73.968560, 40.712987], [-73.968507, 40.713105], [-73.968849, 40.713213],
+    [-73.968391, 40.714262], [-73.968008, 40.715121], [-73.967364, 40.716484], [-73.967240, 40.716588],
+    [-73.967260, 40.716671], [-73.967105, 40.716908], [-73.967251, 40.716987], [-73.966747, 40.717738],
+    [-73.966562, 40.718016], [-73.966552, 40.718038], [-73.966527, 40.718032], [-73.966313, 40.718317],
+    [-73.966198, 40.718255], [-73.966142, 40.718304], [-73.965743, 40.718707], [-73.965524, 40.718919],
+    [-73.965120, 40.719227], [-73.965182, 40.719270], [-73.965228, 40.719309], [-73.965274, 40.719356],
+    [-73.965318, 40.719411], [-73.965343, 40.719452], [-73.965372, 40.719513], [-73.965391, 40.719569],
+    [-73.965402, 40.719621], [-73.965407, 40.719685], [-73.965403, 40.719743], [-73.965367, 40.719911],
+    [-73.965343, 40.719984], [-73.965312, 40.720055], [-73.965274, 40.720125], [-73.965228, 40.720192],
+    [-73.965176, 40.720256], [-73.965117, 40.720316], [-73.965033, 40.720377], [-73.964479, 40.720036],
+    [-73.964382, 40.720139], [-73.964334, 40.720208], [-73.964448, 40.720277], [-73.964335, 40.720387],
+    [-73.964397, 40.720442], [-73.964066, 40.720800], [-73.963998, 40.720938], [-73.963539, 40.721573],
+    [-73.963438, 40.721559], [-73.962966, 40.722034], [-73.962757, 40.722399], [-73.962235, 40.723570],
+    [-73.962073, 40.723880], [-73.962007, 40.723992], [-73.961894, 40.724107], [-73.961660, 40.724860],
+    [-73.962115, 40.725148], [-73.961902, 40.725321], [-73.961761, 40.725229], [-73.961537, 40.725109],
+    [-73.961413, 40.725177], [-73.961164, 40.725265], [-73.960432, 40.725114], [-73.960367, 40.725047],
+    [-73.958759, 40.724541], [-73.958331, 40.724412], [-73.958143, 40.724404], [-73.957720, 40.724285],
+    [-73.954777, 40.722460], [-73.954183, 40.722636], [-73.952496, 40.723218], [-73.951646, 40.723486],
+    [-73.950646, 40.721706], [-73.949866, 40.722179], [-73.949078, 40.722540], [-73.948416, 40.718456],
+    [-73.947213, 40.718561], [-73.948322, 40.717865], [-73.949043, 40.717429], [-73.949831, 40.716901],
+    [-73.951144, 40.716035], [-73.951842, 40.715442], [-73.952109, 40.715259], [-73.952754, 40.714736],
+    [-73.953353, 40.714184], [-73.953485, 40.714070], [-73.952910, 40.714061], [-73.951624, 40.714066],
+    [-73.949372, 40.714067], [-73.949245, 40.713320], [-73.948655, 40.709725], [-73.950875, 40.709513],
+    [-73.950830, 40.709144], [-73.950760, 40.708803], [-73.950659, 40.708170], [-73.950406, 40.706653],
+    [-73.950289, 40.705913], [-73.950237, 40.705473], [-73.950956, 40.705843], [-73.951911, 40.706360],
+    [-73.952300, 40.706490], [-73.952515, 40.706559], [-73.952914, 40.706700], [-73.953379, 40.706856],
+    [-73.954017, 40.707080], [-73.955542, 40.707593], [-73.957904, 40.708427], [-73.955542, 40.707593],
+    [-73.954017, 40.707080], [-73.953379, 40.706856], [-73.952914, 40.706700], [-73.952515, 40.706559],
+    [-73.951911, 40.706360], [-73.950956, 40.705843], [-73.950237, 40.705473], [-73.949838, 40.705229]
   ];
 
   // Nightly prices scattered through it. No names — at this depth the number
   // is the whole label.
   var PRICES = [
-    [496, -73.9640, 40.7212], [837, -73.9598, 40.7198], [496, -73.9500, 40.7208],
-    [485, -73.9678, 40.7158], [385, -73.9658, 40.7140], [284, -73.9548, 40.7172],
-    [725, -73.9578, 40.7132], [496, -73.9452, 40.7168], [496, -73.9438, 40.7150],
-    [496, -73.9430, 40.7120], [456, -73.9632, 40.7092], [834, -73.9552, 40.7098],
-    [643, -73.9418, 40.7085], [474, -73.9408, 40.7068], [392, -73.9612, 40.7048],
-    [325, -73.9512, 40.7042], [394, -73.9480, 40.7035], [345, -73.9438, 40.7022],
-    [452, -73.9425, 40.7008], [482, -73.9545, 40.7012], [592, -73.9478, 40.6998],
-    [492, -73.9462, 40.6990], [294, -73.9592, 40.6995]
+    [496, -73.9616, 40.7216], [837, -73.9581, 40.7205], [496, -73.9534, 40.7192],
+    [485, -73.9644, 40.7177], [385, -73.9571, 40.7176], [284, -73.9604, 40.7165],
+    [725, -73.9659, 40.7154], [496, -73.9562, 40.7153], [496, -73.9631, 40.7143],
+    [496, -73.9578, 40.7132], [456, -73.9646, 40.7120], [834, -73.9685, 40.7108],
+    [643, -73.9599, 40.7105], [474, -73.9551, 40.7104], [392, -73.9639, 40.7090],
+    [325, -73.9538, 40.7061], [394, -73.9577, 40.7060], [345, -73.9644, 40.7051],
+    [452, -73.9613, 40.7048], [482, -73.9491, 40.7035], [592, -73.9586, 40.7016],
+    [492, -73.9618, 40.7008], [294, -73.9559, 40.7004]
+  
   ];
 
   // The nine listings on the panel, in the frame's own order.
@@ -626,7 +678,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
   var USA_CAM  = { center: [-95.5, 36.8], zoom: 3.42, narrow: 6 };
   var NYC_CAM  = { center: [-73.95, 40.72], zoom: 10.05, narrow: 0.1 };
-  var HOOD_CAM = { center: [-73.9545, 40.7100], zoom: 13.75, narrow: 0.01 };
+  var HOOD_CAM = { center: [-73.9560, 40.7117], zoom: 13.8, narrow: 0.01 };
 
   // ── Map ─────────────────────────────────────────────────────────────────
   var map = new mapboxgl.Map({
@@ -913,13 +965,20 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     return '<article class="home">' +
       '<div class="shot">' +
         '<img class="ph" src="assets/img/home-' + (i + 1) + '.jpg" alt="">' +
-        '<img class="heart" src="assets/icons/heart.svg" alt="Save">' +
+        '<button class="heart" type="button" aria-label="Save"><svg viewBox="0 0 32 32">' +
+        '<path d="M16 28C9 23.4 3 18.7 3 11.9 3 8.1 6 5 9.8 5c2.5 0 4.8 1.3 6.2 3.5C17.4 6.3 19.7 5 22.2 5 26 5 29 8.1 29 11.9c0 6.8-6 11.5-13 16.1z"/>' +
+        '</svg></button>' +
       '</div>' +
       '<div class="meta"><p class="ht">' + h.t + '</p>' +
       '<p class="hp"><span>' + h.p + ' for 1 week</span><span class="sep">·</span>' +
       '<img class="star" src="assets/icons/star.svg" alt="">' + h.r + '</p></div>' +
     '</article>';
   }).join('');
+
+  document.getElementById('homeGrid').addEventListener('click', function (e) {
+    var h = e.target.closest('.heart'); if (!h) return;
+    h.classList.toggle('saved');
+  });
 
   // Vibe cards are a one-of-four ring, per layer.
   document.querySelectorAll('.vibes').forEach(function (row) {
