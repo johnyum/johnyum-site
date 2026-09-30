@@ -109,7 +109,13 @@
 
   // Coming back replays it — the deck keeps the slide, so without this it
   // would sit on its last frame for ever after one viewing.
-  addEventListener('presoshown', () => { if (armed) play(); });
+  //
+  // The `v.paused` guard is not cosmetic: the deck fires presoshown more than
+  // once on a single arrival, and without it the second one restarted a video
+  // that was already half a second in. On the page that was a visible stutter
+  // — 0.39s, then back to 0.13. A video already running is mid-arrival and is
+  // left alone; one sitting paused on its last frame is a genuine return.
+  addEventListener('presoshown', () => { if (armed && v.paused) play(); });
 
   window.presoNext = () => false;             // no builds
   window.presoPrev = () => false;
