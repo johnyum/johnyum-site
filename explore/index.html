@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Explore — map drill-in</title>
+<meta name="description" content="Airbnb Explore concept: the continent-wide map of priced cities, and the flight into one of them.">
+
+<!-- Mapbox GL JS 3.13 — the same version and the same Standard/faded basemap recipe the Trips
+     build uses, so this concept reads as the same map even though it ships on its own. -->
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.13.0/mapbox-gl.css" rel="stylesheet">
+
+<style>
+/* ── Type ───────────────────────────────────────────────────────────────────
+   Airbnb Cereal VF, one variable file covering Book 400 → Bold 700. Same face
+   the multi/ and multical/ concepts in this repo already carry. */
+@font-face {
+  font-family: 'Cereal';
+  src: url('fonts/AirbnbCerealVF_Wght.ttf') format('truetype');
+  font-weight: 100 900; font-style: normal; font-display: swap;
+}
+
+/* ── Tokens ─────────────────────────────────────────────────────────────────
+   Airbnb DLS values as they came out of the Figma frame — grey ramp, rausch,
+   the blue the airport cards are painted in, and the three elevations. */
+:root {
+  --grey0:#ffffff; --grey300:#ebebeb; --grey400:#dddddd; --grey500:#c1c1c1;
+  --grey700:#6c6c6c; --grey1000:#222222;
+  --rausch600:#ff385c; --blue1:#2f80ed; --orange600:#eb6100;
+
+  --elev1: 0 0 0 1px rgba(0,0,0,.05), 0 2px 4px rgba(0,0,0,.16);
+  --elev2: 0 0 0 1px rgba(0,0,0,.02), 0 2px 6px rgba(0,0,0,.04), 0 4px 8px rgba(0,0,0,.1);
+  --elev3: 0 0 0 1px rgba(0,0,0,.02), 0 2px 16px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.1);
+  --elev4: 0 0 0 1px rgba(0,0,0,.02), 0 4px 8px rgba(0,0,0,.08), 0 12px 30px rgba(0,0,0,.18);
+
+  /* The one easing everything in this file moves on. Slow out of the gate,
+     long tail — the camera and the chrome have to look like one gesture. */
+  --ease: cubic-bezier(.22,.61,.24,1);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: #e9e5de; overflow: hidden;
+  font-family: 'Cereal', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  color: var(--grey1000); -webkit-font-smoothing: antialiased;
+}
+img { display: block; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+
+/* ── Map ────────────────────────────────────────────────────────────────── */
+#map { position: fixed; inset: 88px 0 0 0; }
+.mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib { opacity: .45; }
+.mapboxgl-ctrl-bottom-left { left: 428px; }   /* clear of the panel */
+
+/* ── Header ─────────────────────────────────────────────────────────────────
+   1512×88 in the frame: logo at 32, the three tabs centred, profile + menu
+   right. Flat px — this bar does not scale with the viewport. */
+.hdr {
+  position: fixed; top: 0; left: 0; right: 0; height: 88px; z-index: 30;
+  background: #fff; display: flex; align-items: center; padding: 0 32px;
+}
+.hdr-logo { width: 102px; height: 32px; flex: none; }
+.hdr-nav { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 40px; height: 40px; }
+.hdr-tab { display: flex; align-items: center; gap: 12px; height: 40px; position: relative; }
+.hdr-tab img { width: 32px; height: 32px; border-radius: 6px; }
+.hdr-tab span { font-size: 16px; line-height: 20px; font-weight: 500; }
+.hdr-tab.is-on span { font-weight: 600; }
+.hdr-tab.is-on::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -22px; height: 2px;
+  background: var(--grey1000); border-radius: 2px;
+}
+.hdr-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.hdr-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+.hdr-menu {
+  width: 40px; height: 40px; border-radius: 50%; background: #f2f2f2;
+  display: flex; align-items: center; justify-content: center;
+}
+.hdr-menu img { width: 14px; }
+
+/* ── The card ───────────────────────────────────────────────────────────────
+   One shell, two content layers. The shell's height is what animates; the
+   layers cross-fade inside it. That is the whole morph. */
+.card {
+  position: fixed; left: 24px; top: 112px; width: 380px; z-index: 20;
+  background: #fff; border-radius: 24px; box-shadow: var(--elev1);
+  overflow: hidden; height: 504px; max-height: calc(100vh - 136px);
+  transition: height 700ms var(--ease), width 700ms var(--ease);
+}
+.card.is-city { height: 576px; }
+.layer {
+  position: absolute; inset: 0; padding: 20px 24px 48px;
+  display: flex; flex-direction: column; align-items: center; gap: 32px;
+  transition: opacity 280ms var(--ease), transform 480ms var(--ease);
+}
+.layer[data-hidden] { opacity: 0; pointer-events: none; }
+#layerUsa[data-hidden]  { transform: translateY(-14px); }
+#layerCity, #layerHood  { transform: translateY(14px); }
+#layerCity:not([data-hidden]),
+#layerHood:not([data-hidden]) { transform: none; transition-delay: 160ms; }
+
+/* Search pill — 340×56, radius 100 */
+.search {
+  width: 340px; height: 56px; flex: none; border: 1px solid var(--grey400);
+  border-radius: 100px; background: #fff; box-shadow: 0 8px 12px rgba(0,0,0,.1);
+  display: flex; align-items: center; justify-content: space-between; padding: 13px 12px;
+}
+.search-btn { padding: 8px; border-radius: 100px; display: flex; align-items: center; }
+.search-btn img { width: 16px; height: 16px; }
+.search-mid { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.search-mid .t { font-size: 14px; line-height: 18px; font-weight: 600; white-space: nowrap; }
+.search-mid .s { font-size: 12px; line-height: 16px; font-weight: 400; color: var(--grey700); white-space: nowrap; }
+
+/* Vibe cards */
+.vibes { display: flex; align-items: center; gap: 4px; flex: none; }
+.vibe { position: relative; height: 100px; width: 80px; }
+.vibe .thumb {
+  position: absolute; top: 4px; left: 4px; width: 72px; height: 72px;
+  border-radius: 8px; object-fit: cover;
+}
+.vibe .lbl {
+  position: absolute; top: 84px; left: 4px; width: 72px;
+  font-size: 12px; line-height: 16px; font-weight: 600; text-align: center;
+}
+.vibe .ring {
+  position: absolute; top: 0; left: 0; width: 80px; height: 80px;
+  border: 2px solid #000; border-radius: 12px; opacity: 0;
+  transition: opacity 200ms var(--ease);
+}
+.vibe.is-on .ring { opacity: 1; }
+/* the city layer's cards are wider */
+#layerCity .vibe { width: 108px; }
+#layerCity .vibe .thumb { width: 100px; }
+#layerCity .vibe .lbl { width: 100px; }
+#layerCity .vibe .ring { width: 108px; }
+
+/* Divider + transport + slider (USA layer only) */
+.stack { display: flex; flex-direction: column; align-items: center; gap: 24px; flex: none; }
+.rule { width: 380px; height: 1px; background: var(--grey300); flex: none; }
+.modes { display: flex; align-items: center; justify-content: center; gap: 20px; width: 332px; height: 80px; padding: 8px; }
+.mode {
+  width: 64px; height: 64px; border-radius: 100px; background: #fff;
+  border: 1px solid var(--grey500); display: flex; align-items: center; justify-content: center;
+  transition: background 200ms var(--ease), border-color 200ms var(--ease);
+}
+.mode img { width: 20px; height: 20px; }
+.mode.is-on { background: var(--grey1000); border-color: var(--grey1000); }
+.dur { width: 324px; display: flex; flex-direction: column; gap: 16px; flex: none; }
+.dur-row { display: flex; align-items: center; justify-content: space-between; font-size: 14px; line-height: 18px; white-space: nowrap; }
+.dur-row .k { font-weight: 600; }
+.dur-row .v { font-weight: 400; color: var(--grey700); }
+.dur-track { position: relative; height: 20px; }
+.dur-track img { position: absolute; left: 0; top: -4px; width: 100%; height: 36px; }
+
+/* City layer rows */
+.rows { display: flex; flex-direction: column; gap: 12px; flex: none; }
+.row {
+  width: 332px; height: 88px; border: 1px solid var(--grey400); border-radius: 16px;
+  background: #fff; display: flex; align-items: center; justify-content: space-between;
+  padding: 24px 20px; transition: box-shadow 200ms var(--ease), transform 200ms var(--ease);
+}
+.row:hover { box-shadow: var(--elev2); transform: translateY(-1px); }
+.row .rt { font-size: 14px; line-height: 18px; font-weight: 600; white-space: nowrap; }
+.row .rs { font-size: 12px; line-height: 16px; font-weight: 400; color: var(--grey700); white-space: nowrap; }
+.row .rc { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.badge { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; flex: none; }
+.badge img.p { width: 12px; height: 12px; }
+.badge img.i { width: 16px; height: 16px; }
+
+/* ── Neighbourhood layer ────────────────────────────────────────────────────
+   The card nearly doubles in width for the listings. Same shell, same 32 gap;
+   only the grid is new. */
+.card.is-hood { width: 716px; height: 822px; }
+.search-inline { flex-direction: row; align-items: baseline; gap: 4px; }
+.search-inline .t, .search-inline .s { font-size: 14px; line-height: 16px; }
+.grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); column-gap: 16px; row-gap: 32px;
+  width: 668px; flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: none; align-content: start;
+}
+.grid::-webkit-scrollbar { display: none; }
+.home { display: flex; flex-direction: column; gap: 12px; }
+.home .shot { position: relative; }
+.home .shot img.ph { width: 100%; aspect-ratio: 219.33 / 210; object-fit: cover; border-radius: 16.55px; }
+.home .heart { position: absolute; right: 12px; top: 12px; width: 24px; height: 24px; }
+.home .meta { padding: 0 4px; display: flex; flex-direction: column; gap: 2px; }
+.home .ht { font-size: 13px; line-height: 16px; font-weight: 500; }
+.home .hp { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 12px; line-height: 16px; color: #6a6a6a; }
+.home .hp .sep { color: var(--grey500); }
+.home .hp .star { width: 11px; height: 11px; }
+
+/* price pills at neighbourhood depth — the number is the whole label */
+.mk-price { cursor: default; }
+.mk-price .pill {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  height: 32px; padding: 7px 12px; background: #fff; border-radius: 100px;
+  box-shadow: var(--elev2); font-size: 14px; line-height: 18px; font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Zoom control ───────────────────────────────────────────────────────── */
+.zoom {
+  position: fixed; right: 32px; bottom: 24px; z-index: 20;
+  width: 40px; background: #fff; border-radius: 8px; box-shadow: var(--elev3);
+  display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 10px 0;
+}
+.zoom button { width: 20px; height: 20px; display: flex; }
+.zoom img { width: 20px; height: 20px; }
+.zoom .hr { width: 40px; height: 1px; background: var(--grey300); }
+
+/* ── Markers ────────────────────────────────────────────────────────────────
+   Every marker is an outer box Mapbox owns (it writes the transform) wrapping
+   an .mi that this file animates. Touching the outer one fights the map. */
+/* absolute, not relative: this rule sits after mapbox-gl.css and has the same
+   specificity as `.mapboxgl-marker`, so `position: relative` here quietly wins
+   and every marker falls back into document flow — pins stack down the page
+   and drift further from their coordinate the further down the list they are. */
+.mk { position: absolute; }
+.mi {
+  position: absolute; inset: 0;
+  opacity: 0; transform: translateY(8px) scale(.9); transform-origin: 50% 100%;
+  transition: opacity 320ms var(--ease), transform 420ms var(--ease);
+}
+.mk.in .mi { opacity: 1; transform: none; }
+
+/* the bare pin: 20 round head + a 1.5 metal stem */
+.pin { position: absolute; width: 20px; }
+.pin .stem { position: absolute; left: 9.25px; top: 12px; width: 1.5px; border-radius: 100px; background: var(--grey700); }
+.pin .head { position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--rausch600); }
+.pin .head::after {
+  content: ''; position: absolute; left: 1px; top: .5px; width: 9px; height: 5.5px; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255,255,255,.55), rgba(220,180,180,0));
+  transform: rotate(-30deg);
+}
+.pin .head img { position: absolute; left: 4px; top: 4px; width: 12px; height: 12px; }
+
+/* a bare pin marker is 20×32 */
+.mk-dot { width: 20px; height: 32px; }
+.mk-dot .pin { height: 32px; inset: 0; }
+.mk-dot .pin .stem { height: 20px; }
+
+/* city price pill — 142×36, pill 28 tall, pin hung at x=4 */
+.mk-city { height: 36px; cursor: pointer; }
+.mk-city .pill {
+  position: absolute; left: 0; top: 0; height: 28px; background: #fff; border-radius: 100px;
+  box-shadow: var(--elev2); padding: 4px 12px 4px 32px; display: flex; gap: 2px;
+  font-size: 12px; line-height: 20px; white-space: nowrap;
+  transition: box-shadow 200ms var(--ease);
+}
+.mk-city .pill b { font-weight: 700; }
+.mk-city .pill span { font-weight: 400; }
+.mk-city .pin { left: 4px; top: 4px; height: 32px; }
+.mk-city .pin .stem { height: 20px; }
+.mk-city:hover .pill { box-shadow: 0 0 0 1px rgba(0,0,0,.02), 0 4px 10px rgba(0,0,0,.08), 0 10px 20px rgba(0,0,0,.14); }
+
+/* the one that invites the click keeps a slow ring going */
+.mk-city.hero .pin .head::before {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(255,56,92,.5); animation: ring 2.6s var(--ease) infinite;
+}
+@keyframes ring {
+  0%   { box-shadow: 0 0 0 0 rgba(255,56,92,.45); }
+  70%  { box-shadow: 0 0 0 14px rgba(255,56,92,0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,56,92,0); }
+}
+
+/* borough pill — 139×48, two lines, pin at x=11 */
+.mk-hood { width: 139px; height: 48px; }
+.mk-hood .pill {
+  position: absolute; left: calc(50% - 2px); transform: translateX(-50%); top: 1px; height: 42px;
+  width: 135px; background: #fff; border-radius: 100px; box-shadow: var(--elev2);
+  padding: 8px 20px 8px 40px; overflow: hidden; white-space: nowrap;
+}
+.mk-hood .pill b { display: block; font-size: 12px; line-height: 14px; font-weight: 700; }
+.mk-hood .pill span { display: block; font-size: 10px; line-height: 12px; font-weight: 400; }
+.mk-hood .pin { left: 11px; bottom: 0; top: 12px; height: 36px; }
+.mk-hood .pin .stem { height: 24px; }
+
+/* airport card — 160×97, blue, tail at the bottom centre */
+.mk-air { width: 160px; height: 97px; }
+.mk-air .card-a {
+  position: absolute; left: 0; top: 0; width: 160px; height: 86px; background: var(--blue1);
+  border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px;
+  filter: drop-shadow(0 8px 12px rgba(0,0,0,.18));
+}
+.mk-air .top { display: flex; align-items: center; justify-content: space-between; }
+.mk-air .top img.pl { width: 16px; height: 16px; }
+.mk-air .top img.cb { width: 20px; height: 20px; }
+.mk-air .ct { color: #fff; }
+.mk-air .ct b { display: block; font-size: 12px; line-height: 16px; font-weight: 600; white-space: nowrap; }
+.mk-air .ct span { display: block; font-size: 12px; line-height: 16px; font-weight: 400; white-space: nowrap; }
+.mk-air .tail {
+  position: absolute; left: 50%; bottom: 1px; width: 17px; height: 17px;
+  background: var(--blue1); transform: translateX(-50%) rotate(45deg); border-radius: 2px;
+}
+
+/* the traveller's own pin — 40×48, black, face inside */
+.mk-me { width: 40px; height: 48px; filter: drop-shadow(0 12px 15px rgba(0,0,0,.18)); }
+.mk-me .body { position: absolute; left: 0; top: 1px; width: 40px; height: 41px; border-radius: 100px; background: var(--grey1000); }
+.mk-me img { position: absolute; left: 2px; top: 3px; width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+.mk-me .tail {
+  position: absolute; left: 50%; bottom: 0; width: 15px; height: 15px; background: var(--grey1000);
+  transform: translateX(-50%) rotate(45deg); border-radius: 2px;
+}
+
+/* ── Narrow ─────────────────────────────────────────────────────────────────
+   Below the frame's own width the card comes off its 380 column and sits
+   across the bottom, because a 380 panel on a phone is the whole screen. */
+@media (max-width: 900px) {
+  .hdr-nav { display: none; }
+  .mapboxgl-ctrl-bottom-left { left: 0; }
+  .card { left: 12px; right: 12px; width: auto; top: auto; bottom: 12px; }
+  .layer { padding: 16px 16px 24px; gap: 20px; overflow: auto; }
+  .search { width: 100%; }
+  .rule { width: 100%; }
+  .card { height: 470px; } .card.is-city { height: 520px; }
+  .zoom { display: none; }   /* it lands on top of the card down here */
+  .card.is-hood { width: auto; height: 60vh; }
+  .grid { width: 100%; grid-template-columns: repeat(2, 1fr); row-gap: 20px; }
+  .search-inline { flex-wrap: wrap; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card, .layer, .mi { transition-duration: 1ms !important; }
+  .mk-city.hero .pin .head::before { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <img class="hdr-logo" src="assets/icons/logo.svg" alt="Airbnb">
+  <nav class="hdr-nav">
+    <div class="hdr-tab is-on"><img src="assets/img/nav-explore.jpg" alt=""><span>Explore</span></div>
+    <div class="hdr-tab"><img src="assets/img/nav-homes.png" alt=""><span>Homes</span></div>
+    <div class="hdr-tab"><img src="assets/img/nav-experiences.png" alt=""><span>Experiences</span></div>
+  </nav>
+  <div class="hdr-right">
+    <img class="hdr-avatar" src="assets/img/avatar.png" alt="">
+    <div class="hdr-menu"><img src="assets/icons/menu.svg" alt="Menu"></div>
+  </div>
+</header>
+
+<div id="map"></div>
+
+<section class="card" id="card">
+
+  <!-- ── Continent: plan a trip ───────────────────────────────────────── -->
+  <div class="layer" id="layerUsa">
+    <div class="search">
+      <div class="search-btn"><img src="assets/icons/search.svg" alt=""></div>
+      <div class="search-mid"><p class="t">Plan a trip</p></div>
+      <div class="search-btn"><img src="assets/icons/filter.svg" alt=""></div>
+    </div>
+
+    <div class="vibes">
+      <button class="vibe is-on"><img class="thumb" src="assets/img/vibe-popular.png" alt=""><span class="lbl">Popular</span><i class="ring"></i></button>
+      <button class="vibe"><img class="thumb" src="assets/img/vibe-unique.png" alt=""><span class="lbl">Unique</span><i class="ring"></i></button>
+      <button class="vibe"><img class="thumb" src="assets/img/vibe-relax.png" alt=""><span class="lbl">Relax</span><i class="ring"></i></button>
+      <button class="vibe"><img class="thumb" src="assets/img/vibe-adventure.png" alt=""><span class="lbl">Adventure</span><i class="ring"></i></button>
+    </div>
+
+    <div class="stack">
+      <div class="rule"></div>
+      <div class="modes">
+        <button class="mode is-on"><img src="assets/icons/plane-white.svg" alt="Flights"></button>
+        <button class="mode"><img src="assets/icons/car.svg" alt="Cars"></button>
+        <button class="mode"><img src="assets/icons/train.svg" alt="Trains"></button>
+        <button class="mode"><img src="assets/icons/walk.svg" alt="Walking"></button>
+      </div>
+      <div class="rule"></div>
+    </div>
+
+    <div class="dur">
+      <div class="dur-row"><p class="k">Travel time</p><p class="v">Under 8 hours</p></div>
+      <div class="dur-track"><img src="assets/icons/slider.svg" alt=""></div>
+    </div>
+  </div>
+
+  <!-- ── City: New York ───────────────────────────────────────────────── -->
+  <div class="layer" id="layerCity" data-hidden>
+    <div class="search">
+      <button class="search-btn" id="back"><img src="assets/icons/chevron-back.svg" alt="Back"></button>
+      <div class="search-mid">
+        <p class="t">New York, New York</p>
+        <p class="s">Week in Nov-Feb · Add guests</p>
+      </div>
+      <div class="search-btn"><img src="assets/icons/filter.svg" alt=""></div>
+    </div>
+
+    <div class="vibes">
+      <button class="vibe is-on"><img class="thumb" src="assets/img/nyc-iconic.png" alt=""><span class="lbl">Iconic</span><i class="ring"></i></button>
+      <button class="vibe"><img class="thumb" src="assets/img/nyc-trendy.png" alt=""><span class="lbl">Trendy</span><i class="ring"></i></button>
+      <button class="vibe"><img class="thumb" src="assets/img/nyc-relaxing.png" alt=""><span class="lbl">Relaxing</span><i class="ring"></i></button>
+    </div>
+
+    <div class="rows">
+      <button class="row">
+        <span class="rc"><span class="rt">Flights to New York</span><span class="rs">From $678</span></span>
+        <span class="badge" style="background:var(--blue1)"><img class="p" src="assets/icons/add.svg" alt=""><img class="i" src="assets/icons/plane16.svg" alt=""></span>
+      </button>
+      <button class="row" id="toHomes">
+        <span class="rc"><span class="rt">Homes in New York</span><span class="rs">$498 night average</span></span>
+        <span class="badge" style="background:var(--rausch600)"><img class="p" src="assets/icons/add.svg" alt=""><img class="i" src="assets/icons/house16.svg" alt=""></span>
+      </button>
+      <button class="row">
+        <span class="rc"><span class="rt">Experiences nearby</span><span class="rs">237 available</span></span>
+        <span class="badge" style="background:var(--orange600)"><img class="p" src="assets/icons/add.svg" alt=""><img class="i" src="assets/icons/ticket16.svg" alt=""></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Neighbourhood: homes in Williamsburg ─────────────────────────── -->
+  <div class="layer" id="layerHood" data-hidden>
+    <div class="search">
+      <button class="search-btn" id="backHood"><img src="assets/icons/chevron-back.svg" alt="Back"></button>
+      <div class="search-mid search-inline">
+        <p class="t">Homes in Williamsburg</p><p class="t">·</p>
+        <p class="s">Week in Nov-Feb · Add guests</p>
+      </div>
+      <div class="search-btn"><img src="assets/icons/filter.svg" alt=""></div>
+    </div>
+    <div class="grid" id="homeGrid"></div>
+  </div>
+
+</section>
+
+<div class="zoom">
+  <button id="zin"><img src="assets/icons/zoom-in.svg" alt="Zoom in"></button>
+  <div class="hr"></div>
+  <button id="zout"><img src="assets/icons/zoom-out.svg" alt="Zoom out"></button>
+</div>
+
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.13.0/mapbox-gl.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // Public Mapbox token — pk.* tokens ship to the browser by design; restrict
+  // by URL in the account rather than by hiding the string. Same token the
+  // Trips build reads out of its config.js.
+  mapboxgl.accessToken = 'pk.eyJ1Ijoiam9obnl1bSIsImEiOiJjbXRjamR0cHEwN3IxMndwcTQ2bTcxNmZoIn0.B5ORFJvBrEiVPfyyXIVtMA';
+
+  // ── Data ────────────────────────────────────────────────────────────────
+  // Priced cities on the continent. `hero` is the one the drill-in is built
+  // for; the rest are the field it has to read against.
+  var CITIES = [
+    { n: 'Winnipeg',    p: 497, ll: [ -97.14, 49.90] },
+    { n: 'Portland',    p: 176, ll: [-122.68, 45.52] },
+    { n: 'Montreal',    p: 587, ll: [ -73.57, 45.50] },
+    { n: 'Chicago',     p: 488, ll: [ -87.63, 41.88] },
+    { n: 'New York',    p: 678, ll: [ -74.01, 40.71], hero: true },
+    { n: 'Denver',      p: 201, ll: [-104.99, 39.74] },
+    { n: 'Charlotte',   p: 527, ll: [ -80.84, 35.23] },
+    { n: 'Los Angeles', p: 126, ll: [-118.24, 34.05] },
+    { n: 'Austin',      p: 285, ll: [ -97.74, 30.27] },
+    { n: 'Miami',       p: 634, ll: [ -80.19, 25.76] },
+    { n: 'Mexico City', p: 798, ll: [ -99.13, 19.43] }
+  ];
+
+  // The unpriced pins — the map has more in it than the eleven it names.
+  var DOTS = [
+    [-123.12, 49.28], [-122.33, 47.61], [-114.07, 51.05], [-111.89, 40.76],
+    [ -93.27, 44.98], [ -79.38, 43.65], [ -71.06, 42.36], [ -75.17, 39.95],
+    [-112.07, 33.45], [ -95.37, 29.76], [ -86.78, 36.16], [ -84.39, 33.75],
+    [-103.33, 20.66], [ -86.85, 21.16]
+  ];
+
+  var ME = [-122.42, 37.77];   // San Francisco — where the traveller is standing
+
+  var HOODS = [
+    { n: 'Manhattan',     p: 893, ll: [-73.970, 40.780] },
+    { n: 'Brooklyn',      p: 456, ll: [-73.950, 40.678] },
+    { n: 'Queens',        p: 329, ll: [-73.815, 40.725] },
+    { n: 'Bronx',         p: 398, ll: [-73.870, 40.850] },
+    { n: 'Staten Island', p: 298, ll: [-74.150, 40.580] },
+    { n: 'New Jersey',    p: 374, ll: [-74.190, 40.760] }
+  ];
+
+  var AIRPORTS = [
+    { n: 'Newark Airport',     p: 781, ll: [-74.175, 40.690] },
+    { n: 'LaGuardia Airport',  p: 678, ll: [-73.873, 40.777] },
+    { n: 'John F. Kennedy Int…', p: 509, ll: [-73.778, 40.641] }
+  ];
+
+  var NYC_DOTS = [
+    [-73.99, 40.75], [-73.94, 40.81], [-74.01, 40.64], [-73.89, 40.66],
+    [-73.79, 40.79], [-74.08, 40.72]
+  ];
+
+  // ── Williamsburg ────────────────────────────────────────────────────────
+  // The neighbourhood's own outline. Everything outside it is dimmed by a
+  // world-sized polygon with this ring punched out of it — the one honest way
+  // to say "this is the area" without redrawing the basemap.
+  var WBURG = [
+    [-73.9700, 40.7235],   // the river at N 12th
+    [-73.9540, 40.7250],   // McCarren, the top of Union Ave
+    [-73.9425, 40.7175],   // the BQE at Meeker
+    [-73.9370, 40.7090],   // Bushwick Ave
+    [-73.9400, 40.6990],   // Flushing Ave, east end
+    [-73.9600, 40.6970],   // Flushing Ave, west end
+    [-73.9690, 40.7010],   // back to the river at Division
+    [-73.9745, 40.7120],   // the river under the bridge
+    [-73.9700, 40.7235]
+  ];
+
+  // Nightly prices scattered through it. No names — at this depth the number
+  // is the whole label.
+  var PRICES = [
+    [496, -73.9640, 40.7212], [837, -73.9598, 40.7198], [496, -73.9500, 40.7208],
+    [485, -73.9678, 40.7158], [385, -73.9658, 40.7140], [284, -73.9548, 40.7172],
+    [725, -73.9578, 40.7132], [496, -73.9452, 40.7168], [496, -73.9438, 40.7150],
+    [496, -73.9430, 40.7120], [456, -73.9632, 40.7092], [834, -73.9552, 40.7098],
+    [643, -73.9418, 40.7085], [474, -73.9408, 40.7068], [392, -73.9612, 40.7048],
+    [325, -73.9512, 40.7042], [394, -73.9480, 40.7035], [345, -73.9438, 40.7022],
+    [452, -73.9425, 40.7008], [482, -73.9545, 40.7012], [592, -73.9478, 40.6998],
+    [492, -73.9462, 40.6990], [294, -73.9592, 40.6995]
+  ];
+
+  // The nine listings on the panel, in the frame's own order.
+  var HOMES = [
+    { t: 'Condo in Williamsburg',     p: '$1,397', r: '5.0'  },
+    { t: 'Home in Williamsburg',      p: '$2,394', r: '4.9'  },
+    { t: 'Apartment in Williamsburg', p: '$1,902', r: '4.95' },
+    { t: 'Home in Williamsburg',      p: '$2,103', r: '4.9'  },
+    { t: 'Apartment in Williamsburg', p: '$1,892', r: '5.0'  },
+    { t: 'Room in Williamsburg',      p: '$2,397', r: '4.95' },
+    { t: 'Loft in Williamsburg',      p: '$1,640', r: '4.88' },
+    { t: 'Home in Williamsburg',      p: '$2,180', r: '4.92' },
+    { t: 'Studio in Williamsburg',    p: '$1,455', r: '4.85' }
+  ];
+
+  // Cameras. The continent frame is the Figma one — the panel eats the left
+  // 428, so the padding, not the centre, is what keeps the field balanced.
+  // The card eats the left edge, so the padding — not the centre — is what
+  // keeps the field of markers balanced. The listings card is nearly twice as
+  // wide, so the neighbourhood beat gets its own number.
+  var PAD = function () {
+    if (window.innerWidth <= 900) return { left: 24, right: 24, top: 24, bottom: 320 };
+    return (typeof state !== 'undefined' && state === 'hood')
+      ? { left: 764, right: 48, top: 40, bottom: 40 }
+      : { left: 428, right: 64, top: 40, bottom: 40 };
+  };
+  // The frame is 1512 wide. Narrower than that and the same zoom shows a
+  // sliver of the continent, so the camera gives back exactly the width the
+  // viewport lost — one octave of zoom per halving. Capped, because past a
+  // point the basemap has nothing left to say.
+  function cam(c) {
+    var w = Math.max(window.innerWidth, 320);
+    if (w >= 1512) return c;
+    // Wide, the card sits in a 428 column and the camera is pushed east past
+    // it. Narrow, the card is across the bottom instead and that push has
+    // nothing to clear, so the centre comes back — otherwise the east coast,
+    // which is where the trip goes, hangs off the right edge.
+    var back = w <= 900 ? (c.narrow || 0) : 0;
+    return {
+      center: [c.center[0] + back, c.center[1]],
+      zoom: c.zoom - Math.min(Math.log(1512 / w) / Math.LN2, 2.1)
+    };
+  }
+
+  var USA_CAM  = { center: [-95.5, 36.8], zoom: 3.42, narrow: 6 };
+  var NYC_CAM  = { center: [-73.95, 40.72], zoom: 10.05, narrow: 0.1 };
+  var HOOD_CAM = { center: [-73.9545, 40.7100], zoom: 13.75, narrow: 0.01 };
+
+  // ── Map ─────────────────────────────────────────────────────────────────
+  var map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/standard',
+    // Flat, not the globe Standard defaults to — the frame is a Mercator
+    // continent, and a curved limb behind the pins is a different drawing.
+    projection: 'mercator',
+    center: cam(USA_CAM).center, zoom: cam(USA_CAM).zoom,
+    pitch: 0, bearing: 0, minZoom: 2.4, maxZoom: 16,
+    dragRotate: false, pitchWithRotate: false, attributionControl: true
+  });
+
+  // The Standard style, dressed the way the frame shows it: day light, faded
+  // theme, place labels and roads but nothing else competing with the pins.
+  map.on('style.load', function () {
+    var cfg = function (k, v) { try { map.setConfigProperty('basemap', k, v); } catch (e) {} };
+    cfg('lightPreset', 'day');
+    cfg('theme', 'faded');
+    cfg('colorPlaceLabels', '#8a8a8a');
+    cfg('showPointOfInterestLabels', false);
+    cfg('showLandmarkIcons', false);
+    cfg('showLandmarkIconLabels', false);
+    cfg('showTransitLabels', false);
+    cfg('show3dObjects', false);
+    // The constructor drops `padding`, so it is set once the style is up —
+    // this is what keeps the field of pins clear of the 380 card.
+    map.setPadding(PAD());
+  });
+
+  // A resize changes both the padding and, below the frame's width, the zoom
+  // the camera needs to show the same ground.
+  window.addEventListener('resize', function () {
+    map.setPadding(PAD());
+    if (!busy) { var c = cam(BEATS[state].cam); map.easeTo({ center: c.center, zoom: c.zoom, duration: 300 }); }
+  });
+
+  // Handed out the way multical hands out its model: a deck (or the console)
+  // can drive the camera and the two states without faking clicks.
+  window.__explore = { map: map, go: function (b) { go(b); }, at: function () { return state; } };
+
+  // ── Marker plumbing ─────────────────────────────────────────────────────
+  // Every marker is built as {outer, inner}. Mapbox writes the transform on
+  // the outer; `.in` on the outer is what fades the inner in and out, so the
+  // two never fight over the same property.
+  function mk(cls, w, h, html, anchor, offset) {
+    var el = document.createElement('div');
+    el.className = 'mk ' + cls;
+    el.style.width = w + 'px';
+    el.style.height = h + 'px';
+    var inner = document.createElement('div');
+    inner.className = 'mi';
+    inner.innerHTML = html;
+    el.appendChild(inner);
+    var m = new mapboxgl.Marker({ element: el, anchor: anchor, offset: offset || [0, 0] });
+    return { el: el, marker: m };
+  }
+
+  var PIN = '<div class="pin"><i class="stem"></i><i class="head"><img src="assets/icons/pin-plane.svg" alt=""></i></div>';
+
+  function makeCity(c) {
+    var o = mk('mk-city' + (c.hero ? ' hero' : ''), 142, 36,
+      PIN + '<div class="pill"><b>' + c.n + ' ·</b><span>$' + c.p + '</span></div>',
+      'bottom-left', [-14, 0]);
+    o.marker.setLngLat(c.ll);
+    o.el.addEventListener('click', function () { if (c.hero) go('nyc'); });
+    if (!c.hero) o.el.style.cursor = 'default';
+    return o;
+  }
+  function makeDot(ll) {
+    var o = mk('mk-dot', 20, 32, PIN, 'bottom');
+    o.marker.setLngLat(ll);
+    return o;
+  }
+  function makeHood(h) {
+    var o = mk('mk-hood', 139, 48,
+      PIN + '<div class="pill"><b>' + h.n + '</b><span>$' + h.p + ' night avg</span></div>',
+      'bottom-left', [-21, 0]);
+    o.marker.setLngLat(h.ll);
+    return o;
+  }
+  function makeAir(a) {
+    var o = mk('mk-air', 160, 97,
+      '<div class="card-a">' +
+        '<div class="top"><img class="pl" src="assets/icons/plane16.svg" alt="">' +
+        '<img class="cb" src="assets/icons/checkbox.svg" alt=""></div>' +
+        '<div class="ct"><b>' + a.n + '</b><span>From $' + a.p + '</span></div>' +
+      '</div><i class="tail"></i>', 'bottom');
+    o.marker.setLngLat(a.ll);
+    return o;
+  }
+  function makeMe() {
+    var o = mk('mk-me', 40, 48,
+      '<i class="body"></i><img src="assets/img/avatar.png" alt=""><i class="tail"></i>', 'bottom');
+    o.marker.setLngLat(ME);
+    return o;
+  }
+
+  function makePrice(d) {
+    var o = mk('mk-price', 57, 32, '<div class="pill">$' + d[0] + '</div>', 'center');
+    o.marker.setLngLat([d[1], d[2]]);
+    return o;
+  }
+
+  // Build all three sets up front. Only one is ever on the map.
+  var usaSet  = CITIES.map(makeCity).concat(DOTS.map(makeDot), [makeMe()]);
+  var citySet = HOODS.map(makeHood).concat(AIRPORTS.map(makeAir), NYC_DOTS.map(makeDot));
+  var hoodSet = PRICES.map(makePrice);
+
+  // ── The neighbourhood mask ──────────────────────────────────────────────
+  // A world-sized polygon with Williamsburg punched out of it dims everything
+  // that is not the neighbourhood; a thin rausch line draws the edge itself.
+  // Both layers live under `top` so Mapbox's own labels still read through.
+  function addHoodMask() {
+    if (map.getSource('wburg')) return;
+    map.addSource('wburg', { type: 'geojson', data: {
+      type: 'Feature', geometry: { type: 'Polygon', coordinates: [
+        [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]], WBURG
+      ] } } });
+    map.addSource('wburg-line', { type: 'geojson', data: {
+      type: 'Feature', geometry: { type: 'LineString', coordinates: WBURG } } });
+    map.addLayer({ id: 'wburg-dim', type: 'fill', source: 'wburg', slot: 'top',
+      paint: { 'fill-color': '#6c6c6c', 'fill-opacity': 0 } });
+    map.addLayer({ id: 'wburg-edge', type: 'line', source: 'wburg-line', slot: 'top',
+      paint: { 'line-color': '#ff385c', 'line-width': 1.5, 'line-opacity': 0 } });
+  }
+  function paintHoodMask(on) {
+    if (!map.getLayer('wburg-dim')) return;
+    map.setPaintProperty('wburg-dim', 'fill-opacity', on ? 0.22 : 0);
+    map.setPaintProperty('wburg-edge', 'line-opacity', on ? 0.9 : 0);
+  }
+
+  // Adding a marker and revealing it are two beats: add it invisible, then let
+  // a frame pass so the transition actually has something to run from.
+  function show(set, stagger) {
+    set.forEach(function (o, i) {
+      o.marker.addTo(map);
+      setTimeout(function () { o.el.classList.add('in'); }, 40 + i * (stagger || 40));
+    });
+  }
+  function hide(set, stagger, done) {
+    set.forEach(function (o, i) {
+      setTimeout(function () { o.el.classList.remove('in'); }, i * (stagger || 24));
+    });
+    setTimeout(function () {
+      set.forEach(function (o) { o.marker.remove(); });
+      if (done) done();
+    }, set.length * (stagger || 24) + 420);
+  }
+
+  // ── The drill-in ────────────────────────────────────────────────────────
+  // Three beats — continent, city, neighbourhood — and one move between any
+  // two of them. Three things travel together: the field of markers clears,
+  // the camera flies, and the card morphs. The card starts a beat AFTER the
+  // camera, so the eye is already moving by the time the panel changes under
+  // it; start them together and it reads as two separate cuts.
+  var BEATS = {
+    usa:  { cam: USA_CAM,  set: usaSet,  layer: 'layerUsa',  cls: '',        tab: 0 },
+    nyc:  { cam: NYC_CAM,  set: citySet, layer: 'layerCity', cls: 'is-city', tab: 0 },
+    hood: { cam: HOOD_CAM, set: hoodSet, layer: 'layerHood', cls: 'is-hood', tab: 1 }
+  };
+
+  var state = 'usa', busy = false;
+  var card = document.getElementById('card');
+  var tabs = document.querySelectorAll('.hdr-tab');
+
+  function go(next) {
+    if (busy || next === state) return;
+    var from = BEATS[state], to = BEATS[next];
+    var deeper = ['usa', 'nyc', 'hood'].indexOf(next) > ['usa', 'nyc', 'hood'].indexOf(state);
+    busy = true;
+    var prev = state; state = next;
+
+    // Going deeper, the marker you aimed at holds its ground while the field
+    // around it clears — it is the thing the camera is travelling toward, so
+    // it is the last to let go. Coming back out, everything leaves together.
+    from.set.forEach(function (o, i) {
+      if (deeper && o.el.classList.contains('hero')) return;
+      setTimeout(function () { o.el.classList.remove('in'); }, i * (deeper ? 18 : 20));
+    });
+
+    map.flyTo({
+      center: cam(to.cam).center, zoom: cam(to.cam).zoom, padding: PAD(),
+      duration: deeper ? 2400 : 2100, curve: 1.5, speed: 0.9, essential: true
+    });
+
+    setTimeout(function () {
+      card.classList.remove('is-city', 'is-hood');
+      if (to.cls) card.classList.add(to.cls);
+      document.getElementById(from.layer).setAttribute('data-hidden', '');
+      document.getElementById(to.layer).removeAttribute('data-hidden');
+      tabs.forEach(function (t, i) { t.classList.toggle('is-on', i === to.tab); });
+    }, deeper ? 180 : 160);
+
+    if (deeper) setTimeout(function () {
+      from.set.forEach(function (o) { o.el.classList.remove('in'); });
+    }, 1150);
+
+    setTimeout(function () {
+      from.set.forEach(function (o) { o.marker.remove(); });
+      paintHoodMask(next === 'hood');
+      show(to.set, deeper ? 55 : 32);
+      busy = false;
+    }, deeper ? 1650 : 1400);
+
+    if (!deeper && prev === 'hood') paintHoodMask(false);
+  }
+
+  document.getElementById('back').addEventListener('click', function () { go('usa'); });
+  document.getElementById('backHood').addEventListener('click', function () { go('nyc'); });
+  document.getElementById('toHomes').addEventListener('click', function () { go('hood'); });
+  document.getElementById('zin').addEventListener('click', function () { map.zoomIn({ duration: 400 }); });
+  document.getElementById('zout').addEventListener('click', function () { map.zoomOut({ duration: 400 }); });
+
+  // The nine listings, written once from the data rather than nine times in
+  // the markup — they differ only by photo, title, price and rating.
+  document.getElementById('homeGrid').innerHTML = HOMES.map(function (h, i) {
+    return '<article class="home">' +
+      '<div class="shot">' +
+        '<img class="ph" src="assets/img/home-' + (i + 1) + '.jpg" alt="">' +
+        '<img class="heart" src="assets/icons/heart.svg" alt="Save">' +
+      '</div>' +
+      '<div class="meta"><p class="ht">' + h.t + '</p>' +
+      '<p class="hp"><span>' + h.p + ' for 1 week</span><span class="sep">·</span>' +
+      '<img class="star" src="assets/icons/star.svg" alt="">' + h.r + '</p></div>' +
+    '</article>';
+  }).join('');
+
+  // Vibe cards are a one-of-four ring, per layer.
+  document.querySelectorAll('.vibes').forEach(function (row) {
+    row.addEventListener('click', function (e) {
+      var v = e.target.closest('.vibe'); if (!v) return;
+      row.querySelectorAll('.vibe').forEach(function (x) { x.classList.remove('is-on'); });
+      v.classList.add('is-on');
+    });
+  });
+  document.querySelector('.modes').addEventListener('click', function (e) {
+    var m = e.target.closest('.mode'); if (!m) return;
+    this.querySelectorAll('.mode').forEach(function (x) { x.classList.remove('is-on'); });
+    m.classList.add('is-on');
+    // the flight icon is the only white-on-black one; swap the art to match
+    this.querySelectorAll('.mode').forEach(function (x, i) {
+      var on = x.classList.contains('is-on');
+      if (i === 0) x.querySelector('img').src = on ? 'assets/icons/plane-white.svg' : 'assets/icons/plane16.svg';
+      else x.querySelector('img').style.filter = on ? 'invert(1) brightness(2)' : '';
+    });
+  });
+
+  // Deep link for a deck: ?state=nyc / ?state=hood opens straight on that
+  // beat. Decided BEFORE the load handler, so only one set is ever revealed.
+  var m0 = /[?&]state=(nyc|hood)\b/.exec(location.search);
+  if (m0) {
+    state = m0[1];
+    var b0 = BEATS[state];
+    map.jumpTo({ center: cam(b0.cam).center, zoom: cam(b0.cam).zoom, padding: PAD() });
+    if (b0.cls) card.classList.add(b0.cls);
+    document.getElementById('layerUsa').setAttribute('data-hidden', '');
+    document.getElementById(b0.layer).removeAttribute('data-hidden');
+    tabs.forEach(function (t, i) { t.classList.toggle('is-on', i === b0.tab); });
+  }
+
+  // The markers wait on nothing. They are DOM over the canvas, and hanging
+  // them off `load` (the first full tile set) or `style.load` means that on a
+  // slow style — or one whose imports never settle — the card sits there over
+  // an empty map forever. They come up now; the tiles arrive under them.
+  show(BEATS[state].set, 45);
+
+  // The mask is the one thing that genuinely needs the style, because it adds
+  // a source and two layers. Rather than trust an event, try until it takes.
+  (function armMask(tries) {
+    try {
+      addHoodMask();
+      paintHoodMask(state === 'hood');
+    } catch (e) {
+      if (tries < 100) setTimeout(function () { armMask(tries + 1); }, 150);
+    }
+  })(0);
+})();
+</script>
+</body>
+</html>

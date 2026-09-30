@@ -13,6 +13,7 @@ don't introduce bundlers, npm, or a component framework.
 | `Website_Images/` | The ten iPhone screens on the portfolio stage. Figma exports, 450x920 |
 | `homes/` | Eichler Hunt — Bay Area listings concept |
 | `multi/`, `multi2/` | Multi-guest booking concepts (Cereal type, event icons) |
+| `explore/` | Explore map drill-in — see below |
 | `multical/` | **Build output — never hand-edit.** The Multi-Host Calendar web app, played live inside the phone on preso slide 13. See below. |
 | `bento-widgets/` | Standalone widget experiments |
 | `test/` | Scratch prototypes |
@@ -119,6 +120,55 @@ That is what lets a beat call the app's own model instead of faking taps at
 coordinates. It is not in the upstream zip, so **re-apply it after taking in a
 new build** — otherwise slide 13 loads, looks right, and silently refuses to
 step (`apply()` returns false and the deck walks off the slide instead).
+
+## `explore/` — the map drill-in
+
+A self-contained Mapbox concept, built to three Figma frames in the *Yum Portfolio*
+file (`5480:1004947` continent, `5480:1004952` city, `2337:45802` neighbourhood).
+Own build, own folder, one hand-written `index.html` — **it shares no code with
+`/trips/`**, which is a separate deployment this repo only proxies. What it took
+from Trips is the recipe, not the source: Mapbox GL 3.13, the Standard basemap
+configured day + `faded` with every POI/landmark/transit label off, and the same
+public `pk.*` token (a public token ships to the browser by design — restrict it
+by URL in the Mapbox account, and see `~/Documents/Trips/config.js` for the last
+rotation and what a dead token looks like).
+
+Three beats, and one move between any two of them:
+
+| Beat | Camera | Card | What is on the map |
+|---|---|---|---|
+| `usa` | z3.42 over the continent | 380×504 | 11 priced city pills, 14 bare pins, the traveller's own pin on SF |
+| `nyc` | z10.05 over New York | 380×576 | 6 borough pills, 3 blue airport cards |
+| `hood` | z13.75 over Williamsburg | 716×822 | 23 price pills, the neighbourhood masked in |
+
+`go(next)` runs all three at once — the field of markers clears, the camera
+flies, the card morphs — and the card starts **180ms after** the camera, so the
+eye is already travelling when the panel changes under it. Start them together
+and it reads as two cuts. Going deeper, the marker you aimed at is the last to
+let go; coming back out, everything leaves together.
+
+Things that were learned the hard way and should not be undone:
+
+- **`.mk { position: absolute }`.** This stylesheet loads after `mapbox-gl.css`
+  and `.mk` has the same specificity as `.mapboxgl-marker`, so `relative` here
+  silently wins and every marker drops back into document flow — pins stack down
+  the page and drift further from their coordinate the further down the list.
+- **Markers are revealed immediately, not on `load` or `style.load`.** They are
+  DOM over the canvas and need neither. The Standard style's imports can leave
+  both events late or unfired, and the card then sits over an empty map. Only the
+  Williamsburg mask needs the style, and it retries until the style takes it.
+- **`projection: 'mercator'`** — Standard defaults to the globe, and a curved
+  limb behind the pins is a different drawing.
+- **The camera is padded, not re-centred.** The card eats the left column, so
+  `PAD()` carries it (428 wide, 764 on the neighbourhood beat).
+- **The frames' pins are placed by hand in Figma, not projected**, so their
+  positions are approximate. The composition is matched; the coordinates are real.
+- `cam()` gives back one octave of zoom per halving of viewport width, so a phone
+  sees the same ground rather than a sliver of it.
+
+`?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
+exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
+it without faking clicks.
 
 ## Drawing in Claude's visual language
 
