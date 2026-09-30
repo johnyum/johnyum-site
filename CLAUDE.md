@@ -138,7 +138,7 @@ Three beats, and one move between any two of them:
 | Beat | Camera | Card | What is on the map |
 |---|---|---|---|
 | `usa` | z3.42 over the continent | 380×504 | 11 priced city pills, 14 bare pins, the traveller's own pin on SF |
-| `nyc` | z10.05 over New York | 380×576 | 6 borough pills, 3 blue airport cards |
+| `nyc` | z10.05 over New York | 380×576 | 6 borough pills (Brooklyn is the way down), 3 blue airport cards |
 | `hood` | z13.75 over Williamsburg | 716×822 | 23 price pills, the neighbourhood masked in |
 
 `go(next)` runs all three at once — the field of markers clears, the camera
@@ -149,6 +149,11 @@ let go; coming back out, everything leaves together.
 
 Things that were learned the hard way and should not be undone:
 
+- **A named marker is one piece.** The red head sits ON the pill, in the inset
+  the pill's own left padding leaves for it, with only the stem carrying on out
+  the bottom — so the pin markup comes *after* the pill and carries a `z-index`,
+  or the white lands over the red and the pin reads as a separate dot beside the
+  label. Unnamed pins stand alone; that is the only case where one floats free.
 - **`.mk { position: absolute }`.** This stylesheet loads after `mapbox-gl.css`
   and `.mk` has the same specificity as `.mapboxgl-marker`, so `relative` here
   silently wins and every marker drops back into document flow — pins stack down

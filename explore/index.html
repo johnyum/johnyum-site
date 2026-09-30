@@ -223,8 +223,12 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 .mk.in .mi { opacity: 1; transform: none; }
 
-/* the bare pin: 20 round head + a 1.5 metal stem */
-.pin { position: absolute; width: 20px; }
+/* The bare pin: a 20 round head on a 1.5 metal stem. On a labelled marker the
+   head is not a separate thing sitting beside the pill — it sits ON the pill,
+   in the inset the pill's own left padding leaves for it, with only the stem
+   carrying on out the bottom. Hence the z-index and the markup order: the pin
+   is written after the pill, so the white never lands over the red. */
+.pin { position: absolute; width: 20px; z-index: 1; }
 .pin .stem { position: absolute; left: 9.25px; top: 12px; width: 1.5px; border-radius: 100px; background: var(--grey700); }
 .pin .head { position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--rausch600); }
 .pin .head::after {
@@ -251,10 +255,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .mk-city .pill span { font-weight: 400; }
 .mk-city .pin { left: 4px; top: 4px; height: 32px; }
 .mk-city .pin .stem { height: 20px; }
-.mk-city:hover .pill { box-shadow: 0 0 0 1px rgba(0,0,0,.02), 0 4px 10px rgba(0,0,0,.08), 0 10px 20px rgba(0,0,0,.14); }
+.mk-city:hover .pill, .mk-hood.hero:hover .pill { box-shadow: 0 0 0 1px rgba(0,0,0,.02), 0 4px 10px rgba(0,0,0,.08), 0 10px 20px rgba(0,0,0,.14); }
 
-/* the one that invites the click keeps a slow ring going */
-.mk-city.hero .pin .head::before {
+/* whichever marker is the way down keeps a slow ring going */
+.mk.hero .pin .head::before {
   content: ''; position: absolute; inset: 0; border-radius: 50%;
   box-shadow: 0 0 0 0 rgba(255,56,92,.5); animation: ring 2.6s var(--ease) infinite;
 }
@@ -321,7 +325,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 @media (prefers-reduced-motion: reduce) {
   .card, .layer, .mi { transition-duration: 1ms !important; }
-  .mk-city.hero .pin .head::before { animation: none; }
+  .mk.hero .pin .head::before { animation: none; }
 }
 </style>
 </head>
@@ -469,7 +473,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
   var HOODS = [
     { n: 'Manhattan',     p: 893, ll: [-73.970, 40.780] },
-    { n: 'Brooklyn',      p: 456, ll: [-73.950, 40.678] },
+    { n: 'Brooklyn',      p: 456, ll: [-73.950, 40.678], hero: true },   // the way down to Williamsburg
     { n: 'Queens',        p: 329, ll: [-73.815, 40.725] },
     { n: 'Bronx',         p: 398, ll: [-73.870, 40.850] },
     { n: 'Staten Island', p: 298, ll: [-74.150, 40.580] },
@@ -623,7 +627,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
   function makeCity(c) {
     var o = mk('mk-city' + (c.hero ? ' hero' : ''), 142, 36,
-      PIN + '<div class="pill"><b>' + c.n + ' ·</b><span>$' + c.p + '</span></div>',
+      '<div class="pill"><b>' + c.n + ' ·</b><span>$' + c.p + '</span></div>' + PIN,
       'bottom-left', [-14, 0]);
     o.marker.setLngLat(c.ll);
     o.el.addEventListener('click', function () { if (c.hero) go('nyc'); });
@@ -636,10 +640,16 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     return o;
   }
   function makeHood(h) {
-    var o = mk('mk-hood', 139, 48,
-      PIN + '<div class="pill"><b>' + h.n + '</b><span>$' + h.p + ' night avg</span></div>',
+    var o = mk('mk-hood' + (h.hero ? ' hero' : ''), 139, 48,
+      '<div class="pill"><b>' + h.n + '</b><span>$' + h.p + ' night avg</span></div>' + PIN,
       'bottom-left', [-21, 0]);
     o.marker.setLngLat(h.ll);
+    if (h.hero) {
+      o.el.style.cursor = 'pointer';
+      o.el.addEventListener('click', function () { go('hood'); });
+    } else {
+      o.el.style.cursor = 'default';
+    }
     return o;
   }
   function makeAir(a) {
