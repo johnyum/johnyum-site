@@ -38,14 +38,25 @@
 
      No entrance of its own — the deck pushes it in from the right.
 
-     ONE BUILD: the flow-through. The slide arrives idle, showing the country.
-     The next tap runs the whole thing and the tap after that moves on:
+     TWO BUILDS, AND IT HOVERS BEFORE EACH ONE. The hover is not part of the
+     tap: it happens on its own so the line it draws can be talked over, and
+     the tap is what John does when he is ready.
 
-       hover New York      mouseenter, which is what draws the flight leg
-       tap New York        a ripple on the pin, then the page's own click
-       ...flies to NY      2400ms, the page's own flyTo
-       hover Brooklyn      mouseenter, which draws the drives from all three airports
-       tap Brooklyn        same ripple, same real click
+       on arrival   a pause, then New York hovers by itself — mouseenter,
+                    which is what draws the dotted flight leg. It stays.
+       tap 1        New York is clicked. The page flies there, and once it has
+                    landed and held a beat, Brooklyn hovers by itself — which
+                    draws the drives from all three airports.
+       tap 2        Brooklyn is clicked.
+       tap 3        out of builds; the deck moves on.
+
+     No mouseleave is ever sent, which is deliberate: the leg stays drawn for
+     as long as the hover is meant to be read.
+
+     THE ARRIVAL HOVER IS GATED the way 09e's video is — presoshown first, then
+     a poll that asks the DECK's window for computed style. The deck parks
+     slides ahead of time, and a hover fired while parked would spend the whole
+     pause where nobody can see it and land with the line already drawn.
 
      It drives the PAGE'S OWN handlers rather than faking anything — the pins
      are real elements and go() is the page's own state machine, so what the
@@ -107,9 +118,9 @@
   fit(screen.getBoundingClientRect().width);   // if it is already on stage
 
   // ── the flow-through ──────────────────────────────────────────────────
-  const HOVER_HOLD = 700;    // long enough for the leg to draw and be seen
+  const LAND_PAUSE = 900;    // the slide lands, holds, then hovers New York
   const FLY        = 2400;   // the page's own flyTo, going deeper
-  const SETTLE     = 420;    // after the camera lands, before the next hover
+  const SETTLE     = 520;    // after the camera lands, before the next hover
 
   const doc = () => { try { return page.contentDocument; } catch (_) { return null; } };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -182,37 +193,86 @@
     el.click();                            // the page's own handler, not a fake
   }
 
-  let played = false, running = false;
-  async function flow() {
-    running = true;
+  let step = 0;            // 0 = New York hovered, 1 = Brooklyn hovered, 2 = done
+  let busy = false;
+
+  async function hoverNY() {
     const ny = await find('.mk-city.hero');
-    if (ny) { hover(ny); await sleep(HOVER_HOLD); tap(ny); await sleep(FLY + SETTLE); }
+    if (ny) hover(ny);
+  }
+  async function hoverBK() {
     const bk = await find('.mk-hood.hero');
-    if (bk) { hover(bk); await sleep(HOVER_HOLD); tap(bk); }
-    running = false;
+    if (bk) hover(bk);
   }
 
-  async function rewind() {               // back out through the page's own buttons
+  async function clickNY() {               // tap 1
+    busy = true;
+    const ny = await find('.mk-city.hero');
+    if (ny) { tap(ny); await sleep(FLY + SETTLE); }
+    await hoverBK();                       // land, hold, then hover the borough
+    busy = false;
+  }
+  async function clickBK() {               // tap 2
+    busy = true;
+    const bk = await find('.mk-hood.hero');
+    if (bk) tap(bk);
+    busy = false;
+  }
+
+  async function rewind() {                // back out through the page's own buttons
     const d = doc(); if (!d) return;
     if (cur) cur.classList.remove('on');
     const bh = d.getElementById('backHood'); if (bh) { bh.click(); await sleep(FLY); }
-    const b = d.getElementById('back'); if (b) b.click();
+    const b = d.getElementById('back'); if (b) { b.click(); await sleep(FLY); }
+    step = 0; busy = false;
+    hoverNY();
   }
 
+  // THE ARRIVAL. Gated, not fired on load: the deck parks slides ahead of time
+  // and a hover spent while parked would land with the line already drawn.
+  let arrived = false;
+  function land() {
+    if (arrived) return;
+    arrived = true;
+    setTimeout(hoverNY, LAND_PAUSE);
+  }
+  function onStage() {
+    try {
+      const fe = window.frameElement;
+      if (!fe) return true;
+      const deck = fe.ownerDocument.defaultView;   // the DECK's window, not this one
+      for (let n = fe; n && n.nodeType === 1; n = n.parentElement) {
+        const cs = deck.getComputedStyle(n);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+      }
+      return fe.getBoundingClientRect().width > 0;
+    } catch (_) { return true; }
+  }
+  addEventListener('presoshown', land);
+  const t0 = Date.now();
+  (function watch() {
+    if (arrived) return;
+    if (onStage() || Date.now() - t0 > 10000) { land(); return; }
+    setTimeout(watch, 100);
+  })();
+
   window.presoNext = () => {
-    if (played) return false;             // out of builds — on to the fee screens
-    played = true;
-    flow();
-    return true;
+    if (busy) return true;                 // mid-fly: swallow rather than skip a beat
+    if (step === 0) { step = 1; clickNY(); return true; }
+    if (step === 1) { step = 2; clickBK(); return true; }
+    return false;                          // out of builds — on to Host setup
   };
   window.presoPrev = () => {
-    if (!played) return false;            // idle — the deck goes back a slide
-    played = false;
-    if (!running) rewind();
+    if (step === 0) return false;          // on the arrival hover — back a slide
+    rewind();
     return true;
   };
-  window.presoState = () => played ? 1 : 0;
-  window.presoRestore = n => { if (n > 0 && !played) { played = true; flow(); } };
+  window.presoState = () => step;
+  window.presoRestore = n => {
+    if (!(n > 0)) return;
+    arrived = true;                        // do not also run the arrival hover
+    (async () => { step = 1; await clickNY(); if (n > 1) { step = 2; await clickBK(); } })();
+  };
 })();
 </script>
 </body>
