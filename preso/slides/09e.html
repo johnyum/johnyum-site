@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>09e</title>
+<!-- PRICE DISPLAY — the payoff, straight after the host-only fee screens.
+
+     NO ENTRANCE OF ITS OWN. The deck pushes it in from the right, as it does
+     every slide, and the video starts once it has landed.
+
+     IT STARTS WHEN THE SLIDE IS ON STAGE, NOT ON LOAD. The deck builds slides
+     ahead and parks them (prepare() in index.html), so a plain `autoplay`
+     would run the payoff where nobody can see it and leave a finished video
+     sitting on the screen when the slide finally arrives. The gate below is
+     the one that works — see 09b for the three ways this goes wrong:
+       - a class added while parked is never recalculated
+       - requestAnimationFrame does not run in a parked iframe
+       - the CHILD frame's getComputedStyle reports a parent node hidden for
+         ever, so the deck's own window has to be asked
+     `presoshown` gets first go; the poll is the backstop; the 10s stop means
+     the video always plays even if both somehow miss.
+
+     Muted and playsinline, which is what lets it start without a user gesture.
+     It does NOT loop: it plays once and holds its last frame, because it is a
+     conclusion rather than a texture. Stepping back to it and forward again
+     replays it from the top.
+
+     12px corners and the deck's three-drop shadow — the same shape slide 09's
+     window and the receipt use, so the video reads as an object on the stage
+     rather than a hole cut in it. overflow:hidden on the frame is what makes
+     the radius actually clip the video; a border-radius on a <video> alone is
+     ignored by some engines while it paints. -->
+<style>
+  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
+  .slide { height: 100%; display: grid; place-items: center; }
+
+  .frame {
+    position: relative;
+    display: block;
+    line-height: 0;                  /* no descender gap under the video */
+    border-radius: 12px;
+    overflow: hidden;                /* clips the video to the radius */
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.02),
+      0 4px 8px rgba(0, 0, 0, 0.08),
+      0 12px 30px rgba(0, 0, 0, 0.18);
+  }
+  video {
+    display: block;
+    max-width: 88vw;
+    max-height: 82vh;
+    width: auto; height: auto;
+    border-radius: 12px;             /* belt and braces for engines that paint past the clip */
+    background: #fff;
+  }
+</style>
+</head>
+<body>
+  <div class="slide">
+    <div class="frame">
+      <video muted playsinline preload="auto"
+             src="assets/price-display.mp4"
+             aria-label="Price display: what a guest sees once the single host fee is in place"></video>
+    </div>
+  </div>
+<script>
+(() => {
+  const v = document.querySelector('video');
+  let armed = false;
+
+  function start() {
+    if (armed) return;
+    armed = true;
+    try { v.currentTime = 0; } catch (_) {}
+    const p = v.play();
+    if (p && p.catch) p.catch(() => {});      // a blocked play must never throw into the deck
+  }
+
+  function shown() {
+    try {
+      const fe = window.frameElement;
+      if (!fe) return true;                   // opened on its own, not in the deck
+      const deck = fe.ownerDocument.defaultView;   // the DECK's window, not this one
+      for (let n = fe; n && n.nodeType === 1; n = n.parentElement) {
+        const cs = deck.getComputedStyle(n);
+        // prepare() parks at visibility:hidden, a kept slide at display:none;
+        // both still report a box, so width alone says yes far too early.
+        if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+      }
+      return fe.getBoundingClientRect().width > 0;
+    } catch (_) { return true; }
+  }
+
+  addEventListener('presoshown', start);
+  const t0 = Date.now();
+  (function watch() {
+    if (armed) return;
+    if (shown() || Date.now() - t0 > 10000) { start(); return; }
+    setTimeout(watch, 100);
+  })();
+
+  // Leaving and coming back replays it — the deck keeps the slide, so without
+  // this the payoff would sit on its last frame for ever after one viewing.
+  addEventListener('presoshown', () => { if (armed && v.ended) { v.currentTime = 0; v.play().catch(() => {}); } });
+
+  window.presoNext = () => false;             // no builds
+  window.presoPrev = () => false;
+  window.presoState = () => 0;
+  window.presoRestore = () => {};
+})();
+</script>
+</body>
+</html>
