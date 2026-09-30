@@ -4,56 +4,170 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>09d0</title>
-<!-- WHAT IT LOOKED LIKE FROM THE OUTSIDE. One tweet, on its own, straight
-     before the host-only fee screens: $120 a night, $3,245 total, $1,600 of it
-     cleaning — and a chore list on top of that. 4.8K likes.
+<!-- WHAT IT LOOKED LIKE FROM THE OUTSIDE. Twelve tweets about the cleaning
+     fee, straight before the host-only fee screens. The four screens that
+     follow are the answer; this is the thing being answered, in strangers'
+     words rather than a bullet on a problem slide. One tweet is an anecdote,
+     twelve at once is a weather report — which is why this is a wall and not
+     a quotation.
 
-     IT IS HERE TO DO THE ARGUING. The four fee screens that follow are the
-     answer; this is the thing being answered, in a stranger's words rather
-     than a bullet on a problem slide. It earns its own screen because it is
-     read, not glanced at — the joke is in the last four lines.
+     THEY ARE REAL EMBEDS, NOT PICTURES OF TWEETS. Each is X's own card,
+     rendered by X from the tweet id. That matters beyond fidelity: these are
+     real people saying real things under their own names, and a hand-built
+     look-alike carrying someone's handle and like count is a fabricated
+     record, however carefully it is copied. If X will not serve one, it does
+     not appear — which is the correct failure.
 
-     THE SOURCE IS 700x532 AND IS NOT UPSCALED PAST WHAT IT CAN CARRY. Capped
-     at 980 wide, about 1.4x, where the type still holds; pushed to fill the
-     stage it goes soft and the small print under the punchline is what breaks
-     first. The white around it is the slide, not a shortfall.
+     data-cards="hidden" drops linked media and data-conversation="none" drops
+     the tweet being replied to: both would otherwise double or treble a card's
+     height, and the wall is dense on purpose.
 
-     Left exactly as captured — the handle, the timestamp and the like count
-     included. It is a quotation, so it keeps its attribution.
+     IT NEEDS THE NETWORK, and the venue may not give it. So there is a
+     fallback, and it is the slide this replaced: John's own capture of the
+     $3,245 tweet, which is a file on this server and cannot fail. If nothing
+     has rendered after FALLBACK ms, the wall is dropped and the picture is
+     shown instead. A slide that quietly shows one real tweet is a slide; one
+     showing twelve empty boxes is a fault everybody in the room can see.
 
-     NO ANIMATION OF ITS OWN. The deck pushes it in from the right and off to
-     the left, as it does 09b, 09b0 and 09d. No script: nothing to reveal means
-     nothing that can fail to reveal. -->
+     THE WALL IS LAID OUT AT ITS OWN SIZE AND THEN SCALED. Four columns of 330
+     is a 1400-wide block, and the embeds decide their own heights, so the
+     height is not known until they have rendered. A ResizeObserver on the wall
+     re-fits every time one lands — CSS cannot divide a length by a length, so
+     the scale cannot be a calc(), and a load-time read would measure zero
+     while the deck has the slide parked.
+
+     No builds. The deck pushes it in from the right and off to the left. -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .slide { height: 100%; display: grid; place-items: center; }
 
-  .frame {
-    position: relative;
+  .fit { position: relative; }
+  .wall {
+    width: 1400px;
+    columns: 4;
+    column-gap: 20px;
+    transform: scale(var(--s, 1));
+    transform-origin: center center;
+  }
+  .wall .t {
+    break-inside: avoid;
+    margin: 0 0 20px;
+  }
+  /* X sets its own margins on the rendered iframe; these put it back. */
+  .wall .twitter-tweet { margin: 0 !important; }
+
+  /* the fallback — the slide this replaced */
+  .shot { display: none; }
+  .fell .wall { display: none; }
+  .fell .shot { display: block; }
+  .shot img {
     display: block;
-    line-height: 0;                  /* no descender gap under the image */
+    width: min(980px, 88vw, calc(84vh * 700 / 532));
+    height: auto;
     border-radius: 12px;
-    overflow: hidden;                /* clips the image to the radius */
+    user-select: none;
+    -webkit-user-drag: none;
     box-shadow:
       0 0 0 1px rgba(0, 0, 0, 0.02),
       0 4px 8px rgba(0, 0, 0, 0.08),
       0 12px 30px rgba(0, 0, 0, 0.18);
   }
-  img {
-    display: block;
-    width: min(980px, 88vw, calc(84vh * 700 / 532));
-    height: auto;
-    user-select: none;
-    -webkit-user-drag: none;
-  }
 </style>
 </head>
 <body>
-  <div class="slide">
-    <div class="frame">
-      <img src="assets/cleaning-fee-tweet.webp" width="700" height="532"
-           alt="A tweet: Airbnb be like, $120 a night, $3,245 total, cleaning fee $1,600 — but please be sure to dust, vacuum, take out garbage, wash linens, steam clean carpet, apply fresh paint and install new appliances">
+  <div class="slide" id="slide">
+    <div class="fit" id="fit">
+      <div class="wall" id="wall"></div>
+      <div class="shot">
+        <img src="assets/cleaning-fee-tweet.webp" width="700" height="532"
+             alt="A tweet: Airbnb be like, $120 a night, $3,245 total, cleaning fee $1,600 — but please be sure to dust, vacuum, take out garbage, wash linens, steam clean carpet, apply fresh paint and install new appliances">
+      </div>
     </div>
   </div>
+<script>
+(() => {
+  // Twelve of the twenty John collected — the ones that are about the PRICE
+  // rather than about Airbnb generally, spread across six years so the wall
+  // reads as a long-running complaint and not one bad week.
+  const TWEETS = [
+    '1801431302652235780',   // @luinalaska
+    '2084133602967658692',   // @omgsidewalks
+    '2072319333448204349',   // @OrevaZSN
+    '2078940466469359691',   // @OrevaZSN
+    '2082277812841685193',   // @amelia_tweetz
+    '1943363533288124802',   // @chasedownleads
+    '1337059225936277504',   // @MorningBrew
+    '1734330498250350761',   // @TheBabylonBee
+    '1469015392483872772',   // @Cokedupoptions
+    '1801634945992904788',   // @itsBillyGtho
+    '1625849400714223619',   // @buccocapital
+    '1708512064220893293'    // @rohindhar
+  ];
+  const FALLBACK = 6000;     // nothing rendered by now -> show the capture
+
+  const slide = document.getElementById('slide');
+  const fit = document.getElementById('fit');
+  const wall = document.getElementById('wall');
+
+  TWEETS.forEach(id => {
+    const d = document.createElement('div');
+    d.className = 't';
+    d.innerHTML =
+      '<blockquote class="twitter-tweet" data-dnt="true" data-cards="hidden" ' +
+      'data-conversation="none" data-width="330">' +
+      '<a href="https://twitter.com/i/status/' + id + '"></a></blockquote>';
+    wall.appendChild(d);
+  });
+
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = 'https://platform.twitter.com/widgets.js';
+  s.charset = 'utf-8';
+  document.head.appendChild(s);
+
+  // THE FIT. The wall's height is whatever the embeds come to, so it is
+  // measured rather than known, and re-measured as each one lands.
+  function refit() {
+    if (slide.classList.contains('fell')) return;   // the wall is gone; leave the box alone
+    const w = slide.clientWidth, h = slide.clientHeight;
+    const ww = 1400, wh = wall.scrollHeight;
+    if (!(w > 0 && h > 0 && wh > 0)) return;
+    const k = Math.min((w * 0.94) / ww, (h * 0.92) / wh, 1);
+    wall.style.setProperty('--s', k);
+    // the scaled block still occupies its unscaled box in layout, so the
+    // wrapper is given the scaled size to keep it centred on the stage
+    fit.style.width = ww * k + 'px';
+    fit.style.height = wh * k + 'px';
+    wall.style.position = 'absolute';
+    wall.style.left = (ww * k - ww) / 2 + 'px';
+    wall.style.top = (wh * k - wh) / 2 + 'px';
+  }
+  new ResizeObserver(refit).observe(wall);
+  new ResizeObserver(refit).observe(slide);
+  refit();
+
+  // DID ANYTHING ACTUALLY RENDER? X replaces each blockquote with an iframe;
+  // an iframe it could not fill is left at zero height, which is exactly what
+  // a blocked network looks like. Height, not presence, is the test.
+  setTimeout(() => {
+    const up = [...wall.querySelectorAll('iframe')]
+      .filter(f => f.getBoundingClientRect().height > 40).length;
+    if (!up) {
+      // Hand the box back. refit() sized this wrapper to the scaled wall, and
+      // left as it was the capture sat in a corner of a 1300px block instead
+      // of in the middle of the stage.
+      slide.classList.add('fell');
+      fit.style.width = fit.style.height = '';
+      return;
+    }
+    refit();
+  }, FALLBACK);
+
+  window.presoNext = () => false;             // no builds
+  window.presoPrev = () => false;
+  window.presoState = () => 0;
+  window.presoRestore = () => {};
+})();
+</script>
 </body>
 </html>

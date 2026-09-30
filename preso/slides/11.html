@@ -1554,6 +1554,12 @@
   // the film loops; `ended` only fires if it ever stops looping
   film.addEventListener('ended', () => filmctl.classList.add('ended'));
   function runIntro() {
+    // ALREADY RUNNING IS LEFT ALONE. commit() can land on beat 0 more than
+    // once — the deck re-arrives, or 09f parks a frame on it — and seeking a
+    // film that is a second in back to 0 is a visible jump, not a restart
+    // anybody asked for. Only a film that is paused, or sitting on its last
+    // frame, is actually started.
+    if (!film.paused && !film.ended) return;
     filmctl.classList.remove('ended');
     // seeking before metadata arrives throws, and it used to share a try with
     // play(), so the throw ate the play call and the film never started
