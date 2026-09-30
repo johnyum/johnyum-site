@@ -49,9 +49,13 @@
 
      It drives the PAGE'S OWN handlers rather than faking anything — the pins
      are real elements and go() is the page's own state machine, so what the
-     room sees is the build behaving, not a recording of it. The cursor ring
-     and the ripple are injected into the page so they scale with it; drawn in
-     the slide they would need the --k scale applied by hand.
+     room sees is the build behaving, not a recording of it.
+
+     THE POINTER IS A 40x40 WHITE DOT that fades in on hover and presses in and
+     out on the tap. An earlier pass drew a stroked ring that rippled outward;
+     it read as a black outline ballooning over the map and took the eye off
+     the thing being clicked. The dot is injected into the page so it scales
+     with it — drawn in the slide it would need the --k scale applied by hand.
 
      Tapping back walks it out through the page's own back buttons, so the
      slide can be replayed. -->
@@ -127,13 +131,19 @@
     const d = doc(); if (!d || styled) return; styled = true;
     const st = d.createElement('style');
     st.textContent =
-      '.preso-cur,.preso-rip{position:fixed;z-index:9999;pointer-events:none;' +
-      'width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%}' +
-      '.preso-cur{border:2px solid rgba(0,0,0,.5);background:rgba(0,0,0,.06);opacity:0;' +
-      'transform:scale(.65);transition:opacity .2s ease,transform .3s cubic-bezier(.16,1,.3,1)}' +
+      // A 40x40 white dot, and nothing else. It reads as a fingertip on a light
+      // map, which a stroked ring did not — that came out as a black outline
+      // ballooning across the screen and pulled the eye off what was clicked.
+      // The shadow is only there so it does not vanish over pale tiles.
+      '.preso-cur{position:fixed;z-index:9999;pointer-events:none;' +
+      'width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;' +
+      'background:rgba(255,255,255,.55);box-shadow:0 1px 4px rgba(0,0,0,.22);' +
+      'opacity:0;transform:scale(.85);' +
+      'transition:opacity .18s ease,transform .22s cubic-bezier(.16,1,.3,1)}' +
       '.preso-cur.on{opacity:1;transform:scale(1)}' +
-      '.preso-rip{border:2px solid rgba(0,0,0,.45);animation:preso-rip .62s cubic-bezier(.16,1,.3,1) forwards}' +
-      '@keyframes preso-rip{from{transform:scale(.6);opacity:.9}to{transform:scale(3.4);opacity:0}}';
+      // the click: a short press in and out, the way a fingertip lands
+      '.preso-cur.tap{transform:scale(.78);background:rgba(255,255,255,.8);' +
+      'transition:transform .09s ease,background .09s ease}';
     d.head.appendChild(st);
   }
 
@@ -164,13 +174,11 @@
 
   function tap(el) {
     const d = doc(); if (!d) return;
-    const { x, y } = at(el);
-    const rip = d.createElement('div');
-    rip.className = 'preso-rip';
-    rip.style.left = x + 'px'; rip.style.top = y + 'px';
-    d.body.appendChild(rip);
-    setTimeout(() => rip.remove(), 700);
-    if (cur) cur.classList.remove('on');
+    if (cur) {
+      cur.classList.add('tap');            // press in
+      setTimeout(() => cur && cur.classList.remove('tap'), 130);   // and out
+      setTimeout(() => cur && cur.classList.remove('on'), 320);    // then away
+    }
     el.click();                            // the page's own handler, not a fake
   }
 
