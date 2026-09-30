@@ -4,39 +4,86 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>09c</title>
-<!-- THE TRIP CREATOR — New York on the map, with flights, homes and
-     experiences priced into one plan. Straight after the flights slide.
+<!-- EXPLORE — the mini trip creator, LIVE. Straight after the flights slide.
 
-     NO ANIMATION OF ITS OWN. The deck pushes it in from the right and off to
-     the left, and that is all. An earlier pass had it rise and fade on arrival,
-     which read as a second, competing move on top of the push.
+     This replaces the flat trip-creator export that stood here as a
+     placeholder. The device around it is that export's own device, measured
+     off it rather than guessed, so the slide keeps the same silhouette and
+     the same height it had — only now there is a real page inside.
 
-     SAME SIZE AS THE FLIGHTS WEB LAYER, CENTRED. 09b lays its web design out
-     as 94.687% of a stage sized min(92vw, 82vh * 4668/2935); this is the same
-     artwork at the same 4420x2935, so repeating that expression lands it at
-     exactly the same width — it just sits in the middle of the slide, because
-     there is no phone beside it here.
+     MEASURED OFF assets/trip-creator.webp (3200x2125 canvas):
+       device outer   3106 x 2031      -> aspect 3106/2031
+       stroke            32            -> 32/3200  = 0.009468 of the canvas
+       corner radius    112            -> 112/3200 = 0.035    of the canvas
+       screen inner   3041 x 1965      -> aspect 3041/1965
 
-       4668 / 2935 = 1.59046   the flights stage's aspect
-       0.94687                 the web layer's share of that stage
+     The canvas width is the expression 09c used before — the flights web
+     layer's own — so the device lands at exactly the height the export did:
+     1078 x 705 on a 1600x900 stage, against the export's 1078 x 705.
 
-     No script. -->
+     THE PAGE IS SCALED, NOT REFLOWED. /explore/ has a fixed 88px header and a
+     fixed 380px card; letting it lay out at the screen's own ~1040px would
+     make that chrome proportionally huge and stop it looking like the design.
+     So it renders at a 1512pt viewport — the width slide 09's PDP is built to
+     — and is scaled down to fit. 1512 x 977 keeps the screen's 3041/1965.
+
+     A ResizeObserver sets the scale, deliberately: it fires when the element
+     first gets a box, which is what happens when the deck un-parks the slide.
+     rAF does not run while parked and a load-time measurement reads zero, so
+     both of those leave the page at the wrong scale. See 09b for the full set
+     of ways a parked iframe breaks this.
+
+     NOTE: this is a live page and it fetches Mapbox tiles, so unlike every
+     other slide in the deck it needs the network to look right.
+
+     No entrance of its own — the deck pushes it in from the right. The
+     scripted flow-through goes here when it is written. -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .slide { height: 100%; display: grid; place-items: center; }
-  img {
-    display: block;
-    width: calc(min(92vw, 82vh * 1.59046) * 0.94687);
-    height: auto;
-    user-select: none;
-    -webkit-user-drag: none;
+
+  .device {
+    /* the export's own canvas width, so the device matches its height exactly */
+    --canvas: min(92vw, calc(82vh * 1.59046));
+    box-sizing: border-box;
+    width: calc(var(--canvas) * 0.91901);     /* 3106/3200 of the canvas, x 0.94687 */
+    aspect-ratio: 3106 / 2031;
+    border: calc(var(--canvas) * 0.009468) solid #000;   /* the 32px stroke */
+    border-radius: calc(var(--canvas) * 0.035);          /* the 112px radius */
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.02),
+      0 4px 8px rgba(0, 0, 0, 0.08),
+      0 12px 30px rgba(0, 0, 0, 0.18);
+  }
+  .screen { position: relative; width: 100%; height: 100%; overflow: hidden; background: #fff; }
+  .page {
+    position: absolute; left: 0; top: 0;
+    width: 1512px; height: 977px;            /* 1512 : 977 is the screen's 3041 : 1965 */
+    border: 0; display: block;
+    transform: scale(var(--k, 1));
+    transform-origin: top left;
   }
 </style>
 </head>
 <body>
   <div class="slide">
-    <img src="assets/trip-creator.webp" width="3200" height="2125"
-         alt="Airbnb trip creator: a map of New York with airport and borough prices, and a panel offering flights, homes and experiences">
+    <div class="device">
+      <div class="screen" id="screen">
+        <iframe class="page" id="page" title="Explore — trip creator" src="/explore/"></iframe>
+      </div>
+    </div>
   </div>
+<script>
+(() => {
+  const screen = document.getElementById('screen');
+  const fit = w => { if (w > 0) screen.style.setProperty('--k', w / 1512); };
+  // ResizeObserver, not rAF and not a load-time read: it fires when the element
+  // first gets a box, which is exactly when the deck un-parks this slide. A
+  // measurement taken while parked reads zero and would stick.
+  new ResizeObserver(([e]) => fit(e.contentRect.width)).observe(screen);
+  fit(screen.getBoundingClientRect().width);   // if it is already on stage
+})();
+</script>
 </body>
 </html>
