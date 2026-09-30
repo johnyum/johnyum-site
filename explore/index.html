@@ -46,6 +46,7 @@ body {
   color: var(--grey1000); -webkit-font-smoothing: antialiased;
 }
 img { display: block; }
+p { margin: 0; }   /* the default 1em is what pushed the title's two lines apart */
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 
 /* ── Map ────────────────────────────────────────────────────────────────── */
@@ -107,9 +108,14 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 .search-btn { padding: 8px; border-radius: 100px; display: flex; align-items: center; }
 .search-btn img { width: 16px; height: 16px; }
-.search-mid { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.search-mid { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
 .search-mid .t { font-size: 14px; line-height: 18px; font-weight: 600; white-space: nowrap; }
 .search-mid .s { font-size: 12px; line-height: 16px; font-weight: 400; color: var(--grey700); white-space: nowrap; }
+
+/* The listings beat's title is three parts on one line, so its pill runs the
+   full content width of the (much wider) card rather than the frames' 340 —
+   at 340 the title and the filter icon simply run out past the white. */
+#layerHood .search { width: 668px; }
 
 /* Vibe cards */
 .vibes { display: flex; align-items: center; gap: 4px; flex: none; }
@@ -216,6 +222,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
    and every marker falls back into document flow — pins stack down the page
    and drift further from their coordinate the further down the list they are. */
 .mk { position: absolute; }
+/* Anything carrying a name outranks anything that does not, so a stray pin can
+   never come down on top of LaGuardia. Markers are DOM siblings in the order
+   they were added, so without this the set added last simply wins. */
+.mk-dot  { z-index: 1; }
+.mk-city, .mk-hood { z-index: 2; }
+.mk-air  { z-index: 3; }
+.mk-me   { z-index: 4; }
 .mi {
   position: absolute; inset: 0;
   opacity: 0; transform: translateY(8px) scale(.9); transform-origin: 50% 100%;
@@ -238,10 +251,15 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 .pin .head img { position: absolute; left: 4px; top: 4px; width: 12px; height: 12px; }
 
-/* a bare pin marker is 20×32 */
-.mk-dot { width: 20px; height: 32px; }
-.mk-dot .pin { height: 32px; inset: 0; }
-.mk-dot .pin .stem { height: 20px; }
+/* An unnamed pin is NOT the labelled pin with the label taken off — it is its
+   own smaller component: a 10 head on a 1px stem, 15 tall, centred in a 28×36
+   box. Shrinking the 20px one instead gives a fat dot with a thick stem that
+   competes with the pills it is supposed to sit quietly behind. */
+.mk-dot { width: 28px; height: 36px; }
+.pin-sm { position: absolute; left: 9px; bottom: 0; width: 10px; height: 15px; z-index: 1; }
+.pin-sm .stem { position: absolute; left: 4.5px; top: 5px; width: 1px; height: 10px; border-radius: 100px; background: var(--grey700); }
+.pin-sm .head { position: absolute; left: 0; top: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--rausch600); }
+.pin-sm .head img { position: absolute; left: 2px; top: 1.8px; width: 6px; height: 6px; }
 
 /* city price pill — 142×36, pill 28 tall, pin hung at x=4 */
 .mk-city { height: 36px; cursor: pointer; }
@@ -298,14 +316,22 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   background: var(--blue1); transform: translateX(-50%) rotate(45deg); border-radius: 2px;
 }
 
-/* the traveller's own pin — 40×48, black, face inside */
+/* The traveller's own pin — 40×48, black, face inside.
+   The tail is a square stood on its corner, and the only corner of it anyone
+   should ever see is the bottom one. Two things keep it that way: it is drawn
+   BEFORE the disc, so the black circle paints over it rather than under it,
+   and it is tucked high enough that its left and right corners fall INSIDE the
+   circle's edge — at y 36.7 the disc is 13.4 wide either side of centre and the
+   square only reaches 11.3, so they are covered with 2px to spare. Sit it any
+   lower and those two corners flare out past the disc and the whole thing
+   reads as a diamond hanging off a circle instead of a pin with a point. */
 .mk-me { width: 40px; height: 48px; filter: drop-shadow(0 12px 15px rgba(0,0,0,.18)); }
+.mk-me .tail {
+  position: absolute; left: 50%; top: 28.7px; width: 16px; height: 16px; background: var(--grey1000);
+  transform: translateX(-50%) rotate(45deg); border-radius: 1.5px;
+}
 .mk-me .body { position: absolute; left: 0; top: 1px; width: 40px; height: 41px; border-radius: 100px; background: var(--grey1000); }
 .mk-me img { position: absolute; left: 2px; top: 3px; width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
-.mk-me .tail {
-  position: absolute; left: 50%; bottom: 0; width: 15px; height: 15px; background: var(--grey1000);
-  transform: translateX(-50%) rotate(45deg); border-radius: 2px;
-}
 
 /* ── Narrow ─────────────────────────────────────────────────────────────────
    Below the frame's own width the card comes off its 380 column and sits
@@ -486,9 +512,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     { n: 'John F. Kennedy Int…', p: 509, ll: [-73.778, 40.641] }
   ];
 
+  // Placed in the gaps between the named markers, not scattered — an unnamed
+  // pin landing on the LaGuardia card is a collision, not a texture.
   var NYC_DOTS = [
-    [-73.99, 40.75], [-73.94, 40.81], [-74.01, 40.64], [-73.89, 40.66],
-    [-73.79, 40.79], [-74.08, 40.72]
+    [-74.060, 40.820], [-73.995, 40.870], [-74.090, 40.640],
+    [-73.960, 40.600], [-73.720, 40.750], [-73.830, 40.598]
   ];
 
   // ── Williamsburg ────────────────────────────────────────────────────────
@@ -496,15 +524,28 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // world-sized polygon with this ring punched out of it — the one honest way
   // to say "this is the area" without redrawing the basemap.
   var WBURG = [
-    [-73.9700, 40.7235],   // the river at N 12th
-    [-73.9540, 40.7250],   // McCarren, the top of Union Ave
-    [-73.9425, 40.7175],   // the BQE at Meeker
-    [-73.9370, 40.7090],   // Bushwick Ave
-    [-73.9400, 40.6990],   // Flushing Ave, east end
-    [-73.9600, 40.6970],   // Flushing Ave, west end
-    [-73.9690, 40.7010],   // back to the river at Division
-    [-73.9745, 40.7120],   // the river under the bridge
-    [-73.9700, 40.7235]
+    // The waterfront, north to south: Bushwick Inlet down past the ferry, the
+    // Domino site and the bridge to Wallabout. The river is the one edge that
+    // has to be drawn properly — a straight line here reads as a mistake,
+    // because everyone can see the shoreline underneath it.
+    [-73.9680, 40.7243], [-73.9690, 40.7228], [-73.9700, 40.7210],
+    [-73.9706, 40.7196], [-73.9712, 40.7178], [-73.9718, 40.7162],
+    [-73.9722, 40.7146], [-73.9718, 40.7130], [-73.9712, 40.7114],
+    [-73.9716, 40.7100], [-73.9730, 40.7086], [-73.9738, 40.7070],
+    [-73.9736, 40.7052], [-73.9722, 40.7036], [-73.9706, 40.7022],
+    [-73.9690, 40.7008], [-73.9668, 40.6996],
+    // Flushing Avenue, west to east along the Navy Yard and Bed-Stuy line.
+    [-73.9640, 40.6982], [-73.9600, 40.6972], [-73.9560, 40.6968],
+    [-73.9510, 40.6972], [-73.9460, 40.6980], [-73.9420, 40.6988],
+    [-73.9390, 40.6996],
+    // Up Bushwick Avenue and the BQE.
+    [-73.9374, 40.7020], [-73.9366, 40.7048], [-73.9370, 40.7076],
+    [-73.9382, 40.7100], [-73.9396, 40.7122], [-73.9412, 40.7142],
+    [-73.9430, 40.7162],
+    // Meeker and Metropolitan, back west under McCarren to the river.
+    [-73.9452, 40.7180], [-73.9478, 40.7196], [-73.9506, 40.7214],
+    [-73.9532, 40.7232], [-73.9556, 40.7244], [-73.9584, 40.7250],
+    [-73.9612, 40.7252], [-73.9640, 40.7248], [-73.9680, 40.7243]
   ];
 
   // Nightly prices scattered through it. No names — at this depth the number
@@ -624,6 +665,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   }
 
   var PIN = '<div class="pin"><i class="stem"></i><i class="head"><img src="assets/icons/pin-plane.svg" alt=""></i></div>';
+  var PIN_SM = '<div class="pin-sm"><i class="stem"></i><i class="head"><img src="assets/icons/pin-plane.svg" alt=""></i></div>';
 
   function makeCity(c) {
     var o = mk('mk-city' + (c.hero ? ' hero' : ''), 142, 36,
@@ -635,7 +677,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     return o;
   }
   function makeDot(ll) {
-    var o = mk('mk-dot', 20, 32, PIN, 'bottom');
+    var o = mk('mk-dot', 28, 36, PIN_SM, 'bottom');
     o.marker.setLngLat(ll);
     return o;
   }
@@ -664,7 +706,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   }
   function makeMe() {
     var o = mk('mk-me', 40, 48,
-      '<i class="body"></i><img src="assets/img/avatar.png" alt=""><i class="tail"></i>', 'bottom');
+      '<i class="tail"></i><i class="body"></i><img src="assets/img/avatar.png" alt="">', 'bottom');
     o.marker.setLngLat(ME);
     return o;
   }
@@ -695,7 +737,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     map.addLayer({ id: 'wburg-dim', type: 'fill', source: 'wburg', slot: 'top',
       paint: { 'fill-color': '#6c6c6c', 'fill-opacity': 0 } });
     map.addLayer({ id: 'wburg-edge', type: 'line', source: 'wburg-line', slot: 'top',
-      paint: { 'line-color': '#ff385c', 'line-width': 1.5, 'line-opacity': 0 } });
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': '#ff385c', 'line-width': 1, 'line-opacity': 0 } });
   }
   function paintHoodMask(on) {
     if (!map.getLayer('wburg-dim')) return;

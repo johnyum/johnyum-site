@@ -154,6 +154,16 @@ Things that were learned the hard way and should not be undone:
   the bottom — so the pin markup comes *after* the pill and carries a `z-index`,
   or the white lands over the red and the pin reads as a separate dot beside the
   label. Unnamed pins stand alone; that is the only case where one floats free.
+- **An unnamed pin is its own smaller component**, not the named one with the
+  label taken off: a 10 head on a 1px stem, 15 tall, centred in a 28×36 box
+  (frame `5474:537243`). And named markers outrank unnamed ones in `z-index`,
+  so a stray pin can never come down on top of the LaGuardia card.
+- **The traveller's pin is a disc with a point, not a disc with a diamond.** Its
+  tail is drawn BEFORE the disc and tucked to y 28.7, where the circle is still
+  wider than the square — sit it lower or draw it later and both side corners
+  of the rotated square show.
+- **`p { margin: 0 }`** — the browser's 1em default is what pushed the two lines
+  of the city title 26px apart when the design asks for 4.
 - **`.mk { position: absolute }`.** This stylesheet loads after `mapbox-gl.css`
   and `.mk` has the same specificity as `.mapboxgl-marker`, so `relative` here
   silently wins and every marker drops back into document flow — pins stack down
