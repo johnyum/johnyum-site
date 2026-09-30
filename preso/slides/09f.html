@@ -7,7 +7,7 @@
 <!-- HOST SETUP, EVERY STEP AT ONCE — the whole flow in one row, straight
      before the host-only fee screens.
 
-     THIRTEEN INSTANCES OF SLIDE 11, ONE PER STEP. Slide 11 is a single phone
+     TWELVE INSTANCES OF SLIDE 11, ONE PER STEP. Slide 11 is a single phone
      whose steps are toggled by a body class — every step's content is already
      in its DOM, hidden — so there is no set of step elements to lay out. The
      only faithful way to show them side by side is to load the slide once per
@@ -19,41 +19,57 @@
        step 1b   home type            step 7    name
        step 2    space type           step 8    describe
        step 3    address              step 8b   price
-       step 4    guests               step 9    last questions
-       step 5    amenities            step 10   preview
+       step 4    guests               step 10   preview
+       step 5    amenities
+
+     step 9, "Just a few last questions", is left out — twelve cells, not
+     thirteen.
 
      ?nomap=1 ON TWELVE OF THEM. Slide 11 builds a live Mapbox map at load, and
-     thirteen of those is thirteen WebGL contexts — at the browser's cap, where
+     twelve of those is twelve WebGL contexts — at the browser's cap, where
      they start getting dropped. Only the address cell asks for one.
 
-     THE SCALE IS COMPUTED, NOT GUESSED. Each instance gets a 391.3 x 1000
-     viewport: slide 11 sizes its phone at 80vh with a 900/1840 aspect, so at
-     that viewport the phone spans the full width and 80% of the height, and
-     the cell can be scaled as one block. A ResizeObserver divides the row's
-     width by thirteen — CSS cannot divide a length by a length, so this cannot
-     be a calc() — and sets the scale from it.
+     SIX ACROSS, TWO DOWN. As one row of twelve the phones came out 117 wide;
+     on a 6x2 grid they are half again bigger, because the row was starved by
+     width while the grid can spend the height.
+
+     THE CELL IS CROPPED TO THE PHONE. Slide 11 sizes its phone at 80vh of its
+     own viewport, so a cell showing the whole viewport carries 20% dead
+     margin — and on two rows that waste is what decides the size. Each cell is
+     therefore 800 of the 1000pt viewport tall, with the frame pulled up by the
+     100pt above the phone. The 391.3 width is chosen so the phone spans the
+     cell exactly: 800 x 900/1840 = 391.3.
+
+     THE SCALE IS COMPUTED, NOT GUESSED. It is the smaller of what the width
+     allows and what the height allows, so the grid never overflows either way.
+     CSS cannot divide a length by a length, so this cannot be a calc(); a
+     ResizeObserver also fires when the deck un-parks the slide, which a
+     load-time read would miss — it measures zero while parked.
 
      No entrance of its own; the deck pushes it in from the right. No builds. -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .slide { height: 100%; display: grid; place-items: center; }
 
-  .row {
-    display: flex;
-    align-items: center;
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(6, auto);
     justify-content: center;
-    gap: var(--gap, 8px);
-    width: 94vw;
+    align-content: center;
+    column-gap: var(--gap, 10px);
+    row-gap: var(--rowgap, 14px);
   }
   .cell {
     position: relative;
-    flex: none;
+    /* 391.3 x 800 of slide 11's viewport — the phone alone, not the 1000 the
+       viewport is tall. The 100pt of margin above it is cropped out below. */
     width: calc(391.3px * var(--k, 0.3));
-    height: calc(1000px * var(--k, 0.3));
+    height: calc(800px * var(--k, 0.3));
     overflow: hidden;
   }
   .cell iframe {
-    position: absolute; left: 0; top: 0;
+    position: absolute; left: 0;
+    top: calc(-100px * var(--k, 0.3));      /* lift the phone's top margin out */
     width: 391.3px; height: 1000px;
     border: 0; display: block;
     transform: scale(var(--k, 0.3));
@@ -63,20 +79,26 @@
 </head>
 <body>
   <div class="slide">
-    <div class="row" id="row"></div>
+    <div class="grid" id="grid"></div>
   </div>
 <script>
 (() => {
   // step -> the body class slide 11 uses. Step 1 is the default and carries no
   // class at all, which is why one entry is empty rather than 'step1'.
+  // step9 — "Just a few last questions…" — is deliberately not here. Twelve
+  // cells, not thirteen.
   const STEPS = ['step0', '', 'step1b', 'step2', 'step3', 'step4', 'step5',
-                 'step6', 'step7', 'step8', 'step8b', 'step9', 'step10'];
+                 'step6', 'step7', 'step8', 'step8b', 'step10'];
   const MAP_STEP = 'step3';                 // the only one that gets a real map
-  const VW = 391.3, VH = 1000;
+  // the slide-11 viewport each cell renders: 391.3 wide so the phone spans the
+  // cell exactly (800 x 900/1840), 1000 tall of which the phone is the middle
+  // 800 — the rest is cropped.
+  const VW = 391.3, VH = 1000, PH = 800;
+  const COLS = 6, ROWS = 2;
 
-  const row = document.getElementById('row');
+  const grid = document.getElementById('grid');
+  // the deck's per-load stamp, passed down so a cell is never a stale copy
   const v = new URLSearchParams(location.search).get('v');
-
   STEPS.forEach(cls => {
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -93,21 +115,26 @@
       setTimeout(set, 120); setTimeout(set, 600); setTimeout(set, 1400);
     });
     cell.appendChild(f);
-    row.appendChild(cell);
+    grid.appendChild(cell);
   });
 
   // CSS cannot divide a length by a length, so the per-cell scale cannot be a
-  // calc(). A ResizeObserver also fires when the deck un-parks the slide, which
-  // a load-time measurement would miss — it reads zero while parked.
-  const fit = w => {
-    if (!(w > 0)) return;
-    const gap = Math.max(4, w * 0.006);
-    const cw = (w - gap * (STEPS.length - 1)) / STEPS.length;
-    row.style.setProperty('--gap', gap + 'px');
-    row.style.setProperty('--k', cw / VW);
+  // calc(). It is the smaller of what the width allows and what the height
+  // allows. The ResizeObserver also fires when the deck un-parks the slide,
+  // which a load-time read would miss — that measures zero while parked.
+  const fit = (w, h) => {
+    if (!(w > 0 && h > 0)) return;
+    const gap = Math.max(6, w * 0.008), rowgap = Math.max(8, h * 0.02);
+    const kW = ((w * 0.94 - gap * (COLS - 1)) / COLS) / VW;
+    const kH = ((h * 0.84 - rowgap * (ROWS - 1)) / ROWS) / PH;
+    const k = Math.min(kW, kH);
+    grid.style.setProperty('--gap', gap + 'px');
+    grid.style.setProperty('--rowgap', rowgap + 'px');
+    grid.style.setProperty('--k', k);
   };
-  new ResizeObserver(([e]) => fit(e.contentRect.width)).observe(row);
-  fit(row.getBoundingClientRect().width);
+  const slide = document.querySelector('.slide');
+  new ResizeObserver(([e]) => fit(e.contentRect.width, e.contentRect.height)).observe(slide);
+  const r = slide.getBoundingClientRect(); fit(r.width, r.height);
 })();
 </script>
 </body>
