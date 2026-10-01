@@ -511,7 +511,9 @@ const BEATS = [
   (m, instant) => {
     const iwg = markRun(m).find(g => g.name === 'Indian Wells 2027'); if (!iwg) return;
     const iw = iwg.dis[0], week = Array.from({ length: 6 }, (_, k) => iw + k);
-    const landAll = () => { m.setHoldQuick(false); m.setSelectedNights(new Set(week)); setTimeout(() => m.reveal(iw, null, 0, 0), 40); };
+    // the fork is already on February with the week in view (the events beat parked it there): no scroll, just the picks
+    const park = () => { if (SIMPLE) { m.revealOffset = FEB_PARK; m.reveal(m.fx.index({ y: 2027, m: 2, d: 7 }), null, 0, 0); } else m.reveal(iw, null, 0, 0); };
+    const landAll = () => { m.setHoldQuick(false); m.setSelectedNights(new Set(week)); setTimeout(park, 40); };   // (setSelectedNights replaces: Modernism Week lets go)
     if (instant) { landAll(); return; }
     const g = ++gen;
     pendingTail = landAll;                           // a tap before the run is through lands the rest whole
@@ -521,6 +523,8 @@ const BEATS = [
       week.forEach((di, k) => setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, k * 90));
       setTimeout(() => { if (g === gen) { m.setHoldQuick(false); pendingTail = null; } }, (week.length - 1) * 90 + 260);
     };
+    // the fork: already on February, with Modernism Week picked — it lets go, a breath, then the taps
+    if (SIMPLE) { m.clearSelection(); setTimeout(() => { if (g === gen) tapWeek(); }, 450); return; }
     m.reveal(iw, null, 0, 0);                        // one scroll, uninterrupted
     // settled() is armed only after the scroll is under way — armed before, it sees a calendar that has not started moving
     settled(g, () => setTimeout(() => { if (g === gen) tapWeek(); }, MARK_LAND));
@@ -754,7 +758,8 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) +
 // (12bs, on this tap), the ⨉ is visibly tapped and the quick actions close, the nights letting go; once they are down the
 // calendar scrolls to November, bare; a beat after it has landed, every event and holiday pops in at once as its icon.
 if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) + 3, 0, (m, instant) => {
-  const marksOn = () => { m.setLayers({ marks: true }); m.setShownMarks(new Set()); for (const grp of markRun(m)) m.showMarkGroup(grp.dis); };
+  // the HOLIDAYS only (John, 2026-09-30): Halloween, Veterans Day, Thanksgiving — the events wait for the next beat
+  const marksOn = () => { m.setLayers({ marks: true }); m.setShownMarks(new Set()); for (const grp of markRun(m)) if (HOLIDAYS.includes(grp.name)) m.showMarkGroup(grp.dis); marksFlag('hol'); };
   const tg = m.fx.index({ y: 2026, m: 11, d: 1 });              // November — the month, not Thanksgiving (John, 2026-09-30): Pride and Thanksgiving both in it
   const land = () => { m.clearSelection(); m.revealOffset = MARK_PARK; marksOn(); setTimeout(() => m.reveal(tg, null, 0, 0), 40); };   // the reveal a tick later, as the holidays beat did
   if (instant) { land(); return; }
@@ -767,6 +772,25 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) +
     m.revealOffset = MARK_PARK; m.reveal(tg, null, 0, 0);
     settled(g, () => setTimeout(() => { if (g !== gen) return; marksOn(); pendingTail = null; }, 500));   // landed; a beat; the icons
   }, TAP + 650);                                               // the quick actions are down
+});
+// ...and the events (John, 2026-09-30): the verdict's arrow moves on to "No popular events" (12bs), the calendar scrolls
+// down to February 2027 — parked as John's frame has it, the row of the 7th at the top with 8px of the week before
+// showing above it (FEB_PARK) — and a beat after it lands every event pops in: Modernism Week, the AMEX Cup, Indian Wells,
+// Pride back in November, and the holidays not yet shown. Then a beat, and Modernism Week — the 11th through the 21st — is
+// picked a night at a time, and the quick actions rise with the event named in the Availability card.
+if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) + 4, 0, (m, instant) => {
+  const feb = m.fx.index({ y: 2027, m: 2, d: 7 }), mw = [m.fx.index({ y: 2027, m: 2, d: 11 }), m.fx.index({ y: 2027, m: 2, d: 21 })];
+  const all = () => { for (const grp of markRun(m)) m.showMarkGroup(grp.dis); marksFlag('all'); };
+  const go = () => { m.revealOffset = FEB_PARK; m.reveal(feb, null, 0, 0); };
+  const pick = () => { const s = new Set(); for (let di = mw[0]; di <= mw[1]; di++) s.add(di); m.setSelectedNights(s); m.setHeaderLock(true, false); };
+  if (instant) { all(); pick(); setTimeout(go, 40); return; }
+  const g = ++gen;
+  pendingTail = () => { all(); pick(); go(); };
+  go();
+  settled(g, () => setTimeout(() => {
+    if (g !== gen) return; all();
+    setTimeout(() => { if (g === gen) { pendingTail = null; cascade(m, mw[0], mw[1], 90); } }, 700);   // a beat; Modernism Week, night by night
+  }, 500));   // landed; a beat; the events
 });
 // The beat that first stands three phones up. A jump straight to it (or past it) must create the other phones first rather
 // than wait for their timer. This used to be the literal 36 — stale since beats were removed, so it never fired, until two
@@ -796,6 +820,12 @@ function typeAsk(g, phrase, done) {
 // Saturdays in the first, third and fifth go up to $535 — a spread that reads as an advisor's, not a rule's, and one that
 // gives September ten tipped nights (the 11th, 12th, 16th, 17th, 22nd–26th, 29th), which beat 21 picks.
 const TIPS = m => { const out = []; for (let di = m.fx.todayIndex + 1; di <= m.fx.todayIndex + 35; di++) { const x = m.fx.date(di), dow = new Date(x.y, x.m - 1, x.d).getDay(), wk = Math.floor((di - m.fx.todayIndex) / 7); if (dow >= 2 && dow <= 4 && (wk === 1 || wk === 2)) out.push([di, 480]); else if ((dow === 5 || dow === 6) && wk % 2 === 0) out.push([di, 535]); } return out; };
+const HOLIDAYS = ['Halloween', 'Veterans Day', 'Thanksgiving'];   // the fork's holidays-only beat shows just these
+// The row of Feb 7 parks with 8px of the week before it showing: the app lands a revealed row at the rule + 8 (RULE_TO_GRID)
+// + this offset, and rows are 4 apart, so the row above shows 8 + offset - 4 — 8 wants 4.
+const FEB_PARK = 4;
+// which marks the fork is showing, on the app's root for 12bs to read: 'hol' (No holidays answered), 'all' (No popular events)
+const marksFlag = v => { const d = appDoc(); if (!d) return; if (v) d.documentElement.dataset.marks = v; else delete d.documentElement.dataset.marks; };
 const MARK_PARK = 120;   // an event's row parks this far under the header, with its week above for context
 // ALL THE ICONS AT ONCE, THEN ONE SCROLL (John, 2026-09-30). This ran as a
 // stop-start descent: scroll a bit, pop a group, scroll a bit, pop the next.
@@ -1085,6 +1115,7 @@ function typeKeys(keys, instant) {
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
     setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } for (const doc of [app2Doc(), app3Doc()]) { const v = doc && doc.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); } }   // the second phone back on its list, on today, its menu closed; the third on top
+    if (SIMPLE) marksFlag(null);
     m.setHeaderLock(false, false); m.hidePuck(); m.openBriefTip(null); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
