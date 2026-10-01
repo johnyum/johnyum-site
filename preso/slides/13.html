@@ -754,31 +754,49 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) +
   }, cells.length * EVERY + 120);
 });
 // THE ICONS COME IN (John, 2026-09-30) — the answer to "No holidays". The fork shows no events and holidays at all until
-// here (the corner dots it once had are gone: "get rid of them altogether"). With "Too dark" crossed out in the verdict
-// (12bs, on this tap), the ⨉ is visibly tapped and the quick actions close, the nights letting go; once they are down the
+// here (the corner dots it once had are gone: "get rid of them altogether"). With the verdict's arrow on "No holidays"
+// (12bs, on this tap), the price-tips sheet drops and the wand tile goes; once they are down the
 // calendar scrolls to November, bare; a beat after it has landed, every event and holiday pops in at once as its icon.
 if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) + 3, 0, (m, instant) => {
   // the HOLIDAYS only (John, 2026-09-30): Halloween, Veterans Day, Thanksgiving — the events wait for the next beat
   const marksOn = () => { m.setLayers({ marks: true }); m.setShownMarks(new Set()); for (const grp of markRun(m)) if (HOLIDAYS.includes(grp.name)) m.showMarkGroup(grp.dis); marksFlag('hol'); };
   const tg = m.fx.index({ y: 2026, m: 11, d: 1 });              // November — the month, not Thanksgiving (John, 2026-09-30): Pride and Thanksgiving both in it
-  const land = () => { m.clearSelection(); m.revealOffset = MARK_PARK; marksOn(); setTimeout(() => m.reveal(tg, null, 0, 0), 40); };   // the reveal a tick later, as the holidays beat did
+  const shut = () => { m.clearSelection(); m.setWandSheet(false); m.setWandTile(false); };   // the price tips beat left its sheet and wand up
+  const land = () => { shut(); m.revealOffset = MARK_PARK; marksOn(); setTimeout(() => m.reveal(tg, null, 0, 0), 40); };   // the reveal a tick later, as the holidays beat did
   if (instant) { land(); return; }
   const g = ++gen;
   pendingTail = land;                                          // a tap before it is through lands it whole
-  press(d => d.querySelector('.sqa-close'));
-  setTimeout(tail(g, () => m.clearSelection()), TAP);
+  m.setWandSheet(false);                                       // the price-tips sheet drops...
+  setTimeout(tail(g, shut), TAP);                              // ...and the wand tile goes, Today sliding back
   setTimeout(() => {
     if (g !== gen) return;
     m.revealOffset = MARK_PARK; m.reveal(tg, null, 0, 0);
     settled(g, () => setTimeout(() => { if (g !== gen) return; marksOn(); pendingTail = null; }, 500));   // landed; a beat; the icons
   }, TAP + 650);                                               // the quick actions are down
 });
+// THE PRICE TIPS (John, 2026-09-30) — the answer to "No price tips", between the switch to stroked picks and the run to
+// November: the verdict crosses out "Too dark" and points at "No price tips" (12bs); the ⨉ is visibly tapped and the quick
+// actions close, the nights letting go; a beat, and the magic-wand tile pops in beside the gear, Today sliding left for it,
+// as the full build does it; a beat, the wand is tapped and the price-tips sheet rises over the frosted calendar (Figma
+// 5248:641877). The calendar is already home on September, so there is no flight home first. Spliced at the same place
+// as the November beat, after it in this file, so it lands in front of it.
+if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) + 3, 0, (m, instant) => {
+  const open = () => { m.setWandSheet(true); tipsFlag(true); };
+  if (instant) { m.clearSelection(); m.setWandTile(true); open(); return; }
+  const g = ++gen;
+  pendingTail = () => { m.clearSelection(); m.setWandTile(true); open(); };
+  press(d => d.querySelector('.sqa-close'));
+  setTimeout(() => { if (g === gen) m.clearSelection(); }, TAP);
+  setTimeout(() => { if (g === gen) m.setWandTile(true); }, TAP + 700);                                // the cards are down, a beat: the wand
+  setTimeout(() => { if (g === gen) press(d => d.querySelector('.wand-tile')); }, TAP + 700 + 800 + 900); // it has popped in, a beat: tapped
+  setTimeout(tail(g, open), TAP + 700 + 800 + 900 + TAP);                                               // ...and the sheet rises
+});
 // ...and the events (John, 2026-09-30): the verdict's arrow moves on to "No popular events" (12bs), the calendar scrolls
 // down to February 2027 — parked as John's frame has it, the row of the 7th at the top with 8px of the week before
 // showing above it (FEB_PARK) — and a beat after it lands every event pops in: Modernism Week, the AMEX Cup, Indian Wells,
 // Pride back in November, and the holidays not yet shown. Then a beat, and Modernism Week — the 11th through the 21st — is
 // picked a night at a time, and the quick actions rise with the event named in the Availability card.
-if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) + 4, 0, (m, instant) => {
+if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) + 5, 0, (m, instant) => {
   const feb = m.fx.index({ y: 2027, m: 2, d: 7 }), mw = [m.fx.index({ y: 2027, m: 2, d: 11 }), m.fx.index({ y: 2027, m: 2, d: 21 })];
   const all = () => { for (const grp of markRun(m)) m.showMarkGroup(grp.dis); marksFlag('all'); };
   const go = () => { m.revealOffset = FEB_PARK; m.reveal(feb, null, 0, 0); };
@@ -826,6 +844,8 @@ const HOLIDAYS = ['Halloween', 'Veterans Day', 'Thanksgiving'];   // the fork's 
 const FEB_PARK = 4;
 // which marks the fork is showing, on the app's root for 12bs to read: 'hol' (No holidays answered), 'all' (No popular events)
 const marksFlag = v => { const d = appDoc(); if (!d) return; if (v) d.documentElement.dataset.marks = v; else delete d.documentElement.dataset.marks; };
+// and whether the price-tips sheet has been opened (No price tips answered), likewise for 12bs
+const tipsFlag = on => { const d = appDoc(); if (!d) return; if (on) d.documentElement.dataset.tips = '1'; else delete d.documentElement.dataset.tips; };
 const MARK_PARK = 120;   // an event's row parks this far under the header, with its week above for context
 // ALL THE ICONS AT ONCE, THEN ONE SCROLL (John, 2026-09-30). This ran as a
 // stop-start descent: scroll a bit, pop a group, scroll a bit, pop the next.
@@ -1115,7 +1135,7 @@ function typeKeys(keys, instant) {
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
     setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } for (const doc of [app2Doc(), app3Doc()]) { const v = doc && doc.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); } }   // the second phone back on its list, on today, its menu closed; the third on top
-    if (SIMPLE) marksFlag(null);
+    if (SIMPLE) { marksFlag(null); tipsFlag(false); }
     m.setHeaderLock(false, false); m.hidePuck(); m.openBriefTip(null); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
