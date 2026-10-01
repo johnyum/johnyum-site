@@ -932,8 +932,16 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('odometer(d, 74
 // the quick actions rise the header tucks up into its small bar with them — cascade()'s own landing (Lacked Context, in the verdict).
 if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('m.goToday()')) + 1, 0, (m, instant) => {
   const a = m.fx.index({ y: 2026, m: 9, d: 11 }), z = m.fx.index({ y: 2026, m: 9, d: 18 });
-  if (instant) { const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); m.setHeaderLock(true, false); return; }
+  // ...and once the quick actions are up (John, 2026-09-30): a beat, Custom settings tapped; a beat, Custom promotion tapped —
+  // the promotion editor resting on 0%, as the run's first promotion did
+  const promo = () => { m.setSettingsSheet(true); m.setPromoSheet(true); m.setPromoDrag(false); m.setPromoPct(0); };
+  if (instant) { const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); m.setHeaderLock(true, false); promo(); return; }
   cascade(m, a, z, 90);                                        // the run; on its landing the quick actions rise and the header collapses
+  const g = gen, up = (z - a) * 90 + 260;                      // cascade's own gen, and when its quick actions are up
+  setTimeout(() => { if (g === gen) press(d => d.querySelector('.sqa-custom')); }, up + 800);
+  setTimeout(() => { if (g === gen) m.setSettingsSheet(true); }, up + 800 + TAP);
+  setTimeout(() => { if (g === gen) press(d => d.querySelectorAll('.sqa-custom.open .ss-row')[1]); }, up + 800 + TAP + 1000);
+  setTimeout(() => { if (g === gen) { m.setPromoSheet(true); m.setPromoPct(0); } }, up + 800 + TAP + 1000 + TAP);
 });
 // THE ODOMETER for the price sheet's big figure: the build only rolls the figures in the cells, and the fork keeps even
 // those still. A copy of the figure is laid exactly over it — the same face, size and place — the real one is hidden,
