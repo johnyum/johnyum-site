@@ -1016,6 +1016,19 @@ const promoTo = (from, to) => (m, instant) => {
   requestAnimationFrame(step);
 };
 if (SIMPLE) BEATS.splice(beatAfter('PRE20.get', 1), 0, promoTo(50, 10), promoTo(10, 20));
+// ...and the tap after the 20% (John, 2026-09-30): the promotion editor's Done, visibly tapped — back to Custom settings — and a
+// beat later Minimum nights, visibly tapped, the editor opening. A stray tap waits for it (HOLD NEXT).
+if (SIMPLE) BEATS.splice(beatAfter('PRE20.get', 3), 0, (m, instant) => {
+  const minOpen = () => { m.setPromoSheet(false); m.setPromoDrag(false); m.setMinSheet(true); };
+  if (instant) { minOpen(); return; }
+  const g = ++gen;
+  pendingTail = minOpen;
+  press(d => d.querySelector('.sqa-custom.open .cp .mn-done'));                                           // Done...
+  setTimeout(() => { if (g === gen) m.setPromoSheet(false); }, TAP);                                      // ...back to the settings
+  setTimeout(() => { if (g === gen) press(d => d.querySelectorAll('.sqa-custom.open .ss-row')[0]); }, TAP + 1000);   // a beat: Minimum nights
+  setTimeout(tail(g, () => m.setMinSheet(true)), TAP + 1000 + TAP);                                        // ...its editor
+  holdNextUntil = performance.now() + TAP + 1000 + TAP + 150;
+});
 // THE ODOMETER for the price sheet's big figure: the build only rolls the figures in the cells, and the fork keeps even
 // those still. A copy of the figure is laid exactly over it — the same face, size and place — the real one is hidden,
 // and each digit of the copy rolls up a strip of 0–9 from its old figure to its new; when they have landed `done` sets
