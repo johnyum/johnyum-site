@@ -457,7 +457,9 @@ const BEATS = [
   //      the picked nights, their $480 rolling to $384
   (m, instant) => {
     const ns = [...m.selectedNights];
-    const promo = () => SIMPLE ? m.setPrice(Math.round(m.price(0, ns[0]) * 0.8), 0, ns, false) : m.setPromo(0.2, 0, ns);
+    // In the simple fork the 20% is never applied: the next beat presses Cancel (John, 2026-09-30), so the dates stay at
+    // $480 and only the editor shows 20%. The full build applies the promotion here, as it always has.
+    const promo = () => { if (!SIMPLE) m.setPromo(0.2, 0, ns); };
     if (instant) { m.setPromoSheet(true); m.setPromoDrag(false); m.setPromoPct(20); promo(); return; }
     const g = ++gen;
     pendingTail = () => { m.setPromoSheet(true); m.setPromoDrag(false); m.setPromoPct(20); promo(); };
@@ -474,10 +476,26 @@ const BEATS = [
   },
   // 17 — ⨉, straight from the promotion page: the whole quick actions drop away; the header stays small (it does for the rest
   //      of the preso); the 9th–21st keep their $384, −20% and min 5, untapped
-  (m, instant) => { if (instant) { m.clearSelection(); return; } const g = ++gen; press(d => d.querySelector('.sqa-close')); setTimeout(tail(g, () => m.clearSelection()), TAP); },
+  //      In the SIMPLE fork it is CANCEL instead (John, 2026-09-30: "instead of closing completely, just press cancel so
+  //      the 20% doesn't take and goes back to the default Quick Action"): the editor's own Cancel, visibly tapped; the
+  //      promotion and the custom settings both close, and the quick actions are back on their three cards — Availability,
+  //      Price per night, Custom settings — over the same picked nights, still at $480.
+  (m, instant) => {
+    if (SIMPLE) {
+      const back = () => { m.setPromoDrag(false); m.setPromoPct(0); m.setPromoSheet(false); m.setSettingsSheet(false); };
+      if (instant) { back(); return; }
+      const g = ++gen;
+      press(d => d.querySelector('.sqa-custom.open .cp .mn-cancel'));
+      setTimeout(tail(g, back), TAP);
+      return;
+    }
+    if (instant) { m.clearSelection(); return; } const g = ++gen; press(d => d.querySelector('.sqa-close')); setTimeout(tail(g, () => m.clearSelection()), TAP); },
   // 18 — the events and holidays: they ALL come on at once, a beat, and then ONE uninterrupted scroll down to Christmas and
   //      New Year's — and it STOPS there (John, 2026-09-30). The marks layer comes on empty and fills in a single stroke.
   (m, instant) => {
+    // The simple fork reaches here with the nights still picked (it Cancels rather than closing), so they let go now and
+    // the quick actions drop away as the run begins — otherwise Indian Wells' week would be added to the 9th-21st.
+    if (SIMPLE) m.clearSelection();
     m.setLayers({ marks: true }); m.setShownMarks(new Set()); m.revealOffset = MARK_PARK;
     const run = markRun(m), xmas = run.find(g => g.name === 'Christmas');
     const land = () => { for (const grp of run) m.showMarkGroup(grp.dis); if (xmas) setTimeout(() => m.reveal(xmas.dis[0], null, 0, 0), 40); };   // the reveal a tick later: on a replay the reset has just scrolled home in the same tick, and the later smooth scroll would lose to it
