@@ -721,7 +721,13 @@ if (SIMPLE) BEATS.splice(0, 4);
 if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) + 1, 0, (m, instant) => {
   const a = m.fx.todayIndex + 13, z = m.fx.todayIndex + 21;   // the 22nd through the 30th (the 9th is todayIndex)
   if (instant) { const s = new Set(m.selectedNights); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); }
-  else setTimeout(() => cascade(m, a, z, 90), 450);           // a beat after the arrow comes in
+  else {
+    // NOT cascade(): that holds the quick actions down while the run fills and raises them again at the end, which
+    // here — with them already up — read as them vanishing and coming back (John, 2026-09-30). The same 90ms tap
+    // rhythm, night by night, with the quick actions left exactly where they are.
+    const g = gen;
+    for (let di = a, i = 0; di <= z; di++, i++) setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, 450 + i * 90);
+  }
 });
 // The beat that first stands three phones up. A jump straight to it (or past it) must create the other phones first rather
 // than wait for their timer. This used to be the literal 36 — stale since beats were removed, so it never fired, until two

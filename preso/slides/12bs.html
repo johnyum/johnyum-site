@@ -264,6 +264,8 @@
   // THE TWO-UP. Which beat 13 is on decides it, so it follows every way of getting there — a tap, a step back, a
   // jump on load — by watching rather than by being told. 13's phone is min(80vh, 1080) tall at 900:1840, centred.
   const SIDE_AT = 13;                        // 13's beats applied once the custom promotion is Cancelled (#22.14)
+  const COLLAPSE_MS = 950;                   // Cancel's press (340) + the quick actions folding back (550), and a breath
+  let lastAt = -1, holdUntil = 0;
   const DARK_AT = 14;                        // the next tap (#22.15): the run carried on to the 30th — and an arrow at "Too dark"
   const notes = document.getElementById('notes');
   let side = false, snapNext = true;   // the first placement (a load or a jump) lands without moving
@@ -279,6 +281,15 @@
   function syncSide() {
     let at = -1; try { const f = live.contentWindow.presoAt; at = f ? f() : -1; } catch (_) {}
     if (restoreTo >= 0) { if (at !== restoreTo) return; restoreTo = -1; }   // a jump: wait for 13 to arrive, then land there
+    // THE COLLAPSE FIRST (John, 2026-09-30). Arriving live from the promotion, the Cancel is pressed (340ms) and the
+    // quick actions then fold back (the card's 550ms transitions): the phone and the list wait for that to finish, so
+    // the two moves read one after the other rather than at once. Only on that live step forward — a jump or a step
+    // back lands straight away.
+    if (at === SIDE_AT && lastAt === SIDE_AT - 1 && !side && !snapNext) {
+      if (!holdUntil) holdUntil = performance.now() + COLLAPSE_MS;
+      if (performance.now() < holdUntil) return;
+    }
+    holdUntil = 0; lastAt = at;
     const want = state === 2 && landed && (at === SIDE_AT || at === DARK_AT);
     const dark = state === 2 && landed && at === DARK_AT;
     if (dark !== document.body.classList.contains('dark')) { if (snapNext) document.body.classList.add('snap'); document.body.classList.toggle('dark', dark); }
