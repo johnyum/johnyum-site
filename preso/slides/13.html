@@ -943,6 +943,21 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('m.goToday()'))
   setTimeout(() => { if (g === gen) press(d => d.querySelectorAll('.sqa-custom.open .ss-row')[1]); }, up + 800 + TAP + 1000);
   setTimeout(() => { if (g === gen) { m.setPromoSheet(true); m.setPromoPct(0); } }, up + 800 + TAP + 1000 + TAP);
 });
+// ...and the tap after (John, 2026-09-30): the knob drags to 20%, as the run's first promotion did, and the picked nights
+// simply TAKE their 20%-off prices when it lands — each its own (the 11th's $535 is $428, the 16th's $455 is $364), set
+// outright, no roll (the fork's first promotion set none at all). The drag is the build's beat, borrowed by what it does.
+if (SIMPLE) {
+  const drag = BEATS.find(b => String(b).includes('if (!SIMPLE) m.setPromo(0.2, 0, ns)'));
+  const at = BEATS.findIndex(b => String(b).includes("querySelectorAll('.sqa-custom.open .ss-row')[1]); }, up + 800")) + 1;
+  if (drag && at > 0) BEATS.splice(at, 0, (m, instant) => {
+    const ns = [...m.selectedNights];
+    const off = () => { for (const di of ns) m.setPrice(Math.round(m.price(0, di) * 0.8), 0, [di], false); };
+    if (instant) { drag(m, true); off(); return; }
+    drag(m, false);
+    const g = gen;                                               // the drag's own gen
+    setTimeout(() => { if (g === gen) off(); }, 1000);           // the knob is home at 20% (250 + its 700 drag): the prices
+  });
+}
 // THE ODOMETER for the price sheet's big figure: the build only rolls the figures in the cells, and the fork keeps even
 // those still. A copy of the figure is laid exactly over it — the same face, size and place — the real one is hidden,
 // and each digit of the copy rolls up a strip of 0–9 from its old figure to its new; when they have landed `done` sets
