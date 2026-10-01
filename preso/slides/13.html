@@ -1154,10 +1154,10 @@ function typeKeys(keys, instant) {
       +   'font-family:-apple-system,"SF Pro Text","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased}'
       + '.preso-kb.up{transform:none}'
       + '.sqa-price.open .sqa-big,.sqa-price.open .ps-per{translate:0 var(--preso-shift,0px);transition:translate .5s cubic-bezier(.2,.9,.25,1)}'
-      // the two pills: the custom Done's grey, centred, 8 apart, 16 under Per night (placed and shown by centre())
-      + '.preso-pills{position:fixed;left:24px;right:24px;z-index:2147483001;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;pointer-events:none;'
-      +   'opacity:0;scale:.92;transition:opacity .25s ease,scale .35s cubic-bezier(.2,.9,.25,1),top .5s cubic-bezier(.2,.9,.25,1)}'
-      + '.preso-pills.on{opacity:1;scale:1;transition-delay:.12s,.12s,0s}'
+      // the two pills: the custom Done's grey, centred, 8 apart, hung 16 under Per night's foot (inside it — see THE PRICE, CENTRED)
+      + '.preso-pills{position:absolute;left:0;right:0;top:calc(100% + 16px);display:flex;flex-wrap:wrap;justify-content:center;gap:8px;pointer-events:none;'
+      +   'opacity:0;scale:.92;transition:opacity .25s ease,scale .35s cubic-bezier(.2,.9,.25,1)}'
+      + '.preso-pills.on{opacity:1;scale:1;transition-delay:.12s}'
       + '.preso-pills span{height:40px;padding:0 16px;border-radius:20px;background:rgba(140,140,140,.2);color:#fff;display:flex;align-items:center;'
       +   'font-size:14px;font-weight:500;line-height:1;white-space:nowrap}'
       // THE SWAP (John, 2026-09-30): from the Modernism Week price on, html.preso-custom-kb sends the iOS pad and its Save back
@@ -1203,26 +1203,33 @@ function typeKeys(keys, instant) {
         : '<span class="preso-key" data-k="' + k + '"><b>' + k + '</b><i>' + (l || '&nbsp;') + '</i></span>').join('') + '</div>';
       w.document.body.appendChild(kb);
       // up while the price sheet is open, whichever path opened or closed it — a tap, a replay, a step back
-      // THE PRICE, CENTRED (John, 2026-09-30). The open sheet's "$500 / Per night" is laid out by the build for its own keypad;
-      // the fork centres it — and, once they are in, the two pills under it (16 below Per night, 8 apart) — in the band
-      // between the sheet's header and whichever keyboard is up: the iOS pad's Save, or the custom keypad. The band's edges
-      // are the sheet's RESTING geometry in the app's fixed 430-wide frame (measured with every animation off: header to
-      // 268.2, the price 430.2 to Per night's foot at 524.2, Save at 608, the keypad at 663) — read live they would be
-      // mid-grow whenever the sheet is opening. The shift rides on translate, so nothing the build animates is touched.
-      const HEAD_B = 268.2, BIG_T = 430.2, PER_B = 524.2, SAVE_T = 608, PAD_T = 663, PILL_GAP = 16;
+      // THE PRICE, CENTRED (John, 2026-09-30). Once the custom keypad is in, the open sheet's "$500 / Per night" — and, once
+      // they are in, the two pills under it — is centred in the band between the sheet's header and the keypad. Everything is
+      // read LIVE from the sheet as it is on this screen (a first version kept numbers measured on one screen, and on another
+      // the pills landed far below Per night): the swap and the pills both come long after the sheet has opened, so it is at
+      // rest. The keypad is read by its layout position (offsetTop), not its drawn one, since it is still growing in; the
+      // price by its drawn position less the shift already on it. The pills live INSIDE Per night, 16 under its foot, so
+      // they are where it is whatever the sheet does. The shift rides on translate, so nothing the build animates is touched.
+      const PILL_GAP = 16;
       const pills = w.document.createElement('div');
       pills.className = 'preso-pills';
       pills.innerHTML = '<span class="try">Try $745</span><span>Similar listings</span>';
-      w.document.body.appendChild(pills);
+      const layoutTop = (el, card) => { let y = 0; while (el && el !== card) { y += el.offsetTop; el = el.offsetParent; } return el === card ? y : null; };
       const centre = () => {
-        const root = w.document.documentElement, open = !!w.document.querySelector('.sqa-price.open');
-        const custom = root.classList.contains('preso-custom-kb'), withPills = open && custom && root.classList.contains('preso-pills-on');
-        const floor = custom ? PAD_T : SAVE_T;
-        const foot = PER_B + (withPills ? PILL_GAP + pills.offsetHeight : 0);
-        const shift = open ? Math.round(((HEAD_B + floor) / 2 - (BIG_T + foot) / 2) * 10) / 10 : 0;
-        root.style.setProperty('--preso-shift', shift + 'px');
-        pills.style.top = (PER_B + PILL_GAP + shift) + 'px';
+        const root = w.document.documentElement, card = w.document.querySelector('.sqa-price.open');
+        const custom = root.classList.contains('preso-custom-kb'), withPills = !!card && custom && root.classList.contains('preso-pills-on');
+        const per = card && card.querySelector('.ps-per');
+        if (per && pills.parentNode !== per) per.appendChild(pills);
         pills.classList.toggle('on', withPills);
+        if (!card || !custom) { root.style.setProperty('--preso-shift', '0px'); return; }
+        const big = card.querySelector('.sqa-big'), head = card.querySelector('.ps-head'), pad = card.querySelector('.ps-pad');
+        const now = parseFloat((w.getComputedStyle(big).translate || '0 0').split(' ')[1]) || 0;     // the shift already on it
+        const cr = card.getBoundingClientRect(), padY = layoutTop(pad, card);
+        if (padY === null) return;
+        const top = head.getBoundingClientRect().bottom, floor = cr.top + card.clientTop + padY;
+        const bigT = big.getBoundingClientRect().top - now, foot = per.getBoundingClientRect().bottom - now + (withPills ? PILL_GAP + pills.offsetHeight : 0);
+        const shift = Math.round(((top + floor) / 2 - (bigT + foot) / 2) * 10) / 10;
+        root.style.setProperty('--preso-shift', shift + 'px');
       };
       w.__presoCentre = centre;
       const sync = () => { kb.classList.toggle('up', !!w.document.querySelector('.sqa-price.open')); centre(); };
