@@ -914,7 +914,7 @@ if (SIMPLE) {
 // letting go; a beat; Today is tapped, and the calendar goes back to its default start — the header open again over the top of
 // September, as the run began. (12bs moves the verdict's arrow to "Lacked Context" on this tap.)
 if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('odometer(d, 745')) + 1, 0, (m, instant) => {
-  const shut = () => { m.setPriceSheet(false); m.clearSelection(); };
+  const shut = () => { m.setPriceSheet(false); m.clearSelection(); const d = appDoc(); if (d) d.documentElement.classList.add('preso-grey-done'); };   // the Dones go grey from here
   const home = () => { m.setHeaderLock(false); m.goToday(); };
   if (instant) { shut(); setTimeout(home, 40); return; }       // after any deferred reveal from the beats before, so home wins
   const g = ++gen;
@@ -1216,6 +1216,8 @@ function typeKeys(keys, instant) {
       + 'html.preso-custom-kb .sqa-price.open .ps-pad,html.preso-custom-kb .sqa-price.open .ps-done{visibility:visible!important;animation:preso-kb-in .46s cubic-bezier(.2,.9,.25,1) .7s both}'   // .open: shown in the open sheet only — on the closed card the Done was left standing (John's regression, 2026-09-30)
       + '@keyframes preso-kb-in{from{scale:.86;opacity:0}to{scale:1;opacity:1}}'
       + 'html.preso-custom-kb .sqa-price .ps-done{background:rgba(140,140,140,.2)!important;color:#fff!important;border-radius:24px!important;font-weight:500!important}'
+      // ...and from the run home on (John, 2026-09-30: "from here on out"), every Done in the sheets is the build's grey again
+      + 'html.preso-grey-done .sqa .ps-done{background:rgba(140,140,140,.2)!important;color:#fff!important;border-radius:24px!important;font-weight:500!important}'
       + '.preso-pad{background:#212121;border-radius:' + (33 * K) + 'px ' + (33 * K) + 'px 0 0;'
       +   'padding:' + (24 * K) + 'px ' + (5 * K) + 'px ' + (40 * K) + 'px;'
       +   'display:grid;grid-template-columns:repeat(3,1fr);gap:' + (6.3 * K) + 'px}'
@@ -1281,6 +1283,9 @@ function typeKeys(keys, instant) {
         root.style.setProperty('--preso-shift', shift + 'px');
       };
       w.__presoCentre = centre;
+      // THE HEADER RULE (John, 2026-09-30): whenever the quick actions are open the header is collapsed — whatever got them there.
+      // (A run of picks keeps them held down until it lands, so the collapse still comes with them, not before.)
+      setInterval(() => { const m = w.__model; if (m && !m.headerLock && w.document.querySelector('.sqa')) m.setHeaderLock(true); }, 120);
       const sync = () => { kb.classList.toggle('up', !!w.document.querySelector('.sqa-price.open')); centre(); };
       // childList too: a jump straight to the open sheet MOUNTS it with .open already on, which is not a class change
       new w.MutationObserver(sync).observe(w.document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
@@ -1372,7 +1377,7 @@ function typeKeys(keys, instant) {
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
     setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } for (const doc of [app2Doc(), app3Doc()]) { const v = doc && doc.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); } }   // the second phone back on its list, on today, its menu closed; the third on top
-    if (SIMPLE) { marksFlag(null); tipsFlag(false); tipsModeFlag(false); appliedFlag(false); const d = appDoc(); if (d) { d.documentElement.classList.remove('preso-custom-kb', 'preso-pills-on'); const c = d.defaultView.__presoCentre; if (c) c(); } }
+    if (SIMPLE) { marksFlag(null); tipsFlag(false); tipsModeFlag(false); appliedFlag(false); const d = appDoc(); if (d) { d.documentElement.classList.remove('preso-custom-kb', 'preso-pills-on', 'preso-grey-done'); const c = d.defaultView.__presoCentre; if (c) c(); } }
     m.setHeaderLock(false, false); m.hidePuck(); m.openBriefTip(null); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
