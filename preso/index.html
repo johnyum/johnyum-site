@@ -355,6 +355,22 @@
     })();
   }
 
+  // WARM (John, 2026-09-30: "make sure the tweets load in faster and cached"). The cleaning-fee wall is real X embeds,
+  // and X is slow to a cold browser. So once the deck has settled on its first slide, the wall is loaded once,
+  // off-screen and out of the way, and thrown away a minute later: X's script, every tweet and its pictures are then
+  // in the browser's cache, and when the slide itself comes round it renders from there.
+  let warmed = false;
+  function warmTweets() {
+    if (warmed) return; warmed = true;
+    const at = SLIDES.indexOf('09d0.html');
+    if (at < 0) return;
+    const f = document.createElement('iframe');
+    f.src = src(at);
+    f.setAttribute('aria-hidden', 'true'); f.tabIndex = -1;
+    f.style.cssText = 'position:fixed;left:-20000px;top:0;width:1920px;height:1080px;border:0;opacity:0;pointer-events:none';
+    document.body.appendChild(f);
+    setTimeout(() => f.remove(), 60000);
+  }
   function settle(i, made) {
     current = made;
     idx = i;
@@ -363,6 +379,7 @@
     writeHash();
     flashCounter();
     preload(i + 1); preload(i + 2); preload(i - 1);
+    setTimeout(warmTweets, 1500);   // once, a moment after the first slide is up
     setTimeout(() => { if (idx === i && !flight) prepareNext(i + 1); }, DUR + 300);   // once this push has landed
   }
 

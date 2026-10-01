@@ -23,12 +23,11 @@
      stays off: that only drops the tweet being replied to, which is context
      nobody needs here, and it is never the punchline.
 
-     IT NEEDS THE NETWORK, and the venue may not give it. So there is a
-     fallback, and it is the slide this replaced: John's own capture of the
-     $3,245 tweet, which is a file on this server and cannot fail. If nothing
-     has rendered after FALLBACK ms, the wall is dropped and the picture is
-     shown instead. A slide that quietly shows one real tweet is a slide; one
-     showing twelve empty boxes is a fault everybody in the room can see.
+     IT NEEDS THE NETWORK, AND IT GETS A HEAD START. There used to be a fallback — one saved capture of the $3,245
+     tweet, shown if nothing had rendered in 6 seconds — and John never wants to see it again (2026-09-30), so it is
+     gone. Instead: the deck warms this slide up off-screen as soon as it opens (see WARM in index.html), so X's
+     script, the tweets and their pictures are in the browser's cache long before this slide comes round; and if X is
+     slow here anyway, the wall keeps asking rather than giving up.
 
      THE WALL IS PACKED AND SCALED IN JS. The embeds decide their own heights, so nothing is known until they render;
      a ResizeObserver on every card re-packs as each one lands — and a load-time read would measure zero while the
@@ -51,32 +50,12 @@
   .wall .twitter-tweet { margin: 0 !important; }
   .fit { position: absolute; inset: 0; overflow: hidden; }
 
-  /* the fallback — the slide this replaced */
-  .shot { display: none; }
-  .fell .wall { display: none; }
-  .fell .shot { display: block; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
-  .shot img {
-    display: block;
-    width: min(980px, 88vw, calc(84vh * 700 / 532));
-    height: auto;
-    border-radius: 12px;
-    user-select: none;
-    -webkit-user-drag: none;
-    box-shadow:
-      0 0 0 1px rgba(0, 0, 0, 0.02),
-      0 4px 8px rgba(0, 0, 0, 0.08),
-      0 12px 30px rgba(0, 0, 0, 0.18);
-  }
 </style>
 </head>
 <body>
   <div class="slide" id="slide">
     <div class="fit" id="fit">
       <div class="wall" id="wall"></div>
-      <div class="shot">
-        <img src="assets/cleaning-fee-tweet.webp" width="700" height="532"
-             alt="A tweet: Airbnb be like, $120 a night, $3,245 total, cleaning fee $1,600 — but please be sure to dust, vacuum, take out garbage, wash linens, steam clean carpet, apply fresh paint and install new appliances">
-      </div>
     </div>
   </div>
 <script>
@@ -106,7 +85,6 @@
     '1691130465648889887',   // @MorePerfectUS
     '1708512064220893293'    // @rohindhar
   ];
-  const FALLBACK = 6000;     // nothing rendered by now -> show the capture
 
   const slide = document.getElementById('slide');
   const fit = document.getElementById('fit');
@@ -132,7 +110,7 @@
     passes++;
     return made;
   }
-  addPass(); addPass(); addPass(); addPass();   // four: a 1080 stage takes about 20 at this size, so this is slack
+  addPass(); addPass();   // two: a 1080 stage takes about 20 at this size; refit() adds a pass if a screen needs more
 
   const s = document.createElement('script');
   s.async = true;
@@ -147,7 +125,6 @@
   // bottoms crop unevenly, like a wall that carries on. A card whose embed never filled (under 40 tall) is skipped.
   const COL = 330, GAP = 20, OVER = 1.08, SIZE = 1.0, MAX_PASSES = 6;
   function refit() {
-    if (slide.classList.contains('fell')) return;   // the wall is gone; leave the box alone
     const w = slide.clientWidth, h = slide.clientHeight;
     if (!(w > 0 && h > 0)) return;
     const k = SIZE * h / 1080;
@@ -181,18 +158,21 @@
   watch();
   refit();
 
-  // DID ANYTHING ACTUALLY RENDER? X replaces each blockquote with an iframe;
-  // an iframe it could not fill is left at zero height, which is exactly what
-  // a blocked network looks like. Height, not presence, is the test.
-  setTimeout(() => {
-    const up = [...wall.querySelectorAll('iframe')]
-      .filter(f => f.getBoundingClientRect().height > 40).length;
-    if (!up) {
-      slide.classList.add('fell');
-      return;
+  // KEEP ASKING. If X is slow or a request drops, nothing is given up on: every 3s, until every card has rendered or
+  // a minute has passed, the script is fetched again if it never arrived, and X is asked to render whatever is
+  // still a bare blockquote.
+  let tries = 0;
+  const retry = setInterval(() => {
+    const bare = wall.querySelectorAll('blockquote.twitter-tweet').length;
+    if (!bare || ++tries > 20) { clearInterval(retry); return; }
+    if (!window.twttr || !window.twttr.widgets) {
+      const again = document.createElement('script');
+      again.async = true; again.src = 'https://platform.twitter.com/widgets.js'; again.charset = 'utf-8';
+      document.head.appendChild(again);
+    } else {
+      try { window.twttr.widgets.load(wall); } catch (_) {}
     }
-    refit();
-  }, FALLBACK);
+  }, 3000);
 
   window.presoNext = () => false;             // no builds
   window.presoPrev = () => false;
