@@ -962,6 +962,7 @@ if (SIMPLE) {
 // those still. A copy of the figure is laid exactly over it — the same face, size and place — the real one is hidden,
 // and each digit of the copy rolls up a strip of 0–9 from its old figure to its new; when they have landed `done` sets
 // the real price (React then draws the same figure underneath) and the copy comes off. React's own text is never touched.
+const PAD_LIFT = 24;   // the custom keypad's lift over the Try / Done row (THE SPLIT)
 const odometer = (d, to, ms, done) => {
   const big = d && d.querySelector('.sqa-price.open .sqa-big span');
   if (!big) { done(); return; }
@@ -1204,6 +1205,8 @@ function typeKeys(keys, instant) {
       // THE SPLIT: Done's left edge moves to the middle (+4), and Try $745 takes the left half (to the middle -4) — the same
       // 48 tall, 24 off the sides and 48 off the foot as Done, in its grey; Try fades in as Done gives way
       + 'html.preso-pills-on .sqa-price.open .ps-done{left:calc(50% + 4px)!important;transition:left .4s cubic-bezier(.2,.9,.25,1)!important}'
+      // 24 more between the keypad and the Try / Done row (John, 2026-09-30): the keypad lifts, the buttons keep their place
+      + 'html.preso-pills-on .sqa-price.open .ps-pad{translate:0 -' + PAD_LIFT + 'px}'
       // Try grows in with the keypad and Done — the same animation, the same moment
       + '.preso-try{position:absolute;left:24px;right:calc(50% + 4px);bottom:48px;height:48px;border-radius:24px;background:rgba(140,140,140,.2);color:#fff;'
       +   'display:none;align-items:center;justify-content:center;font-size:16px;font-weight:500;pointer-events:none}'
@@ -1277,7 +1280,7 @@ function typeKeys(keys, instant) {
         const now = parseFloat((w.getComputedStyle(big).translate || '0 0').split(' ')[1]) || 0;     // the shift already on it
         const cr = card.getBoundingClientRect(), padY = layoutTop(pad, card);
         if (padY === null) return;
-        const top = head.getBoundingClientRect().bottom, floor = cr.top + card.clientTop + padY;
+        const top = head.getBoundingClientRect().bottom, floor = cr.top + card.clientTop + padY - (root.classList.contains('preso-pills-on') ? PAD_LIFT : 0);   // the lift is a translate: layout does not see it
         const bigT = big.getBoundingClientRect().top - now, foot = per.getBoundingClientRect().bottom - now;
         const shift = Math.round(((top + floor) / 2 - (bigT + foot) / 2) * 10) / 10;
         root.style.setProperty('--preso-shift', shift + 'px');
