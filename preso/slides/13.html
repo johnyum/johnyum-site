@@ -897,7 +897,7 @@ if (SIMPLE) {
   BEATS.splice(at, 0,
     m => m.setPriceSheet(true),
     () => { const d = appDoc(); if (d) { d.documentElement.classList.add('preso-custom-kb'); const c = d.defaultView.__presoCentre; if (c) c(); } },
-    // ...and the tap after (John, 2026-09-30): two pills under the price, the price and pills centred together
+    // ...and the tap after (John, 2026-09-30): Done splits — Try $745 on the left, Done on the right (THE SPLIT)
     () => { const d = appDoc(); if (d) { d.documentElement.classList.add('preso-pills-on'); const c = d.defaultView.__presoCentre; if (c) c(); } },
     // ...and the tap after that: "Try $745", visibly tapped, and the price ODOMETERS up to it — every digit rolling to
     // its new figure — and the nights take $745 and keep it (John, 2026-09-30)
@@ -907,7 +907,7 @@ if (SIMPLE) {
       if (instant) { set(); return; }
       const g = ++gen, d = appDoc();
       pendingTail = set;
-      plainTap(d && d.querySelector('.preso-pills .try'), 'rgba(140,140,140,.5)');
+      plainTap(d && d.querySelector('.preso-try'), 'rgba(140,140,140,.5)');
       setTimeout(() => { if (g === gen) odometer(d, 745, 900, () => { if (g === gen) { set(); pendingTail = null; } }); }, 360);
     });
 }
@@ -1154,12 +1154,13 @@ function typeKeys(keys, instant) {
       +   'font-family:-apple-system,"SF Pro Text","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased}'
       + '.preso-kb.up{transform:none}'
       + '.sqa-price.open .sqa-big,.sqa-price.open .ps-per{translate:0 var(--preso-shift,0px);transition:translate .5s cubic-bezier(.2,.9,.25,1)}'
-      // the two pills: the custom Done's grey, centred, 8 apart, hung 24 under Per night's foot (inside it — see THE PRICE, CENTRED)
-      + '.preso-pills{position:absolute;left:0;right:0;top:calc(100% + 24px);display:flex;flex-wrap:wrap;justify-content:center;gap:8px;pointer-events:none;'
-      +   'opacity:0;scale:.92;transition:opacity .25s ease,scale .35s cubic-bezier(.2,.9,.25,1)}'
-      + '.preso-pills.on{opacity:1;scale:1;transition-delay:.12s}'
-      + '.preso-pills span{height:40px;padding:0 16px;border-radius:20px;background:rgba(140,140,140,.2);color:#fff;display:flex;align-items:center;'
-      +   'font-size:14px;font-weight:500;line-height:1;white-space:nowrap}'
+      // THE SPLIT: Done's left edge moves to the middle (+4), and Try $745 takes the left half (to the middle -4) — the same
+      // 48 tall, 24 off the sides and 48 off the foot as Done, in its grey; Try fades in as Done gives way
+      + 'html.preso-pills-on .sqa-price.open .ps-done{left:calc(50% + 4px)!important;transition:left .4s cubic-bezier(.2,.9,.25,1)!important}'
+      + '.preso-try{position:absolute;left:24px;right:calc(50% + 4px);bottom:48px;height:48px;border-radius:24px;background:rgba(140,140,140,.2);color:#fff;'
+      +   'display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:500;pointer-events:none;opacity:0;scale:.92;'
+      +   'transition:opacity .25s ease,scale .35s cubic-bezier(.2,.9,.25,1)}'
+      + '.preso-try.on{opacity:1;scale:1;transition-delay:.15s}'
       // THE SWAP (John, 2026-09-30): from the Modernism Week price on, html.preso-custom-kb sends the iOS pad and its Save back
       // down and brings the build's own keypad and Done up in their place — and keeps them for the rest of the run
       // — the iOS pad and Save draw INWARD and fade (300ms), a beat (400ms), then the build's keypad and Done grow OUTWARD
@@ -1203,31 +1204,32 @@ function typeKeys(keys, instant) {
         : '<span class="preso-key" data-k="' + k + '"><b>' + k + '</b><i>' + (l || '&nbsp;') + '</i></span>').join('') + '</div>';
       w.document.body.appendChild(kb);
       // up while the price sheet is open, whichever path opened or closed it — a tap, a replay, a step back
-      // THE PRICE, CENTRED (John, 2026-09-30). Once the custom keypad is in, the open sheet's "$500 / Per night" — and, once
-      // they are in, the two pills under it — is centred in the band between the sheet's header and the keypad. Everything is
-      // read LIVE from the sheet as it is on this screen (a first version kept numbers measured on one screen, and on another
-      // the pills landed far below Per night): the swap and the pills both come long after the sheet has opened, so it is at
-      // rest. The keypad is read by its layout position (offsetTop), not its drawn one, since it is still growing in; the
-      // price by its drawn position less the shift already on it. The pills live INSIDE Per night, 16 under its foot, so
-      // they are where it is whatever the sheet does. The shift rides on translate, so nothing the build animates is touched.
-      const PILL_GAP = 24;   // 16, then 8 more (John, 2026-09-30)
-      const pills = w.document.createElement('div');
-      pills.className = 'preso-pills';
-      pills.innerHTML = '<span class="try">Try $745</span>';   // Similar listings went (John, 2026-09-30): the one pill
+      // THE PRICE, CENTRED (John, 2026-09-30). Once the custom keypad is in, the open sheet's "$500 / Per night" is centred in
+      // the band between the sheet's header and the keypad. Everything is read LIVE from the sheet as it is on this screen (a
+      // first version kept numbers measured on one screen, and on another they were far out): the swap comes long after the
+      // sheet has opened, so it is at rest. The keypad is read by its layout position (offsetTop), not its drawn one, since it
+      // is still growing in; the price by its drawn position less the shift already on it. The shift rides on translate, so
+      // nothing the build animates is touched.
+      // THE SPLIT (John, 2026-09-30) — in place of the pills under the price, which came and went: on that tap the full-width
+      // Done gives up its left half to a "Try $745" button, the two side by side, 8 apart, in Done's own grey. The button is
+      // the fork's, laid in the sheet beside the build's Done; the price stays centred as it was.
+      const tryBtn = w.document.createElement('div');
+      tryBtn.className = 'preso-try';
+      tryBtn.textContent = 'Try $745';
       const layoutTop = (el, card) => { let y = 0; while (el && el !== card) { y += el.offsetTop; el = el.offsetParent; } return el === card ? y : null; };
       const centre = () => {
         const root = w.document.documentElement, card = w.document.querySelector('.sqa-price.open');
-        const custom = root.classList.contains('preso-custom-kb'), withPills = !!card && custom && root.classList.contains('preso-pills-on');
+        const custom = root.classList.contains('preso-custom-kb'), split = !!card && custom && root.classList.contains('preso-pills-on');
         const per = card && card.querySelector('.ps-per');
-        if (per && pills.parentNode !== per) per.appendChild(pills);
-        pills.classList.toggle('on', withPills);
+        if (card && tryBtn.parentNode !== card) card.appendChild(tryBtn);
+        tryBtn.classList.toggle('on', split);
         if (!card || !custom) { root.style.setProperty('--preso-shift', '0px'); return; }
         const big = card.querySelector('.sqa-big'), head = card.querySelector('.ps-head'), pad = card.querySelector('.ps-pad');
         const now = parseFloat((w.getComputedStyle(big).translate || '0 0').split(' ')[1]) || 0;     // the shift already on it
         const cr = card.getBoundingClientRect(), padY = layoutTop(pad, card);
         if (padY === null) return;
         const top = head.getBoundingClientRect().bottom, floor = cr.top + card.clientTop + padY;
-        const bigT = big.getBoundingClientRect().top - now, foot = per.getBoundingClientRect().bottom - now + (withPills ? PILL_GAP + pills.offsetHeight : 0);
+        const bigT = big.getBoundingClientRect().top - now, foot = per.getBoundingClientRect().bottom - now;
         const shift = Math.round(((top + floor) / 2 - (bigT + foot) / 2) * 10) / 10;
         root.style.setProperty('--preso-shift', shift + 'px');
       };
