@@ -15,7 +15,11 @@
 
      The lines are in 12a's type at 12a's size, so the setup slides and this one read as one voice; the labels are the
      mono that names the inspirations on 12a1. Each line is an equation, aligned on its "=" so the two sides of the
-     ledger stack. No build: the deck pushes it in and on. -->
+     ledger stack.
+
+     ONE BUILD (John: "we're paying the same because we're gonna up their price for them"). The tap re-prices the
+     host-only side to what keeps the host whole: $97 ÷ 0.845 = $114.79, rounded to $115 — the guest pays $115 against
+     $114, the host earns $115 − $17.83 = $97.17 against $97. -->
 <style>
   @font-face {
     font-family: "Special Gothic Condensed One";
@@ -56,6 +60,24 @@
   .who { color: #8C8C8C; }
   .sum { text-align: right; }
   .fee { color: #C13515; }   /* what Airbnb takes, in the verdict's red */
+
+  /* THE ONE BUILD: the host-only side re-prices. Each figure that changes holds both of its values stacked in one grid
+     cell, so the cell is always as wide as the wider of the two and nothing reflows as they cross. */
+  .x { display: inline-grid; }
+  .x > * { grid-area: 1 / 1; transition: opacity 360ms ease, transform 520ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .sum .x > * { justify-self: end; }
+  .x > .b { opacity: 0; transform: translateY(0.25em); }
+  body.up .x > .a { opacity: 0; transform: translateY(-0.25em); }
+  body.up .x > .b { opacity: 1; transform: none; }
+  .note {
+    grid-column: 1 / -1; margin-top: 2.4em; text-align: center;
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 16px; line-height: 1.5; color: #111;
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 360ms ease 160ms, transform 520ms cubic-bezier(0.16, 1, 0.3, 1) 160ms;
+  }
+  body.up .note { opacity: 1; transform: none; }
+  body.snap * { transition: none !important; }
 </style>
 </head>
 <body>
@@ -67,17 +89,20 @@
         <div class="who">Host earns</div><div class="sum">$100 &minus; <span class="fee">$3</span> =</div><div class="tot">$97</div>
       </div>
       <div class="side">
-        <div class="lab">Host-only fee</div>
-        <div class="who">Guest pays</div><div class="sum">$100 =</div><div class="tot">$100</div>
-        <div class="who">Host earns</div><div class="sum">$100 &minus; <span class="fee">$15.50</span> =</div><div class="tot">$84.50</div>
+        <div class="lab"><span class="x"><span class="a">Host-only fee</span><span class="b">Host-only fee, price raised for them</span></span></div>
+        <div class="who">Guest pays</div><div class="sum"><span class="x"><span class="a">$100 =</span><span class="b">$115 =</span></span></div><div class="tot"><span class="x"><span class="a">$100</span><span class="b">$115</span></span></div>
+        <div class="who">Host earns</div><div class="sum"><span class="x"><span class="a">$100 &minus; <span class="fee">$15.50</span> =</span><span class="b">$115 &minus; <span class="fee">$17.83</span> =</span></span></div><div class="tot"><span class="x"><span class="a">$84.50</span><span class="b">$97.17</span></span></div>
       </div>
+      <div class="note">We raise the host&rsquo;s price for them, so the guest pays about the same and the host keeps what they made.</div>
     </div>
   </div>
 <script>
-  window.presoNext = () => false;   // no builds
-  window.presoPrev = () => false;
-  window.presoState = () => 0;
-  window.presoRestore = () => {};
+  // one build: the tap re-prices the host-only side
+  const b = document.body;
+  window.presoNext = () => { if (b.classList.contains('up')) return false; b.classList.add('up'); return true; };
+  window.presoPrev = () => { if (!b.classList.contains('up')) return false; b.classList.remove('up'); return true; };
+  window.presoState = () => (b.classList.contains('up') ? 1 : 0);
+  window.presoRestore = n => { b.classList.add('snap'); b.classList.toggle('up', n > 0); void b.offsetWidth; requestAnimationFrame(() => b.classList.remove('snap')); setTimeout(() => b.classList.remove('snap'), 60); };
 </script>
 </body>
 </html>
