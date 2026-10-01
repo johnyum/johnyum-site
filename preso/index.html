@@ -597,8 +597,13 @@
     .then(list => {
       SLIDES = Array.isArray(list) ? list : [];
       if (!SLIDES.length) { empty.classList.add('show'); return; }
+      // A REFRESH STARTS THE SLIDE OVER (John, 2026-09-30: "every time I refresh it should play through one by one again, and not
+      // save the changes from a previous walkthrough"). The hash still names the slide and its step as you go, but a load lands
+      // on the slide's FIRST step — a build put straight back at step 30 shows that step's promotion before it has been walked
+      // to. ?beats=1 restores the exact step, for checking a step without walking to it.
       const m = /^#?(\d+)(?:\.(\d+))?/.exec(location.hash) || [];
-      const h = parseInt(m[1], 10), st = parseInt(m[2], 10) || 0;
+      const keepStep = /[?&]beats=1\b/.test(location.search);
+      const h = parseInt(m[1], 10), st = keepStep ? (parseInt(m[2], 10) || 0) : 0;
       show((h >= 1 && h <= SLIDES.length) ? h - 1 : 0, st);
     });
 })();

@@ -716,6 +716,11 @@ const BEATS = [
   (m, instant) => { setStage('four', instant); },
 ];
 if (SIMPLE) BEATS.splice(0, 4);
+// WHERE A FORK BEAT GOES: after the beat whose source contains `mark`, `k` places on. A mark that is not found must never
+// put a beat at the START of the run — findIndex's -1 + 1 is 0, and that once had the 11th–18th, the 20% and the 50% playing
+// first, before the run had begun (John saw −50% before he had walked to it, 2026-09-30). A miss is logged and the beat goes
+// past the end, where the fork never reaches it.
+const beatAfter = (mark, k = 1) => { const i = BEATS.findIndex(b => String(b).includes(mark)); if (i < 0) { console.error('preso: no beat contains', mark); return BEATS.length; } return i + k; };
 // ...and the holidays' stop at Christmas goes too (John, 2026-09-30): the fork has its events and holidays on already, from
 // its own run to November, so the tap after that goes straight on down to Indian Wells and picks its week. Found by what
 // the beat does, not by its number.
@@ -726,7 +731,7 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes("g.name === 'Ch
 // of them.
 // It comes straight after the promotion is Cancelled (John, 2026-09-30: the verdict belongs after the promotion, not in
 // the middle of the run) — found by the Cancel it presses, not by a number that a moved beat would leave stale.
-if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) + 1, 0, (m, instant) => {
+if (SIMPLE) BEATS.splice(beatAfter('mn-cancel', 1), 0, (m, instant) => {
   const a = m.fx.todayIndex + 13, z = m.fx.todayIndex + 21;   // the 22nd through the 30th (the 9th is todayIndex)
   if (instant) { const s = new Set(m.selectedNights); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); }
   else {
@@ -742,7 +747,7 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) +
 // cell with the ink ring the full build uses from Gap nights on (.phone.origsel). Each cell borrows that look (.preso-os)
 // as its turn comes; when the last has switched the whole phone goes origsel and the borrowed classes come off. It stays
 // stroked from here on.
-if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) + 2, 0, (m, instant) => {
+if (SIMPLE) BEATS.splice(beatAfter('mn-cancel', 2), 0, (m, instant) => {
   if (instant) { m.setOrigSel(true); return; }
   const g = gen, d = appDoc(); if (!d) { m.setOrigSel(true); return; }
   const cells = [...d.querySelectorAll('.single .dcell.selected')];
@@ -757,7 +762,7 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) +
 // here (the corner dots it once had are gone: "get rid of them altogether"). With the verdict's arrow on "No holidays"
 // (12bs, on this tap), Close tips is tapped and the tips come off, the wand staying; once they are down the
 // calendar scrolls to November, bare; a beat after it has landed, every event and holiday pops in at once as its icon.
-if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) + 3, 0, (m, instant) => {
+if (SIMPLE) BEATS.splice(beatAfter('mn-cancel', 3), 0, (m, instant) => {
   // the HOLIDAYS only (John, 2026-09-30): Halloween, Veterans Day, Thanksgiving — the events wait for the next beat
   const marksOn = () => { m.setLayers({ marks: true }); m.setShownMarks(new Set()); for (const grp of markRun(m)) if (HOLIDAYS.includes(grp.name)) m.showMarkGroup(grp.dis); marksFlag('hol'); };
   const tg = m.fx.index({ y: 2026, m: 11, d: 1 });              // November — the month, not Thanksgiving (John, 2026-09-30): Pride and Thanksgiving both in it
@@ -789,7 +794,7 @@ const plainTap = (el, dark) => {
 // as the full build does it; a beat, the wand is tapped and the price-tips sheet rises over the frosted calendar (Figma
 // 5248:641877). The calendar is already home on September, so there is no flight home first. Spliced at the same place
 // as the November beat, after it in this file, so it lands in front of it.
-if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) + 3, 0, (m, instant) => {
+if (SIMPLE) BEATS.splice(beatAfter('mn-cancel', 3), 0, (m, instant) => {
   const open = () => { m.setWandSheet(true); tipsFlag(true); };
   if (instant) { m.clearSelection(); m.setWandTile(true); open(); return; }
   const g = ++gen;
@@ -815,7 +820,7 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) +
 // showing above it (FEB_PARK) — and a beat after it lands every event pops in: Modernism Week, the AMEX Cup, Indian Wells,
 // Pride back in November, and the holidays not yet shown. Then a beat, and Modernism Week — the 11th through the 21st — is
 // picked a night at a time, and the quick actions rise with the event named in the Availability card.
-if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) + 5, 0, (m, instant) => {
+if (SIMPLE) BEATS.splice(beatAfter('mn-cancel', 5), 0, (m, instant) => {
   const feb = m.fx.index({ y: 2027, m: 2, d: 7 }), mw = [m.fx.index({ y: 2027, m: 2, d: 11 }), m.fx.index({ y: 2027, m: 2, d: 21 })];
   const all = () => { for (const grp of markRun(m)) m.showMarkGroup(grp.dis); marksFlag('all'); };
   const go = () => { m.revealOffset = FEB_PARK; m.reveal(feb, null, 0, 0); };
@@ -832,12 +837,12 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) +
 // ...and a beat with nothing in it, straight after the Cancel (John, 2026-09-30: "bring in the two check marks first, then
 // when I tap next bring me all the X's"): the verdict comes in as its two ✓ on the Cancel, and this tap is 12bs bringing in
 // the ⨉s. The calendar holds still for it. Spliced last, so it lands first after the Cancel.
-if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) + 1, 0, () => {});
+if (SIMPLE) BEATS.splice(beatAfter('mn-cancel', 1), 0, () => {});
 // PRICE-TIPS MODE (John, 2026-09-30) — the tap after the sheet: its Try now, visibly tapped; the sheet drops, the bar's
 // tiles slip away for a Close tips pill, and the tips wash over the weeks ahead one night after another in the product's
 // own dress — as the full build's beat 21. The verdict crosses out "No price tips" once they are on (12bs). Spliced
 // straight after the sheet's beat, found by what that beat does.
-if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('tipsFlag(true)')) + 1, 0, (m, instant) => {
+if (SIMPLE) BEATS.splice(beatAfter('tipsFlag(true)', 1), 0, (m, instant) => {
   // a weekday tip is always a cut (John, 2026-09-30): the fork has already set the 9th-21st to $480, and the build's flat
   // $480 tip read "$480 over $480" there — so it comes in $25 under whatever the night is at. Weekends stay the raise.
   const tips = TIPS(m).map(([di, p]) => { const now = m.price(0, di); return [di, p < 500 && p >= now ? now - 25 : p]; });
@@ -885,7 +890,7 @@ if (SIMPLE) {
       setTimeout(() => { if (g === gen) appliedFlag(true); }, 450);                 // the ✓s are in: No price help crossed out
     }, TAP + 560);
   };
-  const at = BEATS.findIndex(b => String(b).includes('tipsModeFlag(true)')) + 1;
+  const at = beatAfter('tipsModeFlag(true)');
   if (at > 0) BEATS.splice(at, 0, pickTips, applyTips);
 }
 // THE KEYBOARDS (John, 2026-09-30) — two taps after Modernism Week is picked. The first: the Price per night card grows into
@@ -893,7 +898,7 @@ if (SIMPLE) {
 // the iOS pad and its Save go back down and the build's own keypad and Done come up in their place (THE SWAP, in the pad's
 // CSS). The custom keypad stays from here on.
 if (SIMPLE) {
-  const at = BEATS.findIndex(b => String(b).includes('cascade(m, mw[0], mw[1], 90)')) + 1;
+  const at = beatAfter('cascade(m, mw[0], mw[1], 90)');
   BEATS.splice(at, 0,
     m => m.setPriceSheet(true),
     // ...with the custom keypad come Try $745 and Done side by side, all at once (John, 2026-09-30: "no extra tap") — THE SPLIT
@@ -913,7 +918,7 @@ if (SIMPLE) {
 // HOME (John, 2026-09-30) — the tap after $745: the price sheet drops, the ⨉ is tapped and the quick actions close, the nights
 // letting go; a beat; Today is tapped, and the calendar flies home to the top of September — the header staying collapsed.
 // (12bs moves the verdict's arrow to "Lacked Context" on this tap.)
-if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('odometer(d, 745')) + 1, 0, (m, instant) => {
+if (SIMPLE) BEATS.splice(beatAfter('odometer(d, 745', 1), 0, (m, instant) => {
   const shut = () => { m.setPriceSheet(false); m.clearSelection(); const d = appDoc(); if (d) d.documentElement.classList.add('preso-grey-done'); };   // the Dones go grey from here
   // home with the header KEPT collapsed (John, 2026-09-30: "just keep it to collapsed state... I don't want these weird popping in
   // and out animations") — the build's own homeLocked(), the flight home the full build makes from Today with the header small
@@ -935,7 +940,7 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('odometer(d, 74
 });
 // ...and the tap after home (John, 2026-09-30): the 11th through the 18th of September are picked a night at a time, and as
 // the quick actions rise the header tucks up into its small bar with them — cascade()'s own landing (Lacked Context, in the verdict).
-if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('m.goToday()')) + 1, 0, (m, instant) => {
+if (SIMPLE) BEATS.splice(beatAfter('const home = () => m.homeLocked()', 1), 0, (m, instant) => {
   const a = m.fx.index({ y: 2026, m: 9, d: 11 }), z = m.fx.index({ y: 2026, m: 9, d: 18 });
   // ...and once the quick actions are up (John, 2026-09-30): a beat, Custom settings tapped; a beat, Custom promotion tapped —
   // the promotion editor resting on 0%, as the run's first promotion did
@@ -953,7 +958,7 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('m.goToday()'))
 // outright, no roll (the fork's first promotion set none at all). The drag is the build's beat, borrowed by what it does.
 if (SIMPLE) {
   const drag = BEATS.find(b => String(b).includes('if (!SIMPLE) m.setPromo(0.2, 0, ns)'));
-  const at = BEATS.findIndex(b => String(b).includes("querySelectorAll('.sqa-custom.open .ss-row')[1]); }, up + 800")) + 1;
+  const at = beatAfter("querySelectorAll('.sqa-custom.open .ss-row')[1]); }, up + 800");
   if (drag && at > 0) BEATS.splice(at, 0, (m, instant) => {
     const ns = [...m.selectedNights];
     const off = () => { for (const di of ns) { PRE20.set(di, m.price(0, di)); m.setPrice(Math.round(m.price(0, di) * 0.8), 0, [di], false); } };   // the price before, kept for the 50%
@@ -970,7 +975,7 @@ if (SIMPLE) {
 // plain 20% had written its discount into the price itself — kept in PRE20) and −50% on top, so the cells roll from their
 // 20%-off figure to their 50%-off one in a single move, with the promotion's own line.
 const PRE20 = new Map();
-if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('Math.round(m.price(0, di) * 0.8)')) + 1, 0, (m, instant) => {
+if (SIMPLE) BEATS.splice(beatAfter('Math.round(m.price(0, di) * 0.8)', 1), 0, (m, instant) => {
   const ns = [...m.selectedNights];
   const full = () => { const d = appDoc(); if (d) d.documentElement.classList.add('preso-full'); };
   const land = () => { for (const di of ns) { const o = PRE20.get(di); if (o) m.setPrice(o, 0, [di], false); } m.setPromo(0.5, 0, ns); };
