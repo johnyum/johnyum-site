@@ -898,8 +898,47 @@ if (SIMPLE) {
     m => m.setPriceSheet(true),
     () => { const d = appDoc(); if (d) { d.documentElement.classList.add('preso-custom-kb'); const c = d.defaultView.__presoCentre; if (c) c(); } },
     // ...and the tap after (John, 2026-09-30): two pills under the price, the price and pills centred together
-    () => { const d = appDoc(); if (d) { d.documentElement.classList.add('preso-pills-on'); const c = d.defaultView.__presoCentre; if (c) c(); } });
+    () => { const d = appDoc(); if (d) { d.documentElement.classList.add('preso-pills-on'); const c = d.defaultView.__presoCentre; if (c) c(); } },
+    // ...and the tap after that: "Try $745", visibly tapped, and the price ODOMETERS up to it — every digit rolling to
+    // its new figure — and the nights take $745 and keep it (John, 2026-09-30)
+    (m, instant) => {
+      const ns = [...m.selectedNights];
+      const set = () => m.setPrice(745, 0, ns, false);
+      if (instant) { set(); return; }
+      const g = ++gen, d = appDoc();
+      pendingTail = set;
+      plainTap(d && d.querySelector('.preso-pills .try'), 'rgba(140,140,140,.5)');
+      setTimeout(() => { if (g === gen) odometer(d, 745, 900, () => { if (g === gen) { set(); pendingTail = null; } }); }, 360);
+    });
 }
+// THE ODOMETER for the price sheet's big figure: the build only rolls the figures in the cells, and the fork keeps even
+// those still. A copy of the figure is laid exactly over it — the same face, size and place — the real one is hidden,
+// and each digit of the copy rolls up a strip of 0–9 from its old figure to its new; when they have landed `done` sets
+// the real price (React then draws the same figure underneath) and the copy comes off. React's own text is never touched.
+const odometer = (d, to, ms, done) => {
+  const big = d && d.querySelector('.sqa-price.open .sqa-big span');
+  if (!big) { done(); return; }
+  const w = d.defaultView, cs = w.getComputedStyle(big), r = big.getBoundingClientRect();
+  const from = big.textContent.trim(), next = '$' + to.toLocaleString('en-US');
+  const lh = r.height;
+  const over = d.createElement('div');
+  over.style.cssText = 'position:fixed;z-index:2147483002;pointer-events:none;display:flex;left:' + r.left + 'px;top:' + r.top + 'px;height:' + lh + 'px;'
+    + 'font:' + cs.font + ';letter-spacing:' + cs.letterSpacing + ';color:' + cs.color + ';font-feature-settings:' + cs.fontFeatureSettings;
+  const a = from.padStart(next.length, ' '), b = next.padStart(from.length, ' ');
+  [...b].forEach((ch, i) => {
+    const old = a[i];
+    if (!/\d/.test(ch) || !/\d/.test(old) || ch === old) { const s = d.createElement('span'); s.textContent = ch; s.style.lineHeight = lh + 'px'; over.appendChild(s); return; }
+    const col = d.createElement('span'); col.style.cssText = 'display:inline-block;height:' + lh + 'px;overflow:hidden';
+    const strip = d.createElement('span'); strip.style.cssText = 'display:flex;flex-direction:column';
+    const o = +old, n = +ch, steps = n >= o ? n - o : n + 10 - o;               // always rolling up
+    for (let k = 0; k <= steps; k++) { const s = d.createElement('span'); s.textContent = (o + k) % 10; s.style.lineHeight = lh + 'px'; strip.appendChild(s); }
+    col.appendChild(strip); over.appendChild(col);
+    strip.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(' + (-steps * lh) + 'px)' }], { duration: ms, delay: i * 60, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' });
+  });
+  d.body.appendChild(over);
+  big.style.visibility = 'hidden';
+  setTimeout(() => { done(); setTimeout(() => { big.style.visibility = ''; over.remove(); }, 60); }, ms + next.length * 60 + 80);
+};
 // The beat that first stands three phones up. A jump straight to it (or past it) must create the other phones first rather
 // than wait for their timer. This used to be the literal 36 — stale since beats were removed, so it never fired, until two
 // inserted beats happened to land it on the right one. Found by what the beat does, it stays right whatever is added.
@@ -1003,7 +1042,9 @@ function typeKeys(keys, instant) {
       const d = appDoc(); if (!d) return;
       const el = k === 'Done' ? d.querySelector('.sqa-price.open .ps-done') : [...d.querySelectorAll('.sqa-price.open .ps-key')].find(b => b.getAttribute('aria-label') === k);
       if (!el) return;
-      if (instant) { el.click(); return; }
+      // a replay in the fork does not retype: the fork sets the price on the nights itself (beat 10), and keys clicked in a
+      // replay left their digits standing in the sheet — it opens and closes in the same tick and never clears them
+      if (instant) { if (!SIMPLE) el.click(); return; }
       const tap = el.__tap = (el.__tap || 0) + 1;                    // a repeat on the same key restarts its pop...
       el.classList.remove('pressing'); void el.offsetWidth;
       el.classList.add('pressing');                                  // the key pops, a disc blooms (sqa.css key-tap, 420ms)
@@ -1117,7 +1158,7 @@ function typeKeys(keys, instant) {
       + '.preso-pills{position:fixed;left:24px;right:24px;z-index:2147483001;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;pointer-events:none;'
       +   'opacity:0;scale:.92;transition:opacity .25s ease,scale .35s cubic-bezier(.2,.9,.25,1),top .5s cubic-bezier(.2,.9,.25,1)}'
       + '.preso-pills.on{opacity:1;scale:1;transition-delay:.12s,.12s,0s}'
-      + '.preso-pills span{height:32px;padding:0 14px;border-radius:16px;background:rgba(140,140,140,.2);color:#fff;display:flex;align-items:center;'
+      + '.preso-pills span{height:40px;padding:0 16px;border-radius:20px;background:rgba(140,140,140,.2);color:#fff;display:flex;align-items:center;'
       +   'font-size:14px;font-weight:500;line-height:1;white-space:nowrap}'
       // THE SWAP (John, 2026-09-30): from the Modernism Week price on, html.preso-custom-kb sends the iOS pad and its Save back
       // down and brings the build's own keypad and Done up in their place — and keeps them for the rest of the run
@@ -1171,7 +1212,7 @@ function typeKeys(keys, instant) {
       const HEAD_B = 268.2, BIG_T = 430.2, PER_B = 524.2, SAVE_T = 608, PAD_T = 663, PILL_GAP = 16;
       const pills = w.document.createElement('div');
       pills.className = 'preso-pills';
-      pills.innerHTML = '<span>Try $780</span><span>Similar listings</span>';
+      pills.innerHTML = '<span class="try">Try $745</span><span>Similar listings</span>';
       w.document.body.appendChild(pills);
       const centre = () => {
         const root = w.document.documentElement, open = !!w.document.querySelector('.sqa-price.open');
