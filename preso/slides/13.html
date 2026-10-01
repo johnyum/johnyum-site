@@ -928,6 +928,14 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('odometer(d, 74
     setTimeout(() => { if (g === gen) { home(); pendingTail = null; } }, TAP);
   }, 600 + TAP + 900);
 });
+// ...and the tap after home (John, 2026-09-30): the header tucks up into its small bar first, then the 11th through the 18th
+// of September are picked a night at a time, the quick actions rising when the run is in (Lacked Context, in the verdict).
+if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('m.goToday()')) + 1, 0, (m, instant) => {
+  const a = m.fx.index({ y: 2026, m: 9, d: 11 }), z = m.fx.index({ y: 2026, m: 9, d: 18 });
+  if (instant) { const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); m.setHeaderLock(true, false); return; }
+  m.setHeaderLock(true);                                       // the header collapses...
+  setTimeout(() => cascade(m, a, z, 90), 500);                 // ...then the run, night by night
+});
 // THE ODOMETER for the price sheet's big figure: the build only rolls the figures in the cells, and the fork keeps even
 // those still. A copy of the figure is laid exactly over it — the same face, size and place — the real one is hidden,
 // and each digit of the copy rolls up a strip of 0–9 from its old figure to its new; when they have landed `done` sets
