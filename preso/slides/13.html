@@ -896,7 +896,9 @@ if (SIMPLE) {
   const at = BEATS.findIndex(b => String(b).includes('cascade(m, mw[0], mw[1], 90)')) + 1;
   BEATS.splice(at, 0,
     m => m.setPriceSheet(true),
-    () => { const d = appDoc(); if (d) d.documentElement.classList.add('preso-custom-kb'); });
+    () => { const d = appDoc(); if (d) { d.documentElement.classList.add('preso-custom-kb'); const c = d.defaultView.__presoCentre; if (c) c(); } },
+    // ...and the tap after (John, 2026-09-30): two pills under the price, the price and pills centred together
+    () => { const d = appDoc(); if (d) { d.documentElement.classList.add('preso-pills-on'); const c = d.defaultView.__presoCentre; if (c) c(); } });
 }
 // The beat that first stands three phones up. A jump straight to it (or past it) must create the other phones first rather
 // than wait for their timer. This used to be the literal 36 — stale since beats were removed, so it never fired, until two
@@ -1110,6 +1112,13 @@ function typeKeys(keys, instant) {
       +   'transform:translateY(calc(100% + ' + (56 * K) + 'px));transition:transform .42s cubic-bezier(.2,.9,.25,1);'
       +   'font-family:-apple-system,"SF Pro Text","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased}'
       + '.preso-kb.up{transform:none}'
+      + '.sqa-price.open .sqa-big,.sqa-price.open .ps-per{translate:0 var(--preso-shift,0px);transition:translate .5s cubic-bezier(.2,.9,.25,1)}'
+      // the two pills: the custom Done's grey, centred, 8 apart, 16 under Per night (placed and shown by centre())
+      + '.preso-pills{position:fixed;left:24px;right:24px;z-index:2147483001;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;pointer-events:none;'
+      +   'opacity:0;scale:.92;transition:opacity .25s ease,scale .35s cubic-bezier(.2,.9,.25,1),top .5s cubic-bezier(.2,.9,.25,1)}'
+      + '.preso-pills.on{opacity:1;scale:1;transition-delay:.12s,.12s,0s}'
+      + '.preso-pills span{height:32px;padding:0 14px;border-radius:16px;background:rgba(140,140,140,.2);color:#fff;display:flex;align-items:center;'
+      +   'font-size:14px;font-weight:500;line-height:1;white-space:nowrap}'
       // THE SWAP (John, 2026-09-30): from the Modernism Week price on, html.preso-custom-kb sends the iOS pad and its Save back
       // down and brings the build's own keypad and Done up in their place — and keeps them for the rest of the run
       // — the iOS pad and Save draw INWARD and fade (300ms), a beat (400ms), then the build's keypad and Done grow OUTWARD
@@ -1153,7 +1162,29 @@ function typeKeys(keys, instant) {
         : '<span class="preso-key" data-k="' + k + '"><b>' + k + '</b><i>' + (l || '&nbsp;') + '</i></span>').join('') + '</div>';
       w.document.body.appendChild(kb);
       // up while the price sheet is open, whichever path opened or closed it — a tap, a replay, a step back
-      const sync = () => kb.classList.toggle('up', !!w.document.querySelector('.sqa-price.open'));
+      // THE PRICE, CENTRED (John, 2026-09-30). The open sheet's "$500 / Per night" is laid out by the build for its own keypad;
+      // the fork centres it — and, once they are in, the two pills under it (16 below Per night, 8 apart) — in the band
+      // between the sheet's header and whichever keyboard is up: the iOS pad's Save, or the custom keypad. The band's edges
+      // are the sheet's RESTING geometry in the app's fixed 430-wide frame (measured with every animation off: header to
+      // 268.2, the price 430.2 to Per night's foot at 524.2, Save at 608, the keypad at 663) — read live they would be
+      // mid-grow whenever the sheet is opening. The shift rides on translate, so nothing the build animates is touched.
+      const HEAD_B = 268.2, BIG_T = 430.2, PER_B = 524.2, SAVE_T = 608, PAD_T = 663, PILL_GAP = 16;
+      const pills = w.document.createElement('div');
+      pills.className = 'preso-pills';
+      pills.innerHTML = '<span>Price tip \u00b7 $780</span><span>Compare similar listings</span>';
+      w.document.body.appendChild(pills);
+      const centre = () => {
+        const root = w.document.documentElement, open = !!w.document.querySelector('.sqa-price.open');
+        const custom = root.classList.contains('preso-custom-kb'), withPills = open && custom && root.classList.contains('preso-pills-on');
+        const floor = custom ? PAD_T : SAVE_T;
+        const foot = PER_B + (withPills ? PILL_GAP + pills.offsetHeight : 0);
+        const shift = open ? Math.round(((HEAD_B + floor) / 2 - (BIG_T + foot) / 2) * 10) / 10 : 0;
+        root.style.setProperty('--preso-shift', shift + 'px');
+        pills.style.top = (PER_B + PILL_GAP + shift) + 'px';
+        pills.classList.toggle('on', withPills);
+      };
+      w.__presoCentre = centre;
+      const sync = () => { kb.classList.toggle('up', !!w.document.querySelector('.sqa-price.open')); centre(); };
       // childList too: a jump straight to the open sheet MOUNTS it with .open already on, which is not a class change
       new w.MutationObserver(sync).observe(w.document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
       sync();
@@ -1244,7 +1275,7 @@ function typeKeys(keys, instant) {
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
     setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } for (const doc of [app2Doc(), app3Doc()]) { const v = doc && doc.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); } }   // the second phone back on its list, on today, its menu closed; the third on top
-    if (SIMPLE) { marksFlag(null); tipsFlag(false); tipsModeFlag(false); appliedFlag(false); const d = appDoc(); if (d) d.documentElement.classList.remove('preso-custom-kb'); }
+    if (SIMPLE) { marksFlag(null); tipsFlag(false); tipsModeFlag(false); appliedFlag(false); const d = appDoc(); if (d) { d.documentElement.classList.remove('preso-custom-kb', 'preso-pills-on'); const c = d.defaultView.__presoCentre; if (c) c(); } }
     m.setHeaderLock(false, false); m.hidePuck(); m.openBriefTip(null); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
