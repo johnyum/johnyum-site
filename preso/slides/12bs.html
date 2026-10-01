@@ -118,27 +118,27 @@
     transition: opacity 320ms ease, transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
   }
   #notes svg { flex: none; width: 24px; height: 24px; fill: #111; }
-  /* "Too dark", pointed at on the next tap (John, 2026-09-30 — in place of an underline): an arrow on the RIGHT of the
-     words, pointing back at them, the same 12 from them as the ⨉ is on the left. It slides in from the right. */
+  /* THE ARROW AND THE CROSS-OUTS (John, 2026-09-30). The arrow points at the critique being answered — on the RIGHT of
+     the words, pointing back at them, the same 12 from them as the ⨉ is on the left, sliding in from the right:
+       dark  "Too dark" is pointed at (the black picks, then their switch to stroked)
+       trim  "Too dark" is crossed out and the arrow moves down to "No holidays" (the close and the run to Thanksgiving)
+       hol   the icons have popped back in: "No holidays" is crossed out too, and the arrow goes
+     A cross-out is drawn left to right, from just before the ⨉ to 6 past the words (4 more on the right than the left,
+     so it reads as centred on the line), and nothing moves: an arrow that goes keeps its place in the layout. */
   #notes svg.ptr {
     opacity: 0; transform: translateX(12px);
     transition: opacity 260ms ease, transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
   }
-  body.dark #notes svg.ptr { opacity: 1; transform: none; }
-  body.snap #notes svg.ptr { transition: none; }
-  /* "Too dark" answered (John, 2026-09-30: "just cross it out, including the X"): a line is drawn through it, left to right,
-     from the ⨉ to the end of the words, and nothing moves. The arrow pointing at it goes as the line goes on, and keeps
-     its place in the layout so nothing shifts. */
-  /* drawn on the words, reaching back over the ⨉ (24) and its gap (12): the row itself is as wide as the list's longest line */
-  #notes li.td span { position: relative; }
-  #notes li.td span::after {
-    content: ""; position: absolute; left: -38px; right: -2px; top: 50%; height: 2px; margin-top: -1px;
+  body.dark #notes li.td svg.ptr, body.trim #notes li.nh svg.ptr { opacity: 1; transform: none; }
+  body.trim #notes li.td svg.ptr, body.hol #notes li.nh svg.ptr { opacity: 0; transform: none; }
+  #notes li.td span, #notes li.nh span { position: relative; }
+  #notes li.td span::after, #notes li.nh span::after {
+    content: ""; position: absolute; left: -38px; right: -6px; top: 50%; height: 2px; margin-top: -1px;
     background: #111; transform: scaleX(0); transform-origin: 0 50%;
     transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
   }
-  body.trim #notes li.td span::after { transform: scaleX(1); }
-  body.trim #notes svg.ptr { opacity: 0; transform: none; }
-  body.snap #notes li.td span::after { transition: none; }
+  body.trim #notes li.td span::after, body.hol #notes li.nh span::after { transform: scaleX(1); }
+  body.snap #notes svg.ptr, body.snap #notes li span::after { transition: none; }
   #notes svg.ok { fill: #008A05; }             /* Airbnb's own success green and error red, the calendar's colours */
   #notes svg.no { fill: #C13515; }
   /* in after the phone has started moving, one after another; out all at once */
@@ -197,7 +197,7 @@
     <li><svg class="ok" viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>Intuitive</span></li>
     <li><svg class="ok" viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>Easy to use</span></li>
     <li class="td"><svg class="no" viewBox="0 -960 960 960" aria-hidden="true"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg><span>Too dark</span><svg class="ptr" viewBox="0 -960 960 960" aria-hidden="true"><path d="m313-440 224 224-57 56-320-320 320-320 57 56-224 224h487v80H313Z"/></svg></li>
-    <li><svg class="no" viewBox="0 -960 960 960" aria-hidden="true"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg><span>No holidays</span></li>
+    <li class="nh"><svg class="no" viewBox="0 -960 960 960" aria-hidden="true"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg><span>No holidays</span><svg class="ptr" viewBox="0 -960 960 960" aria-hidden="true"><path d="m313-440 224 224-57 56-320-320 320-320 57 56-224 224h487v80H313Z"/></svg></li>
     <li><svg class="no" viewBox="0 -960 960 960" aria-hidden="true"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg><span>Lacked Context</span></li>
   </ul>
 
@@ -309,6 +309,10 @@
     const dark = state === 2 && landed && at >= DARK_AT && at <= TRIM_AT;
     const trim = state === 2 && landed && at === TRIM_AT;
     if (trim !== document.body.classList.contains('trim')) { if (snapNext) document.body.classList.add('snap'); document.body.classList.toggle('trim', trim); }
+    // hol: the calendar has its icons back (13's toIcons puts preso-icons on the app's root) — "No holidays" is answered
+    let icons = false; try { icons = live.contentWindow.document.querySelector('iframe').contentDocument.documentElement.classList.contains('preso-icons'); } catch (_) {}
+    const hol = trim && icons;
+    if (hol !== document.body.classList.contains('hol')) { if (snapNext) document.body.classList.add('snap'); document.body.classList.toggle('hol', hol); }
     if (dark !== document.body.classList.contains('dark')) { if (snapNext) document.body.classList.add('snap'); document.body.classList.toggle('dark', dark); }
     if (want === side && !snapNext) return;
     if (snapNext) document.body.classList.add('snap');
