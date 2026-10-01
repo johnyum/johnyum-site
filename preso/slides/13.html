@@ -768,11 +768,11 @@ const dotsBack = d => {
 };
 // ...and the next (John, 2026-09-30): with "Too dark" crossed out in the verdict (12bs, on this tap), the ⨉ is visibly
 // tapped and the quick actions close, the nights letting go, and the events and holidays come on as their dots; once the
-// quick actions are down the calendar scrolls to Thanksgiving, Thursday 26 November; a beat after it has landed the dots
+// quick actions are down the calendar scrolls to November; a beat after it has landed the dots
 // give way to the icons (toIcons, above).
 if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) + 3, 0, (m, instant) => {
   const marksOn = () => { m.setLayers({ marks: true }); m.setShownMarks(new Set()); m.revealOffset = MARK_PARK; for (const grp of markRun(m)) m.showMarkGroup(grp.dis); };
-  const tg = (markRun(m).find(g => g.name === 'Thanksgiving') || { dis: [m.fx.index({ y: 2026, m: 11, d: 26 })] }).dis[0];
+  const tg = m.fx.index({ y: 2026, m: 11, d: 1 });              // November — the month, not Thanksgiving (John, 2026-09-30): Pride and Thanksgiving both in it
   const icons = live => { const d = appDoc(); if (d) toIcons(d, live); };
   const land = () => { m.clearSelection(); marksOn(); setTimeout(() => { m.reveal(tg, null, 0, 0); setTimeout(() => icons(false), 60); }, 40); };   // the reveal a tick later, as the holidays beat does
   if (instant) { land(); return; }
@@ -949,6 +949,14 @@ function typeKeys(keys, instant) {
                 + '.grid>.preso-ghost{position:absolute;pointer-events:none}'
                 + '@keyframes preso-pop{0%{transform:scale(0)}65%{transform:scale(1.14)}100%{transform:scale(1)}}'
                 + 'html.preso-icons .grid>.mark{animation:preso-pop .46s cubic-bezier(.34,1.3,.64,1) both!important}'
+                // PRIDE (John, 2026-09-30): the first day is the rainbow (dressPride swaps the src); the two after are
+                // secondary marks, a 6px red then a 6px orange ball, lit from the top left, sitting where Indian Wells puts its
+                // tennis balls — the centre of a .mark.sec, which the build sets 8 higher (62) than a main icon (70)
+                + 'html.preso-icons .grid>.mark[data-pride-sec]{translate:0 -8px}'
+                + 'html.preso-icons .grid>.mark[data-pride-sec]>img{display:none!important}'
+                + 'html.preso-icons .grid>.mark[data-pride-sec]::before{content:"";width:6px;height:6px;border-radius:50%;box-shadow:0 .5px 1px rgba(0,0,0,.28)}'
+                + 'html.preso-icons .grid>.mark[data-pride-sec=red]::before{background:radial-gradient(circle at 34% 30%,#ffb3a8 0,#f0473a 45%,#b8160f 100%)}'
+                + 'html.preso-icons .grid>.mark[data-pride-sec=orange]::before{background:radial-gradient(circle at 34% 30%,#ffd9a3 0,#ff9a1f 45%,#c4620a 100%)}'
               : '');                // the guests pop in quick (John, 2026-09-22)                        // and a sheet's scrim covers the whole frame, band included — one layer, no join
     w.document.head.appendChild(seal);
 
@@ -1041,7 +1049,24 @@ function typeKeys(keys, instant) {
           if (dx !== px || dy !== py) { mk.style.transform = 'translate(' + dx + 'px,' + dy + 'px)'; mk._dx = dx; mk._dy = dy; }
         }
       };
-      const soon = () => { if (!due) due = setTimeout(placeDots, 20); };
+      // PRIDE'S DRESS: the build's three Pride days all carry the heart. The first (in date order: by row, then column) takes
+      // the rainbow; the second and third are tagged for the red and orange balls (the CSS above). Re-run whenever marks
+      // change — a new run of marks is new elements. React never sets these marks' src or data-* again for the same props.
+      const RAINBOW = '/preso/slides/assets/pride.png';
+      const dressPride = () => {
+        const pr = [...w.document.querySelectorAll('.grid > .mark')].filter(mk => { const i = mk.querySelector('img'); return i && (/ev-pride-heart/.test(i.getAttribute('src') || '') || /ev-pride-heart/.test(i.dataset.pride || '')); });
+        // the grid's own left/top only — never the drawn position, which the balls' 8px lift itself changes
+        pr.sort((a, b) => (parseFloat(a.style.top) - parseFloat(b.style.top)) || (parseFloat(a.style.left) - parseFloat(b.style.left)));
+        pr.forEach((mk, i) => {
+          const img = mk.querySelector('img');
+          if (!img.dataset.pride) img.dataset.pride = img.getAttribute('src');   // the build's own src, kept
+          const want = i === 0 ? RAINBOW : img.dataset.pride;
+          if (img.getAttribute('src') !== want) img.setAttribute('src', want);
+          if (i === 0) delete mk.dataset.prideSec;
+          else { const c = i === 1 ? 'red' : 'orange'; if (mk.dataset.prideSec !== c) mk.dataset.prideSec = c; }
+        });
+      };
+      const soon = () => { if (!due) due = setTimeout(() => { placeDots(); dressPride(); }, 20); };
       new w.MutationObserver(list => {
         for (const m of list) {
           if (m.type === 'attributes' ? m.target.classList && m.target.classList.contains('mark')
