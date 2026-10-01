@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12bs</title>
+<!-- THE BLAND FORK OF 12B (John, 2026-09-30) — "keep the current one as well". The same sheet of studies, the same
+     references, the same live phone; the calendar inside it runs 13.html?simple=1, which lands every beat instantly with
+     all motion off, leaves the four motion studies out, and writes minimum nights onto nothing but the editor. It stops at
+     the custom promotion closing — the original's #22.18 — and hands the deck on.
+
+     Only the calendar is bland. The sheet sliding to the phone, the phone growing, and the references coming in are the
+     deck presenting the work rather than the work, and are left as they are in 12b.
+
+     This file is a copy of 12b with one line changed (the iframe's src). A fix to 12b's wrapper wants making here too.
+-->
+<!-- THE CALENDAR STUDIES — every calendar style tried, in three neat rows.
+
+     Sits between the "Airbnb hosts manage…" line (12a) and the live build (13).
+     The 28 phones in assets/Calendar/ stand in three rows of 9 / 10 / 9, in
+     the order of John's reference board. The deck pushes the whole sheet in
+     from the right like any slide.
+
+     THE LAST PHONE IS THE REAL THING. The middle row's tenth slot is not a
+     picture: it is slide 13 — the live Host Calendar in its drawn iPhone —
+     loaded here in an iframe the size of the whole viewport and scaled down
+     until its phone sits exactly in the slot. So it comes in with the sheet,
+     already running.
+
+     THE BUILD — one tap, two movements
+       1  the whole rigid sheet slides LEFT until the live phone is smack in
+          the centre of the frame (it is already on the centre row, so this is
+          a pure horizontal shift), and the other 27 fade to nothing over the
+          same slide — gone by the time the live phone lands;
+       2  THEN the live phone grows to full size where it stands — its
+          transform simply animates back to none, which IS slide 13's layout.
+       From then on this slide is the live build: the deck's 13.html is not in
+       the manifest, it only lives here, and the taps forward to its beats.
+       The phone is tappable — picking a night brings up the preso's quick
+       actions — so the slide declares presoInteractive: the deck's tap zones
+       shrink to the 32px edge rails and left/right, the clicker and the rails
+       drive the build.
+
+     SIZING: the sheet is taller than the frame ON PURPOSE. The rows are sized
+     so that three of them plus their gutters come to 100vh + 20% of a phone,
+     and the sheet is centred — so the top row loses its top 10% above the
+     frame and the bottom row its bottom 10% below it, and the studies fill
+     the space instead of floating in it. HEIGHT alone sets the size: on a
+     wide screen the ten-phone middle row runs a little past both edges, which
+     is the reference board's edge-to-edge look, not a bug. -->
+<style>
+  :root {
+    --gap: 1vw;                                   /* gutter between phones */
+    --rowgap: 1.6vh;
+    --crop: 0.1;                                  /* of a phone, off the top row's top and the bottom row's bottom */
+    /* three rows + two gutters = 100vh + 2·crop·h  →  h = (100vh − 2·gutter) / (3 − 2·crop) */
+    --h-fill: calc((100vh - 2 * var(--rowgap)) / (3 - 2 * var(--crop)));
+    --h: var(--h-fill);
+    --w: calc(var(--h) * 450 / 920);
+  }
+  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
+  #sheet {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    gap: var(--rowgap);
+    --dx: 0px;                                    /* set by JS: how far left puts the live phone on centre */
+    transform-origin: 50% 50%;
+    transition: transform 720ms cubic-bezier(0.16, 1, 0.3, 1), opacity 720ms ease;
+  }
+  /* 1: the sheet slides as one rigid thing and fades out on the way — the
+     other 27 are gone by the time the live phone lands on centre. (The live
+     phone is not in the sheet, so it rides the slide at full opacity.) */
+  body.shift #sheet { transform: translateX(var(--dx)); opacity: 0; }
+  .row { display: flex; gap: var(--gap); justify-content: center; flex: none; }
+  .phone { width: var(--w); height: var(--h); flex: none; }
+  .phone img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
+
+  /* the live build: a whole-viewport iframe of 13.html, scaled down so its
+     centred phone lands in the last slot; on the tap the transform goes to
+     none and it is simply slide 13 */
+  .live {
+    position: fixed; left: 0; top: 0;
+    width: 100vw; height: 100vh;
+    border: 0; display: block;
+    background: transparent;
+    transform-origin: 50% 50%;
+    z-index: 5;
+  }
+  body.shift .live, body.grown .live { transition: transform 720ms cubic-bezier(0.16, 1, 0.3, 1), opacity 420ms ease; }
+
+  /* THE REFERENCES — where the calendar came from (John, 2026-09-30). One tap after the live phone lands, John's own
+     design SHRINKS AND SLIDES LEFT into the first of six places, and the five screens he drew from flow in from the
+     right into the other five — the three calendars he uses every day (Google, Apple, Amie) and the two games whose feel
+     he borrowed (Candy Crush, Tetris). It lands as one row of six: his, and where it came from. The next tap sends the
+     five back off to the right and his design grows back to the centre, and the build carries on from there.
+
+     IN THE SAME PHONE. Each reference is 13's own device, not a lookalike: the 900 x 1840 frame, the photographed rail,
+     the bezel, the Dynamic Island, and the screen hole at exactly 13's percentages. The screenshots are 921 x 2000
+     against a hole of 0.4593 — 0.4605, so object-fit barely trims them. Their status bars sit under the drawn island.
+
+     THE ROW HAS SIX SLOTS; THE FIRST IS EMPTY. It is where the live phone lands, and keeping it in the flex row means the
+     five fall into exactly the places the live phone's transform is computed against — one layout, not two to agree. */
+  .refs {
+    position: fixed; inset: 0; z-index: 6;
+    display: flex; align-items: center; justify-content: center;
+    gap: var(--rg, 24px);
+    pointer-events: none;
+  }
+  .ref, .ref-slot {
+    position: relative; flex: none;
+    height: var(--rh, 60vh); aspect-ratio: 900 / 1840;
+  }
+  .ref {
+    transform: translateX(100vw); opacity: 0;
+    transition: transform 720ms cubic-bezier(0.16, 1, 0.3, 1), opacity 360ms ease;
+  }
+  body.refs-in .ref { transform: none; opacity: 1; }
+  .ref .scr {
+    position: absolute;
+    left: 5.4444%; top: 2.5543%; width: 89.1111%; height: 94.8913%;
+    border-radius: 15.9601% / 7.3310%;
+    overflow: hidden; background: #0b0b0b; z-index: 1;
+  }
+  .ref .scr img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  .ref .chrome { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { .ref { transition: opacity 200ms linear; } }
+  @media (prefers-reduced-motion: reduce) {
+    #sheet, body.shift .live, body.grown .live { transition: none; }
+  }
+</style>
+</head>
+<body>
+  <div id="sheet">
+    <div class="row">
+      <div class="phone"><img src="assets/Calendar/Component 102.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 92.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 92-10.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 92-11.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 99.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 92-12.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 92-13.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 92-14.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 101-1.png" alt=""></div>
+    </div>
+    <div class="row">
+      <div class="phone"><img src="assets/Calendar/Component 93.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 92-2.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 92-3.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 92-4.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 100-1.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 92-5.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 92-6.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 92-7.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 92-8.png" alt=""></div>
+      <div class="phone" id="slot"></div>
+    </div>
+    <div class="row">
+      <div class="phone"><img src="assets/Calendar/Component 94.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 95.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 96.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 97.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 98.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 100.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 92-9.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 92-1.png" alt=""></div>
+      <div class="phone"><img src="assets/Calendar/Component 101.png" alt=""></div>
+    </div>
+  </div>
+
+  <!-- src is set below: 13 gets the deck's per-load stamp too, so an edited 13
+       (and the app under it) can never come from the browser's cache -->
+  <iframe class="live" id="live" title="Host Calendar"></iframe>
+
+  <!-- the frame's defs, once: five copies of an id is five of the same id -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="rail" x1="16" y1="0" x2="884" y2="0" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#8f8f8c"/><stop offset="0.035" stop-color="#ececea"/>
+        <stop offset="0.10" stop-color="#bfbfbc"/><stop offset="0.50" stop-color="#f2f2f0"/>
+        <stop offset="0.90" stop-color="#bfbfbc"/><stop offset="0.965" stop-color="#ececea"/>
+        <stop offset="1" stop-color="#8f8f8c"/>
+      </linearGradient>
+      <clipPath id="outsideBezel" clipPathUnits="userSpaceOnUse">
+        <path clip-rule="evenodd" d="M-60,-60 H960 V1900 H-60 Z M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/>
+      </clipPath>
+    </defs>
+  </svg>
+  <div class="refs" id="refs" aria-label="References: Google Calendar, Apple Calendar, Amie, Candy Crush, Tetris"></div>
+
+<script>
+(() => {
+  window.presoInteractive = true;   // nights are tappable; navigation lives on the rails and the keys
+  const live = document.getElementById('live'), slot = document.getElementById('slot'), sheet = document.getElementById('sheet');
+  const STAMP = new URLSearchParams(location.search).get('v') || Date.now().toString(36);
+  // THE BLAND FORK: the same build with every motion off (?simple=1), stopping where the original's #22.18 does — the
+  // custom promotion closed, before the holidays. The original's first 17 beats less the 4 motion studies the fork leaves
+  // out is 13, so ?until=13 hands the deck on from there.
+  live.src = '13.html?embed=1&simple=1&until=13&v=' + STAMP;
+  // THE REFERENCES, built from 13's own device. The frame is 13's SVG less its defs (declared once in the markup).
+  const REFS = [
+    ['google-cal', 'Google Calendar'], ['apple-cal', 'Apple Calendar'], ['amie', 'Amie'],
+    ['candy-crush', 'Candy Crush'], ['tetris', 'Tetris']
+  ];
+  const CHROME = '<svg class="chrome" viewBox="0 0 900 1840" fill="none" aria-hidden="true">' +
+    '<path fill="url(#rail)" fill-rule="evenodd" d="M177,14 H723 A161,161 0 0 1 884,175 V1665 A161,161 0 0 1 723,1826 H177 A161,161 0 0 1 16,1665 V175 A161,161 0 0 1 177,14 Z M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/>' +
+    '<image href="assets/device/iphone-frame.png" x="0" y="0" width="900" height="1840" clip-path="url(#outsideBezel)" preserveAspectRatio="none"/>' +
+    '<path fill="#0b0b0b" fill-rule="evenodd" d="M177,27 H723 A148,148 0 0 1 871,175 V1665 A148,148 0 0 1 723,1813 H177 A148,148 0 0 1 29,1665 V175 A148,148 0 0 1 177,27 Z M177,47 H723 A128,128 0 0 1 851,175 V1665 A128,128 0 0 1 723,1793 H177 A128,128 0 0 1 49,1665 V175 A128,128 0 0 1 177,47 Z"/>' +
+    '<rect x="322" y="69" width="256" height="74" rx="37" fill="#000"/>' +
+    '<circle cx="529" cy="106" r="12.7" fill="#0f1420"/><circle cx="529" cy="106" r="5.3" fill="#243046"/></svg>';
+  const refs = document.getElementById('refs');
+  const home = document.createElement('div');   // slot 1 of 6: where the live phone lands
+  home.className = 'ref-slot';
+  refs.appendChild(home);
+  REFS.forEach(([file, name]) => {
+    const r = document.createElement('div');
+    r.className = 'ref';
+    r.innerHTML = '<div class="scr"><img src="assets/refs/' + file + '.webp" alt="' + name + '" draggable="false"></div>' + CHROME;
+    refs.appendChild(r);
+  });
+  // SIX ACROSS as big as they go without crowding the deck's chrome: a phone is 0.489 of its height wide and a gap 0.12
+  // of a phone, so the row is 6 x 0.489 + 5 x 0.059 = 3.228 phone-heights wide — and never taller than 13's own phone.
+  // refLive is the transform that takes the live frame's centred phone to slot 1: scale it from 13's height to the row's,
+  // and slide it from the stage's centre to that slot's. The frame's origin is its centre, which is the phone's centre.
+  let refLive = 'none';
+  const sizeRefs = () => {
+    const H = Math.min(innerHeight * 0.8, 1080);
+    const rh = Math.min(H, innerWidth * 0.92 / 3.2283);
+    const pw = rh * 0.48913, gap = pw * 0.12, row = 6 * pw + 5 * gap;
+    refs.style.setProperty('--rh', rh + 'px');
+    refs.style.setProperty('--rg', gap + 'px');
+    const x0 = (innerWidth - row) / 2 + pw / 2;          // slot 1's centre
+    refLive = 'translate(' + (x0 - innerWidth / 2).toFixed(2) + 'px, 0px) scale(' + (rh / H).toFixed(5) + ')';
+  };
+  sizeRefs(); addEventListener('resize', sizeRefs);
+
+  let refStage = 0;                         // 0 not yet shown · 1 up · 2 shown and gone
+  // refStage is set BEFORE these are called, everywhere: both finish with place(), which reads refStage to decide where
+  // the live phone goes. Set after, it would put the phone where the previous stage wanted it.
+  function showRefs() { document.body.classList.add('refs-in'); place(); }
+  // Back off to the RIGHT, the way they came, while John's design grows back to the centre — the two moves are each
+  // other's reverse, so nothing crosses. And since that is where they started, there is no reset to do afterwards.
+  function hideRefs(instant) {
+    if (instant) {
+      [...refs.children].forEach(r => { r.style.transition = 'none'; });
+      document.body.classList.remove('refs-in'); void refs.offsetWidth;
+      [...refs.children].forEach(r => { r.style.transition = ''; });
+      return;
+    }
+    document.body.classList.remove('refs-in'); place();
+  }
+  const innerAt = () => { try { const f = live.contentWindow.presoAt; return f ? f() : 0; } catch (_) { return 0; } };
+
+  const SHIFT_MS = 720;                      // movement 1's length; movement 2 starts as it lands
+  const GROW_MS = 800;                       // movement 2's length; the arrows stay ours until the phone has landed
+  let state = 0, timer = 0, landed = false;  // 0 in the sheet · 1 sliding to centre · 2 grown (13 drives, once landed)
+  const grown = () => state === 2;
+  // 13's phone is min(80vh, 1080px) tall, centred in its viewport — which is
+  // this one. In the sheet the live frame is translated so that centre lands
+  // on the slot; sliding puts the slot's column on the frame's centre line,
+  // so the live frame's translate loses its x and the sheet gains --dx.
+  // The slot is measured with the sheet's transform switched OFF for the read
+  // (no transition, restored at once, the browser never paints it): once the
+  // sheet is sliding or shrinking, a rect read through it is scaled and shifted
+  // and every number below goes wrong.
+  let geo = null;
+  function measure() {
+    const t = sheet.style.transform, tr = sheet.style.transition;
+    sheet.style.transition = 'none'; sheet.style.transform = 'none';
+    const r = slot.getBoundingClientRect();
+    sheet.style.transform = t; void sheet.offsetWidth; sheet.style.transition = tr;
+    geo = { cx: r.left + r.width / 2, cy: r.top + r.height / 2, s: r.height / Math.min(innerHeight * 0.8, 1080) };
+    sheet.style.setProperty('--dx', (innerWidth / 2 - geo.cx).toFixed(2) + 'px');
+  }
+  function place() {
+    if (!geo) measure();
+    const { cx, cy, s } = geo;
+    if (state === 0) live.style.transform = `translate(${(cx - innerWidth / 2).toFixed(2)}px, ${(cy - innerHeight / 2).toFixed(2)}px) scale(${s.toFixed(5)})`;
+    else if (state === 1) live.style.transform = `translate(0px, ${(cy - innerHeight / 2).toFixed(2)}px) scale(${s.toFixed(5)})`;
+    else if (refStage === 1) live.style.transform = refLive;   // the first of six, the references beside it
+    else live.style.transform = 'none';
+  }
+  place();
+  addEventListener('resize', () => { measure(); place(); });
+  // once grown, the taps are 13's: its own build steps until it says it is out
+  const inner = fn => { try { const f = live.contentWindow[fn]; return f ? f() : false; } catch (_) { return false; } };
+  // A TAP DURING THE MOVE IS KEPT, not lost (John, 2026-09-22): arrows that land while the sheet slides or the phone grows
+  // used to be swallowed — the deck looked frozen for two seconds. They queue, and fire into the build the moment it lands.
+  let queued = 0;
+  // One step forward once the phone has landed. The references are the first thing after the base design: a tap on
+  // 13's opening beat brings them up, the next sends them away, and only then do taps reach 13's own build.
+  function nextLanded() {
+    if (refStage === 1) { refStage = 2; hideRefs(); return true; }
+    if (refStage === 0 && innerAt() === 0) { refStage = 1; showRefs(); return true; }
+    return inner('presoNext');
+  }
+  function grow() { state = 2; landed = false; document.body.classList.add('grown'); place(); setTimeout(() => { landed = true; while (queued > 0) { queued--; nextLanded(); } try { window.top.dispatchEvent(new Event('presostate')); } catch (_) {} }, GROW_MS); }   // and the deck's URL catches up with the beats that fired on landing
+  window.presoNext = () => {
+    if (grown()) { if (landed) return nextLanded(); queued++; return true; }   // during the grow-in: kept for the landing
+    if (state === 1) { queued++; return true; }   // still sliding: movement 2 is already scheduled; the tap waits for it
+    state = 1; document.body.classList.add('shift'); place();
+    timer = setTimeout(grow, SHIFT_MS + 40);
+    return true;
+  };
+  // the deck's GO: the sheet gone and the live phone grown with no motion, then 13 to its last beat once it is there
+  window.presoEnd = () => {
+    clearTimeout(timer); state = 2; landed = true; refStage = 2; hideRefs(true);
+    sheet.style.transition = 'none'; live.style.transition = 'none';
+    document.body.classList.add('shift', 'grown'); place(); void live.offsetWidth;
+    sheet.style.transition = ''; live.style.transition = '';
+    const go = () => { let f = null; try { f = live.contentWindow && live.contentWindow.presoEnd; } catch (_) {} if (f) f(); else setTimeout(go, 100); };
+    go();
+  };
+  // the deck's URL carries this slide's progress: 0 = the sheet, 1 + beat = the grown phone at that beat (John, 2026-09-22)
+  window.presoState = () => { if (state === 0) return 0; let n = 0; try { const f = live.contentWindow.presoAt; n = f ? f() : 0; } catch (_) {} return 1 + n; };   // sliding counts as grown: a refresh mid-slide lands on the phone
+  window.presoRestore = n => {
+    if (!n) return;
+    clearTimeout(timer); state = 2; landed = true;
+    refStage = n > 1 ? 2 : 0; hideRefs(true);   // on the base design: the references are still to come; past it, they have been
+    sheet.style.transition = 'none'; live.style.transition = 'none';
+    document.body.classList.add('shift', 'grown'); place(); void live.offsetWidth;
+    sheet.style.transition = ''; live.style.transition = '';
+    const go = () => { let f = null; try { f = live.contentWindow && live.contentWindow.presoGo; } catch (_) {} if (f) f(n - 1); else setTimeout(go, 100); };
+    go();
+  };
+  window.presoPrev = () => {
+    if (state === 0) return false;
+    if (queued > 0) { queued--; return true; }   // a queued forward tap is simply taken back
+    if (grown() && !landed) return true;     // same during the grow-in
+    if (grown() && refStage === 1) { refStage = 0; hideRefs(); return true; }   // the references away, back on the base design
+    if (grown() && inner('presoPrev')) return true;   // 13 stepped back a beat
+    if (grown() && refStage === 2) { refStage = 1; showRefs(); return true; }   // 13 at its start: back into the references
+    clearTimeout(timer);                     // 13 is at its start (or we never got there): back into the sheet
+    refStage = 0; hideRefs(true);
+    state = 0; document.body.classList.remove('grown', 'shift'); place();
+    return true;
+  };
+})();
+</script>
+</body>
+</html>
