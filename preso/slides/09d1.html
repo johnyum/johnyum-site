@@ -13,32 +13,39 @@
 
      The strip is far taller than the stage, and that is the point — it runs on off the bottom, the way the tweets run
      off every edge. It hangs from just under the deck's kicker and is cropped by the frame. The capture came in at
-     570 wide, so it is never shown much past that, or the type goes soft. Two taps scroll it — see .view. -->
+     570 wide, so it is never shown much past that, or the type goes soft. One tap pulls back from the top to the whole — see .view. -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
-  /* THE SCROLL (John, 2026-09-30: "I want to see more of the thread"). Two taps read on down it, like scrolling the
-     page: the top, then According-Data8773 at the top of the frame, then the foot of the thread. The thread fades out
-     under the deck's kicker rather than being cut at a hard line as it rides up. */
-  .view {
-    position: absolute; inset: 0; overflow: hidden;
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 48px, #000 84px);
-            mask-image: linear-gradient(to bottom, transparent 0, transparent 48px, #000 84px);
+  /* ONE TAP, ZOOMED THEN WHOLE (John, 2026-09-30). The thread lives in the band between the deck's chrome — the kicker
+     owns the top 44px and the section names the bottom 44 — with the same 32 of air above and below it: 76 to 76.
+     It opens zoomed in on the top, at 1.15 of the capture's own size (any more and the type goes soft), running on
+     into a soft fade at the foot of the band; the tap pulls back until the whole thread fills the band exactly. */
+  .view { position: absolute; left: 0; right: 0; top: 76px; bottom: 76px; overflow: hidden; }
+  body:not(.whole) .view {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 64px), transparent);
+            mask-image: linear-gradient(to bottom, #000 calc(100% - 64px), transparent);
   }
   .wrap {
     position: absolute; left: 50%; top: 0;
-    /* the WHOLE thread in the frame (John, 2026-09-30: "I don't need to read it, I just want to see it"): as tall as
-       the stage allows between the kicker and a 48 margin, so the width follows from the strip's own 570:2153 */
-    width: calc((100vh - 76px - 48px) * 570 / 2153);
-    transform: translate(-50%, var(--y, 76px));
+    width: min(655px, 86vw);                    /* 570 x 1.15 */
+    transform: translateX(-50%) scale(var(--s, 1));
+    transform-origin: 50% 0;
     transition: transform 900ms cubic-bezier(0.65, 0, 0.35, 1);
   }
-  body.snap .wrap { transition: none; }
+  body.snap .wrap, body.snap .mark { transition: none; }
   .thread { width: 100%; height: auto; display: block; user-select: none; -webkit-user-drag: none; }
   /* THE MARKS (John, 2026-09-30): ⨉ beside the naysayers, ✓ beside the ones who understood the host-only fee — in a
      gutter to the left of the thread, each on its comment's username row. Rows are in the strip's own pixels (of 2153),
      so they hold at any size. Same icons and colours as the verdict on the calendar. The OP's own replies carry none
      (John) — the post is marked once, and the replies are the same person saying it again. */
-  .mark { position: absolute; left: -28px; width: 18px; height: 18px; transform: translateY(-50%); }
+  /* the marks keep their size on screen as the thread shrinks under them: they are scaled back up by 1/s, about their
+     right edge, and kept 10 screen-px off the thread */
+  .mark {
+    position: absolute; right: 100%; width: 20px; height: 20px;
+    transform-origin: 100% 50%;
+    transform: translate(calc(-10px * var(--inv, 1)), -50%) scale(var(--inv, 1));
+    transition: transform 900ms cubic-bezier(0.65, 0, 0.35, 1);
+  }
   .mark.ok { fill: #008A05; }
   .mark.no { fill: #C13515; }
 </style>
@@ -56,24 +63,22 @@
     <svg class="mark ok" style="top:92.987%" viewBox="0 -960 960 960" aria-label="understood"><title>Future_Different: a global increase, thirty seconds</title><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>
   </div></div>
 <script>
-  // the stops, in the strip's own pixels: the row that sits at the top of the frame. 0 hangs the thread under the
-  // kicker; 900 puts According-Data8773 (the first ✓, at 965) up top; the last is the foot of the thread, 24 off the
-  // bottom of the frame, worked out from the frame's height.
-  const wrap = document.getElementById('wrap'), H = 2153, W = 570, TOP = 76;
-  const STOPS = [0];   // was [0, 900, Infinity], two taps of scrolling — the thread now fits whole, so there is nothing to scroll
+  // 0: zoomed in on the top · 1: the whole thread, scaled to fill the band between the chrome
+  const wrap = document.getElementById('wrap'), view = document.querySelector('.view'), H = 2153, W = 570;
   let at = 0;
   function place() {
-    const k = wrap.offsetWidth / W, stop = STOPS[at];
-    const y = stop === 0 ? TOP : stop === Infinity ? innerHeight - 24 - H * k : TOP - stop * k;
-    wrap.style.setProperty('--y', Math.min(TOP, y).toFixed(1) + 'px');
+    const s = at ? Math.min(1, view.clientHeight / (wrap.offsetWidth * H / W)) : 1;
+    wrap.style.setProperty('--s', s.toFixed(5));
+    document.body.style.setProperty('--inv', (1 / s).toFixed(5));
+    document.body.classList.toggle('whole', at === 1);
   }
   place();
   addEventListener('resize', place);
-  window.presoNext = () => { if (at >= STOPS.length - 1) return false; at++; place(); return true; };
-  window.presoPrev = () => { if (at <= 0) return false; at--; place(); return true; };
+  window.presoNext = () => { if (at) return false; at = 1; place(); return true; };
+  window.presoPrev = () => { if (!at) return false; at = 0; place(); return true; };
   window.presoState = () => at;
   window.presoRestore = n => {
-    document.body.classList.add('snap'); at = Math.max(0, Math.min(n, STOPS.length - 1)); place();
+    document.body.classList.add('snap'); at = n > 0 ? 1 : 0; place();
     void wrap.offsetWidth; requestAnimationFrame(() => document.body.classList.remove('snap'));
     setTimeout(() => document.body.classList.remove('snap'), 60);
   };
