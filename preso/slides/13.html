@@ -994,6 +994,26 @@ if (SIMPLE) BEATS.splice(beatAfter('Math.round(m.price(0, di) * 0.8)', 1), 0, (m
   };
   requestAnimationFrame(step);
 });
+// ...and on from 50% (John, 2026-09-30): a tap, the knob drags down to 10%; a tap, up to 20% — the build's drag and, on each
+// landing, the real promotion the cells roll to, all in full (html.preso-full is on from the 50%).
+const promoTo = (from, to) => (m, instant) => {
+  const ns = [...m.selectedNights];
+  const land = () => m.setPromo(to / 100, 0, ns);
+  if (instant) { m.setPromoDrag(false); m.setPromoPct(to); land(); return; }
+  const g = ++gen;
+  pendingTail = () => { m.setPromoDrag(false); m.setPromoPct(to); land(); };
+  const d0 = appDoc(), knob = d0 && d0.querySelector('.cp-knob');
+  if (knob) knob.classList.add('pressing');                    // the finger goes down
+  const T0 = performance.now() + 250, DRAG = 800;
+  const step = () => {
+    if (g !== gen) return;
+    const t = Math.min(1, Math.max(0, (performance.now() - T0) / DRAG)), e = 1 - Math.pow(2, -10 * t);
+    if (t > 0) { m.setPromoDrag(true); m.setPromoPct(from + (to - from) * (t >= 1 ? 1 : e)); }
+    if (t < 1) requestAnimationFrame(step); else { m.setPromoDrag(false); if (knob) knob.classList.remove('pressing'); setTimeout(tail(g, land), 500); }   // lifted; a beat; the nights roll
+  };
+  requestAnimationFrame(step);
+};
+if (SIMPLE) BEATS.splice(beatAfter('PRE20.get', 1), 0, promoTo(50, 10), promoTo(10, 20));
 // THE ODOMETER for the price sheet's big figure: the build only rolls the figures in the cells, and the fork keeps even
 // those still. A copy of the figure is laid exactly over it — the same face, size and place — the real one is hidden,
 // and each digit of the copy rolls up a strip of 0–9 from its old figure to its new; when they have landed `done` sets
