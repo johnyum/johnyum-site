@@ -12,8 +12,8 @@
      Only the calendar is bland. The sheet sliding to the phone and the phone growing in are the deck presenting the work
      rather than the work, and are left as they are in 12b.
 
-     This file is a copy of 12b with the iframe's src changed and one addition, the verdict at #23.4 (a list 80 in from
-     the left, beside the centred phone). A fix to 12b's wrapper wants making here too.
+     This file is a copy of 12b with the iframe's src changed and one addition, the two-up at #23.4 (the phone left, the
+     verdict on the right). A fix to 12b's wrapper wants making here too.
 -->
 <!-- THE CALENDAR STUDIES — every calendar style tried, in three neat rows.
 
@@ -92,9 +92,9 @@
     #sheet, body.shift .live, body.grown .live { transition: none; }
   }
 
-  /* THE VERDICT AT #23.4 (John, 2026-09-30). On the beat where the nights open again, the verdict on this version comes
-     in beside the phone, which stays centred: two ✓ and three ⨉, in the mono at 18, left-aligned, 80 in from the left
-     edge. (--side, the phone's sideways move from an earlier two-up, is held at 0.) */
+  /* THE TWO-UP AT #23.4 (John, 2026-09-30). On the beat where the nights open again the phone moves left, as if it were
+     the left one of a pair, and where the right one would stand is the verdict on this version: two ✓ and three ⨉, in
+     the mono at 18, left-aligned, the block centred on that missing phone. JS sets --side (how far left) and places #notes. */
   body.grown.side .live { transform: translateX(var(--side, 0px)) !important; }
   body.grown .live { transition: transform 720ms cubic-bezier(0.16, 1, 0.3, 1); }
   body.snap .live, body.snap #notes, body.snap #notes li { transition: none !important; }
@@ -105,7 +105,7 @@
   }
   #notes {
     position: fixed; top: 50%; left: 0; z-index: 6;
-    transform: translateY(-50%);
+    transform: translate(-50%, -50%);
     margin: 0; padding: 0; list-style: none;
     display: flex; flex-direction: column; gap: 16px;
     font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
@@ -114,7 +114,7 @@
   }
   #notes li {
     display: flex; align-items: flex-start; gap: 12px;
-    opacity: 0; transform: translateX(-24px);
+    opacity: 0; transform: translateX(24px);
     transition: opacity 320ms ease, transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
   }
   #notes svg { flex: none; width: 24px; height: 24px; fill: #111; }
@@ -259,12 +259,13 @@
   const notes = document.getElementById('notes');
   let side = false, snapNext = true;   // the first placement (a load or a jump) lands without moving
   function layoutSide() {
-    // the phone stays where it is, centred (John, 2026-09-30); the list hangs 80 in from the left, and may run no
-    // closer than 32 to the phone's edge
-    const w = Math.min(innerHeight * 0.8, 1080) * 900 / 1840;
-    document.body.style.setProperty('--side', '0px');
-    notes.style.left = '80px';
-    notes.style.maxWidth = Math.max(200, innerWidth / 2 - w / 2 - 80 - 32).toFixed(0) + 'px';
+    // a pair of phones: the real one steps left by half a phone and half the gap, and the list stands centred where
+    // the right one would be (back to the first layout, John, 2026-09-30)
+    const w = Math.min(innerHeight * 0.8, 1080) * 900 / 1840, gap = w * 0.3, off = (w + gap) / 2;
+    document.body.style.setProperty('--side', (-off).toFixed(1) + 'px');
+    const cx = innerWidth / 2 + off;
+    notes.style.left = cx.toFixed(1) + 'px';
+    notes.style.maxWidth = Math.max(240, 2 * (innerWidth - cx) - 48).toFixed(0) + 'px';
   }
   function syncSide() {
     let at = -1; try { const f = live.contentWindow.presoAt; at = f ? f() : -1; } catch (_) {}
