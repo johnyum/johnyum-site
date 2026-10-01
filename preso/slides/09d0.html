@@ -4,12 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>09d0</title>
-<!-- WHAT IT LOOKED LIKE FROM THE OUTSIDE. Five tweets about the cleaning fee,
-     straight before the host-only fee screens. The four screens that follow
-     are the answer; this is the thing being answered, in strangers' words
-     rather than a bullet on a problem slide. One tweet is an anecdote and five
-     is a pattern — and five is also the most anybody reads standing up, which
-     is why this is a row rather than the wall of twelve it started as.
+<!-- WHAT IT LOOKED LIKE FROM THE OUTSIDE. A wall of tweets about the cleaning fee, straight before the host-only fee
+     screens, packed past every edge of the stage and cropped by it — a wall that carries on beyond the frame. The
+     screens that follow are the answer; this is the thing being answered, in strangers' words.
 
      THEY ARE REAL EMBEDS, NOT PICTURES OF TWEETS. Each is X's own card,
      rendered by X from the tweet id. That matters beyond fidelity: these are
@@ -33,35 +30,31 @@
      shown instead. A slide that quietly shows one real tweet is a slide; one
      showing twelve empty boxes is a fault everybody in the room can see.
 
-     THE WALL IS LAID OUT AT ITS OWN SIZE AND THEN SCALED. Four columns of 330
-     is a 1400-wide block, and the embeds decide their own heights, so the
-     height is not known until they have rendered. A ResizeObserver on the wall
-     re-fits every time one lands — CSS cannot divide a length by a length, so
-     the scale cannot be a calc(), and a load-time read would measure zero
-     while the deck has the slide parked.
+     THE WALL IS PACKED AND SCALED IN JS. The embeds decide their own heights, so nothing is known until they render;
+     a ResizeObserver on every card re-packs as each one lands — and a load-time read would measure zero while the
+     deck has the slide parked.
 
      No builds. The deck pushes it in from the right and off to the left. -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .slide { height: 100%; display: grid; place-items: center; }
 
-  .fit { position: relative; }
+  /* THE WALL OVERFILLS THE STAGE (John, 2026-09-30: "fill the entire screen … it can spill over and crop out. that's
+     actually what I want"). The cards are packed into columns by JS, each column centred on the stage's middle line, and
+     the whole wall scaled until every column runs past the top and the bottom and the outer columns past the sides. */
   .wall {
-    width: 1730px;                 /* five 330s and four 20s */
-    display: flex;
-    align-items: flex-start;
-    gap: 20px;
-    transform: scale(var(--s, 1));
-    transform-origin: center center;
+    position: absolute; left: 50%; top: 50%; width: 0; height: 0;
+    transform: scale(var(--s, 1)); transform-origin: 0 0;
   }
-  .wall .t { flex: 0 0 330px; margin: 0; }
+  .wall .t { position: absolute; left: 0; top: 0; width: 330px; margin: 0; }
   /* X sets its own margins on the rendered iframe; these put it back. */
   .wall .twitter-tweet { margin: 0 !important; }
+  .fit { position: absolute; inset: 0; overflow: hidden; }
 
   /* the fallback — the slide this replaced */
   .shot { display: none; }
   .fell .wall { display: none; }
-  .fell .shot { display: block; }
+  .fell .shot { display: block; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
   .shot img {
     display: block;
     width: min(980px, 88vw, calc(84vh * 700 / 532));
@@ -88,42 +81,30 @@
   </div>
 <script>
 (() => {
-  // Twelve of the twenty John collected — the ones that are about the PRICE
-  // rather than about Airbnb generally, spread across six years so the wall
-  // reads as a long-running complaint and not one bad week.
-  // FIVE, IN ONE ROW. Twelve was a wall you scanned; five is a row you read,
-  // and on a stage the difference is whether anybody finishes a sentence.
-  // Five different accounts rather than the top five by engagement, which
-  // would have run the same handle twice — a complaint from five strangers is
-  // the point, and twice from one reads as one person with a grievance.
+  // Twelve of the twenty John collected — the ones about the PRICE rather than about Airbnb generally, spread across
+  // six years so the wall reads as a long-running complaint and not one bad week. It went from a wall of twelve to a row
+  // of five (one row is what anybody reads standing up), and back to a wall, this time one that overfills the screen:
+  // the point now is the sheer amount of it, not any one sentence.
   //
-  // The Babylon Bee is out (John). It is satire, so it is the one card here
-  // that is not a customer: a parody outlet doing a bit about the fee weakens
-  // a row whose whole weight is that these are real people who paid.
-  //
-  // CHOSEN ON REACH, AND ON BEING A CUSTOMER. platform.twitter.com does not
-  // resolve from here — a control against a famously live tweet failed the
-  // same way — so these are picked by John's own like counts rather than by
-  // anybody having read them. Five different accounts, not the top five by
-  // reach, which would have run one handle twice: a complaint from five
-  // strangers is the point, and twice from one reads as one person with a
-  // grievance.
-  //
-  // No outlets, only people. The Babylon Bee went for being satire rather
-  // than a customer, and that rules out the publications too — Morning Brew
-  // has the reach for this row but it is an observer, not somebody who paid.
-  // @chasedownleads came out for the same reason (John: "doesn't make sense");
-  // @Cokedupoptions is the widest-read individual left.
-  //
-  // The bench, if one of these does not land: @itsBillyGtho 1801634945992904788,
-  // @AbakpaJob 2103023560490885318, @buccocapital 1625849400714223619,
-  // @MorePerfectUS 1691130465648889887, @rohindhar 1708512064220893293.
+  // platform.twitter.com does not resolve from where this was built, so they were picked on John's own like counts
+  // rather than by anybody having read them here.
+  // ALL TWELVE (John, 2026-09-30: "add as many as you can"). Everything on hand that is about the fee: the five, the
+  // bench, and the two outlets — Morning Brew and More Perfect Union — that were held back for not being customers; a
+  // wall that has to fill the screen wants the volume more than it wants that line. @chasedownleads and the Babylon Bee
+  // stay out: John cut those. Ordered so one handle never sits next to itself.
   const TWEETS = [
     '1801431302652235780',   // @luinalaska      ~93K
     '2084133602967658692',   // @omgsidewalks    ~68K
     '2072319333448204349',   // @OrevaZSN        ~38K
     '2082277812841685193',   // @amelia_tweetz   ~25K
-    '1469015392483872772'    // @Cokedupoptions  ~6.2K
+    '1469015392483872772',   // @Cokedupoptions  ~6.2K
+    '1801634945992904788',   // @itsBillyGtho
+    '1337059225936277504',   // @MorningBrew
+    '2103023560490885318',   // @AbakpaJob
+    '1625849400714223619',   // @buccocapital
+    '2078940466469359691',   // @OrevaZSN
+    '1691130465648889887',   // @MorePerfectUS
+    '1708512064220893293'    // @rohindhar
   ];
   const FALLBACK = 6000;     // nothing rendered by now -> show the capture
 
@@ -147,25 +128,37 @@
   s.charset = 'utf-8';
   document.head.appendChild(s);
 
-  // THE FIT. The wall's height is whatever the embeds come to, so it is
-  // measured rather than known, and re-measured as each one lands.
+  // THE FIT. Each card's height is whatever its embed comes to, so the packing is redone as each one lands. For every
+  // column count that could work, the cards go one by one into the shortest column; the wall is then scaled to the
+  // SMALLEST size at which the shortest column still runs past the top and bottom and the columns past both sides —
+  // the smallest, so the most tweets are readable at once. Each column is centred on the middle line on its own, so the
+  // tops and bottoms crop unevenly, like a wall that carries on.
+  const COL = 330, GAP = 20, OVER = 1.08;   // OVER: how far past the frame the wall must run, as a share of it
   function refit() {
     if (slide.classList.contains('fell')) return;   // the wall is gone; leave the box alone
     const w = slide.clientWidth, h = slide.clientHeight;
-    const ww = 1730, wh = wall.scrollHeight;
-    if (!(w > 0 && h > 0 && wh > 0)) return;
-    const k = Math.min((w * 0.94) / ww, (h * 0.90) / wh, 1);
-    wall.style.setProperty('--s', k);
-    // the scaled block still occupies its unscaled box in layout, so the
-    // wrapper is given the scaled size to keep it centred on the stage
-    fit.style.width = ww * k + 'px';
-    fit.style.height = wh * k + 'px';
-    wall.style.position = 'absolute';
-    wall.style.left = (ww * k - ww) / 2 + 'px';
-    wall.style.top = (wh * k - wh) / 2 + 'px';
+    const cards = [...wall.children];
+    const hs = cards.map(c => c.offsetHeight);
+    if (!(w > 0 && h > 0) || !hs.some(x => x > 0)) return;
+    let best = null;
+    for (let n = 2; n <= Math.min(9, cards.length); n++) {
+      const cols = Array.from({ length: n }, () => ({ h: -GAP, items: [] }));
+      cards.forEach((c, i) => { const col = cols.reduce((a, b) => (b.h < a.h ? b : a)); col.items.push([c, col.h + GAP]); col.h += GAP + hs[i]; });
+      const ww = n * COL + (n - 1) * GAP, short = Math.min(...cols.map(c => c.h));
+      if (short <= 0) continue;
+      const k = Math.max((w * OVER) / ww, (h * OVER) / short);
+      if (!best || k < best.k) best = { k, cols, ww };
+    }
+    if (!best) return;
+    best.cols.forEach((col, j) => col.items.forEach(([c, y]) => {
+      c.style.transform = 'translate(' + (j * (COL + GAP) - best.ww / 2) + 'px,' + (y - col.h / 2) + 'px)';
+    }));
+    wall.style.setProperty('--s', best.k.toFixed(4));
   }
-  new ResizeObserver(refit).observe(wall);
   new ResizeObserver(refit).observe(slide);
+  const ro = new ResizeObserver(refit);
+  const watch = () => [...wall.children].forEach(c => ro.observe(c));
+  watch();
   refit();
 
   // DID ANYTHING ACTUALLY RENDER? X replaces each blockquote with an iframe;
@@ -175,11 +168,7 @@
     const up = [...wall.querySelectorAll('iframe')]
       .filter(f => f.getBoundingClientRect().height > 40).length;
     if (!up) {
-      // Hand the box back. refit() sized this wrapper to the scaled wall, and
-      // left as it was the capture sat in a corner of a 1300px block instead
-      // of in the middle of the stage.
       slide.classList.add('fell');
-      fit.style.width = fit.style.height = '';
       return;
     }
     refit();
