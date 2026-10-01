@@ -910,6 +910,24 @@ if (SIMPLE) {
       setTimeout(() => { if (g === gen) odometer(d, 745, 900, () => { if (g === gen) { set(); pendingTail = null; } }); }, 360);
     });
 }
+// HOME (John, 2026-09-30) — the tap after $745: the price sheet drops, the ⨉ is tapped and the quick actions close, the nights
+// letting go; a beat; Today is tapped, and the calendar goes back to its default start — the header open again over the top of
+// September, as the run began. (12bs moves the verdict's arrow to "Lacked Context" on this tap.)
+if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('odometer(d, 745')) + 1, 0, (m, instant) => {
+  const shut = () => { m.setPriceSheet(false); m.clearSelection(); };
+  const home = () => { m.setHeaderLock(false); m.goToday(); };
+  if (instant) { shut(); setTimeout(home, 40); return; }       // after any deferred reveal from the beats before, so home wins
+  const g = ++gen;
+  pendingTail = () => { shut(); home(); };
+  m.setPriceSheet(false);                                                                           // the sheet drops...
+  setTimeout(() => { if (g === gen) press(d => d.querySelector('.sqa-close')); }, 600);             // ...the ⨉, visibly tapped...
+  setTimeout(() => { if (g === gen) m.clearSelection(); }, 600 + TAP);                              // ...the quick actions close
+  setTimeout(() => {                                                                                // a beat: Today
+    if (g !== gen) return;
+    press(d => d.querySelector('.today-pill'));
+    setTimeout(() => { if (g === gen) { home(); pendingTail = null; } }, TAP);
+  }, 600 + TAP + 900);
+});
 // THE ODOMETER for the price sheet's big figure: the build only rolls the figures in the cells, and the fork keeps even
 // those still. A copy of the figure is laid exactly over it — the same face, size and place — the real one is hidden,
 // and each digit of the copy rolls up a strip of 0–9 from its old figure to its new; when they have landed `done` sets

@@ -136,7 +136,7 @@
     opacity: 0; transform: translateX(12px);
     transition: opacity 260ms ease, transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
   }
-  body.dark #notes li.td svg.ptr, body.pta #notes li.pt svg.ptr, body.trim #notes li.nh svg.ptr, body.ev #notes li.ne svg.ptr { opacity: 1; transform: none; }
+  body.dark #notes li.td svg.ptr, body.pta #notes li.pt svg.ptr, body.trim #notes li.nh svg.ptr, body.ev #notes li.ne svg.ptr, body.lca #notes li.lc svg.ptr { opacity: 1; transform: none; }
   body.tdx #notes li.td svg.ptr, body.ptx #notes li.pt svg.ptr, body.hol #notes li.nh svg.ptr, body.evd #notes li.ne svg.ptr { opacity: 0; transform: none; }
   #notes li.td span, #notes li.pt span, #notes li.nh span, #notes li.ne span { position: relative; }
   #notes li.td span::after, #notes li.pt span::after, #notes li.nh span::after, #notes li.ne span::after {
@@ -214,7 +214,7 @@
     <li class="x pt"><svg class="no" viewBox="0 -960 960 960" aria-hidden="true"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg><span>No price help</span><svg class="ptr" viewBox="0 -960 960 960" aria-hidden="true"><path d="m313-440 224 224-57 56-320-320 320-320 57 56-224 224h487v80H313Z"/></svg></li>
     <li class="x nh"><svg class="no" viewBox="0 -960 960 960" aria-hidden="true"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg><span>No holidays</span><svg class="ptr" viewBox="0 -960 960 960" aria-hidden="true"><path d="m313-440 224 224-57 56-320-320 320-320 57 56-224 224h487v80H313Z"/></svg></li>
     <li class="x ne"><svg class="no" viewBox="0 -960 960 960" aria-hidden="true"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg><span>No popular events</span><svg class="ptr" viewBox="0 -960 960 960" aria-hidden="true"><path d="m313-440 224 224-57 56-320-320 320-320 57 56-224 224h487v80H313Z"/></svg></li>
-    <li class="x lc"><svg class="no" viewBox="0 -960 960 960" aria-hidden="true"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg><span>Lacked Context</span></li>
+    <li class="x lc"><svg class="no" viewBox="0 -960 960 960" aria-hidden="true"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg><span>Lacked Context</span><svg class="ptr" viewBox="0 -960 960 960" aria-hidden="true"><path d="m313-440 224 224-57 56-320-320 320-320 57 56-224 224h487v80H313Z"/></svg></li>
   </ul>
 
 <script>
@@ -225,7 +225,7 @@
   // THE SIMPLE FORK (?simple=1), now running on through the events and holidays (John, 2026-09-30) — the scroll to
   // Christmas, then on to Indian Wells and its week picked — with corner dots in place of the icons. The original's first
   // 19 beats less the 4 motion studies the fork leaves out is 15, so ?until=15 hands the deck on from there.
-  live.src = '13.html?embed=1&simple=1&until=26&v=' + STAMP;   // 17: the fork's own three extra beats (the run carried on to the 30th, the black picks switched to stroked, the close and the run to November) less the Christmas stop it skips
+  live.src = '13.html?embed=1&simple=1&until=27&v=' + STAMP;   // 17: the fork's own three extra beats (the run carried on to the 30th, the black picks switched to stroked, the close and the run to November) less the Christmas stop it skips
   const SHIFT_MS = 720;                      // movement 1's length; movement 2 starts as it lands
   const GROW_MS = 800;                       // movement 2's length; the arrows stay ours until the phone has landed
   let state = 0, timer = 0, landed = false, restoreTo = -1;  // 0 in the sheet · 1 sliding to centre · 2 grown (13 drives, once landed)
@@ -299,7 +299,8 @@
   const EV_AT = 22;                          // the tap after (#22.18): the arrow on "No popular events", February, the events, Modernism Week
   // #22.24 the Modernism Week price sheet, on the iOS pad · #22.25 the iOS pad swapped for the custom keypad
   // #22.25 the swap brings Try $745 and Done in with the custom keypad · #22.26 Try $745 tapped, the price rolling up to it
-  const IW_AT = 26;                          // the tap after (#22.18): on down to Indian Wells, its week picked — stroked now; the list stays
+  const HOME_AT = 26;                        // #22.27: the quick actions close and the calendar goes home — the arrow on Lacked Context
+  const IW_AT = 27;                          // the tap after (#22.18): on down to Indian Wells, its week picked — stroked now; the list stays
   const TMODE_AT = 18;                       // the tap after the sheet (#22.19): Try now, price-tips mode; No price tips crossed out once the tips are on
   // #22.20 the tipped nights picked and the Price tip sheet up · #22.21 Apply tips, ✓ in the cells (the full build's own beats)
   const APPLY_AT = 20;
@@ -346,6 +347,7 @@
     flag('ptx', tdx && (at > APPLY_AT || (at === APPLY_AT && tips)));   // ...until the ✓s are in (Apply tips): crossed out
     flag('hol', trim && (marks === 'hol' || marks === 'all'));
     flag('ev', state === 2 && landed && at >= EV_AT && at <= IW_AT);
+    flag('lca', state === 2 && landed && at >= HOME_AT && at <= IW_AT);
     flag('evd', state === 2 && landed && at >= EV_AT && at <= IW_AT && marks === 'all');
     if (dark !== document.body.classList.contains('dark')) { if (snapNext) document.body.classList.add('snap'); document.body.classList.toggle('dark', dark); }
     if (want === side && !snapNext) return;
