@@ -13,14 +13,24 @@
 
      The strip is far taller than the stage, and that is the point — it runs on off the bottom, the way the tweets run
      off every edge. It hangs from just under the deck's kicker and is cropped by the frame. The capture came in at
-     570 wide, so it is never shown much past that, or the type goes soft. No build. -->
+     570 wide, so it is never shown much past that, or the type goes soft. Two taps scroll it — see .view. -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
-  .wrap {
-    position: absolute; left: 50%; top: 76px;
-    transform: translateX(-50%);
-    width: clamp(480px, 62vh, 760px);
+  /* THE SCROLL (John, 2026-09-30: "I want to see more of the thread"). Two taps read on down it, like scrolling the
+     page: the top, then According-Data8773 at the top of the frame, then the foot of the thread. The thread fades out
+     under the deck's kicker rather than being cut at a hard line as it rides up. */
+  .view {
+    position: absolute; inset: 0; overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 48px, #000 84px);
+            mask-image: linear-gradient(to bottom, transparent 0, transparent 48px, #000 84px);
   }
+  .wrap {
+    position: absolute; left: 50%; top: 0;
+    width: clamp(480px, 62vh, 760px);
+    transform: translate(-50%, var(--y, 76px));
+    transition: transform 900ms cubic-bezier(0.65, 0, 0.35, 1);
+  }
+  body.snap .wrap { transition: none; }
   .thread { width: 100%; height: auto; display: block; user-select: none; -webkit-user-drag: none; }
   /* THE MARKS (John, 2026-09-30): ⨉ beside the naysayers, ✓ beside the ones who understood the host-only fee — in a
      gutter to the left of the thread, each on its comment's username row. Rows are in the strip's own pixels (of 2153),
@@ -31,7 +41,7 @@
 </style>
 </head>
 <body>
-  <div class="wrap">
+  <div class="view"><div class="wrap" id="wrap">
   <img class="thread" src="assets/reddit-thread.png" width="570" height="2153"
        alt="A Reddit thread on r/airbnb_hosts, 'Rant on Airbnb fee structure change': a long-time host says the migration tool only offers a 15% price increase that still leaves take-home below the old fee, and commenters argue over whether hosts come out behind">
     <svg class="mark no" style="top:1.951%" viewBox="0 -960 960 960" aria-label="naysayer"><title>the post</title><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg>
@@ -45,12 +55,29 @@
     <svg class="mark ok" style="top:73.572%" viewBox="0 -960 960 960" aria-label="understood"><title>PeteeWheatStraw: nothing makes anything higher</title><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>
     <svg class="mark no" style="top:76.962%" viewBox="0 -960 960 960" aria-label="naysayer"><title>OP: higher than everyone</title><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg>
     <svg class="mark ok" style="top:92.987%" viewBox="0 -960 960 960" aria-label="understood"><title>Future_Different: a global increase, thirty seconds</title><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>
-  </div>
+  </div></div>
 <script>
-  window.presoNext = () => false;   // no builds
-  window.presoPrev = () => false;
-  window.presoState = () => 0;
-  window.presoRestore = () => {};
+  // the stops, in the strip's own pixels: the row that sits at the top of the frame. 0 hangs the thread under the
+  // kicker; 900 puts According-Data8773 (the first ✓, at 965) up top; the last is the foot of the thread, 24 off the
+  // bottom of the frame, worked out from the frame's height.
+  const wrap = document.getElementById('wrap'), H = 2153, W = 570, TOP = 76;
+  const STOPS = [0, 900, Infinity];
+  let at = 0;
+  function place() {
+    const k = wrap.offsetWidth / W, stop = STOPS[at];
+    const y = stop === 0 ? TOP : stop === Infinity ? innerHeight - 24 - H * k : TOP - stop * k;
+    wrap.style.setProperty('--y', Math.min(TOP, y).toFixed(1) + 'px');
+  }
+  place();
+  addEventListener('resize', place);
+  window.presoNext = () => { if (at >= STOPS.length - 1) return false; at++; place(); return true; };
+  window.presoPrev = () => { if (at <= 0) return false; at--; place(); return true; };
+  window.presoState = () => at;
+  window.presoRestore = n => {
+    document.body.classList.add('snap'); at = Math.max(0, Math.min(n, STOPS.length - 1)); place();
+    void wrap.offsetWidth; requestAnimationFrame(() => document.body.classList.remove('snap'));
+    setTimeout(() => document.body.classList.remove('snap'), 60);
+  };
 </script>
 </body>
 </html>
