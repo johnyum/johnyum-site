@@ -126,14 +126,19 @@
   }
   body.dark #notes svg.ptr { opacity: 1; transform: none; }
   body.snap #notes svg.ptr { transition: none; }
-  /* "Too dark" answered: it folds out of the list and the two below it ride up into its place. Its 24 of height and the
-     16 gap under it (40 in all) go together, and the list — centred on its middle — is lifted half of that at the same
-     time, so the lines above it hold still rather than sinking 20 as the list gets shorter. */
-  #notes li.td { max-height: 24px; overflow: hidden; transition: opacity 320ms ease, transform 520ms cubic-bezier(0.16, 1, 0.3, 1), max-height 520ms cubic-bezier(0.16, 1, 0.3, 1), margin-bottom 520ms cubic-bezier(0.16, 1, 0.3, 1); }
-  body.trim #notes li.td { opacity: 0; max-height: 0; margin-bottom: -16px; transition-delay: 0s; }
-  #notes { transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1); }
-  body.trim #notes { transform: translate(-50%, calc(-50% - 20px)); }
-  body.snap #notes li.td { transition: none; }
+  /* "Too dark" answered (John, 2026-09-30: "just cross it out, including the X"): a line is drawn through it, left to right,
+     from the ⨉ to the end of the words, and nothing moves. The arrow pointing at it goes as the line goes on, and keeps
+     its place in the layout so nothing shifts. */
+  /* drawn on the words, reaching back over the ⨉ (24) and its gap (12): the row itself is as wide as the list's longest line */
+  #notes li.td span { position: relative; }
+  #notes li.td span::after {
+    content: ""; position: absolute; left: -38px; right: -2px; top: 50%; height: 2px; margin-top: -1px;
+    background: #111; transform: scaleX(0); transform-origin: 0 50%;
+    transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  body.trim #notes li.td span::after { transform: scaleX(1); }
+  body.trim #notes svg.ptr { opacity: 0; transform: none; }
+  body.snap #notes li.td span::after { transition: none; }
   #notes svg.ok { fill: #008A05; }             /* Airbnb's own success green and error red, the calendar's colours */
   #notes svg.no { fill: #C13515; }
   /* in after the phone has started moving, one after another; out all at once */
