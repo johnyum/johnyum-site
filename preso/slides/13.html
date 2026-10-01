@@ -776,6 +776,13 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) +
     settled(g, () => setTimeout(() => { if (g !== gen) return; marksOn(); pendingTail = null; }, 500));   // landed; a beat; the icons
   }, TAP + 650 + 700);                                         // the tips are off, and a beat (John, 2026-09-30) — then down
 });
+// THE PLAIN TAP (John, 2026-09-30): the price-tips buttons' own press animations made them vanish and come back. In the
+// fork a scripted tap on them is just this — a touch smaller and a shade darker, and back — as the Save button's is.
+const plainTap = (el, dark) => {
+  if (!el) return;
+  const bg = el.ownerDocument.defaultView.getComputedStyle(el).backgroundColor;
+  el.animate([{ transform: 'scale(1)', backgroundColor: bg }, { transform: 'scale(.97)', backgroundColor: dark, offset: .4 }, { transform: 'scale(1)', backgroundColor: bg }], { duration: 300, easing: 'ease-out' });
+};
 // THE PRICE TIPS (John, 2026-09-30) — the answer to "No price tips", between the switch to stroked picks and the run to
 // November: the verdict crosses out "Too dark" and points at "No price tips" (12bs); the ⨉ is visibly tapped and the quick
 // actions close, the nights letting go; a beat, and the magic-wand tile pops in beside the gear, Today sliding left for it,
@@ -793,7 +800,13 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) +
   // the tap is a plain press — a little smaller and back (John, 2026-09-30: the product's tap "looks like it's disappearing
   // then appearing again": its press animation stands in for the tile's pop-in, and when the press class comes off the
   // pop-in plays again from nothing). So the pop-in is switched off on the settled tile, and the press is a Web Animation.
-  const wandTap = () => { const d = appDoc(), el = d && d.querySelector('.wand-tile'); if (!el) return; el.style.animation = 'none'; el.animate([{ transform: 'scale(1)' }, { transform: 'scale(.88)', offset: .4 }, { transform: 'scale(1)' }], { duration: 260, easing: 'ease-out' }); };
+  // ...and the tile's grey goes a shade darker as it presses in, back to its own grey as it comes out (John, 2026-09-30)
+  const wandTap = () => {
+    const d = appDoc(), el = d && d.querySelector('.wand-tile'); if (!el) return;
+    el.style.animation = 'none';
+    const bg = el.ownerDocument.defaultView.getComputedStyle(el).backgroundColor;
+    el.animate([{ transform: 'scale(1)', backgroundColor: bg }, { transform: 'scale(.88)', backgroundColor: '#d4d4d4', offset: .4 }, { transform: 'scale(1)', backgroundColor: bg }], { duration: 300, easing: 'ease-out' });
+  };
   setTimeout(() => { if (g === gen) wandTap(); }, TAP + 700 + 800 + 900);                             // it has popped in, a beat: tapped
   setTimeout(tail(g, open), TAP + 700 + 800 + 900 + TAP);                                               // ...and the sheet rises
 });
@@ -832,7 +845,7 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('tipsFlag(true)
   if (instant) { on(); return; }
   const g = ++gen;
   pendingTail = on;
-  press(d => d.querySelector('.ws-cta'));
+  { const d = appDoc(); plainTap(d && d.querySelector('.ws-cta'), '#000'); }   // Try now: the plain tap (THE PLAIN TAP)
   setTimeout(() => { if (g === gen) m.setWandSheet(false); }, TAP);
   setTimeout(() => { if (g === gen) { m.setTipsMode(true); m.setHeaderLock(true); } }, TAP + 500);
   tips.forEach(([di, p], k) => setTimeout(() => { if (g === gen) { m.addTip(di, p); if (k === tips.length - 1) { pendingTail = null; tipsModeFlag(true); } } }, TAP + 900 + k * 45));
@@ -853,20 +866,27 @@ if (SIMPLE) {
     picks.forEach((di, k) => setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, k * 90));
     setTimeout(tail(g, land), (picks.length - 1) * 90 + 400);   // the picks are in: the sheet
   };
-  // Apply tips, the full build's own, with its ✓ allowed to animate (John, 2026-09-30: "we can break our bland rule here
-  // just for the check mark animation"): the cell seal is lifted for the apply and put back once the ✓s have landed. The
-  // price itself still changes outright (the odometer stays off — see THE PRICE THAT COUNTS).
-  const applyFull = BEATS.find(b => String(b).includes('m.applyTips(ns)'));
+  // Apply tips, in order (John, 2026-09-30: "do the apply tips tap first THEN give me the check mark animation"): the button
+  // takes its plain tap; the sheet drops; and only once it is down do the nights take their tips, with the ✓ allowed to
+  // animate ("we can break our bland rule here just for the check mark") — the cell seal lifted for that, and put back once
+  // the ✓s have landed. The price itself still changes outright (the odometer stays off — THE PRICE THAT COUNTS).
   let sealBack = 0;
-  const applyTips = applyFull && ((m, instant) => {
-    const d = appDoc();
-    if (d && !instant) { d.documentElement.classList.add('preso-apply'); clearTimeout(sealBack); sealBack = setTimeout(() => d.documentElement.classList.remove('preso-apply'), 2400); }
-    const g = gen + 1;                                        // the gen applyFull is about to take
-    if (instant) appliedFlag(true); else setTimeout(() => { if (gen === g) appliedFlag(true); }, TAP + 450);   // the ✓s are in
-    return applyFull(m, instant);
-  });
+  const applyTips = (m, instant) => {
+    const apply = () => { const ns = [...m.selectedNights]; m.applyTips(ns); m.clearSelection(); m.setUndoTile(true); };
+    if (instant) { m.setTipSheet(false); apply(); appliedFlag(true); return; }
+    const g = ++gen, d = appDoc();
+    pendingTail = () => { m.setTipSheet(false); apply(); appliedFlag(true); };
+    plainTap(d && d.querySelector('.pt-cta'), '#000');                              // the tap...
+    setTimeout(() => { if (g === gen) m.setTipSheet(false); }, TAP);                 // ...the sheet drops...
+    setTimeout(() => {                                                               // ...and, down, the ✓s
+      if (g !== gen) return;
+      if (d) { d.documentElement.classList.add('preso-apply'); clearTimeout(sealBack); sealBack = setTimeout(() => d.documentElement.classList.remove('preso-apply'), 2400); }
+      apply(); pendingTail = null;
+      setTimeout(() => { if (g === gen) appliedFlag(true); }, 450);                 // the ✓s are in: No price help crossed out
+    }, TAP + 560);
+  };
   const at = BEATS.findIndex(b => String(b).includes('tipsModeFlag(true)')) + 1;
-  if (applyTips && at > 0) BEATS.splice(at, 0, pickTips, applyTips);
+  if (at > 0) BEATS.splice(at, 0, pickTips, applyTips);
 }
 // The beat that first stands three phones up. A jump straight to it (or past it) must create the other phones first rather
 // than wait for their timer. This used to be the literal 36 — stale since beats were removed, so it never fired, until two
@@ -1032,6 +1052,7 @@ function typeKeys(keys, instant) {
                 // white, not the app's grey-100 (John, 2026-09-30) — for the borrowed look and once the phone is origsel
                 + '.phone.preso .single .dcell.selected.preso-os{background:#fff!important;box-shadow:inset 0 0 0 1.5px var(--ink)!important}'
                 + '.phone.preso.origsel .single .dcell.selected:not(.green){background:#fff!important}'
+                + '.pt-cta.pressing{animation:none!important}'   // Apply tips takes the plain tap instead (see the apply wrapper)
                 // a picked TIP: the ink ring on white — no green fill, no dashed green line (John, 2026-09-30)
                 + '.phone.preso.origsel .single .dcell.selected.tip:not(.green){background:#fff!important;outline:none!important;box-shadow:inset 0 0 0 1.5px var(--ink)!important}'
                 + '.phone.preso .single .dcell.selected.preso-os .date,.phone.preso .single .dcell.selected.preso-os .pstack{color:var(--ink)!important}'
