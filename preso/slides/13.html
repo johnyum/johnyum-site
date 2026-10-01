@@ -363,12 +363,15 @@ const MARK_GROUPS = 9;   // events and holidays shown, through Indian Wells 2027
 // real thing back later", so nothing is deleted: without the flag this file plays exactly as before. With it:
 //   - nothing inside a .dcell transitions or animates — no strikethrough sliding, no flip, no price wave, no bounce on a
 //     tap, no growing. Every cell animation in the build hangs off .dcell, so that is the whole switch for the cells;
-//   - no odometer ANYWHERE — cells, the Price per night card, the promotion: a new figure is simply there. And the $480
-//     is applied on the Done tap, so it already reads $480 by the time the price sheet has gone home;
+//   - no odometer ANYWHERE — cells, the Price per night card, the promotion: a new figure is simply there. That takes
+//     two things, because the build has two odometers: the stacked roll-out/roll-in spans (CSS), and the cell price's
+//     own counting tween (JavaScript) — see THE PRICE THAT COUNTS. And the $480 is applied on the Done tap, so it already
+//     reads $480 by the time the price sheet has gone home;
 //   - the cells carry ONE line, the price. Minimum nights moves the editor's figure and writes nothing on the dates; the
 //     custom promotion sets the discounted price itself ($480 -> $384) instead of a promotion, which would stack a
 //     "-20%" line and a struck-out was-price under it;
-//   - the run is picked all at once rather than a cell at a time, the header still locking up as it does;
+//   - the run is still picked a night at a time, as in the full build (John: "that's normal") — each night simply lands
+//     selected, with no bounce;
 //   - beats 1-4 are left out — the motion studies on the cells (growing, letting go, turning over, the price wave).
 const SIMPLE = /[?&]simple=1/.test(location.search);
 const BEATS = [
@@ -386,7 +389,6 @@ const BEATS = [
   // 5 — the run gets tapped, 90ms apart; then the quick actions rise
   (m, instant) => { const [a, z] = RUN(m);
     if (instant) { const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); m.setHeaderLock(true, false); }
-    else if (SIMPLE) { const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); m.setHeaderLock(true); }   // the fork: the cells all at once; the header still animates up
     else cascade(m, a, z, 90); },
   // 6 — availability goes off, and stays off
   m => m.setBlocked(true, 0, [...m.selectedNights]),
@@ -836,6 +838,26 @@ function typeKeys(keys, instant) {
       + (SIMPLE ? '.dcell,.dcell *,.dcell::before,.dcell::after,.dcell *::before,.dcell *::after{transition:none!important;animation:none!important}'
                 + '.roll-out{display:none!important}.roll-in{animation:none!important}' : '');                // the guests pop in quick (John, 2026-09-22)                        // and a sheet's scrim covers the whole frame, band included — one layer, no join
     w.document.head.appendChild(seal);
+
+    // THE PRICE THAT COUNTS (simple fork). A cell's price is not CSS: it is a React component that, whenever its scene
+    // changes, tweens the figure from the old value to the new one frame by frame — (performance.now() - start) / 1e3
+    // against the scene's duration — and that counting is the odometer John kept seeing at 20%. No CSS reaches it, the
+    // build has no reduced-motion path, and the build is not to be edited. The app's clock cannot simply be sped up
+    // either: the header, the gestures and the thinking dots run off performance.now too, and those are meant to move.
+    // So the fork intercepts the app's frame scheduler and, for that one callback only — recognised by its own source,
+    // the only frame callback in the build that measures elapsed time against a ref's start — lends it a clock already
+    // past the end. Its first frame lands the final figure; nothing else's timing is touched. If a rebuild renames
+    // things so the pattern no longer matches, it falls back to counting — the odometer returns, nothing breaks.
+    if (SIMPLE) {
+      const raf = w.requestAnimationFrame.bind(w), perf = w.performance, realNow = perf.now.bind(perf);
+      const COUNTS = /\(performance\.now\(\)-\w+\.current\)\/1e3/;
+      w.requestAnimationFrame = cb => raf(ts => {
+        if (typeof cb === 'function' && COUNTS.test(String(cb))) {
+          perf.now = () => realNow() + 1e7;           // ten thousand seconds on: the tween is over
+          try { cb(ts); } finally { perf.now = realNow; }
+        } else cb(ts);
+      });
+    }
 
     w.addEventListener('keydown', e => {
       if (!NAV.has(e.key)) return;
