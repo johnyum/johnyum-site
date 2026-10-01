@@ -107,7 +107,7 @@
     position: fixed; top: 50%; left: 0; z-index: 6;
     transform: translate(-50%, -50%);
     margin: 0; padding: 0; list-style: none;
-    display: flex; flex-direction: column; gap: 16px;
+    display: flex; flex-direction: column;
     font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
     font-size: 18px; line-height: 24px; color: #111; text-align: left;
     pointer-events: none;
@@ -117,6 +117,9 @@
     opacity: 0; transform: translateX(24px);
     transition: opacity 320ms ease, transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
   }
+  /* 16 between lines, as a margin rather than a gap, so a line that is not in yet can take none (see body.xs) */
+  #notes li + li { margin-top: 16px; }
+  #notes li.x { max-height: 24px; transition: opacity 320ms ease, transform 520ms cubic-bezier(0.16, 1, 0.3, 1), max-height 520ms cubic-bezier(0.16, 1, 0.3, 1), margin-top 520ms cubic-bezier(0.16, 1, 0.3, 1); }
   #notes svg { flex: none; width: 24px; height: 24px; fill: #111; }
   /* THE ARROW AND THE CROSS-OUTS (John, 2026-09-30). The arrow points at the critique being answered — on the RIGHT of
      the words, pointing back at them, the same 12 from them as the ⨉ is on the left, sliding in from the right:
@@ -148,7 +151,10 @@
   /* in after the phone has started moving, one after another; out all at once */
   body.side #notes li { opacity: 1; transform: none; }
   /* the ⨉s wait for their own tap (body.xs): the ✓ come in alone, the ⨉s after, each line already in its place */
-  body.side:not(.xs) #notes li.x { opacity: 0; transform: translateX(24px); }
+  /* CENTRED AT EACH STAGE (John, 2026-09-30). Until their tap the ⨉ lines take no height at all — no line, no margin — so
+     the two ✓ come in centred on their own; on the tap each ⨉ line opens to its height as it fades in, and the list, centred
+     on its middle, grows from there, the ✓ riding up into place. (Width is kept throughout: nothing moves sideways.) */
+  body:not(.xs) #notes li.x { opacity: 0; transform: translateX(24px); max-height: 0; margin-top: 0; overflow: hidden; }
   body.side #notes li:nth-child(1) { transition-delay: 260ms; }
   body.side #notes li:nth-child(2) { transition-delay: 330ms; }
   body.side #notes li:nth-child(3) { transition-delay: 400ms; }
