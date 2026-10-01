@@ -357,16 +357,17 @@ const cascade = (m, first, last, every) => {
 // target with instant = true: the same end state, no animation, no timers.
 const RUN = m => [m.fx.todayIndex, m.fx.todayIndex + 12];   // the 9th through the 21st
 const MARK_GROUPS = 9;   // events and holidays shown, through Indian Wells 2027 (Feb 28 – Mar 14); Presidents' Day falls inside Modernism Week and carries no icon of its own
-// THE BLAND FORK (John, 2026-09-30). ?simple=1 is the same build stripped of every motion, for the version of this
-// section that keeps to the facts — "kill all the animations", "let it be abrupt", "make it bland", and "we're bringing
-// all this back later", so nothing here is deleted: without the flag this file plays exactly as before. With it:
-//   - every beat takes its INSTANT path — the end state, landed, no scripted taps and no cascades. Those paths exist
-//     for jumps and replays already, so the fork reuses them rather than growing a third version of each beat;
-//   - every CSS transition and animation in the calendar is switched off, so the odometer does not roll, the
-//     strikethrough does not slide, sheets do not grow, and tapped cells do not bounce: changes are simply there;
-//   - minimum nights moves the editor's figure but writes nothing onto the dates;
-//   - beats 1-4 are left out. They are the motion studies — the cells growing, letting go, turning over, the price
-//     wave — and with motion off, two of them show nothing at all and the other two only jump.
+// THE SIMPLE FORK (John, 2026-09-30). ?simple=1 is this build with the DATE CELLS kept still and kept plain — and only the
+// date cells. "Just the date cells": the September header still animates up, the toggles still pop, the quick actions
+// still rise, the sheets, the keypad and the promotion knob all move exactly as in the full build. "We're bringing the
+// real thing back later", so nothing is deleted: without the flag this file plays exactly as before. With it:
+//   - nothing inside a .dcell transitions or animates — no odometer, no strikethrough sliding, no flip, no price wave,
+//     no bounce on a tap, no growing. Every cell animation in the build hangs off .dcell, so that is the whole switch;
+//   - the cells carry ONE line, the price. Minimum nights moves the editor's figure and writes nothing on the dates; the
+//     custom promotion sets the discounted price itself ($480 -> $384) instead of a promotion, which would stack a
+//     "-20%" line and a struck-out was-price under it;
+//   - the run is picked all at once rather than a cell at a time, the header still locking up as it does;
+//   - beats 1-4 are left out — the motion studies on the cells (growing, letting go, turning over, the price wave).
 const SIMPLE = /[?&]simple=1/.test(location.search);
 const BEATS = [
   // 1 — every cell from this month on grows: 48 more UNDER the price, nothing
@@ -381,7 +382,10 @@ const BEATS = [
   //     the rows, and settles
   (m, instant) => { if (instant) return; const a = m.fx.todayIndex - 8, z = m.fx.todayIndex + 31; m.waveCells(a, z); setTimeout(() => m.clearWave(), (z - a) * 45 + 1100); },   // likewise
   // 5 — the run gets tapped, 90ms apart; then the quick actions rise
-  (m, instant) => { const [a, z] = RUN(m); if (instant) { const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); m.setHeaderLock(true, false); } else cascade(m, a, z, 90); },
+  (m, instant) => { const [a, z] = RUN(m);
+    if (instant) { const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); m.setHeaderLock(true, false); }
+    else if (SIMPLE) { const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); m.setHeaderLock(true); }   // the fork: the cells all at once; the header still animates up
+    else cascade(m, a, z, 90); },
   // 6 — availability goes off, and stays off
   m => m.setBlocked(true, 0, [...m.selectedNights]),
   // 7 — the nights open again
@@ -415,12 +419,12 @@ const BEATS = [
     const ns = [...m.selectedNights];
     if (instant) { m.setMinSheetNights(5); if (!SIMPLE) m.setMin(5, 0, ns); return; }   // the fork: the figure only, not the dates
     const g = ++gen;
-    pendingTail = () => { m.setMinSheetNights(5); m.setMin(5, 0, ns); };
+    pendingTail = () => { m.setMinSheetNights(5); if (!SIMPLE) m.setMin(5, 0, ns); };
     [6, 5].forEach((n, i) => setTimeout(() => {
       if (g !== gen) return;
       const d = appDoc(), btn = d && d.querySelector('.sqa-custom.min .mn-btn');
       if (btn) { btn.classList.remove('pressing'); void btn.offsetWidth; btn.classList.add('pressing'); setTimeout(() => btn.classList.remove('pressing'), 440); }
-      setTimeout(() => { if (g === gen) { m.setMinSheetNights(n); m.setMin(n, 0, ns); if (n === 5) pendingTail = null; } }, 130);   // the figure and the cells move at the bottom of the squash
+      setTimeout(() => { if (g === gen) { m.setMinSheetNights(n); if (!SIMPLE) m.setMin(n, 0, ns); if (n === 5) pendingTail = null; } }, 130);   // the figure and the cells move at the bottom of the squash
     }, i * 320));   // one thumb, twice, quick
   },
   // 14 — Done, visibly tapped: the editor runs back to the three rows, and Minimum nights now reads 5 where its + was
@@ -439,13 +443,17 @@ const BEATS = [
     press(d => d.querySelectorAll('.sqa-custom.open .ss-row')[1]);
     setTimeout(tail(g, () => { m.setPromoSheet(true); m.setPromoPct(0); }), TAP);
   },
+  // the promotion onto the cells. The full build applies a real promotion (a "-20%" line and the was-price struck out
+  // under the new one); the simple fork sets the discounted price itself, so the cell carries one line and nothing stacks.
+  // setPrice's 4th argument false: do not keep a was-price to strike through.
   // 16 — ...and on the tap, a finger drags the knob to 20% — the figure counting, the three ✓ popping in — and −20% lands on
   //      the picked nights, their $480 rolling to $384
   (m, instant) => {
     const ns = [...m.selectedNights];
-    if (instant) { m.setPromoSheet(true); m.setPromoDrag(false); m.setPromoPct(20); m.setPromo(0.2, 0, ns); return; }
+    const promo = () => SIMPLE ? m.setPrice(Math.round(m.price(0, ns[0]) * 0.8), 0, ns, false) : m.setPromo(0.2, 0, ns);
+    if (instant) { m.setPromoSheet(true); m.setPromoDrag(false); m.setPromoPct(20); promo(); return; }
     const g = ++gen;
-    pendingTail = () => { m.setPromoSheet(true); m.setPromoDrag(false); m.setPromoPct(20); m.setPromo(0.2, 0, ns); };
+    pendingTail = () => { m.setPromoSheet(true); m.setPromoDrag(false); m.setPromoPct(20); promo(); };
     const d0 = appDoc(), knob = d0 && d0.querySelector('.cp-knob');
     if (knob) knob.classList.add('pressing');                // the finger goes down on the tap
     const T0 = performance.now() + 250, DRAG = 700;          // a beat on the knob, then the drag, expo-out
@@ -453,7 +461,7 @@ const BEATS = [
       if (g !== gen) return;
       const t = Math.min(1, Math.max(0, (performance.now() - T0) / DRAG)), e = 1 - Math.pow(2, -10 * t);
       if (t > 0) { m.setPromoDrag(true); m.setPromoPct(20 * (t >= 1 ? 1 : e)); }
-      if (t < 1) requestAnimationFrame(step); else { m.setPromoDrag(false); if (knob) knob.classList.remove('pressing'); setTimeout(tail(g, () => m.setPromo(0.2, 0, ns)), 500); }   // lifted; a beat; the nights
+      if (t < 1) requestAnimationFrame(step); else { m.setPromoDrag(false); if (knob) knob.classList.remove('pressing'); setTimeout(tail(g, () => promo()), 500); }   // lifted; a beat; the nights
     };
     requestAnimationFrame(step);
   },
@@ -818,7 +826,7 @@ function typeKeys(keys, instant) {
       + '.phone{margin:64.2px auto 0;height:calc(100dvh - 64.2px)}'          // the status band's 56pt, in the app's px: the frame now starts at the hole's top
       + '.ws-frost,.st-scrim{position:fixed;inset:0}'
       + '.phone.preso .single .spill{animation-duration:.34s}'
-      + (SIMPLE ? '*,*::before,*::after{transition:none!important;animation:none!important}' : '');   // the fork: nothing moves                // the guests pop in quick (John, 2026-09-22)                        // and a sheet's scrim covers the whole frame, band included — one layer, no join
+      + (SIMPLE ? '.dcell,.dcell *,.dcell::before,.dcell::after,.dcell *::before,.dcell *::after{transition:none!important;animation:none!important}' : '');   // the fork: the date cells, and only the date cells, stay still                // the guests pop in quick (John, 2026-09-22)                        // and a sheet's scrim covers the whole frame, band included — one layer, no join
     w.document.head.appendChild(seal);
 
     w.addEventListener('keydown', e => {
@@ -863,7 +871,7 @@ function typeKeys(keys, instant) {
     if (n === at + 1 && !replay) {             // FORWARD: a cascade cut short lands whole, then the next beat plays live
       if (pendingRun) { const s = new Set(m.selectedNights); for (let di = pendingRun.first; di <= pendingRun.last; di++) s.add(di); m.setSelectedNights(s); pendingRun = null; }
       if (pendingTail) { const fn = pendingTail; pendingTail = null; fn(); }
-      BEATS[n - 1](m, SIMPLE); m.notify(); at = n; return true;   // the fork lands every beat instantly
+      BEATS[n - 1](m, false); m.notify(); at = n; return true;
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
     setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } for (const doc of [app2Doc(), app3Doc()]) { const v = doc && doc.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); } }   // the second phone back on its list, on today, its menu closed; the third on top
