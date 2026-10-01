@@ -790,7 +790,11 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) +
   press(d => d.querySelector('.sqa-close'));
   setTimeout(() => { if (g === gen) m.clearSelection(); }, TAP);
   setTimeout(() => { if (g === gen) m.setWandTile(true); }, TAP + 700);                                // the cards are down, a beat: the wand
-  setTimeout(() => { if (g === gen) press(d => d.querySelector('.wand-tile')); }, TAP + 700 + 800 + 900); // it has popped in, a beat: tapped
+  // the tap is a plain press — a little smaller and back (John, 2026-09-30: the product's tap "looks like it's disappearing
+  // then appearing again": its press animation stands in for the tile's pop-in, and when the press class comes off the
+  // pop-in plays again from nothing). So the pop-in is switched off on the settled tile, and the press is a Web Animation.
+  const wandTap = () => { const d = appDoc(), el = d && d.querySelector('.wand-tile'); if (!el) return; el.style.animation = 'none'; el.animate([{ transform: 'scale(1)' }, { transform: 'scale(.88)', offset: .4 }, { transform: 'scale(1)' }], { duration: 260, easing: 'ease-out' }); };
+  setTimeout(() => { if (g === gen) wandTap(); }, TAP + 700 + 800 + 900);                             // it has popped in, a beat: tapped
   setTimeout(tail(g, open), TAP + 700 + 800 + 900 + TAP);                                               // ...and the sheet rises
 });
 // ...and the events (John, 2026-09-30): the verdict's arrow moves on to "No popular events" (12bs), the calendar scrolls
