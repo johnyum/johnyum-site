@@ -825,7 +825,9 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) +
 // own dress — as the full build's beat 21. The verdict crosses out "No price tips" once they are on (12bs). Spliced
 // straight after the sheet's beat, found by what that beat does.
 if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('tipsFlag(true)')) + 1, 0, (m, instant) => {
-  const tips = TIPS(m);
+  // a weekday tip is always a cut (John, 2026-09-30): the fork has already set the 9th-21st to $480, and the build's flat
+  // $480 tip read "$480 over $480" there — so it comes in $25 under whatever the night is at. Weekends stay the raise.
+  const tips = TIPS(m).map(([di, p]) => { const now = m.price(0, di); return [di, p < 500 && p >= now ? now - 25 : p]; });
   const on = () => { m.setWandSheet(false); m.setTipsMode(true); m.setHeaderLock(true, false); for (const [di, p] of tips) if (!m.tipCells.has(di)) m.addTip(di, p); tipsModeFlag(true); };
   if (instant) { on(); return; }
   const g = ++gen;
@@ -835,6 +837,17 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('tipsFlag(true)
   setTimeout(() => { if (g === gen) { m.setTipsMode(true); m.setHeaderLock(true); } }, TAP + 500);
   tips.forEach(([di, p], k) => setTimeout(() => { if (g === gen) { m.addTip(di, p); if (k === tips.length - 1) { pendingTail = null; tipsModeFlag(true); } } }, TAP + 900 + k * 45));
 });
+// ...and the price tips played through (John, 2026-09-30: "do the entire sequence"): after price-tips mode, the full
+// build's own next two beats, borrowed as they are — every tipped September night tapped in date order and the Price tip
+// sheet rising; then Apply tips, the nights taking their tipped prices with a ✓. The run to November then Closes tips as
+// the full build does, so the tips still on offer come off and the APPLIED ones stay the nights' prices for the rest of the
+// build. Borrowed by reference (the originals stay where they are, past the fork's end) and found by what they do.
+if (SIMPLE) {
+  const pickTips = BEATS.find(b => String(b).includes('m.setSelectedNights(new Set(picks)); m.setTipSheet(true);'));
+  const applyTips = BEATS.find(b => String(b).includes('m.applyTips(ns)'));
+  const at = BEATS.findIndex(b => String(b).includes('tipsModeFlag(true)')) + 1;
+  if (pickTips && applyTips && at > 0) BEATS.splice(at, 0, pickTips, applyTips);
+}
 // The beat that first stands three phones up. A jump straight to it (or past it) must create the other phones first rather
 // than wait for their timer. This used to be the literal 36 — stale since beats were removed, so it never fired, until two
 // inserted beats happened to land it on the right one. Found by what the beat does, it stays right whatever is added.
