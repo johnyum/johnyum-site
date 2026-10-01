@@ -911,15 +911,17 @@ if (SIMPLE) {
     });
 }
 // HOME (John, 2026-09-30) — the tap after $745: the price sheet drops, the ⨉ is tapped and the quick actions close, the nights
-// letting go; a beat; Today is tapped, and the calendar goes back to its default start — the header open again over the top of
-// September, as the run began. (12bs moves the verdict's arrow to "Lacked Context" on this tap.)
+// letting go; a beat; Today is tapped, and the calendar flies home to the top of September — the header staying collapsed.
+// (12bs moves the verdict's arrow to "Lacked Context" on this tap.)
 if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('odometer(d, 745')) + 1, 0, (m, instant) => {
   const shut = () => { m.setPriceSheet(false); m.clearSelection(); const d = appDoc(); if (d) d.documentElement.classList.add('preso-grey-done'); };   // the Dones go grey from here
-  const home = () => { m.setHeaderLock(false); m.goToday(); };
+  // home with the header KEPT collapsed (John, 2026-09-30: "just keep it to collapsed state... I don't want these weird popping in
+  // and out animations") — the build's own homeLocked(), the flight home the full build makes from Today with the header small
+  const home = () => m.homeLocked();
   // a replay: the header opens AT ONCE, in order, so a later beat's collapse stands — only the scroll home waits (after any
   // deferred reveal from the beats before, so home wins). Deferring the open too had it land after the 11th–18th beat's
   // collapse on a step back: the header flicked open and the header rule snapped it shut again (John, 2026-09-30).
-  if (instant) { shut(); m.setHeaderLock(false, false); setTimeout(() => m.goToday(), 40); return; }
+  if (instant) { shut(); setTimeout(() => m.homeLocked(false), 40); return; }   // after any deferred reveal before it, so home wins
   const g = ++gen;
   pendingTail = () => { shut(); home(); };
   m.setPriceSheet(false);                                                                           // the sheet drops...
