@@ -513,7 +513,7 @@ const BEATS = [
     const iw = iwg.dis[0], week = Array.from({ length: 6 }, (_, k) => iw + k);
     // the fork is already on February with the week in view (the events beat parked it there): no scroll, just the picks
     const park = () => { if (SIMPLE) { m.revealOffset = FEB_PARK; m.reveal(m.fx.index({ y: 2027, m: 2, d: 7 }), null, 0, 0); } else m.reveal(iw, null, 0, 0); };
-    const landAll = () => { m.setHoldQuick(false); m.setSelectedNights(new Set(week)); setTimeout(park, 40); };   // (setSelectedNights replaces: Modernism Week lets go)
+    const landAll = () => { if (SIMPLE) m.setPriceSheet(false); m.setHoldQuick(false); m.setSelectedNights(new Set(week)); setTimeout(park, 40); };   // (setSelectedNights replaces: Modernism Week lets go)
     if (instant) { landAll(); return; }
     const g = ++gen;
     pendingTail = landAll;                           // a tap before the run is through lands the rest whole
@@ -524,7 +524,7 @@ const BEATS = [
       setTimeout(() => { if (g === gen) { m.setHoldQuick(false); pendingTail = null; } }, (week.length - 1) * 90 + 260);
     };
     // the fork: already on February, with Modernism Week picked — it lets go, a breath, then the taps
-    if (SIMPLE) { m.clearSelection(); setTimeout(() => { if (g === gen) tapWeek(); }, 450); return; }
+    if (SIMPLE) { m.setPriceSheet(false); setTimeout(() => { if (g === gen) m.clearSelection(); }, 300); setTimeout(() => { if (g === gen) tapWeek(); }, 750); return; }   // the price sheet first
     m.reveal(iw, null, 0, 0);                        // one scroll, uninterrupted
     // settled() is armed only after the scroll is under way — armed before, it sees a calendar that has not started moving
     settled(g, () => setTimeout(() => { if (g === gen) tapWeek(); }, MARK_LAND));
@@ -888,6 +888,16 @@ if (SIMPLE) {
   const at = BEATS.findIndex(b => String(b).includes('tipsModeFlag(true)')) + 1;
   if (at > 0) BEATS.splice(at, 0, pickTips, applyTips);
 }
+// THE KEYBOARDS (John, 2026-09-30) — two taps after Modernism Week is picked. The first: the Price per night card grows into
+// the price sheet, the iOS number pad rising under it as before. The second (John: "the animation starts AFTER I tap next"):
+// the iOS pad and its Save go back down and the build's own keypad and Done come up in their place (THE SWAP, in the pad's
+// CSS). The custom keypad stays from here on.
+if (SIMPLE) {
+  const at = BEATS.findIndex(b => String(b).includes('cascade(m, mw[0], mw[1], 90)')) + 1;
+  BEATS.splice(at, 0,
+    m => m.setPriceSheet(true),
+    () => { const d = appDoc(); if (d) d.documentElement.classList.add('preso-custom-kb'); });
+}
 // The beat that first stands three phones up. A jump straight to it (or past it) must create the other phones first rather
 // than wait for their timer. This used to be the literal 36 — stale since beats were removed, so it never fired, until two
 // inserted beats happened to land it on the right one. Found by what the beat does, it stays right whatever is added.
@@ -1100,6 +1110,11 @@ function typeKeys(keys, instant) {
       +   'transform:translateY(calc(100% + ' + (56 * K) + 'px));transition:transform .42s cubic-bezier(.2,.9,.25,1);'
       +   'font-family:-apple-system,"SF Pro Text","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased}'
       + '.preso-kb.up{transform:none}'
+      // THE SWAP (John, 2026-09-30): from the Modernism Week price on, html.preso-custom-kb sends the iOS pad and its Save back
+      // down and brings the build's own keypad and Done up in their place — and keeps them for the rest of the run
+      + 'html.preso-custom-kb .preso-kb.up{transform:translateY(calc(100% + ' + (56 * K) + 'px))}'
+      + 'html.preso-custom-kb .sqa-price .ps-pad,html.preso-custom-kb .sqa-price .ps-done{visibility:visible!important;animation:preso-kb-in .46s cubic-bezier(.2,.9,.25,1) .32s both}'
+      + '@keyframes preso-kb-in{from{translate:0 64px;opacity:0}to{translate:0 0;opacity:1}}'
       + '.preso-pad{background:#212121;border-radius:' + (33 * K) + 'px ' + (33 * K) + 'px 0 0;'
       +   'padding:' + (24 * K) + 'px ' + (5 * K) + 'px ' + (40 * K) + 'px;'
       +   'display:grid;grid-template-columns:repeat(3,1fr);gap:' + (6.3 * K) + 'px}'
@@ -1222,7 +1237,7 @@ function typeKeys(keys, instant) {
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
     setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } for (const doc of [app2Doc(), app3Doc()]) { const v = doc && doc.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); } }   // the second phone back on its list, on today, its menu closed; the third on top
-    if (SIMPLE) { marksFlag(null); tipsFlag(false); tipsModeFlag(false); appliedFlag(false); }
+    if (SIMPLE) { marksFlag(null); tipsFlag(false); tipsModeFlag(false); appliedFlag(false); const d = appDoc(); if (d) d.documentElement.classList.remove('preso-custom-kb'); }
     m.setHeaderLock(false, false); m.hidePuck(); m.openBriefTip(null); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
