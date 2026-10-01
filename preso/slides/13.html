@@ -374,6 +374,7 @@ const MARK_GROUPS = 9;   // events and holidays shown, through Indian Wells 2027
 //     selected, with no bounce;
 //   - the events and holidays show as a small grey dot in each cell's top-right corner instead of their icons — see
 //     THE CORNER DOTS — and the fork now runs on through them, to Indian Wells and its week;
+//   - the price is typed on the iOS number pad, not the app's own, with Save 16px above it — see THE iOS NUMBER PAD;
 //   - beats 1-4 are left out — the motion studies on the cells (growing, letting go, turning over, the price wave).
 const SIMPLE = /[?&]simple=1/.test(location.search);
 const BEATS = [
@@ -406,8 +407,8 @@ const BEATS = [
     const ns = [...m.selectedNights];
     if (instant) { m.setPriceSheet(false); m.setPrice(480, 0, ns, false); return; }
     const g = ++gen;
-    const d = appDoc(), btn = d && d.querySelector('.sqa-price.open .ps-done');
-    if (btn) { btn.classList.add('pressing'); setTimeout(() => btn.classList.remove('pressing'), 440); }   // Done, visibly tapped
+    const d = appDoc(), btn = d && d.querySelector(SIMPLE ? '.preso-save' : '.sqa-price.open .ps-done');   // the simple fork's Done is the iOS pad's Save
+    if (btn) { const c = SIMPLE ? 'on' : 'pressing'; btn.classList.add(c); setTimeout(() => btn.classList.remove(c), SIMPLE ? 160 : 440); }   // Done, visibly tapped
     setTimeout(() => { if (g === gen) m.setPriceSheet(false); }, 200);          // ...but nothing applied yet
     if (SIMPLE) { m.setPrice(480, 0, ns, false); return; }   // the fork: applied on the tap — $480 before the sheet is even home
     setTimeout(tail(g, () => m.setPrice(480, 0, ns, false)), 750);   // the moment the sheet is home (200 to let go + its 550 drop): the odometer
@@ -731,7 +732,7 @@ function typeAsk(g, phrase, done) {
   // keyboard rises on that event. So it is dispatched as well (focusin: what React listens for), and the letting-go likewise.
   w.__scriptedTyping = true; ta.focus(); ta.dispatchEvent(new w.FocusEvent('focusin', { bubbles: true }));
   const KB_UP = 380;   // the keyboard's rise, then the first letter
-  const tap = k => { const el = d.querySelector('.ios-kb [data-key="' + k + '"]'); if (!el) return; el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 110); };
+  const tap = k => { const el = d.querySelector('.preso-kb [data-key="' + k + '"]'); if (!el) return; el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 110); };
   phrase.split('').forEach((ch, i) => setTimeout(() => { if (g !== gen) return; tap(ch.toLowerCase()); set.call(ta, phrase.slice(0, i + 1)); ta.dispatchEvent(new w.Event('input', { bubbles: true })); }, KB_UP + i * 45));
   setTimeout(() => { if (g !== gen) return; tap('enter'); ta.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); w.__scriptedTyping = false; ta.blur(); ta.dispatchEvent(new w.FocusEvent('focusout', { bubbles: true })); done(); }, KB_UP + phrase.length * 45 + 350);
 }
@@ -806,6 +807,7 @@ function typeKeys(keys, instant) {
       const tap = el.__tap = (el.__tap || 0) + 1;                    // a repeat on the same key restarts its pop...
       el.classList.remove('pressing'); void el.offsetWidth;
       el.classList.add('pressing');                                  // the key pops, a disc blooms (sqa.css key-tap, 420ms)
+      if (SIMPLE) { const ik = d.querySelector('.preso-key[data-k="' + k + '"]'); if (ik) { ik.classList.add('on'); setTimeout(() => ik.classList.remove('on'), 160); } }   // the system pad shows the press
       setTimeout(() => { el.click(); }, 130);                        // the digit lands at the bottom of the squash
       setTimeout(() => { if (el.__tap === tap) el.classList.remove('pressing'); }, 440);   // ...and only the last one lets go
     };
@@ -873,6 +875,56 @@ function typeKeys(keys, instant) {
     // the only frame callback in the build that measures elapsed time against a ref's start — lends it a clock already
     // past the end. Its first frame lands the final figure; nothing else's timing is touched. If a rebuild renames
     // things so the pattern no longer matches, it falls back to counting — the odometer returns, nothing breaks.
+    // THE iOS NUMBER PAD (simple fork, John, 2026-09-30): "a version with the iOS keyboard instead of the customized
+    // keyboard ... the done button pops up 16px above the iOS number pad like this". When the price sheet opens, the
+    // app's own pad and Done step aside (hidden but still there — the scripted typing still clicks them, so the price
+    // still moves through the app), and the system number pad rises from the bottom of the screen with a Save bar
+    // floating 16px above it. Measured off John's 3x screenshot (440pt wide) and scaled to the app's 430: keys 139 x 49.7
+    // with 6.3 gaps, 24 of padding over the first row, the pad #212121, keys #454545, the bar #F7F7F7 at 40 tall and 24 in
+    // from each side. SF Pro, since that is what the system pad is set in. Each scripted key press lights the matching
+    // key here, and the tap on Done is shown on Save.
+    // The classes are preso-*, never ios-*: the app has its own simulated iOS keyboard (for typing into Ask) styled under
+    // .ios-kb, and borrowing that name inherited its padding and spacing — a 3px inset and an 11px gap that is not 16.
+    if (SIMPLE) {
+      const K = 430 / 440;                            // the screenshot's 440pt, into the app's 430px
+      const st = w.document.createElement('style');
+      st.textContent =
+        '.sqa-price .ps-pad,.sqa-price .ps-done{visibility:hidden!important}'
+      + '.preso-kb{position:fixed;left:0;right:0;bottom:0;z-index:2147483000;pointer-events:none;display:flex;flex-direction:column;'
+      +   'transform:translateY(calc(100% + ' + (56 * K) + 'px));transition:transform .42s cubic-bezier(.2,.9,.25,1);'
+      +   'font-family:-apple-system,"SF Pro Text","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased}'
+      + '.preso-kb.up{transform:none}'
+      + '.preso-pad{background:#212121;border-radius:' + (33 * K) + 'px ' + (33 * K) + 'px 0 0;'
+      +   'padding:' + (24 * K) + 'px ' + (5 * K) + 'px ' + (40 * K) + 'px;'
+      +   'display:grid;grid-template-columns:repeat(3,1fr);gap:' + (6.3 * K) + 'px}'
+      + '.preso-key{height:' + (49.7 * K) + 'px;border-radius:' + (10 * K) + 'px;background:#454545;color:#fff;'
+      +   'display:flex;flex-direction:column;align-items:center;justify-content:center;transition:background .12s}'
+      + '.preso-key.on{background:#6e6e6e;transition:none}'
+      + '.preso-key b{font-weight:400;font-size:' + (25 * K) + 'px;line-height:' + (28 * K) + 'px}'
+      + '.preso-key i{font-style:normal;font-weight:600;font-size:' + (10 * K) + 'px;line-height:' + (12 * K) + 'px;letter-spacing:' + (2.2 * K) + 'px;margin-right:-' + (2.2 * K) + 'px}'
+      + '.preso-key.blank,.preso-key.del{background:none}'
+      + '.preso-key.del.on{background:#454545}'
+      // Save sits in the flow directly over the pad with a 16px margin under it, so the gap is exactly 16 whatever the pad
+      // measures — hung off the container's height instead, it came out 24.
+      + '.preso-save{flex:none;margin:0 ' + (24 * K) + 'px 16px;'
+      +   'height:' + (40 * K) + 'px;border-radius:' + (12 * K) + 'px;background:#F7F7F7;color:#111;'
+      +   'display:flex;align-items:center;justify-content:center;font-weight:600;font-size:' + (16 * K) + 'px;transition:transform .12s,background .12s}'
+      + '.preso-save.on{transform:scale(.97);background:#dcdcdc;transition:none}';
+      w.document.head.appendChild(st);
+      const KEYS = [['1',''],['2','ABC'],['3','DEF'],['4','GHI'],['5','JKL'],['6','MNO'],['7','PQRS'],['8','TUV'],['9','WXYZ'],[null],['0',''],['⌫']];
+      const kb = w.document.createElement('div');
+      kb.className = 'preso-kb';
+      kb.innerHTML = '<div class="preso-save">Save</div><div class="preso-pad">' + KEYS.map(([k, l]) =>
+        k === null ? '<span class="preso-key blank"></span>'
+        : k === '⌫' ? '<span class="preso-key del" data-k="⌫"><svg width="' + (26 * K) + '" height="' + (20 * K) + '" viewBox="0 0 26 20" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M8.5 1.5h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2h-14L1.5 10z"/><path d="M12.5 6.5l7 7M19.5 6.5l-7 7"/></svg></span>'
+        : '<span class="preso-key" data-k="' + k + '"><b>' + k + '</b><i>' + (l || '&nbsp;') + '</i></span>').join('') + '</div>';
+      w.document.body.appendChild(kb);
+      // up while the price sheet is open, whichever path opened or closed it — a tap, a replay, a step back
+      const sync = () => kb.classList.toggle('up', !!w.document.querySelector('.sqa-price.open'));
+      // childList too: a jump straight to the open sheet MOUNTS it with .open already on, which is not a class change
+      new w.MutationObserver(sync).observe(w.document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+      sync();
+    }
     // THE CORNER DOTS (simple fork, John, 2026-09-30): "instead of the events and holidays icon, give me the right corner
     // dots". There is no dot mode in the build, and the marks are not inside the cells: each is a 32px span placed on the
     // month grid over its cell, low and centred, with the icon inside. So the fork hides the icon, draws a 6px dot at the
