@@ -774,7 +774,7 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) +
     if (g !== gen) return;
     m.revealOffset = MARK_PARK; m.reveal(tg, null, 0, 0);
     settled(g, () => setTimeout(() => { if (g !== gen) return; marksOn(); pendingTail = null; }, 500));   // landed; a beat; the icons
-  }, TAP + 650);                                               // the quick actions are down
+  }, TAP + 650 + 700);                                         // the tips are off, and a beat (John, 2026-09-30) — then down
 });
 // THE PRICE TIPS (John, 2026-09-30) — the answer to "No price tips", between the switch to stroked picks and the run to
 // November: the verdict crosses out "Too dark" and points at "No price tips" (12bs); the ⨉ is visibly tapped and the quick
@@ -861,6 +861,8 @@ if (SIMPLE) {
   const applyTips = applyFull && ((m, instant) => {
     const d = appDoc();
     if (d && !instant) { d.documentElement.classList.add('preso-apply'); clearTimeout(sealBack); sealBack = setTimeout(() => d.documentElement.classList.remove('preso-apply'), 2400); }
+    const g = gen + 1;                                        // the gen applyFull is about to take
+    if (instant) appliedFlag(true); else setTimeout(() => { if (gen === g) appliedFlag(true); }, TAP + 450);   // the ✓s are in
     return applyFull(m, instant);
   });
   const at = BEATS.findIndex(b => String(b).includes('tipsModeFlag(true)')) + 1;
@@ -903,6 +905,8 @@ const marksFlag = v => { const d = appDoc(); if (!d) return; if (v) d.documentEl
 // and whether the price-tips sheet has been opened (No price tips answered), likewise for 12bs
 const tipsFlag = on => { const d = appDoc(); if (!d) return; if (on) d.documentElement.dataset.tips = '1'; else delete d.documentElement.dataset.tips; };
 // and whether the tips are on the calendar (price-tips mode) — No price tips answered
+// and whether the tips have been APPLIED, the ✓s in the cells — the moment No price help is crossed out
+const appliedFlag = on => { const d = appDoc(); if (!d) return; if (on) d.documentElement.dataset.applied = '1'; else delete d.documentElement.dataset.applied; };
 const tipsModeFlag = on => { const d = appDoc(); if (!d) return; if (on) d.documentElement.dataset.tipsmode = '1'; else delete d.documentElement.dataset.tipsmode; };
 const MARK_PARK = 120;   // an event's row parks this far under the header, with its week above for context
 // ALL THE ICONS AT ONCE, THEN ONE SCROLL (John, 2026-09-30). This ran as a
@@ -1028,8 +1032,8 @@ function typeKeys(keys, instant) {
                 // white, not the app's grey-100 (John, 2026-09-30) — for the borrowed look and once the phone is origsel
                 + '.phone.preso .single .dcell.selected.preso-os{background:#fff!important;box-shadow:inset 0 0 0 1.5px var(--ink)!important}'
                 + '.phone.preso.origsel .single .dcell.selected:not(.green){background:#fff!important}'
-                // a picked TIP: the ink ring on the tip's light green, and no dashed green line (John, 2026-09-30)
-                + '.phone.preso.origsel .single .dcell.selected.tip:not(.green){background:rgba(3,128,38,.1)!important;outline:none!important;box-shadow:inset 0 0 0 1.5px var(--ink)!important}'
+                // a picked TIP: the ink ring on white — no green fill, no dashed green line (John, 2026-09-30)
+                + '.phone.preso.origsel .single .dcell.selected.tip:not(.green){background:#fff!important;outline:none!important;box-shadow:inset 0 0 0 1.5px var(--ink)!important}'
                 + '.phone.preso .single .dcell.selected.preso-os .date,.phone.preso .single .dcell.selected.preso-os .pstack{color:var(--ink)!important}'
                 + '.phone.preso .single .dcell.selected.preso-os .strike{background:var(--ink)!important}'
                 + '.phone.preso .single .dcell.selected.preso-os .date.today{color:#fff!important}'   // today's numeral stays white on its red, as origsel has it
@@ -1197,7 +1201,7 @@ function typeKeys(keys, instant) {
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
     setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } for (const doc of [app2Doc(), app3Doc()]) { const v = doc && doc.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); } }   // the second phone back on its list, on today, its menu closed; the third on top
-    if (SIMPLE) { marksFlag(null); tipsFlag(false); tipsModeFlag(false); }
+    if (SIMPLE) { marksFlag(null); tipsFlag(false); tipsModeFlag(false); appliedFlag(false); }
     m.setHeaderLock(false, false); m.hidePuck(); m.openBriefTip(null); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });

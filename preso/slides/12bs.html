@@ -125,7 +125,7 @@
      the words, pointing back at them, the same 12 from them as the ⨉ is on the left, sliding in from the right:
        dark  "Too dark" is pointed at (the black picks, then their switch to stroked)
        tdx   "Too dark" is crossed out; pta  the arrow moves to "No price tips" (the wand and its sheet)
-       ptx   the tips are on the calendar (price-tips mode, the tap after the sheet): "No price tips" is crossed out
+       ptx   the tips are applied — the ✓s in the cells: "No price help" is crossed out
        trim  the arrow moves down to "No holidays" (the run to November)
        hol   the holidays have popped in: "No holidays" is crossed out too, and the arrow goes
        ev    the arrow comes on at "No popular events" (the run to February)
@@ -300,6 +300,7 @@
   const IW_AT = 23;                          // the tap after (#22.18): on down to Indian Wells, its week picked — stroked now; the list stays
   const TMODE_AT = 18;                       // the tap after the sheet (#22.19): Try now, price-tips mode; No price tips crossed out once the tips are on
   // #22.20 the tipped nights picked and the Price tip sheet up · #22.21 Apply tips, ✓ in the cells (the full build's own beats)
+  const APPLY_AT = 20;
   const TRIM_AT = 21;                        // the tap after (#22.17): "Too dark" folds out of the list, the quick actions close, on to Thanksgiving
   const FLIP_AT = 16;                        // the tap after (#22.16): the black picks flip to the stroked ones — the verdict stays up
   const XS_AT = 14;                          // the tap after (#22.15): the ⨉s come in under the two ✓
@@ -336,11 +337,11 @@
     // 'all' — the events are in too, "No popular events" is answered
     let marks = ''; try { marks = live.contentWindow.document.querySelector('iframe').contentDocument.documentElement.dataset.marks || ''; } catch (_) {}
     const flag = (c, on) => { if (on !== document.body.classList.contains(c)) { if (snapNext) document.body.classList.add('snap'); document.body.classList.toggle(c, on); } };
-    let tips = false; try { tips = live.contentWindow.document.querySelector('iframe').contentDocument.documentElement.dataset.tipsmode === '1'; } catch (_) {}   // the tips on the calendar, not just the sheet
+    let tips = false; try { tips = live.contentWindow.document.querySelector('iframe').contentDocument.documentElement.dataset.applied === '1'; } catch (_) {}   // the tips APPLIED — the ✓s in the cells
     flag('xs', state === 2 && landed && at >= XS_AT && at <= IW_AT);
     flag('tdx', tdx);
     flag('pta', tdx);                                     // the arrow on No price tips...
-    flag('ptx', tdx && (at > TMODE_AT || (at === TMODE_AT && tips)));   // ...until the tips are on the calendar: crossed out
+    flag('ptx', tdx && (at > APPLY_AT || (at === APPLY_AT && tips)));   // ...until the ✓s are in (Apply tips): crossed out
     flag('hol', trim && (marks === 'hol' || marks === 'all'));
     flag('ev', state === 2 && landed && at >= EV_AT && at <= IW_AT);
     flag('evd', state === 2 && landed && at >= EV_AT && at <= IW_AT && marks === 'all');
