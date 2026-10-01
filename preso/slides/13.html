@@ -729,6 +729,39 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) +
     for (let di = a, i = 0; di <= z; di++, i++) setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, 450 + i * 90);
   }
 });
+// ...and the beat after it (John, 2026-09-30): the answer to "Too dark". Night by night, in date order, each black pill turns
+// over like a card and lands as the product's own stroked pick — the grey cell with the ink ring the full build uses from Gap
+// nights on (.phone.origsel). It is the one place the bland fork lets a date cell move: its seal (THE SIMPLE FORK, below)
+// shuts off every CSS transition and animation on .dcell with !important, and a Web Animation driven from here is outside
+// what that reaches. Each cell borrows the stroked look (.preso-os) at the half-turn, edge-on, where the swap cannot be
+// seen; when the last has landed the whole phone goes origsel and the borrowed classes come off. It stays stroked from
+// here on.
+if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) + 2, 0, (m, instant) => {
+  if (instant) { m.setOrigSel(true); return; }
+  const g = gen, d = appDoc(); if (!d) { m.setOrigSel(true); return; }
+  const cells = [...d.querySelectorAll('.single .dcell.selected')];
+  const EVERY = 70, HALF = 170, P = 'perspective(500px) ';
+  // every turn is kept, and all of them are cancelled at the end whatever happened — a turn left running (the beat
+  // stepped away from mid-flip, or a document whose clock was paused) must never finish later and leave a cell edge-on
+  const turns = [];
+  cells.forEach((el, i) => setTimeout(() => {
+    if (g !== gen) return;
+    const out = el.animate([{ transform: P + 'rotateY(0deg)' }, { transform: P + 'rotateY(90deg)' }], { duration: HALF, easing: 'cubic-bezier(.55,0,1,.45)', fill: 'forwards' });
+    turns.push(out);
+    out.onfinish = () => {
+      if (g !== gen) { out.cancel(); return; }
+      el.classList.add('preso-os');
+      const back = el.animate([{ transform: P + 'rotateY(-90deg)' }, { transform: P + 'rotateY(0deg)' }], { duration: HALF, easing: 'cubic-bezier(0,.55,.45,1)' });
+      turns.push(back);
+      back.onfinish = () => out.cancel();
+    };
+  }, i * EVERY));
+  setTimeout(() => {
+    turns.forEach(t => t.cancel());
+    if (g === gen) m.setOrigSel(true);
+    setTimeout(() => d.querySelectorAll('.preso-os').forEach(el => el.classList.remove('preso-os')), 50);
+  }, cells.length * EVERY + 2 * HALF + 80);
+});
 // The beat that first stands three phones up. A jump straight to it (or past it) must create the other phones first rather
 // than wait for their timer. This used to be the literal 36 — stale since beats were removed, so it never fired, until two
 // inserted beats happened to land it on the right one. Found by what the beat does, it stays right whatever is added.
@@ -876,6 +909,10 @@ function typeKeys(keys, instant) {
       // where it lands. Same component in the cells, the Price per night card and the promotion — all of them.
       + (SIMPLE ? '.dcell,.dcell *,.dcell::before,.dcell::after,.dcell *::before,.dcell *::after{transition:none!important;animation:none!important}'
                 + '.roll-out{display:none!important}.roll-in{animation:none!important}'
+                // the stroked pick, borrowed per cell mid-flip (the "Too dark" answer beat) until the phone goes origsel
+                + '.phone.preso .single .dcell.selected.preso-os{background:var(--grey-100)!important;box-shadow:inset 0 0 0 1.5px var(--ink)!important}'
+                + '.phone.preso .single .dcell.selected.preso-os .date,.phone.preso .single .dcell.selected.preso-os .pstack{color:var(--ink)!important}'
+                + '.phone.preso .single .dcell.selected.preso-os .strike{background:var(--ink)!important}'
                 // events and holidays as a dot in the cell's corner, not an icon (see THE CORNER DOTS)
                 + '.grid>.mark{animation:none!important;background:none!important;box-shadow:none!important}'
                 + '.grid>.mark>*{display:none!important}'
