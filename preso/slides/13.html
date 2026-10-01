@@ -952,6 +952,7 @@ if (SIMPLE) BEATS.splice(beatAfter('const home = () => m.homeLocked()', 1), 0, (
   setTimeout(() => { if (g === gen) m.setSettingsSheet(true); }, up + 800 + TAP);
   setTimeout(() => { if (g === gen) press(d => d.querySelectorAll('.sqa-custom.open .ss-row')[1]); }, up + 800 + TAP + 1000);
   setTimeout(() => { if (g === gen) { m.setPromoSheet(true); m.setPromoPct(0); } }, up + 800 + TAP + 1000 + TAP);
+  holdNextUntil = performance.now() + up + 800 + TAP + 1000 + TAP + 150;   // a stray tap waits for the promotion editor (HOLD NEXT)
 });
 // ...and the tap after (John, 2026-09-30): the knob drags to 20%, as the run's first promotion did, and the picked nights
 // simply TAKE their 20%-off prices when it lands — each its own (the 11th's $535 is $428, the 16th's $455 is $364), set
@@ -975,6 +976,7 @@ if (SIMPLE) {
 // plain 20% had written its discount into the price itself — kept in PRE20) and −50% on top, so the cells roll from their
 // 20%-off figure to their 50%-off one in a single move, with the promotion's own line.
 const PRE20 = new Map();
+let holdNextUntil = 0;   // see HOLD NEXT
 if (SIMPLE) BEATS.splice(beatAfter('Math.round(m.price(0, di) * 0.8)', 1), 0, (m, instant) => {
   const ns = [...m.selectedNights];
   const full = () => { const d = appDoc(); if (d) d.documentElement.classList.add('preso-full'); };
@@ -1450,8 +1452,11 @@ function typeKeys(keys, instant) {
   // THE BUILD SPANS DECK SLIDES. ?until=N: this embed steps beats 1..N and then hands the deck on (unused now).
   // ?start=N: this embed opens already at beat N, replayed instantly once the app is up, and steps on from there (unused now: the build runs whole on 12b).
   const Q = new URLSearchParams(location.search), UNTIL = +(Q.get('until') || BEATS.length), START = +(Q.get('start') || 0);
-  window.presoNext = () => at >= Math.min(UNTIL, BEATS.length) ? false : apply(at + 1);
-  window.presoPrev = () => at <= START ? false : apply(at - 1);
+  // HOLD NEXT (John, 2026-09-30): while a beat that runs itself on to a resting point is still on its way — the 11th–18th, on
+  // through Custom settings to the promotion editor — a forward tap is taken and ignored instead of cutting it short. Back is
+  // never held: it lets the hold go and steps back as ever.
+  window.presoNext = () => { if (performance.now() < holdNextUntil) return true; return at >= Math.min(UNTIL, BEATS.length) ? false : apply(at + 1); };
+  window.presoPrev = () => { holdNextUntil = 0; return at <= START ? false : apply(at - 1); };
   if (START > 0) { const go = () => { if (model()) apply(START); else setTimeout(go, 100); }; go(); }
   // the deck's GO: straight to the last beat, instantly — the replay path — as soon as the app is up to take it
   window.presoEnd = () => { const go = () => { if (model()) apply(Math.min(UNTIL, BEATS.length)); else setTimeout(go, 100); }; go(); };
