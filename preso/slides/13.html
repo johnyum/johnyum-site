@@ -954,13 +954,39 @@ if (SIMPLE) {
   const at = BEATS.findIndex(b => String(b).includes("querySelectorAll('.sqa-custom.open .ss-row')[1]); }, up + 800")) + 1;
   if (drag && at > 0) BEATS.splice(at, 0, (m, instant) => {
     const ns = [...m.selectedNights];
-    const off = () => { for (const di of ns) m.setPrice(Math.round(m.price(0, di) * 0.8), 0, [di], false); };
+    const off = () => { for (const di of ns) { PRE20.set(di, m.price(0, di)); m.setPrice(Math.round(m.price(0, di) * 0.8), 0, [di], false); } };   // the price before, kept for the 50%
     if (instant) { drag(m, true); off(); return; }
     drag(m, false);
     const g = gen;                                               // the drag's own gen
     setTimeout(() => { if (g === gen) off(); }, 1000);           // the knob is home at 20% (250 + its 700 drag): the prices
   });
 }
+// FULL FROM HERE (John, 2026-09-30: "from here on out we're going to be doing the full odometer and animations"). The tap after
+// the plain 20%: html.preso-full lifts the fork's blandness for good — the date cells animate again, the odometer rolls,
+// the counting tween runs (see the seal, THE PRICE THAT COUNTS) — and the knob drags on from 20% to 50%, the build's own
+// way. On landing the promotion is a REAL one, as the full build does it: each night's own price back underneath (the
+// plain 20% had written its discount into the price itself — kept in PRE20) and −50% on top, so the cells roll from their
+// 20%-off figure to their 50%-off one in a single move, with the promotion's own line.
+const PRE20 = new Map();
+if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('Math.round(m.price(0, di) * 0.8)')) + 1, 0, (m, instant) => {
+  const ns = [...m.selectedNights];
+  const full = () => { const d = appDoc(); if (d) d.documentElement.classList.add('preso-full'); };
+  const land = () => { for (const di of ns) { const o = PRE20.get(di); if (o) m.setPrice(o, 0, [di], false); } m.setPromo(0.5, 0, ns); };
+  full();
+  if (instant) { m.setPromoDrag(false); m.setPromoPct(50); land(); return; }
+  const g = ++gen;
+  pendingTail = () => { m.setPromoDrag(false); m.setPromoPct(50); land(); };
+  const d0 = appDoc(), knob = d0 && d0.querySelector('.cp-knob');
+  if (knob) knob.classList.add('pressing');                    // the finger goes down
+  const T0 = performance.now() + 250, DRAG = 800;              // a beat on the knob, then the drag, expo-out
+  const step = () => {
+    if (g !== gen) return;
+    const t = Math.min(1, Math.max(0, (performance.now() - T0) / DRAG)), e = 1 - Math.pow(2, -10 * t);
+    if (t > 0) { m.setPromoDrag(true); m.setPromoPct(20 + 30 * (t >= 1 ? 1 : e)); }
+    if (t < 1) requestAnimationFrame(step); else { m.setPromoDrag(false); if (knob) knob.classList.remove('pressing'); setTimeout(tail(g, land), 500); }   // lifted; a beat; the nights roll
+  };
+  requestAnimationFrame(step);
+});
 // THE ODOMETER for the price sheet's big figure: the build only rolls the figures in the cells, and the fork keeps even
 // those still. A copy of the figure is laid exactly over it — the same face, size and place — the real one is hidden,
 // and each digit of the copy rolls up a strip of 0–9 from its old figure to its new; when they have landed `done` sets
@@ -1150,8 +1176,8 @@ function typeKeys(keys, instant) {
       // showing, the old price laid over the new. So the outgoing one is not drawn at all, and the incoming one simply sits
       // where it lands. Same component in the cells, the Price per night card and the promotion — all of them.
       // — lifted only while html.preso-apply is on: Apply tips, whose ✓ is the one cell animation the fork keeps (John, 2026-09-30)
-      + (SIMPLE ? 'html:not(.preso-apply) :is(.dcell,.dcell *,.dcell::before,.dcell::after,.dcell *::before,.dcell *::after){transition:none!important;animation:none!important}'
-                + '.roll-out{display:none!important}.roll-in{animation:none!important}'
+      + (SIMPLE ? 'html:not(.preso-apply):not(.preso-full) :is(.dcell,.dcell *,.dcell::before,.dcell::after,.dcell *::before,.dcell *::after){transition:none!important;animation:none!important}'
+                + 'html:not(.preso-full) .roll-out{display:none!important}html:not(.preso-full) .roll-in{animation:none!important}'   // the odometer's two layers — back once html.preso-full is on
                 // the stroked pick, borrowed per cell mid-flip (the "Too dark" answer beat) until the phone goes origsel
                 // white, not the app's grey-100 (John, 2026-09-30) — for the borrowed look and once the phone is origsel
                 + '.phone.preso .single .dcell.selected.preso-os{background:#fff!important;box-shadow:inset 0 0 0 1.5px var(--ink)!important}'
@@ -1330,7 +1356,7 @@ function typeKeys(keys, instant) {
       const COUNTS = /\(performance\.now\(\)-\w+\.current\)\/1e3/;
       w.requestAnimationFrame = cb => raf(ts => {
         // ...except while Apply tips plays (html.preso-apply): its ✓ is a tween of the same shape, and it is allowed to run
-        if (typeof cb === 'function' && COUNTS.test(String(cb)) && !w.document.documentElement.classList.contains('preso-apply')) {
+        if (typeof cb === 'function' && COUNTS.test(String(cb)) && !w.document.documentElement.classList.contains('preso-apply') && !w.document.documentElement.classList.contains('preso-full')) {
           perf.now = () => realNow() + 1e7;           // ten thousand seconds on: the tween is over
           try { cb(ts); } finally { perf.now = realNow; }
         } else cb(ts);
@@ -1383,7 +1409,7 @@ function typeKeys(keys, instant) {
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
     setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } for (const doc of [app2Doc(), app3Doc()]) { const v = doc && doc.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); } }   // the second phone back on its list, on today, its menu closed; the third on top
-    if (SIMPLE) { marksFlag(null); tipsFlag(false); tipsModeFlag(false); appliedFlag(false); const d = appDoc(); if (d) { d.documentElement.classList.remove('preso-custom-kb', 'preso-pills-on', 'preso-grey-done'); const c = d.defaultView.__presoCentre; if (c) c(); } }
+    if (SIMPLE) { marksFlag(null); tipsFlag(false); tipsModeFlag(false); appliedFlag(false); const d = appDoc(); if (d) { d.documentElement.classList.remove('preso-custom-kb', 'preso-pills-on', 'preso-grey-done', 'preso-full'); const c = d.defaultView.__presoCentre; if (c) c(); } }
     m.setHeaderLock(false, false); m.hidePuck(); m.openBriefTip(null); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
