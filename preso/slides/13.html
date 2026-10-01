@@ -372,8 +372,8 @@ const MARK_GROUPS = 9;   // events and holidays shown, through Indian Wells 2027
 //     "-20%" line and a struck-out was-price under it;
 //   - the run is still picked a night at a time, as in the full build (John: "that's normal") — each night simply lands
 //     selected, with no bounce;
-//   - the events and holidays show as a small grey dot in each cell's top-right corner instead of their icons — see
-//     THE CORNER DOTS — and the fork now runs on through them, to Indian Wells and its week;
+//   - the events and holidays stay off until the run to November, then pop in as their icons — see THE ICONS COME IN —
+//     and the fork runs on to Indian Wells and its week;
 //   - the price is typed on the iOS number pad, not the app's own, with Save 16px above it — see THE iOS NUMBER PAD;
 //   - beats 1-4 are left out — the motion studies on the cells (growing, letting go, turning over, the price wave).
 const SIMPLE = /[?&]simple=1/.test(location.search);
@@ -749,45 +749,23 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) +
     setTimeout(() => d.querySelectorAll('.preso-os').forEach(el => el.classList.remove('preso-os')), 50);
   }, cells.length * EVERY + 120);
 });
-// THE ICONS COME BACK (John, 2026-09-30) — the answer to "No holidays". The fork's events and holidays are corner dots (see
-// THE CORNER DOTS); toIcons() hands every mark its icon back: a ghost of each dot is left in its corner and fades, while the
-// mark itself drops the corner shift, goes back to the build's own place and pops in as its icon. dotsBack() undoes it.
-const toIcons = (d, live) => {
-  const root = d.documentElement; if (root.classList.contains('preso-icons')) return;
-  const marks = [...d.querySelectorAll('.grid > .mark')];
-  if (live) for (const mk of marks) {
-    const gh = d.createElement('span'); gh.className = 'preso-ghost';
-    gh.style.cssText = 'left:' + mk.style.left + ';top:' + mk.style.top + ';width:' + mk.offsetWidth + 'px;height:' + mk.offsetHeight + 'px;transform:' + (mk.style.transform || 'none');
-    mk.parentNode.appendChild(gh);
-    gh.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 320, easing: 'ease-out', fill: 'forwards' }).onfinish = () => gh.remove();
-    setTimeout(() => gh.remove(), 420);   // and gone regardless, should the fade's clock not run
-  }
-  for (const mk of marks) { mk.style.transform = ''; mk._dx = 0; mk._dy = 0; }
-  root.classList.add('preso-icons');
-};
-const dotsBack = d => {
-  d.documentElement.classList.remove('preso-icons');
-  d.querySelectorAll('.preso-ghost').forEach(g => g.remove());
-  for (const mk of d.querySelectorAll('.grid > .mark')) { mk.style.transform = ''; mk._dx = 0; mk._dy = 0; }   // the dot watcher re-places them
-};
-// ...and the next (John, 2026-09-30): with "Too dark" crossed out in the verdict (12bs, on this tap), the ⨉ is visibly
-// tapped and the quick actions close, the nights letting go, and the events and holidays come on as their dots; once the
-// quick actions are down the calendar scrolls to November; a beat after it has landed the dots
-// give way to the icons (toIcons, above).
+// THE ICONS COME IN (John, 2026-09-30) — the answer to "No holidays". The fork shows no events and holidays at all until
+// here (the corner dots it once had are gone: "get rid of them altogether"). With "Too dark" crossed out in the verdict
+// (12bs, on this tap), the ⨉ is visibly tapped and the quick actions close, the nights letting go; once they are down the
+// calendar scrolls to November, bare; a beat after it has landed, every event and holiday pops in at once as its icon.
 if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('mn-cancel')) + 3, 0, (m, instant) => {
-  const marksOn = () => { m.setLayers({ marks: true }); m.setShownMarks(new Set()); m.revealOffset = MARK_PARK; for (const grp of markRun(m)) m.showMarkGroup(grp.dis); };
+  const marksOn = () => { m.setLayers({ marks: true }); m.setShownMarks(new Set()); for (const grp of markRun(m)) m.showMarkGroup(grp.dis); };
   const tg = m.fx.index({ y: 2026, m: 11, d: 1 });              // November — the month, not Thanksgiving (John, 2026-09-30): Pride and Thanksgiving both in it
-  const icons = live => { const d = appDoc(); if (d) toIcons(d, live); };
-  const land = () => { m.clearSelection(); marksOn(); setTimeout(() => { m.reveal(tg, null, 0, 0); setTimeout(() => icons(false), 60); }, 40); };   // the reveal a tick later, as the holidays beat does
+  const land = () => { m.clearSelection(); m.revealOffset = MARK_PARK; marksOn(); setTimeout(() => m.reveal(tg, null, 0, 0), 40); };   // the reveal a tick later, as the holidays beat did
   if (instant) { land(); return; }
   const g = ++gen;
   pendingTail = land;                                          // a tap before it is through lands it whole
   press(d => d.querySelector('.sqa-close'));
-  setTimeout(tail(g, () => { m.clearSelection(); marksOn(); }), TAP);
+  setTimeout(tail(g, () => m.clearSelection()), TAP);
   setTimeout(() => {
     if (g !== gen) return;
-    m.reveal(tg, null, 0, 0);
-    settled(g, () => setTimeout(() => { if (g !== gen) return; icons(true); pendingTail = null; }, 500));   // landed; a beat; the icons
+    m.revealOffset = MARK_PARK; m.reveal(tg, null, 0, 0);
+    settled(g, () => setTimeout(() => { if (g !== gen) return; marksOn(); pendingTail = null; }, 500));   // landed; a beat; the icons
   }, TAP + 650);                                               // the quick actions are down
 });
 // The beat that first stands three phones up. A jump straight to it (or past it) must create the other phones first rather
@@ -944,23 +922,17 @@ function typeKeys(keys, instant) {
                 + '.phone.preso .single .dcell.selected.preso-os .date,.phone.preso .single .dcell.selected.preso-os .pstack{color:var(--ink)!important}'
                 + '.phone.preso .single .dcell.selected.preso-os .strike{background:var(--ink)!important}'
                 + '.phone.preso .single .dcell.selected.preso-os .date.today{color:#fff!important}'   // today's numeral stays white on its red, as origsel has it
-                // events and holidays as a dot in the cell's corner, not an icon (see THE CORNER DOTS)
-                // — until the Thanksgiving beat hands them back their icons (html.preso-icons), each dot fading from a ghost
-                //   left in its corner while the icon pops in at the mark's own place
-                + 'html:not(.preso-icons) .grid>.mark{animation:none!important;background:none!important;box-shadow:none!important}'
-                + 'html:not(.preso-icons) .grid>.mark>*{display:none!important}'
-                + 'html:not(.preso-icons) .grid>.mark::after,.grid>.preso-ghost::after{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#8C8C8C}'
-                + '.grid>.preso-ghost{position:absolute;pointer-events:none}'
+                // the events and holidays pop in as their icons (see THE ICONS COME IN)
                 + '@keyframes preso-pop{0%{transform:scale(0)}65%{transform:scale(1.14)}100%{transform:scale(1)}}'
-                + 'html.preso-icons .grid>.mark{animation:preso-pop .46s cubic-bezier(.34,1.3,.64,1) both!important}'
+                + '.grid>.mark{animation:preso-pop .46s cubic-bezier(.34,1.3,.64,1) both!important}'
                 // PRIDE (John, 2026-09-30): the first day is the rainbow (dressPride swaps the src); the two after are
                 // secondary marks, a 6px red then a 6px orange ball, lit from the top left, sitting where Indian Wells puts its
                 // tennis balls — the centre of a .mark.sec, which the build sets 8 higher (62) than a main icon (70)
-                + 'html.preso-icons .grid>.mark[data-pride-sec]{translate:0 -8px}'
-                + 'html.preso-icons .grid>.mark[data-pride-sec]>img{display:none!important}'
-                + 'html.preso-icons .grid>.mark[data-pride-sec]::before{content:"";width:6px;height:6px;border-radius:50%;box-shadow:0 .5px 1px rgba(0,0,0,.28)}'
-                + 'html.preso-icons .grid>.mark[data-pride-sec=red]::before{background:radial-gradient(circle at 34% 30%,#ffb3a8 0,#f0473a 45%,#b8160f 100%)}'
-                + 'html.preso-icons .grid>.mark[data-pride-sec=orange]::before{background:radial-gradient(circle at 34% 30%,#ffd9a3 0,#ff9a1f 45%,#c4620a 100%)}'
+                + '.grid>.mark[data-pride-sec]{translate:0 -8px}'
+                + '.grid>.mark[data-pride-sec]>img{display:none!important}'
+                + '.grid>.mark[data-pride-sec]::before{content:"";width:6px;height:6px;border-radius:50%;box-shadow:0 .5px 1px rgba(0,0,0,.28)}'
+                + '.grid>.mark[data-pride-sec=red]::before{background:radial-gradient(circle at 34% 30%,#ffb3a8 0,#f0473a 45%,#b8160f 100%)}'
+                + '.grid>.mark[data-pride-sec=orange]::before{background:radial-gradient(circle at 34% 30%,#ffd9a3 0,#ff9a1f 45%,#c4620a 100%)}'
               : '');                // the guests pop in quick (John, 2026-09-22)                        // and a sheet's scrim covers the whole frame, band included — one layer, no join
     w.document.head.appendChild(seal);
 
@@ -1028,31 +1000,8 @@ function typeKeys(keys, instant) {
       new w.MutationObserver(sync).observe(w.document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
       sync();
     }
-    // THE CORNER DOTS (simple fork, John, 2026-09-30): "instead of the events and holidays icon, give me the right corner
-    // dots". There is no dot mode in the build, and the marks are not inside the cells: each is a 32px span placed on the
-    // month grid over its cell, low and centred, with the icon inside. So the fork hides the icon, draws a 6px dot at the
-    // mark's centre (the CSS above), and moves the whole mark with a transform until that centre sits 10px in from its
-    // cell's top-right corner. One fixed shift would not do: the marks sit at two depths in their cells (70 and 62 down),
-    // so each is measured against its own cell. React sets a mark's left and top but never its transform, so the shift
-    // survives re-renders; a watcher re-places a mark whenever React moves it. The shift is remembered on the element so
-    // a re-measure works from the mark's own place, not its already-shifted one.
     if (SIMPLE) {
-      const INSET = 10;
       let due = 0;
-      const placeDots = () => {
-        due = 0;
-        if (w.document.documentElement.classList.contains('preso-icons')) return;   // the icons sit where the build puts them
-        const marks = [...w.document.querySelectorAll('.grid > .mark')]; if (!marks.length) return;
-        const cells = [...w.document.querySelectorAll('.dcell')].map(c => c.getBoundingClientRect());
-        for (const mk of marks) {
-          const r = mk.getBoundingClientRect(), px = mk._dx || 0, py = mk._dy || 0;
-          const cx = r.left + r.width / 2 - px, cy = r.top + r.height / 2 - py;      // where the mark itself is
-          const c = cells.find(b => cx > b.left && cx < b.right && cy > b.top && cy < b.bottom + 8);
-          if (!c) continue;
-          const dx = Math.round((c.right - INSET - cx) * 10) / 10, dy = Math.round((c.top + INSET - cy) * 10) / 10;
-          if (dx !== px || dy !== py) { mk.style.transform = 'translate(' + dx + 'px,' + dy + 'px)'; mk._dx = dx; mk._dy = dy; }
-        }
-      };
       // PRIDE'S DRESS: the build's three Pride days all carry the heart. The first (in date order: by row, then column) takes
       // the rainbow; the second and third are tagged for the red and orange balls (the CSS above). Re-run whenever marks
       // change — a new run of marks is new elements. React never sets these marks' src or data-* again for the same props.
@@ -1070,7 +1019,7 @@ function typeKeys(keys, instant) {
           else { const c = i === 1 ? 'red' : 'orange'; if (mk.dataset.prideSec !== c) mk.dataset.prideSec = c; }
         });
       };
-      const soon = () => { if (!due) due = setTimeout(() => { placeDots(); dressPride(); }, 20); };
+      const soon = () => { if (!due) due = setTimeout(() => { due = 0; dressPride(); }, 20); };
       new w.MutationObserver(list => {
         for (const m of list) {
           if (m.type === 'attributes' ? m.target.classList && m.target.classList.contains('mark')
@@ -1136,7 +1085,6 @@ function typeKeys(keys, instant) {
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
     setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } for (const doc of [app2Doc(), app3Doc()]) { const v = doc && doc.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); } }   // the second phone back on its list, on today, its menu closed; the third on top
-    if (SIMPLE) { const d = appDoc(); if (d) dotsBack(d); }   // a replay starts from the dots; the Thanksgiving beat turns the icons back on
     m.setHeaderLock(false, false); m.hidePuck(); m.openBriefTip(null); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });
