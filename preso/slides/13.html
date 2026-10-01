@@ -843,10 +843,28 @@ if (SIMPLE) BEATS.splice(BEATS.findIndex(b => String(b).includes('tipsFlag(true)
 // the full build does, so the tips still on offer come off and the APPLIED ones stay the nights' prices for the rest of the
 // build. Borrowed by reference (the originals stay where they are, past the fork's end) and found by what they do.
 if (SIMPLE) {
-  const pickTips = BEATS.find(b => String(b).includes('m.setSelectedNights(new Set(picks)); m.setTipSheet(true);'));
-  const applyTips = BEATS.find(b => String(b).includes('m.applyTips(ns)'));
+  // the picks are the fork's own (John, 2026-09-30): just the 11th, 12th, 16th, 17th, 22nd and 23rd — the rest stay on offer
+  const pickTips = (m, instant) => {
+    const picks = [11, 12, 16, 17, 22, 23].map(d => m.fx.index({ y: 2026, m: 9, d })).filter(di => m.tipCells.has(di));
+    const land = () => { m.setSelectedNights(new Set(picks)); m.setTipSheet(true); };
+    if (instant) { land(); return; }
+    const g = ++gen;
+    pendingTail = land;
+    picks.forEach((di, k) => setTimeout(() => { if (g === gen && !m.selectedNights.has(di)) m.toggleNight(di); }, k * 90));
+    setTimeout(tail(g, land), (picks.length - 1) * 90 + 400);   // the picks are in: the sheet
+  };
+  // Apply tips, the full build's own, with its ✓ allowed to animate (John, 2026-09-30: "we can break our bland rule here
+  // just for the check mark animation"): the cell seal is lifted for the apply and put back once the ✓s have landed. The
+  // price itself still changes outright (the odometer stays off — see THE PRICE THAT COUNTS).
+  const applyFull = BEATS.find(b => String(b).includes('m.applyTips(ns)'));
+  let sealBack = 0;
+  const applyTips = applyFull && ((m, instant) => {
+    const d = appDoc();
+    if (d && !instant) { d.documentElement.classList.add('preso-apply'); clearTimeout(sealBack); sealBack = setTimeout(() => d.documentElement.classList.remove('preso-apply'), 2400); }
+    return applyFull(m, instant);
+  });
   const at = BEATS.findIndex(b => String(b).includes('tipsModeFlag(true)')) + 1;
-  if (pickTips && applyTips && at > 0) BEATS.splice(at, 0, pickTips, applyTips);
+  if (applyTips && at > 0) BEATS.splice(at, 0, pickTips, applyTips);
 }
 // The beat that first stands three phones up. A jump straight to it (or past it) must create the other phones first rather
 // than wait for their timer. This used to be the literal 36 — stale since beats were removed, so it never fired, until two
@@ -1003,12 +1021,15 @@ function typeKeys(keys, instant) {
       // stacked for 600ms, the old figure rolling out and the new rolling in; stilling their motion alone leaves BOTH
       // showing, the old price laid over the new. So the outgoing one is not drawn at all, and the incoming one simply sits
       // where it lands. Same component in the cells, the Price per night card and the promotion — all of them.
-      + (SIMPLE ? '.dcell,.dcell *,.dcell::before,.dcell::after,.dcell *::before,.dcell *::after{transition:none!important;animation:none!important}'
+      // — lifted only while html.preso-apply is on: Apply tips, whose ✓ is the one cell animation the fork keeps (John, 2026-09-30)
+      + (SIMPLE ? 'html:not(.preso-apply) :is(.dcell,.dcell *,.dcell::before,.dcell::after,.dcell *::before,.dcell *::after){transition:none!important;animation:none!important}'
                 + '.roll-out{display:none!important}.roll-in{animation:none!important}'
                 // the stroked pick, borrowed per cell mid-flip (the "Too dark" answer beat) until the phone goes origsel
                 // white, not the app's grey-100 (John, 2026-09-30) — for the borrowed look and once the phone is origsel
                 + '.phone.preso .single .dcell.selected.preso-os{background:#fff!important;box-shadow:inset 0 0 0 1.5px var(--ink)!important}'
                 + '.phone.preso.origsel .single .dcell.selected:not(.green){background:#fff!important}'
+                // a picked TIP: the ink ring on the tip's light green, and no dashed green line (John, 2026-09-30)
+                + '.phone.preso.origsel .single .dcell.selected.tip:not(.green){background:rgba(3,128,38,.1)!important;outline:none!important;box-shadow:inset 0 0 0 1.5px var(--ink)!important}'
                 + '.phone.preso .single .dcell.selected.preso-os .date,.phone.preso .single .dcell.selected.preso-os .pstack{color:var(--ink)!important}'
                 + '.phone.preso .single .dcell.selected.preso-os .strike{background:var(--ink)!important}'
                 + '.phone.preso .single .dcell.selected.preso-os .date.today{color:#fff!important}'   // today's numeral stays white on its red, as origsel has it
@@ -1122,7 +1143,8 @@ function typeKeys(keys, instant) {
       const raf = w.requestAnimationFrame.bind(w), perf = w.performance, realNow = perf.now.bind(perf);
       const COUNTS = /\(performance\.now\(\)-\w+\.current\)\/1e3/;
       w.requestAnimationFrame = cb => raf(ts => {
-        if (typeof cb === 'function' && COUNTS.test(String(cb))) {
+        // ...except while Apply tips plays (html.preso-apply): its ✓ is a tween of the same shape, and it is allowed to run
+        if (typeof cb === 'function' && COUNTS.test(String(cb)) && !w.document.documentElement.classList.contains('preso-apply')) {
           perf.now = () => realNow() + 1e7;           // ten thousand seconds on: the tween is over
           try { cb(ts); } finally { perf.now = realNow; }
         } else cb(ts);
