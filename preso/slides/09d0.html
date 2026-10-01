@@ -112,15 +112,27 @@
   const fit = document.getElementById('fit');
   const wall = document.getElementById('wall');
 
-  TWEETS.forEach(id => {
-    const d = document.createElement('div');
-    d.className = 't';
-    d.innerHTML =
-      '<blockquote class="twitter-tweet" data-dnt="true" ' +
-      'data-conversation="none" data-width="330">' +
-      '<a href="https://twitter.com/i/status/' + id + '"></a></blockquote>';
-    wall.appendChild(d);
-  });
+  // SMALLER, AND MORE OF THEM (John, 2026-09-30: "too big. I need them smaller and more"). Twelve real tweets cannot
+  // fill a screen at a size that reads as a crowd, so the twelve come round again — each pass rotated by five so no
+  // tweet lands beside its own copy — as many passes as the screen needs. Repeating a real embed is still a real
+  // embed: nothing here is made up, there is just more of it.
+  let passes = 0;
+  function addPass() {
+    const made = [];
+    TWEETS.forEach((_, i) => {
+      const id = TWEETS[(i + passes * 5) % TWEETS.length];
+      const d = document.createElement('div');
+      d.className = 't';
+      d.innerHTML =
+        '<blockquote class="twitter-tweet" data-dnt="true" ' +
+        'data-conversation="none" data-width="330">' +
+        '<a href="https://twitter.com/i/status/' + id + '"></a></blockquote>';
+      wall.appendChild(d); made.push(d);
+    });
+    passes++;
+    return made;
+  }
+  addPass(); addPass(); addPass(); addPass();   // four: a 1080 stage takes about 38 at this size
 
   const s = document.createElement('script');
   s.async = true;
@@ -128,33 +140,41 @@
   s.charset = 'utf-8';
   document.head.appendChild(s);
 
-  // THE FIT. Each card's height is whatever its embed comes to, so the packing is redone as each one lands. For every
-  // column count that could work, the cards go one by one into the shortest column; the wall is then scaled to the
-  // SMALLEST size at which the shortest column still runs past the top and bottom and the columns past both sides —
-  // the smallest, so the most tweets are readable at once. Each column is centred on the middle line on its own, so the
-  // tops and bottoms crop unevenly, like a wall that carries on.
-  const COL = 330, GAP = 20, OVER = 1.08;   // OVER: how far past the frame the wall must run, as a share of it
+  // THE FIT. The size is FIXED — a tweet 0.72 of its own 330 on a 1080-tall stage, scaling with the stage's height —
+  // and the wall is built out to it: enough columns to run past both sides, and cards dealt one by one into the
+  // shortest column until every column runs past the top and the bottom. Cards that are not needed are put away; if
+  // the passes run out first, another is added. Each column is centred on the middle line on its own, so the tops and
+  // bottoms crop unevenly, like a wall that carries on. A card whose embed never filled (under 40 tall) is skipped.
+  const COL = 330, GAP = 20, OVER = 1.08, SIZE = 0.72, MAX_PASSES = 6;
   function refit() {
     if (slide.classList.contains('fell')) return;   // the wall is gone; leave the box alone
     const w = slide.clientWidth, h = slide.clientHeight;
-    const cards = [...wall.children];
-    const hs = cards.map(c => c.offsetHeight);
-    if (!(w > 0 && h > 0) || !hs.some(x => x > 0)) return;
-    let best = null;
-    for (let n = 2; n <= Math.min(9, cards.length); n++) {
-      const cols = Array.from({ length: n }, () => ({ h: -GAP, items: [] }));
-      cards.forEach((c, i) => { const col = cols.reduce((a, b) => (b.h < a.h ? b : a)); col.items.push([c, col.h + GAP]); col.h += GAP + hs[i]; });
-      const ww = n * COL + (n - 1) * GAP, short = Math.min(...cols.map(c => c.h));
-      if (short <= 0) continue;
-      const k = Math.max((w * OVER) / ww, (h * OVER) / short);
-      if (!best || k < best.k) best = { k, cols, ww };
-    }
-    if (!best) return;
-    best.cols.forEach((col, j) => col.items.forEach(([c, y]) => {
-      c.style.transform = 'translate(' + (j * (COL + GAP) - best.ww / 2) + 'px,' + (y - col.h / 2) + 'px)';
+    if (!(w > 0 && h > 0)) return;
+    const k = SIZE * h / 1080;
+    const n = Math.ceil((w * OVER / k + GAP) / (COL + GAP));
+    const need = h * OVER / k;
+    const ww = n * COL + (n - 1) * GAP;
+    const cols = Array.from({ length: n }, () => ({ h: -GAP, items: [] }));
+    let short = true;
+    [...wall.children].forEach(c => {
+      const ch = c.offsetHeight;
+      const col = cols.reduce((a, b) => (b.h < a.h ? b : a));
+      if (ch < 40 || col.h >= need) { c.style.visibility = 'hidden'; c.style.transform = 'translate(-99999px,0)'; return; }
+      c.style.visibility = '';
+      col.items.push([c, col.h + GAP]); col.h += GAP + ch;
+    });
+    short = cols.some(c => c.h < need);
+    cols.forEach((col, j) => col.items.forEach(([c, y]) => {
+      c.style.transform = 'translate(' + (j * (COL + GAP) - ww / 2) + 'px,' + (y - col.h / 2) + 'px)';
     }));
-    wall.style.setProperty('--s', best.k.toFixed(4));
+    wall.style.setProperty('--s', k.toFixed(4));
+    // out of cards with a gap still showing — but only once the embeds have had their chance to render
+    if (short && rendered() && passes < MAX_PASSES) {
+      const made = addPass(); made.forEach(c => ro.observe(c));
+      try { window.twttr.widgets.load(wall); } catch (_) {}
+    }
   }
+  const rendered = () => [...wall.querySelectorAll('iframe')].filter(f => f.offsetHeight > 40).length >= TWEETS.length;
   new ResizeObserver(refit).observe(slide);
   const ro = new ResizeObserver(refit);
   const watch = () => [...wall.children].forEach(c => ro.observe(c));
