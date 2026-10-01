@@ -361,8 +361,10 @@ const MARK_GROUPS = 9;   // events and holidays shown, through Indian Wells 2027
 // date cells. "Just the date cells": the September header still animates up, the toggles still pop, the quick actions
 // still rise, the sheets, the keypad and the promotion knob all move exactly as in the full build. "We're bringing the
 // real thing back later", so nothing is deleted: without the flag this file plays exactly as before. With it:
-//   - nothing inside a .dcell transitions or animates — no odometer, no strikethrough sliding, no flip, no price wave,
-//     no bounce on a tap, no growing. Every cell animation in the build hangs off .dcell, so that is the whole switch;
+//   - nothing inside a .dcell transitions or animates — no strikethrough sliding, no flip, no price wave, no bounce on a
+//     tap, no growing. Every cell animation in the build hangs off .dcell, so that is the whole switch for the cells;
+//   - no odometer ANYWHERE — cells, the Price per night card, the promotion: a new figure is simply there. And the $480
+//     is applied on the Done tap, so it already reads $480 by the time the price sheet has gone home;
 //   - the cells carry ONE line, the price. Minimum nights moves the editor's figure and writes nothing on the dates; the
 //     custom promotion sets the discounted price itself ($480 -> $384) instead of a promotion, which would stack a
 //     "-20%" line and a struck-out was-price under it;
@@ -403,6 +405,7 @@ const BEATS = [
     const d = appDoc(), btn = d && d.querySelector('.sqa-price.open .ps-done');
     if (btn) { btn.classList.add('pressing'); setTimeout(() => btn.classList.remove('pressing'), 440); }   // Done, visibly tapped
     setTimeout(() => { if (g === gen) m.setPriceSheet(false); }, 200);          // ...but nothing applied yet
+    if (SIMPLE) { m.setPrice(480, 0, ns, false); return; }   // the fork: applied on the tap — $480 before the sheet is even home
     setTimeout(tail(g, () => m.setPrice(480, 0, ns, false)), 750);   // the moment the sheet is home (200 to let go + its 550 drop): the odometer
   },
   // 11 — the Custom settings card grows into the settings sheet, the ⨉ riding up with it
@@ -826,7 +829,12 @@ function typeKeys(keys, instant) {
       + '.phone{margin:64.2px auto 0;height:calc(100dvh - 64.2px)}'          // the status band's 56pt, in the app's px: the frame now starts at the hole's top
       + '.ws-frost,.st-scrim{position:fixed;inset:0}'
       + '.phone.preso .single .spill{animation-duration:.34s}'
-      + (SIMPLE ? '.dcell,.dcell *,.dcell::before,.dcell::after,.dcell *::before,.dcell *::after{transition:none!important;animation:none!important}' : '');   // the fork: the date cells, and only the date cells, stay still                // the guests pop in quick (John, 2026-09-22)                        // and a sheet's scrim covers the whole frame, band included — one layer, no join
+      // the fork: the date cells, and only the date cells, stay still — and no odometer anywhere. The odometer is two spans
+      // stacked for 600ms, the old figure rolling out and the new rolling in; stilling their motion alone leaves BOTH
+      // showing, the old price laid over the new. So the outgoing one is not drawn at all, and the incoming one simply sits
+      // where it lands. Same component in the cells, the Price per night card and the promotion — all of them.
+      + (SIMPLE ? '.dcell,.dcell *,.dcell::before,.dcell::after,.dcell *::before,.dcell *::after{transition:none!important;animation:none!important}'
+                + '.roll-out{display:none!important}.roll-in{animation:none!important}' : '');                // the guests pop in quick (John, 2026-09-22)                        // and a sheet's scrim covers the whole frame, band included — one layer, no join
     w.document.head.appendChild(seal);
 
     w.addEventListener('keydown', e => {
