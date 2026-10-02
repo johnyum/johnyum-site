@@ -230,7 +230,7 @@
       for (let x = ink.left + gap / 2; x < ink.right; x += gap) {
         const a = data[(((y * dpr) | 0) * off.width + ((x * dpr) | 0)) * 4 + 3];
         // a halftone: the dot's size carries the glyph's coverage, so the edges are smaller dots, not jaggies
-        if (a > 24) dots.push({ x, y, r: gap * 0.44 * Math.sqrt(a / 255) });
+        if (a > 24) dots.push({ x, y, r: gap * 0.47 * Math.sqrt(a / 255) });   // 0.47: tight, a hairline between (was 0.44)
       }
     if (!built) { document.body.appendChild(canvas); t.style.fill = 'transparent'; built = true; }   // the SVG stays for the reader
     if (raf) { cancelAnimationFrame(raf); raf = null; }
@@ -281,9 +281,9 @@
         }
       }
       // rounded squares (John, 2026-10-01: circles first, then "let them be rounded squares"); the halftone's size
-      // is the square's half-width, its corners a third of that
+      // is the square's half-width; the corners a flat 2px (John)
       const r = p.r * sc;
-      ctx.roundRect(x - r, y - r, r * 2, r * 2, r * 0.66);
+      ctx.roundRect(x - r, y - r, r * 2, r * 2, Math.min(2, r));
     }
     ctx.fill();
   }

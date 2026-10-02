@@ -17,14 +17,10 @@
      these are the cards X drew, the way 09d1's thread is Reddit's own screenshots. No network, no script from X,
      nothing that lands late.
 
-     TWELVE, ONCE EACH, IN FIVE COLUMNS — the split that keeps the shortest column longest (841 of 330-wide units; the
-     tallest 990), @luinalaska in the middle, the two @OrevaZSN never side by side. Each column is centred on the
-     middle line on its own, so the tops and bottoms crop unevenly, like a wall that carries on.
-
-     THE SCALE IS THE ONLY THING COMPUTED: the larger of what makes the SHORTEST column run past the top and bottom
-     and what makes the wall run past both sides — so nothing ever repeats to fill a gap; a wider or shorter stage
-     just sees the same twelve a little larger. To change the collection, re-capture and re-balance (the numbers
-     above are the cards' own heights at 330).
+     AT THE SIZE IT HAD (a tweet at its own 330 on a 1080 stage), so a screen takes more than twelve and some come
+     round again — never in the same column or the one beside it. Laid out once, when the slide opens, from the
+     cards' known heights: no re-pack, no movement. (For an hour it was the twelve once each in five columns, scaled
+     up to cover the stage; too cropped in, John said.)
 
      No builds. The deck pushes it in from the right and off to the left. -->
 <style>
@@ -39,31 +35,72 @@
 </head>
 <body>
   <div class="slide" id="slide">
-    <div class="wall" id="wall">
-      <img src="assets/tweets/1691130465648889887.webp" width="330" height="594" style="left:-865px;top:-468.5px" alt="Tweet by @MorePerfectUS">
-      <img src="assets/tweets/2078940466469359691.webp" width="330" height="323" style="left:-865px;top:145.5px" alt="Tweet by @OrevaZSN">
-      <img src="assets/tweets/1801634945992904788.webp" width="330" height="460" style="left:-515px;top:-420.5px" alt="Tweet by @itsBillyGtho">
-      <img src="assets/tweets/1708512064220893293.webp" width="330" height="361" style="left:-515px;top:59.5px" alt="Tweet by @rohindhar">
-      <img src="assets/tweets/1801431302652235780.webp" width="330" height="441" style="left:-165px;top:-475.5px" alt="Tweet by @luinalaska">
-      <img src="assets/tweets/2084133602967658692.webp" width="330" height="490" style="left:-165px;top:-14.5px" alt="Tweet by @omgsidewalks">
-      <img src="assets/tweets/2072319333448204349.webp" width="330" height="342" style="left:185px;top:-466.5px" alt="Tweet by @OrevaZSN">
-      <img src="assets/tweets/1625849400714223619.webp" width="330" height="266" style="left:185px;top:-104.5px" alt="Tweet by @buccocapital">
-      <img src="assets/tweets/2103023560490885318.webp" width="330" height="285" style="left:185px;top:181.5px" alt="Tweet by @AbakpaJob">
-      <img src="assets/tweets/2082277812841685193.webp" width="330" height="380" style="left:535px;top:-495px" alt="Tweet by @amelia_tweetz">
-      <img src="assets/tweets/1469015392483872772.webp" width="330" height="247" style="left:535px;top:-95px" alt="Tweet by @Cokedupoptions">
-      <img src="assets/tweets/1337059225936277504.webp" width="330" height="323" style="left:535px;top:172px" alt="Tweet by @MorningBrew">
-    </div>
+    <div class="wall" id="wall"></div>
   </div>
 <script>
 (() => {
-  const WALL_W = 1730, SHORTEST = 841, OVER = 1.04;
+  // [id, height at 330 wide, handle] — X's own renders, captured once; the order is the strongest first, the one the
+  // layout reaches for when everything else is equal.
+  const TWEETS = [
+    ['1801431302652235780', 441, 'luinalaska'],
+    ['2084133602967658692', 490, 'omgsidewalks'],
+    ['2072319333448204349', 342, 'OrevaZSN'],
+    ['2082277812841685193', 380, 'amelia_tweetz'],
+    ['1469015392483872772', 247, 'Cokedupoptions'],
+    ['1801634945992904788', 460, 'itsBillyGtho'],
+    ['1337059225936277504', 323, 'MorningBrew'],
+    ['2103023560490885318', 285, 'AbakpaJob'],
+    ['1625849400714223619', 266, 'buccocapital'],
+    ['2078940466469359691', 323, 'OrevaZSN'],
+    ['1691130465648889887', 594, 'MorePerfectUS'],
+    ['1708512064220893293', 361, 'rohindhar']
+  ];
+  // THE SIZE IS THE ONE JOHN LIKED (John, 2026-10-01: "too cropped in … what you had before was perfect"): a tweet at
+  // its own 330 on a 1080-tall stage, scaling with the stage's height, the wall run past every edge.
+  const COL = 330, GAP = 20, OVER = 1.08;
   const slide = document.getElementById('slide');
   const wall = document.getElementById('wall');
-  const fit = () => {
-    const w = slide.clientWidth, h = slide.clientHeight;
-    if (!(w > 0 && h > 0)) return;
-    wall.style.setProperty('--s', Math.max(h * OVER / SHORTEST, w * OVER / WALL_W).toFixed(4));
-  };
+
+  // THE LAYOUT IS WORKED OUT ONCE, NOT GROWN. The heights are known, so the wall is laid out in one go — nothing
+  // renders late, nothing re-packs, nothing moves after it is drawn. Columns are filled left to right, top to bottom,
+  // the shortest column first. A screen this size wants more than twelve, so some come round again, but never
+  // beside themselves: a tweet already in this column or either neighbour is not a candidate, and among the rest
+  // the one used least — then the one furthest from where it last appeared — goes next.
+  let laidFor = '';
+  function layout(w, h) {
+    const k = h / 1080;
+    const n = Math.ceil((w * OVER / k + GAP) / (COL + GAP));
+    const need = h * OVER / k;
+    const key = n + 'x' + Math.ceil(need / 50);
+    wall.style.setProperty('--s', k.toFixed(4));
+    if (key === laidFor) return;                          // same columns, same reach: the wall stands as it is
+    laidFor = key;
+    const cols = Array.from({ length: n }, () => ({ h: -GAP, items: [] }));
+    const used = new Map();                              // id -> [columns it is in]
+    for (let guard = 0; guard < 200; guard++) {
+      const open = cols.map((c, j) => [c, j]).filter(([c]) => c.h < need);
+      if (!open.length) break;
+      const [col, j] = open.reduce((a, b) => (b[0].h < a[0].h ? b : a));
+      const ok = TWEETS.filter(([id]) => !(used.get(id) || []).some(c => Math.abs(c - j) <= 1));
+      const pool = ok.length ? ok : TWEETS;
+      const pick = pool.reduce((best, t) => {
+        const ub = (used.get(best[0]) || []), ut = (used.get(t[0]) || []);
+        if (ut.length !== ub.length) return ut.length < ub.length ? t : best;
+        const fb = Math.min(99, ...ub.map(c => Math.abs(c - j))), ft = Math.min(99, ...ut.map(c => Math.abs(c - j)));
+        return ft > fb ? t : best;
+      });
+      used.set(pick[0], [...(used.get(pick[0]) || []), j]);
+      col.items.push([pick, col.h + GAP]); col.h += GAP + pick[1];
+    }
+    const ww = n * COL + (n - 1) * GAP;
+    const html = [];
+    cols.forEach((col, j) => col.items.forEach(([[id, ht, hd], y]) => {
+      html.push(`<img src="assets/tweets/${id}.webp" width="330" height="${ht}" alt="Tweet by @${hd}" ` +
+                `style="left:${j * (COL + GAP) - ww / 2}px;top:${y - col.h / 2}px">`);
+    }));
+    wall.innerHTML = html.join('');
+  }
+  const fit = () => { const w = slide.clientWidth, h = slide.clientHeight; if (w > 0 && h > 0) layout(w, h); };
   new ResizeObserver(fit).observe(slide);
   fit();
 
