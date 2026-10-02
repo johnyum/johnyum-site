@@ -16,7 +16,7 @@ don't introduce bundlers, npm, or a component framework.
 | `explore/` | Explore map drill-in — see below |
 | `multical/` | **Build output — never hand-edit.** The Multi-Host Calendar web app, played live inside the phone on preso slide 13. See below. |
 | `recurrence/` | **Build output — never hand-edit.** The same calendar with the Repeat (recurrence) flow, from its own project. See below. |
-| `characters/` | Sketch → rigged, animated 3D character (Meshy). **Runs locally** off `characters/serve.py` — see below |
+| `monsters/` | johnyum.com/monsters — sketch → rigged, animated 3D character (Meshy), with `api/monsters.py`. See below |
 | `bento-widgets/` | Standalone widget experiments |
 | `test/` | Scratch prototypes |
 | `playful/`, `claude-icons/`, `icons/` | Icon systems — see below |
@@ -265,38 +265,42 @@ it.
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
 it without faking clicks.
 
-## `characters/` — sketch to 3D character
+## `monsters/` — sketch to 3D character (johnyum.com/monsters)
 
-Draw something simple; get a textured, rigged, animated 3D character. One hand-written
-`index.html` (three.js 0.170 off jsDelivr) plus `serve.py`, a stdlib-only Python server —
-no npm, no build. Four Meshy tasks, each handed the previous one's **task id**, never a URL:
-`image-to-image` (the sketch restyled; Plush / Vinyl / Clay / Real) → `image-to-3d`
-(A-posed for the rig, 30k tris, PBR) → `rigging` → `animations` (Idle 0, Wave 28, Dance 22,
-Jump 466 from the library, plus the rig's own walk + run).
+Draw something simple, or upload a picture of a drawing; get a textured, rigged, animated
+3D character. One hand-written `index.html` (three.js 0.170 off jsDelivr) and, unusually for
+this repo, **a server half** — still no npm, no build, stdlib Python only. Four Meshy tasks,
+each handed the previous one's **task id**, never a URL: `image-to-image` (the sketch
+restyled; Plush / Vinyl / Clay / Real) → `image-to-3d` (A-posed for the rig, 30k tris, PBR)
+→ `rigging` → `animations` (Idle 0, Wave 28, Dance 22, Jump 466, plus the rig's walk + run).
 
-```bash
-python3 characters/serve.py     # http://127.0.0.1:5320/characters/
-```
+The page only ever talks to **`/api/monsters?p=…`**, and two things answer it:
 
-- **It is local on purpose.** `vercel.json` already sends `/api/*` to the Trips
-  deployment, and a public endpoint holding the key would spend credits for anyone. On
-  johnyum.com the page loads, says *Offline*, and does nothing.
-- **The key lives in `characters/.env`** (`MESHY_API_KEY=msy_…`, gitignored) or the env. No key
-  = **Mock** mode: every task fakes its progress and a sample robot from the three.js
-  examples stands in, so the flow can be checked for free. `CHARACTERS_MOCK_RIGFAIL=1` fakes
-  a rig failure.
-- **Test on the `characters-mock` launch config (port 5321), never on 5320.** Once a key is
-  saved, 5320 is live and every test run spends real credits. `CHARACTERS_MOCK=1` forces
-  mock with a key on disk, and refuses the page's key box.
+| Where | What | Key from | Gate |
+|---|---|---|---|
+| johnyum.com | `api/monsters.py`, a Vercel Python function | Vercel env `MESHY_API_KEY` | `MONSTERS_PASSCODE` (env) — every call; `MONSTERS_DAILY_CAP` (default 15) builds a day |
+| the Mac | `monsters/serve.py` (`python3 monsters/serve.py`, port 5320) | `monsters/.env` (gitignored), or the page's key box | none |
+
+`serve.py` imports the Meshy helpers from `api/monsters.py`, so there is one proxy, not two.
+
+- **`api/monsters.py` beats the `/api/*` → Trips rewrite** because Vercel checks the
+  filesystem before rewrites. Don't rename it to anything a Trips route might also want.
+- **The cap is counted from Meshy's own task list** (last 100 `image-to-image` /
+  `image-to-3d`, created in the past 24h), so it covers local builds too and needs no store.
+- **Meshy's files send no CORS header, and a Vercel response stops at 4.5MB.** So hosted,
+  a model comes through `p=asset` in 4MB `Range` slices, fetched in parallel and stitched
+  back in the page (`bytes()`); images and the download link use Meshy's URL directly,
+  which needs no CORS. Locally `serve.py` hands over the whole file from `monsters/.cache/`.
+- **Meshy's links expire after a few days.** Locally the cache keeps a shelf monster
+  opening for good; hosted there's no cache, so an old shelf entry stops loading.
+- **Test on `monsters-mock` (port 5321), never 5320.** With a key saved, 5320 is live and
+  every test spends real credits. `MONSTERS_MOCK=1` forces mock and refuses the key box;
+  `MONSTERS_MOCK_RIGFAIL=1` fakes a rig failure.
 - **Stop can't call back a running step.** Meshy answers a DELETE on a running task with
   409 and charges for it anyway; Stop only keeps the later, dearer steps from starting.
-- **Meshy's asset links expire after a few days**, so `serve.py` caches every GLB it
-  proxies in `characters/.cache/` (gitignored), keyed by the URL's path. That is why a shelf
-  character still opens next month.
-- **Rigging only takes bipeds.** A blob, a toast, a mango fails at step 3 — that's not an
-  error, it's a character with no bones: it keeps the procedural layer (breath, turning to
-  the pointer, a squash when tapped), which runs on top of every clip anyway.
-- `window.__characters` exposes `{ play, still, clips, playing }`, the way `explore/` does.
+- **Rigging only takes bipeds.** A blob fails step 3 — it keeps the procedural layer
+  (breath, turning to the pointer, a squash when tapped) that runs on top of every clip.
+- `window.__monsters` exposes `{ play, still, clips, playing }`, the way `explore/` does.
 
 ## Drawing in Claude's visual language
 
