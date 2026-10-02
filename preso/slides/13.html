@@ -1065,6 +1065,7 @@ if (SIMPLE) BEATS.splice(beatAfter('{ m.setMinSheetNights(n); m.setMin(n, 0, ns)
 if (SIMPLE) BEATS.splice(beatAfter('const close = () => { m.setMinSheet(false); m.setPromoSheet(false);', 1), 0, (m, instant) => {
   const a = m.fx.index({ y: 2026, m: 11, d: 23 }), z = m.fx.index({ y: 2026, m: 11, d: 30 });
   const go = () => { m.revealOffset = MARK_PARK; m.reveal(a, null, 0, 0); };
+  REC = null;                                                   // a replay passes here first: the Repeat rule starts over
   if (instant) { m.setRecurQA(true); const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); m.setHeaderLock(true, false); setTimeout(go, 40); return; }
   const g = ++gen;
   m.setRecurQA(true);
@@ -1072,6 +1073,123 @@ if (SIMPLE) BEATS.splice(beatAfter('const close = () => { m.setMinSheet(false); 
   settled(g, () => setTimeout(() => { if (g === gen) cascade(m, a, z, 90); }, 400));   // landed, a breath: the run
   holdNextUntil = performance.now() + 2600;                     // a stray tap waits for the run (HOLD NEXT)
 });
+// THE REPEAT RULE, PLAYED THROUGH (John, 2026-10-02). After Thanksgiving week is picked: the rotate half, visibly tapped, opens
+// Repeat every on Year; Next to Settings; the price steps to +35% and the minimum to 7; Next to Save as; green, then orange;
+// the arrow down to Thanksgiving 2027 and, a beat later, back up to 2026 — the rule persists; Save, a beat, and the calendar
+// flies back to October, where a guest's stay, a request to book and a stay the host cancelled come in one after another.
+// The Repeat flow is the app's own (its ui/recur/, driven through window.__repeat — the flow's handle, the way __model is the
+// app's); its controls live in a shadow root, so the taps reach in there. A replay (back, a jump) cannot wait on React, so it
+// writes where the rule should stand (REC) and recurLand() takes the app there once it is up.
+const shadow = d => { const h = d && d.querySelector('.recur-host'); return h && h.shadowRoot; };
+const rq = () => appDoc() && appDoc().defaultView.__repeat;
+// AN OBVIOUS TAP (John: "I need the tap to feel obvious"): the control dips, and a ring opens out from under the finger
+const tapAt = el => {
+  const d = appDoc(); if (!d || !el) return;
+  const r = el.getBoundingClientRect(), dot = d.createElement('div');
+  dot.style.cssText = 'position:fixed;z-index:2147483003;pointer-events:none;width:56px;height:56px;border-radius:50%;left:' + (r.left + r.width / 2 - 28) + 'px;top:' + (r.top + r.height / 2 - 28) + 'px;background:rgba(255,255,255,.55);mix-blend-mode:difference';
+  d.body.appendChild(dot);
+  dot.animate([{ transform: 'scale(.35)', opacity: .9 }, { transform: 'scale(1.25)', opacity: 0 }], { duration: 520, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' });
+  el.animate([{ transform: 'scale(1)' }, { transform: 'scale(.9)' }, { transform: 'scale(1)' }], { duration: 300, easing: 'ease-out' });
+  setTimeout(() => dot.remove(), 560);
+};
+const tapEl = (find, act) => { const d = appDoc(), el = d && find(d); if (!el) { if (act) act(null); return null; } tapAt(el); setTimeout(() => (act ? act(el) : el.click()), 170); return el; };
+const inShadow = sel => d => { const r = shadow(d); return r && r.querySelector(sel); };
+const nextBtn = d => { const r = shadow(d); return r && [...r.querySelectorAll('button.done.pill')].find(b => /Next|Save/.test(b.textContent)); };
+const plusOf = label => d => { const r = shadow(d); if (!r) return null; const row = [...r.querySelectorAll('.row')].find(x => x.textContent.trim().startsWith(label)); return row && [...row.querySelectorAll('button')].pop(); };
+const swatch = i => d => { const r = shadow(d); if (!r) return null; return [...r.querySelectorAll('button')].filter(b => b.firstElementChild && b.firstElementChild.style && b.firstElementChild.style.borderRadius === '50%' && b.firstElementChild.style.width === '28px')[i]; };
+const jumpBtn = d => d.querySelector('.single .jump');
+const GREEN = 3, ORANGE = 6;                                    // repeatPalette: #038026, #DD6B0E
+const OCT = m => d => m.fx.index({ y: 2026, m: 10, d });
+const octoberStays = m => {
+  const I = OCT(m), pool = m.bookings.filter(b => b.listing === 0 && b.avatarURL && !b.added);
+  const g1 = pool[0] || {}, g2 = pool[1] || {}, g3 = pool[2] || {};
+  const base = { listing: 0, extraGuests: 0, checkIn: '3:00 PM', checkOut: '11:00 AM', nightly: [], earnings: 0 };
+  const inits = n => String(n || 'Guest').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  return [
+    { ...base, startIndex: I(7), nights: 5, guest: g1.guest || 'Maya', extraGuests: 1, avatarURL: g1.avatarURL || '' },                       // the 7th to the 12th
+    { ...base, startIndex: I(15), nights: 3, guest: g2.guest || 'Daniel', avatarURL: g2.avatarURL || '', kind: 'request', initials: inits((g2.guest || 'Daniel') + ' Reyes') },   // two letters on the disc, as a request shows them
+    { ...base, startIndex: I(21), nights: 4, guest: g3.guest || 'Priya', avatarURL: g3.avatarURL || '', kind: 'cancelled' },
+  ];
+};
+// where the replay should leave the rule — and the hand that takes it there
+let REC = null, recT = 0;
+const recurAt = st => { REC = { ...(REC || {}), ...st }; clearTimeout(recT); recT = setTimeout(recurLand, 150); };   // after the reset has remounted the Repeat layer
+function recurLand() {
+  const d0 = appDoc(), m = d0 && d0.defaultView.__model, want = REC; if (!m || !want) return;   // the app's model: the deck's model() is local to its player
+  const t0 = Date.now();
+  const open = () => { const d = appDoc(); if (rq()) return true; const b = d && inShadow('button[aria-label="Repeat settings"]')(d); if (b) b.click(); return false; };
+  (function step() {
+    if (REC !== want) return;
+    if (!open()) { if (Date.now() - t0 < 3000) setTimeout(step, 60); return; }
+    const R = rq();
+    R.setRepPrice(want.price ?? null); R.setRepMin(want.min ?? null); if (want.color != null) R.setColorIdx(want.color);
+    R.setStep(want.step || 2);
+    if (want.saved) setTimeout(() => {
+      const R2 = rq(); if (R2) R2.save();
+      if (want.october) setTimeout(() => { m.revealOffset = 0; m.reveal(OCT(m)(1), null, 0, 0); if (want.stays) octoberStays(m).forEach(b => m.addStay(b)); }, 80);
+    }, 80);
+  })();
+}
+const RECUR_BEATS = [
+  // 1 · the rotate half, tapped: Repeat every, on Year; the arrow comes up over the years
+  (m, instant) => {
+    if (instant) { recurAt({ step: 2 }); return; }
+    REC = null;
+    tapEl(inShadow('button[aria-label="Repeat settings"]'), el => { if (el) el.click(); setTimeout(() => { const R = rq(); if (R && R.cadence !== 'yearly') R.pickCadence('yearly'); }, 120); });
+    holdNextUntil = performance.now() + 900;
+  },
+  // 2 · Next: Settings
+  (m, instant) => { if (instant) { recurAt({ step: 3 }); return; } tapEl(nextBtn); holdNextUntil = performance.now() + 700; },
+  // 3 · Settings fill in: the price + to +35%, then the minimum + to 7
+  (m, instant) => {
+    if (instant) { recurAt({ step: 3, price: 35, min: 7 }); return; }
+    const g = ++gen;
+    for (let i = 0; i < 7; i++) setTimeout(() => { if (g === gen) tapEl(plusOf('Price')); }, i * 230);
+    for (let i = 0; i < 7; i++) setTimeout(() => { if (g === gen) tapEl(plusOf('Min nights')); }, 7 * 230 + 400 + i * 230);
+    pendingTail = () => { const R = rq(); if (R) { R.setRepPrice(35); R.setRepMin(7); } };
+    setTimeout(tail(g, pendingTail), 14 * 230 + 700);
+    holdNextUntil = performance.now() + 14 * 230 + 500;
+  },
+  // 4 · Next: Save as
+  (m, instant) => { if (instant) { recurAt({ step: 4, price: 35, min: 7 }); return; } tapEl(nextBtn); holdNextUntil = performance.now() + 700; },
+  // 5 · green, then orange
+  (m, instant) => {
+    if (instant) { recurAt({ step: 4, price: 35, min: 7, color: ORANGE }); return; }
+    const g = ++gen;
+    tapEl(swatch(GREEN));
+    setTimeout(() => { if (g === gen) tapEl(swatch(ORANGE)); }, 900);
+    pendingTail = () => { const R = rq(); if (R) R.setColorIdx(ORANGE); };
+    setTimeout(tail(g, pendingTail), 1200);
+    holdNextUntil = performance.now() + 1100;
+  },
+  // 6 · the arrow down to Thanksgiving 2027, a beat, back up to 2026: the rule is on every year
+  (m, instant) => {
+    if (instant) return;                                          // it ends where it began
+    const g = ++gen;
+    tapEl(jumpBtn);
+    setTimeout(() => { if (g === gen) tapEl(jumpBtn); }, 2200);
+    holdNextUntil = performance.now() + 3000;
+  },
+  // 7 · Save; a beat; the calendar flies back to October
+  (m, instant) => {
+    if (instant) { recurAt({ step: 4, price: 35, min: 7, color: ORANGE, saved: true, october: true }); return; }
+    const g = ++gen;
+    tapEl(nextBtn);
+    pendingTail = () => { m.revealOffset = 0; m.reveal(OCT(m)(1), null, 0, 0); };
+    setTimeout(tail(g, pendingTail), 1300);
+    holdNextUntil = performance.now() + 1400;
+  },
+  // 8 · October fills: a guest the 7th to the 12th, a request to book, a stay you cancelled — drawn in one after another
+  (m, instant) => {
+    const stays = octoberStays(m);
+    if (instant) { recurAt({ step: 4, price: 35, min: 7, color: ORANGE, saved: true, october: true, stays: true }); return; }
+    const g = ++gen;
+    stays.forEach((b, i) => setTimeout(() => { if (g === gen) m.addStay({ ...b, enter: true }); }, i * 800));
+    pendingTail = () => { const have = new Set(m.bookings.filter(b => b.added).map(b => b.startIndex)); stays.forEach(b => { if (!have.has(b.startIndex)) m.addStay(b); }); };
+    setTimeout(tail(g, pendingTail), 2 * 800 + 100);
+  },
+];
+if (SIMPLE) BEATS.splice(beatAfter('down to Thanksgiving week', 1), 0, ...RECUR_BEATS);
 // THE ODOMETER for the price sheet's big figure: the build only rolls the figures in the cells, and the fork keeps even
 // those still. A copy of the figure is laid exactly over it — the same face, size and place — the real one is hidden,
 // and each digit of the copy rolls up a strip of 0–9 from its old figure to its new; when they have landed `done` sets

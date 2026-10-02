@@ -134,6 +134,14 @@ at `~/Documents/multi-host-calendar-web-backup-2026-10-01`. The date cells follo
 ±%, min N, closed, the rule's colour ring + 10% fill) and keep a saved rule's colour; a value set by hand on a night is never
 overridden. With no draft and no rule, the cells are exactly as before — the 35-step fingerprint still matches.
 
+**What slide 13's Repeat beats lean on (2026-10-02)** — all in the app source, none in the upstream zip:
+`window.__repeat` (Repeat.tsx: the flow's step, cadence, values, colour and save, as `__model` is the app's);
+`src/data/presoStays.ts` (`model.addStay` — the October guest, request-to-book and "Cancelled by you" pills, shown even
+when the bland run's stays layer is off, cleared by `clearAll`); `recurEpoch` (bumped by `clearAll`, keys the recurrence
+layer so every replay remounts the Repeat flow fresh); the jump arrow's Repeat mode in Single.tsx (white, down to next
+year's run, back up to the first); and no dates pill beside the ⨉ in RecurQA. The pre-change source is kept at
+`~/Documents/multi-host-calendar-web-src-backup-2026-10-02`.
+
 ## `recurrence/` — the calendar with the Repeat flow
 
 Build output, like `multical/`, from its own project at `~/Documents/multi-host-calendar-recurrence` — a copy of
