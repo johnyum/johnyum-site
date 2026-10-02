@@ -133,6 +133,11 @@
   #counter .sec:hover { color: #444; }
   #counter .sec.on { color: #111; }
   #counter .dot { margin: 0 6px; }
+  /* A DARK SLIDE (John, 2026-10-01: Hello! inverted) declares window.presoDark = true and the chrome turns white over
+     it: the kicker and the section names, the one you are in full white, the rest a step back as they are on white. */
+  #kicker, #counter, #counter .sec { transition: color 300ms ease; }
+  body.dark #kicker, body.dark #counter, body.dark #counter .sec { color: rgba(255, 255, 255, 0.6); }
+  body.dark #counter .sec:hover, body.dark #counter .sec.on { color: #fff; }
 
   #empty {
     position: fixed; inset: 0;
@@ -306,6 +311,9 @@
       if (typeof k === 'string' && k.trim()) label = k.trim();
     } catch (_) {}
     document.getElementById('kicker').textContent = label;
+    let dark = false;
+    try { dark = !!(made && made.frame && made.frame.contentWindow && made.frame.contentWindow.presoDark); } catch (_) {}
+    document.body.classList.toggle('dark', dark);
   }
 
   // THE NEXT SLIDE IS BUILT AHEAD (John, 2026-09-22). A heavy HTML slide — the web build is 1.4MB and renders 32 rows several
@@ -367,10 +375,10 @@
     })();
   }
 
-  // WARM (John, 2026-09-30: "make sure the tweets load in faster and cached"). The cleaning-fee wall is real X embeds,
-  // and X is slow to a cold browser. So once the deck has settled on its first slide, the wall is loaded once,
-  // off-screen and out of the way, and thrown away a minute later: X's script, every tweet and its pictures are then
-  // in the browser's cache, and when the slide itself comes round it renders from there.
+  // WARM (John, 2026-09-30: "make sure the tweets load in faster and cached"). Once the deck has settled on its first
+  // slide, the cleaning-fee wall is loaded once, off-screen and out of the way, and thrown away a minute later, so its
+  // twelve captured cards are in the browser's cache when the slide itself comes round. (It was live X embeds then;
+  // it is X's own renders, captured, since 2026-10-01 — still worth having cached.)
   //
   // HOST SETUP IS WARMED THE SAME WAY (John, 2026-10-01: "pre-load it so it doesn't load when I land"). It is five copies
   // of slide 11 — the film, the screens' photos, a live map of San Francisco — and the deck only builds one slide ahead,
