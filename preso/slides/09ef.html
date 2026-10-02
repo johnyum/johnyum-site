@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>09ef</title>
+<!-- WHAT YOUR HOME COULD MAKE (John, 2026-10-02) — his earnings estimator, straight before Host Setup, one phone. Built to
+     his screen recording (ScreenRecording_10-02-2026 08-49-05) exactly: everything that does not move is the recording's
+     own frame at 3x (assets/estimate/screen.webp — the status bar, the ⨉, the search card, the map and its pins, Get
+     started), and the band that moves is drawn live over it: the headline, "N nights · $371/night", the black "N nights"
+     pill, the slider.
+
+     THE MECHANISM, read off the recording. While the knob is held the track thickens (4 → 12pt) and the two lines under
+     the headline give way to a black pill counting the nights; let go and the pill goes, the track thins, the nights line
+     comes back, and the headline's figure rolls to nights × $371 — 7 is $2,597, 14 is $5,194, 16 is $5,936. The slider
+     runs 1–30 nights. ONE BUILD: the tap drags it from 7 to 16.
+
+     Measured off the recording's 1320 x 2868 frames (440 x 956pt at 3x): the track 67.3–372.3pt across, centred at
+     437.3pt down; the knob 36; the pill 44 tall at 366 down, #1E1E1E; the headline three lines on a 44 pitch, its ink
+     from 194.7 down. The phone is the deck's own (12a1's, which is 13's). Cereal comes from the copy /multi/ serves. -->
+<style>
+  @font-face { font-family: 'Cereal'; src: url('../../multi/Font_Cereal/AirbnbCerealVF_Wght.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
+  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
+  .ref { position: absolute; aspect-ratio: 900 / 1840; }
+  .scr {
+    position: absolute;
+    left: 5.4444%; top: 2.5543%; width: 89.1111%; height: 94.8913%;
+    border-radius: 15.9601% / 7.3310%;
+    overflow: hidden; background: #0b0b0b; z-index: 1;
+  }
+  .scr img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; user-select: none; }
+  .chrome { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+  .scr > .ui { position: absolute; left: 0; top: 0; width: 440px; height: 956px; transform-origin: 0 0; transform: scale(var(--k, 1)); background: #fdfdfd; }
+  .ui .base { position: absolute; inset: 0; width: 440px; height: 956px; display: block; }
+  .ui .t { position: absolute; left: 0; right: 0; text-align: center; font-family: 'Cereal', -apple-system, sans-serif; color: #222; }
+  /* the headline: three lines, centred, on a 44 pitch */
+  .ui .head { top: 190.5px; font-size: 39.3px; line-height: 44px; font-weight: 800; letter-spacing: -1.6px; }
+  .ui .fig { display: inline-flex; vertical-align: top; }
+  .ui .fig .col { display: inline-block; height: 44px; overflow: hidden; }
+  .ui .fig .strip { display: flex; flex-direction: column; transition: transform 700ms cubic-bezier(.2,.8,.2,1); }
+  .ui .fig .strip span { height: 44px; }
+  /* the two lines under it, and the pill that takes their place while the knob is held */
+  .ui .nights { top: 342px; font-size: 16.1px; line-height: 24px; font-weight: 500; transition: opacity .18s; }
+  .ui .nights u { text-decoration-thickness: 1.2px; text-underline-offset: 3px; }
+  .ui .learn { position: absolute; left: 0; top: 368px; width: 440px; height: 24px; transition: opacity .18s; }
+  .ui .pill { position: absolute; left: 50%; top: 344px; height: 44px; padding: 0 20px; border-radius: 22px; background: #1E1E1E; color: #fff;
+              font: 400 18px/44px 'Cereal', -apple-system, sans-serif; transform: translateX(-50%) scale(.9); opacity: 0; transition: opacity .18s, transform .18s; white-space: nowrap; }
+  .ui.held .nights, .ui.held .learn { opacity: 0; }
+  .ui.held .pill { opacity: 1; transform: translateX(-50%) scale(1); }
+  /* the slider */
+  .ui .track { position: absolute; left: 67.3px; width: 305px; top: calc(437.3px - var(--th) / 2); height: var(--th); border-radius: 6px; background: #E7E7E7; --th: 4px; transition: height .2s, top .2s; }
+  .ui.held .track { --th: 12px; }
+  .ui .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: linear-gradient(90deg, #E31C47, #D10A5C); }
+  .ui .knob { position: absolute; top: 419.3px; width: 36px; height: 36px; margin-left: -18px; border-radius: 50%; background: #F3F3F3;
+              box-shadow: 0 0 0 .5px rgba(0,0,0,.06), 0 3px 7px rgba(0,0,0,.24); }   /* the recording's: light grey, a firm drop */
+</style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="rail" x1="16" y1="0" x2="884" y2="0" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#8f8f8c"/><stop offset="0.035" stop-color="#ececea"/>
+        <stop offset="0.10" stop-color="#bfbfbc"/><stop offset="0.50" stop-color="#f2f2f0"/>
+        <stop offset="0.90" stop-color="#bfbfbc"/><stop offset="0.965" stop-color="#ececea"/>
+        <stop offset="1" stop-color="#8f8f8c"/>
+      </linearGradient>
+      <clipPath id="outsideBezel" clipPathUnits="userSpaceOnUse">
+        <path clip-rule="evenodd" d="M-60,-60 H960 V1900 H-60 Z M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/>
+      </clipPath>
+    </defs>
+  </svg>
+  <div class="ref" id="phone"><div class="scr"><div class="ui" id="ui">
+    <img class="base" src="assets/estimate/screen.webp" alt="Airbnb's host estimate: San Francisco, entire place, 2 bedrooms, a map of nearby prices, Get started">
+    <div class="t head" id="head">Your home could<br>make <span class="fig" id="fig"></span><br>on Airbnb</div>
+    <div class="t nights" id="nights"><u><span id="n">7</span> nights</u> · $371/night</div>
+    <img class="learn" src="assets/estimate/learn.webp" alt="Learn how we estimate earnings">
+    <div class="pill" id="pill"><span id="pn">7</span> nights</div>
+    <div class="track" id="track"><div class="fill" id="fill"></div></div>
+    <div class="knob" id="knob"></div>
+  </div></div><svg class="chrome" viewBox="0 0 900 1840" fill="none" aria-hidden="true"><path fill="url(#rail)" fill-rule="evenodd" d="M177,14 H723 A161,161 0 0 1 884,175 V1665 A161,161 0 0 1 723,1826 H177 A161,161 0 0 1 16,1665 V175 A161,161 0 0 1 177,14 Z M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/><image href="assets/device/iphone-frame.png" x="0" y="0" width="900" height="1840" clip-path="url(#outsideBezel)" preserveAspectRatio="none"/><path fill="#0b0b0b" fill-rule="evenodd" d="M177,27 H723 A148,148 0 0 1 871,175 V1665 A148,148 0 0 1 723,1813 H177 A148,148 0 0 1 29,1665 V175 A148,148 0 0 1 177,27 Z M177,47 H723 A128,128 0 0 1 851,175 V1665 A128,128 0 0 1 723,1793 H177 A128,128 0 0 1 49,1665 V175 A128,128 0 0 1 177,47 Z"/><rect x="322" y="69" width="256" height="74" rx="37" fill="#000"/><circle cx="529" cy="106" r="12.7" fill="#0f1420"/><circle cx="529" cy="106" r="5.3" fill="#243046"/></svg></div>
+<script>
+(() => {
+  const PER = 371, FROM = 7, TO = 16, MIN = 1, MAX = 30;
+  const ui = document.getElementById('ui'), phone = document.getElementById('phone');
+  const fill = document.getElementById('fill'), knob = document.getElementById('knob');
+  const nEl = document.getElementById('n'), pn = document.getElementById('pn'), fig = document.getElementById('fig');
+  // the knob's centre runs from the track's left end + its radius to the right end − its radius
+  const L = 67.3, W = 305, R = 18;
+  const x = n => L + R + (n - MIN) / (MAX - MIN) * (W - 2 * R);
+  const setKnob = n => { const cx = x(n); knob.style.left = cx + 'px'; fill.style.width = (cx - L) + 'px'; };
+  const money = n => '$' + (n * PER).toLocaleString('en-US');
+  // THE FIGURE AS AN ODOMETER: each digit is a column on a 0–9 strip, rolled up to its new value; commas and $ stand still
+  function drawFig(text, from) {
+    fig.innerHTML = '';
+    const prev = (from || text).padStart(text.length, ' ');
+    [...text].forEach((ch, i) => {
+      if (!/\d/.test(ch)) { const s = document.createElement('span'); s.textContent = ch; fig.appendChild(s); return; }
+      const col = document.createElement('span'); col.className = 'col';
+      const strip = document.createElement('span'); strip.className = 'strip';
+      for (let k = 0; k < 20; k++) { const d = document.createElement('span'); d.textContent = k % 10; strip.appendChild(d); }
+      col.appendChild(strip); fig.appendChild(col);
+      const o = /\d/.test(prev[i]) ? +prev[i] : 0, n = +ch, to = n >= o ? n : n + 10;
+      strip.style.transition = 'none'; strip.style.transform = `translateY(${-o * 44}px)`;
+      if (from && o !== n) { void strip.offsetWidth; strip.style.transition = ''; strip.style.transitionDelay = (i * 40) + 'ms'; strip.style.transform = `translateY(${-to * 44}px)`; }
+      else strip.style.transform = `translateY(${-n * 44}px)`;
+    });
+  }
+  function rest(n) { ui.classList.remove('held'); setKnob(n); nEl.textContent = n; pn.textContent = n; drawFig(money(n)); }
+
+  // the phone: 13's, number for number — as tall as 80vh allows, centred
+  const fit = () => {
+    const W0 = innerWidth, H0 = innerHeight; if (!(W0 > 0 && H0 > 0)) return;
+    const h = Math.min(H0 * 0.8, 1080, W0 * 0.9 / (900 / 1840)), w = h * 900 / 1840;
+    Object.assign(phone.style, { height: h + 'px', width: w + 'px', left: (W0 - w) / 2 + 'px', top: (H0 - h) / 2 + 'px' });
+    ui.style.setProperty('--k', (w * 0.891111) / 440);
+  };
+  new ResizeObserver(fit).observe(document.body); fit();
+
+  let step = 0, timers = [];
+  const clear = () => { timers.forEach(clearTimeout); timers = []; };
+  // THE DRAG, 7 → 16: the knob is held (the track thickens, the pill comes up), it travels with the count ticking in the
+  // pill, it is let go — the pill goes, the line comes back on 16 — and the figure rolls to $5,936
+  function drag() {
+    clear();
+    ui.classList.add('held');
+    const T0 = performance.now() + 250, DUR = 1100;
+    const tick = () => {
+      if (step !== 1) return;
+      const t = Math.min(1, Math.max(0, (performance.now() - T0) / DUR)), e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      const v = FROM + (TO - FROM) * e; setKnob(v); pn.textContent = Math.round(v);
+      if (t < 1) requestAnimationFrame(tick);
+      else timers.push(setTimeout(() => { ui.classList.remove('held'); nEl.textContent = TO; timers.push(setTimeout(() => drawFig(money(TO), money(FROM)), 220)); }, 350));
+    };
+    requestAnimationFrame(tick);
+  }
+  rest(FROM);
+  if (document.fonts) document.fonts.load("800 40px Cereal").then(() => { if (step === 0) rest(FROM); });
+  window.presoNext = () => { if (step >= 1) return false; step = 1; drag(); return true; };
+  window.presoPrev = () => { if (step === 0) return false; step = 0; clear(); rest(FROM); return true; };
+  window.presoState = () => step;
+  window.presoRestore = n => { if (n > 0) { step = 1; clear(); rest(TO); } };
+})();
+</script>
+</body>
+</html>
