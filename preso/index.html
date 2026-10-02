@@ -612,6 +612,20 @@
   document.getElementById('tapnext').addEventListener('click', () => navigate(1));
   document.getElementById('tapback').addEventListener('click', () => navigate(-1));
 
+  // THE POINTER, RELAYED (John, 2026-10-01: Hello!'s particles). The tap rails sit over every slide, so a slide never
+  // sees the cursor. A slide that wants it without giving up tap-anywhere declares window.presoPointer(x, y) and is
+  // handed the cursor in its own coordinates; null, null when it leaves the window.
+  function relayPointer(x, y) {
+    let f = null, r = null;
+    try { f = current && current.frame && current.frame.contentWindow && current.frame.contentWindow.presoPointer; } catch (_) {}
+    if (typeof f !== 'function') return;
+    if (x === null) { try { f(null, null); } catch (_) {} return; }
+    r = current.frame.getBoundingClientRect();
+    try { f(x - r.left, y - r.top); } catch (_) {}
+  }
+  addEventListener('pointermove', e => relayPointer(e.clientX, e.clientY));
+  document.documentElement.addEventListener('mouseleave', () => relayPointer(null, null));
+
   let cursorTimer = 0;
   addEventListener('pointermove', () => {
     document.body.classList.remove('hidecursor');
