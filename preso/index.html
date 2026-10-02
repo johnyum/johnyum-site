@@ -217,14 +217,26 @@
   // Host setup at 10b.html; 08 is no longer in the manifest and 10b went with
   // the one-by-one host setup run, so sectionStarts() was filtering both out
   // and the nav was showing four names instead of six.
-  const SECTIONS = [['Intro', '01.html'], ['Lux\u00e9', '09.html'], ['Host setup', '09f.html'], ['Host calendar', '12.html'], ['Multi calendar', '12c.html'], ['AI', '12f.html']];
+  // A section may also name where its tap LANDS, when that is not its first slide: [name, first slide, landing slide, step].
+  // Host calendar (John, 2026-10-01) still begins at its title card — so the name lights from there — but a tap goes straight
+  // to the bland calendar at the moment its verdict starts: the two ✓ (12bs, step 14 = #22.14).
+  const SECTIONS = [['Intro', '01.html'], ['Lux\u00e9', '09.html'], ['Host setup', '09f.html'], ['Host calendar', '12.html', '12bs.html', 14], ['Multi calendar', '12c.html'], ['AI', '12f.html']];
   function sectionStarts() { return SECTIONS.map(([name, file]) => [name, SLIDES.indexOf(file)]).filter(([, i]) => i >= 0); }
+  // where a section's tap lands: its own [slide index, step], or its first slide at its first step
+  function sectionLanding(name) { const s = SECTIONS.find(x => x[0] === name); if (!s) return null; const to = s[2] ? SLIDES.indexOf(s[2]) : SLIDES.indexOf(s[1]); return to >= 0 ? [to, s[3] || 0] : null; }
+  // put a step back once the slide at `i` is the current one and its frame is up (the page load's way, see show)
+  function landStep(i, step) {
+    if (!(step > 0)) return;
+    const t0 = Date.now();
+    const poke = () => { if (idx !== i) return; let f = null; try { f = current && current.frame && current.frame.contentWindow && current.frame.contentWindow.presoRestore; } catch (_) {} if (f) { f(step); syncHash(); } else if (Date.now() - t0 < 8000) setTimeout(poke, 100); };
+    setTimeout(poke, DUR + 60);   // after the push has landed
+  }
   function buildCounter() {
     counter.innerHTML = '';
     sectionStarts().forEach(([name, i], k) => {
       if (k) { const d = document.createElement('span'); d.className = 'dot'; d.textContent = '\u00b7'; counter.appendChild(d); }
       const b = document.createElement('button'); b.type = 'button'; b.className = 'sec'; b.dataset.start = i; b.textContent = name;
-      b.addEventListener('click', e => { e.stopPropagation(); discardKept(); jumpTo(i); });
+      b.addEventListener('click', e => { e.stopPropagation(); discardKept(); const land = sectionLanding(name) || [i, 0]; jumpTo(land[0]); landStep(land[0], land[1]); });
       counter.appendChild(b);
     });
   }
