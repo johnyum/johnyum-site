@@ -1195,6 +1195,30 @@ const RECUR_BEATS = [
     setTimeout(tail(g, land), 1700 + 2 * 320 + 100);
     holdNextUntil = performance.now() + 1800;
   },
+  // 8 · Dmitri's pill, visibly pressed, and his reservation rises — the guest page (the stay sheet Zoe's beat opens)
+  (m, instant) => {
+    const b = m.bookings.find(x => x.added && !x.kind);
+    if (!b) return;
+    if (instant) { m.setStaySheet(b); return; }
+    const g = ++gen; pendingTail = () => m.setStaySheet(b);
+    m.pressedStay = `${b.listing}:${b.startIndex}`; m.notify();
+    setTimeout(() => { if (g === gen && m.pressedStay) { m.pressedStay = null; m.notify(); } }, 300);
+    setTimeout(tail(g, () => m.setStaySheet(b)), TAP);
+  },
+  // 9 · the page's ⨉, and the sheet drops; the key on the right goes (12bs) and the other three views come in beside the
+  // month — the list, the year and the hours, the build's own four-up. The list and the year wear the month's own top:
+  // Today, the wand, Layers, the gear (John, 2026-10-02); the hours stay as they are.
+  (m, instant) => {
+    const wands = () => { for (const sel of ['.app2', '.app3']) { try { const w = document.querySelector(sel).contentWindow.__model; if (w) w.setWandTile(true); } catch (_) {} } };
+    const four = inst => { if (window.ensureClones) window.ensureClones(); wands(); setTimeout(wands, 600); setStage('four', inst); };
+    if (instant) { m.setStaySheet(null); four(true); return; }
+    const g = ++gen;
+    pendingTail = () => { m.setStaySheet(null); four(true); };
+    press(d => d.querySelector('.st-icon[aria-label="Close"]'));
+    setTimeout(() => { if (g === gen) m.setStaySheet(null); }, TAP);
+    setTimeout(tail(g, () => four(false)), TAP + 700);              // the sheet down and the key gone: the views come in
+    holdNextUntil = performance.now() + TAP + 800;
+  },
 ];
 if (SIMPLE) BEATS.splice(beatAfter('down to Thanksgiving week', 1), 0, ...RECUR_BEATS);
 // THE ODOMETER for the price sheet's big figure: the build only rolls the figures in the cells, and the fork keeps even
