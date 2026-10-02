@@ -349,7 +349,10 @@
     if (i < 0 || i >= SLIDES.length || !HTML.test(SLIDES[i])) return;
     const made = makePane(i, 1);
     made.pane.style.visibility = 'hidden';   // in place, unseen and untouchable — a slide that measures itself on load (12b) measures true geometry
-    stage.appendChild(made.pane);
+    // UNDER the slide on stage from the start (John, 2026-10-02: Host setup slow, sometimes not there at all). It used to be
+    // appended and then MOVED under once loaded — and moving an iframe in the DOM makes the browser load it again from
+    // scratch: Host setup's five phones were reloading just as the presenter tapped on to them.
+    stage.insertBefore(made.pane, stage.firstChild);
     prepared = { i, made };
     // DRAWN AHEAD, NOT JUST LOADED (John, 2026-10-01: Host setup "still coming in weird, one by one"). A hidden pane
     // loads but is never painted, and its nested frames are throttled — so a slide made of five live phones did all its
@@ -361,8 +364,7 @@
       let ahead = false;
       try { ahead = !!(made.frame && made.frame.contentWindow && made.frame.contentWindow.presoPaintAhead); } catch (_) {}
       if (!ahead) { if (Date.now() - t0 < 4000) setTimeout(ask, 150); return; }   // its script may not have run yet
-      made.pane.style.pointerEvents = 'none';
-      stage.insertBefore(made.pane, stage.firstChild);   // under the slide on stage
+      made.pane.style.pointerEvents = 'none';   // already under the slide on stage (never moved: a move reloads it)
       made.pane.style.visibility = '';
     };
     made.ready.then(ask);
