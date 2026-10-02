@@ -4685,7 +4685,10 @@ body.settings-mode .opp-more, body.avail-mode .opp-more { display: none; }
         <path d="M2 16H16M16 16H30M16 16V2M16 16V30" stroke="currentColor" stroke-width="3"/>
       </svg>
     </button>
-    <div class="tb-menu" id="tbMenu">
+    <!-- GROUP / UNGROUP, one button in place of the ⋯ (John, 2026-10-02). The ⋯ menu below is hidden, not removed: its grouping
+         item still does the work (this button presses it), and Rule sets, Calendar sync and Settings wait in it. -->
+    <button class="tb-pill-btn" id="tbGroupBtn" type="button">Group</button>
+    <div class="tb-menu" id="tbMenu" style="display:none">
       <button class="tb-icon-btn" id="tbMoreBtn" aria-haspopup="true" aria-expanded="false" aria-label="More">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="4" cy="10" r="1.75"/><circle cx="10" cy="10" r="1.75"/><circle cx="16" cy="10" r="1.75"/></svg>
       </button>
@@ -10519,12 +10522,19 @@ function positionLeftToggle() {
     // and "Group" once it isn't. Synced every time the menu opens rather than at wire-time, because
     // grouping also changes from the Groups modal, Reset, and the onboarding Apply — none of which
     // would think to tell this menu.
+    const groupBtn = document.getElementById('tbGroupBtn');
     const syncGroupingLabel = () => {
-      const lbl = document.getElementById('groupingLabel'); if (!lbl) return;
-      const grouped = (typeof hasRealGroups === 'function') && hasRealGroups();
-      lbl.textContent = grouped ? 'Ungroup' : 'Group';
+      let grouped = false; try { grouped = (typeof hasRealGroups === 'function') && hasRealGroups(); } catch (_) { return; }   // still booting: hasRealGroups is declared further down
+      const lbl = document.getElementById('groupingLabel'); if (lbl) lbl.textContent = grouped ? 'Ungroup' : 'Group';
+      if (groupBtn) groupBtn.textContent = grouped ? 'Ungroup' : 'Group';
     };
     window._syncGroupingLabel = syncGroupingLabel;          // so the flows above can refresh it too
+    // the toolbar's Group / Ungroup button presses the menu's own grouping item — the same flow, thinking dots and all
+    if (groupBtn) groupBtn.addEventListener('click', e => { e.stopPropagation(); const item = menu.querySelector('[data-more="grouping"]'); if (item) item.click(); });
+    // ...and reads the board after EVERY grouping change, whoever made it (this button, the Groups modal, Reset, onboarding):
+    // they all end in applyGroupsToCalendar
+    if (typeof applyGroupsToCalendar === 'function') { const _apply = applyGroupsToCalendar; applyGroupsToCalendar = function () { const r = _apply.apply(this, arguments); syncGroupingLabel(); return r; }; }
+    setTimeout(syncGroupingLabel, 0);                       // once the boot has run
     btn.addEventListener('click', e => {
       e.stopPropagation();                                  // or the document handler below shuts it again
       const open = !menu.classList.contains('open');
