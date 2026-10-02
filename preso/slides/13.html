@@ -1058,6 +1058,20 @@ if (SIMPLE) BEATS.splice(beatAfter('{ m.setMinSheetNights(n); m.setMin(n, 0, ns)
   press(d => d.querySelector('.sqa-close'));
   setTimeout(tail(g, close), TAP);
 });
+// RECURRENCE BEGINS (John, 2026-10-01) — the tap after the quick actions close, "No recurrence" pointed at: the calendar runs
+// down to Thanksgiving week, the new quick actions (the recurrence ones — model.recurQA, see the app's ui/recur/) are switched
+// in, and Monday the 23rd through the 30th, the last night of November, are picked a night at a time; the cards rise when
+// the run lands. The header stays collapsed (THE HEADER RULE).
+if (SIMPLE) BEATS.splice(beatAfter('const close = () => { m.setMinSheet(false); m.setPromoSheet(false);', 1), 0, (m, instant) => {
+  const a = m.fx.index({ y: 2026, m: 11, d: 23 }), z = m.fx.index({ y: 2026, m: 11, d: 30 });
+  const go = () => { m.revealOffset = MARK_PARK; m.reveal(a, null, 0, 0); };
+  if (instant) { m.setRecurQA(true); const s = new Set(); for (let di = a; di <= z; di++) s.add(di); m.setSelectedNights(s); m.setHeaderLock(true, false); setTimeout(go, 40); return; }
+  const g = ++gen;
+  m.setRecurQA(true);
+  go();                                                         // down to Thanksgiving week
+  settled(g, () => setTimeout(() => { if (g === gen) cascade(m, a, z, 90); }, 400));   // landed, a breath: the run
+  holdNextUntil = performance.now() + 2600;                     // a stray tap waits for the run (HOLD NEXT)
+});
 // THE ODOMETER for the price sheet's big figure: the build only rolls the figures in the cells, and the fork keeps even
 // those still. A copy of the figure is laid exactly over it — the same face, size and place — the real one is hidden,
 // and each digit of the copy rolls up a strip of 0–9 from its old figure to its new; when they have landed `done` sets
