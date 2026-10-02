@@ -775,12 +775,17 @@ if (SIMPLE) BEATS.splice(beatAfter('.cp .mn-cancel', 3), 0, (m, instant) => {
   // price-tips mode is closed as the full build closes it (Close tips: the tips come off, the bar's tiles come back) — and
   // the wand STAYS from here on (John, 2026-09-30: "persist the wand going forward")
   const shut = () => { m.clearSelection(); m.setWandSheet(false); m.clearTips(); };
-  const land = () => { shut(); m.revealOffset = MARK_PARK; marksOn(); setTimeout(() => m.reveal(tg, null, 0, 0), 40); };   // the reveal a tick later, as the holidays beat did
+  // the reveal a tick later, as the holidays beat did — unless the next beat has started by then (a fast tap lands this
+  // whole and the events beat goes straight on to February: a late November reveal would pull it back)
+  const land = () => { shut(); m.revealOffset = MARK_PARK; marksOn(); const g0 = gen; setTimeout(() => { if (gen === g0) m.reveal(tg, null, 0, 0); }, 40); };
   if (instant) { land(); return; }
   const g = ++gen;
   pendingTail = land;                                          // a tap before it is through lands it whole
   press(d => d.querySelector('.close-tips'));                  // Close tips, visibly tapped...
-  setTimeout(tail(g, shut), TAP);                              // ...and the tips come off, the tiles (the wand among them) back
+  // ...and the tips come off, the tiles (the wand among them) back. A plain timer, NOT tail(): tail() would make shut the
+  // catch-up, and a fast tap would land only that — no November, no holidays, and no turkey for the Repeat flow later
+  // (John, 2026-10-02). The catch-up stays land, the whole beat.
+  setTimeout(() => { if (g === gen) shut(); }, TAP);
   setTimeout(() => {
     if (g !== gen) return;
     m.revealOffset = MARK_PARK; m.reveal(tg, null, 0, 0);
@@ -821,7 +826,7 @@ if (SIMPLE) BEATS.splice(beatAfter('.cp .mn-cancel', 3), 0, (m, instant) => {
     el.animate([{ transform: 'scale(1)', backgroundColor: bg }, { transform: 'scale(.88)', backgroundColor: '#d4d4d4', offset: .4 }, { transform: 'scale(1)', backgroundColor: bg }], { duration: 300, easing: 'ease-out' });
   };
   setTimeout(() => { if (g === gen) wandTap(); }, TAP + 400 + 900);                                   // it has popped in, a beat: tapped
-  setTimeout(tail(g, open), TAP + 400 + 900 + TAP);                                               // ...and the sheet rises
+  setTimeout(() => { if (g === gen) { open(); pendingTail = null; } }, TAP + 400 + 900 + TAP);   // ...and the sheet rises (not tail(): a fast tap still lands the wand tile too)
 });
 // ...and the events (John, 2026-09-30): the verdict's arrow moves on to "No popular events" (12bs), the calendar scrolls
 // down to February 2027 — parked as John's frame has it, the row of the 7th at the top with 8px of the week before
@@ -1395,6 +1400,9 @@ function typeKeys(keys, instant) {
     app.__sealed = true;
     const wire = () => {
     const w = app.contentWindow;
+    // NO ASK ON THE FOUR-UP (John, 2026-10-02): the list, the year and the day each carried the Ask button bottom right;
+    // in the bland run (?simple=1, 12bs) it is taken off them. The full build keeps it — Ask is a beat there.
+    if (SIMPLE && !app.classList.contains('app')) { try { const st = w.document.createElement('style'); st.textContent = '.bar.askonly { display: none !important; }'; w.document.head.appendChild(st); } catch (_) {} }
     // NOTHING SHOWS THROUGH THE HEADER. The app hides the month scrolling under
     // its title with a white .cover strip, but the strip's edges land on
     // fractional pixels here (two scales deep, 0.815 in all) and antialias to
