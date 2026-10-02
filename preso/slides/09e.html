@@ -53,7 +53,7 @@
      it always runs even if both somehow miss.
 
      Muted and playsinline, which is what lets the tag start without a gesture.
-     Stepping back to the slide replays the whole thing. -->
+     Stepping back to the slide, or back to the window, replays the whole thing. -->
 <style>
   @font-face {
     font-family: "Instrument Sans";
@@ -204,10 +204,21 @@
   let armed = false, t = [];
   const clear = () => { t.forEach(clearTimeout); t = []; };
 
-  function run() {
+  let lastRun = 0;
+  // SNAPPED back to the bare page, not faded: un-transitioned, a return
+  // showed the card sinking and the scrim lifting before it all came up again
+  function bare() {
     clear();
+    const held = [screen.querySelector('.scrim'), screen.querySelector('.modal')];
+    held.forEach(e => { e.style.transition = 'none'; });
     screen.classList.remove('on', 'up');
+    void screen.offsetWidth;
+    held.forEach(e => { e.style.transition = ''; });
     try { v.pause(); v.currentTime = 0; } catch (_) {}
+  }
+  function run() {
+    bare();
+    lastRun = Date.now();
     t.push(setTimeout(() => screen.classList.add('on'), HOLD));
     t.push(setTimeout(() => screen.classList.add('up'), HOLD + LIFT));
     t.push(setTimeout(() => {
@@ -248,14 +259,28 @@
     setTimeout(watch, 100);
   })();
 
-  // Coming back plays it again — the deck keeps the slide, so without this it
-  // would sit on its end state for ever after one viewing. The guard is not
-  // cosmetic: the deck fires presoshown more than once on a single arrival,
-  // and re-running mid-sequence restarts a scrim that is halfway down. A
-  // sequence already in flight is mid-arrival and is left alone; one that has
-  // finished is a genuine return.
+  // COMING BACK PLAYS IT AGAIN, WHATEVER STATE IT WAS LEFT IN (John, 2026-10-01).
+  // The deck keeps the slide just left, so a return lands on whatever it was
+  // doing. This used to replay only a FINISHED tag (paused, past 0) — leave
+  // mid-sequence, or have the browser pause the video while away, and the
+  // return sat stuck. Now any presoshown that is not part of the arrival that
+  // started the last run is a return. The deck fires presoshown several times
+  // on one arrival (settle, then the push landing ~580ms later), all inside
+  // AGAIN; a return is always further apart than that.
+  const AGAIN = 1500;
   addEventListener('presoshown', () => {
-    if (armed && screen.classList.contains('up') && v.paused && v.currentTime > 0) run();
+    if (armed && Date.now() - lastRun > AGAIN) run();
+  });
+  // RESET THE MOMENT IT IS OUT OF VIEW. The deck only says presoshown once the
+  // push back has LANDED (~580ms), so a slide reset on that signal rode in on
+  // its old end state and then snapped bare. Put back to the bare page while
+  // parked instead, it comes in clean and the sequence starts on landing.
+  setInterval(() => {
+    if (armed && (screen.classList.contains('on') || !v.paused || v.currentTime > 0) && !shown()) bare();
+  }, 200);
+  // back from another tab or app: the same, from the top
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && armed && shown()) run();
   });
 
   window.presoNext = () => false;              // no builds
