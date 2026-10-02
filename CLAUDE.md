@@ -285,6 +285,11 @@ python3 characters/serve.py     # http://127.0.0.1:5320/characters/
   = **Mock** mode: every task fakes its progress and a sample robot from the three.js
   examples stands in, so the flow can be checked for free. `CHARACTERS_MOCK_RIGFAIL=1` fakes
   a rig failure.
+- **Test on the `characters-mock` launch config (port 5321), never on 5320.** Once a key is
+  saved, 5320 is live and every test run spends real credits. `CHARACTERS_MOCK=1` forces
+  mock with a key on disk, and refuses the page's key box.
+- **Stop can't call back a running step.** Meshy answers a DELETE on a running task with
+  409 and charges for it anyway; Stop only keeps the later, dearer steps from starting.
 - **Meshy's asset links expire after a few days**, so `serve.py` caches every GLB it
   proxies in `characters/.cache/` (gitignored), keyed by the URL's path. That is why a shelf
   character still opens next month.
