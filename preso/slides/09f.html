@@ -53,6 +53,10 @@
   .slide { position: relative; height: 100%; display: grid; place-items: center; }
 
   .row { display: flex; align-items: center; gap: var(--gap, 24px); }
+  /* ALL FIVE OR NONE (John, 2026-10-01: "without jittery or animation"): the row stays hidden until every phone has
+     loaded and stood on its screen, then shows at once — never phone by phone. With the deck's paint-ahead it is long
+     since shown and drawn before the slide arrives; this is for a cold landing (a jump, a refresh). */
+  .row:not(.ready) { visibility: hidden; }
 
   .cell {
     position: relative;
@@ -95,6 +99,8 @@
   const park = c => { try { c._w.presoPark(c._beat); } catch (_) {} };
   const act  = c => { try { c._w.presoAct(); } catch (_) {} };
 
+  let loaded = 0;
+  window.presoPaintAhead = true;            // the deck stands this slide, drawn, behind the one before it
   const cells = SCREENS.map(([cls, beat]) => {
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -109,6 +115,8 @@
     f.addEventListener('load', () => {
       cell._w = f.contentWindow;
       if (cls === FILM_STEP) unloop(f);
+      // shown once every cell is in, and slide 11's ?park= has had its 400ms with transitions off
+      if (++loaded === SCREENS.length) setTimeout(() => row.classList.add('ready'), 450);
     });
     cell.appendChild(f);
     row.append(cell);

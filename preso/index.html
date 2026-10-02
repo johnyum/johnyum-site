@@ -351,6 +351,21 @@
     made.pane.style.visibility = 'hidden';   // in place, unseen and untouchable — a slide that measures itself on load (12b) measures true geometry
     stage.appendChild(made.pane);
     prepared = { i, made };
+    // DRAWN AHEAD, NOT JUST LOADED (John, 2026-10-01: Host setup "still coming in weird, one by one"). A hidden pane
+    // loads but is never painted, and its nested frames are throttled — so a slide made of five live phones did all its
+    // drawing during the push, phone by phone. A slide that declares window.presoPaintAhead is instead stood BEHIND the
+    // current slide, visible: fully drawn, every frame and picture, under the one on stage, and it arrives finished.
+    const t0 = Date.now();
+    const ask = () => {
+      if (!prepared || prepared.made !== made) return;
+      let ahead = false;
+      try { ahead = !!(made.frame && made.frame.contentWindow && made.frame.contentWindow.presoPaintAhead); } catch (_) {}
+      if (!ahead) { if (Date.now() - t0 < 4000) setTimeout(ask, 150); return; }   // its script may not have run yet
+      made.pane.style.pointerEvents = 'none';
+      stage.insertBefore(made.pane, stage.firstChild);   // under the slide on stage
+      made.pane.style.visibility = '';
+    };
+    made.ready.then(ask);
   }
 
   // A SLIDE MAY NOT HAVE RUN YET when we settle on it. makePane gives up
@@ -456,7 +471,7 @@
     const outgoing = current;
     let made;
     if (kept && kept.i === i) { made = kept.made; kept = null; made.pane.style.display = ''; made.pane.style.visibility = ''; discardPrepared(); }   // the slide just left: back to it as it was
-    else if (prepared && prepared.i === i && dir > 0) { made = prepared.made; prepared = null; made.pane.style.visibility = ''; }   // built ahead: reveal it
+    else if (prepared && prepared.i === i && dir > 0) { made = prepared.made; prepared = null; made.pane.style.visibility = ''; made.pane.style.pointerEvents = ''; }   // built ahead: reveal it
     else { discardPrepared(); made = makePane(i, dir); stage.appendChild(made.pane); }
     made.pane.style.transform = 'translateX(' + (dir > 0 ? 100 : -100) + '%)';
     void made.pane.offsetWidth;   // the prepared pane sat at 0: its jump to the wing must land before the transition is set
