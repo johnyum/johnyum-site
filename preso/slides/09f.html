@@ -4,173 +4,59 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>09f</title>
-<!-- HOST SETUP, EVERY STEP AT ONCE — the ten steps in one row, straight before
-     the cleaning-fee tweet and the host-only fee screens.
+<!-- HOST SETUP, SIX UP — one screen, straight after the transportation screens
+     (John, 2026-10-01). No lead-in, no five-then-five, no pull back to the full
+     row: the six phones are the slide, and the deck pushes them in as one.
 
-     ELEVEN INSTANCES OF SLIDE 11, ONE PER SCREEN. Slide 11 is a single phone
-     whose steps are toggled by a body class — every step's content is already
-     in its DOM, hidden — so there is no set of step elements to lay out. The
-     only faithful way to show them side by side is to load the slide once per
-     step and set that class. Nothing is re-drawn or re-exported: each cell is
-     the real screen.
+       1  the splash      "Become a Host in 10 easy steps" — the film and the header
+       2  place type      What kind of place will you host?
+       3  address         Where's your place located?
+       4  amenities       Let guests know what your place has to offer
+       5  name            Let's give your place a name
+       6  price           Now for the fun part — set your price
 
-       the intro the splash            step 5    amenities
-       step 1    place type  (no class, it is the default)
-       step 1b   home type            step 6    photos
-       step 2    space type           step 7    name
-       step 3    address              step 8    describe
-       step 4    guests               step 8b   price
+     ONE BUILD. The six land as questions; one tap answers the five that have
+     an answer — House is chosen, the address types and the map flies to it,
+     the amenities pick themselves (the short form: four cards and a stop), the
+     name types, the price ticks to $500 — all together, never left to right: a
+     stagger is a wave the eye follows and reads as a queue. The next tap moves
+     on.
 
-     step 9 ("Just a few last questions") and step 10 (the listing preview) are
-     both left out — the row ends on the price, so the flow lands on the money.
+     SIX INSTANCES OF SLIDE 11, ONE PER SCREEN. Slide 11 is a single phone whose
+     steps are beats; each cell loads it and parks on its beat with presoPark(),
+     and the tap is presoAct(), which answers in place and never presses Next.
+     The answers are slide 11's own BEATS — nothing here is a second copy.
 
-     THE INTRO IS NOT ONE OF THE TEN. It is the lead-in, and it leaves before
-     the row arrives — so it is not in the row at all, it is its own element
-     centred on the stage. The row is the ten actual steps and nothing else.
-     Putting the splash at the head of the row was the earlier shape and it
-     read as eleven steps, which is one more than there are.
-
-     ?nomap=1 ON TEN OF THEM. Slide 11 builds a live Mapbox map at load, and
-     eleven of those is eleven WebGL contexts — at the browser's cap, where
-     they start getting dropped. Only the address cell asks for one.
-
-     FIVE ACROSS, TWO DOWN. Ten in a single line left each phone 138px wide on
-     a 1600 stage, which is a thumbnail. Five and five, with nothing needing
-     room to grow into, comes to 201 x 411 — half as wide again.
-
-     TWO MOVES, NOT TEN. The tap sends the intro DOWN, LEFT and OUT on one
-     curve: it shrinks from the size slide 11 gives its phone on its own to the
-     size the ten are, travels off toward where the row begins, and fades as it
-     goes — so the splash leaves WITH the movement rather than standing at full
-     strength until it is cut, and crosses the row coming the other way. Then, a
-     beat later, the whole row is pushed in from the right in one piece — the
-     deck's own push, to the millisecond, lifted from index.html: DUR 520 on
-     EASE cubic-bezier(0.16, 1, 0.3, 1). Nothing staggers, nothing deals.
-
-     TAP TWO ANSWERS THE WHOLE ROW AT ONCE. Every screen makes its own choice
-     in the same moment — House is chosen, the address types itself in and the
-     map flies to it, the counts count up, the amenities pick themselves, the
-     name types, the price ticks to $500 — all of it together. This was a 420ms
-     stagger left to right, and the stagger was the thing you watched: the eye
-     tracked the wave and read the row as a queue being worked through. Fired
-     together there is no wave to follow, and ten screens answering at once
-     reads as one flow working.
-
-     The amenities screen runs a SHORT form here — four cards and a stop, no
-     scrolling. At full length it travels down its list, and among nine still
-     screens the one that moves is the only one anybody watches.
-
-     IT NEVER PRESSES A PHONE'S NEXT BUTTON. The row has to stay on the ten
-     screens it is showing, so the sweep uses slide 11's presoAct(), which
-     answers in place and stops. Those answers come out of slide 11's own BEATS
-     table — the same choices it makes when you tap through it on its own — so
-     nothing here is a second copy of what the flow does.
-
-     NOTHING HOVERS. The phones held still here, then magnified under the
-     pointer for a while, and now hold still again (John, 2026-09-30): ten
-     screens that resize as the mouse crosses them are ten screens nobody is
-     reading. That took the transparent hit panes with it — they existed only
-     to catch a pointer an iframe would otherwise swallow — and
-     presoInteractive, so the deck's tap rails cover the whole stage again and
-     tapping anywhere advances the slide.
+     ?nomap=1 on all but the address cell: each live map is a WebGL context.
 
      THE CELL IS CROPPED TO THE PHONE. Slide 11 sizes its phone at 80vh of its
-     own viewport, so a cell showing the whole viewport carries 20% dead
-     margin. Each cell is therefore 800 of the 1000pt viewport tall, with the
-     frame pulled up by the 100pt above the phone. The 391.3 width is chosen so
-     the phone spans the cell exactly: 800 x 900/1840 = 391.3.
+     own viewport, so each cell is 800 of the 1000pt viewport tall with the
+     frame lifted by the 100 above the phone; 391.3 wide = 800 x 900/1840, so
+     the phone spans the cell exactly. The scale is the smaller of what the
+     width and height allow, set by a ResizeObserver — it also fires when the
+     deck un-parks the slide, which a load-time read misses (it measures zero).
 
-     THE SCALE IS COMPUTED, NOT GUESSED. It is the smaller of what the width
-     allows and what the height allows, so the row never overflows either way.
-     CSS cannot divide a length by a length, so this cannot be a calc(); a
-     ResizeObserver also fires when the deck un-parks the slide, which a
-     load-time read would miss — it measures zero while parked.
+     THE FILM PLAYS ONCE. Slide 11's video carries `loop`; it is cleared here
+     and nothing else touches it — slide 11 starts it itself when it commits
+     beat 0, and the splash cell is parked exactly once for that reason: every
+     re-park re-commits beat 0 and restarts the film. The other five get their
+     park re-asserted after load, because slide 11 runs its own opening beat.
 
-     NOTHING IS MEASURED ANY MORE. The intro is centred by the stage itself
-     (left/top 50%, translate -50%) and grows by a --s the fit sets, so there
-     is no getBoundingClientRect and no transition to pin off around it. The
-     old version measured mid-transition and settled the phone 122px left of
-     centre; there is nothing left to get wrong.
-
-     THE FILM PLAYS ONCE, AND ONCE MEANS ONCE. Slide 11's video carries a loop
-     attribute; it is cleared on arrival and nothing here ever seeks or starts
-     it — slide 11 starts it itself when it commits beat 0. This slide used to
-     seek it to 0 and play it as well, and the intro cell used to have its park
-     re-asserted three times after load, each of which re-commits beat 0 and so
-     re-ran the film: one pass arrived looking like four false starts. The row
-     cells still get those re-asserts, because none of their beats runs a
-     video. -->
+     NOTHING HOVERS, and there is no presoInteractive — the deck's tap rails
+     cover the stage and tapping anywhere advances. -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .slide { position: relative; height: 100%; display: grid; place-items: center; }
 
-  /* THE PUSH is the entrance, and belongs to the wrapper; THE PAN is the
-     choreography, and belongs to the row. Two elements because they are two
-     transforms with two durations that overlap — one element would have the
-     pan fighting the push for the same property. */
-  .push {
-    position: absolute;
-    left: 50%; top: 50%;
-    transform: translate(-50%, -50%) translateX(var(--push, 0px));
-    /* THE DECK'S OWN PUSH, to the millisecond: index.html pushes a slide with
-       DUR 520 on EASE cubic-bezier(0.16, 1, 0.3, 1). */
-    transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1),
-                opacity 200ms linear;
-    will-change: transform;
-  }
-  .push.offstage { --push: 100vw; }
-  /* WAITING IS NOT THE SAME AS OFFSTAGE. While the intro holds the stage the
-     row sits exactly where it belongs and is merely invisible, so its ten
-     iframes lay out and RASTERISE. Parked off the right instead, they are
-     outside the viewport, the engine does not paint them, and the push
-     delivered ten blank phones that filled in a second later. It is moved off
-     the right for a single frame at the tap — too short to be throttled — and
-     released from there. */
-  .push.waiting { opacity: 0; }
-
-  .row {
-    display: flex;
-    align-items: center;
-    gap: var(--gap, 60px);
-    transform: translateX(var(--pan, 0px));
-    transition: transform var(--move, 0ms) cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform;
-  }
+  .row { display: flex; align-items: center; gap: var(--gap, 24px); }
 
   .cell {
     position: relative;
     flex: none;
-    /* 391.3 x 800 of slide 11's viewport — the phone alone, not the 1000 the
-       viewport is tall. The 100pt of margin above it is cropped out below.
-       A cell carries its OWN --k when the row is magnified, which resizes the
-       box, rescales the frame inside it and moves the crop in one go. */
     width: calc(391.3px * var(--k, 0.3));
     height: calc(800px * var(--k, 0.3));
     overflow: hidden;
-    transition: width var(--move, 0ms) cubic-bezier(0.22, 1, 0.36, 1),
-                height var(--move, 0ms) cubic-bezier(0.22, 1, 0.36, 1);
   }
-
-  /* The lead-in, centred on the stage by the stage. --s is how much bigger
-     than a row cell it is; the tap takes it to 1 and to nothing. */
-  .cell.intro {
-    position: absolute;
-    left: 50%; top: 50%;
-    transform: translate(-50%, -50%) scale(var(--s, 1));
-    z-index: 2;
-    transition: transform 460ms cubic-bezier(0.16, 1, 0.3, 1),
-                opacity   460ms cubic-bezier(0.16, 1, 0.3, 1);
-    will-change: transform, opacity;
-  }
-  /* It goes DOWN, LEFT and OUT on one curve — shrinking to the size the ten
-     are while travelling off toward where the row begins, rather than
-     collapsing on the spot. The row it hands over to arrives from the right,
-     so the two moves cross and the stage never sits empty. */
-  .cell.intro.gone {
-    transform: translate(calc(-50% - 22vw), -50%) scale(1);
-    opacity: 0;
-  }
-
   .cell iframe {
     position: absolute; left: 0;
     top: calc(-100px * var(--k, 0.3));      /* lift the phone's top margin out */
@@ -178,274 +64,91 @@
     border: 0; display: block;
     transform: scale(var(--k, 0.3));
     transform-origin: top left;
-    transition: transform var(--move, 0ms) cubic-bezier(0.22, 1, 0.36, 1),
-                top var(--move, 0ms) cubic-bezier(0.22, 1, 0.36, 1);
   }
 </style>
 </head>
 <body>
-  <div class="slide" id="slide">
-    <div class="push" id="push"><div class="row" id="row"></div></div>
-  </div>
+  <div class="slide" id="slide"><div class="row" id="row"></div></div>
 <script>
 (() => {
-  // step -> the body class slide 11 uses. Step 1 is the default and carries no
-  // class at all, which is why one entry is empty rather than 'step1'.
-  const INTRO = 'step0';                    // the splash — the lead-in, not a step
-  const STEPS = ['', 'step1b', 'step2', 'step3', 'step4', 'step5',
-                 'step6', 'step7', 'step8', 'step8b'];
-  // Which of slide 11's BEATS each cell is parked on — the beat where that
-  // screen has ARRIVED and has not yet answered. presoAct() is what answers
-  // it. Read straight off the BEATS table in 11.html; if a beat is inserted
-  // there, these move.
-  //        step1  1b  2   3   4   5   6   7   8   8b
-  const PARK = [1,  3,  5,  7,  9, 10, 11, 13, 15, 16];
-  const INTRO_BEAT = 0;
-  const MAP_STEP = 'step3';                 // the only one that gets a real map
-  // the slide-11 viewport each cell renders: 391.3 wide so the phone spans the
-  // cell exactly (800 x 900/1840), 1000 tall of which the phone is the middle
-  // 800 — the rest is cropped.
-  const VW = 391.3, PH = 800;
+  // [the body class it shows, the slide-11 BEAT it parks on — the screen
+  // ARRIVED and not yet answered]. Read off the BEATS table in 11.html; if a
+  // beat is inserted there, these move.
+  const SCREENS = [
+    ['step0',  0],                          // the splash: film + header
+    ['',       1],                          // place type (step 1 has no class)
+    ['step3',  7],                          // address — the one live map
+    ['step5', 10],                          // amenities
+    ['step7', 13],                          // name
+    ['step8b', 16],                         // price
+  ];
+  const MAP_STEP = 'step3', FILM_STEP = 'step0';
+  const VW = 391.3, PH = 800, GAPC = 0.1;
 
   const slide = document.getElementById('slide');
-  const push = document.getElementById('push');
   const row = document.getElementById('row');
-  // the deck's per-load stamp, passed down so a cell is never a stale copy
-  const v = new URLSearchParams(location.search).get('v');
+  const v = new URLSearchParams(location.search).get('v');   // the deck's per-load stamp
 
-  // THROUGH THE BEAT SYSTEM, NOT THE BODY CLASS. This used to write
-  // body.className straight into the frame, which put the right screen up and
-  // skipped slide 11's beats entirely — so the counts, the amenities, the
-  // chips and the price had no animation left in them to play. presoPark()
-  // lands the frame on the beat properly and holds it there: the screen as a
-  // question, waiting.
-  function park(cell) {
-    try { cell._w.presoPark(cell._beat); return true; } catch (_) { return false; }
-  }
-  function act(cell) {
-    try { return !!cell._w.presoAct(); } catch (_) { return false; }
-  }
+  const park = c => { try { c._w.presoPark(c._beat); } catch (_) {} };
+  const act  = c => { try { c._w.presoAct(); } catch (_) {} };
 
-  // `again` re-asserts the park a few times after load. The row cells want it —
-  // slide 11 runs its own opening beat and could land back on step 1 — but the
-  // INTRO must not have it: beat 0 runs the film, so every re-assert restarted
-  // it, and four of those is the skipping John saw before it settled.
-  function cellFor(cls, beat, again) {
+  const cells = SCREENS.map(([cls, beat]) => {
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell._beat = beat;
     const f = document.createElement('iframe');
-    f.title = 'Host setup — ' + (cls || 'step 1');
+    f.title = 'Host setup — ' + (cls || 'step1');
     f.setAttribute('scrolling', 'no');
     f.src = '11.html?' + (cls === MAP_STEP ? '' : 'nomap=1&') + 'still=1' + (v ? '&v=' + v : '');
     f.addEventListener('load', () => {
       cell._w = f.contentWindow;
       park(cell);
-      // Slide 11 runs its own opening beat on load, which would put every cell
-      // back on step 1. Re-assert after it has had its go. Parking is
-      // idempotent, and all of this is long finished before the tap.
-      if (again) { setTimeout(() => park(cell), 120);
-                   setTimeout(() => park(cell), 600);
-                   setTimeout(() => park(cell), 1400); }
+      if (cls === FILM_STEP) { unloop(f); return; }        // parked once: see THE FILM PLAYS ONCE
+      [120, 600, 1400].forEach(t => setTimeout(() => { if (step === 0) park(cell); }, t));
     });
     cell.appendChild(f);
+    row.append(cell);
     return cell;
-  }
+  });
 
-  const HALF = 5;                           // how many are centred at a time
-  const cells = STEPS.map((cls, i) => cellFor(cls, PARK[i], true));   // the ten
-  cells.forEach(c => row.append(c));
-
-  const intro = cellFor(INTRO, INTRO_BEAT, false); // the lead-in, outside the row
-  intro.classList.add('intro');
-  slide.append(intro);
-
-  let step = 0;                             // 0 intro, 1 first five, 2 last five, 3 all ten
-  let K = 0;                                // the scale the cells are at
-  let KBIG = 0, KALL = 0, PAN = 0;          // the two sizes, and the pan either side of centre
-
-  function filmOf() {                       // the intro video inside the lead-in
-    try { return intro.querySelector('iframe').contentDocument.getElementById('film'); }
-    catch (_) { return null; }
-  }
-
-  // The frame may not be up yet, so this keeps asking for a couple of seconds.
-  // It only ever clears `loop`; starting and stopping are slide 11's business.
-  let unlooped = false;
-  function unloop() {
-    if (unlooped) return;
+  // clears the film's `loop`; the frame may not be up yet, so it keeps asking
+  function unloop(f) {
     const t0 = Date.now();
     (function ask() {
-      const f = filmOf();
-      if (f) { f.loop = false; unlooped = true; return; }
+      let film = null;
+      try { film = f.contentDocument.getElementById('film'); } catch (_) {}
+      if (film) { film.loop = false; return; }
       if (Date.now() - t0 < 4000) setTimeout(ask, 120);
     })();
   }
 
-  // Change something without animating it.
-  function hold(el, f) {
-    const t = el.style.transition;
-    el.style.transition = 'none';
-    f();
-    void el.offsetWidth;
-    el.style.transition = t;
-  }
-
-  // THE ARITHMETIC — TWO SIZES, NOT ONE.
-  //
-  //   KBIG  five across fill the stage: 5 + 0.4 gaps = 5.4 cells wide. The
-  //         other five are off the right edge, which is the point — the row
-  //         is longer than the room and you are looking at part of it.
-  //   KALL  all ten across: 10 + 0.9 = 10.9 cells wide. Half the size, and
-  //         the whole flow at once.
-  //
-  // THE PAN is two and a half slots either side of centre. A slot is a cell
-  // plus a gap and cell i sits at i slots, so the first five run 0 to 4 and
-  // the last five 5 to 9; the distance from the row's own centre to either
-  // block's centre falls out at 2.5 slots, and the cell width cancels.
-  const GAPC = 0.1, MOVE = 700;
   const fit = (w, h) => {
     if (!(w > 0 && h > 0)) return;
-    const kw = n => (w * 0.94 / (n + GAPC * (n - 1))) / VW;
-    const kh = (h * 0.88) / PH;
-    KBIG = Math.min(kw(HALF), kh);
-    KALL = Math.min(kw(cells.length), kh);
-    PAN = VW * KBIG * (1 + GAPC) * 2.5;
-    apply(true);                            // a resize must not animate
-    // how much bigger the lead-in is than a cell at the size it lands on:
-    // slide 11's own phone height over the height a cell gives it.
-    slide.style.setProperty('--s', Math.min(h * 0.8, 1080) / (PH * KBIG));
+    const n = cells.length;
+    const k = Math.min((w * 0.94 / (n + GAPC * (n - 1))) / VW, (h * 0.88) / PH);
+    slide.style.setProperty('--k', k);
+    slide.style.setProperty('--gap', VW * k * GAPC + 'px');
   };
-
-  // Put the row where the beat says, at the size the beat says.
-  function apply(snap) {
-    K = step > 2 ? KALL : KBIG;
-    const pan = step === 1 ? PAN : step === 2 ? -PAN : 0;
-    const set = () => {
-      slide.style.setProperty('--k', K);
-      slide.style.setProperty('--gap', VW * K * GAPC + 'px');
-      row.style.setProperty('--pan', pan + 'px');
-    };
-    if (!snap) { set(); return; }
-    // A snap has to hold the row AND every cell: the cells transition their
-    // own width and height off --k, so setting it on the slide alone would
-    // still animate all ten.
-    const held = [row, ...cells];
-    const keep = held.map(e => e.style.transition);
-    held.forEach(e => { e.style.transition = 'none'; });
-    set();
-    void row.offsetWidth;
-    held.forEach((e, i) => { e.style.transition = keep[i]; });
-  }
-
-  const DOWN = 460, BEAT = 60;
-  let nextT = 0, actT = [];
-  function stopActs() { actT.forEach(clearTimeout); actT = []; }
-
-  // A half answers itself once it has arrived — all five together, the way the
-  // whole row did. Left to right read as a queue being worked through.
-  function answer(from) {
-    stopActs();
-    actT.push(setTimeout(() => {
-      for (let i = from; i < from + HALF && i < cells.length; i++) act(cells[i]);
-    }, MOVE + 120));
-  }
-
-  function setLead() {                      // beat 0
-    step = 0;
-    clearTimeout(nextT); stopActs();
-    cells.forEach(park);                    // back to ten unanswered questions
-    hold(push, () => {
-      push.classList.add('waiting');        // in place, invisible, rendering
-      push.classList.remove('offstage');
-    });
-    row.style.setProperty('--move', '0ms');
-    apply(true);
-    hold(intro, () => { intro.classList.remove('gone'); });
-    // ONCE, THEN REST — and once means once. Slide 11 starts the film itself
-    // when it commits beat 0, so there is nothing to start here; all this does
-    // is clear the loop attribute it ships with, and it never seeks.
-    unloop();
-  }
-
-  function openRow() {                      // tap 1 — in from the right, on the first five
-    step = 1;
-    clearTimeout(nextT); stopActs();
-    intro.classList.add('gone');            // down to the size of the ten, and out
-    nextT = setTimeout(() => {
-      row.style.setProperty('--move', '0ms');
-      apply(true);                          // in place at the big size, unanimated
-      hold(push, () => {                    // one frame off the right, visible
-        push.classList.add('offstage');
-        push.classList.remove('waiting');
-      });
-      push.classList.remove('offstage');    // then let go: the push
-      row.style.setProperty('--move', MOVE + 'ms');
-      answer(0);
-    }, DOWN + BEAT);
-  }
-
-  function beat(n) {                        // taps 2 and 3 — pan, then pull back
-    step = n;
-    clearTimeout(nextT);
-    row.style.setProperty('--move', MOVE + 'ms');
-    apply(false);
-  }
-
   new ResizeObserver(([e]) => fit(e.contentRect.width, e.contentRect.height)).observe(slide);
   const r0 = slide.getBoundingClientRect(); fit(r0.width, r0.height);
-  setLead();
 
-  // TAPS QUEUE; THEY DO NOT STACK (2026-09-30). A double-tap on the intro used to strand the slide: the first tap
-  // scheduled the push, the second went straight to the pan, and the pan's clearTimeout(nextT) cancelled the push — the
-  // row never came in and the stage sat blank. Same fix as 12c and 12b: a tap that lands mid-move is held, and fires
-  // once the move in front of it has played. Going back is never queued; it drops anything waiting and acts at once.
-  //
-  // HOLD per beat, from this file's own timings: the intro's shrink and the push (DOWN + BEAT + the 520ms push), then
-  // the pan (MOVE), each with the first answers under way before the next move starts.
-  const HOLD = [DOWN + BEAT + 520 + 200, MOVE + 200, MOVE];
-  let busyUntil = 0, queued = 0, qT = 0;
-  function go() {
-    if (step === 0) openRow();
-    else if (step === 1) { beat(2); answer(HALF); }
-    else if (step === 2) { beat(3); stopActs(); }
-    busyUntil = performance.now() + HOLD[step - 1];
-  }
-  function pump() {
-    clearTimeout(qT);
-    if (!queued) return;
-    const wait = busyUntil - performance.now();
-    if (wait > 0) { qT = setTimeout(pump, wait); return; }
-    if (step >= 3) { queued = 0; return; }
-    queued--; go(); pump();
-  }
+  let step = 0;                             // 0 six questions, 1 six answered
+  const answer = () => cells.slice(1).forEach(act);          // the splash has no answer
+
   window.presoNext = () => {
-    if (step >= 3 && !queued) return false;  // out of builds — on to the tweets
-    if (step + queued >= 3) return true;      // already queued to the last beat: hold, do not leave mid-queue
-    queued++; pump(); return true;
+    if (step >= 1) return false;            // out of builds — the deck moves on
+    step = 1; answer(); return true;
   };
   window.presoPrev = () => {
-    queued = 0; clearTimeout(qT); busyUntil = 0;
-    if (step === 3) { beat(2); return true; }
-    if (step === 2) { beat(1); return true; }
-    if (step === 1) { setLead(); return true; }
-    return false;                             // on the lead-in — the deck goes back
+    if (step === 0) return false;
+    step = 0; cells.slice(1).forEach(park); return true;
   };
   window.presoState = () => step;
-  // Landing on a beat from the hash gets the end state, not the moves.
+  // Landing on the beat from the hash: the frames may still be loading, so retry.
   window.presoRestore = n => {
     if (!(n > 0)) return;
-    step = Math.min(n, 3);
-    clearTimeout(nextT); stopActs();
-    hold(intro, () => intro.classList.add('gone'));
-    hold(push, () => { push.classList.remove('offstage'); push.classList.remove('waiting'); });
-    row.style.setProperty('--move', '0ms');
-    apply(true);
-    // The frames may still be loading, so the answers are retried.
-    [0, 400, 1200, 2000].forEach(t => setTimeout(() => {
-      if (step >= 3) cells.forEach(act);
-      else for (let i = 0; i < step * HALF; i++) act(cells[i]);
-    }, t));
+    step = 1;
+    [0, 400, 1200, 2000].forEach(t => setTimeout(() => { if (step === 1) answer(); }, t));
   };
 })();
 </script>
