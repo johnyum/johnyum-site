@@ -4,25 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>09f</title>
-<!-- HOST SETUP, SIX UP — one screen, straight after the transportation screens
+<!-- HOST SETUP, FIVE UP — one screen, straight after the transportation screens
      (John, 2026-10-01). No lead-in, no five-then-five, no pull back to the full
-     row: the six phones are the slide, and the deck pushes them in as one.
+     row: the five phones are the slide, and the deck pushes them in as one.
 
        1  the splash      "Become a Host in 10 easy steps" — the film and the header
        2  place type      What kind of place will you host?
        3  address         Where's your place located?
        4  amenities       Let guests know what your place has to offer
        5  name            Let's give your place a name
-       6  price           Now for the fun part — set your price
 
-     ONE BUILD. The six land as questions; one tap answers the five that have
+     The price was the sixth and came out the same day — five up.
+
+     ONE BUILD. The five land as questions; one tap answers the four that have
      an answer — House is chosen, the address types and the map flies to it,
-     the amenities pick themselves (the short form: four cards and a stop), the
-     name types, the price ticks to $500 — all together, never left to right: a
+     the amenities pick themselves (the short form: four cards and a stop), and the
+     name types — all together, never left to right: a
      stagger is a wave the eye follows and reads as a queue. The next tap moves
      on.
 
-     SIX INSTANCES OF SLIDE 11, ONE PER SCREEN. Slide 11 is a single phone whose
+     FIVE INSTANCES OF SLIDE 11, ONE PER SCREEN. Slide 11 is a single phone whose
      steps are beats; each cell loads it and parks on its beat with presoPark(),
      and the tap is presoAct(), which answers in place and never presses Next.
      The answers are slide 11's own BEATS — nothing here is a second copy.
@@ -36,11 +37,15 @@
      width and height allow, set by a ResizeObserver — it also fires when the
      deck un-parks the slide, which a load-time read misses (it measures zero).
 
-     THE FILM PLAYS ONCE. Slide 11's video carries `loop`; it is cleared here
-     and nothing else touches it — slide 11 starts it itself when it commits
-     beat 0, and the splash cell is parked exactly once for that reason: every
-     re-park re-commits beat 0 and restarts the film. The other five get their
-     park re-asserted after load, because slide 11 runs its own opening beat.
+     THE FILM PLAYS ONCE PER VISIT. Slide 11's video carries `loop`; it is
+     cleared here. The deck loads a slide ahead of time, so the play slide 11
+     starts at load can be over before anyone arrives — the film is therefore
+     started again from 0 every time the slide is shown (the deck's
+     `presoshown`) and every time the page comes back from another tab or app
+     (John, 2026-10-01). It is seeked and played directly, never re-parked: a
+     re-park re-commits beat 0, and slide 11 leaves a running film alone there.
+     The splash cell is parked exactly once; the other four get their park
+     re-asserted after load, because slide 11 runs its own opening beat.
 
      NOTHING HOVERS, and there is no presoInteractive — the deck's tap rails
      cover the stage and tapping anywhere advances. -->
@@ -80,7 +85,6 @@
     ['step3',  7],                          // address — the one live map
     ['step5', 10],                          // amenities
     ['step7', 13],                          // name
-    ['step8b', 16],                         // price
   ];
   const MAP_STEP = 'step3', FILM_STEP = 'step0';
   const VW = 391.3, PH = 800, GAPC = 0.1;
@@ -122,6 +126,20 @@
     })();
   }
 
+  // THE FILM AGAIN, FROM THE TOP — on every arrival and every return to the page
+  function replay() {
+    let doc = null;
+    try { doc = cells[0].querySelector('iframe').contentDocument; } catch (_) {}
+    const film = doc && doc.getElementById('film');
+    if (!film) return;
+    film.loop = false;
+    const ctl = doc.getElementById('filmctl'); if (ctl) ctl.classList.remove('ended');
+    const start = () => { try { film.currentTime = 0; } catch (_) {} film.play().catch(() => {}); };
+    if (film.readyState >= 2) start(); else film.addEventListener('loadeddata', start, { once: true });
+  }
+  addEventListener('presoshown', replay);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) replay(); });
+
   const fit = (w, h) => {
     if (!(w > 0 && h > 0)) return;
     const n = cells.length;
@@ -132,7 +150,7 @@
   new ResizeObserver(([e]) => fit(e.contentRect.width, e.contentRect.height)).observe(slide);
   const r0 = slide.getBoundingClientRect(); fit(r0.width, r0.height);
 
-  let step = 0;                             // 0 six questions, 1 six answered
+  let step = 0;                             // 0 five questions, 1 four answered
   const answer = () => cells.slice(1).forEach(act);          // the splash has no answer
 
   window.presoNext = () => {

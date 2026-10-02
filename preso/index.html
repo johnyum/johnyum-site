@@ -371,17 +371,25 @@
   // and X is slow to a cold browser. So once the deck has settled on its first slide, the wall is loaded once,
   // off-screen and out of the way, and thrown away a minute later: X's script, every tweet and its pictures are then
   // in the browser's cache, and when the slide itself comes round it renders from there.
+  //
+  // HOST SETUP IS WARMED THE SAME WAY (John, 2026-10-01: "pre-load it so it doesn't load when I land"). It is five copies
+  // of slide 11 — the film, the screens' photos, a live map of San Francisco — and the deck only builds one slide ahead,
+  // so without this they would all be fetched cold while 09c's map is still drawing. Staggered after the tweets so the
+  // two do not fight for the network. The slide replays its film on arrival, so a film played here costs nothing.
+  const WARM = [['09d0.html', 1500], ['09f.html', 4000]];
   let warmed = false;
   function warmTweets() {
     if (warmed) return; warmed = true;
-    const at = SLIDES.indexOf('09d0.html');
-    if (at < 0) return;
-    const f = document.createElement('iframe');
-    f.src = src(at);
-    f.setAttribute('aria-hidden', 'true'); f.tabIndex = -1;
-    f.style.cssText = 'position:fixed;left:-20000px;top:0;width:1920px;height:1080px;border:0;opacity:0;pointer-events:none';
-    document.body.appendChild(f);
-    setTimeout(() => f.remove(), 60000);
+    WARM.forEach(([file, ms]) => setTimeout(() => {
+      const at = SLIDES.indexOf(file);
+      if (at < 0) return;
+      const f = document.createElement('iframe');
+      f.src = src(at);
+      f.setAttribute('aria-hidden', 'true'); f.tabIndex = -1;
+      f.style.cssText = 'position:fixed;left:-20000px;top:0;width:1920px;height:1080px;border:0;opacity:0;pointer-events:none';
+      document.body.appendChild(f);
+      setTimeout(() => f.remove(), 60000);
+    }, ms - 1500));
   }
   function settle(i, made) {
     current = made;
