@@ -11453,6 +11453,12 @@ function smartGroupsFor(idxs) {
   idxs.forEach(i => { const c = LISTINGS[i].city; (byCity[c] = byCity[c] || []).push(i); });
   const out = Object.keys(byCity).map(city => ({ name: city, members: byCity[city].sort((a, z) => a - z) }));
   out.sort((a, z) => z.members.length - a.members.length);   // biggest group first
+  // ...except that on the big board (32 homes) Lake Tahoe follows San Diego, ahead of the bigger Aspen and Palm Springs (John, 2026-10-02)
+  let big = false; try { big = activeHost === 'pro'; } catch (_) {}   // (activeHost is declared further down: not yet, during the boot)
+  if (big) {
+    const t = out.findIndex(g => g.name === 'Lake Tahoe'), sd = out.findIndex(g => g.name === 'San Diego');
+    if (t > -1 && sd > -1 && t !== sd + 1) { const [lt] = out.splice(t, 1); out.splice(out.findIndex(g => g.name === 'San Diego') + 1, 0, lt); }
+  }
   return out;
 }
 function smartGroups() { return smartGroupsFor(LISTINGS.map((_, i) => i)); }
