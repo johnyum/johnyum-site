@@ -7,7 +7,7 @@
 <!-- THE BIG WEB BUILD (John, 2026-09-22). After the four-up: the desktop Multi-Host Calendar — /multi/, the web app the iOS
      replica was made from — live and tappable, in a bounding box at a fixed 0.66 scale — its window as wide as the stage allows — 40 clear of the deck's type above and below, 32 of the edges.
      THE PATH (John, 2026-10-02): it lands on 32 homes at $0 a night; a beat, and every price on screen rolls to $200. Tap: the
-     top 8 stay and grow to 64-high rows. Tap: the top 3 stay and grow to 80. Tap: on. -->
+     top 8 stay and grow to 80-high rows. Tap: the top 3 stay and grow to 120. Tap: on. -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
@@ -77,13 +77,13 @@
       // price change re-lays all of it — the golf ribbon's Apply held the main thread 1.6s; with the rows contained it is
       // under 60ms. The pills and events live inside their rows (measured: none overflow), so the containment clips nothing.
       + '.price-row{content-visibility:auto;contain-intrinsic-size:auto 48px}'
-      // THE THREE SHAPES (John, 2026-10-02): many homes at 48, then the top 8 at 64, then the top 3 at 80. The row height is
+      // THE THREE SHAPES (John, 2026-10-02): many homes at 48, then the top 8 at 80, then the top 3 at 120. The row height is
       // one variable, --rowh, so the cells, the photo column and the photo follow it together. The homes that go are the
       // ones below the survivors ON SCREEN: they fade, then fold away (height and the 8 gap to nothing), and only then do the
-      // survivors grow. The photo keeps its 40 width and grows in height only — 8 under the row, as everywhere.
+      // survivors grow. The photo stays one 40 square throughout, centred in the taller rows.
       + 'body.preso-shape:not(.settings-mode):not(.avail-mode) .price-row,body.preso-shape .thumb-row{height:var(--rowh,48px)!important;transition:height .44s cubic-bezier(.4,0,.2,1),opacity .3s ease,margin-top .44s cubic-bezier(.4,0,.2,1)}'
       + 'body.preso-shape .price-row.preso-out,body.preso-shape .thumb-row.preso-out{height:0!important;margin-top:-8px;opacity:0;overflow:hidden;pointer-events:none;transition:opacity .3s ease,height .44s cubic-bezier(.4,0,.2,1) .3s,margin-top .44s cubic-bezier(.4,0,.2,1) .3s}'
-      + 'body.preso-shape .thumb-img{width:40px!important;height:calc(var(--rowh,48px) - 8px)!important;transition:height .44s cubic-bezier(.4,0,.2,1)}'
+      + 'body.preso-shape .thumb-img{width:40px!important;height:40px!important}'   // one square at every shape — 32, 8 or 3 (John, 2026-10-02: not grown with the row); the taller rows just centre it
       + 'body.preso-snap .price-row,body.preso-snap .thumb-row,body.preso-snap .thumb-img{transition:none!important}'
       // THE ODOMETER ($0 → $200): each place a reel of digits; the places the $0 does not have yet open from nothing as they roll
       + '.preso-odo{display:inline-flex;align-items:flex-start}.preso-odo .rl{display:inline-block;height:1.25em;line-height:1.25em;overflow:hidden;vertical-align:top}'
@@ -181,12 +181,12 @@
     else shape._t = setTimeout(grow, leaving ? 750 : 0);   // the fold first (.3s fade + .44s fold), then the grow
   };
   const BEATS = [
-    // 1 — the top 8 stay; the rest fade and fold away; then the 8 grow to 64
-    { fwd: (w, instant) => shape(w, 8, 64, instant),
+    // 1 — the top 8 stay; the rest fade and fold away; then the 8 grow to 80
+    { fwd: (w, instant) => shape(w, 8, 80, instant),
       back: w => { const d = w.document; clearTimeout(shape._t); d.body.style.setProperty('--rowh', '48px'); d.querySelectorAll('.preso-out').forEach(r => r.classList.remove('preso-out')); } },
-    // 2 — the top 3 stay; the other 5 fade and fold; then the 3 grow to 80
-    { fwd: (w, instant) => shape(w, 3, 80, instant),
-      back: w => { const d = w.document; clearTimeout(shape._t); d.body.style.setProperty('--rowh', '64px'); const rows = [...d.querySelectorAll('#gridRows > .price-row')], keep = new Set(rows.slice(0, 8).map(r => r.dataset.li)); d.querySelectorAll('#gridRows > .price-row, #listingThumbsInner .thumb-row').forEach(r => r.classList.toggle('preso-out', !keep.has(r.dataset.li))); } },
+    // 2 — the top 3 stay; the other 5 fade and fold; then the 3 grow to 120
+    { fwd: (w, instant) => shape(w, 3, 120, instant),
+      back: w => { const d = w.document; clearTimeout(shape._t); d.body.style.setProperty('--rowh', '80px'); const rows = [...d.querySelectorAll('#gridRows > .price-row')], keep = new Set(rows.slice(0, 8).map(r => r.dataset.li)); d.querySelectorAll('#gridRows > .price-row, #listingThumbsInner .thumb-row').forEach(r => r.classList.toggle('preso-out', !keep.has(r.dataset.li))); } },
   ];
   // THE OLD PATH (2026-09-22 … 09-30), parked when John rewrote the slide's path (2026-10-02): group by city, the guests, a swath
   // selected and priced, Tips and its opportunities. Not played; kept whole so any of it can come back.
