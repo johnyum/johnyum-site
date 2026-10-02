@@ -122,6 +122,17 @@ coordinates. It is not in the upstream zip, so **re-apply it after taking in a
 new build** — otherwise slide 13 loads, looks right, and silently refuses to
 step (`apply()` returns false and the deck walks off the slide instead).
 
+### Recurrence, merged in as an add-on (2026-10-01)
+
+The Repeat flow is now IN the `multical/` app too, added on without changing what was there: `src/data/repeat.ts` puts the
+recurrence model onto `Model.prototype` (model.ts untouched; the price / promo / min / availability setters are wrapped to
+keep the books, and for the host — every write the deck makes — they behave exactly as before), and `src/ui/recur/` holds
+the new quick actions + Repeat flow in their own **shadow root**, so their styles and the app's never meet. `Root.tsx` shows
+them only while `model.recurQA` is on (`setRecurQA(true)` from a beat); off, the app is exactly as it was. Checked against
+a recorded fingerprint of all 35 steps of the bland run (12bs) before and after: identical. The pre-merge project is kept
+at `~/Documents/multi-host-calendar-web-backup-2026-10-01`. The cells do not yet draw a rule's colour or the draft's lines —
+that hook-up is the next step.
+
 ## `recurrence/` — the calendar with the Repeat flow
 
 Build output, like `multical/`, from its own project at `~/Documents/multi-host-calendar-recurrence` — a copy of
