@@ -16,6 +16,7 @@ don't introduce bundlers, npm, or a component framework.
 | `explore/` | Explore map drill-in — see below |
 | `multical/` | **Build output — never hand-edit.** The Multi-Host Calendar web app, played live inside the phone on preso slide 13. See below. |
 | `recurrence/` | **Build output — never hand-edit.** The same calendar with the Repeat (recurrence) flow, from its own project. See below. |
+| `muse/` | Sketch → rigged, animated 3D character (Meshy). **Runs locally** off `muse/serve.py` — see below |
 | `bento-widgets/` | Standalone widget experiments |
 | `test/` | Scratch prototypes |
 | `playful/`, `claude-icons/`, `icons/` | Icon systems — see below |
@@ -263,6 +264,34 @@ it.
 `?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
 it without faking clicks.
+
+## `muse/` — sketch to 3D character
+
+Draw something simple; get a textured, rigged, animated 3D character. One hand-written
+`index.html` (three.js 0.170 off jsDelivr) plus `serve.py`, a stdlib-only Python server —
+no npm, no build. Four Meshy tasks, each handed the previous one's **task id**, never a URL:
+`image-to-image` (the sketch restyled; Plush / Vinyl / Clay / Real) → `image-to-3d`
+(A-posed for the rig, 30k tris, PBR) → `rigging` → `animations` (Idle 0, Wave 28, Dance 22,
+Jump 466 from the library, plus the rig's own walk + run).
+
+```bash
+python3 muse/serve.py     # http://127.0.0.1:5320/muse/
+```
+
+- **It is local on purpose.** `vercel.json` already sends `/api/*` to the Trips
+  deployment, and a public endpoint holding the key would spend credits for anyone. On
+  johnyum.com the page loads, says *Offline*, and does nothing.
+- **The key lives in `muse/.env`** (`MESHY_API_KEY=msy_…`, gitignored) or the env. No key
+  = **Mock** mode: every task fakes its progress and a sample robot from the three.js
+  examples stands in, so the flow can be checked for free. `MUSE_MOCK_RIGFAIL=1` fakes
+  a rig failure.
+- **Meshy's asset links expire after a few days**, so `serve.py` caches every GLB it
+  proxies in `muse/.cache/` (gitignored), keyed by the URL's path. That is why a shelf
+  character still opens next month.
+- **Rigging only takes bipeds.** A blob, a toast, a mango fails at step 3 — that's not an
+  error, it's a character with no bones: it keeps the procedural layer (breath, turning to
+  the pointer, a squash when tapped), which runs on top of every clip anyway.
+- `window.__muse` exposes `{ play, still, clips, playing }`, the way `explore/` does.
 
 ## Drawing in Claude's visual language
 
