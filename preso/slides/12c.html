@@ -88,7 +88,9 @@
       // THE ODOMETER ($0 → $200): each place a reel of digits; the places the $0 does not have yet open from nothing as they roll
       + '.preso-odo{display:inline-flex;align-items:flex-start}.preso-odo .rl{display:inline-block;height:1.25em;line-height:1.25em;overflow:hidden;vertical-align:top}'
       + '.preso-odo .rl.grow{max-width:0;transition:max-width .5s cubic-bezier(.2,.7,.2,1)}.preso-odo .rl.grow.open{max-width:1em}'
-      + '.preso-odo .rr{display:block}'   // a block: an inline span takes no transform, and the reel would never turn
+      + '.preso-odo .rr{display:block;will-change:transform}'   // a block: an inline span takes no transform, and the reel would never turn
+      // while it rolls, each cell keeps its own re-layout to itself (the places opening re-centre the price inside the cell, never the board)
+      + 'body.preso-rolling #gridRows .price-card{contain:layout style}'
       + '.preso-odo .rl b{display:block;font-weight:inherit;height:1.25em;line-height:1.25em}';
     d.head.appendChild(seal);
     // SNAPPIER, THE BIG ONE (John, 2026-09-22): every price apply in the build ends by re-pinning the Pricing panel's column
@@ -148,8 +150,10 @@
     const gw = d.getElementById('gridWrap'), R = gw.getBoundingClientRect();
     const cards = [...d.querySelectorAll('#gridRows .price-card')].filter(c => { if (c.classList.contains('booked') || c.classList.contains('past')) return false; const r = c.getBoundingClientRect(); return r.right > R.left && r.left < R.right && r.bottom > R.top && r.top < R.bottom; });
     const reel = (seq, grow) => '<span class="rl' + (grow ? ' grow' : '') + '"><span class="rr">' + seq.map(c => '<b>' + c + '</b>').join('') + '</span></span>';
-    const spin = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
-    const html = '<span class="preso-odo">$' + reel(['0', '1', '2'], true) + reel(spin, true) + reel(spin, false) + '</span>';
+    // the places the $0 does not have start BLANK and roll in — never a "$000" — the ones place spins its full turn from the 0
+    const blank = '&nbsp;', spin = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+    const html = '<span class="preso-odo">$' + reel([blank, '1', '2'], true) + reel([blank, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'], true) + reel(spin, false) + '</span>';
+    d.body.classList.add('preso-rolling');
     cards.forEach(c => { const v = c.querySelector('.price-val'); if (v) v.innerHTML = html; });
     w.requestAnimationFrame(() => {
       cards.forEach(c => c.querySelectorAll('.preso-odo').forEach(o => {
@@ -158,7 +162,7 @@
         [[rr[0], 2, 1000], [rr[1], 10, 1250], [rr[2], 10, 1450]].forEach(([el, n, ms]) => el.animate([{ transform: 'translateY(0)' }, { transform: `translateY(-${n * 1.25}em)` }], { duration: ms, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'forwards' }));
       }));
     });
-    setTimeout(() => ev(w, 'refreshCalendarPrices()'), 1600);   // the reels hand back to the plain $200
+    setTimeout(() => { ev(w, 'refreshCalendarPrices()'); d.body.classList.remove('preso-rolling'); }, 1600);   // the reels hand back to the plain $200
   }
   // ...a beat after the slide has landed (the deck's presoshown), and once only. A restore or a GO skips it: $200 at once.
   function armRoll() {
@@ -197,14 +201,41 @@
         else shape._t = setTimeout(all, 450);
       },
       back: w => shape(w, 3, 140, false) },
-    // 4 — a block of nights, selected: the top 11 homes from today through the 21st, the rectangle growing a column at a time
-    //     like a drag (the build's own selectRange, its bar rising with "11 listings · July 8 – 21") (John, 2026-10-02)
+    // 4 — a block of nights, DRAGGED (John, 2026-10-02): a fingertip comes down on today in the top home, presses, and drags
+    //     down and across to the 21st in the 11th; the cells fill under it as it goes. It is the build's own drag — a real
+    //     mousedown on the night, mousemoves, a mouseup — so the quick actions hold off while the hand is down and pop out the
+    //     moment it lets go, as they do for anyone.
     { fwd: (w, instant) => {
-        const pick = k => ev(w, `(() => { const order = [...document.querySelectorAll('#gridRows .price-row')].map(r => +r.dataset.li); const a = { li: order[0], di: todayDi }, b = { li: order[Math.min(10, order.length - 1)], di: todayDi + ${k} }; selectRange(a, b); selAnchor = a; })()`);
-        if (instant) { pick(13); return; }
-        for (let k = 0; k <= 13; k++) setTimeout(() => pick(k), 120 + k * 45);
+        const d = w.document;
+        const corner = () => ev(w, `(() => { const order = [...document.querySelectorAll('#gridRows .price-row')].map(r => +r.dataset.li); return [{ li: order[0], di: todayDi }, { li: order[Math.min(10, order.length - 1)], di: todayDi + 13 }]; })()`);
+        const [A, B] = corner() || [];
+        if (!A) return;
+        if (instant) { ev(w, `selectRange(${JSON.stringify(A)}, ${JSON.stringify(B)}); selAnchor = ${JSON.stringify(A)}; updateMultiAction();`); return; }
+        const cardAt = p => d.querySelector(`#gridRows .price-row[data-li="${p.li}"] .price-card[data-di="${p.di}"]`);
+        const c0 = cardAt(A), c1 = cardAt(B); if (!c0 || !c1) return;
+        const r0 = c0.getBoundingClientRect(), r1 = c1.getBoundingClientRect();
+        const x0 = r0.left + r0.width / 2, y0 = r0.top + r0.height / 2, x1 = r1.left + r1.width / 2, y1 = r1.top + r1.height / 2;
+        // the fingertip: a soft grey disc with a white ring, drawn in the build so it scales with it
+        let f = d.getElementById('presoFinger');
+        if (!f) { f = d.createElement('div'); f.id = 'presoFinger'; d.body.appendChild(f); }
+        f.style.cssText = `position:fixed;left:${x0}px;top:${y0}px;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:rgba(34,34,34,.22);box-shadow:0 0 0 2px rgba(255,255,255,.95),0 4px 14px rgba(0,0,0,.18);pointer-events:none;z-index:99999;opacity:0;transform:scale(1.15);transition:opacity .2s ease,transform .18s ease`;
+        const mouse = (type, x, y, el) => (el || d).dispatchEvent(new w.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, buttons: type === 'mouseup' ? 0 : 1, view: w }));
+        w.requestAnimationFrame(() => { f.style.opacity = '1'; f.style.transform = 'scale(1)'; });                 // it arrives
+        setTimeout(() => { f.style.transform = 'scale(.82)'; mouse('mousedown', x0, y0, c0); }, 380);               // and presses: today, picked
+        const T = 1300, t0 = 380 + 260;                                                                              // a beat held, then the drag
+        setTimeout(() => {
+          const start = performance.now();
+          const step = now => {
+            const t = Math.min(1, (now - start) / T), e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;      // ease in and out, like a hand
+            const x = x0 + (x1 - x0) * e, y = y0 + (y1 - y0) * e;
+            f.style.left = x + 'px'; f.style.top = y + 'px'; mouse('mousemove', x, y);
+            if (t < 1) w.requestAnimationFrame(step);
+            else setTimeout(() => { mouse('mouseup', x1, y1); f.style.transform = 'scale(1)'; setTimeout(() => { f.style.opacity = '0'; }, 220); }, 160);   // let go: the quick actions pop
+          };
+          w.requestAnimationFrame(step);
+        }, t0);
       },
-      back: w => { ev(w, "clearSelection()"); } },
+      back: w => { const f = w.document.getElementById('presoFinger'); if (f) f.style.opacity = '0'; ev(w, "isDragging = false; document.body.classList.remove('sel-dragging'); clearSelection()"); } },
   ];
   // THE OLD PATH (2026-09-22 … 09-30), parked when John rewrote the slide's path (2026-10-02): group by city, the guests, a swath
   // selected and priced, Tips and its opportunities. Not played; kept whole so any of it can come back.
@@ -377,7 +408,7 @@
   // HOLD is how long each beat plays before the next may start, read off its own timers. 7 and 8 wait on the build
   // (a modal to rise and go; a handle to be dragged up and back), so theirs are the long ones. Going BACK is never
   // queued: it drops anything waiting and acts at once, because reversing is how you recover from a wrong tap.
-  const HOLD = [1300, 1300, 1300, 1000];   // the fold (.75s) and the grow (.44s), and a breath — the old path's were [1500, 1400, 1000, 2900, 1300, 3200, 4600, 6800, 2600, 1800, 1400, 1500]
+  const HOLD = [1300, 1300, 1300, 2400];   // the fold (.75s) and the grow (.44s), and a breath — the old path's were [1500, 1400, 1000, 2900, 1300, 3200, 4600, 6800, 2600, 1800, 1400, 1500]
   let busyUntil = 0, queued = 0, qT = 0;
   const fire = () => { const b = BEATS[at]; at++; safe(() => b.fwd(W(), false)); busyUntil = performance.now() + (HOLD[at - 1] || 1500); };
   const pump = () => {
