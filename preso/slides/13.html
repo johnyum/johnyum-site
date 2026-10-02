@@ -971,7 +971,12 @@ if (SIMPLE) {
     if (instant) { drag(m, true); off(); return; }
     drag(m, false);
     const g = gen;                                               // the drag's own gen
-    setTimeout(() => { if (g === gen) off(); }, 1000);           // the knob is home at 20% (250 + its 700 drag): the prices
+    // THE PRICES ALWAYS LAND (John, 2026-10-02: "the prices still need to update to match the 20%"). They used to drop on a
+    // bare timer — a tap inside that second cancelled it and the nights kept their full prices into the 50%. Now a forward tap
+    // lands them first (pendingTail), and a stray tap waits for the knob to be home (HOLD NEXT).
+    pendingTail = off;
+    setTimeout(tail(g, off), 1000);                              // the knob is home at 20% (250 + its 700 drag): the prices
+    holdNextUntil = performance.now() + 1050;
   });
 }
 // FULL FROM HERE (John, 2026-09-30: "from here on out we're going to be doing the full odometer and animations"). The tap after
