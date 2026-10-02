@@ -132,8 +132,11 @@ slide 13 drives, so it lives beside it, not in it.
 ```bash
 cd ~/Documents/multi-host-calendar-recurrence
 npx vite build --base=/recurrence/ --outDir ~/Documents/johnyum-site/recurrence --emptyOutDir
-rm -rf ~/Documents/johnyum-site/recurrence/fonts   # Airbnb Cereal — never publish it (also gitignored)
 ```
+
+Cereal comes from the copy `multical/` already serves (`base.css` points at `/multical/fonts/`); the project's own
+font files sit outside `public/`, in `handoff/cereal-not-published/`, so a build never ships a second copy (and
+`recurrence/fonts/` is gitignored besides).
 
 What the intake needed to run, all outside the zip's own files: `src/data/compat.ts` (puts back the ~30 model members
 this project's other screens read — `layers`, the wand and tips sheets, the stay sheet, list/year/day — with the old
