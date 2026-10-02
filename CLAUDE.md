@@ -130,8 +130,9 @@ keep the books, and for the host — every write the deck makes — they behave 
 the new quick actions + Repeat flow in their own **shadow root**, so their styles and the app's never meet. `Root.tsx` shows
 them only while `model.recurQA` is on (`setRecurQA(true)` from a beat); off, the app is exactly as it was. Checked against
 a recorded fingerprint of all 35 steps of the bland run (12bs) before and after: identical. The pre-merge project is kept
-at `~/Documents/multi-host-calendar-web-backup-2026-10-01`. The cells do not yet draw a rule's colour or the draft's lines —
-that hook-up is the next step.
+at `~/Documents/multi-host-calendar-web-backup-2026-10-01`. The date cells follow an open Repeat draft live (price and its
+±%, min N, closed, the rule's colour ring + 10% fill) and keep a saved rule's colour; a value set by hand on a night is never
+overridden. With no draft and no rule, the cells are exactly as before — the 35-step fingerprint still matches.
 
 ## `recurrence/` — the calendar with the Repeat flow
 
