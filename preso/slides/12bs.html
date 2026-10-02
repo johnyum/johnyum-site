@@ -97,6 +97,7 @@
      the mono at 18, left-aligned, the block centred on that missing phone. JS sets --side (how far left) and places #notes. */
   body.grown.side .live { transform: translateX(var(--side, 0px)) !important; }
   body.grown .live { transition: transform 720ms cubic-bezier(0.16, 1, 0.3, 1); }
+  body.grown.into4 .live { transition-duration: 900ms; }   /* the four-up's own duration and curve, so the two moves are one */
   body.snap .live, body.snap #notes, body.snap #notes li { transition: none !important; }
   @font-face {
     font-family: "IBM Plex Mono";
@@ -379,7 +380,12 @@
       if (performance.now() < holdUntil) return;
     }
     holdUntil = 0; lastAt = at;
-    const want = state === 2 && landed && at >= SIDE_AT && at <= IW_AT;
+    // INTO THE FOUR-UP FROM THE LEFT (John, 2026-10-02): at #23.45 the month does not come back to the middle first — it holds
+    // where it stood until 13 starts its four-up, then lets go on the four-up's own 900ms curve, so the two moves add up to
+    // one: from the left, straight to its place at the head of the row, while the other three come in.
+    let fourOn = false; try { fourOn = live.contentWindow.document.body.classList.contains('four'); } catch (_) {}
+    const want = state === 2 && landed && ((at >= SIDE_AT && at <= IW_AT) || (at === IW_AT + 1 && !fourOn));
+    document.body.classList.toggle('into4', at === IW_AT + 1);
     const dark = state === 2 && landed && at >= DARK_AT && at <= IW_AT;
     const trim = state === 2 && landed && at >= TRIM_AT && at <= IW_AT;
     const tdx = state === 2 && landed && at >= TIPS_AT && at <= IW_AT;   // Too dark crossed out
@@ -410,6 +416,8 @@
     side = want; layoutSide(); document.body.classList.toggle('side', want);
     if (snapNext) { void document.body.offsetWidth; requestAnimationFrame(() => document.body.classList.remove('snap')); setTimeout(() => document.body.classList.remove('snap'), 60); snapNext = false; }
   }
+  // 13 calls this the frame it starts the four-up, so the left shift lets go in step with it rather than on the next poll
+  window.__into4 = () => { if (!side) return; document.body.classList.add('into4'); side = false; layoutSide(); document.body.classList.remove('side'); };
   setInterval(syncSide, 120);
   addEventListener('resize', layoutSide);
   window.presoPrev = () => {
