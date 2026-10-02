@@ -4,53 +4,68 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>09d00</title>
-<!-- HOST ONLY FEE — the title card for the fee work that follows. Back in after the speed-run cards went (John,
-     2026-09-30), at twice the size, alone and centred — a "Case Study 1" label over it came and went the same day.
+<!-- HOST ONLY FEE — the title card for the fee work that follows; then the
+     cleaning-fee tweets.
 
-     THE EXPLAINER SIZE, the same as Luxe (090), Host Setup (09f0) and Host
-     Calendar (12): Special Gothic Condensed One at clamp(16px, 6.1vh, 62px),
-     the face and clamp 10c set its copy in. All four chapter titles read the
-     same, which is the point — they name the thing and get out of the way.
-     Height-driven, so a title holds its proportion against the stage rather
-     than the window's width and a two-word one needs no sizing argument of
-     its own.
+     AS BIG AS HELLO! (John, 2026-10-01), and set the way 01 sets it: Anton,
+     with the word's measured INK as the SVG viewBox, fitted into Hello!'s own
+     box — 92vw wide, the stage's height less the deck's chrome (76px clear of
+     the kicker and the counter). preserveAspectRatio does the fitting, so the
+     word is as big as the box allows in whichever direction runs out first:
+     a short word fills it as Hello! does, a long one is held by the width and
+     never cut off. See 01.html for why the ink and not a font-size.
 
-     EVERY PROJECT OPENS THE SAME WAY NOW. The card first, then whatever the
-     project opens on — here, the cleaning-fee tweets. The two with an artefact to open
-     on used to go straight to it, which made them look like a continuation of
-     the project before rather than the start of a new one.
-
-     No script, nothing to reveal. The deck pushes it in from the right. -->
+     No build. The deck pushes it in from the right. -->
 <style>
   @font-face {
-    font-family: "Special Gothic Condensed One";
-    src: url("../fonts/SpecialGothicCondensedOne.woff2") format("woff2");
+    font-family: "Anton";
+    src: url("../fonts/Anton.woff2") format("woff2");
     font-weight: 400;
     font-display: block;
   }
-  html, body {
-    margin: 0; height: 100%;
-    background: #fff; color: #111;
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    overflow: hidden;
-  }
+  html, body { margin: 0; height: 100%; background: #fff; color: #111; overflow: hidden; }
   .slide { height: 100%; display: grid; place-items: center; }
-  .pm { text-align: center; }
-  h1 {
-    margin: 0;
-    font-family: "Special Gothic Condensed One", "Helvetica Neue", sans-serif;
+  h1 { margin: 0; display: block; width: 92vw; height: calc(100vh - 152px); }
+  h1 svg { display: block; width: 100%; height: 100%; }
+  h1 text {
+    font-family: "Anton", "Helvetica Neue", sans-serif;
     font-weight: 400;
-    font-size: clamp(32px, 12.2vh, 124px);   /* twice the explainer size (John, 2026-09-30: "make the type bigger") */
-    line-height: 1.06;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;   /* -2%, as Hello! */
+    fill: #111;
   }
 </style>
 </head>
 <body>
   <div class="slide">
-    <div class="pm">
-      <h1>Host only fee</h1>
-    </div>
+    <h1><svg id="word" role="img" aria-label="Host only fee"
+             preserveAspectRatio="xMidYMid meet" viewBox="0 0 100 100">
+      <text x="0" y="0" font-size="100">Host only fee</text>
+    </svg></h1>
   </div>
+<script>
+(() => {
+  // 01's fit, word for word: the ink box from canvas (it works while parked)
+  const svg = document.getElementById('word');
+  const WORD = 'Host only fee';
+  function fit() {
+    const c = document.createElement('canvas').getContext('2d');
+    c.font = '400 100px Anton, sans-serif';
+    try { c.letterSpacing = '-0.02em'; } catch (_) {}
+    const m = c.measureText(WORD);
+    const l = m.actualBoundingBoxLeft, r = m.actualBoundingBoxRight;
+    const a = m.actualBoundingBoxAscent, d = m.actualBoundingBoxDescent;
+    const w = l + r, h = a + d;
+    if (!(w > 0 && h > 0)) return false;
+    svg.setAttribute('viewBox', (-l) + ' ' + (-a) + ' ' + w + ' ' + h);
+    return true;
+  }
+  fit();
+  // Anton is font-display: block, so the first read can land on nothing.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.load('400 100px Anton').catch(() => {}).then(() => fit());
+    document.fonts.ready.then(fit).catch(() => {});
+  }
+})();
+</script>
 </body>
 </html>
