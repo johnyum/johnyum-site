@@ -1002,7 +1002,7 @@ body.avail-mode #availRows > .group-divider.first { display: none; }
   /* 14px breathing room after the left panel; --rows-bottom at the foot, the SAME value the calendar uses,
      so the three surfaces have identical bottom whitespace at every tier. It sits on the container rather
      than being derived from the row count, so 3 listings and 32 get the same gutter. */
-  padding: 24px 24px var(--rows-bottom) 14px;
+  padding: 8px 24px var(--rows-bottom) 14px;   /* 24 → 8, as the Calendar's (John, 2026-10-02: the three stay consistent) */
 }
 /* The thumbnails must carry the SAME bottom gutter in the sheets: the --vsync scroll timeline maps the
    thumbnail column onto the grid's scroll progress, so unequal scroll heights offset the thumbs at the end. */
@@ -3442,8 +3442,8 @@ body.super-collapse-2 .grid-wrap { overflow-x: hidden; }
 
 .grid-rows { min-width: max-content; display: flex; flex-direction: column; gap: 8px; padding: 8px 0 var(--rows-bottom); }
 /* 24 → 8 under the dates (John, 2026-10-02): with the rule gone the header and the first row read as one gap, so it closes
-   by 16. The photos follow on the Calendar only — Pricing and Availability keep their rule and their own 24. */
-body:not(.settings-mode):not(.avail-mode) .thumbs-inner { padding-top: 8px; }
+   by 16 — on Pricing and Availability too, whose rows (.settings-rows) and rule went the same way. The photos follow. */
+.thumbs-inner { padding-top: 8px; }
 
 /* ── Month view: clean dot-grid mini-month cards (≈6.5 fit; scrolls L/R through 3 mock years) ─────── */
 /* Rebuilt per the dot-grid reference SVG: a tidy 7×6 lattice of PERFECT circles on an even pitch
@@ -3830,6 +3830,18 @@ body.host-pro:not(.super-collapse-2) .booking-name { font-size: 12px; }
    back — one host growing/shrinking, not three different hosts. */
 body.hosts-morph .price-row, body.hosts-morph .thumb-row { transition: height .44s cubic-bezier(.4,0,.2,1); }
 body.hosts-morph .thumb-img { transition: width .44s cubic-bezier(.4,0,.2,1), height .44s cubic-bezier(.4,0,.2,1); }
+/* THE PHOTOS, 8 UNDER THE DATE CELL (John, 2026-10-02): square, the cell's short side less 8 — 72 by the 80x96 cells (3–7
+   homes), 56 by the 64s (12), 48 by the 56s (32). The narrow column stays 92 and the photo stays centred in it, so the
+   left toggle and everything keyed to the column's middle (46) holds; only the side padding gives. Month (super-collapse-2)
+   keeps its own small photo. */
+body { --thumb: 56px; }
+body.host-small { --thumb: 72px; }
+body.host-pro { --thumb: 48px; }
+body:not(.super-collapse-2) .thumb-img,
+body.host-small:not(.super-collapse-2) .thumb-img { width: var(--thumb); height: var(--thumb); }
+body:not(.listings-expanded):not(.super-collapse-2) .thumb-row { padding-left: calc((92px - var(--thumb)) / 2); padding-right: calc((92px - var(--thumb)) / 2); }
+/* ...except the Calendar's 3–7 homes, whose column is 96 (its toggle centred at 48): centred on that */
+body.host-small:not(.listings-expanded):not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .thumb-row { padding: 0 calc((96px - var(--thumb)) / 2); }
 body.hosts-morph .left { transition: width .44s cubic-bezier(.4,0,.2,1); }
 body.hosts-morph .booking-pill { transition: height .44s cubic-bezier(.4,0,.2,1), top .44s cubic-bezier(.4,0,.2,1), padding .44s cubic-bezier(.4,0,.2,1); }
 body.hosts-morph .booking-avatar { transition: width .44s cubic-bezier(.4,0,.2,1), height .44s cubic-bezier(.4,0,.2,1); }
