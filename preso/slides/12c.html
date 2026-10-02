@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>12c</title>
 <!-- THE BIG WEB BUILD (John, 2026-09-22). After the four-up: the desktop Multi-Host Calendar — /multi/, the web app the iOS
-     replica was made from — live and tappable, in a bounding box at a fixed 0.66 scale — its window as wide as the stage allows — 40 clear of the deck's type above and below, 32 of the edges. No build here: the deck
-     pushes straight through. -->
+     replica was made from — live and tappable, in a bounding box at a fixed 0.66 scale — its window as wide as the stage allows — 40 clear of the deck's type above and below, 32 of the edges.
+     THE PATH (John, 2026-10-02): it lands on 32 homes at $0 a night; a beat, and every price on screen rolls to $200. Tap: the
+     top 8 stay and grow to 64-high rows. Tap: the top 3 stay and grow to 80. Tap: on. -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
@@ -75,7 +76,20 @@
       // SNAPPIER (John, 2026-09-22): a home's row renders only while it is on screen. The board is 32 rows of 60 cells and a
       // price change re-lays all of it — the golf ribbon's Apply held the main thread 1.6s; with the rows contained it is
       // under 60ms. The pills and events live inside their rows (measured: none overflow), so the containment clips nothing.
-      + '.price-row{content-visibility:auto;contain-intrinsic-size:auto 48px}';
+      + '.price-row{content-visibility:auto;contain-intrinsic-size:auto 48px}'
+      // THE THREE SHAPES (John, 2026-10-02): many homes at 48, then the top 8 at 64, then the top 3 at 80. The row height is
+      // one variable, --rowh, so the cells, the photo column and the photo follow it together. The homes that go are the
+      // ones below the survivors ON SCREEN: they fade, then fold away (height and the 8 gap to nothing), and only then do the
+      // survivors grow. The photo keeps its 40 width and grows in height only — 8 under the row, as everywhere.
+      + 'body.preso-shape:not(.settings-mode):not(.avail-mode) .price-row,body.preso-shape .thumb-row{height:var(--rowh,48px)!important;transition:height .44s cubic-bezier(.4,0,.2,1),opacity .3s ease,margin-top .44s cubic-bezier(.4,0,.2,1)}'
+      + 'body.preso-shape .price-row.preso-out,body.preso-shape .thumb-row.preso-out{height:0!important;margin-top:-8px;opacity:0;overflow:hidden;pointer-events:none;transition:opacity .3s ease,height .44s cubic-bezier(.4,0,.2,1) .3s,margin-top .44s cubic-bezier(.4,0,.2,1) .3s}'
+      + 'body.preso-shape .thumb-img{width:40px!important;height:calc(var(--rowh,48px) - 8px)!important;transition:height .44s cubic-bezier(.4,0,.2,1)}'
+      + 'body.preso-snap .price-row,body.preso-snap .thumb-row,body.preso-snap .thumb-img{transition:none!important}'
+      // THE ODOMETER ($0 → $200): each place a reel of digits; the places the $0 does not have yet open from nothing as they roll
+      + '.preso-odo{display:inline-flex;align-items:flex-start}.preso-odo .rl{display:inline-block;height:1.25em;line-height:1.25em;overflow:hidden;vertical-align:top}'
+      + '.preso-odo .rl.grow{max-width:0;transition:max-width .5s cubic-bezier(.2,.7,.2,1)}.preso-odo .rl.grow.open{max-width:1em}'
+      + '.preso-odo .rr{display:block}'   // a block: an inline span takes no transform, and the reel would never turn
+      + '.preso-odo .rl b{display:block;font-weight:inherit;height:1.25em;line-height:1.25em}';
     d.head.appendChild(seal);
     // SNAPPIER, THE BIG ONE (John, 2026-09-22): every price apply in the build ends by re-pinning the Pricing panel's column
     // widths — syncHeaderWidths → floorSubCells measures each word of 672 settings cells through a probe span, a forced
@@ -103,7 +117,7 @@
     setTimeout(landToday, 60);
     // ONLY THE PRISTINE STATE IS EVER SEEN (John, 2026-09-22): the build boots on its own default — twelve homes, guests in — and
     // is switched over here; it stays unseen until that has landed, then fades in standing at 32 homes, base rate, no pills.
-    setTimeout(() => { try { w.setDataMode('none', true); w.autoGroupByCity(false); } catch (_) {} landToday(); requestAnimationFrame(() => requestAnimationFrame(() => { landToday(); app.classList.add('ready'); })); }, 260);
+    setTimeout(() => { try { w.setDataMode('none', true); w.autoGroupByCity(false); } catch (_) {} d.body.classList.add('preso-shape'); setAll(w, rolled ? 200 : 0); landToday(); requestAnimationFrame(() => requestAnimationFrame(() => { landToday(); app.classList.add('ready'); armRoll(); })); }, 260);   // every night $0 until the odometer (John, 2026-10-02)
     // the deck's keys keep working with focus inside the build
     const NAV = new Set(['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'PageUp', 'PageDown', 'Home', 'End', 'f', 'F']);
     // CAPTURED, and stopped: the build has arrow keys of its own (they page the dates), and with focus inside the frame a
@@ -122,7 +136,61 @@
   let chain = Promise.resolve();
   const closeUpsell = w => { ev(w, "(() => { const o = document.getElementById('lmUpsellOverlay'); if (o) o.classList.remove('visible'); const b = document.getElementById('lmUpsellOn'); if (b) { b.classList.remove('is-thinking'); } })()"); };   // whatever upsell the build has popped, gone
   const later = (fn, ms) => { chain = chain.then(() => new Promise(r => setTimeout(() => { try { fn(); } catch (e) { console.warn('replay step failed', e); } r(); }, ms))); };
+  // EVERY NIGHT, ONE PRICE (John, 2026-10-02): the data first — every home, every night — so a cell built later, scrolled to
+  // or rebuilt, reads the same as the ones on screen
+  const setAll = (w, v) => ev(w, `for (let li = 0; li < priceOverride.length; li++) for (let di = 0; di < allDays.length; di++) priceOverride[li][di] = ${v}; refreshCalendarPrices();`);
+  // ...and then the cells on screen roll there: $0 → $200, the hundreds turning 0-1-2, the tens and ones a full turn each, the
+  // places the $0 lacks opening from nothing as they turn. Off-screen cells are simply $200 by the time anyone gets to them.
+  let rolled = false, rollT = 0;
+  function roll() {
+    const w = W(), d = w && w.document; if (!d || rolled) return;
+    rolled = true; setAll(w, 200);
+    const gw = d.getElementById('gridWrap'), R = gw.getBoundingClientRect();
+    const cards = [...d.querySelectorAll('#gridRows .price-card')].filter(c => { if (c.classList.contains('booked') || c.classList.contains('past')) return false; const r = c.getBoundingClientRect(); return r.right > R.left && r.left < R.right && r.bottom > R.top && r.top < R.bottom; });
+    const reel = (seq, grow) => '<span class="rl' + (grow ? ' grow' : '') + '"><span class="rr">' + seq.map(c => '<b>' + c + '</b>').join('') + '</span></span>';
+    const spin = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+    const html = '<span class="preso-odo">$' + reel(['0', '1', '2'], true) + reel(spin, true) + reel(spin, false) + '</span>';
+    cards.forEach(c => { const v = c.querySelector('.price-val'); if (v) v.innerHTML = html; });
+    w.requestAnimationFrame(() => {
+      cards.forEach(c => c.querySelectorAll('.preso-odo').forEach(o => {
+        const rr = o.querySelectorAll('.rr');
+        o.querySelectorAll('.rl.grow').forEach(g => g.classList.add('open'));
+        [[rr[0], 2, 1000], [rr[1], 10, 1250], [rr[2], 10, 1450]].forEach(([el, n, ms]) => el.animate([{ transform: 'translateY(0)' }, { transform: `translateY(-${n * 1.25}em)` }], { duration: ms, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'forwards' }));
+      }));
+    });
+    setTimeout(() => ev(w, 'refreshCalendarPrices()'), 1600);   // the reels hand back to the plain $200
+  }
+  // ...a beat after the slide has landed (the deck's presoshown), and once only. A restore or a GO skips it: $200 at once.
+  function armRoll() {
+    if (rolled || !app.classList.contains('ready') || !shown) return;
+    clearTimeout(rollT); rollT = setTimeout(roll, 800);
+  }
+  let shown = window.parent === window;   // on its own, outside the deck: as if landed
+  addEventListener('presoshown', () => { shown = true; armRoll(); });
+  const skipRoll = () => { clearTimeout(rollT); if (!rolled) { rolled = true; const w = W(); if (w && w.document) setAll(w, 200); } };   // (priceOverride is the build's script variable, not a window property: ev reaches it)
+
+  // THE SHAPES. Which homes stay is read off the screen: the first K rows in the order they stand.
+  const shape = (w, K, H, instant) => {
+    const d = w.document, rows = [...d.querySelectorAll('#gridRows > .price-row')], keep = new Set(rows.slice(0, K).map(r => r.dataset.li));
+    if (instant) d.body.classList.add('preso-snap');
+    let leaving = 0;
+    d.querySelectorAll('#gridRows > .price-row, #listingThumbsInner .thumb-row').forEach(r => { const out = !keep.has(r.dataset.li); if (out && !r.classList.contains('preso-out')) leaving++; r.classList.toggle('preso-out', out); });
+    clearTimeout(shape._t);
+    const grow = () => d.body.style.setProperty('--rowh', H + 'px');
+    if (instant) { grow(); void d.body.offsetWidth; w.requestAnimationFrame(() => d.body.classList.remove('preso-snap')); }
+    else shape._t = setTimeout(grow, leaving ? 750 : 0);   // the fold first (.3s fade + .44s fold), then the grow
+  };
   const BEATS = [
+    // 1 — the top 8 stay; the rest fade and fold away; then the 8 grow to 64
+    { fwd: (w, instant) => shape(w, 8, 64, instant),
+      back: w => { const d = w.document; clearTimeout(shape._t); d.body.style.setProperty('--rowh', '48px'); d.querySelectorAll('.preso-out').forEach(r => r.classList.remove('preso-out')); } },
+    // 2 — the top 3 stay; the other 5 fade and fold; then the 3 grow to 80
+    { fwd: (w, instant) => shape(w, 3, 80, instant),
+      back: w => { const d = w.document; clearTimeout(shape._t); d.body.style.setProperty('--rowh', '64px'); const rows = [...d.querySelectorAll('#gridRows > .price-row')], keep = new Set(rows.slice(0, 8).map(r => r.dataset.li)); d.querySelectorAll('#gridRows > .price-row, #listingThumbsInner .thumb-row').forEach(r => r.classList.toggle('preso-out', !keep.has(r.dataset.li))); } },
+  ];
+  // THE OLD PATH (2026-09-22 … 09-30), parked when John rewrote the slide's path (2026-10-02): group by city, the guests, a swath
+  // selected and priced, Tips and its opportunities. Not played; kept whole so any of it can come back.
+  const OLD_BEATS = [
     // 1 — the ⋯ menu, opened; Group, taken: the rows re-sort into their cities with the build's own FLIP — tiles trading
     //     places round by round — and NOT its thinking dots (applyGroupingLive, not animateGroupsByCity)
     { fwd: (w, instant) => {
@@ -278,7 +346,7 @@
       back: w => { ev(w, "startOptimize()"); } },
   ];
   let at = 0, pendingRestore = 0;   // a restore asked for before the build stands ready waits for it, and is applied before any tap
-  const runTo = n => { for (; at < Math.min(n, BEATS.length); at++) { const b = BEATS[at]; try { b.fwd(W(), true); } catch (e) { console.warn('beat failed', e); } } };
+  const runTo = n => { if (n > 0) skipRoll(); for (; at < Math.min(n, BEATS.length); at++) { const b = BEATS[at]; try { b.fwd(W(), true); } catch (e) { console.warn('beat failed', e); } } };
   const settleRestore = () => { if (pendingRestore && app.classList.contains('ready')) { const n = pendingRestore; pendingRestore = 0; runTo(n); } };
   // a beat that throws must never freeze the deck: the step is counted whatever happened inside it
   const safe = fn => { try { fn(); } catch (e) { console.warn('beat failed', e); } };
@@ -291,7 +359,7 @@
   // HOLD is how long each beat plays before the next may start, read off its own timers. 7 and 8 wait on the build
   // (a modal to rise and go; a handle to be dragged up and back), so theirs are the long ones. Going BACK is never
   // queued: it drops anything waiting and acts at once, because reversing is how you recover from a wrong tap.
-  const HOLD = [1500, 1400, 1000, 2900, 1300, 3200, 4600, 6800, 2600, 1800, 1400, 1500];
+  const HOLD = [1300, 1300];   // the fold (.75s) and the grow (.44s), and a breath — the old path's were [1500, 1400, 1000, 2900, 1300, 3200, 4600, 6800, 2600, 1800, 1400, 1500]
   let busyUntil = 0, queued = 0, qT = 0;
   const fire = () => { const b = BEATS[at]; at++; safe(() => b.fwd(W(), false)); busyUntil = performance.now() + (HOLD[at - 1] || 1500); };
   const pump = () => {
