@@ -6,43 +6,111 @@
 <title>02</title>
 <!-- I. Love. Design.
 
-     Three sentences, three full stops, one line. It said "I'm John Yum and I
-     Love to design" with the o in Love growing out to Loooooooooove on a
-     timer; the name went (the kicker carries it on every slide) and so did the
-     stretch. Stated flat, it lands harder than it did animated.
+     Three sentences, three full stops, one line, 32pt IBM Plex Mono, centred — small and quiet.
 
-     Set small and quiet now (John, 2026-10-01): 32pt IBM Plex Mono, centred (18 at first) —
-     the deck's mono, as on 01. No script. -->
+     ONE BUILD: THE CHALKBOARD (John, 2026-10-01). The tap sends "I." up to the top-left corner and "Design." down to
+     the bottom-right, and everything between fills with Love. Love. Love., written out row by row in reading order
+     the way Bart writes his lines — until the page is nothing but the one word, with the I. and the Design. holding
+     its two corners.
+
+     THE BOX IS THE DECK'S BAND: 76 from the top and 76 from the bottom — the kicker sits 32 down and is 12 tall, so
+     76 leaves the same 32 under it that it has above it, and the section names mirror that at the foot — and 80 in
+     from either side. Every row carries the same number of words, spread edge to edge, so the Loves line up in
+     columns like a ruled board; the rows are spread top to bottom the same way, so the first and last rows sit on
+     the band exactly and "I." and "Design." land in its corners. -->
 <style>
   @font-face {
     font-family: "IBM Plex Mono";
     src: url("../fonts/IBMPlexMono-Regular.woff2") format("woff2");
     font-weight: 400; font-style: normal; font-display: block;
   }
-  html, body {
-    margin: 0; height: 100%;
-    background: #fff; color: #111;
-    overflow: hidden;
-  }
-  .slide {
-    height: 100%;
-    display: grid;
-    place-items: center;
-  }
-  h1 {
-    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
-    font-weight: 400;
-    font-size: 32px;
-    line-height: 1.4;
-    text-align: center;
-    margin: 0;
-    white-space: nowrap;
-  }
+  html, body { margin: 0; height: 100%; background: #fff; color: #111; overflow: hidden; }
+  body { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 32px; line-height: 32px; }
+  .w { position: absolute; left: 0; top: 0; white-space: pre; will-change: transform, opacity; }
+  .love { opacity: 0; transition: opacity 260ms ease; }
+  .love.in { opacity: 1; }
+  .move { transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1), opacity 260ms ease; }
 </style>
 </head>
 <body>
-  <div class="slide">
-    <h1>I. Love. Design.</h1>
-  </div>
+<script>
+(() => {
+  const TOP = 76, BOTTOM = 76, SIDE = 80, ROWGAP = 16;   // the deck's band, and air between rows
+  const WRITE = 1400;                                    // the whole board, written out in this long
+  let step = 0, words = [], timers = [];
+  const clear = () => { timers.forEach(clearTimeout); timers = []; };
+  const el = (text, cls) => { const d = document.createElement('div'); d.className = 'w ' + (cls || ''); d.textContent = text; document.body.appendChild(d); return d; };
+  const put = (d, x, y) => { d.style.transform = `translate(${x}px, ${y}px)`; };
+
+  function charW() {
+    const c = document.createElement('canvas').getContext('2d');
+    c.font = '400 32px "IBM Plex Mono", monospace';
+    return c.measureText('0').width || 19.2;
+  }
+
+  // the centred line, and where each of its three words sits in it
+  function centred(W, H, cw) {
+    const line = 'I. Love. Design.', x0 = (W - line.length * cw) / 2, y = (H - 32) / 2;
+    return { I: [x0, y], Love: [x0 + 3 * cw, y], Design: [x0 + 9 * cw, y] };
+  }
+
+  let I, LOVE, DESIGN, board = [];
+  function lay(animate) {
+    const W = innerWidth, H = innerHeight;
+    if (!(W > 0 && H > 0)) return;
+    const cw = charW();
+    const c = centred(W, H, cw);
+    // the board: n words a row, spread edge to edge; rows spread top to bottom
+    const bw = W - 2 * SIDE, bh = H - TOP - BOTTOM;
+    const per = Math.max(1, Math.floor((bw + cw) / (6 * cw)));     // "Love. " is six characters
+    const rows = Math.max(2, Math.floor((bh + ROWGAP) / (32 + ROWGAP)));
+    const colX = i => SIDE + (per === 1 ? 0 : i * (bw - 5 * cw) / (per - 1));
+    const rowY = r => TOP + r * (bh - 32) / (rows - 1);
+    // I. takes the first slot, Design. the last — right-aligned to the edge, as "Love." would be
+    const slots = [];
+    for (let r = 0; r < rows; r++) for (let i = 0; i < per; i++) slots.push([colX(i), rowY(r)]);
+    const last = slots.length - 1;
+    // the last row is spread on its own: Design. is two characters wider than a Love, and on the board's columns it
+    // ran into the Love before it. Same words, same edges, its own even spacing.
+    if (per === 1) slots[last] = [W - SIDE - 7 * cw, rowY(rows - 1)];   // a window one word wide: Design. to the right edge
+    else {
+      const lastGap = (bw - (per - 1) * 5 * cw - 7 * cw) / (per - 1);
+      for (let i = 0; i < per; i++) slots[last - (per - 1) + i] = [SIDE + i * (5 * cw + lastGap), rowY(rows - 1)];
+    }
+
+    // build the words once per size
+    board.forEach(d => d.remove()); board = [];
+    if (!I) { I = el('I.', 'move'); LOVE = el('Love.', 'move'); DESIGN = el('Design.', 'move'); }
+    for (let k = 1; k < last; k++) { const d = el('Love.', 'love'); put(d, slots[k][0], slots[k][1]); board.push(d); }
+
+    const hold = d => { d.style.transition = 'none'; };
+    const free = d => { void d.offsetWidth; d.style.transition = ''; };
+    if (!animate) [I, LOVE, DESIGN].forEach(hold);
+    if (step === 0) {
+      put(I, ...c.I); put(LOVE, ...c.Love); put(DESIGN, ...c.Design); LOVE.style.opacity = 1;
+    } else {
+      put(I, ...slots[0]); put(DESIGN, ...slots[last]);
+      put(LOVE, ...slots[1]); LOVE.style.opacity = 1;          // the first Love takes the board's first Love slot
+      board[0].style.display = 'none';
+      if (animate) {
+        // written out in reading order, after the corners have started to move
+        board.slice(1).forEach((d, k) => timers.push(setTimeout(() => d.classList.add('in'), 250 + k * WRITE / board.length)));
+      } else board.forEach(d => d.classList.add('in'));
+    }
+    if (!animate) [I, LOVE, DESIGN].forEach(free);
+  }
+
+  function go(n, animate) { clear(); step = n; lay(animate); }
+  window.presoNext = () => { if (step >= 1) return false; go(1, true); return true; };
+  window.presoPrev = () => { if (step === 0) return false; go(0, true); return true; };
+  window.presoState = () => step;
+  window.presoRestore = n => { if (n > 0) go(1, false); };
+
+  let rt = 0;
+  addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => lay(false), 120); });
+  lay(false);
+  if (document.fonts) document.fonts.load('400 32px "IBM Plex Mono"').then(() => lay(false)).catch(() => {});
+})();
+</script>
 </body>
 </html>
