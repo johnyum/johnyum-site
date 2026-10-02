@@ -758,10 +758,11 @@ if (SIMPLE) BEATS.splice(beatAfter('.cp .mn-cancel', 2), 0, (m, instant) => {
   const cells = [...d.querySelectorAll('.single .dcell.selected')];
   const EVERY = 70;
   cells.forEach((el, i) => setTimeout(() => { if (g === gen) el.classList.add('preso-os'); }, i * EVERY));
-  setTimeout(() => {
-    if (g === gen) m.setOrigSel(true);
-    setTimeout(() => d.querySelectorAll('.preso-os').forEach(el => el.classList.remove('preso-os')), 50);
-  }, cells.length * EVERY + 120);
+  // STROKED, HOWEVER FAST (John, 2026-10-02): this used to finish on a bare timer, and a tap inside it left the phone on the
+  // black picks for the rest of the run. Now a forward tap lands the switch first (pendingTail), the same as the 20%'s prices.
+  const done = () => { m.setOrigSel(true); setTimeout(() => d.querySelectorAll('.preso-os').forEach(el => el.classList.remove('preso-os')), 50); };
+  pendingTail = done;
+  setTimeout(tail(g, done), cells.length * EVERY + 120);
 });
 // THE ICONS COME IN (John, 2026-09-30) — the answer to "No holidays". The fork shows no events and holidays at all until
 // here (the corner dots it once had are gone: "get rid of them altogether"). With the verdict's arrow on "No holidays"
@@ -965,7 +966,7 @@ if (SIMPLE) BEATS.splice(beatAfter('const home = () => m.homeLocked()', 1), 0, (
 if (SIMPLE) {
   const drag = BEATS.find(b => String(b).includes('if (!SIMPLE) m.setPromo(0.2, 0, ns)'));
   const at = beatAfter("querySelectorAll('.sqa-custom.open .ss-row')[1]); }, up + 800");
-  if (drag && at > 0) BEATS.splice(at, 0, (m, instant) => {
+  if (drag && at > 0) BEATS.splice(at, 0, Object.assign((m, instant) => {
     const ns = [...m.selectedNights];
     const off = () => { for (const di of ns) { PRE20.set(di, m.price(0, di)); m.setPrice(Math.round(m.price(0, di) * 0.8), 0, [di], false); } };   // the price before, kept for the 50%
     if (instant) { drag(m, true); off(); return; }
@@ -977,7 +978,7 @@ if (SIMPLE) {
     pendingTail = off;
     setTimeout(tail(g, off), 1000);                              // the knob is home at 20% (250 + its 700 drag): the prices
     holdNextUntil = performance.now() + 1050;
-  });
+  }, { rev: [20, 0] }));
 }
 // FULL FROM HERE (John, 2026-09-30: "from here on out we're going to be doing the full odometer and animations"). The tap after
 // the plain 20%: html.preso-full lifts the fork's blandness for good — the date cells animate again, the odometer rolls,
@@ -1025,7 +1026,8 @@ const promoTo = (from, to) => (m, instant) => {
   };
   requestAnimationFrame(step);
 };
-if (SIMPLE) BEATS.splice(beatAfter('PRE20.get', 1), 0, promoTo(50, 10), promoTo(10, 20));
+if (SIMPLE) { const b50 = BEATS.find(b => String(b).includes('m.setPromoPct(20 + 30')); if (b50) b50.rev = [50, 20]; }   // Back from the 50% drags home to 20
+if (SIMPLE) BEATS.splice(beatAfter('PRE20.get', 1), 0, Object.assign(promoTo(50, 10), { rev: [10, 50] }), Object.assign(promoTo(10, 20), { rev: [20, 10] }));
 // ...and the tap after the 20% (John, 2026-09-30): the promotion editor's Done, visibly tapped — back to Custom settings — and a
 // beat later Minimum nights, visibly tapped, the editor opening. A stray tap waits for it (HOLD NEXT).
 if (SIMPLE) BEATS.splice(beatAfter('PRE20.get', 3), 0, (m, instant) => {
@@ -1103,7 +1105,9 @@ const nextBtn = d => { const r = shadow(d); return r && [...r.querySelectorAll('
 const plusOf = label => d => { const r = shadow(d); if (!r) return null; const row = [...r.querySelectorAll('.row')].find(x => x.textContent.trim().startsWith(label)); return row && [...row.querySelectorAll('button')].pop(); };
 const swatch = i => d => { const r = shadow(d); if (!r) return null; return [...r.querySelectorAll('button')].filter(b => b.firstElementChild && b.firstElementChild.style && b.firstElementChild.style.borderRadius === '50%' && b.firstElementChild.style.width === '28px')[i]; };
 const jumpBtn = d => d.querySelector('.single .jump');
-const GREEN = 3, ORANGE = 6;                                    // repeatPalette: #038026, #DD6B0E
+const GREEN = 3, ORANGE = 6;
+// the deck names the days that show an icon (shownMarks), and named only 2026's; Thanksgiving 2027 joins them (John, 2026-10-02)
+const turkey27 = m => { const y27 = m.eventStops('Thanksgiving').filter(st => m.fx.date(st.core[0]).y === 2027).flatMap(st => st.core); if (y27.length && m.shownMarks) m.setShownMarks(new Set([...m.shownMarks, ...y27])); };                                    // repeatPalette: #038026, #DD6B0E
 const OCT = m => d => m.fx.index({ y: 2026, m: 10, d });
 const octoberStays = m => {
   const I = OCT(m), pool = m.bookings.filter(b => b.listing === 0 && b.avatarURL && !b.added);
@@ -1129,6 +1133,7 @@ function recurLand() {
     const R = rq();
     R.setRepPrice(want.price ?? null); R.setRepMin(want.min ?? null); if (want.color != null) R.setColorIdx(want.color);
     R.setStep(want.step || 2);
+    if (want.arrow && !want.saved) setTimeout(() => { const j = jumpBtn(appDoc()); if (j) j.click(); }, 400);   // on to Thanksgiving 2027
     if (want.saved) setTimeout(() => {
       const R2 = rq(); if (R2) R2.save();
       if (want.october) setTimeout(() => { m.revealOffset = 0; m.reveal(OCT(m)(1), null, 0, 0); if (want.stays) octoberStays(m).forEach(b => m.addStay(b)); }, 80);
@@ -1167,31 +1172,28 @@ const RECUR_BEATS = [
     setTimeout(tail(g, pendingTail), 1200);
     holdNextUntil = performance.now() + 1100;
   },
-  // 6 · the arrow down to Thanksgiving 2027, a beat, back up to 2026: the rule is on every year
+  // 6 · the arrow down to Thanksgiving 2027 — and it stays there: the rule is on next year too (John, 2026-10-02: "stay
+  // there"). 12bs crosses out No recurrence on this beat (NR_AT).
   (m, instant) => {
-    if (instant) return;                                          // it ends where it began
-    const g = ++gen;
+    turkey27(m);                                                  // the turkey is on next year's Thanksgiving too
+    if (instant) { recurAt({ step: 4, price: 35, min: 7, color: ORANGE, arrow: true }); return; }
     tapEl(jumpBtn);
-    setTimeout(() => { if (g === gen) tapEl(jumpBtn); }, 2200);
-    holdNextUntil = performance.now() + 3000;
+    holdNextUntil = performance.now() + 1500;
   },
-  // 7 · Save; a beat; the calendar flies back to October
-  (m, instant) => {
-    if (instant) { recurAt({ step: 4, price: 35, min: 7, color: ORANGE, saved: true, october: true }); return; }
-    const g = ++gen;
-    tapEl(nextBtn);
-    pendingTail = () => { m.revealOffset = 0; m.reveal(OCT(m)(1), null, 0, 0); };
-    setTimeout(tail(g, pendingTail), 1300);
-    holdNextUntil = performance.now() + 1400;
-  },
-  // 8 · October fills: a guest the 7th to the 12th, a request to book, a stay you cancelled — drawn in one after another
+  // 7 · Save — the quick actions close — and the calendar flies back to October, where a guest's stay, a request to book
+  // and a stay you cancelled flow in, each starting as the one before it is half drawn (John: "flowing in as the other finishes")
   (m, instant) => {
     const stays = octoberStays(m);
     if (instant) { recurAt({ step: 4, price: 35, min: 7, color: ORANGE, saved: true, october: true, stays: true }); return; }
     const g = ++gen;
-    stays.forEach((b, i) => setTimeout(() => { if (g === gen) m.addStay({ ...b, enter: true }); }, i * 800));
-    pendingTail = () => { const have = new Set(m.bookings.filter(b => b.added).map(b => b.startIndex)); stays.forEach(b => { if (!have.has(b.startIndex)) m.addStay(b); }); };
-    setTimeout(tail(g, pendingTail), 2 * 800 + 100);
+    tapEl(nextBtn);
+    const fly = () => { m.revealOffset = 0; m.reveal(OCT(m)(1), null, 0, 0); };
+    const land = () => { const have = new Set(m.bookings.filter(b => b.added).map(b => b.startIndex)); stays.forEach(b => { if (!have.has(b.startIndex)) m.addStay(b); }); };
+    pendingTail = () => { fly(); land(); };
+    setTimeout(() => { if (g === gen) fly(); }, 700);
+    stays.forEach((b, i) => setTimeout(() => { if (g === gen) m.addStay({ ...b, enter: true }); }, 1700 + i * 320));
+    setTimeout(tail(g, land), 1700 + 2 * 320 + 100);
+    holdNextUntil = performance.now() + 1800;
   },
 ];
 if (SIMPLE) BEATS.splice(beatAfter('down to Thanksgiving week', 1), 0, ...RECUR_BEATS);
@@ -1636,7 +1638,31 @@ function typeKeys(keys, instant) {
   // through Custom settings to the promotion editor — a forward tap is taken and ignored instead of cutting it short. Back is
   // never held: it lets the hold go and steps back as ever.
   window.presoNext = () => { if (performance.now() < holdNextUntil) return true; return at >= Math.min(UNTIL, BEATS.length) ? false : apply(at + 1); };
-  window.presoPrev = () => { holdNextUntil = 0; return at <= START ? false : apply(at - 1); };
+  // BACK THROUGH THE PROMOTION, ANIMATED (John, 2026-10-02: "tap back and it'll animate the 20 to 0 … and the slider to
+  // work"). A promotion beat carries .rev = [its percent, the one before]: Back drags the knob home the way it came, with
+  // the finger down, and then lands the beat before exactly (the replay) — prices and all. Forward is untouched. A second
+  // Back mid-drag finishes it at once.
+  let revT = 0, revGo = null;
+  window.presoPrev = () => {
+    holdNextUntil = 0;
+    if (revGo) { const f = revGo; revGo = null; cancelAnimationFrame(revT); f(); return true; }
+    if (at <= START) return false;
+    const b = BEATS[at - 1], d = appDoc(), m = d && d.defaultView.__model;
+    if (!SIMPLE || !b || !b.rev || !m || !m.promoSheet) return apply(at - 1);
+    gen++; pendingTail = null;
+    const [from, to] = b.rev, knob = d.querySelector('.cp-knob'), target = at - 1;
+    if (knob) knob.classList.add('pressing');
+    revGo = () => { revGo = null; if (knob) knob.classList.remove('pressing'); m.setPromoDrag(false); apply(target); };
+    const T0 = performance.now() + 120, DUR = 700;
+    const step = () => {
+      if (!revGo) return;
+      const t = Math.min(1, Math.max(0, (performance.now() - T0) / DUR)), e = 1 - Math.pow(2, -10 * t);
+      if (t > 0) { m.setPromoDrag(true); m.setPromoPct(from + (to - from) * (t >= 1 ? 1 : e)); }
+      if (t < 1) revT = requestAnimationFrame(step); else setTimeout(() => revGo && revGo(), 250);
+    };
+    revT = requestAnimationFrame(step);
+    return true;
+  };
   if (START > 0) { const go = () => { if (model()) apply(START); else setTimeout(go, 100); }; go(); }
   // the deck's GO: straight to the last beat, instantly — the replay path — as soon as the app is up to take it
   window.presoEnd = () => { const go = () => { if (model()) apply(Math.min(UNTIL, BEATS.length)); else setTimeout(go, 100); }; go(); };
