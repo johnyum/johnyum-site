@@ -15,6 +15,7 @@ don't introduce bundlers, npm, or a component framework.
 | `multi/`, `multi2/` | Multi-guest booking concepts (Cereal type, event icons) |
 | `explore/` | Explore map drill-in — see below |
 | `multical/` | **Build output — never hand-edit.** The Multi-Host Calendar web app, played live inside the phone on preso slide 13. See below. |
+| `recurrence/` | **Build output — never hand-edit.** The same calendar with the Repeat (recurrence) flow, from its own project. See below. |
 | `bento-widgets/` | Standalone widget experiments |
 | `test/` | Scratch prototypes |
 | `playful/`, `claude-icons/`, `icons/` | Icon systems — see below |
@@ -120,6 +121,26 @@ That is what lets a beat call the app's own model instead of faking taps at
 coordinates. It is not in the upstream zip, so **re-apply it after taking in a
 new build** — otherwise slide 13 loads, looks right, and silently refuses to
 step (`apply()` returns false and the deck walks off the slide instead).
+
+## `recurrence/` — the calendar with the Repeat flow
+
+Build output, like `multical/`, from its own project at `~/Documents/multi-host-calendar-recurrence` — a copy of
+`multi-host-calendar-web` with `recurrence-single.zip` (from `multi-host-calendar-native` @ f3f8ca0) laid over it.
+`multical/` and its project were left exactly as they were: the intake's model has none of the preso hooks the deck's
+slide 13 drives, so it lives beside it, not in it.
+
+```bash
+cd ~/Documents/multi-host-calendar-recurrence
+npx vite build --base=/recurrence/ --outDir ~/Documents/johnyum-site/recurrence --emptyOutDir
+rm -rf ~/Documents/johnyum-site/recurrence/fonts   # Airbnb Cereal — never publish it (also gitignored)
+```
+
+What the intake needed to run, all outside the zip's own files: `src/data/compat.ts` (puts back the ~30 model members
+this project's other screens read — `layers`, the wand and tips sheets, the stay sheet, list/year/day — with the old
+model's own definitions), `src/base.ts` (the `BASE` the native files import), `DayCell` / `CellData` exported from
+`Single.tsx` again (the cell sampler imports them), `fixtures/scripts.json` (the native name for `dialog.json`), and
+`icons/ev-pride-rainbow.png` (the rainbow from `preso/slides/assets/pride.png`). The zip as delivered is kept in that
+project's `handoff/recurrence-single-original/`. The quick actions (and so the Repeat flow) appear with `?preso=1`.
 
 ## `explore/` — the map drill-in
 
