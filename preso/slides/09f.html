@@ -44,8 +44,7 @@
      `presoshown`) and every time the page comes back from another tab or app
      (John, 2026-10-01). It is seeked and played directly, never re-parked: a
      re-park re-commits beat 0, and slide 11 leaves a running film alone there.
-     The splash cell is parked exactly once; the other four get their park
-     re-asserted after load, because slide 11 runs its own opening beat.
+     Every cell opens standing on its beat (?park=) and is never re-parked.
 
      NOTHING HOVERS, and there is no presoInteractive — the deck's tap rails
      cover the stage and tapping anywhere advances. -->
@@ -103,12 +102,13 @@
     const f = document.createElement('iframe');
     f.title = 'Host setup — ' + (cls || 'step1');
     f.setAttribute('scrolling', 'no');
-    f.src = '11.html?' + (cls === MAP_STEP ? '' : 'nomap=1&') + 'still=1' + (v ? '&v=' + v : '');
+    // LOCKED TO ITS SCREEN FROM THE FIRST PAINT (John, 2026-10-01): ?park= opens slide 11 standing on the beat,
+    // transitions off. It used to load on the splash and be parked afterwards — at load and three more times — so
+    // every arrival was five phones visibly re-animating into place. Nothing re-parks it now.
+    f.src = '11.html?' + (cls === MAP_STEP ? '' : 'nomap=1&') + 'park=' + beat + (v ? '&v=' + v : '');
     f.addEventListener('load', () => {
       cell._w = f.contentWindow;
-      park(cell);
-      if (cls === FILM_STEP) { unloop(f); return; }        // parked once: see THE FILM PLAYS ONCE
-      [120, 600, 1400].forEach(t => setTimeout(() => { if (step === 0) park(cell); }, t));
+      if (cls === FILM_STEP) unloop(f);
     });
     cell.appendChild(f);
     row.append(cell);
@@ -168,10 +168,16 @@
   };
   window.presoState = () => step;
   // Landing on the beat from the hash: the frames may still be loading, so retry.
+  // Once, when every frame is up — answering twice re-runs the fill-ins.
   window.presoRestore = n => {
     if (!(n > 0)) return;
     step = 1;
-    [0, 400, 1200, 2000].forEach(t => setTimeout(() => { if (step === 1) answer(); }, t));
+    const t0 = Date.now();
+    (function when() {
+      if (step !== 1) return;
+      if (cells.every(c => c._w && c._w.presoAct)) { answer(); return; }
+      if (Date.now() - t0 < 8000) setTimeout(when, 100);
+    })();
   };
 })();
 </script>

@@ -839,9 +839,14 @@
     .sheet, .list, .row, .fill, .title { transition: none; }
     .next.press { animation: none; }
   }
+  /* ?park=N: everything lands where it stands, at once (see the script under <body>) */
+  body.notrans *, body.notrans *::before, body.notrans *::after { transition: none !important; animation: none !important; }
 </style>
 </head>
 <body>
+<!-- ?park=N (09f): this phone opens STANDING on beat N — no opening beat, no transitions, nothing travelling into
+     place. Set before the first paint, so not even the default screen shows for a frame. -->
+<script>if (/[?&]park=\d/.test(location.search)) document.body.classList.add('notrans');</script>
   <div class="slide">
     <div class="phone">
       <div class="screen">
@@ -1579,7 +1584,16 @@
     film.play().catch(() => {});
   });
   function stopFilm() { try { film.pause(); } catch (_) {} }
-  apply(0);
+  // ?park=N — straight onto beat N, parked (see presoPark), with transitions off until it has painted there. 09f
+  // used to load every phone on beat 0 and park it afterwards, four times over, and the room watched five phones
+  // animate from the splash to their screens on every arrival (John, 2026-10-01: "lock it to its current screens").
+  const PARK_AT = /[?&]park=(\d+)/.exec(location.search);
+  if (PARK_AT) {
+    parked = true;
+    beat = Math.max(0, Math.min(+PARK_AT[1], BEATS.length - 1));
+    commit(BEATS[beat]);
+    setTimeout(() => document.body.classList.remove('notrans'), 400);
+  } else apply(0);
 
   window.presoNext = () => { if (beat >= BEATS.length - 1) return false; apply(beat + 1); return true; };
   window.presoPrev = () => { if (beat <= 0) return false; apply(beat - 1); return true; };
