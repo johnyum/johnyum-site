@@ -94,7 +94,7 @@
   const setKnob = n => { const cx = x(n); knob.style.left = cx + 'px'; fill.style.width = (cx - L) + 'px'; };
   const money = n => '$' + (n * PER).toLocaleString('en-US');
   // THE FIGURE AS AN ODOMETER: each digit is a column on a 0–9 strip, rolled up to its new value; commas and $ stand still
-  function drawFig(text, from) {
+  function drawFig(text, from, down) {
     fig.innerHTML = '';
     const prev = (from || text).padStart(text.length, ' ');
     [...text].forEach((ch, i) => {
@@ -103,13 +103,15 @@
       const strip = document.createElement('span'); strip.className = 'strip';
       for (let k = 0; k < 20; k++) { const d = document.createElement('span'); d.textContent = k % 10; strip.appendChild(d); }
       col.appendChild(strip); fig.appendChild(col);
-      const o = /\d/.test(prev[i]) ? +prev[i] : 0, n = +ch, to = n >= o ? n : n + 10;
-      strip.style.transition = 'none'; strip.style.transform = `translateY(${-o * 44}px)`;
-      if (from && o !== n) { void strip.offsetWidth; strip.style.transition = ''; strip.style.transitionDelay = (i * 40) + 'ms'; strip.style.transform = `translateY(${-to * 44}px)`; }
+      // up rolls each digit forward to its new value; DOWN (the figure falling, on the way back) rolls it backward
+      const o = /\d/.test(prev[i]) ? +prev[i] : 0, n = +ch;
+      const a0 = down ? (o >= n ? o : o + 10) : o, a1 = down ? n : (n >= o ? n : n + 10);
+      strip.style.transition = 'none'; strip.style.transform = `translateY(${-a0 * 44}px)`;
+      if (from && o !== n) { void strip.offsetWidth; strip.style.transition = ''; strip.style.transitionDelay = (i * 40) + 'ms'; strip.style.transform = `translateY(${-a1 * 44}px)`; }
       else strip.style.transform = `translateY(${-n * 44}px)`;
     });
   }
-  function rest(n) { ui.classList.remove('held'); setKnob(n); nEl.textContent = n; pn.textContent = n; drawFig(money(n)); }
+  function rest(n) { run++; ui.classList.remove('held'); setKnob(n); nEl.textContent = n; pn.textContent = n; drawFig(money(n)); }
 
   // the phone: 13's, number for number — as tall as 80vh allows, centred
   const fit = () => {
@@ -122,27 +124,30 @@
 
   let step = 0, timers = [];
   const clear = () => { timers.forEach(clearTimeout); timers = []; };
-  // THE DRAG, 7 → 16: the knob is held (the track thickens, the pill comes up), it travels with the count ticking in the
-  // pill, it is let go — the pill goes, the line comes back on 16 — and the figure rolls to $5,936
-  function drag() {
+  // THE DRAG, a → b: the knob is held (the track thickens, the pill comes up), it travels with the count ticking in the
+  // pill, it is let go — the pill goes, the line comes back on b — and the figure rolls to b nights' worth. 7 → 16 going
+  // forward; Back plays the same drag the other way, 16 → 7, the figure rolling down (John, 2026-10-02: "reverse the animation")
+  let run = 0;
+  function drag(a, b) {
     clear();
-    ui.classList.add('held');
+    const me = ++run;
+    ui.classList.add('held'); pn.textContent = a;
     const T0 = performance.now() + 250, DUR = 1100;
     const tick = () => {
-      if (step !== 1) return;
+      if (me !== run) return;
       const t = Math.min(1, Math.max(0, (performance.now() - T0) / DUR)), e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      const v = FROM + (TO - FROM) * e; setKnob(v); pn.textContent = Math.round(v);
+      const v = a + (b - a) * e; setKnob(v); pn.textContent = Math.round(v);
       if (t < 1) requestAnimationFrame(tick);
-      else timers.push(setTimeout(() => { ui.classList.remove('held'); nEl.textContent = TO; timers.push(setTimeout(() => drawFig(money(TO), money(FROM)), 220)); }, 350));
+      else timers.push(setTimeout(() => { if (me !== run) return; ui.classList.remove('held'); nEl.textContent = b; timers.push(setTimeout(() => { if (me === run) drawFig(money(b), money(a), b < a); }, 220)); }, 350));
     };
     requestAnimationFrame(tick);
   }
   rest(FROM);
   if (document.fonts) document.fonts.load("800 40px Cereal").then(() => { if (step === 0) rest(FROM); });
-  window.presoNext = () => { if (step >= 1) return false; step = 1; drag(); return true; };
-  window.presoPrev = () => { if (step === 0) return false; step = 0; clear(); rest(FROM); return true; };
+  window.presoNext = () => { if (step >= 1) return false; step = 1; drag(FROM, TO); return true; };
+  window.presoPrev = () => { if (step === 0) return false; step = 0; drag(TO, FROM); return true; };   // back: the drag in reverse
   window.presoState = () => step;
-  window.presoRestore = n => { if (n > 0) { step = 1; clear(); rest(TO); } };
+  window.presoRestore = n => { if (n > 0) { step = 1; run++; clear(); rest(TO); } };
 })();
 </script>
 </body>
