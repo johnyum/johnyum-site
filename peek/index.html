@@ -217,7 +217,7 @@ let epoch = 0; const STOP = new Error('interrupted');
 const wait = (ms) => { const e = epoch; return new Promise((ok, no) => setTimeout(() => (e === epoch ? ok() : no(STOP)), ms)); };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, k) => a + (b - a) * k;
-const S = 86;   // px per character unit — it stands about 100px tall
+const S = /[?&]big\b/.test(location.search) ? 260 : 86;   // px per character unit — it stands about 100px tall (?big: three times that, to look at it closely)
 
 /* ═══════════════ the world: one pixel, one unit ═══════════════ */
 
@@ -609,11 +609,20 @@ if (linkedModel?.glb) loadModel(linkedModel).catch((e) => setTimeout(() => say('
 // No character in the link: the one last built in Rig Studio (it saves to this same origin's
 // storage), else the Bunny. A #c=… kit character or #m=… Meshy model keeps its own path.
 const savedRig = () => { try { return JSON.parse(localStorage.getItem('rig.state')); } catch { return null; } };
-const modelReady = (location.hash.startsWith('#r=') ? unpackRig(location.hash.slice(3))
+// #p=paper / #p=line: one of the made characters (./puppets.js) — a rig driven by springs, no fur.
+var puppet = null;
+const puppetKind = (location.hash.match(/^#p=(paper|line)\b/) || [])[1];
+async function loadPuppet(kind) {
+  const { makePuppet } = await import('./puppets.js');
+  puppet = makePuppet(kind, THREE); window.__puppet = puppet;
+  bodyG.add(puppet.group); kitG.visible = false; TOP = puppet.height;
+  moodHook = (m) => puppet.mood(m); puppet.mood(moodNow);
+}
+const modelReady = puppetKind ? loadPuppet(puppetKind).catch((e) => console.error(e)) : ((location.hash.startsWith('#r=') ? unpackRig(location.hash.slice(3))
   : location.hash.startsWith('#c=') || location.hash.startsWith('#m=') ? Promise.resolve(null)
   : Promise.resolve(savedRig() || rigBlank('Bunny')))
   .then((st) => st && loadRigged(st))
-  .catch((e) => setTimeout(() => say('couldn\'t load that one: ' + e.message, 4000), 1200));
+  .catch((e) => setTimeout(() => say('couldn\'t load that one: ' + e.message, 4000), 1200)));
 
 // How far up its hands reach when they're up — the hang's pendulum length.
 const REACH = H + (arms.length ? Math.max(...arms.map(() => .55)) : .3);
@@ -769,6 +778,8 @@ function frame() {
   for (const e of eyes) { e.inner.position.x = lerp(e.inner.position.x, dx * .22, .2); e.inner.position.y = lerp(e.inner.position.y, -dy * .18, .2); }
   blinkT -= dt; if (blinkT < 0) { blinking = .13; blinkT = 2 + Math.random() * 3.5; }
   blinking = Math.max(0, blinking - dt);
+  if (puppet) puppet.update(dt, { t, mode: C.mode, running, phase: C.phase, vx: C.vx, vy: C.vy, ax: C.ax, yaw: C.yaw, arms: C.arms,
+    grabbed: !!C.grabbed, blink: blinking > 0, look: { x: dx, y: dy }, swing: C.swing || 0 });
   for (const e of eyes) e.inner.scale.y = blinking > 0 ? .1 : moodNow === 'ugh' ? .45 : moodNow === 'sad' ? .7 : moodNow === 'surprised' ? 1.2 : 1;
 
   root.position.set(C.x, -C.y + C.hop, 0);

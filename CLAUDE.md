@@ -380,6 +380,14 @@ up tip cards. One `index.html`, three.js; the chat is canned.
   `msg-<uuid>` (the bubble, or the answer's text) for this.
 - **It doesn't talk** (2026-10-03, John's call): Claude talks in the chat; the character only reacts,
   with its face and body. `say()` is off behind `TALKS = false`, and Haiku isn't asked for a line.
+- **Made characters** (2026-10-04): `#p=paper` (a jointed cut-out — ivory pieces with a cut edge and
+  a shadow, kraft pins, slit eyes) and `#p=line` (ink head and limbs over one flat clay body), in
+  `peek/puppets.js`. One rig under both, every joint a spring — poses are only targets, so nothing
+  snaps. Both are flat, so **every pose is designed in the picture plane** (elbows and knees fold
+  sideways; a nod is the head sinking) — a pose that leans toward the camera reads as nothing.
+  Joint positions go through `relTo()`, never the world matrix: at scale 0 it's singular, and one
+  NaN poisons the paper rig's remembered limb angles. `?big` draws the character 3× to judge it.
+  The app's builder has a "Made" tab that picks them.
 - Its frame loop is `frame()`, exposed on `window.__peek` — a hidden tab pauses
   `requestAnimationFrame`, so a test drives frames by hand.
 
