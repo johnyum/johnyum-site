@@ -366,6 +366,8 @@
     const idle = () => { if (!el.isConnected) return; clearTimeout(coin._idle); coin._idle = setTimeout(() => turn(1, 900, idle), 5200); };
     setTimeout(() => turn(3, 1500, idle), 250);                                        // it pops in first, then spins
   }
+  // a named tip, focused the build's own way (the camera flies, its cells light) — by title, or by bucket
+  const focusTip = (w, re, bucket) => ev(w, `(() => { const o = window.__opt; if (!o || !o.suggs) return; const i = o.suggs.findIndex(s => ${bucket ? `s.bucket === '${bucket}' || ` : ''}${re}.test(s.title || s.name || '')); if (i < 0) { optNav(1); return; } o.cur = i; renderMagicPill(); focusOpportunity(); })()`);
   // THE CURVE, TAKEN BY HAND (the parked path's beat 8, John, 2026-09-22 / 09-30, brought back 2026-10-02 without its Apply): the
   // event's ⇕ handle is held once it has stood still, dragged UP until the pill reads +115%, held a beat, brought back DOWN until its % turns green — within what
   // the market supports — and let go there. One pointermove a frame, the distance by the clock (3px per 16ms), so it moves evenly on any display; if
@@ -580,19 +582,21 @@
         go();
       },
       back: w => { closeUpsell(w); ev(w, "(() => { const o = window.__opt, g = o && o.suggs[o.cur]; if (g && g.applied && typeof undoCurrent === 'function') undoCurrent(); })()"); } },
-    // 12 — ›, tapped: on to the next tip — the golf tournament — focused the build's own way; a beat, then its curve dragged up and down
+    // 12 — ›, tapped: on to Del Mar's horse racing (San Diego), focused the build's own way; a beat, then its curve dragged up and down
     { fwd: (w, instant) => {
         const d = w.document;
-        if (instant) { later(() => ev(w, "optNav(1)"), 300); return; }
+        if (instant) { later(() => focusTip(w, /Del Mar/), 300); return; }
+        // › pressed, and the tip it opens is DEL MAR — the San Diego horse racing — not whichever comes next in the build's order
+        // (John, 2026-10-02: the price up and down on Del Mar, not the golf in Tahoe)
         const b = d.querySelector('#magicPill [data-magic="next"]');
-        if (!b) ev(w, "optNav(1)");
-        else { b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440); setTimeout(() => b.click(), 130); }
+        if (b) { b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440); }
+        setTimeout(() => focusTip(w, /Del Mar/), 130);
         // ...then, the golf tournament's curve up and back down (John, 2026-10-02: "take a beat and do the up and down animation") —
         // curveDrag waits for the handle to stand still once the camera has landed, which is the beat
         setTimeout(() => curveDrag(w), 700);
       },
-      back: w => { w.dispatchEvent(new w.PointerEvent('pointerup', { bubbles: true, pointerId: 1, buttons: 0 })); ev(w, "optNav(-1)"); } },
-    // 13 — Apply, tapped, on the golf tournament: its prices go on, and this time the build's offer stays up — "Automate events and
+      back: w => { w.dispatchEvent(new w.PointerEvent('pointerup', { bubbles: true, pointerId: 1, buttons: 0 })); focusTip(w, /^Fill|last-minute/i, 'near'); } },
+    // 13 — Apply, tapped, on Del Mar: its prices go on, and this time the build's offer stays up — "Automate events and
     //      holidays" (John, 2026-10-02: "this time you can show me the automate holiday prices modal")
     { fwd: (w, instant) => {
         const d = w.document;
@@ -627,9 +631,9 @@
         if (x) { x.classList.add('pressing'); setTimeout(() => x.classList.remove('pressing'), 440); }
         setTimeout(() => { ev(w, "exitOptimize()"); setTimeout(() => ev(w, "scrollCalendarToToday(true)"), 80); }, 130);   // closes, then the one glide home on both axes
       },
-      back: w => {                                                                         // tips open again, on the golf tournament as it stood
+      back: w => {                                                                         // tips open again, on Del Mar as it stood
         ev(w, "startOptimize()");
-        const t0 = Date.now(); const to = () => { const r = ev(w, "(() => { const o = window.__opt; if (!o || !o.suggs || !o.suggs.length || document.body.classList.contains('opt-scanning')) return false; const i = o.suggs.findIndex(s => /American Century/.test(s.title || s.name || '')); if (i < 0) return true; o.cur = i; renderMagicPill(); focusOpportunity(); return true; })()");
+        const t0 = Date.now(); const to = () => { const r = ev(w, "(() => { const o = window.__opt; if (!o || !o.suggs || !o.suggs.length || document.body.classList.contains('opt-scanning')) return false; const i = o.suggs.findIndex(s => /Del Mar/.test(s.title || s.name || '')); if (i < 0) return true; o.cur = i; renderMagicPill(); focusOpportunity(); return true; })()");
           if (!r && Date.now() - t0 < 8000) setTimeout(to, 150); };
         setTimeout(to, 300);
       } },
