@@ -14,12 +14,10 @@
      THE SIZE: five phones and four 48px gaps fill 86% of the width — h * 0.4891 * 5 + 192px = 86vw — capped, like 09d's, at the
      unscaled phone.
 
-     CROSSED OUT, ONE PER TAP (John, 2026-10-03): each tap strikes the next phone, left to right, all but the last — the stacked
-     bar is the graph the shipped flow grew from, so it stands — one red line, 8px, corner to
-     corner on the phone's own diagonal, from its top-right to its bottom-left, running on 16px past each corner. Measured in
-     screen pixels off the phone's box (fit() re-lays it on resize), so the overshoot and the weight are true at any size. (It went
-     through a horizontal strike and two Xs on the way back to this, at 8px rather than the first 4.) The
-     line draws itself from the top-right down; Back takes the last one off; arriving backwards, all four are struck. -->
+     CROSSED OUT, ONE PER TAP (John, 2026-10-03): the email comes in alone, big; a tap strikes it; the next sets out the five; then
+     each tap strikes the next, all but the last — the stacked bar is the graph the shipped flow grew from, so it stands. One
+     red 8px line on the phone's own diagonal, top-right to bottom-left, 16px past each corner, drawn from the top-right down.
+     Back steps back; arriving backwards, all four are struck. (It went through a horizontal strike and two Xs on the way.) -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .slide { height: 100%; display: grid; place-items: center; }
@@ -29,9 +27,27 @@
   .ph .scr { position: absolute; left: 5.4444%; top: 2.5543%; width: 89.1111%; height: 94.8913%; border-radius: 15.9601% / 7.3310%; overflow: hidden; background: #fff; z-index: 1; }
   .ph .scr img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; user-select: none; -webkit-user-drag: none; }
   .ph .x { position: absolute; left: 0; top: 0; overflow: visible; z-index: 3; pointer-events: none; }
-  .ph .x line { stroke: #ff385c; stroke-width: 8; stroke-linecap: butt; stroke-dasharray: var(--len) var(--len); stroke-dashoffset: var(--len); }
+  .ph .x line { stroke: #ff385c; stroke-width: calc(8px / var(--k)); stroke-linecap: butt; stroke-dasharray: var(--len) var(--len); stroke-dashoffset: var(--len); }
   .ph.on .x line { stroke-dashoffset: 0; transition: stroke-dashoffset .35s cubic-bezier(.4,0,.2,1); }
   .snap .ph .x line { transition: none !important; }
+  /* THE SEQUENCE (John, 2026-10-03): the email lands alone, at the deck's single-phone size (13's: min(80vh, 1080px)), centred;
+     a tap strikes it; the next tap takes it down into its place as the first of the five while the other four come in from the
+     right, one after another; then a tap strikes each in turn up to the graph. The solo phone is the same element as the first
+     of the five, carried by --dx / --dy / --k (registered, so they ease): the strike's weight is divided by --k, so it is 8px on
+     the screen at either size. */
+  @property --k { syntax: '<number>'; inherits: true; initial-value: 1; }
+  @property --dx { syntax: '<length>'; inherits: false; initial-value: 0px; }
+  @property --dy { syntax: '<length>'; inherits: false; initial-value: 0px; }
+  .ph { --k: 1; transform: translate(var(--dx), var(--dy)) scale(var(--k)); transform-origin: 50% 50%; }
+  .ph.lead { z-index: 2; }
+  .solo .ph.lead { --dx: var(--sx); --dy: var(--sy); --k: var(--sk); }
+  .ph.lead { transition: --dx .75s cubic-bezier(.5,0,.15,1), --dy .75s cubic-bezier(.5,0,.15,1), --k .75s cubic-bezier(.5,0,.15,1), opacity .5s ease, translate .6s cubic-bezier(.2,.8,.2,1); }
+  .pre .ph.lead { opacity: 0; translate: 0 28px; }
+  .ph.rest { opacity: 0; translate: 90px 0; transition: opacity .45s ease, translate .7s cubic-bezier(.2,.8,.2,1); }
+  .grid .ph.rest { opacity: 1; translate: 0 0; }
+  .grid .ph.rest:nth-child(2) { transition-delay: .18s; } .grid .ph.rest:nth-child(3) { transition-delay: .26s; }
+  .grid .ph.rest:nth-child(4) { transition-delay: .34s; } .grid .ph.rest:nth-child(5) { transition-delay: .42s; }
+  .snap .ph, .snap .ph.rest { transition: none !important; }
   .ph .chrome { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
 </style>
 </head>
@@ -74,28 +90,54 @@
     </div>
   </div>
 <script>
-  // one line per phone but the last (the stacked bar — the graph, which is where the flow went: John, 2026-10-03), laid on the phone's own diagonal (top-right → bottom-left), 16px past each corner, in screen pixels
+  // one line per phone but the last (the stacked bar — the graph, which is where the flow went: John, 2026-10-03), laid on the
+  // phone's own diagonal (top-right → bottom-left), 16px past each corner, in screen pixels
   (() => {
-    const phones = [...document.querySelectorAll('.ph')].slice(0, -1), OVER = 16, NS = 'http://www.w3.org/2000/svg';
+    const row = document.querySelector('.row'), all = [...document.querySelectorAll('.ph')], phones = all.slice(0, -1), OVER = 16, NS = 'http://www.w3.org/2000/svg';
+    all[0].classList.add('lead'); all.slice(1).forEach(ph => ph.classList.add('rest'));
     const lines = phones.map(ph => { const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('class', 'x');
       const ln = document.createElementNS(NS, 'line'); svg.appendChild(ln); ph.appendChild(svg); return { ph, svg, ln }; });
-    const fit = () => lines.forEach(({ ph, svg, ln }) => {
-      const w = ph.offsetWidth, h = ph.offsetHeight, d = Math.hypot(w, h), ux = -w / d, uy = h / d;   // unit step, top-right → bottom-left
-      svg.setAttribute('width', w); svg.setAttribute('height', h);
-      ln.setAttribute('x1', w - ux * OVER); ln.setAttribute('y1', 0 - uy * OVER);
-      ln.setAttribute('x2', 0 + ux * OVER); ln.setAttribute('y2', h + uy * OVER);
-      ln.style.setProperty('--len', d + 2 * OVER);
-    });
-    fit(); addEventListener('resize', fit); if (window.ResizeObserver) new ResizeObserver(fit).observe(document.querySelector('.row'));
+    let k1 = 1;
+    const fit = () => {
+      // the solo place: centred on the stage, at 13's phone height
+      const r = all[0]; const h5 = r.offsetHeight, w5 = r.offsetWidth;
+      let x = 0, y = 0; for (let e = r; e; e = e.offsetParent) { x += e.offsetLeft; y += e.offsetTop; }   // untransformed, from the page
+      const box = { x, y };
+      const hs = Math.min(innerHeight * 0.8, 1080); k1 = hs / h5;
+      const cx = innerWidth / 2, cy = innerHeight / 2, mx = box.x + w5 / 2, my = box.y + h5 / 2;
+      row.style.setProperty('--sx', (cx - mx) + 'px'); row.style.setProperty('--sy', (cy - my) + 'px'); row.style.setProperty('--sk', k1);
+      lines.forEach(({ ph, svg, ln }, i) => {
+        const w = ph.offsetWidth, h = ph.offsetHeight, d = Math.hypot(w, h), ux = -w / d, uy = h / d;   // unit step, top-right → bottom-left
+        const over = OVER / (i === 0 && row.classList.contains('solo') ? k1 : 1);
+        svg.setAttribute('width', w); svg.setAttribute('height', h);
+        ln.setAttribute('x1', w - ux * over); ln.setAttribute('y1', 0 - uy * over);
+        ln.setAttribute('x2', 0 + ux * over); ln.setAttribute('y2', h + uy * over);
+        ln.style.setProperty('--len', d + 2 * over);
+      });
+    };
+    //  0  nothing yet (the slide arriving)   1  the email, alone        2  struck
+    //  3  the five (the email struck)        4–6  each of the next three struck
     let n = 0;
-    const set = (k, instant) => { n = k; const row = document.querySelector('.row'); if (instant) row.classList.add('snap');
-      phones.forEach((ph, i) => ph.classList.toggle('on', i < n));
-      if (instant) { void row.offsetWidth; setTimeout(() => row.classList.remove('snap'), 50); } };
-    window.presoNext = () => { if (n >= phones.length) return false; set(n + 1); return true; };
-    window.presoPrev = () => { if (n <= 0) return false; set(n - 1, true); return true; };
-    window.presoEnd = () => set(phones.length, true);
+    const set = (k, instant) => { n = k;
+      if (instant) row.classList.add('snap');
+      row.classList.toggle('pre', n === 0); row.classList.toggle('solo', n <= 2); row.classList.toggle('grid', n >= 3);
+      fit();
+      all[0].classList.toggle('on', n >= 2);
+      phones.slice(1).forEach((ph, i) => ph.classList.toggle('on', n >= 4 + i));
+      if (instant) { void row.offsetWidth; setTimeout(() => row.classList.remove('snap'), 60); } };
+    set(0, true);
+    addEventListener('resize', fit); if (window.ResizeObserver) new ResizeObserver(fit).observe(row);
+    // the email comes in by itself as the slide lands; opened on its own, once the page is up
+    const auto = () => { if (n === 0) set(1); };
+    addEventListener('presoshown', auto);
+    if (window.top === window) addEventListener('load', () => setTimeout(auto, 300));
+    const LAST = 3 + phones.length - 1;
+    window.presoNext = () => { if (n >= LAST) return false; set(Math.max(n, 1) + 1); return true; };
+    window.presoPrev = () => { if (n <= 1) return false; set(n - 1, true); return true; };
+    window.presoEnd = () => set(LAST, true);
     window.presoState = () => n;
-    window.presoRestore = k => set(Math.max(0, Math.min(phones.length, k | 0)), true);
+    window.presoRestore = k => set(Math.max(0, Math.min(LAST, k | 0)), true);
+    window.presoNoKeep = true;   // coming back to it plays it again
   })();
 </script>
 </body>
