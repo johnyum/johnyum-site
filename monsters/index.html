@@ -207,9 +207,11 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
 .topeek { display: flex; align-items: center; justify-content: center; height: 42px; border-radius: 12px; border: 1px solid var(--ink);
   color: var(--ink); text-decoration: none; font-weight: 500; font-size: 13.5px; }
 .topeek:hover { background: var(--ink); color: #fff; }
+.topeek.off { border-color: var(--line); color: var(--ink-3); pointer-events: none; }
+.side > .topeek { margin-top: -8px; }
 .sel[data-for="body"] [data-only="part"], .sel[data-for="part"] [data-only="body"] { display: none; }
 .stage:not(.sculpting) #sculptHint { display: none; }
-.stage.sculpting .actions, .stage.sculpting #recenter, .stage.sculpting #download, .stage.sculpting #modelToPeek, .stage.sculpting .note,
+.stage.sculpting .actions, .stage.sculpting #recenter, .stage.sculpting #download, .stage.sculpting .note,
 .stage.sculpting .empty, .stage.sculpting .preview { display: none !important; }
 #sculptHint { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 12.5px; color: var(--ink-3);
   white-space: nowrap; pointer-events: none; }
@@ -319,7 +321,6 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
         <button class="tool" id="bundo" title="Undo (⌘Z)">Undo</button>
         <button class="tool" id="bclear">Start over</button>
       </div>
-      <a class="topeek" id="toPeek" href="/peek/" target="_blank" rel="noopener">Bring it into Peek — watch it live in a chat →</a>
     </div>
 
     <label class="field">
@@ -338,6 +339,7 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
     </div>
 
     <button class="go" id="go" disabled>Bring it to life</button>
+    <a class="topeek" id="toPeek" href="/peek/" target="_blank" rel="noopener">Bring it into Peek — watch it live in a chat →</a>
 
     <ol class="steps" id="steps">
       <li class="step" data-step="render"><span class="ring"></span><b>Render</b><span class="pct"></span><small>Your sketch, finished as a character</small><span class="bar"><i></i></span></li>
@@ -362,7 +364,6 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
       <button id="backToSculpt" hidden>Back to sculpting</button>
       <button id="recenter" hidden>Reset view</button>
       <a id="download" hidden download>Download .glb</a>
-      <a id="modelToPeek" hidden target="_blank" rel="noopener">Bring it into Peek →</a>
     </div>
     <p class="note" id="note"></p>
     <div class="actions" id="actions" hidden></div>
@@ -1161,11 +1162,16 @@ function setMode(m) {
   if (m === 'blobs' && !shapes.length) starter();
   setView(m === 'blobs' && !running ? 'sculpt' : 'single');
   if (!running) $('#go').disabled = !canGo();
+  peekReady();
 }
 $('#modes').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && !running) setMode(b.dataset.mode); });
 $('#backToSculpt').onclick = () => !running && setView('sculpt');
 // The character goes to Peek in the link itself, so the link can be shared too.
-$('#toPeek').addEventListener('click', () => { $('#toPeek').href = '/peek/#c=' + pack(shapes); });
+$('#toPeek').addEventListener('click', () => {
+  const r = shown;
+  $('#toPeek').href = mode === 'blobs' ? '/peek/#c=' + pack(shapes)
+                    : '/peek/#m=' + pack({ glb: r.glb, rigged: r.rigged || null, clips: r.clips || {} });
+});
 
 /* ═══════════════ status, steps, shelf ═══════════════ */
 
@@ -1219,7 +1225,7 @@ async function run(src) {
   for (const k in clips) delete clips[k];
   const desc = $('#desc').value.trim();
   const rec = { id: Date.now().toString(36), at: Date.now(), desc, style, sketch: src.thumb, kind: src.kind, blobs: src.blobs, clips: {} };
-  shown = rec; $('#modelToPeek').hidden = true;
+  shown = rec; peekReady();
 
   try {
     // 1 · Render
@@ -1316,14 +1322,17 @@ async function run(src) {
 $('#go').onclick = () => (running ? stop() : needsPass() ? askPass()
   : run(mode === 'blobs' ? blobSource() : drawSource()));
 
-function showDownload(url) { const a = $('#download'); a.href = asset(url); a.hidden = false; $('#modelToPeek').hidden = !shown?.glb; }
-// A finished model goes to Peek in the link: its Meshy files — the rigged one and its moves
-// when it has them. (Meshy's links expire after a few days, so a link does too.)
+function showDownload(url) { const a = $('#download'); a.href = asset(url); a.hidden = false; peekReady(); }
+// Into Peek, from either mode, by one button. Blobs sends the kit character itself (#c=);
+// Draw sends the finished model's Meshy files (#m=) — the rigged one and its moves — so
+// it's live once there's a model. (Meshy's links expire after a few days; so does that link.)
 let shown = null;
-$('#modelToPeek').addEventListener('click', () => {
-  const r = shown; if (!r?.glb) return;
-  $('#modelToPeek').href = '/peek/#m=' + pack({ glb: r.glb, rigged: r.rigged || null, clips: r.clips || {} });
-});
+function peekReady() {
+  const b = $('#toPeek'), ready = mode === 'blobs' || !!shown?.glb;
+  b.classList.toggle('off', !ready);
+  b.textContent = ready ? 'Bring it into Peek — watch it live in a chat →'
+                        : 'Bring it into Peek — build it first, then it’s ready';
+}
 
 // Re-open a character from the shelf. Its files come out of serve.py's cache,
 // so this works after Meshy's own links have expired.
@@ -1425,6 +1434,7 @@ fetch(`${API}?p=status`).then((r) => { if (!r.ok) throw 0; return r.json(); }).t
   blocked = true;
 });
 drawShelf();
+peekReady();
 
 // The way in for a deck or a test, as explore/ has window.__explore.
 window.__monsters = { play, still, clips, get playing() { return current?.getClip().name ?? null; },
