@@ -334,17 +334,29 @@
   function markRequests(w) {
     const d = w.document, grid = d.getElementById('gridRows'); if (!grid || grid._presoReq) return;
     const SUR = 'RMKLTSBHDP', today = +ev(w, 'todayDi') || 0;
-    const DISC = [['#FCE7E3', '#F4513C'], ['#FBE5CC', '#DD6B0E'], ['#D7EAFB', '#2E80E0'], ['#E6E2FB', '#7A6CE8'], ['#FBE3F1', '#E63FA0'], ['#FBE0DE', '#F03E3E']];   // Coral, Orange, Blue, Purple, Pink, Red
+    // the build's own label colours (CZ_COLORS: its light fill behind, its darkest tone for the initials), in an order that swings hue
+    // every step — Blue, Coral, Purple, Orange, Pink, Red — and DEALT in board order (row, then date) rather than hashed per guest, so no
+    // two requests near each other share a colour. Hashed, coral, pink and red kept landing side by side (John, 2026-10-03)
+    const DISC = [['#D7EAFB', '#2E80E0'], ['#FCE7E3', '#F4513C'], ['#E6E2FB', '#7A6CE8'], ['#FBE5CC', '#DD6B0E'], ['#FBE3F1', '#E63FA0'], ['#FBE0DE', '#F03E3E']];
+    const hash = (g, start) => [...g].reduce((a, c) => a + c.charCodeAt(0), 0) + start;
+    // one upcoming stay in three, by guest — and, since the hash can leave the opening two weeks with only one, every fourth of the other
+    // stays starting in that view (the next 16 nights, rows top down, from the second) besides: two or three on screen (John, 2026-10-03:
+    // "1 or 2 more request to book"). A request is always for nights still to come: none starting before today (John, 2026-10-02)
+    const rowAt = {}; [...grid.querySelectorAll(':scope > .price-row')].forEach((r, k) => { rowAt[r.dataset.li] = k; });
+    const byBoard = (a, z) => ((rowAt[a[0]] || 0) - (rowAt[z[0]] || 0)) || (a[1] - z[1]);
+    const up = (JSON.parse(ev(w, 'JSON.stringify(BOOKINGS.map(b => [b.listing, b.start, b.guest]))') || '[]')).filter(([, s]) => s >= today);
+    const hashed = ([, s, g]) => hash(g || '', s) % 3 === 1;
+    const req = up.filter(hashed);
+    up.filter(b => !hashed(b) && b[1] > today && b[1] <= today + 16).sort(byBoard).forEach((b, k) => { if (k % 4 === 1) req.push(b); });
+    const colour = {}; req.sort(byBoard).forEach(([li, s], k) => { colour[li + ':' + s] = DISC[k % DISC.length]; });
     const dress = () => grid.querySelectorAll('.booking-pill:not(.past)').forEach(p => {
-      const g = p.dataset.guest || '', h = [...g].reduce((a, c) => a + c.charCodeAt(0), 0) + (+p.dataset.start || 0);
-      const req = h % 3 === 1 && (+p.dataset.start || 0) >= today;   // a request is always for nights still to come: none starting before today (John, 2026-10-02)
-      p.classList.toggle('preso-req', req);
+      const g = p.dataset.guest || '', start = +p.dataset.start || 0, h = hash(g, start);
+      const C = colour[((p.closest('.price-row') || {}).dataset || {}).li + ':' + start], isReq = !!C;
+      p.classList.toggle('preso-req', isReq);
       const av = p.querySelector('.booking-avatar');
-      if (av && req) {
+      if (av && isReq) {
         av.dataset.ini = (g.trim()[0] || 'G').toUpperCase() + SUR[h % SUR.length];
-        // the disc in one of the build's own label colours (CZ_COLORS: its light fill behind, its darkest tone for the initials), per guest (John, 2026-10-02)
-        // (h / 3, not h: the request pick already fixed h mod 3, which would leave only two colours)
-        const C = DISC[Math.floor(h / 3) % DISC.length]; av.style.setProperty('--req-bg', C[0]); av.style.setProperty('--req-ink', C[1]);
+        av.style.setProperty('--req-bg', C[0]); av.style.setProperty('--req-ink', C[1]);
       }
     });
     grid._presoReq = new w.MutationObserver(dress); grid._presoReq.observe(grid, { childList: true, subtree: true });
