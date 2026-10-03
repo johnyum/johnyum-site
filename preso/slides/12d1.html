@@ -95,7 +95,7 @@
       const ph = it.querySelector('.phone'); if (ph && !ph.classList.contains('origsel')) ph.classList.add('origsel');
     });
     stroke(); new frame.contentWindow.MutationObserver(stroke).observe(d.body, { childList: true, subtree: true });
-    const grey = () => d.querySelectorAll('.ds-spec, .sampler-item').forEach(e => { const l = ((e.querySelector('.ds-label') || {}).textContent || '').trim(); if (/^Past(, icon)?$/.test(l)) e.dataset.grey = 1; });
+    const grey = () => { d.querySelectorAll('.ds-grid.marks .ds-spec').forEach(e => { if (((e.querySelector('.ds-label') || {}).textContent || '').trim() === 'Past') e.dataset.grey = 1; }); d.querySelectorAll('.sampler-item').forEach(e => { if (((e.querySelector('.ds-label') || {}).textContent || '').trim() === 'Past, icon') e.dataset.grey = 1; }); };   // the faded heart, as a mark and on its past cell — the plain past cell stays
     grey(); setTimeout(grey, 600);
     addKinds(d).catch(e => console.error("[12d1 addKinds]", e));
   });
@@ -167,13 +167,15 @@
       cur.appendChild(k); cellsGrid.appendChild(item);
     });
     // QUICK ACTIONS, piece by piece (John, 2026-10-03: "break them out to individual pieces under the events and holidays"):
-    // the cards a pick raises, then Repeat's, each on its own, in a group of their own under the events
+    // the cards a pick raises, each on its own, in a group of their own under the events
     m.setRecurQA(false); m.setOrigSel(true);
     m.setSelectedNights(new Set([I(19), I(20), I(21)]));
     await new Promise(r => setTimeout(r, 1400));
     const evSec = d.querySelector('.ds-grid.marks') && d.querySelector('.ds-grid.marks').closest('.ds-sec');
     const qa = d.createElement('section'); qa.className = 'ds-sec';
-    const qaGrid = d.createElement('div'); qaGrid.style.cssText = 'display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;max-width:600px';
+    // as the app sets them (John, 2026-10-03): Availability on the left, Price per night with Custom settings under it on the
+    // right; Repeat's own pieces (its round button, its Settings | Repeat card) are left out
+    const qaGrid = d.createElement('div'); qaGrid.style.cssText = 'display:grid;grid-template-columns:auto auto;gap:16px;align-items:start;justify-content:start';
     qa.appendChild(qaGrid); if (evSec) evSec.after(qa);
     const shellChain = (el, stop) => { const ch = []; for (let e = el.parentElement; e && e !== stop; e = e.parentElement) ch.unshift(e); return ch; };
     const NEUTRAL = ';position:static!important;transform:none!important;translate:none!important;width:auto!important;height:auto!important;margin:0!important;padding:0!important;overflow:visible!important;display:block!important;inset:auto!important;min-height:0!important;max-height:none!important;background:transparent!important;box-shadow:none!important;border:0!important;opacity:1!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important';
@@ -185,25 +187,28 @@
       into.style.width = r.width + 'px'; into.style.height = r.height + 'px';
     };
     // the phone's cards (in the page, under the app's own stylesheet — the sampler's, the same one)
-    [...L.querySelectorAll('.sqa .sqa-card')].filter(c => c.getBoundingClientRect().width > 40).forEach(c => { const box = d.createElement('div'); box.style.position = 'relative'; build(box, c, L.body); qaGrid.appendChild(box); });
-    // Repeat's cards live in a shadow root of their own: each goes into a shadow root here, with that root's own styles
-    m.clearSelection(); m.setRecurQA(true);
-    await new Promise(r => setTimeout(r, 600));
-    m.setSelectedNights(new Set([I(19), I(20), I(21)]));   // Repeat's cards are built for a pick made while it is on
-    await until(() => { const h = L.querySelector('.recur-host'); return h && h.shadowRoot && h.shadowRoot.querySelector('.halves2'); }, 6000);
-    await new Promise(r => setTimeout(r, 900));
-    const host = L.querySelector('.recur-host'), root = host && host.shadowRoot;
-    if (root) {
-      const css = [...root.querySelectorAll('style')].map(x => x.textContent).join('\n') + [...(root.adoptedStyleSheets || [])].map(sh => [...sh.cssRules].map(r => r.cssText).join('\n')).join('\n');
-      // only what is Repeat's own: the Settings | Repeat card and its round button — its availability and price cards are the
-      // phone's, already here — wherever they stand (the cards can sit below the frame's edge)
-      [...root.querySelectorAll('.card, .disc')].filter(c => { const r = c.getBoundingClientRect(); return r.width > 16 && r.height > 16 && (c.classList.contains('disc') || c.querySelector('.halves2')); }).forEach(c => {
-        const h = d.createElement('div'), sr = h.attachShadow({ mode: 'open' }), st = d.createElement('style'); st.textContent = css; sr.appendChild(st);
-        const box = d.createElement('div'); box.style.position = 'relative'; sr.appendChild(box);
-        build(box, c, null); h.style.width = box.style.width; h.style.height = box.style.height; qaGrid.appendChild(h);
-      });
-    }
+    [...L.querySelectorAll('.sqa .sqa-card')].filter(c => c.getBoundingClientRect().width > 40).forEach((c, k) => { const box = d.createElement('div'); box.style.position = 'relative'; if (k === 0) box.style.gridRow = 'span 2'; build(box, c, L.body); qaGrid.appendChild(box); });
+    sortCells(d);
     live.remove();
+  }
+  // ALIKE COLOURS TOGETHER (John, 2026-10-03): the date cells sorted by their fill — the whites, the picked and pressed, the
+  // greys, then the coloured ones round the wheel from red (the tips' greens beside the green rule); order kept within each
+  function sortCells(d) {
+    const grid = d.querySelector('.ds-grid.cells'); if (!grid) return;
+    // by what each cell IS (its classes and its name), not its colour of the moment — the moving ones change colour as they loop
+    const hueOf = str => { const m = (str || '').match(/[\d.]+/g); if (!m) return 0; const [r, g, b] = m.map(Number), mx = Math.max(r, g, b), mn = Math.min(r, g, b); if (mx === mn) return 0; const h = mx === r ? ((g - b) / (mx - mn)) % 6 : mx === g ? (b - r) / (mx - mn) + 2 : (r - g) / (mx - mn) + 4; return (h * 60 + 360) % 360; };
+    const GREEN = 137;   // the tips' and the AI picks' green, #038026
+    const key = it => {
+      const c = it.querySelector('.dcell'); if (!c) return [9, 0];
+      const name = ((it.querySelector('.ds-label') || {}).textContent || '').trim(), k = c.classList;
+      if (k.contains('hued')) return [3, hueOf(getComputedStyle(c).backgroundColor)];   // a Repeat rule's colour
+      if (k.contains('tip') || k.contains('green')) return [3, GREEN];                     // the tips and the AI picks
+      if (name === 'Bounce' || k.contains('past') || k.contains('closed')) return [2, 0];  // the greys
+      if (/^Picked/.test(name) || k.contains('selected') || k.contains('pressed') || name === 'Pressed') return [1, 0];   // the picked and pressed
+      return [0, 0];                                                                       // the whites
+    };
+    const items = [...grid.children].map((e, i) => ({ e, i, k: key(e) }));
+    items.sort((x, z) => (x.k[0] - z.k[0]) || (x.k[1] - z.k[1]) || (x.i - z.i)).forEach(({ e }) => grid.appendChild(e));
   }
 })();
 </script>
