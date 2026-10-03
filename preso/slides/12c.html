@@ -23,8 +23,8 @@
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 4px 8px rgba(0, 0, 0, 0.08), 0 12px 30px rgba(0, 0, 0, 0.18);
   }
   .screen { position: relative; width: 100%; height: 100%; overflow: hidden; background: #fff; }
-  /* the build lays out at a window of its own and is scaled into the screen — at the slide's fixed 0.66, so a cell is the size it
-     always was and the screen shows as much calendar as fits (past 2000 wide the scale grows instead: a huge window crawls) */
+  /* the build lays out at a window of its own and is scaled into the screen — at 0.45 — a big, high-density monitor with the site open full
+     size, so more dates and homes show (past 3000 wide the scale grows instead: a huge window crawls) */
   #app { position: absolute; left: 0; top: 0; border: 0; background: #fff; transform-origin: top left; opacity: 0; transition: opacity .25s ease; }   /* unseen until it stands pristine: the build boots on its own default first */
   #app.ready { opacity: 1; }
   /* THE DUO (John, 2026-10-02): the last tap shrinks the desktop window back and to the left, and the phone — slide 12d's native
@@ -48,8 +48,10 @@
   const box = document.getElementById('box'), screen = document.getElementById('screen');
   const fitScreen = () => {
     const sw = screen.clientWidth, sh = screen.clientHeight; if (!(sw > 0)) return;
-    const k = Math.max(0.66, sw / 2000);
-    app.style.width = (sw / k).toFixed(1) + 'px'; app.style.height = (sh / k).toFixed(1) + 'px'; app.style.transform = `scale(${k})`;
+    const k = Math.max(0.45, sw / 3000);   // a big high-density monitor (John, 2026-10-02: "like a 4k monitor, the site full size") — was 0.66 / 2000
+    const W2 = (sw / k).toFixed(1) + 'px', H2 = (sh / k).toFixed(1) + 'px', changed = app.style.width !== W2 || app.style.height !== H2;
+    app.style.width = W2; app.style.height = H2; app.style.transform = `scale(${k})`;
+    if (changed && window.__landToday) { clearTimeout(fitScreen._t); fitScreen._t = setTimeout(window.__landToday, 350); }
   };
   new ResizeObserver(fitScreen).observe(screen); fitScreen();
   // THE DEVICE stands centred, as 09c's does; in the duo it steps back to 80% and to the left, and the phone is placed off it
@@ -178,14 +180,17 @@
     // ON TODAY, INSTANTLY. The build's own scrollCalendarToToday always glides (it is the Today button's), and a glide queued
     // while this pane stood hidden played out as the slide came in — the "weird animation". The boot's own instant landing is
     // used instead (a straight scrollLeft), and the glide is replaced for this copy so nothing in it ever slides to today.
-    const landToday = () => { try { w.eval("gridWrap.scrollLeft = Math.max(0, (rowOffsets[calStartDi()] || 0) - GRID_GUTTER); gridWrap.scrollTop = 0;"); } catch (_) {} };
+    const landToday = () => { try { w.eval("gridWrap.scrollLeft = Math.max(0, (rowOffsets[calStartDi()] || 0) - GRID_GUTTER); gridWrap.scrollTop = 0; gridWrap.dispatchEvent(new Event('scroll'));"); } catch (_) {} };   // (the scroll event: the month title follows it)
     // instant only while the build is being set up unseen; once it stands ready the build's own glide is back — the ✕ on an
     // opportunity, which lands on Today, then flies there rather than cutting (John, 2026-09-22)
     try { const glide = w.scrollCalendarToToday; w.scrollCalendarToToday = (...a) => app.classList.contains('ready') ? glide(...a) : landToday(); } catch (_) {}
     setTimeout(landToday, 60);
+    // a bigger window (the monitor look) gives the build a resize after it has landed, and its redraw goes back to the start:
+    // while the path has not begun, today is landed again once each resize has settled — and once more as it stands ready
+    window.__landToday = () => { if (at === 0) landToday(); };
     // ONLY THE PRISTINE STATE IS EVER SEEN (John, 2026-09-22): the build boots on its own default — twelve homes, guests in — and
     // is switched over here; it stays unseen until that has landed, then fades in standing at 32 homes, base rate, no pills.
-    setTimeout(() => { try { w.setDataMode('none', true); w.autoGroupByCity(false); } catch (_) {} d.body.classList.add('preso-shape'); openPalmSprings(w); setAll(w, rolled ? 200 : 0); landToday(); requestAnimationFrame(() => requestAnimationFrame(() => { landToday(); app.classList.add('ready'); armRoll(); })); }, 260);   // every night $0 until the odometer (John, 2026-10-02)
+    setTimeout(() => { try { w.setDataMode('none', true); w.autoGroupByCity(false); } catch (_) {} d.body.classList.add('preso-shape'); openPalmSprings(w); setAll(w, rolled ? 200 : 0); landToday(); requestAnimationFrame(() => requestAnimationFrame(() => { landToday(); app.classList.add('ready'); armRoll(); setTimeout(window.__landToday, 400); setTimeout(window.__landToday, 1200); })); }, 260);   // every night $0 until the odometer (John, 2026-10-02)
     // the deck's keys keep working with focus inside the build
     const NAV = new Set(['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'PageUp', 'PageDown', 'Home', 'End', 'f', 'F']);
     // CAPTURED, and stopped: the build has arrow keys of its own (they page the dates), and with focus inside the frame a
