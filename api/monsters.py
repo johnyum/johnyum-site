@@ -7,7 +7,7 @@ passcode. Locally, monsters/serve.py imports the same helpers from this file.
 Vercel env vars (Project → Settings → Environment Variables):
   MESHY_API_KEY        msy_...                     required
   MONSTERS_PASSCODE    whatever you'll type in     required — no passcode, no building
-  MONSTERS_DAILY_CAP   builds per 24 hours         optional, default 15
+  MONSTERS_DAILY_CAP   builds per 24 hours         optional — unset means no limit
 
 One route, /api/monsters?p=...  (a file in /api wins over vercel.json's /api/* → Trips rewrite):
   status                         {"hosted": true, "gated": true, "ready": bool}
@@ -122,8 +122,8 @@ class handler(BaseHTTPRequestHandler):
             if method == "POST":
                 body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
                 kind = path.split("/")[0]
-                cap = int(os.environ.get("MONSTERS_DAILY_CAP") or 15)
-                if "/" not in path and kind in CAPPED and over_cap(kind, key, cap):
+                cap = int(os.environ.get("MONSTERS_DAILY_CAP") or 0)   # 0: no limit (John's call, 2026-10-03)
+                if cap and "/" not in path and kind in CAPPED and over_cap(kind, key, cap):
                     return self.send_json(429, {"message": "That's today's limit of %d monsters — try again tomorrow" % cap})
             query = "&".join("%s=%s" % (k, urllib.parse.quote(v[0])) for k, v in q.items() if k not in ("p", "path"))
             code, data = forward(method, path, query, body, key)

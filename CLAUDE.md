@@ -279,7 +279,7 @@ The page only ever talks to **`/api/monsters?p=…`**, and two things answer it:
 
 | Where | What | Key from | Gate |
 |---|---|---|---|
-| johnyum.com | `api/monsters.py`, a Vercel Python function | Vercel env `MESHY_API_KEY` | `MONSTERS_PASSCODE` (env) — every call; `MONSTERS_DAILY_CAP` (default 15) builds a day |
+| johnyum.com | `api/monsters.py`, a Vercel Python function | Vercel env `MESHY_API_KEY` | `MONSTERS_PASSCODE` (env) — every call; `MONSTERS_DAILY_CAP` builds a day, only if set (unset: no limit — the passcode is the only guard) |
 | the Mac | `monsters/serve.py` (`python3 monsters/serve.py`, port 5320) | `monsters/.env` (gitignored), or the page's key box | none |
 
 `serve.py` imports the Meshy helpers from `api/monsters.py`, so there is one proxy, not two.
