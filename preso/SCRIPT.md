@@ -9,14 +9,14 @@ here so nothing is lost. Rough, and growing.
 
 The slide shows only the three lessons. Say the rest:
 
-1. **In a no-win scenario, make the call and own it.**
+1. **Make the call. Own it.**  *(the long form: In a no-win scenario, make the call and own it.)*
    One price fixed it for guests, and moved the cost to hosts. The work was making that trade honestly, not pretending it
    wasn't one.
 
-2. **People forgive bad news. They don't forgive feeling tricked.**
+2. **Bad news is forgivable. Hiding it isn't.**  *(the long form: People forgive bad news. They don't forgive feeling tricked.)*
    Every version we tested that buried the change to soften the blow drew more backlash, not less.
 
-3. **Give solutions, not just an explanation.**
+3. **Don't just explain. Give a fix.**  *(the long form: Give solutions, not just an explanation.)*
    Tone and delivery only go so far. Giving hosts a tool to raise their prices and keep their earnings, in one tap, is what
    let them act on it.
 
