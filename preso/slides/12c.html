@@ -524,11 +524,18 @@
       back: w => { ev(w, "exitOptimize()"); setTimeout(() => coin(w, false), 120); } },   // the button back as it stood, its coin at rest
     // 11 — Apply, tapped, on the last-minute discount: the build's own apply — the cells take the discount and settle (John, 2026-10-02)
     { fwd: (w, instant) => {
-        const d = w.document, b = d.querySelector('#magicPill [data-magic="apply"]');
+        const d = w.document;
         if (instant) { later(() => ev(w, "applyCurrent()"), 600); return; }
-        if (!b) { ev(w, "applyCurrent()"); return; }
-        b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440);
-        setTimeout(() => b.click(), 130);
+        // WAITS FOR THE TIP TO BE UP (John, 2026-10-02: "it's not tapping apply"): a tap that comes while the scan is still running,
+        // or the tip still revealing, finds no Apply yet — so it waits until the button is there and the reveal has settled
+        const ready = () => { const b = d.querySelector('#magicPill [data-magic="apply"]'), B = d.body.classList;
+          return b && B.contains('optimize-mode') && !B.contains('opt-scanning') && !B.contains('glow-hold') && !B.contains('opt-beat') ? b : null; };
+        const t0 = performance.now();
+        const go = () => { const b = ready();
+          if (!b) { if (performance.now() - t0 < 8000) setTimeout(go, 80); else ev(w, "applyCurrent()"); return; }
+          b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440);
+          setTimeout(() => b.click(), 130); };
+        go();
       },
       back: w => { closeUpsell(w); ev(w, "(() => { const o = window.__opt, g = o && o.suggs[o.cur]; if (g && g.applied && typeof undoCurrent === 'function') undoCurrent(); })()"); } },
   ];
@@ -722,7 +729,7 @@
     if (at + queued >= BEATS.length) return true;              // already queued to the last beat: hold, do not leave mid-queue
     queued++; pump(); return true;
   };
-  window.presoNoKeep = true;   // the deck never hands this slide back as it was left: it is rebuilt (see the deck's noKeep)
+  // (window.presoNoKeep was set here for a while; John, 2026-10-02: stepping back onto the slide should find it just as it was left — so it is not)
   window.presoPrev = () => {
     settleRestore(); queued = 0; clearTimeout(qT);
     // what was done by hand comes undone with the step: Tips opened live (its opportunities mode) closes first
