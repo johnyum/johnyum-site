@@ -660,6 +660,12 @@ function frame() {
   // Feet stick to the element they're on, wherever it's scrolled or reflowed to.
   if (C.el && (C.mode === 'stand' || C.mode === 'sit' || C.mode === 'run')) C.y = C.el.getBoundingClientRect().top + (C.mode === 'sit' ? 2 : 0);
 
+  // Peeking over an element, it holds on to it: scrolled, reflowed or lifted by the keyboard.
+  if (C.mode === 'peek' && C.held) {
+    const r = C.held.el.getBoundingClientRect();
+    C.x = r.right + C.held.dx; C.y = r.top + H * S * (1 - C.held.show);
+    grips.forEach((g, i) => { g.position.set(C.x + (i ? 1 : -1) * 30, -r.top + 2, 900); g.visible = C.held.show < .98; });   // popped right out, it lets go
+  }
   // The pendulum: hands fixed on the edge, body free, gravity and a little air.
   if (C.mode === 'hang' && C.el) {
     const r = C.el.getBoundingClientRect(), L = REACH * S;
@@ -751,7 +757,9 @@ function frame() {
 /* ═══════════════ poses ═══════════════ */
 
 let queue = Promise.resolve();
-const act = (fn) => (queue = queue.then(() => modelReady).then(fn).catch((e) => console.error(e)));   // nothing moves before the character's in
+let acting = 0;
+const act = (fn) => { acting++; return (queue = queue.then(() => modelReady).then(fn).catch((e) => console.error(e))   // nothing moves before the character's in
+  .finally(() => { if (--acting === 0) setTimeout(homeward, 300); })); };
 const rectOf = (el) => el.getBoundingClientRect();
 const headY = () => C.y - TOP * S * C.sq - 10;
 
@@ -761,7 +769,7 @@ async function popIn(x, y) {
 }
 async function leave() {
   unsay(); dropCard(); occlude(null); for (const g of grips) g.visible = false;
-  C.look = null; C.lean = 0; C.arms = 'rest';
+  C.look = null; C.lean = 0; C.arms = 'rest'; C.home = false; C.held = null;
   if (C.mode === 'off') return;
   if (C.mode === 'peek' && C.exit) { await C.exit(); }
   else await tween(260, (k) => { C.shown = 1 - k; }, (k) => k * k);
@@ -785,7 +793,7 @@ async function runTo(el, x2) {
 }
 // A real ballistic arc onto an element: gravity, apex, a squash on landing.
 async function jumpTo(el, x2) {
-  if (C.mode === 'off') return standOn(el, x2);
+  if (C.mode === 'off' || C.mode === 'peek') return standOn(el, x2);
   const x1 = C.x, y1 = C.y, r = rectOf(el), y2 = r.top;
   const g = 2600, apex = Math.min(y1, y2) - 70 - Math.abs(x2 - x1) * .12;          // px, y down
   const up = Math.sqrt(2 * g * Math.max(1, y1 - apex)), down = Math.sqrt(2 * g * Math.max(1, y2 - apex));
@@ -809,8 +817,45 @@ async function peekOver(el, x, m = 'curious', show = .62) {
   occlude(el);
   await tween(520, (k) => { C.y = top() + hidden - (hidden - (H * S - shown)) * k; }, easeBack);
   grips.forEach((g, i) => { g.visible = true; g.position.set(x + (i ? 1 : -1) * 30, -top() + 2, 900); });
-  C.exit = () => { for (const g of grips) g.visible = false; const y0 = C.y; return tween(300, (k) => { C.y = lerp(y0, top() + hidden, k); }, (k) => k * k).then(() => occlude(null)); };
+  C.held = { el, dx: x - rectOf(el).right, show };
+  C.exit = () => { C.held = null; for (const g of grips) g.visible = false; const y0 = C.y; return tween(300, (k) => { C.y = lerp(y0, top() + hidden, k); }, (k) => k * k).then(() => occlude(null)); };
 }
+/* Home: tucked behind the right end of the chat box, head and paws over the edge. Wherever it
+   goes — a reaction, the answer, a tip — it comes back here once nothing else is queued. It leans
+   up a little while you type (rise()), and sinks lower while it sulks. */
+const HOME = .6, HOME_SULK = .4, HOME_POP = 1.12;
+const homeGround = () => EMBED ? (plat.composer ? V('composer') : null) : composer;
+function homeward() {
+  if (acting || C.mode !== 'off') return;
+  const g = homeGround(); if (!g || rectOf(g).width <= 0) return;
+  if (Date.now() < heart.shyUntil) return void setTimeout(homeward, heart.shyUntil - Date.now() + 100);
+  act(async () => {
+    if (C.mode !== 'off') return;
+    const r = rectOf(g);
+    await peekOver(g, r.right - 58, heart.sulking ? 'sad' : 'happy', heart.sulking ? HOME_SULK : HOME);
+    C.home = true;
+  });
+}
+// Up or down behind the box, without leaving it.
+function rise(show) {
+  if (!C.held) return;
+  const from = C.held.show; if (Math.abs(from - show) < .01) return;
+  tween(260, (k) => { if (C.held) C.held.show = lerp(from, show, k); }, easeOut);
+}
+const restShow = () => heart.sulking ? HOME_SULK : HOME;
+// Tapped at home: up out of the box all the way, a squash and a hello, then back down.
+let popping = 0;
+function popUp() {
+  if (!C.held) return;
+  clearTimeout(popping); C.sqv -= 12;
+  const from = C.held.show;
+  tween(300, (k) => { if (C.held) C.held.show = lerp(from, HOME_POP, k); }, easeBack);
+  if (heart.sulking) { mood('ugh'); say('hmph.', 1100, 'ugh'); }
+  else { mood('love'); say(['hi!', 'hehe', 'boop!', 'yes?'][Math.floor(Math.random() * 4)], 1100); if (model && playClip('Wave', true)) oneShot = clipsFor.Wave.duration; }
+  popping = setTimeout(() => { if (!C.home) return; rise(restShow()); mood(heart.sulking ? 'sad' : 'happy'); }, 1500);
+}
+modelReady.then(() => setTimeout(homeward, 700));   // in it comes, to its spot
+
 // Leans in from the edge of the window.
 async function peekSide(side, at, m = 'curious') {
   await leave(); mood(m);
@@ -871,6 +916,12 @@ function placeOverlays() {
 // A tap on it is a boop.
 addEventListener('pointerdown', (e) => {
   if (C.mode === 'off') return;
+  // At home, only the part over the box is it: a tap there pops it right up out of the box.
+  if (C.home && C.held) {
+    const top = C.held.el.getBoundingClientRect().top;
+    if (Math.abs(e.clientX - C.x) < H * S * .5 && e.clientY > C.y - H * S * 1.1 && e.clientY < top + 8) popUp();
+    return;
+  }
   const cy = C.y - H * S * .5;
   if (Math.hypot(e.clientX - C.x, e.clientY - cy) < H * S * .55) {
     const was = moodNow; mood('love'); C.sqv -= 10; say('hehe', 900);
@@ -947,13 +998,14 @@ let typingTimer = 0;
 input.addEventListener('input', () => {
   fit(); idle();
   const r = rectOf(composer);
-  if (!input.value.trim()) { clearTimeout(typingTimer); typingTimer = setTimeout(() => { if (C.mode === 'peek' && C.el === null && occludeEl === composer) act(leave); }, 900); return; }
+  if (!input.value.trim()) { clearTimeout(typingTimer); typingTimer = setTimeout(() => { if (C.home) { rise(restShow()); mood(heart.sulking ? 'sad' : 'happy'); } else if (C.mode === 'peek' && occludeEl === composer) act(leave); }, 900); return; }
   const show = mayWatch(input.value);
-  if (show && occludeEl !== composer) act(async () => { if (occludeEl !== composer && input.value.trim()) { draftFeel = ''; await peekOver(composer, r.right - 120, 'curious', show); watching(input.value); } });
+  if (C.home) rise(show || restShow());
+  else if (show && occludeEl !== composer) act(async () => { if (occludeEl !== composer && input.value.trim()) { draftFeel = ''; await peekOver(composer, r.right - 120, 'curious', show); watching(input.value); } });
   else watching(input.value);
   C.look = { x: r.left + 30 + Math.min(r.width - 170, input.value.length * 7.2), y: r.top + 30 };
 });
-input.addEventListener('blur', () => { setTimeout(() => { if (occludeEl === composer && !input.value.trim()) act(leave); }, 400); });
+input.addEventListener('blur', () => { setTimeout(() => { if (C.home && !input.value.trim()) rise(restShow()); }, 400); });
 $('#chips').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) send(b.textContent); });
 $('#newChat').onclick = () => { msgs.innerHTML = '<div class="hello" id="hello"><b>What’s on your mind?</b>Type something. Be nice — or don’t, and see what happens.</div>'; act(leave); };
 
@@ -962,13 +1014,13 @@ let idleTimer = 0, idleTurn = 0;
 function idle() {
   clearTimeout(idleTimer);
   idleTimer = setTimeout(() => act(async () => {
-    if (C.mode !== 'off' || heart.sulking || (document.activeElement === input && input.value) || (EMBED && (!plat.composer || typing))) return idle();
+    if ((C.mode !== 'off' && !C.home) || heart.sulking || (document.activeElement === input && input.value) || (EMBED && (!plat.composer || typing))) return idle();
     const turn = idleTurn++ % 3, ground = EMBED ? V('composer') : composer;
     if (turn === 0) { const [t, s] = TIPS[tipAt++ % TIPS.length]; await holdTip(t, s); await wait(6000); await leave(); }
     else if (turn === 1 && !EMBED) { const pills = [...$('#chips').children], p = pills[1 + (idleTurn % 3)], r = rectOf(p); await hang(p, r.left + r.width / 2); say('wheee', 1600); await wait(5000); await leave(); }
     else { const c = rectOf(ground); await standOn(ground, c.left + 40); await runTo(ground, c.right - 60); await wait(600); await leave(); }
     idle();
-  }), 9000);
+  }), 25000);   // it has a home now: it wanders off now and then, not constantly
 }
 addEventListener('pointerdown', idle);
 idle();
@@ -1186,7 +1238,7 @@ async function perform(f, ground, near) {
       await peekSide('bottom', at, 'happy'); clip('Wave') || await hop(1, 18); say(line(heart.warmth > 3 ? 'hi again!' : 'hi!'), 1600); await wait(1700); return leave();
     case 'surprised':
       await peekSide('bottom', at, 'surprised'); C.sqv -= 12; say(line('whoa'), 1400); await wait(1500); return leave();
-    default: return leave();   // a question or nothing much: it goes to wait on the answer
+    default: if (C.home) return rise(restShow()); return leave();   // a question or nothing much: it waits for the answer
   }
 }
 async function obey(cmd, ground, line) {
@@ -1222,8 +1274,8 @@ function watching(text) {
 function mayWatch(text) {
   if (Date.now() < heart.shyUntil) return 0;
   settle();
-  if (heart.sulking) return /sorry|apolog|forgive|my bad|love/i.test(String(text)) ? .32 : 0;
-  return heart.warmth > 4 ? .7 : .62;
+  if (heart.sulking) return /sorry|apolog|forgive|my bad|love/i.test(String(text)) ? .5 : 0;
+  return heart.warmth > 4 ? .85 : .78;
 }
 
 // Reading Claude's answer: an aside, on the answer itself, before it hops down.
@@ -1240,7 +1292,7 @@ async function feelAnswer(f) {
   }
   unsay(); mood('happy');
 }
-Object.assign(window.__peek, { heart, sense, read, perform });
+Object.assign(window.__peek, { heart, sense, read, perform, popUp, homeward });
 
 /* ═══════════════ embed: the host app's chat drives it ═══════════════ */
 var typing = 0;
@@ -1253,7 +1305,7 @@ if (EMBED) {
     // The streaming reply is held at its last place when it goes — it turns into a message
     // row a beat before 'replied' arrives, and whatever's sitting on it shouldn't fall off.
     answer(id, text) { asking[id]?.(text || null); delete asking[id]; },
-    platforms(map) { for (const k of Object.keys(plat)) if (!(k in map) && k !== 'reply') delete plat[k]; Object.assign(plat, map); },
+    platforms(map) { for (const k of Object.keys(plat)) if (!(k in map) && k !== 'reply') delete plat[k]; Object.assign(plat, map); if (map.composer) homeward(); },
     event(name, data) {
       idle();
       const comp = V('composer'), r = () => rectOf(comp);
@@ -1262,9 +1314,10 @@ if (EMBED) {
         const draft = typeof data === 'string' ? data : '';
         typing = typeof data === 'number' ? data : draft.length;
         clearTimeout(typingTimer);
-        if (!typing) { draftFeel = ''; draftLen = 0; typingTimer = setTimeout(() => { if (occludeEl === comp) act(leave); }, 900); return; }
+        if (!typing) { draftFeel = ''; draftLen = 0; typingTimer = setTimeout(() => { if (C.home) { rise(restShow()); mood(heart.sulking ? 'sad' : 'happy'); } else if (occludeEl === comp) act(leave); }, 900); return; }
         const show = mayWatch(draft);
-        if (show && occludeEl !== comp && C.mode !== 'sit') act(async () => { if (occludeEl !== comp && typing) { draftFeel = ''; await peekOver(comp, r().right - 110, 'curious', show); watching(draft); } });
+        if (C.home) rise(show || restShow());
+        else if (show && occludeEl !== comp && C.mode !== 'sit') act(async () => { if (occludeEl !== comp && typing) { draftFeel = ''; await peekOver(comp, r().right - 110, 'curious', show); watching(draft); } });
         else watching(draft);
         C.look = { x: r().left + 30 + Math.min(r().width - 160, typing * 7.2), y: r().top + 24 };
       } else if (name === 'send') {
@@ -1272,7 +1325,7 @@ if (EMBED) {
         const text = String(data || ''); draftFeel = ''; draftLen = 0;
         // Its face drops into the read straight away; the move waits for the read (Haiku, ≤1.6s).
         const felt = read(text);
-        act(async () => { const f = await felt; if (C.mode === 'peek' && occludeEl === comp) await leave(); await perform(f, comp, comp); });
+        act(async () => perform(await felt, comp, comp));
       } else if (name === 'thinking') {
         // It sits on the answer that's on its way — and rides it up as it streams in.
         act(async () => { const a = rectOf(V('reply')); if (a.width <= 0 || heart.sulking || Date.now() < heart.shyUntil) return; await sitOn(V('reply'), a.left + Math.min(a.width - 30, 70), 'thinking'); say('hmm…', 0); });
@@ -1298,7 +1351,11 @@ if (EMBED) {
   let last = '';
   setInterval(() => {
     const rs = [];
-    if (root.visible) { const w = 1.3 * S * C.shown, h = TOP * S * 1.15 * C.shown; rs.push([C.x - w / 2, C.y - h, w, h]); }
+    if (root.visible) {
+      // Only the part that shows: tucked behind the chat box, the box's own buttons stay tappable.
+      const w = 1.3 * S * C.shown, h = TOP * S * 1.15 * C.shown, top = C.y - h, bottom = occludeEl ? Math.min(C.y, occludeEl.getBoundingClientRect().top + 6) : C.y;
+      if (bottom > top) rs.push([C.x - w / 2, top, w, bottom - top]);
+    }
     if (card) { const b = card.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }
     const k = JSON.stringify(rs.map((r) => r.map(Math.round))); if (k !== last) { last = k; tell({ type: 'rects', rects: rs }); }
   }, 100);

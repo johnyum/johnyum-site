@@ -366,6 +366,12 @@ up tip cards. One `index.html`, three.js; the chat is canned.
   us it's hurt. Hurt builds and fades (`heart`): grumble, sting, then it sulks out of sight till
   you say sorry. While you type, its face follows the draft (`watching()`); the app sends the draft
   text and Claude's finished answer for this. Commands (jump, dance, wave, come, go away, sleep).
+- **It has a home** (2026-10-03): tucked behind the right end of the chat box, head and paws over
+  the edge (`homeward()`, `HOME` = .6 of it showing). Every move ends back there — `act()` sends it
+  home once its queue runs dry — and a peek holds on to its element (`C.held`), so the keyboard
+  rising carries it along. It leans up while you type, sinks while it sulks, and a tap pops it
+  right out of the box (`popUp()`). The touch rect it reports stops at the box's top edge, so the
+  Send button under it stays tappable.
 - Its frame loop is `frame()`, exposed on `window.__peek` — a hidden tab pauses
   `requestAnimationFrame`, so a test drives frames by hand.
 
