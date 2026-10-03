@@ -58,7 +58,7 @@
     return true;
   };
   const t0 = Date.now();
-  const tick = () => { const got = measure(); if (got) sheet.classList.add('ready'); if (Date.now() - t0 < 2400) setTimeout(tick, 120); };
+  const tick = () => { const got = measure(); if (got) sheet.classList.add('ready'); if (Date.now() - t0 < 9000) setTimeout(tick, 120); };
   frame.addEventListener('load', tick); setTimeout(tick, 300);
   // UPDATED TO TODAY'S COMPONENTS (John, 2026-10-03: "go back to that one but update it with newer components… remove the
   // secondary type everywhere"). The sheet is the app's own sampler, so it is dressed from here rather than rebuilt:
@@ -66,17 +66,14 @@
   //  · every pick STROKED, the selection the product ships, never the black fill: each phone is given the sampler's own
   //    `origsel` (the black is only drawn on a phone without it), and the cell that existed only to show the stroked pick
   //    beside the black one goes, now that every pick is stroked;
-  //  · the guests' stays stroked — white, a 1.5 #222 line, the name in #222 — on the month and on the board;
+  //  · the guests' stays stay BLACK, the main pill as the product draws it (John, 2026-10-03), and beside them the two the
+  //    sampler never had: a request to book and a stay the host cancelled — lifted from the live calendar, below;
   //  · the multi board's homes in real photos rather than grey squares.
   frame.addEventListener('load', () => {
     const d = frame.contentDocument;
     const st = d.createElement('style');
     const HOMES = ['1564013799919-ab600027ffc6', '1600596542815-ffad4c1539a9', '1568605114967-8130f3a36994'];
     st.textContent = '.ds-label{display:none!important}'
-      + '.spill.glass-dark,.pill.glass-dark{background:#fff!important;border:1.5px solid #222!important;box-sizing:border-box;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;box-shadow:none!important}'
-      + '.spill.glass-dark::before,.spill.glass-dark::after,.pill.glass-dark::before,.pill.glass-dark::after{display:none!important}'
-      + '.spill.glass-dark .name,.pill.glass-dark .name{color:#222!important}'
-      + '.lpill,.ypill{background:#fff!important;border:1.5px solid #222!important;box-sizing:border-box;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}'   // the list's and the year's stays too
       + '.sampler-item[data-dup]{display:none!important}'
       + HOMES.map((h, i) => `.ds-thumbrow .ds-thumb:nth-child(${i + 1}){background:url("https://images.unsplash.com/photo-${h}?w=120&h=120&fit=crop&q=80") center/cover!important}`).join('');
     d.head.appendChild(st);
@@ -86,7 +83,39 @@
       const ph = it.querySelector('.phone'); if (ph && !ph.classList.contains('origsel')) ph.classList.add('origsel');
     });
     stroke(); new frame.contentWindow.MutationObserver(stroke).observe(d.body, { childList: true, subtree: true });
+    addKinds(d);
   });
+  // THE REQUEST TO BOOK AND THE CANCELLED STAY. The sampler has neither, so the live calendar is run unseen, given one of
+  // each (its model's addStay, as slide 13 gives them), and the two pills it draws are lifted into the sampler's Guest pills
+  // group — inside shallow clones of the ancestors they hang from, so the app's own rules for them still land.
+  async function addKinds(d) {
+    const live = document.createElement('iframe');
+    Object.assign(live.style, { position: 'fixed', left: '0', top: '0', width: '430px', height: '932px', border: '0', opacity: '0', pointerEvents: 'none', zIndex: '-1' });
+    live.src = '/multical/?preso=1&today=2026-09-09' + (v ? '&v=' + v : ''); document.body.appendChild(live);
+    const until = async (fn, ms = 12000) => { const t = Date.now(); while (Date.now() - t < ms) { try { const x = fn(); if (x) return x; } catch (_) {} await new Promise(r => setTimeout(r, 80)); } return null; };
+    const m = await until(() => live.contentWindow.__model); if (!m) return;
+    const I = dd => m.fx.index({ y: 2026, m: 9, d: dd }), base = { listing: 0, extraGuests: 0, checkIn: '3:00 PM', checkOut: '11:00 AM', nightly: [], earnings: 0 };
+    m.addStay({ ...base, startIndex: I(14), nights: 3, guest: 'Daniel', avatarURL: '', kind: 'request', initials: 'DR' });
+    m.addStay({ ...base, startIndex: I(21), nights: 3, guest: 'Priya', avatarURL: '', kind: 'cancelled' });
+    const L = live.contentDocument;
+    const pills = await until(() => { const ps = [...L.querySelectorAll('.spill')].filter(p => p.getBoundingClientRect().width > 60 && /Daniel|Cancelled/.test(p.textContent)); return ps.length >= 2 && ps; });
+    const grid = d.querySelector('.ds-grid.pills'); if (!pills || !grid) return;
+    await new Promise(r => setTimeout(r, 500));
+    const after = grid.children[1] || null;
+    pills.sort((a, z) => /Daniel/.test(a.textContent) ? -1 : 1).forEach(p => {
+      const r = p.getBoundingClientRect(), W = 168, chain = [];   // at the main pill's width (the sampler's 168), so neither is cut short
+      for (let e = p.parentElement; e && e !== L.body; e = e.parentElement) chain.unshift(e);
+      const spec = d.createElement('div'); spec.className = 'ds-spec';
+      const art = d.createElement('div'); art.className = 'ds-art'; art.style.width = W + 'px'; spec.appendChild(art);
+      let cur = art;
+      chain.forEach(e => { const c = e.cloneNode(false); c.removeAttribute('id'); c.style.cssText += ';position:static!important;transform:none!important;width:auto!important;height:auto!important;margin:0!important;padding:0!important;overflow:visible!important;display:block!important;inset:auto!important;min-height:0!important;background:transparent!important;box-shadow:none!important;border:0!important'; cur.appendChild(c); cur = c; });
+      const c = p.cloneNode(true); c.style.cssText += ';position:relative!important;left:auto!important;top:auto!important;width:' + W + 'px!important;height:36px!important;transform:none!important';   // the main pill's 36 (lifted mid-entrance it can read short)
+      c.querySelectorAll('img[src]').forEach(i => { i.src = new URL(i.getAttribute('src'), L.baseURI).href; });
+      cur.appendChild(c);
+      grid.insertBefore(spec, after);   // beside the main pill: the stay, then the request, then the cancelled one
+    });
+    live.remove();
+  }
 })();
 </script>
 </body>
