@@ -55,7 +55,7 @@
        3  "4 of 7": the two fees go, the host's bar grows to the guests' height, its cap reads "Single fee 15.5%", then "$18",
           and "Your price $115" — the two prices are one price.
      Everything is laid on the 393 x 852 frame John's screens are drawn on (.stage, scaled to the screen the way the screen image
-     is — object-fit: cover, from the top): the bars are the frame's own clean grey bar (hof-bar.webp) nine-sliced so it can be
+     is — object-fit: cover, from the top): the bars are the frame's own clean grey bar (hof-bar-*.webp), able to stand
      any height, the pink is the frame's clean plate (hof-fill.webp), the words are set in Cereal where the frames set them. The
      frame's own header and graph are papered over in white and rebuilt live, so the words can change step to step. ?ghost=2 or
      ?ghost=3 lays that frame over the live one at half strength, to check the two still agree. Back snaps a step back. */
@@ -72,20 +72,31 @@
   .stage .step { left: 196.5px; top: 86px; font-size: 11px; color: #6b6b6b; }
   .stage .head { left: 196.5px; top: 210px; font-size: 16px; line-height: 22px; text-align: center; color: #1c1c1c; }
   .stage .floor { position: absolute; left: 0; top: 0; width: 393px; height: 663px; overflow: hidden; }
-  .stage .bar { position: absolute; bottom: 0; width: 140px; box-sizing: border-box; border: 24px solid transparent;
-                border-image: url('assets/hof-bar.webp') 24 fill stretch; transform: translateY(110%); }
+  /* THE BARS RISE OUT OF WHITE, NOT A CUT (John, 2026-10-03): while they come up, the floor is a 0 → 100% white fade 70px tall,
+     so a bar grows out of the page rather than from behind a clear line. The mask is 70px taller than the floor: hung from the
+     floor's foot its fade sits on the floor; hung from its head the fade is below the floor and does nothing — so once both bars
+     are up (1.9s) it slides away, and the finished graph has no fade on it. */
+  .stage .floor { -webkit-mask-image: linear-gradient(to top, transparent 0, #000 70px); mask-image: linear-gradient(to top, transparent 0, #000 70px);
+                  -webkit-mask-size: 100% calc(100% + 70px); mask-size: 100% calc(100% + 70px); -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+                  -webkit-mask-position: 0 100%; mask-position: 0 100%; }
+  .hof:not([data-s="0"]) .floor { -webkit-mask-position: 0 0; mask-position: 0 0; transition: -webkit-mask-position .5s ease 2s, mask-position .5s ease 2s; }
+  /* the bar is the frame's own, in two halves (top 127 rows, bottom 127) with one row of its middle stretched between them when
+     it stands taller than the frame's 254 — full-width layers, so nothing is resampled in pieces and no seam shows */
+  .stage .bar { position: absolute; bottom: 0; width: 140px; transform: translateY(110%);
+                background: url('assets/hof-bar-top.webp') top / 140px 127px no-repeat, url('assets/hof-bar-bot.webp') bottom / 140px 127px no-repeat,
+                            url('assets/hof-bar-mid.webp') center / 140px 100% no-repeat; }
   .stage .barL { left: 126.5px; height: 254px; }
   .stage .barR { left: 207px; height: 313px; }
   .stage .bar > * { position: absolute; }
-  .stage .bar .t { left: 46px; }                                   /* the bar's middle, inside its 24px border */
-  .stage .fill { left: -24px; bottom: -24px; width: 140px; height: 213px; clip-path: inset(100% 0 0 0); }
-  .stage .dash { left: -24px; width: 138px; height: 1px; background: linear-gradient(90deg, #2e2e2e 50%, transparent 50%) left / 8px 1px repeat-x;
+  .stage .bar .t { left: 70px; }                                   /* the bar's middle */
+  .stage .fill { left: 0; bottom: 0; width: 140px; height: 213px; clip-path: inset(100% 0 0 0); }
+  .stage .dash { left: 0; width: 138px; height: 1px; background: linear-gradient(90deg, #2e2e2e 50%, transparent 50%) left / 8px 1px repeat-x;
                  clip-path: inset(0 100% 0 0); }
-  .stage .barL .dash { bottom: 189px; }                            /* y 449 on the frame, from the floor, so it stays put as the bar grows */
-  .stage .barR .dash { top: 34px; }                                /* y 408: 58 under the guests' bar top */
-  .stage .labTop { bottom: calc(100% + 24px + 10.5px); transform: translate(-50%, 0); }
-  .stage .svc3 { bottom: 208px; }  .stage .single { bottom: 239.5px; }  .stage .earn { bottom: 83px; color: #fff; }
-  .stage .svc15 { top: 6.5px; }
+  .stage .barL .dash { bottom: 213px; }                            /* y 449 on the frame, from the floor, so it stays put as the bar grows */
+  .stage .barR .dash { top: 58px; }                                /* y 408: 58 under the guests' bar top */
+  .stage .labTop { bottom: calc(100% + 10.5px); transform: translate(-50%, 0); }
+  .stage .svc3 { bottom: 232px; }  .stage .single { bottom: 263.5px; }  .stage .earn { bottom: 107px; color: #fff; }
+  .stage .svc15 { top: 30.5px; }
   .stage .svc3, .stage .single, .stage .earn, .stage .svc15 { transform: translate(-50%, 50%); }
   .stage .svc15 { transform: translate(-50%, -50%); }
 
@@ -215,8 +226,13 @@
     if (g) { const i = document.createElement('img'); i.className = 'ghost'; i.src = `assets/hof-${g}of7.webp`; st.appendChild(i); }
     const set = (n, instant) => { s = n; if (instant) h.classList.add('snap'); h.dataset.s = n;
       if (instant) { void h.offsetWidth; requestAnimationFrame(() => requestAnimationFrame(() => h.classList.remove('snap'))); } };
+    // the first step plays by itself as the slide lands (John, 2026-10-03: "so it's not just sitting blank") — the deck says so
+    // with presoshown; opened on its own, it plays once the page is up
+    const auto = () => { if (s === 0) set(1); };
+    addEventListener('presoshown', auto);
+    if (window.top === window) addEventListener('load', () => setTimeout(auto, 400));
     window.presoNext = () => { if (s >= LAST) return false; set(s + 1); if (s === LAST) tag.after(4400); return true; };
-    window.presoPrev = () => { if (s <= 0) return false; if (s === LAST) tag.reset(); set(s - 1, true); return true; };
+    window.presoPrev = () => { if (s <= 1) return false; if (s === LAST) tag.reset(); set(s - 1, true); return true; };
     window.presoEnd = () => set(LAST, true);
     window.presoState = () => s;
     window.presoRestore = n => { set(Math.max(0, Math.min(LAST, n | 0)), true); if (s < LAST) tag.reset(); };
