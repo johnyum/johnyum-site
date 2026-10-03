@@ -268,7 +268,23 @@ window.presoInteractive = true;
   app.addEventListener('load', () => {
     const w = app.contentWindow;
     const seal = w.document.createElement('style');
-    seal.textContent = '.phone{margin:64.2px auto 0;height:calc(100dvh - 64.2px)}';
+    // no Ask circle (the AI search, bottom right) on the native design (John, 2026-10-03)
+    seal.textContent = '.phone{margin:64.2px auto 0;height:calc(100dvh - 64.2px)}' + '.askwrap,.bar.askonly{display:none!important}'
+      // TWO REQUESTS TO BOOK on the board (John, 2026-10-03): two of its stays dressed as requests, as the web board dresses
+      // its own (12c) — white, a dashed #222 line, the face a disc in one of the label colours with the guest's initials
+      + '.board .pill.preso-req{background:#fff!important;border:1.5px dashed #222!important;box-sizing:border-box;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;box-shadow:none!important}'
+      + '.board .pill.preso-req::before,.board .pill.preso-req::after{display:none!important}'
+      + '.board .pill.preso-req .name{color:#222!important}'
+      + '.board .pill.preso-req>span:first-child{background:var(--req-bg)!important;display:grid!important;place-items:center}'
+      + '.board .pill.preso-req>span:first-child img{display:none}'
+      + '.board .pill.preso-req>span:first-child::after{content:attr(data-ini);color:var(--req-ink);font:700 11px/1 Cereal,sans-serif;letter-spacing:.02em}';
+    const REQ = { Mara: ['MK', '#D7EAFB', '#2E80E0'], Britt: ['BH', '#E6E2FB', '#7A6CE8'] };   // Blue, Purple — the build's own label colours
+    const dress = () => w.document.querySelectorAll('.board .pill').forEach(p => {
+      const n = (p.querySelector('.name') || {}).textContent || '', k = Object.keys(REQ).find(g => n.startsWith(g));
+      p.classList.toggle('preso-req', !!k);
+      const disc = p.firstElementChild; if (k && disc) { disc.dataset.ini = REQ[k][0]; disc.style.setProperty('--req-bg', REQ[k][1]); disc.style.setProperty('--req-ink', REQ[k][2]); }
+    });
+    new w.MutationObserver(dress).observe(w.document.documentElement, { childList: true, subtree: true }); dress();
     w.document.head.appendChild(seal);
     w.addEventListener('keydown', e => { if (!NAV.has(e.key) || !e.isTrusted) return; e.preventDefault(); e.stopImmediatePropagation(); window.top.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: e.code, bubbles: true })); }, true);
   });
