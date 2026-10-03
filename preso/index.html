@@ -132,6 +132,9 @@
   #counter .sec { pointer-events: auto; cursor: pointer; color: #8C8C8C; background: none; border: 0; padding: 6px 4px; margin: -6px 0; font: inherit; }
   #counter .sec:hover { color: #444; }
   #counter .sec.on { color: #111; }
+  /* NO FOCUS RING (John, 2026-10-02: "this blue stroke… keeps popping up"): a clicked section kept keyboard focus, and the next
+     arrow or clicker press drew the browser's ring round it. The click lets go of focus (below) and the ring is off besides. */
+  #counter .sec:focus, #counter .sec:focus-visible { outline: none; }
   #counter .dot { margin: 0 6px; }
   /* A DARK SLIDE (John, 2026-10-01: Hello! inverted) declares window.presoDark = true and the chrome turns white over
      it: the kicker and the section names, the one you are in full white, the rest a step back as they are on white. */
@@ -242,7 +245,7 @@
     sectionStarts().forEach(([name, i], k) => {
       if (k) { const d = document.createElement('span'); d.className = 'dot'; d.textContent = '\u00b7'; counter.appendChild(d); }
       const b = document.createElement('button'); b.type = 'button'; b.className = 'sec'; b.dataset.start = i; b.textContent = name;
-      b.addEventListener('click', e => { e.stopPropagation(); discardKept(); const land = sectionLanding(name) || [i, 0]; jumpTo(land[0]); landStep(land[0], land[1]); });
+      b.addEventListener('click', e => { e.stopPropagation(); b.blur(); discardKept(); const land = sectionLanding(name) || [i, 0]; jumpTo(land[0]); landStep(land[0], land[1]); });
       counter.appendChild(b);
     });
   }
