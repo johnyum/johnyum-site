@@ -11,9 +11,22 @@
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
-  .box { position: relative; flex: none; width: 1920px; height: 900px; transform-origin: center; border-radius: 32px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,.08), 0 24px 60px rgba(0,0,0,.14); background: #fff; }
-  .box iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; opacity: 0; transition: opacity .25s ease; }   /* unseen until it stands pristine: the build boots on its own default first */
-  .box iframe.ready { opacity: 1; }
+  /* THE EXPLORE DEVICE (John, 2026-10-02: "use this exact dimensions… with the same stroke"): 09c's tablet, number for number —
+     measured off assets/trip-creator.webp: 3106 x 2031 outer, a 32px black stroke and a 112px radius on its 3200 canvas — so the
+     multi calendar stands in exactly the frame the map does. --canvas is the one knob: raise it to make the device bigger (it is
+     09c's own min(92vw, 82vh x 1.59046) for now). */
+  .box {
+    --canvas: min(92vw, calc(82vh * 1.59046));
+    position: relative; flex: none; box-sizing: border-box; transform-origin: center; background: #fff;
+    width: calc(var(--canvas) * 0.91901); aspect-ratio: 3106 / 2031;
+    border: calc(var(--canvas) * 0.009468) solid #000; border-radius: calc(var(--canvas) * 0.035); overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 4px 8px rgba(0, 0, 0, 0.08), 0 12px 30px rgba(0, 0, 0, 0.18);
+  }
+  .screen { position: relative; width: 100%; height: 100%; overflow: hidden; background: #fff; }
+  /* the build lays out at a window of its own and is scaled into the screen — at the slide's fixed 0.66, so a cell is the size it
+     always was and the screen shows as much calendar as fits (past 2000 wide the scale grows instead: a huge window crawls) */
+  #app { position: absolute; left: 0; top: 0; border: 0; background: #fff; transform-origin: top left; opacity: 0; transition: opacity .25s ease; }   /* unseen until it stands pristine: the build boots on its own default first */
+  #app.ready { opacity: 1; }
   /* THE DUO (John, 2026-10-02): the last tap shrinks the desktop window back and to the left, and the phone — slide 12d's native
      multi calendar, the next thing the room sees — rises in over its lower right, the way a desktop-and-phone hero shot is set */
   .box { transition: transform .9s cubic-bezier(.2,.8,.2,1); }
@@ -23,44 +36,38 @@
 </style>
 </head>
 <body>
-  <div class="stage"><div class="box" id="box"><iframe id="app" title="Multi-Host Calendar — the web build"></iframe></div></div>
+  <div class="stage"><div class="box" id="box"><div class="screen" id="screen"><iframe id="app" title="Multi-Host Calendar — the web build"></iframe></div></div></div>
 <script>
 (() => {
   window.presoInteractive = true;   // the calendar is the product: tappable; the rails and the keys drive the deck
   const v = new URLSearchParams(location.search).get('v');
   const app = document.getElementById('app');
   app.src = '/multi/' + (v ? '?v=' + v : '');
-  // THE BOX KEEPS ITS DISTANCE from the deck's own type: 40 under the kicker ("John Yum · Work") and 40 above the counter
-  // ("16 / 16") — read from the deck itself, so the band the box fills is exactly what those two leave (John, 2026-09-22).
-  const box = document.getElementById('box');
+  // THE SCREEN: the build's window is the screen's size divided by the scale (0.66, or more past a 2000-wide window), and is
+  // scaled back down into it. A ResizeObserver, as 09c's: it fires when the deck un-parks the slide and the screen gets a box.
+  const box = document.getElementById('box'), screen = document.getElementById('screen');
+  const fitScreen = () => {
+    const sw = screen.clientWidth, sh = screen.clientHeight; if (!(sw > 0)) return;
+    const k = Math.max(0.66, sw / 2000);
+    app.style.width = (sw / k).toFixed(1) + 'px'; app.style.height = (sh / k).toFixed(1) + 'px'; app.style.transform = `scale(${k})`;
+  };
+  new ResizeObserver(fitScreen).observe(screen); fitScreen();
+  // THE DEVICE stands centred, as 09c's does; in the duo it steps back to 80% and to the left, and the phone is placed off it
   const fit = () => {
-    let top = 56, bottom = innerHeight - 56;
-    try { const pd = window.parent.document, k = pd.getElementById('kicker'), c = pd.getElementById('counter'); if (k) top = k.getBoundingClientRect().bottom + 40; if (c) bottom = c.getBoundingClientRect().top - 40; } catch (_) {}
-    // 32 at the sides too: the box is 1920 wide (John, 2026-09-22: a wider window shows more dates and rows) scaled to the width less 64, and as TALL as the band leaves — the web app
-    // fills whatever height it is given — so the 32 above and below always hold, whatever the stage's shape
-    // THE SCALE IS FIXED (John, 2026-09-22): the build always shows at 0.66 — a touch larger than the Claude pane's 0.55, which read small on a big Chrome window (John) — where it looked
-    // right — and its WINDOW grows with the screen instead: as wide as the stage less 64 and as tall as the band leave, both
-    // divided by the scale. A wider screen shows more dates and rows, never bigger cells; the 40 above and below and the 32 at
-    // the sides always hold.
-    // …but the WINDOW IS CAPPED (John, 2026-09-22): on a big screen an uncapped window ran to thousands of cells and the build
-    // crawled — beats lagged, the arrows felt dead. Past 2000 × 1400 the scale grows instead, so the box still fills the band.
-    const bandH = Math.max(200, bottom - top), S = Math.max(0.66, (innerWidth - 64) / 2000, bandH / 1400);
-    box.style.width = ((innerWidth - 64) / S).toFixed(1) + 'px';
-    box.style.height = (bandH / S).toFixed(1) + 'px';
-    const cy = (top + bottom) / 2 - innerHeight / 2;
-    if (!document.body.classList.contains('duo')) { box.style.transform = `translateY(${cy.toFixed(1)}px) scale(${S})`; placePhone(false, top, bottom); return; }
-    // the duo: the window at 80%, slid left so the phone has room, the phone 72% of the band tall over its lower right
-    const k = 0.8, bw = (innerWidth - 64) * k, bh = bandH * k, dx = -innerWidth * 0.07;
-    box.style.transform = `translate(${dx.toFixed(1)}px, ${(cy - bandH * 0.03).toFixed(1)}px) scale(${S * k})`;
-    placePhone(true, top, bottom, { right: innerWidth / 2 + dx + bw / 2, bottom: innerHeight / 2 + cy - bandH * 0.03 + bh / 2, band: bandH });
+    fitScreen();
+    const dw = box.offsetWidth, dh = box.offsetHeight;
+    if (!document.body.classList.contains('duo')) { box.style.transform = 'none'; placePhone(false); return; }
+    const k = 0.8, dx = -innerWidth * 0.07, dy = -dh * 0.03;
+    box.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(${k})`;
+    placePhone(true, { right: innerWidth / 2 + dx + dw * k / 2, bottom: innerHeight / 2 + dy + dh * k / 2, h: dh });
   };
   // the phone layer is 12d full-size (its phone stands at min(80vh, 1080) tall, centred): scaled and moved so its phone lands
   // where it should — or, out of the duo, parked below the stage
-  function placePhone(on, top, bottom, g) {
+  function placePhone(on, g) {
     const f = document.getElementById('duoPhone'); if (!f) return;
     const ph = Math.min(innerHeight * 0.8, 1080), pw = ph * 900 / 1840;
     if (!on) { f.classList.remove('in'); f.style.transform = `translateY(${innerHeight}px) scale(.6)`; return; }
-    const kk = (g.band * 0.72) / ph, cx = g.right - pw * kk * 0.12, cyy = g.bottom - ph * kk * 0.42;
+    const kk = (g.h * 0.8) / ph, cx = g.right - pw * kk * 0.12, cyy = g.bottom - ph * kk * 0.42;   // the phone 80% of the device's height
     f.style.transform = `translate(${(cx - innerWidth / 2).toFixed(1)}px, ${(cyy - innerHeight / 2).toFixed(1)}px) scale(${kk.toFixed(4)})`;
     f.classList.add('in');
   }
