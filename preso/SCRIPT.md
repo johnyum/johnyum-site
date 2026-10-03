@@ -36,7 +36,7 @@ The slide is one line now — **"Be honest and own it because your users can sme
 
 ### Why the calendar (12a)
 
-The slide is one sentence: **Calendar is where Airbnb hosts run their business.** (John, 2026-10-03.) The beats it carried, to say:
+The slide is one sentence: **Calendar is where Airbnb hosts run their business, selling nights.** (John, 2026-10-03.) The beats it carried, to say:
 
 1. Calendar is where Airbnb hosts run their business.
 2. Each night is inventory for sale, with its own price and rules — Price · Weekend price · Smart Pricing · Cleaning fee ·
