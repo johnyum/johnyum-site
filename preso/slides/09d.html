@@ -136,14 +136,79 @@
   .adj { position: relative; height: var(--phone-h); aspect-ratio: 979 / 2000; flex: none; }
   .adj img { height: 100%; width: 100%; }
   .adj video { position: absolute; left: 39.030%; top: 21.541%; width: 21.951%; height: 10.745%; display: block; }
-  /* THE DETAILS (John, 2026-10-03; Figma 5618:12403): a tap after the tag turns the fourth phone to the adjusted calendar. Two
-     layers of the same frame: above y 518 (where the Aug 9 pill starts) it crossfades in — the prices doubled, Aug 9 picked —
-     and below it the breakdown rises 60pt into place as it comes up, the way a quick action does. */
-  .done .scr .dt { clip-path: inset(0 0 39.2% 0); opacity: 0; }
-  .done .scr .db { clip-path: inset(60.8% 0 0 0); opacity: 0; transform: translateY(7%); }
-  .done.on .scr .dt { opacity: 1; transition: opacity .45s ease; }
-  .done.on .scr .db { opacity: 1; transform: none; transition: opacity .35s ease .25s, transform .55s cubic-bezier(.2,.8,.2,1) .25s; }
-  .done.snap .scr img { transition: none !important; }
+  /* THE CALENDAR, LIVE (John, 2026-10-03: "completely rebuild it … smooth, and the calendar actually works like a calendar"). The
+     fourth phone's calendar is built here, on the same 393 x 852 frame as Figma's 7 of 7 (5618:11340) and its details state
+     (5618:12403); the frame image underneath only gives the black header (status bar, "7 of 7", the one line about the
+     adjustment). Measured off both frames: the white sheet's top at y 231, rising 108pt to y 123 so it covers that line; cells
+     50 x 88 on a 54 x 92 pitch from x 8 / sheet y 114; the day number's cap at +19, one price at +61.5 or the struck and the new
+     at +53.5 / +69.5; the breakdown card 24–368 x 570–741 (dividers at 629, 681), the date pill right at 368 on 520–559, the
+     button 24–368 x 754–801 — pink "Confirm price adjustment" before, "Close details" after.
+     The tap: the sheet rises on the iOS sheet curve; the prices turn to the adjusted ones in a wave from the top; Aug 9 is
+     picked; the breakdown comes up under its fade. Then it is a calendar: tap any open night and it is picked — the pill, the
+     card and the cell follow; Close details puts the breakdown away; a night tapped brings it back; it scrolls (August into
+     September) with a finger or a wheel. */
+  .done .stage { font-family: 'Cereal', -apple-system, sans-serif; color: #1f1f1f; }
+  .c-sheet { position: absolute; left: 0; top: 231px; width: 393px; height: 760px; background: #fff; border-radius: 24px 24px 0 0;
+             transition: transform .62s cubic-bezier(.32,.72,0,1); }
+  .done.on .c-sheet { transform: translateY(-108px); }
+  .c-month { position: absolute; left: 25px; font-size: 20.5px; line-height: 28px; font-weight: 600; letter-spacing: -.2px; color: #1f1f1f; }
+  .c-week { position: absolute; left: 0; top: 70px; width: 393px; height: 28px; border-bottom: 1px solid #ebebeb; }
+  .c-week span { position: absolute; top: 4px; width: 50px; text-align: center; font-size: 11px; line-height: 16px; color: #6a6a6a; }
+  .c-scroll { position: absolute; left: 0; top: 99px; width: 393px; bottom: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
+              overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .c-scroll::-webkit-scrollbar { display: none; }
+  .c-grid { position: relative; width: 393px; }
+  .c-cell { position: absolute; width: 50px; height: 88px; box-sizing: border-box; border-radius: 9px; border: 1px solid #ececec; background: #fff;
+            transition: background-color .28s ease, border-color .28s ease; cursor: default; }
+  .c-cell.open { cursor: pointer; }
+  .c-cell.past, .c-cell.bk { background: #f7f7f7; border-color: #f7f7f7; }
+  .c-num { position: absolute; left: 0; right: 0; top: 9.5px; margin: 0 auto; width: 26px; height: 26px; border-radius: 13px; text-align: center;
+           font-size: 11.5px; line-height: 26px; font-weight: 500; color: #1f1f1f; transition: background-color .28s ease, color .28s ease; }
+  .c-cell.past .c-num { color: #696969; font-weight: 400; }
+  .c-cell.today .c-num { background: #da1248; color: #fff; }
+  .c-p1, .c-p2 { position: absolute; left: 0; right: 0; text-align: center; font-size: 11.5px; line-height: 16px; color: #696969; transition: opacity .3s ease; }
+  .c-p1 { top: 53.5px; }
+  .c-p2 { top: 45px; opacity: 0; }
+  .c-p2 s { display: block; color: #696969; text-decoration-thickness: 1px; }
+  .c-p2 b { display: block; color: #1f1f1f; font-weight: 600; font-size: 12.5px; transition: color .28s ease; }
+  .done.on .c-p1 { opacity: 0; }
+  .done.on .c-p2 { opacity: 1; }
+  .c-cell.sel { background: #222; border-color: #222; }
+  .c-cell.sel .c-num { background: #fff; color: #222; }
+  .c-cell.sel .c-p2 s { color: #9b9b9b; }
+  .c-cell.sel .c-p2 b { color: #fff; }
+  .c-bk { position: absolute; top: 0; height: 88px; border-radius: 9px; background: #f7f7f7; }
+  .c-bk .c-num { position: absolute; left: auto; right: auto; margin: 0; }
+  .stage .c-guest { position: absolute; top: 43px; width: 32px; height: 32px; border-radius: 16px; display: block; }
+  .c-booked { position: absolute; top: 51.5px; font-size: 12px; line-height: 16px; color: #686868; }
+  .c-title2 { position: absolute; left: 25px; font-size: 26px; line-height: 32px; font-weight: 600; color: #1f1f1f; }
+  /* the breakdown, in frame coordinates (it does not move with the sheet) */
+  .c-fade { position: absolute; left: 0; top: 488px; width: 393px; height: 364px; pointer-events: none; opacity: 0;
+            background: linear-gradient(to bottom, rgba(255,255,255,0) 0, rgba(255,255,255,.78) 44px, rgba(255,255,255,.86) 100%);
+            transition: opacity .4s ease; }
+  .c-pill { position: absolute; right: 25px; top: 520px; height: 39px; padding: 0 18.5px; border-radius: 20px; background: #222; color: #fff;
+            font-size: 15px; line-height: 39px; font-weight: 500; white-space: nowrap; }
+  .c-card { position: absolute; left: 24px; top: 570px; width: 345px; height: 171px; border-radius: 16px; background: #222; color: #fff; }
+  .c-row { position: absolute; left: 25px; right: 27px; height: 20px; display: flex; justify-content: space-between; align-items: center;
+           font-size: 14px; line-height: 20px; }
+  .c-row .v { font-weight: 600; font-size: 14.5px; }
+  .c-row .v s { color: #8c8c8c; font-weight: 400; margin-right: 10px; }
+  .c-rule { position: absolute; left: 25px; right: 25px; height: 1px; background: #474747; }
+  .c-up { opacity: 0; transform: translateY(46px); transition: opacity .32s ease, transform .5s cubic-bezier(.2,.8,.2,1); pointer-events: none; }
+  .done.on.det .c-up { opacity: 1; transform: none; pointer-events: auto; }
+  .done.on.det .c-fade { opacity: 1; }
+  /* the 7 of 7 frame's footer: white under the button, so the weeks pass behind it (the details state hides it under its fade) */
+  .c-foot { position: absolute; left: 0; top: 806px; width: 393px; height: 46px; background: #fff; transition: opacity .3s ease; }
+  .done.on.det .c-foot { opacity: 0; }
+  .c-btn { position: absolute; left: 24px; top: 754px; width: 345px; height: 48px; border-radius: 12px; overflow: hidden; cursor: pointer;
+           font-size: 15.5px; line-height: 48px; font-weight: 500; color: #fff; text-align: center; }
+  .c-btn > div { position: absolute; inset: 0; transition: opacity .3s ease; }
+  .c-btn .pink { background: linear-gradient(90deg, #e61e4d 0%, #e31c5f 50%, #d70466 100%); }
+  .c-btn .dark { background: #222; opacity: 0; }
+  .done.on.det .c-btn .dark { opacity: 1; }
+  .c-btn .dark { pointer-events: none; }
+  .done.snap .c-sheet, .done.snap .c-cell, .done.snap .c-num, .done.snap .c-p1, .done.snap .c-p2, .done.snap .c-p2 b, .done.snap .c-up,
+  .done.snap .c-fade, .done.snap .c-btn > div { transition: none !important; }
   .row img {
     height: var(--phone-h);
     width: auto;
@@ -208,7 +273,7 @@
         <video id="adjTag" muted playsinline preload="auto" poster="assets/price-tag.webp" src="assets/price-modal.mp4" aria-hidden="true"></video>
       </div>
       <div class="hof done" id="done" aria-label="Step 7 of 7: this one-time adjustment will update your prices to account for the single service fee; confirm price adjustment — then the adjusted prices, $200 to $231, and what guests see and you still earn">
-        <div class="scr"><img src="assets/fee-confirm.webp" alt="" draggable="false"><img class="dt" src="assets/fee-details.webp" alt="" draggable="false"><img class="db" src="assets/fee-details.webp" alt="" draggable="false"></div>
+        <div class="scr"><img src="assets/fee-confirm.webp" alt="" draggable="false"><div class="stage" id="cal"></div></div>
         <svg class="chrome" viewBox="0 0 900 1840" fill="none" aria-hidden="true"><path fill="url(#rail)" fill-rule="evenodd" d="M177,14 H723 A161,161 0 0 1 884,175 V1665 A161,161 0 0 1 723,1826 H177 A161,161 0 0 1 16,1665 V175 A161,161 0 0 1 177,14 Z M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/><image href="assets/device/iphone-frame.png" x="0" y="0" width="900" height="1840" clip-path="url(#outsideBezel)" preserveAspectRatio="none"/><path fill="#0b0b0b" fill-rule="evenodd" d="M177,27 H723 A148,148 0 0 1 871,175 V1665 A148,148 0 0 1 723,1813 H177 A148,148 0 0 1 29,1665 V175 A148,148 0 0 1 177,27 Z M177,47 H723 A128,128 0 0 1 851,175 V1665 A128,128 0 0 1 723,1793 H177 A128,128 0 0 1 49,1665 V175 A128,128 0 0 1 177,47 Z"/><rect x="322" y="69" width="256" height="74" rx="37" fill="#000"/><circle cx="529" cy="106" r="12.7" fill="#0f1420"/><circle cx="529" cy="106" r="5.3" fill="#243046"/></svg>
       </div>
     </div>
@@ -224,6 +289,80 @@
              reset: () => { clearTimeout(t); try { v.pause(); v.currentTime = 0; } catch (_) {} },
              end: () => { clearTimeout(t); try { v.pause(); v.currentTime = Math.max(0, (v.duration || 5) - 0.01); } catch (_) {} } };
   })();
+  // THE CALENDAR (see THE CALENDAR, LIVE). Aug 1 falls on a Tuesday; today is Aug 9. Nights before it are past; 16–18 and
+  // 21–22 are booked. The adjusted price is the old one x 1.155 ($200 → $231, $220 → $254); the host still earns 84.5% of it.
+  const cal = (() => {
+    const st = document.getElementById('cal'), done = document.getElementById('done');
+    const X = c => 8 + 54 * c, ROW = 92, TODAY = 9;
+    const adj = p => Math.round(p * 1.155), earn = p => Math.round(adj(p) * 0.845);
+    const months = [
+      { name: 'August', short: 'Aug', first: 2, days: 31, booked: [[16, 18, 'cal-guest-1.webp', true], [21, 22, 'cal-guest-2.webp', false]],
+        price: d => (d === 19 || d === 20 || d === 25 || d === 26) ? 220 : 200 },
+      { name: 'September', short: 'Sep', first: 5, days: 30, booked: [],
+        price: d => { const c = (5 + d - 1) % 7; return (c === 5 || c === 6) ? 220 : 200; } }
+    ];
+    const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+    const sheet = el('div', 'c-sheet'); st.appendChild(sheet);
+    const m0 = el('div', 'c-month', 'August'); m0.style.top = '24.5px'; sheet.appendChild(m0);
+    const wk = el('div', 'c-week'); 'SMTWTFS'.split('').forEach((d, c) => { const sp = el('span', '', d); sp.style.left = X(c) + 'px'; wk.appendChild(sp); }); sheet.appendChild(wk);
+    const scroll = el('div', 'c-scroll'); sheet.appendChild(scroll);
+    const grid = el('div', 'c-grid'); scroll.appendChild(grid);
+    const cells = []; let y0 = 15, order = 0;
+    months.forEach((m, mi) => {
+      if (mi > 0) { const t = el('div', 'c-title2', m.name); t.style.top = (y0 + 18) + 'px'; grid.appendChild(t); y0 += 70; }
+      const pos = d => { const k = m.first + d - 1; return { c: k % 7, r: Math.floor(k / 7) }; };
+      const inBk = d => m.booked.find(([a, b]) => d >= a && d <= b);
+      m.booked.forEach(([a, b, img, label]) => {
+        const p = pos(a), q = pos(b), box = el('div', 'c-bk');
+        box.style.left = X(p.c) + 'px'; box.style.width = (X(q.c) + 50 - X(p.c)) + 'px'; box.style.top = (y0 + p.r * ROW) + 'px';
+        for (let d = a; d <= b; d++) { const n = el('div', 'c-num', d); n.style.left = (X(pos(d).c) - X(p.c) + 12) + 'px'; box.appendChild(n); }
+        const g = el('img', 'c-guest'); g.src = 'assets/' + img; g.alt = ''; g.style.left = (label ? 13 : 9) + 'px'; box.appendChild(g);
+        if (label) { const t = el('div', 'c-booked', 'Booked'); t.style.left = '53px'; box.appendChild(t); }
+        grid.appendChild(box);
+      });
+      for (let d = 1; d <= m.days; d++) {
+        if (inBk(d)) continue;
+        const { c, r } = pos(d), past = mi === 0 && d < TODAY, price = m.price(d);
+        const cell = el('div', 'c-cell' + (past ? ' past' : ' open') + (mi === 0 && d === TODAY ? ' today' : ''));
+        cell.style.left = X(c) + 'px'; cell.style.top = (y0 + r * ROW) + 'px';
+        cell.appendChild(el('div', 'c-num', d));
+        if (!past) {
+          cell.appendChild(el('div', 'c-p1', '$' + price));
+          const p2 = el('div', 'c-p2', '<s>$' + price + '</s><b>$' + adj(price) + '</b>');
+          p2.style.transitionDelay = (0.12 + order * 0.012).toFixed(3) + 's'; order++;
+          cell.appendChild(p2);
+          const night = { cell, label: m.short + ' ' + d, price };
+          cell.addEventListener('click', () => { if (done.classList.contains('on')) pick(night); });
+          cells.push(night);
+        }
+        grid.appendChild(cell);
+      }
+      y0 += (Math.floor((m.first + m.days - 1) / 7) + 1) * ROW;
+    });
+    grid.style.height = (y0 + 260) + 'px';   // room to scroll the last week up past the breakdown
+    // the breakdown, over the sheet
+    const fade = el('div', 'c-fade'); st.appendChild(fade);
+    const pill = el('div', 'c-pill c-up'); st.appendChild(pill);
+    const card = el('div', 'c-card c-up'); st.appendChild(card);
+    const row = (top, label) => { const r = el('div', 'c-row', '<span>' + label + '</span><span class="v"></span>'); r.style.top = top + 'px'; card.appendChild(r); return r.querySelector('.v'); };
+    const vAdj = row(25, 'Your adjusted price'), vSee = row(75.5, 'Guests see'), vEarn = row(127.5, 'You still earn');
+    [[58.5], [110.5]].forEach(([t]) => { const r = el('div', 'c-rule'); r.style.top = t + 'px'; card.appendChild(r); });
+    st.appendChild(el('div', 'c-foot'));
+    const btn = el('div', 'c-btn', '<div class="pink">Confirm price adjustment</div><div class="dark">Close details</div>'); st.appendChild(btn);
+    let picked = null;
+    const show = n => { pill.textContent = n.label; vAdj.innerHTML = '<s>$' + n.price + '</s>$' + adj(n.price); vSee.textContent = '$' + adj(n.price); vEarn.textContent = '$' + earn(n.price); };
+    function pick(n) { if (picked) picked.cell.classList.remove('sel'); picked = n; n.cell.classList.add('sel'); show(n); done.classList.add('det'); }
+    function close() { if (picked) picked.cell.classList.remove('sel'); picked = null; done.classList.remove('det'); }
+    btn.addEventListener('click', () => { if (done.classList.contains('det')) close(); });
+    const nine = cells.find(n => n.label === 'Aug 9');
+    // ?cghost=a (7 of 7) or ?cghost=b (the details) lays that Figma frame over the live calendar at half strength
+    const cg = new URLSearchParams(location.search).get('cghost');
+    if (cg) { const i = el('img', 'ghost'); i.src = 'assets/' + (cg === 'b' ? 'fee-details' : 'fee-confirm') + '.webp'; i.style.zIndex = 20; st.appendChild(i); }
+    return {
+      open(instant) { done.classList.add('on'); if (instant) pick(nine); else setTimeout(() => { if (done.classList.contains('on')) pick(nine); }, 520); },
+      reset() { close(); done.classList.remove('on'); scroll.scrollTop = 0; }
+    };
+  })();
   // THE BUILDS (John, 2026-10-03). The graph's three steps (see THE FEE, ANIMATED) are steps 0–3 of the slide; then two more:
   //   0 → 1  the bars rise — by themselves, as the slide lands
   //   1 → 3  one tap: the host's fee and the fill, then the single fee on its own 2.4s later (a tap mid-run skips to the end)
@@ -233,16 +372,20 @@
   // Back snaps a step back (from the graph's end straight to the bars); arriving backwards, all of it stands done.
   (() => {
     const h = document.getElementById('hof'), done = document.getElementById('done'), st = document.getElementById('stage'), scr = st.parentElement;
+    const cst = document.getElementById('cal'), cscr = cst.parentElement;
     const GRAPH = 3, LAST = 5;
     let s = 0;
     const fit = () => { const w = scr.clientWidth, ht = scr.clientHeight, k = Math.max(w / 393, ht / 852);
       st.style.transform = `translate(${(w - 393 * k) / 2}px, 0) scale(${k})`; };
-    fit(); addEventListener('resize', fit); if (window.ResizeObserver) new ResizeObserver(fit).observe(scr);
+    const cfit = () => { const w = cscr.clientWidth, ht = cscr.clientHeight, k = Math.max(w / 393, ht / 852);
+      cst.style.transform = `translate(${(w - 393 * k) / 2}px, 0) scale(${k})`; };
+    fit(); cfit(); addEventListener('resize', () => { fit(); cfit(); });
+    if (window.ResizeObserver) { new ResizeObserver(fit).observe(scr); new ResizeObserver(cfit).observe(cscr); }
     const g = new URLSearchParams(location.search).get('ghost');
     if (g) { const i = document.createElement('img'); i.className = 'ghost'; i.src = `assets/hof-${g}of7.webp`; st.appendChild(i); }
     const set = (n, instant) => { s = n;
       if (instant) { h.classList.add('snap'); done.classList.add('snap'); }
-      h.dataset.s = Math.min(n, GRAPH); done.classList.toggle('on', n >= 5);
+      h.dataset.s = Math.min(n, GRAPH); if (n >= 5) { if (!done.classList.contains('on')) cal.open(instant); } else cal.reset();
       if (instant) { void h.offsetWidth; setTimeout(() => { h.classList.remove('snap'); done.classList.remove('snap'); }, 60); } };
     // the first step plays by itself as the slide lands (John, 2026-10-03: "so it's not just sitting blank") — the deck says so
     // with presoshown; opened on its own, it plays once the page is up
@@ -273,6 +416,8 @@
     // NOT KEPT (John, 2026-10-03: "when I leave that page by pressing back then come back to it, replay the animation"): the deck
     // keeps the slide just left exactly as it was; this one asks to be built fresh instead, so coming back to it plays it again.
     window.presoNoKeep = true;
+    // the fourth phone's calendar takes taps, so the slide keeps its surface; the deck's 32px edge rails and the keys drive it
+    window.presoInteractive = true;
   })();
 </script>
 </body>
