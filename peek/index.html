@@ -1270,6 +1270,19 @@ async function shake(times = 3) {   // a no — side to side
 }
 const clip = (label) => { if (model && playClip(label, true)) { oneShot = clipsFor[label].duration; return true; } return false; };
 
+// Up out of its spot behind the box, all the way (or `show` of it), to have its moment there.
+async function emerge(m, show = 1.05) {
+  const g = homeGround(); if (!g) return;
+  if (!(C.held && C.held.el === g)) await peekOver(g, rectOf(g).right - 58, m, HOME);
+  C.home = true; mood(m);
+  const from = C.held.show; await tween(280, (k) => { if (C.held) C.held.show = lerp(from, show, k); }, easeBack);
+}
+// …and back down to just its head over the edge.
+async function rehome() {
+  if (!(C.held && C.held.el === homeGround())) return leave();
+  const from = C.held.show, to = restShow(); unsay(); mood(heart.sulking ? 'sad' : 'happy');
+  await tween(300, (k) => { if (C.held) C.held.show = lerp(from, to, k); }, easeOut); C.home = true;
+}
 // A feeling, performed. `ground` is the box you type in; `near` is where your message is (or the box).
 async function perform(f, ground, near) {
   settle();
@@ -1303,28 +1316,28 @@ async function perform(f, ground, near) {
         heart.hurt = 0; heart.sulking = false; warm(1);
         mood('love'); C.sqv -= 10; clip('Yes'); say(line('okay. forgiven ♥'), 2000); await wait(2100); return leave();
       }
-      await peekSide('bottom', at, 'happy'); say(line('all good!'), 1600); await hop(1, 18); await wait(800); return leave();
+      await emerge('happy'); say(line('all good!'), 1600); await hop(1, 18); await wait(800); return rehome();
     }
     case 'frustrated':
-      await peekSide('bottom', at, 'surprised'); await wait(250); mood('sad');
-      say(line(f.n > .7 ? 'oof. that\'s a lot' : 'oof. what happened?'), 2400); await wait(2600); return leave();
+      await emerge('surprised'); await wait(250); mood('sad');
+      say(line(f.n > .7 ? 'oof. that\'s a lot' : 'oof. what happened?'), 2400); await wait(2600); return rehome();
     case 'sad':
       // It comes and sits with you, ears down, and stays till Claude starts to answer.
       await sitOn(near, at, 'sad'); say(line('aw… ♥'), 3200); await wait(2200); return;
     case 'anxious':
-      await peekSide('bottom', at, 'curious'); say(line('you got this'), 2200); await hop(1, 14); await wait(1200); return leave();
+      await emerge('curious'); say(line('you got this'), 2200); await hop(1, 14); await wait(1200); return rehome();
     case 'excited':
-      await peekSide('bottom', at, 'surprised'); await wait(150); mood('love');
-      say(line('yaaay!'), 2200); clip('Jump'); await hop(f.n > .7 ? 3 : 2, 34); await wait(500); return leave();
+      await emerge('surprised'); await wait(150); mood('love');
+      say(line('yaaay!'), 2200); clip('Jump'); await hop(f.n > .7 ? 3 : 2, 34); await wait(500); return rehome();
     case 'funny':
-      await peekSide('bottom', at, 'love'); say(line('hehe'), 1700); await laugh(1300); return leave();
+      await emerge('love'); say(line('hehe'), 1700); await laugh(1300); return rehome();
     case 'love':
       warm(1); heart.hurt = Math.max(0, heart.hurt - 1);
-      await peekSide('bottom', at, 'love'); clip('Yes'); say(line('aww ♥'), 1800); C.sqv -= 8; await wait(2000); return leave();
+      await emerge('love'); clip('Yes'); say(line('aww ♥'), 1800); C.sqv -= 8; await wait(2000); return rehome();
     case 'hello':
-      await peekSide('bottom', at, 'happy'); clip('Wave') || await hop(1, 18); say(line(heart.warmth > 3 ? 'hi again!' : 'hi!'), 1600); await wait(1700); return leave();
+      await emerge('happy'); clip('Wave') || await hop(1, 18); say(line(heart.warmth > 3 ? 'hi again!' : 'hi!'), 1600); await wait(1700); return rehome();
     case 'surprised':
-      await peekSide('bottom', at, 'surprised'); C.sqv -= 12; say(line('whoa'), 1400); await wait(1500); return leave();
+      await emerge('surprised'); C.sqv -= 12; say(line('whoa'), 1400); await wait(1500); return rehome();
     default: if (C.home) return rise(restShow()); return leave();   // a question or nothing much: it waits for the answer
   }
 }
@@ -1357,9 +1370,9 @@ async function inPlace(f) {
 }
 async function obey(cmd, ground, line) {
   C.perched = null; const g = rectOf(ground);
-  if (cmd === 'away') { heart.shyUntil = Date.now() + 25000; await peekSide('bottom', g.right - 80, 'sad'); say(line('okay…'), 1200); await wait(1300); return leave(); }
+  if (cmd === 'away') { heart.shyUntil = Date.now() + 25000; await emerge('sad', HOME); say(line('okay…'), 1200); await wait(1300); return leave(); }   // down behind the box, for a while
   if (cmd === 'sleep') { await peekSide('left', innerHeight * .6, 'sleepy'); say(line('z z z'), 2600); await wait(2800); return leave(); }
-  if (cmd === 'wave') { await peekSide('bottom', g.left + 90, 'happy'); clip('Wave') || await hop(1, 18); say(line('hiii'), 1600); await wait(1800); return leave(); }
+  if (cmd === 'wave') { await emerge('happy'); clip('Wave') || await hop(1, 18); say(line('hiii'), 1600); await wait(1800); return rehome(); }
   await standOn(ground, g.left + 50);
   if (cmd === 'jump') { say(line('wheee'), 1600); for (const k of [.5, .85, .3]) { await jumpTo(ground, g.left + g.width * k); await wait(120); } }
   else if (cmd === 'dance') { say(line('♪ ♪'), 2600); mood('love'); if (!clip('Dance')) for (let i = 0; i < 3; i++) { await shake(1); await hop(1, 16); } else await wait(2600); }
