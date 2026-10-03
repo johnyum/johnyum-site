@@ -36,17 +36,24 @@
      3.75% of its size high in it. So the face is 50 — over the round avatars entirely, the square ones may show at their
      corners — and dropped 2.5 and nudged 0.5 right — measured off the glyph's own ink (it sits 2.5 high and 0.5 left in its 50 box) — so
      each lands dead centre on its avatar (2026-10-03) */
-  .wall .face { position: absolute; width: 50px; height: 50px; display: grid; place-items: center; z-index: 2; pointer-events: none;
-                font: 50px/1 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+  .wall .face { position: absolute; width: 54px; height: 54px; display: grid; place-items: center; z-index: 2; pointer-events: none;
+                font: 54px/1 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
                 opacity: 0; transform: scale(.3); transition: opacity .2s ease, transform .45s cubic-bezier(.34, 1.56, .64, 1); }
   body.mad .wall .face { opacity: 1; transform: none; transition-delay: var(--d, 0ms); }
   body.snap .wall .face { transition: none !important; }
+  /* 4 BIGGER, AND ONLY WHOLE (John, 2026-10-03): the faces are 54 now (the offsets below scale with them), and a face whose
+     avatar would be cut by the stage's edge — or sit under the deck's section names along the foot — is not drawn at all */
+  .wall .face.cut { display: none; }
   .wall img { position: absolute; display: block; user-select: none; -webkit-user-drag: none; }
   /* ONE, THEN ALL (John, 2026-10-03): the slide opens on aaron's tweet alone, in the middle; a tap brings the rest of the wall
      in around it, rippling out from the centre — each card rising a little as it fades in, in order of its distance from him */
   .wall .rest { opacity: 0; transform: translateY(24px) scale(.96); transition: opacity .45s ease, transform .6s cubic-bezier(.2,.8,.2,1); }
   body.all .wall .rest { opacity: 1; transform: none; transition-delay: var(--r, 0ms); }
   body.snap .wall .rest { transition: none !important; }
+  /* aaron's tweet opens 50% bigger, alone; as the rest come in it settles back to the wall's size, on its own centre */
+  .wall .centre { transform: scale(1.5); transform-origin: 50% 50%; transition: transform .7s cubic-bezier(.3,0,.15,1); }
+  body.all .wall .centre { transform: none; }
+  body.snap .wall .centre { transition: none !important; }
 </style>
 </head>
 <body>
@@ -127,8 +134,8 @@
     const put = ([id, ht, hd], x, top, isCentre) => {
       const dist = Math.hypot(x + COL / 2, top + ht / 2);                          // from the stage's centre, where aaron is
       html.push(`<img src="assets/tweets/${id}.webp" width="330" height="${ht}" alt="Tweet by @${hd}" ` +
-                `${isCentre ? '' : `class="rest" `}style="left:${x}px;top:${top}px;--r:${Math.round(dist * 0.42)}ms">`);
-      html.push(`<span class="face" aria-hidden="true" style="left:${x + 38.9 - 24.5}px;top:${top + 34.9 - 25 + 2.5}px;--d:${Math.round(Math.random() * 380)}ms">&#x1F621;</span>`);
+                `class="${isCentre ? 'centre' : 'rest'}" style="left:${x}px;top:${top}px;--r:${Math.round(dist * 0.42)}ms">`);
+      html.push(`<span class="face" aria-hidden="true" style="left:${x + 38.9 - 26.5}px;top:${top + 34.9 - 27 + 2.7}px;--d:${Math.round(Math.random() * 380)}ms">&#x1F621;</span>`);
     };
     cols.forEach((col, j) => { if (!col) return; const x = j * (COL + GAP) - ww / 2; col.items.forEach(([t, y]) => put(t, x, y - col.h / 2)); });
     const xm = mid * (COL + GAP) - ww / 2;
@@ -137,7 +144,15 @@
     up.items.forEach(([t, y]) => put(t, xm, -y - t[1]));                        // ...and up from his head
     wall.innerHTML = html.join('');
   }
-  const fit = () => { const w = slide.clientWidth, h = slide.clientHeight; if (w > 0 && h > 0) layout(w, h); };
+  // a face is drawn only where its avatar is whole on the stage, clear of the deck's section names along the foot (56px)
+  const FOOT = 56;
+  const trim = () => { const W = innerWidth, H = innerHeight;
+    wall.querySelectorAll('img').forEach(im => { const f = im.nextElementSibling; if (!f || !f.classList.contains('face')) return;
+      const k = parseFloat(wall.style.getPropertyValue('--s')) || 1, sr = slide.getBoundingClientRect();   // from the layout's own numbers, not the drawn box (the
+      const ox = sr.left + sr.width / 2, oy = sr.top + sr.height / 2;                                       // cards still waiting to come in sit nudged and shrunk)
+      const cx = ox + (parseFloat(im.style.left) + 38.9) * k, cy = oy + (parseFloat(im.style.top) + 34.9) * k, rad = 27 * k;
+      f.classList.toggle('cut', cx - rad < 0 || cx + rad > W || cy - rad < 0 || cy + rad > H - FOOT); }); };
+  const fit = () => { const w = slide.clientWidth, h = slide.clientHeight; if (w > 0 && h > 0) { layout(w, h); trim(); } };
   new ResizeObserver(fit).observe(slide);
   fit();
 
