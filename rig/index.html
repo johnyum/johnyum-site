@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rig Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!--
+  Rig Studio — reshape a rigged, animated character without breaking its rig, then send it
+  to Peek to live in a chat.
+
+  Start from one of Quaternius' four CC0 mechs (rig/models). Proportions scale its bones;
+  sculpt brushes (inflate, deflate, grab, smooth) move its surface in the rest pose, so the
+  skinning carries every change into every animation. All of that is rig/rig.js, shared with
+  peek/. The character is a small JSON state — save it as a file, and Claude can open that
+  file, change it, and hand back a version to load: that's how it gets sculpted together.
+-->
+<style>
+:root { --bg: #fff; --field: #f5f5f5; --ink: #111; --ink-2: #666; --ink-3: #a3a3a3; --line: #e6e6e6; color-scheme: light; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 "IBM Plex Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+p { margin: 0; }
+button, input { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+.app { display: grid; grid-template-columns: 330px 1fr; height: 100vh; }
+.side { border-right: 1px solid var(--line); padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+.side > * { flex: none; }
+h1 { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
+h1 span { color: var(--ink-3); font-weight: 400; }
+h2 { margin: 0 0 -6px; font-size: 12px; font-weight: 500; color: var(--ink-2); }
+.seg { display: grid; gap: 4px; padding: 4px; border-radius: 12px; background: var(--field); }
+.seg.four { grid-template-columns: repeat(4, 1fr); } .seg.two { grid-template-columns: 1fr 1fr; }
+.seg button { border: 0; background: transparent; height: 32px; border-radius: 9px; cursor: pointer; color: var(--ink-2); font-weight: 500; }
+.seg button[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.range { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-2); }
+.range > span { width: 52px; flex: none; }
+.range input { flex: 1; min-width: 0; accent-color: var(--ink); }
+.range output { width: 34px; text-align: right; font: 11px "IBM Plex Mono", monospace; color: var(--ink-3); }
+.brushes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.brushes button { height: 40px; border-radius: 10px; border: 1px solid var(--line); background: #fff; cursor: pointer; color: var(--ink-2); font-size: 12.5px; }
+.brushes button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.swatches { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.swatches b { width: 52px; font-size: 12px; font-weight: 400; color: var(--ink-2); }
+.swatches button { width: 22px; height: 22px; border-radius: 50%; border: 0; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+.swatches button[aria-pressed="true"] { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--ink); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--ink-2); cursor: pointer; }
+.check input { accent-color: var(--ink); width: 15px; height: 15px; }
+.row { display: flex; gap: 6px; }
+.tool { flex: 1; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: #fff; cursor: pointer; color: var(--ink-2); }
+.tool:hover { border-color: var(--ink); color: var(--ink); }
+.go { display: flex; align-items: center; justify-content: center; height: 46px; border-radius: 12px; background: var(--ink); color: #fff; text-decoration: none; font-weight: 600; }
+.note { font-size: 12px; color: var(--ink-3); }
+.stage { position: relative; overflow: hidden; }
+.stage canvas { display: block; width: 100%; height: 100%; }
+.stage.sculpting canvas { cursor: crosshair; }
+.chips { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: calc(100% - 32px); }
+.chips button { height: 32px; padding: 0 12px; border-radius: 99px; border: 1px solid var(--line); background: rgba(255,255,255,.9); cursor: pointer; font-size: 12.5px; color: var(--ink-2); }
+.chips button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.hint { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); font-size: 12.5px; color: var(--ink-3); white-space: nowrap; pointer-events: none; }
+@media (max-width: 860px) { .app { grid-template-columns: 1fr; height: auto; } .side { border-right: 0; border-bottom: 1px solid var(--line); } .stage { height: 75vh; } }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <h1>Rig Studio <span>· reshape a rigged character</span></h1>
+
+    <h2>Character</h2>
+    <div class="seg four" id="models"></div>
+
+    <div class="seg two" id="modes">
+      <button data-mode="sculpt" aria-pressed="true">Sculpt</button>
+      <button data-mode="animate" aria-pressed="false">Animate</button>
+    </div>
+
+    <div id="sculptUI">
+      <h2 style="margin-bottom:10px">Brush</h2>
+      <div class="brushes" id="brushes">
+        <button data-brush="inflate" aria-pressed="true">Inflate</button>
+        <button data-brush="deflate" aria-pressed="false">Deflate</button>
+        <button data-brush="grab" aria-pressed="false">Grab</button>
+        <button data-brush="smooth" aria-pressed="false">Smooth</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+        <label class="range"><span>Size</span><input type="range" id="bSize" min="0.03" max="0.35" step="0.005" value="0.12"><output></output></label>
+        <label class="range"><span>Strength</span><input type="range" id="bStrength" min="0.05" max="1" step="0.01" value="0.4"><output></output></label>
+        <label class="check"><input type="checkbox" id="sym" checked> Mirror left and right</label>
+      </div>
+    </div>
+
+    <h2>Proportions</h2>
+    <div id="props" style="display:flex;flex-direction:column;gap:8px"></div>
+
+    <h2>Paint</h2>
+    <div id="paint" style="display:flex;flex-direction:column;gap:8px"></div>
+    <label class="check"><input type="checkbox" id="face" checked> Live face in Peek (hides its own eyes)</label>
+
+    <div class="row">
+      <button class="tool" id="undo" title="Undo (⌘Z)">Undo</button>
+      <button class="tool" id="reset">Reset</button>
+    </div>
+    <div class="row">
+      <button class="tool" id="save" title="Save as a file — send it to Claude to change it">Save file</button>
+      <button class="tool" id="load">Load file</button>
+      <input type="file" id="file" accept=".json,application/json" hidden>
+    </div>
+    <a class="go" id="toPeek" href="/peek/" target="_blank" rel="noopener">Bring it into Peek →</a>
+    <p class="note">Save a file and tell Claude what to change — it can edit that file and hand back a version to load. Models: Animated Mech Pack by Quaternius, CC0.</p>
+  </aside>
+  <main class="stage sculpting" id="stage">
+    <canvas id="view"></canvas>
+    <p class="hint" id="hint">Drag on the character to sculpt · drag the background to turn around</p>
+    <div class="chips" id="chips" hidden></div>
+  </main>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { MODELS, PROPS, blankState, loadRig, pack } from './rig.js';
+
+const $ = (s) => document.querySelector(s);
+const SWATCHES = ['#f1ece4', '#e8b04a', '#e5734f', '#d6456b', '#f39bb0', '#8a5cd6', '#4a7fd9', '#3fae9a', '#79b84a', '#6b5444', '#2b2b2b'];
+
+/* ═══════════════ the stage ═══════════════ */
+const stageEl = $('#stage'), view = $('#view');
+const renderer = new THREE.WebGLRenderer({ canvas: view, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#ffffff');
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), .04).texture; scene.environmentIntensity = .8;
+const camera = new THREE.PerspectiveCamera(30, 1, .05, 100); camera.position.set(0, 1.1, 5.4);
+const controls = new OrbitControls(camera, view); controls.target.set(0, .8, 0); controls.enableDamping = true; controls.enablePan = false;
+const key = new THREE.DirectionalLight(0xffffff, 2); key.position.set(2.5, 5, 3); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -2, right: 2, top: 3, bottom: -1 }); scene.add(key);
+const ground = new THREE.Mesh(new THREE.CircleGeometry(5, 64), new THREE.ShadowMaterial({ opacity: .12 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const holder = new THREE.Group(); scene.add(holder);
+function resize() { const { clientWidth: w, clientHeight: h } = stageEl; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(stageEl); resize();
+
+/* ═══════════════ the character ═══════════════ */
+let state = (() => { try { return JSON.parse(localStorage.getItem('rig.state')) || blankState(); } catch { return blankState(); } })();
+let rig = null, mixer = null, action = null, mode = 'sculpt', height = 1, lift = 0;
+const past = [];
+const snap = () => JSON.stringify({ ...state, sculpt: rig ? rig.getSculpt() : state.sculpt });
+function mark() { past.push(snap()); if (past.length > 60) past.shift(); }
+
+async function open(s) {
+  state = { ...blankState(s.model), ...s };
+  if (rig) holder.remove(rig.scene);
+  rig = await loadRig(state);
+  rig.meshes.forEach((m) => { m.castShadow = true; });
+  // Stand it 1.6 tall, feet on the floor.
+  rig.scene.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(rig.scene), size = box.getSize(new THREE.Vector3());
+  height = size.y; holder.scale.setScalar(1.6 / size.y);
+  rig.scene.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
+  holder.add(rig.scene);
+  mixer = new THREE.AnimationMixer(rig.scene); action = null;
+  lift = rig.groundLift(holder);
+  buildUI(); setMode(mode); saveLocal();
+}
+
+/* ═══════════════ sculpting ═══════════════ */
+let brush = 'inflate';
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+const aim = (e) => { const r = view.getBoundingClientRect(); ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); };
+// The pointer on the surface, as a point in the rest pose (where the sculpt lives).
+function pick() {
+  ray.setFromCamera(ndc, camera);
+  const hit = ray.intersectObjects(rig.meshes.filter((m) => m.visible), false)[0]; if (!hit) return null;
+  const m = hit.object, ids = [hit.face.a, hit.face.b, hit.face.c];
+  const tri = ids.map((i) => m.localToWorld(m.getVertexPosition(i, new THREE.Vector3())));
+  const bary = new THREE.Triangle(...tri).getBarycoord(hit.point, new THREE.Vector3());
+  const rest = new THREE.Vector3();
+  ids.forEach((i, k) => { const g = rig.groups[m.userData.gOf[i]]; rest.addScaledVector(g.b.clone().add(g.d), bary.getComponent(k)); });
+  return { rest, world: hit.point.clone(), mesh: m };
+}
+// Groups within the brush, with a smooth falloff.
+function within(c, r) {
+  const out = [];
+  rig.groups.forEach((g, i) => { const d = g.b.distanceTo(c) ; if (d < r) out.push([i, (1 - (d / r) ** 2) ** 2]); });
+  return out;
+}
+function dab(c, sign = 1) {
+  const r = +$('#bSize').value * height, k = +$('#bStrength').value, touched = [];
+  const centres = $('#sym').checked && Math.abs(c.x) > r * .2 ? [c, new THREE.Vector3(-c.x, c.y, c.z)] : [c];
+  for (const cc of centres) for (const [i, f] of within(cc, r)) {
+    const g = rig.groups[i];
+    if (brush === 'smooth') {
+      const avg = new THREE.Vector3(); let n = 0;
+      for (const j of g.nb) { const h = rig.groups[j]; avg.add(h.b).add(h.d); n++; }
+      if (n) { avg.divideScalar(n).sub(g.b); g.d.lerp(avg, f * k * .5); }
+    } else g.d.addScaledVector(g.n, sign * f * k * r * .06);
+    touched.push(i);
+  }
+  rig.write(touched); rig.flush();
+}
+let stroke = null;
+view.addEventListener('pointerdown', (e) => {
+  if (mode !== 'sculpt' || e.button !== 0 || !rig) return;
+  aim(e); const p = pick(); if (!p) return;
+  controls.enabled = false; try { view.setPointerCapture(e.pointerId); } catch {}
+  mark();
+  if (brush === 'grab') {
+    // Grab: the groups under the brush, pulled along with the pointer on a plane facing the camera.
+    const r = +$('#bSize').value * height, sets = [[p.rest, 1]];
+    if ($('#sym').checked && Math.abs(p.rest.x) > r * .2) sets.push([new THREE.Vector3(-p.rest.x, p.rest.y, p.rest.z), -1]);
+    const hold = sets.map(([c, sx]) => ({ sx, list: within(c, r).map(([i, f]) => [i, f, rig.groups[i].d.clone()]) }));
+    stroke = { grab: true, hold, plane: new THREE.Plane().setFromNormalAndCoplanarPoint(camera.getWorldDirection(new THREE.Vector3()).negate(), p.world),
+               from: p.mesh.worldToLocal(p.world.clone()), mesh: p.mesh };
+  } else { stroke = { last: p.rest }; dab(p.rest, brush === 'deflate' ? -1 : 1); }
+}, { capture: true });
+view.addEventListener('pointermove', (e) => {
+  if (!stroke) return; aim(e);
+  if (stroke.grab) {
+    ray.setFromCamera(ndc, camera);
+    const at = ray.ray.intersectPlane(stroke.plane, new THREE.Vector3()); if (!at) return;
+    const delta = stroke.mesh.worldToLocal(at).sub(stroke.from).multiplyScalar(+$('#bStrength').value * 1.6 + .2), touched = [];
+    for (const { sx, list } of stroke.hold) for (const [i, f, d0] of list) { rig.groups[i].d.copy(d0).add(new THREE.Vector3(delta.x * sx, delta.y, delta.z).multiplyScalar(f)); touched.push(i); }
+    rig.write(touched); rig.flush();
+  } else {
+    const p = pick(); if (!p) return;
+    // Space the dabs out, so a stroke is even however fast it's drawn.
+    if (p.rest.distanceTo(stroke.last) > +$('#bSize').value * height * .25) { dab(p.rest, brush === 'deflate' ? -1 : 1); stroke.last = p.rest; }
+  }
+});
+addEventListener('pointerup', () => { if (stroke) { stroke = null; controls.enabled = true; changed(); } });
+
+/* ═══════════════ the panel ═══════════════ */
+function buildUI() {
+  $('#models').innerHTML = MODELS.map((m) => `<button data-model="${m}" aria-pressed="${m === state.model}">${m}</button>`).join('');
+  const has = (P) => rig.bones.some((b) => P.bones.some((r) => r.test(b.name)));
+  $('#props').innerHTML = Object.entries(PROPS).filter(([, P]) => has(P)).map(([k, P]) =>
+    `<label class="range"><span>${P.label}</span><input type="range" data-prop="${k}" min="0.5" max="2.2" step="0.01" value="${state.prop[k] ?? 1}"><output>${(state.prop[k] ?? 1).toFixed(2)}</output></label>`).join('');
+  $('#paint').innerHTML = ['Main', 'Accent'].map((name) => `<div class="swatches" data-paint="${name}"><b>${name}</b>${
+    [rig.original[name], ...SWATCHES].map((c) => `<button data-c="${c}" style="background:${c}" aria-pressed="${(state.colors[name] || rig.original[name]) === c}" title="${c}"></button>`).join('')}</div>`).join('');
+  $('#face').checked = state.face !== false;
+  const clips = rig.animations.map((a) => a.name).sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b) || a.localeCompare(b));
+  $('#chips').innerHTML = clips.filter((n) => !/Recieve|Holding|_Tall|Pickup/.test(n)).map((n) => `<button data-clip="${n}">${n}</button>`).join('');
+  for (const o of document.querySelectorAll('.range output')) if (o.previousElementSibling?.id) o.textContent = (+o.previousElementSibling.value).toFixed(2);
+}
+const ORDER = ['Idle', 'Walk', 'Run', 'Jump', 'Hello', 'Yes', 'No', 'Dance', 'Punch', 'Kick', 'Shoot', 'SwordSlash', 'Death'];
+$('#models').addEventListener('click', (e) => { const b = e.target.closest('[data-model]'); if (b && b.dataset.model !== state.model) { mark(); open(blankState(b.dataset.model)); } });
+$('#modes').addEventListener('click', (e) => { const b = e.target.closest('[data-mode]'); if (b) setMode(b.dataset.mode); });
+$('#brushes').addEventListener('click', (e) => { const b = e.target.closest('[data-brush]'); if (!b) return; brush = b.dataset.brush; for (const x of $('#brushes').children) x.setAttribute('aria-pressed', String(x === b)); });
+let sliding = false;
+$('#props').addEventListener('input', (e) => {
+  const k = e.target.dataset.prop; if (!k) return;
+  if (!sliding) { mark(); sliding = true; }
+  state.prop[k] = +e.target.value; e.target.nextElementSibling.textContent = (+e.target.value).toFixed(2); rig.setProps(state.prop); lift = rig.groundLift(holder);
+});
+$('#props').addEventListener('change', () => { sliding = false; changed(); });
+$('#paint').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-c]'); if (!b) return; const name = b.closest('[data-paint]').dataset.paint;
+  mark(); state.colors[name] = b.dataset.c; rig.setColors(state.colors);
+  for (const x of b.parentElement.querySelectorAll('[data-c]')) x.setAttribute('aria-pressed', String(x === b)); changed();
+});
+$('#face').onchange = (e) => { mark(); state.face = e.target.checked; changed(); };   // it takes effect in Peek; here you always see the whole character
+$('#chips').addEventListener('click', (e) => { const b = e.target.closest('[data-clip]'); if (b) play(b.dataset.clip); });
+for (const id of ['bSize', 'bStrength']) $('#' + id).addEventListener('input', (e) => { e.target.nextElementSibling.textContent = (+e.target.value).toFixed(2); });
+function setMode(m) {
+  mode = m; stageEl.classList.toggle('sculpting', m === 'sculpt');
+  for (const b of $('#modes').children) b.setAttribute('aria-pressed', String(b.dataset.mode === m));
+  $('#sculptUI').hidden = m !== 'sculpt'; $('#chips').hidden = m !== 'animate';
+  $('#hint').textContent = m === 'sculpt' ? 'Drag on the character to sculpt · drag the background to turn around' : 'Its animations, with your changes';
+  if (rig) rig.setFace(false);   // here you see the whole character; the face swap happens in Peek
+  if (m === 'animate') play(action?.getClip().name || 'Idle'); else { mixer?.stopAllAction(); action = null; }
+}
+function play(name) {
+  const clip = rig.animations.find((a) => a.name === name); if (!clip) return;
+  const a = mixer.clipAction(clip); a.reset().play(); if (action && action !== a) a.crossFadeFrom(action, .25, true); action = a;
+  for (const b of $('#chips').children) b.setAttribute('aria-pressed', String(b.dataset.clip === name));
+}
+
+/* ═══════════════ keeping it ═══════════════ */
+function current() { return { ...state, sculpt: rig.getSculpt() }; }
+function saveLocal() { try { localStorage.setItem('rig.state', JSON.stringify(current())); } catch {} }
+let linkTimer = 0;
+function changed() { saveLocal(); clearTimeout(linkTimer); linkTimer = setTimeout(async () => { $('#toPeek').href = '/peek/#r=' + await pack(current()); }, 150); }
+$('#undo').onclick = undo;
+function undo() { const prev = past.pop(); if (!prev) return; const s = JSON.parse(prev); if (s.model !== state.model) return open(s); state = s; rig.apply(s); rig.setFace(false); lift = rig.groundLift(holder); buildUI(); changed(); }
+$('#reset').onclick = () => { mark(); open(blankState(state.model)); };
+$('#save').onclick = () => {
+  const a = document.createElement('a'); a.download = `${state.model.toLowerCase()}-character.json`;
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(current(), null, 1)], { type: 'application/json' })); a.click();
+};
+$('#load').onclick = () => $('#file').click();
+$('#file').onchange = async (e) => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; try { mark(); await open(JSON.parse(await f.text())); changed(); } catch { alert('That isn’t a Rig Studio file.'); } };
+addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); undo(); } });
+
+/* ═══════════════ the loop ═══════════════ */
+const clock = new THREE.Clock();
+function frame() {
+  const dt = Math.min(clock.getDelta(), .05);
+  if (rig) { rig.restore(); if (mode === 'animate') mixer.update(dt); rig.shape(); holder.position.y = lift; }
+  controls.update(); renderer.render(scene, camera);
+}
+renderer.setAnimationLoop(frame);
+await open(state); changed();
+window.__rig = { get rig() { return rig; }, get state() { return current(); }, open, setMode, play, frame, dab: (c, sign) => dab(c, sign), within };
+</script>
+</body>
+</html>

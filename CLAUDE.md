@@ -16,6 +16,7 @@ don't introduce bundlers, npm, or a component framework.
 | `explore/` | Explore map drill-in — see below |
 | `multical/` | **Build output — never hand-edit.** The Multi-Host Calendar web app, played live inside the phone on preso slide 13. See below. |
 | `recurrence/` | **Build output — never hand-edit.** The same calendar with the Repeat (recurrence) flow, from its own project. See below. |
+| `rig/` | johnyum.com/rig — Rig Studio: reshape a rigged, animated character (proportions + sculpt) and send it to Peek. See below |
 | `peek/` | johnyum.com/peek — a 3D furry character living in a chat UI, built from a Monsters character. See below |
 | `monsters/` | johnyum.com/monsters — sketch → rigged, animated 3D character (Meshy), with `api/monsters.py`. See below |
 | `bento-widgets/` | Standalone widget experiments |
@@ -359,6 +360,30 @@ up tip cards. One `index.html`, three.js; the chat is canned.
   Monsters shader still has its own GLSL `prim()`: change one, change both.
 - Its frame loop is `frame()`, exposed on `window.__peek` — a hidden tab pauses
   `requestAnimationFrame`, so a test drives frames by hand.
+
+## `rig/` — Rig Studio (johnyum.com/rig)
+
+Reshape a rigged, animated character without breaking it, then send it to Peek. Starts from
+Quaternius' **Animated Mech Pack** (CC0 — `rig/models/LICENSE.txt`): Mike, Stan, George, Leela,
+flat-colour glTF, 18–20 clips each (Idle, Walk, Run, Jump, Hello, Yes, No, Dance…).
+
+- **`rig/rig.js` is shared with `peek/`.** Two kinds of change, both surviving every clip:
+  **proportions** are bone scales applied *after* the animation each frame, each bone's factor
+  divided out of its children (`shape()`); **sculpt** is offsets on the mesh in its rest pose, so
+  skinning carries them into every pose. Offsets are per **weld group** (all vertices at one
+  position, across the six material parts) — the low-poly meshes split vertices at hard edges,
+  and per-vertex offsets would tear the seams.
+- **three.js strips the dots from bone names** (`UpperArm.L` → `UpperArmL`); `PROPS` matches both.
+- `groundLift()` re-grounds the character from its feet in the rest pose when proportions
+  change — measured in rest, not per frame, so a jump still leaves the floor.
+- A character is a small JSON state (`{ v, model, prop, colors, face, sculpt }`, sculpt as
+  `[group, dx, dy, dz]`). **Save file** downloads it; Claude can read that file from Downloads,
+  change it, and write a version to load — that's the "sculpt it together" loop. **Bring it into
+  Peek** gzips it into `/peek/#r=…`.
+- In Peek, a rigged character plays its own clips (Hello → wave, **No for the ugh**, Yes when
+  pleased) and gets the live face **exactly over its own eyes** — the mechs' `Eye` part is
+  hidden and its rims covered. The `Black` part also holds the eye rims but is used elsewhere,
+  so it can't simply be hidden.
 
 ## Drawing in Claude's visual language
 
