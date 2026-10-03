@@ -19,7 +19,7 @@
     --canvas: min(92vw, calc(82vh * 1.59046));
     position: relative; flex: none; box-sizing: border-box; transform-origin: center; background: #fff;
     width: calc(var(--canvas) * 0.91901); aspect-ratio: 3106 / 2031;
-    border: calc(var(--canvas) * 0.009468) solid #000; border-radius: calc(var(--canvas) * 0.035); overflow: hidden;
+    border: calc(var(--canvas) * 0.009468) solid #000; border-radius: calc(var(--canvas) * 0.0175); overflow: hidden;   /* half the map tablet's round (John, 2026-10-03) */
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 4px 8px rgba(0, 0, 0, 0.08), 0 12px 30px rgba(0, 0, 0, 0.18);
   }
   .screen { position: relative; width: 100%; height: 100%; overflow: hidden; background: #fff; }
@@ -54,13 +54,13 @@
     if (changed && window.__landToday) { clearTimeout(fitScreen._t); fitScreen._t = setTimeout(window.__landToday, 350); }
   };
   new ResizeObserver(fitScreen).observe(screen); fitScreen();
-  // THE DEVICE fills the band the deck's own type leaves: 48 under the kicker ("John Yum · Work") and 48 above the section nav
-  // (John, 2026-10-02), its width following the frame's 3106:2031, never past the screen's sides less 32 each. --canvas is set
+  // THE DEVICE fills the band the deck's own type leaves: 24 under the kicker ("John Yum · Work") and 24 above the section nav
+  // (John, 2026-10-03; was 48), its width following the frame's 3106:2031, never past the screen's sides less 32 each. --canvas is set
   // from that height, so the stroke and the radius scale with it exactly as 09c's do. In the duo it steps back to 80% and left.
   const fit = () => {
     let top = 56, bottom = innerHeight - 56;
     try { const pd = window.parent.document, kk = pd.getElementById('kicker'), c = pd.getElementById('counter'); if (kk) top = kk.getBoundingClientRect().bottom; if (c) bottom = c.getBoundingClientRect().top; } catch (_) {}
-    const PAD = 48, devH = Math.max(200, bottom - top - 2 * PAD), A = 3106 / 2031, W = 0.91901;
+    const PAD = 24, devH = Math.max(200, bottom - top - 2 * PAD), A = 3106 / 2031, W = 0.91901;
     const canvas = Math.min(devH * A / W, (innerWidth - 64) / W);
     box.style.setProperty('--canvas', canvas.toFixed(1) + 'px');
     fitScreen();
@@ -317,6 +317,18 @@
       if (k % 2 === 0) { b.guest = MEN[mi % MEN.length]; b.img = mF[mi % mF.length]; mi++; }
       else             { b.guest = WOMEN[wi % WOMEN.length]; b.img = wF[wi % wF.length]; wi++; } });
   })()`);
+  // DEL MAR LEFT HALF OPEN (John, 2026-10-03): with every San Diego home booked across the racing, its prices had nowhere to show
+  // their up and down. So every other stay on those nights (Jul 17–20, in row order) is lifted before the guests come in — not all
+  // of them; the rest keep the board reading busy. Once per build load: a Back and forward again must not lift a second half.
+  function openDelMar(w) {
+    ev(w, `(() => { if (window.__presoDelMarOpen) return; window.__presoDelMarOpen = true;
+      const rowAt = {}; [...document.querySelectorAll('#gridRows > .price-row')].forEach((r, k) => { rowAt[r.dataset.li] = k; });
+      const lo = todayDi + 9, hi = todayDi + 12;
+      const on = BOOKINGS.filter(b => LISTINGS[b.listing] && LISTINGS[b.listing].city === 'San Diego' && b.start <= hi && b.start + b.nights > lo)
+        .sort((a, z) => ((rowAt[a.listing] || 0) - (rowAt[z.listing] || 0)) || (a.start - z.start));
+      on.filter((b, k) => k % 2 === 1).forEach(b => BOOKINGS.splice(BOOKINGS.indexOf(b), 1));
+      rebuildBookedSet(); })()`);
+  }
   // WHICH STAYS ARE REQUESTS: one upcoming stay in three, by guest, the same every run. The build rebuilds its pills as it scrolls and
   // morphs, so the mark is re-applied to every pill it builds — a request never turns back into a stay.
   function markRequests(w) {
@@ -537,7 +549,7 @@
           openPalmSprings(w);
         };
         const guests = () => {
-          dealGuests(w); markRequests(w);
+          openDelMar(w); dealGuests(w); markRequests(w);
           if (instant) { bk.checked = true; bk.dispatchEvent(new w.Event('change')); prices(); return; }
           d.body.classList.add('preso-pills-in'); setTimeout(() => d.body.classList.remove('preso-pills-in'), 1400);
           bk.checked = true; bk.dispatchEvent(new w.Event('change'));
