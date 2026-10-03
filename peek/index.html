@@ -1010,7 +1010,9 @@ if (EMBED) {
   let typingTimer = 0;
   window.peek = {
     // Where the app's views are: { composer, reply, last } → [x, y, w, h], in points.
-    platforms(map) { for (const k of Object.keys(plat)) if (!(k in map)) delete plat[k]; Object.assign(plat, map); },
+    // The streaming reply is held at its last place when it goes — it turns into a message
+    // row a beat before 'replied' arrives, and whatever's sitting on it shouldn't fall off.
+    platforms(map) { for (const k of Object.keys(plat)) if (!(k in map) && k !== 'reply') delete plat[k]; Object.assign(plat, map); },
     event(name, data) {
       idle();
       const comp = V('composer'), r = () => rectOf(comp);
@@ -1032,6 +1034,7 @@ if (EMBED) {
       } else if (name === 'replied') {
         // The streaming text becomes a message row: move onto it before the stand-in goes.
         if (C.el === V('reply') && plat.last) C.el = V('last');
+        setTimeout(() => { if (C.el !== V('reply')) delete plat.reply; }, 50);
         act(async () => {
           if (C.mode === 'off') return;
           unsay(); mood('happy'); if (C.el === V('reply')) C.el = V('last');
@@ -1041,7 +1044,7 @@ if (EMBED) {
           const c = r(); if (c.width > 0) { await jumpTo(comp, Math.min(c.right - 40, Math.max(c.left + 40, C.x + 60))); await wait(400); await runTo(comp, c.right - 30); }
           await leave();
         });
-      } else if (name === 'closed') act(leave);
+      } else if (name === 'closed') { delete plat.reply; act(leave); }
     },
   };
   // Where it is, so the app passes every other touch straight through to itself.
