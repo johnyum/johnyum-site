@@ -372,6 +372,12 @@ up tip cards. One `index.html`, three.js; the chat is canned.
   rising carries it along. It leans up while you type, sinks while it sulks, and a tap pops it
   right out of the box (`popUp()`). The touch rect it reports stops at the box's top edge, so the
   Send button under it stays tappable.
+- **Pick it up** (2026-10-03): drag it (`grab()`) and it hangs under your finger; let go (`drop()`)
+  and it falls onto the first thing under it — any message, a pill — stands, then sits. Dropped on
+  the box (or nowhere), it goes home. A grab interrupts whatever it was doing: `wait()` and
+  `tween()` throw `STOP` once `epoch` moves on. Where you put it, it stays (`C.perched`) and reacts
+  in place (`inPlace()`); a tap there stands it up or sits it down. The app reports every message as
+  `msg-<uuid>` (the bubble, or the answer's text) for this.
 - Its frame loop is `frame()`, exposed on `window.__peek` — a hidden tab pauses
   `requestAnimationFrame`, so a test drives frames by hand.
 

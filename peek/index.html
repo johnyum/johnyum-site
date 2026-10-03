@@ -203,7 +203,10 @@ const plat = {}, stand = {};
 const V = (id) => stand[id] ||= { id, getBoundingClientRect() {
   const [x, y, w, h] = plat[id] || [0, -1e5, 0, 0]; return { left: x, top: y, width: w, height: h, right: x + w, bottom: y + h, x, y };
 } };
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// Picking it up interrupts whatever it was doing: every wait and tween from before the grab
+// throws STOP at its next beat, and act() swallows it (see grab()).
+let epoch = 0; const STOP = new Error('interrupted');
+const wait = (ms) => { const e = epoch; return new Promise((ok, no) => setTimeout(() => (e === epoch ? ok() : no(STOP)), ms)); };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, k) => a + (b - a) * k;
 const S = 86;   // px per character unit — it stands about 100px tall
@@ -647,7 +650,7 @@ let blinkT = 2, blinking = 0;
 const clock = new THREE.Clock();
 let tweenList = [];
 // A timed move: fn(k) for k 0→1 over ms, resolved at the end.
-const tween = (ms, fn, ease = (k) => k) => new Promise((done) => tweenList.push({ t: 0, ms, fn, ease, done }));
+const tween = (ms, fn, ease = (k) => k) => new Promise((done, fail) => tweenList.push({ t: 0, ms, fn, ease, done, fail }));
 const easeOut = (k) => 1 - (1 - k) ** 3, easeInOut = (k) => k < .5 ? 4 * k * k * k : 1 - (-2 * k + 2) ** 3 / 2;
 const easeBack = (k) => 1 + 2.7 * (k - 1) ** 3 + 1.7 * (k - 1) ** 2;
 
@@ -657,6 +660,11 @@ function frame() {
   const dt = clamp(clock.getDelta(), 1 / 240, 1 / 30), t = clock.elapsedTime;
   tweenList = tweenList.filter((w) => { w.t += dt * 1000; const k = Math.min(1, w.t / w.ms); w.fn(w.ease(k)); if (k >= 1) w.done(); return k < 1; });
 
+  // Carried: it hangs under your finger by the scruff, legs dangling, swinging as you move it.
+  if (C.grabbed) {
+    C.mode = 'air'; C.el = null; C.shown = 1; occluder.visible = false;
+    C.x = lerp(C.x, pointer.x, .45); C.y = lerp(C.y, pointer.y + H * S * .82, .45);
+  }
   // Feet stick to the element they're on, wherever it's scrolled or reflowed to.
   if (C.el && (C.mode === 'stand' || C.mode === 'sit' || C.mode === 'run')) C.y = C.el.getBoundingClientRect().top + (C.mode === 'sit' ? 2 : 0);
 
@@ -757,7 +765,7 @@ function frame() {
 
 let queue = Promise.resolve();
 let acting = 0;
-const act = (fn) => { acting++; return (queue = queue.then(() => modelReady).then(fn).catch((e) => console.error(e))   // nothing moves before the character's in
+const act = (fn) => { acting++; const e = epoch; return (queue = queue.then(() => modelReady).then(() => e === epoch && fn()).catch((x) => { if (x !== STOP) console.error(x); })   // nothing moves before the character's in; nothing queued before a grab runs after it
   .finally(() => { if (--acting === 0) setTimeout(homeward, 300); })); };
 const rectOf = (el) => el.getBoundingClientRect();
 const headY = () => C.y - TOP * S * C.sq - 10;
@@ -768,7 +776,7 @@ async function popIn(x, y) {
 }
 async function leave() {
   unsay(); dropCard(); occlude(null); for (const g of grips) g.visible = false;
-  C.look = null; C.lean = 0; C.arms = 'rest'; C.home = false; C.held = null;
+  C.look = null; C.lean = 0; C.arms = 'rest'; C.home = false; C.held = null; C.perched = null;
   if (C.mode === 'off') return;
   if (C.mode === 'peek' && C.exit) { await C.exit(); }
   else await tween(260, (k) => { C.shown = 1 - k; }, (k) => k * k);
@@ -911,22 +919,95 @@ function placeOverlays() {
   }
   if (card) { card.style.left = clamp(C.x + 60, 130, vw - 130) + 'px'; card.style.top = headY() - 18 + 'px'; }
 }
-// A tap on it is a boop.
+// Your finger on it: a tap is a boop (at home, it pops up out of the box; perched, it stands up
+// or sits down); a drag picks it up, and where you let go it lands — on a message, a pill, the box.
+function onIt(x, y) {
+  if (C.mode === 'off' || C.shown < .5) return false;
+  const top = C.y - H * S * 1.1, bottom = occludeEl ? Math.min(C.y, occludeEl.getBoundingClientRect().top + 8) : C.y + 6;
+  return Math.abs(x - C.x) < H * S * .55 && y > top && y < bottom;
+}
+let press = null;
 addEventListener('pointerdown', (e) => {
-  if (C.mode === 'off') return;
-  // At home, only the part over the box is it: a tap there pops it right up out of the box.
-  if (C.home && C.held) {
-    const top = C.held.el.getBoundingClientRect().top;
-    if (Math.abs(e.clientX - C.x) < H * S * .5 && e.clientY > C.y - H * S * 1.1 && e.clientY < top + 8) popUp();
+  if (!onIt(e.clientX, e.clientY)) return;
+  e.preventDefault();   // no focus, no text selection under it
+  press = { x: e.clientX, y: e.clientY, t: performance.now() };
+  pointer.x = e.clientX; pointer.y = e.clientY;
+}, { passive: false });
+addEventListener('pointermove', (e) => {
+  if (press && !C.grabbed && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) grab();
+  if (C.grabbed) e.preventDefault();
+}, { passive: false });
+addEventListener('pointerup', (e) => {
+  if (!press) return;
+  const was = press; press = null;
+  if (C.grabbed) {
+    drop(e.clientX, e.clientY);
+    // The click that follows the drop belongs to the drop, not to whatever it was let go over.
+    const block = (c) => { c.stopPropagation(); c.preventDefault(); };
+    addEventListener('click', block, { capture: true, once: true }); setTimeout(() => removeEventListener('click', block, true), 400);
     return;
   }
-  const cy = C.y - H * S * .5;
-  if (Math.hypot(e.clientX - C.x, e.clientY - cy) < H * S * .55) {
-    const was = moodNow; mood('love'); C.sqv -= 10; say('hehe', 900);
-    if (model && playClip('Wave', true)) oneShot = clipsFor.Wave.duration;
-    setTimeout(() => { if (moodNow === 'love') mood(was); }, 900);
-  }
+  if (performance.now() - was.t < 600) tap();
 });
+addEventListener('pointercancel', () => { if (C.grabbed) drop(pointer.x, pointer.y); press = null; });
+function tap() {
+  idle();
+  if (C.home) return popUp();
+  if (C.perched && (C.mode === 'stand' || C.mode === 'sit')) {
+    // Perched: up on its feet, or back down to sit.
+    C.mode = C.mode === 'sit' ? 'stand' : 'sit'; C.sqv -= 9; mood('love'); say(C.mode === 'sit' ? 'comfy' : 'hi!', 900);
+    setTimeout(() => { if (moodNow === 'love') mood('happy'); }, 900); return;
+  }
+  const was = moodNow; mood('love'); C.sqv -= 10; say('hehe', 900);
+  if (model && playClip('Wave', true)) oneShot = clipsFor.Wave.duration;
+  setTimeout(() => { if (moodNow === 'love') mood(was); }, 900);
+}
+// Picked up: whatever it was doing stops where it is.
+function grab() {
+  epoch++; for (const w of tweenList) w.fail(STOP); tweenList = [];
+  unsay(); dropCard(); occlude(null); clearTimeout(popping);
+  Object.assign(C, { grabbed: true, home: false, held: null, perched: null, exit: null, lean: 0, arms: 'up', look: null, hop: 0, facing: 0 });
+  mood('surprised'); C.sqv -= 10; say(heart.sulking ? 'hmph' : 'whoa!', 900);
+}
+// What it can be set down on: every piece of the chat.
+function surfaces() {
+  if (EMBED) return Object.keys(plat).filter((k) => k !== 'reply' && !k.startsWith('row-')).map(V);   // a user's row is mostly empty air; its bubble is the msg-
+  return [...msgs.querySelectorAll('.msg'), ...$('#chips').children, composer];
+}
+// Let go: it falls to the first thing under it and lands there. On the box, it goes home.
+function drop(x, y) {
+  C.grabbed = false; C.arms = 'rest';
+  C.x = x; C.y = y + H * S * .82;   // from where the finger let go, not where it had swung to
+  const feet = C.y, ground = homeGround();
+  let best = null;
+  for (const el of surfaces()) {
+    const r = rectOf(el);
+    if (r.width < 20 || r.top < (EMBED ? 100 : 40) || r.top > innerHeight - 10) continue;   // not up under the header
+    if (x < r.left - 6 || x > r.right + 6 || r.top < feet - 50) continue;
+    if (!best || r.top < rectOf(best).top) best = el;
+  }
+  act(async () => {
+    const homeBox = !best || best === ground;
+    // Fall: gravity, from wherever it was let go — onto its perch, or in behind the box.
+    const to = !homeBox ? rectOf(best).top : ground ? rectOf(ground).top + H * S : innerHeight + H * S;
+    const y0 = C.y, x0 = C.x, r = best && !homeBox ? rectOf(best) : null, x1 = r ? clamp(x0, r.left + 22, r.right - 22) : x0;
+    const T = Math.sqrt(2 * Math.max(1, to - y0) / 2600) * 1000;
+    C.mode = 'air'; mood(homeBox ? 'surprised' : 'curious');
+    await tween(Math.max(120, T), (k) => { C.y = lerp(y0, to, k * k); C.x = lerp(x0, x1, k); });
+    if (homeBox) { Object.assign(C, { mode: 'off', shown: 0 }); return; }   // in behind the box: homeward() brings it up
+    Object.assign(C, { mode: 'stand', el: best, perched: best, y: rectOf(best).top }); C.sqv -= 12;
+    mood('happy'); say(heart.sulking ? '…' : ['ooh', 'nice spot', 'hi up here', 'wheee'][Math.floor(Math.random() * 4)], 1200);
+    await wait(1400);
+    // Settle in: sit on the edge, legs over the front.
+    if (C.perched === best) { C.mode = 'sit'; C.sqv -= 4; }
+  });
+}
+// A perch scrolled away, or gone: it hops back home.
+setInterval(() => {
+  if (!C.perched || C.grabbed) return;
+  const r = rectOf(C.perched), there = EMBED ? Object.keys(plat).some((k) => stand[k] === C.perched) : C.perched.isConnected;
+  if (!there || r.width <= 0 || r.bottom < 50 || r.top > innerHeight - 20) { C.perched = null; act(leave); }
+}, 400);
 
 /* ═══════════════ the chat it lives in ═══════════════ */
 
@@ -969,7 +1050,13 @@ async function send(text) {
   const pending = add('bot typing', '<i></i><i></i><i></i>');
   const felt = await read(text);
   await act(async () => {
+    const perched = C.perched;
     await perform(felt, composer, mine);
+    if (perched && C.perched) {   // it stays where you put it, and has its say about the answer from there
+      mood('thinking'); say('hmm…', 0); await wait(1400); unsay();
+      reply(pending, ANSWERS[felt.feel] || REPLIES[replyAt++ % REPLIES.length]); mood('happy');
+      return feelAnswer(await read(pending.textContent, 'claude'));
+    }
     if (felt.cmd || felt.feel === 'hurt' || (heart.sulking && felt.feel !== 'sorry')) { reply(pending, ANSWERS[felt.feel] || REPLIES[replyAt++ % REPLIES.length]); said.push(['claude', pending.textContent]); return; }
     // Thinking: it sits on the reply that's on its way…
     const r = rectOf(pending);
@@ -999,7 +1086,7 @@ input.addEventListener('input', () => {
   if (!input.value.trim()) { clearTimeout(typingTimer); typingTimer = setTimeout(() => { if (C.home) { rise(restShow()); mood(heart.sulking ? 'sad' : 'happy'); } else if (C.mode === 'peek' && occludeEl === composer) act(leave); }, 900); return; }
   const show = mayWatch(input.value);
   if (C.home) rise(show || restShow());
-  else if (show && occludeEl !== composer) act(async () => { if (occludeEl !== composer && input.value.trim()) { draftFeel = ''; await peekOver(composer, r.right - 120, 'curious', show); watching(input.value); } });
+  else if (show && occludeEl !== composer && !C.perched && !C.grabbed) act(async () => { if (occludeEl !== composer && input.value.trim()) { draftFeel = ''; await peekOver(composer, r.right - 120, 'curious', show); watching(input.value); } });
   else watching(input.value);
   C.look = { x: r.left + 30 + Math.min(r.width - 170, input.value.length * 7.2), y: r.top + 30 };
 });
@@ -1186,8 +1273,10 @@ const clip = (label) => { if (model && playClip(label, true)) { oneShot = clipsF
 // A feeling, performed. `ground` is the box you type in; `near` is where your message is (or the box).
 async function perform(f, ground, near) {
   settle();
+  if (C.grabbed) return;   // in your hand: it'll feel it later
   const g = rectOf(ground), at = clamp((rectOf(near).left || g.left) + 70, 70, innerWidth - 70), line = (s) => f.line || s;
   heart.last = f;
+  if (C.perched) return inPlace(f);
   if (f.cmd) return obey(f.cmd, ground, line);
   // Sulking: it stays hidden, unless you've come to make up.
   if (heart.sulking && !['sorry', 'love'].includes(f.feel)) {
@@ -1239,8 +1328,35 @@ async function perform(f, ground, near) {
     default: if (C.home) return rise(restShow()); return leave();   // a question or nothing much: it waits for the answer
   }
 }
+// Where you put it, it stays: it feels things right there, and only leaves when told to, when
+// it's had enough, or when its perch scrolls away.
+async function inPlace(f) {
+  const line = (s) => f.line || s, back = (ms) => setTimeout(() => { if (C.perched && !C.grabbed && moodNow !== 'sad') mood('happy'); }, ms);
+  if (f.cmd === 'come' || f.cmd === 'away') { C.perched = null; return f.cmd === 'away' ? obey('away', homeGround(), line) : leave(); }
+  if (heart.sulking && !['sorry', 'love'].includes(f.feel)) { mood('ugh'); say('hmph.', 1300, 'ugh'); return back(1500); }
+  if (f.cmd === 'jump') { say(line('wheee'), 1400); return hop(2, 40); }
+  if (f.cmd === 'dance') { say(line('♪ ♪'), 2400); mood('love'); if (!clip('Dance')) for (let i = 0; i < 3; i++) { await shake(1); await hop(1, 16); } else await wait(2400); return back(0); }
+  if (f.cmd === 'wave') { clip('Wave') || await hop(1, 18); say(line('hiii'), 1500); return; }
+  if (f.cmd === 'sleep') { mood('sleepy'); say(line('z z z'), 2600); return; }
+  if (f.feel === 'hurt') {
+    heart.hurt += 1 + f.n * .5; warm(-1);
+    if (heart.hurt >= 3) { heart.sulking = true; mood('sad'); say(line('…fine.'), 1500); await wait(1500); return leave(); }   // off its perch, home to sulk
+    mood('ugh'); say(heart.hurt >= 2 ? line('hey… that stung') : f.n > .8 ? 'UGHHHHH' : line('ughhhhh'), 2200, 'ugh');
+    clip('No') || await shake(2); return back(2200);
+  }
+  if (f.feel === 'sorry' || f.feel === 'love') {
+    const made = heart.hurt >= .5 || heart.sulking; heart.hurt = Math.max(0, heart.hurt - (f.feel === 'sorry' ? 9 : 1)); heart.sulking = false; warm(1);
+    mood('love'); clip('Yes'); say(line(made ? 'okay. forgiven ♥' : f.feel === 'love' ? 'aww ♥' : 'all good!'), 1800); await hop(1, 18); return back(1800);
+  }
+  const how = { frustrated: ['sad', 'oof'], sad: ['sad', 'aw… ♥'], anxious: ['curious', 'you got this', 1], excited: ['love', 'yaaay!', 3],
+    funny: ['love', 'hehe', 'laugh'], hello: ['happy', 'hi!', 'wave'], surprised: ['surprised', 'whoa'] }[f.feel];
+  if (!how) return;
+  const [m, words, move] = how; mood(m); say(line(words), 2000);
+  if (move === 'laugh') await laugh(1100); else if (move === 'wave') clip('Wave') || await hop(1, 18); else if (move) await hop(move, 30);
+  back(2200);
+}
 async function obey(cmd, ground, line) {
-  const g = rectOf(ground);
+  C.perched = null; const g = rectOf(ground);
   if (cmd === 'away') { heart.shyUntil = Date.now() + 25000; await peekSide('bottom', g.right - 80, 'sad'); say(line('okay…'), 1200); await wait(1300); return leave(); }
   if (cmd === 'sleep') { await peekSide('left', innerHeight * .6, 'sleepy'); say(line('z z z'), 2600); await wait(2800); return leave(); }
   if (cmd === 'wave') { await peekSide('bottom', g.left + 90, 'happy'); clip('Wave') || await hop(1, 18); say(line('hiii'), 1600); await wait(1800); return leave(); }
@@ -1257,7 +1373,7 @@ let draftFeel = '', draftLen = 0;
 function watching(text) {
   const t = String(text || ''), was = draftLen; draftLen = t.length;
   if (!t.trim()) { draftFeel = ''; return; }
-  if (C.mode !== 'peek' || !occludeEl) return;   // only while it's watching over the box
+  if (!C.perched && (C.mode !== 'peek' || !occludeEl)) return;   // watching over the box, or from its perch
   const f = sense(t), feel = was - t.length > 20 ? 'erased' : f.feel;
   if (feel === draftFeel) return;
   draftFeel = feel;
@@ -1281,7 +1397,7 @@ async function feelAnswer(f) {
   const say2 = (s, ms = 1800) => say(f.line || s, ms);
   switch (f.feel) {
     case 'excited': mood('love'); say2('yesss'); await hop(2, 28); break;
-    case 'sad': mood('sad'); C.mode = 'sit'; say2('oh…', 2200); await wait(2300); C.mode = 'stand'; break;
+    case 'sad': { const m = C.mode; mood('sad'); C.mode = 'sit'; say2('oh…', 2200); await wait(2300); C.mode = m; break; }
     case 'sorry': mood('sad'); say2('oops', 1500); await shake(1); await wait(500); break;
     case 'funny': mood('love'); say2('hehe', 1400); await laugh(1000); break;
     case 'curious': mood('thinking'); say2('ooh', 1500); await wait(1500); break;
@@ -1315,7 +1431,7 @@ if (EMBED) {
         if (!typing) { draftFeel = ''; draftLen = 0; typingTimer = setTimeout(() => { if (C.home) { rise(restShow()); mood(heart.sulking ? 'sad' : 'happy'); } else if (occludeEl === comp) act(leave); }, 900); return; }
         const show = mayWatch(draft);
         if (C.home) rise(show || restShow());
-        else if (show && occludeEl !== comp && C.mode !== 'sit') act(async () => { if (occludeEl !== comp && typing) { draftFeel = ''; await peekOver(comp, r().right - 110, 'curious', show); watching(draft); } });
+        else if (show && occludeEl !== comp && !C.perched && !C.grabbed && C.mode !== 'sit') act(async () => { if (occludeEl !== comp && typing) { draftFeel = ''; await peekOver(comp, r().right - 110, 'curious', show); watching(draft); } });
         else watching(draft);
         C.look = { x: r().left + 30 + Math.min(r().width - 160, typing * 7.2), y: r().top + 24 };
       } else if (name === 'send') {
@@ -1326,7 +1442,7 @@ if (EMBED) {
         act(async () => perform(await felt, comp, comp));
       } else if (name === 'thinking') {
         // It sits on the answer that's on its way — and rides it up as it streams in.
-        act(async () => { const a = rectOf(V('reply')); if (a.width <= 0 || heart.sulking || Date.now() < heart.shyUntil) return; await sitOn(V('reply'), a.left + Math.min(a.width - 30, 70), 'thinking'); say('hmm…', 0); });
+        act(async () => { if (C.perched) { mood('thinking'); say('hmm…', 0); return; } const a = rectOf(V('reply')); if (a.width <= 0 || heart.sulking || Date.now() < heart.shyUntil) return; await sitOn(V('reply'), a.left + Math.min(a.width - 30, 70), 'thinking'); say('hmm…', 0); });
       } else if (name === 'replied') {
         // The streaming text becomes a message row: move onto it before the stand-in goes.
         if (C.el === V('reply') && plat.last) C.el = V('last');
@@ -1334,6 +1450,7 @@ if (EMBED) {
         const felt = typeof data === 'string' && data ? read(data, 'claude') : null;
         act(async () => {
           if (C.mode === 'off') return;
+          if (C.perched) { unsay(); mood('happy'); if (felt) await feelAnswer(await felt); return; }   // it stays where you put it
           unsay(); mood('happy'); if (C.el === V('reply')) C.el = V('last');
           C.mode = 'stand'; C.sqv -= 6; await wait(380);
           if (felt) await feelAnswer(await felt);
