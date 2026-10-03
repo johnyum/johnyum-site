@@ -78,7 +78,7 @@
   /* THE TAG, ANIMATED (John, 2026-10-03): the third phone's price tag is the closing slide's own tag (09e: price-modal.mp4, the
      still tag its first and last frame), laid exactly over the still one — its ink 136 x 141 at 421,468 on the 979 x 2000 export,
      the video's 629 x 660 at 181,173 in its 1000 square, so 0.2149 of it — on the screen's white, which is the video's own. It
-     plays once as the slide lands, and again on each return. */
+     plays once the fee's graph has finished, never before. */
   .adj { position: relative; height: var(--phone-h); aspect-ratio: 979 / 2000; flex: none; }
   .adj img { height: 100%; width: 100%; }
   .adj video { position: absolute; left: 39.030%; top: 21.541%; width: 21.951%; height: 10.745%; display: block; }
@@ -131,19 +131,20 @@
     </div>
   </div>
 <script>
-  // the tag plays as the slide lands (the deck's presoshown, or on its own after a moment), and again on each later return
-  (() => {
-    const v = document.getElementById('adjTag'); let last = 0;
-    const play = () => { if (Date.now() - last < 1500) return; last = Date.now(); try { v.currentTime = 0; const p = v.play(); if (p && p.catch) p.catch(() => { try { v.currentTime = v.duration - 0.01; } catch (_) {} }); } catch (_) {} };
-    addEventListener('presoshown', play);
-    if (window.parent === window) setTimeout(play, 600);
+  // the tag plays only once the fee's graph has finished (John, 2026-10-03) — not as the slide lands: the tap starts the graph, the
+  // You earn line is the last of it to arrive (1.55s in, .5s to settle), and the tag goes a beat after that. Back stops it on its first
+  // frame, which is the still tag, ready to play again.
+  const tag = (() => {
+    const v = document.getElementById('adjTag'); let t = 0;
+    const play = () => { try { v.currentTime = 0; const p = v.play(); if (p && p.catch) p.catch(() => { try { v.currentTime = v.duration - 0.01; } catch (_) {} }); } catch (_) {} };
+    return { after: ms => { clearTimeout(t); t = setTimeout(play, ms); }, reset: () => { clearTimeout(t); try { v.pause(); v.currentTime = 0; } catch (_) {} } };
   })();
   // one build: the tap plays the fee from 2 of 7 to 3 of 7; Back plays it back; arriving backwards it stands at 3 of 7
   (() => {
     const h = document.getElementById('hof'); let on = false;
     const set = (v, instant) => { on = v; if (instant) h.classList.add('snap'); h.classList.toggle('on', v); if (instant) { void h.offsetWidth; requestAnimationFrame(() => h.classList.remove('snap')); } };
-    window.presoNext = () => { if (on) return false; set(true); return true; };
-    window.presoPrev = () => { if (!on) return false; set(false); return true; };
+    window.presoNext = () => { if (on) return false; set(true); tag.after(2200); return true; };
+    window.presoPrev = () => { if (!on) return false; set(false); tag.reset(); return true; };
     window.presoEnd = () => set(true, true);
     window.presoState = () => on ? 1 : 0;
     window.presoRestore = n => set(n > 0, true);
