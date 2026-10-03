@@ -176,14 +176,18 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
 .note { position: absolute; bottom: 72px; left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--ink-2);
   text-align: center; max-width: 420px; padding: 0 16px; }
 
-/* ── blobs ── */
+/* ── blobs: a monster kit ── */
 .modes { grid-template-columns: 1fr 1fr; }
-.drawui, .blobs { display: flex; flex-direction: column; gap: 18px; }
+.drawui, .blobs { display: flex; flex-direction: column; gap: 14px; }
 .drawui > *, .blobs > * { flex: none; }
+.trayhead { display: flex; align-items: baseline; justify-content: space-between; font-size: 12px; font-weight: 500; color: var(--ink-2); margin-bottom: -6px; }
+.trayhead span { font-weight: 400; color: var(--ink-3); }
 .tray { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.tray button { height: 64px; border-radius: 12px; border: 1px solid var(--line); background: transparent; cursor: grab;
+.tray button { height: 62px; border-radius: 12px; border: 1px solid var(--line); background: transparent; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--ink-2); font-size: 11.5px; }
+.tray button[draggable="true"] { cursor: grab; }
 .tray button:hover { border-color: var(--ink); color: var(--ink); }
+.tray button[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: #fff; }
 .tray svg { width: 24px; height: 24px; }
 .sel { border-radius: 12px; background: var(--field); padding: 12px; display: flex; flex-direction: column; gap: 9px; }
 .selhead { display: flex; align-items: center; justify-content: space-between; }
@@ -200,6 +204,7 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
 .check input { accent-color: var(--ink); width: 15px; height: 15px; }
 .trio { display: flex; gap: 6px; }
 .trio .tool { flex: 1; }
+.sel[data-for="body"] [data-only="part"], .sel[data-for="part"] [data-only="body"] { display: none; }
 .stage:not(.sculpting) #sculptHint { display: none; }
 .stage.sculpting .actions, .stage.sculpting #recenter, .stage.sculpting #download, .stage.sculpting .note,
 .stage.sculpting .empty, .stage.sculpting .preview { display: none !important; }
@@ -262,34 +267,51 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
     </div>
 
     <div class="blobs" id="blobsUI" hidden>
+      <div class="trayhead">Body</div>
+      <div class="tray" id="bodies">
+        <button data-body="0" aria-pressed="false" title="Start from a round body"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="13" r="9"/></svg>Round</button>
+        <button data-body="1" aria-pressed="false" title="Start from a gumdrop body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c3 0 8 9 8 13a8 6 0 0 1-16 0c0-4 5-13 8-13z"/></svg>Gumdrop</button>
+        <button data-body="2" aria-pressed="false" title="Start from a hunch body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 10c0-4.5 4-7 8-7s8 2.5 8 7c0 6-3 11-8 11s-8-5-8-11z"/></svg>Hunch</button>
+        <button data-body="3" aria-pressed="false" title="Start from a bell body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 7a4 4 0 0 1 8 0c0 4 5 8 5 11a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3c0-3 5-7 5-11z"/></svg>Bell</button>
+        <button data-body="4" aria-pressed="false" title="Start from a peanut body"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7.5" r="4.6"/><circle cx="12" cy="16" r="5.8"/></svg>Peanut</button>
+        <button data-body="5" aria-pressed="false" title="Start from a noodle body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 2h4c1 0 1.6 1 1.2 2L12.8 12l2.4 8c.3 1-.4 2-1.4 2h-4c-1 0-1.6-1-1.2-2L11 12 8.6 4C8.3 3 9 2 10 2z"/></svg>Noodle</button>
+        <button data-body="6" aria-pressed="false" title="Start from a slug body"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="15" rx="10" ry="5.5"/></svg>Slug</button>
+        <button data-body="7" aria-pressed="false" title="Start from a potato body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 8c1-4 6-5 9-4s6 4 5 8-2 8-7 8-8-2-8-6 0-4 1-6z"/></svg>Potato</button>
+      </div>
+      <div class="trayhead">Parts <span>click, or drag onto the body</span></div>
       <div class="tray" id="tray">
-        <button data-shape="0" draggable="true" title="Add a ball — or drag it onto the sculpture"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>Ball</button>
-        <button data-shape="1" draggable="true" title="Add a egg — or drag it onto the sculpture"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c4 0 7 6 7 11a7 7 0 0 1-14 0c0-5 3-11 7-11z"/></svg>Egg</button>
-        <button data-shape="2" draggable="true" title="Add a bean — or drag it onto the sculpture"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="3" width="10" height="18" rx="5"/></svg>Bean</button>
-        <button data-shape="3" draggable="true" title="Add a cube — or drag it onto the sculpture"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="4"/></svg>Cube</button>
-        <button data-shape="4" draggable="true" title="Add a ring — or drag it onto the sculpture"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="3.5"/></svg>Ring</button>
-        <button data-shape="5" draggable="true" title="Add a cone — or drag it onto the sculpture"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c1 0 2 .9 2.6 2.2L20 17.6A2.6 2.6 0 0 1 17.6 21H6.4A2.6 2.6 0 0 1 4 17.6L9.4 5.2C10 3.9 11 3 12 3z"/></svg>Cone</button>
-        <button data-shape="6" draggable="true" title="Add a stick — or drag it onto the sculpture"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="10" y="2" width="4" height="20" rx="2"/></svg>Stick</button>
-        <button data-shape="7" draggable="true" title="Add a disc — or drag it onto the sculpture"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="12" rx="9" ry="3.6"/></svg>Disc</button>
+        <button data-part="eye" draggable="true" title="Add eye — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="3.6"/></svg>Eye</button>
+        <button data-part="mouth" draggable="true" title="Add mouth — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 9h15c0 5.5-3.4 9-7.5 9s-7.5-3.5-7.5-9z"/></svg>Mouth</button>
+        <button data-part="tooth" draggable="true" title="Add tooth — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5h8l-2.6 12.4c-.3 1.4-2.5 1.4-2.8 0z"/></svg>Tooth</button>
+        <button data-part="nose" draggable="true" title="Add nose — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="13" rx="5.5" ry="4.8"/></svg>Nose</button>
+        <button data-part="horn" draggable="true" title="Add horn — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 21c0-7 3-14 10-18-2 5-3 10-3 18z"/></svg>Horn</button>
+        <button data-part="ear" draggable="true" title="Add ear — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="12" rx="5" ry="9"/></svg>Ear</button>
+        <button data-part="antenna" draggable="true" title="Add antenna — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="11" y="8" width="2" height="14" rx="1"/><circle cx="12" cy="6" r="3.6"/></svg>Antenna</button>
+        <button data-part="arm" draggable="true" title="Add arm — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 21c0-7 3-11 9-12" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><circle cx="17" cy="8" r="3.6"/></svg>Arm</button>
+        <button data-part="leg" draggable="true" title="Add leg — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="9" y="2" width="6" height="14" rx="3"/><ellipse cx="13.5" cy="18.5" rx="6.5" ry="3.2"/></svg>Leg</button>
+        <button data-part="tentacle" draggable="true" title="Add tentacle — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3c4 3-3 6 1 10s-2 6 2 8" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>Tentacle</button>
+        <button data-part="lump" draggable="true" title="Add lump — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="14" r="7.5"/></svg>Lump</button>
+        <button data-part="spots" draggable="true" title="Add spots — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="10" r="3.2"/><circle cx="15.5" cy="7.5" r="2.3"/><circle cx="14.5" cy="15.5" r="3.8"/></svg>Spots</button>
       </div>
 
-      <div class="sel" id="selUI" hidden>
-        <div class="selhead"><b id="selName">Ball</b><span>
+      <div class="sel" id="selUI" data-for="part" hidden>
+        <div class="selhead"><b id="selName">Eye</b><span data-only="part">
           <button class="tool" id="dup" title="Duplicate (⌘D)">Duplicate</button>
           <button class="tool" id="del" title="Delete (⌫)">Delete</button></span></div>
-        <label class="range"><span>Size</span><input type="range" data-k="s" min="0.08" max="1.4" step="0.01"></label>
-        <label class="range"><span>Tall</span><input type="range" data-k="h" min="0.3" max="3" step="0.01"></label>
-        <label class="range"><span>Wide</span><input type="range" data-k="w" min="0.3" max="3" step="0.01"></label>
-        <label class="range"><span>Deep</span><input type="range" data-k="d" min="0.3" max="3" step="0.01"></label>
-        <label class="range"><span>Tilt</span><input type="range" data-k="tilt" min="-3.1416" max="3.1416" step="0.01"></label>
-        <label class="range"><span>Turn</span><input type="range" data-k="turn" min="-3.1416" max="3.1416" step="0.01"></label>
+        <label class="range"><span>Size</span><input type="range" data-k="s" min="0.04" max="1.3" step="0.005"></label>
+        <label class="range"><span>Tall</span><input type="range" data-k="h" min="0.35" max="2.6" step="0.01"></label>
+        <label class="range" data-only="body"><span>Wide</span><input type="range" data-k="w" min="0.4" max="2.4" step="0.01"></label>
+        <label class="range" data-only="body"><span>Deep</span><input type="range" data-k="d" min="0.4" max="2.4" step="0.01"></label>
+        <label class="range" data-only="part"><span>Out</span><input type="range" data-k="lift" min="-0.8" max="1.2" step="0.01"></label>
+        <label class="range" data-only="part"><span>Tilt</span><input type="range" data-k="tilt" min="-3.1416" max="3.1416" step="0.01"></label>
+        <label class="range" data-only="part"><span>Spin</span><input type="range" data-k="turn" min="-3.1416" max="3.1416" step="0.01"></label>
         <div class="swatches" id="swatches"></div>
-        <label class="check"><input type="checkbox" id="carve"> Carve — cut into the sculpture instead of adding</label>
+        <label class="check" data-only="part"><input type="checkbox" id="carve"> Carve — cut into the body instead of adding</label>
       </div>
 
-      <label class="range"><span>Melt</span><input type="range" id="melt" min="0.005" max="0.6" step="0.005" value="0.15" aria-label="How much the shapes melt together"></label>
+      <label class="range"><span>Melt</span><input type="range" id="melt" min="0.005" max="0.5" step="0.005" value="0.12" aria-label="How much the parts melt into the body"></label>
       <div class="trio">
-        <button class="tool" id="mirror" aria-pressed="true" title="Mirror left and right, like Spore">Mirror</button>
+        <button class="tool" id="mirror" aria-pressed="true" title="Mirror left and right">Mirror</button>
         <button class="tool" id="bundo" title="Undo (⌘Z)">Undo</button>
         <button class="tool" id="bclear">Start over</button>
       </div>
@@ -327,7 +349,7 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
 
   <main class="stage" id="stage">
     <canvas id="view"></canvas>
-    <p id="sculptHint">Drag a shape to move it · drag the background to turn around</p>
+    <p id="sculptHint">Drag a part over the body to move it · drag the background to turn around</p>
     <div class="empty" id="empty"><p>Draw something on the left,<br>and it'll stand up here.</p></div>
     <img class="preview" id="preview" alt="">
     <div class="status" id="status"></div>
@@ -377,15 +399,15 @@ function promptFor(style, desc) {
   ].filter(Boolean).join(' ');
 }
 
-// A blob sculpture is the person's own form, not a sketch: the prompt holds Meshy to
-// what they built — its parts, holes and colours — and only lets it refine.
+// A kit monster is the person's own design: the prompt holds Meshy to every part
+// they placed — each eye, horn, arm and spot — and only lets it refine.
 function blobPrompt(style, desc) {
   return [
-    `Turn this rough sculpture, built from simple shapes melted together, into one finished, well-made 3D figure: ${STYLES[style]}.`,
-    desc ? `It is ${desc}.` : 'Read it as whatever it most looks like (a creature, a character, an object, a plant) and commit to that.',
-    'Keep its silhouette, proportions and colours and every part as sculpted: the same number of limbs, eyes and features, and any holes.',
-    'Refine the forms and give them the surface detail they need; do not add parts that are not there.',
-    'Whole figure in frame and centred, the same viewing angle, soft even studio lighting, plain white background, no ground shadow, no text, no props.',
+    `Turn this rough clay model of a friendly monster into one finished, well-made 3D character: ${STYLES[style]}.`,
+    desc ? `It is ${desc}.` : '',
+    'Keep its body shape, proportions and colours, and every part exactly as placed: the same number of eyes, horns, ears, arms, legs, antennae, tentacles, teeth and spots, in the same places.',
+    'Refine the forms and give them appealing surface detail, in the spirit of a feature-animation monster; do not add parts that are not there.',
+    'Whole character in frame and centred, the same viewing angle, soft even studio lighting, plain white background, no ground shadow, no text, no props.',
   ].filter(Boolean).join(' ');
 }
 
@@ -488,9 +510,9 @@ let undo = [], drawing = null, dirty = false;
 function blank() { sx.fillStyle = '#fff'; sx.fillRect(0, 0, SK, SK); }
 blank();
 
-// Drawing needs a mark on the pad; a sculpture needs at least one shape that isn't a cutter.
+// Drawing needs a mark on the pad; the kit always has a body.
 let blocked = false, mode = 'draw';
-const canGo = () => !blocked && (mode === 'blobs' ? shapes.some((b) => !b.carve) : dirty);
+const canGo = () => !blocked && (mode === 'blobs' ? shapes.length > 0 : dirty);
 function setDirty(v) { dirty = v; pad.classList.toggle('dirty', v); if (!running) $('#go').disabled = !canGo(); }
 
 function pt(e) {
@@ -629,7 +651,7 @@ ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground)
 const life = new THREE.Group(), holder = new THREE.Group();
 life.add(holder); scene.add(life);
 let model = null, mixer = null, current = null;
-const shapes = [];   // the blob sculpture — see 'blobs' below
+const shapes = [];   // the kit monster: [body, ...parts] — see 'blobs' below
 
 const loader = new GLTFLoader();
 const load = async (url) => url.startsWith('http') && !url.includes('threejs.org')
@@ -735,19 +757,51 @@ new ResizeObserver(resize).observe(stageEl); resize();
 $('#recenter').onclick = () => { camera.position.copy(HOME.pos); controls.target.copy(HOME.target); };
 
 
-/* ═══════════════ blobs ═══════════════
-   A sculpture from eight simple shapes that melt into each other. Each shape is a
-   signed distance field; the sculpture is their smooth union (minus any set to
-   Carve), raymarched in one shader on a box that bounds the work area — so where
-   two shapes meet they fuse like warm clay, by as much as the Melt slider says.
-   The same distance functions run in JS for picking and dropping. Mirror is on
-   by default, as in Spore: a shape off the middle line gets a twin on the other side.
-   "Bring it to life" sends the view as it is — the angle you left it at — to Meshy. */
+/* ═══════════════ blobs: a monster kit ═══════════════
+   A body to start from and parts to build on it. Everything is a signed distance
+   field: the body is one organic shape; a part is a few shapes in its own frame
+   (an eye is a white ball, an iris and a pupil). The monster is their smooth
+   union, minus any part set to Carve, raymarched in one shader — so parts melt
+   into the body like clay, each by its own amount (an eye stays crisp, an arm
+   melts in). A part doesn't store a position, it stores a direction from the
+   body's centre; it sits where that direction meets the body's surface, pointing
+   out along the normal there. So swap or stretch the body and every part re-seats.
+   The same distance functions run in JS for anchoring, picking and dragging. */
 
-const SHAPES = ['Ball', 'Egg', 'Bean', 'Cube', 'Ring', 'Cone', 'Stick', 'Disc'];
+const BODIES = ['Round', 'Gumdrop', 'Hunch', 'Bell', 'Peanut', 'Noodle', 'Slug', 'Potato'];   // prim types 8–15
+// A part: its sub-shapes in part units (+y points out of the body), and where it goes by default.
+// c: 'self' takes the part's colour. k: how much it melts into what it touches (× the Melt slider).
+const PARTS = {
+  eye:      { name: 'Eye', s: .24, color: '#3fae9a', dir: [0, .45, 1], subs: [
+              { t: 0, p: [0, .3, 0], s: [1, 1, 1], c: '#ffffff', k: .15 },
+              { t: 0, p: [0, .92, 0], s: [.55, .55, .55], c: 'self', k: .1 },
+              { t: 0, p: [0, 1.18, 0], s: [.3, .3, .3], c: '#151515', k: .05 }] },
+  mouth:    { name: 'Mouth', s: .3, color: '#3a1f24', dir: [0, -.08, 1], carve: true, subs: [
+              { t: 2, p: [0, 0, 0], s: [.42, 1.25, .5], r: [0, 0, Math.PI / 2], c: 'self', k: .6 }] },
+  tooth:    { name: 'Tooth', s: .12, color: '#ffffff', dir: [.14, -.2, 1], subs: [
+              { t: 5, p: [0, -.1, 0], s: [.6, .7, .6], c: 'self', k: .15 }] },
+  nose:     { name: 'Nose', s: .14, color: null, dir: [0, .15, 1], subs: [{ t: 0, p: [0, .35, 0], s: [1, .85, 1], c: 'self', k: .6 }] },
+  horn:     { name: 'Horn', s: .22, color: '#f1ece4', dir: [.4, 1, .05], subs: [{ t: 16, p: [0, -.25, 0], s: [1, 1, 1], c: 'self', k: .5 }] },
+  ear:      { name: 'Ear', s: .26, color: null, dir: [.9, .55, 0], subs: [{ t: 0, p: [0, .9, 0], s: [.75, 1.15, .28], c: 'self', k: .7 }] },
+  antenna:  { name: 'Antenna', s: .2, color: null, dir: [.22, 1, 0], subs: [
+              { t: 6, p: [0, .9, 0], s: [.6, .9, .6], c: 'self', k: .5 },
+              { t: 0, p: [0, 1.9, 0], s: [.34, .34, .34], c: '#e8b04a', k: .3 }] },
+  arm:      { name: 'Arm', s: .3, color: null, dir: [1, 0, .2], subs: [
+              { t: 17, p: [0, -.2, 0], s: [1, 1, 1], c: 'self', k: .9 },
+              { t: 0, p: [0, 1.3, .41], s: [.42, .42, .42], c: 'self', k: .6 }] },
+  leg:      { name: 'Leg', s: .32, color: null, dir: [.38, -1, .12], subs: [
+              { t: 2, p: [0, .45, 0], s: [.58, .72, .58], c: 'self', k: .8 },
+              { t: 0, p: [0, 1.1, .28], s: [.52, .34, .68], c: 'self', k: .5 }] },
+  tentacle: { name: 'Tentacle', s: .3, color: null, dir: [.55, -.7, .45], subs: [{ t: 18, p: [0, -.2, 0], s: [1, 1, 1], c: 'self', k: .8 }] },
+  lump:     { name: 'Lump', s: .26, color: null, dir: [0, 1, 0], subs: [{ t: 0, p: [0, .15, 0], s: [1, 1, 1], c: 'self', k: 1 }] },
+  spots:    { name: 'Spots', s: .2, color: '#8a5cd6', dir: [.55, .35, .75], subs: [
+              { t: 7, p: [0, 0, 0], s: [1, 1, 1], c: 'self', k: .04 },
+              { t: 7, p: [1.5, -.05, .9], s: [.6, 1, .6], c: 'self', k: .04 },
+              { t: 7, p: [-.4, -.05, 1.7], s: [.45, 1, .45], c: 'self', k: .04 }] },
+};
 const SWATCHES = ['#f1ece4', '#e8b04a', '#e5734f', '#d6456b', '#8a5cd6', '#4a7fd9', '#3fae9a', '#79b84a', '#6b5444', '#222222'];
-const MAX = 32;   // prims the shader takes, mirror twins included
-const BOX = { min: new THREE.Vector3(-2.4, -.05, -2.4), max: new THREE.Vector3(2.4, 3.4, 2.4) };
+const MAX = 48;   // prims the shader takes — sub-shapes and mirror twins included
+const BOX = { min: new THREE.Vector3(-2.6, -.05, -2.6), max: new THREE.Vector3(2.6, 3.6, 2.6) };
 
 const roundCone = (qx, qy, r1, r2, h) => {
   const b = (r1 - r2) / h, a = Math.sqrt(1 - b * b), k = -b * qx + a * qy;
@@ -755,31 +809,46 @@ const roundCone = (qx, qy, r1, r2, h) => {
   if (k > a * h) return Math.hypot(qx, qy - h) - r2;
   return qx * a + qy * b - r1;
 };
-// Unit shapes, about two across. Kept identical to prim() in the shader below.
+const smin = (a, b, k) => { const h = Math.min(1, Math.max(0, .5 + .5 * (b - a) / k)); return b + (a - b) * h - k * h * (1 - h); };
+// Unit shapes. Kept identical to prim() in the shader below — change one, change both.
 function prim(t, x, y, z) {
   switch (t) {
     case 0: return Math.hypot(x, y, z) - 1;
-    case 1: return (Math.hypot(x, y * .78, z) - (1 - .22 * y)) * .7;
     case 2: return Math.hypot(x, y - Math.max(-.6, Math.min(.6, y)), z) - .5;
-    case 3: { const qx = Math.abs(x) - .75, qy = Math.abs(y) - .75, qz = Math.abs(z) - .75;
-      return Math.hypot(Math.max(qx, 0), Math.max(qy, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qy, qz), 0) - .25; }
-    case 4: return Math.hypot(Math.hypot(x, z) - .75, y) - .28;
     case 5: return roundCone(Math.hypot(x, z), y + .7, .7, .08, 1.5);
     case 6: return Math.hypot(x, y - Math.max(-1, Math.min(1, y)), z) - .14;
-    default: { const dx = Math.hypot(x, z) - .85, dy = Math.abs(y) - .12;
-      return Math.min(Math.max(dx, dy), 0) + Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) - .08; }
+    case 7: { const dx = Math.hypot(x, z) - .85, dy = Math.abs(y) - .06;
+      return Math.min(Math.max(dx, dy), 0) + Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) - .04; }
+    // bodies
+    case 8: return Math.hypot(x, y, z) - 1;                                                   // round
+    case 9: return (Math.hypot(x, y * .85, z) - (1 - .32 * y)) * .62;                         // gumdrop
+    case 10: return (Math.hypot(x * .92, y * .85, z * 1.12) - (1 + .3 * y)) * .62;            // hunch
+    case 11: return roundCone(Math.hypot(x, z), y + .75, 1, .5, 1.45);                       // bell
+    case 12: return smin(Math.hypot(x, y - .55, z) - .6, Math.hypot(x, y + .42, z) - .78, .3); // peanut
+    case 13: { const qx = x - .3 * Math.sin(y * 1.4);                                         // noodle
+      return (Math.hypot(qx, y - Math.max(-1.15, Math.min(1.15, y)), z) - .45) * .75; }
+    case 14: return (Math.hypot(x * .58, y * 1.3, z * .95) - (1 + .2 * z)) * .5;              // slug
+    case 15: return (Math.hypot(x, y, z) - 1 + .08 * Math.sin(3.1 * x + 1) * Math.sin(2.7 * y + 2) * Math.sin(3.3 * z + .5)
+                     + .05 * Math.sin(5.3 * y + 1.3) * Math.sin(4.1 * x)) * .85;              // potato
+    // part shapes
+    case 16: { const qz = z + .28 * y * y; return roundCone(Math.hypot(x, qz), y, .45, .06, 1.8) * .8; }   // curved horn
+    case 17: { const qz = z - .18 * y * y; return (Math.hypot(x, y - Math.max(0, Math.min(1.5, y)), qz) - .3) * .85; }   // bent arm
+    case 18: { const qx = x - .25 * Math.sin(y * 2.2), r = .38 + (.08 - .38) * Math.min(1, Math.max(0, y / 2));   // tentacle
+      return (Math.hypot(qx, y - Math.max(0, Math.min(2, y)), z) - r) * .7; }
+    default: return Math.hypot(x, y, z) - 1;
   }
 }
 
 const sculptMat = new THREE.ShaderMaterial({
   side: THREE.BackSide,   // the back faces, so it still draws with the camera inside the box
   uniforms: {
-    uCount: { value: 0 }, uK: { value: .15 }, uTime: { value: 0 },
+    uCount: { value: 0 }, uK: { value: .12 }, uTime: { value: 0 },
     uPos: { value: Array.from({ length: MAX }, () => new THREE.Vector3()) },
     uRot: { value: Array.from({ length: MAX }, () => new THREE.Matrix3()) },
     uScale: { value: Array.from({ length: MAX }, () => new THREE.Vector3(1, 1, 1)) },
     uColor: { value: Array.from({ length: MAX }, () => new THREE.Vector3(1, 1, 1)) },
-    uType: { value: new Array(MAX).fill(0) }, uCarve: { value: new Array(MAX).fill(0) }, uSel: { value: new Array(MAX).fill(0) },
+    uType: { value: new Array(MAX).fill(0) }, uCarve: { value: new Array(MAX).fill(0) },
+    uSel: { value: new Array(MAX).fill(0) }, uKm: { value: new Array(MAX).fill(1) },
     uBoxMin: { value: BOX.min }, uBoxMax: { value: BOX.max },
   },
   vertexShader: `
@@ -789,30 +858,42 @@ const sculptMat = new THREE.ShaderMaterial({
     uniform mat4 projectionMatrix;
     uniform int uCount; uniform float uK, uTime;
     uniform vec3 uPos[${MAX}]; uniform mat3 uRot[${MAX}]; uniform vec3 uScale[${MAX}]; uniform vec3 uColor[${MAX}];
-    uniform float uType[${MAX}]; uniform float uCarve[${MAX}]; uniform float uSel[${MAX}];
+    uniform float uType[${MAX}]; uniform float uCarve[${MAX}]; uniform float uSel[${MAX}]; uniform float uKm[${MAX}];
     uniform vec3 uBoxMin, uBoxMax;
     varying vec3 vWorld;
-    float roundCone(vec3 p, float r1, float r2, float h) {
-      vec2 q = vec2(length(p.xz), p.y); float b = (r1 - r2) / h, a = sqrt(1. - b * b), k = dot(q, vec2(-b, a));
+    float roundCone(vec2 q, float r1, float r2, float h) {
+      float b = (r1 - r2) / h, a = sqrt(1. - b * b), k = dot(q, vec2(-b, a));
       if (k < 0.) return length(q) - r1;
       if (k > a * h) return length(q - vec2(0., h)) - r2;
       return dot(q, vec2(a, b)) - r1;
     }
+    float smin(float a, float b, float k) { float h = clamp(.5 + .5 * (b - a) / k, 0., 1.); return mix(b, a, h) - k * h * (1. - h); }
     float prim(float t, vec3 p) {
       if (t < .5) return length(p) - 1.;
-      if (t < 1.5) return (length(vec3(p.x, p.y * .78, p.z)) - (1. - .22 * p.y)) * .7;
       if (t < 2.5) { vec3 q = p; q.y -= clamp(q.y, -.6, .6); return length(q) - .5; }
-      if (t < 3.5) { vec3 q = abs(p) - .75; return length(max(q, 0.)) + min(max(q.x, max(q.y, q.z)), 0.) - .25; }
-      if (t < 4.5) return length(vec2(length(p.xz) - .75, p.y)) - .28;
-      if (t < 5.5) return roundCone(p + vec3(0., .7, 0.), .7, .08, 1.5);
+      if (t < 5.5) return roundCone(vec2(length(p.xz), p.y + .7), .7, .08, 1.5);
       if (t < 6.5) { vec3 q = p; q.y -= clamp(q.y, -1., 1.); return length(q) - .14; }
-      vec2 d = vec2(length(p.xz) - .85, abs(p.y) - .12); return min(max(d.x, d.y), 0.) + length(max(d, 0.)) - .08;
+      if (t < 7.5) { vec2 d = vec2(length(p.xz) - .85, abs(p.y) - .06); return min(max(d.x, d.y), 0.) + length(max(d, 0.)) - .04; }
+      if (t < 8.5) return length(p) - 1.;
+      if (t < 9.5) return (length(vec3(p.x, p.y * .85, p.z)) - (1. - .32 * p.y)) * .62;
+      if (t < 10.5) return (length(vec3(p.x * .92, p.y * .85, p.z * 1.12)) - (1. + .3 * p.y)) * .62;
+      if (t < 11.5) return roundCone(vec2(length(p.xz), p.y + .75), 1., .5, 1.45);
+      if (t < 12.5) return smin(length(p - vec3(0., .55, 0.)) - .6, length(p + vec3(0., .42, 0.)) - .78, .3);
+      if (t < 13.5) { vec3 q = p; q.x -= .3 * sin(p.y * 1.4); q.y -= clamp(q.y, -1.15, 1.15); return (length(q) - .45) * .75; }
+      if (t < 14.5) return (length(vec3(p.x * .58, p.y * 1.3, p.z * .95)) - (1. + .2 * p.z)) * .5;
+      if (t < 15.5) return (length(p) - 1. + .08 * sin(3.1 * p.x + 1.) * sin(2.7 * p.y + 2.) * sin(3.3 * p.z + .5)
+                            + .05 * sin(5.3 * p.y + 1.3) * sin(4.1 * p.x)) * .85;
+      if (t < 16.5) { float qz = p.z + .28 * p.y * p.y; return roundCone(vec2(length(vec2(p.x, qz)), p.y), .45, .06, 1.8) * .8; }
+      if (t < 17.5) { vec3 q = vec3(p.x, p.y - clamp(p.y, 0., 1.5), p.z - .18 * p.y * p.y); return (length(q) - .3) * .85; }
+      if (t < 18.5) { float qx = p.x - .25 * sin(p.y * 2.2), r = mix(.38, .08, clamp(p.y / 2., 0., 1.));
+                      return (length(vec3(qx, p.y - clamp(p.y, 0., 2.), p.z)) - r) * .7; }
+      return length(p) - 1.;
     }
     float one(int i, vec3 p) {
       vec3 s = uScale[i];
       return prim(uType[i], (transpose(uRot[i]) * (p - uPos[i])) / s) * min(s.x, min(s.y, s.z));
     }
-    // Smooth union of everything that adds, then smooth subtraction of every cutter.
+    // Smooth union of everything that adds, each by its own melt; then every cutter, smoothly.
     float map(vec3 p, out vec3 col, out float sel) {
       float d = 1e5; col = vec3(.8); sel = 0.; bool first = true;
       for (int i = 0; i < ${MAX}; i++) {
@@ -820,14 +901,14 @@ const sculptMat = new THREE.ShaderMaterial({
         if (uCarve[i] > .5) continue;
         float di = one(i, p);
         if (first) { d = di; col = uColor[i]; sel = uSel[i]; first = false; continue; }
-        float h = clamp(.5 + .5 * (d - di) / uK, 0., 1.);
-        d = mix(d, di, h) - uK * h * (1. - h); col = mix(col, uColor[i], h); sel = mix(sel, uSel[i], h);
+        float k = max(.002, uK * uKm[i]), h = clamp(.5 + .5 * (d - di) / k, 0., 1.);
+        d = mix(d, di, h) - k * h * (1. - h); col = mix(col, uColor[i], h); sel = mix(sel, uSel[i], h);
       }
       for (int i = 0; i < ${MAX}; i++) {
         if (i >= uCount) break;
         if (uCarve[i] < .5) continue;
-        float di = one(i, p), h = clamp(.5 - .5 * (d + di) / uK, 0., 1.);
-        d = mix(d, -di, h) + uK * h * (1. - h); sel = max(sel, uSel[i] * h);
+        float di = one(i, p), k = max(.002, uK * uKm[i]), h = clamp(.5 - .5 * (d + di) / k, 0., 1.);
+        d = mix(d, -di, h) + k * h * (1. - h); col = mix(col, uColor[i], h * .7); sel = max(sel, uSel[i] * h);
       }
       return d;
     }
@@ -851,7 +932,7 @@ const sculptMat = new THREE.ShaderMaterial({
       vec3 ta = (uBoxMin - ro) / rd, tb = (uBoxMax - ro) / rd, tn = min(ta, tb), tf = max(ta, tb);
       float t = max(max(max(tn.x, tn.y), tn.z), 0.), tEnd = min(min(tf.x, tf.y), tf.z);
       vec3 col; float sel; bool hit = false;
-      for (int i = 0; i < 160; i++) {
+      for (int i = 0; i < 180; i++) {
         float d = map(ro + rd * t, col, sel);
         if (d < .0006 * t + .0004) { hit = true; break; }
         t += d * .85; if (t > tEnd) break;
@@ -862,7 +943,7 @@ const sculptMat = new THREE.ShaderMaterial({
       float dif = clamp(dot(n, l), 0., 1.) * shadow(p + n * .01, l), ao = occlusion(p, n);
       float rim = pow(1. - clamp(dot(n, -rd), 0., 1.), 3.), spec = pow(clamp(dot(n, normalize(l - rd)), 0., 1.), 40.) * .16 * dif;
       vec3 c = col * (dif * 1.15 + (.5 + .5 * n.y) * .55 * ao + .07) + spec + rim * .1 * ao;
-      c += sel * (.16 + .08 * sin(uTime * 5.));   // the selected shape breathes a little light
+      c += sel * (.16 + .08 * sin(uTime * 5.));   // the selected part breathes a little light
       gl_FragColor = vec4(c, 1.);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -873,7 +954,7 @@ const sculptMat = new THREE.ShaderMaterial({
 const sculpt = new THREE.Mesh(new THREE.BoxGeometry(...BOX.max.clone().sub(BOX.min).toArray()), sculptMat);
 sculpt.position.copy(BOX.min.clone().add(BOX.max).multiplyScalar(.5)); sculpt.frustumCulled = false; sculpt.visible = false;
 scene.add(sculpt);
-// A soft round shadow under the sculpture (the raymarched surface casts none of its own on the floor).
+// A soft round shadow under the monster (the raymarched surface casts none of its own on the floor).
 const footTex = (() => {
   const c = document.createElement('canvas'); c.width = c.height = 128;
   const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
@@ -884,162 +965,196 @@ const footTex = (() => {
 const foot = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: footTex, transparent: true, depthWrite: false }));
 foot.rotation.x = -Math.PI / 2; foot.position.y = .002; foot.visible = false; scene.add(foot);
 
-// ── the sculpture ──
-let selected = -1, mirror = true, prims = [], color = SWATCHES[2];
+// ── the monster: shapes[0] is the body, the rest are parts ──
+let selected = -1, mirror = true, prims = [];
 const past = [];
-const snapshotState = () => JSON.stringify(shapes);
-function mark() { past.push(snapshotState()); if (past.length > 80) past.shift(); }
+const state = () => JSON.stringify(shapes);
+function mark() { past.push(state()); if (past.length > 80) past.shift(); }
 function blobUndo() {
   const prev = past.pop(); if (!prev) return;
-  shapes.splice(0, shapes.length, ...JSON.parse(prev)); select(Math.min(selected, shapes.length - 1)); rebuild();
+  shapes.splice(0, shapes.length, ...JSON.parse(prev)); select(Math.min(selected, shapes.length - 1));
 }
-function newShape(type, at) {
-  return { type, p: at.toArray ? at.toArray() : at, s: type === 6 ? .5 : type === 7 ? .35 : .32, w: 1, h: 1, d: 1, tilt: 0, turn: 0, color, carve: false };
+const newBody = (type = 1) => ({ kind: 'body', type, s: .72, w: 1, h: 1, d: 1, color: '#79b84a' });
+function newPart(key, dir) {
+  const P = PARTS[key];
+  return { kind: 'part', key, s: P.s, h: 1, lift: 0, tilt: 0, turn: 0, carve: !!P.carve,
+           color: P.color || shapes[0]?.color || '#79b84a', dir: new THREE.Vector3(...(dir || P.dir)).normalize().toArray() };
 }
-// Shapes into the shader's arrays, mirror twins added; picking reads the same list.
+
+// The body alone, as a field — what parts anchor to.
+const UP = new THREE.Vector3(0, 1, 0), tmp = new THREE.Vector3();
+const bottomCache = {};
+function bottomOf(type) {   // how far below its centre a unit body reaches, so it can stand on the floor
+  if (bottomCache[type] == null) { let y = -2.5; while (prim(8 + type, 0, y, 0) > 0 && y < 0) y += .005; bottomCache[type] = y; }
+  return bottomCache[type];
+}
+function bodyFrame() {
+  const b = shapes[0], sc = new THREE.Vector3(b.w, b.h, b.d).multiplyScalar(b.s);
+  return { c: new THREE.Vector3(0, -bottomOf(b.type) * sc.y, 0), s: sc, type: 8 + b.type };
+}
+const bodyField = (B, p) => { tmp.copy(p).sub(B.c); return prim(B.type, tmp.x / B.s.x, tmp.y / B.s.y, tmp.z / B.s.z) * Math.min(B.s.x, B.s.y, B.s.z); };
+// Where a direction from the body's centre meets its surface, and the outward normal there.
+function anchor(B, dir) {
+  const d = new THREE.Vector3(...dir).normalize(), p = new THREE.Vector3(), start = B.c.clone().addScaledVector(d, 6);
+  let t = 0;
+  for (let i = 0; i < 200 && t < 6; i++) {
+    p.copy(start).addScaledVector(d, -t);
+    const f = bodyField(B, p);
+    if (f < .002) break;
+    t += Math.max(f * .9, .002);
+  }
+  const e = .002, n = new THREE.Vector3(
+    bodyField(B, p.clone().add(new THREE.Vector3(e, 0, 0))) - bodyField(B, p.clone().add(new THREE.Vector3(-e, 0, 0))),
+    bodyField(B, p.clone().add(new THREE.Vector3(0, e, 0))) - bodyField(B, p.clone().add(new THREE.Vector3(0, -e, 0))),
+    bodyField(B, p.clone().add(new THREE.Vector3(0, 0, e))) - bodyField(B, p.clone().add(new THREE.Vector3(0, 0, -e)))).normalize();
+  return { p, n };
+}
+
+// Body and parts into the shader's arrays: sub-shapes expanded, mirror twins added.
 function rebuild() {
   prims = [];
-  const q = new THREE.Quaternion(), e = new THREE.Euler(), m4 = new THREE.Matrix4();
-  const push = (b, i, x, tilt, turn) => {
-    e.set(0, turn, tilt, 'YXZ'); q.setFromEuler(e);
-    prims.push({ type: b.type, c: new THREE.Vector3(x, b.p[1], b.p[2]), q: q.clone(), inv: q.clone().invert(),
-                 s: new THREE.Vector3(b.w, b.h, b.d).multiplyScalar(b.s), color: new THREE.Color(b.color), carve: b.carve, base: i });
-  };
+  if (!shapes.length) { sculptMat.uniforms.uCount.value = 0; return; }
+  const B = bodyFrame(), b0 = shapes[0];
+  prims.push({ type: B.type, c: B.c.clone(), q: new THREE.Quaternion(), s: B.s.clone(), color: b0.color, carve: false, km: 1, base: 0 });
+  const e = new THREE.Euler(), qa = new THREE.Quaternion(), qt = new THREE.Quaternion();
   shapes.forEach((b, i) => {
-    push(b, i, b.p[0], b.tilt, b.turn);
-    // Reflected through x = 0: a rotation about y or z reverses.
-    if (mirror && Math.abs(b.p[0]) > .03) push(b, i, -b.p[0], -b.tilt, -b.turn);
+    if (i === 0) return;
+    const P = PARTS[b.key], at = anchor(B, b.dir);
+    const q = new THREE.Quaternion().setFromUnitVectors(UP, at.n);
+    q.multiply(qa.setFromAxisAngle(UP, b.turn)).multiply(qt.setFromAxisAngle(new THREE.Vector3(0, 0, 1), b.tilt));
+    const origin = at.p.clone().addScaledVector(at.n, b.lift * b.s);
+    const twin = mirror && Math.abs(b.dir[0]) > .06;
+    for (const sub of P.subs) {
+      const local = new THREE.Vector3(sub.p[0] * b.s, sub.p[1] * b.s * b.h, sub.p[2] * b.s);
+      const sq = sub.r ? new THREE.Quaternion().setFromEuler(e.set(...sub.r)) : new THREE.Quaternion();
+      const r = { type: sub.t, c: origin.clone().add(local.applyQuaternion(q)), q: q.clone().multiply(sq),
+                  s: new THREE.Vector3(sub.s[0], sub.s[1] * b.h, sub.s[2]).multiplyScalar(b.s),
+                  color: sub.c === 'self' ? b.color : sub.c, carve: b.carve, km: sub.k, base: i };
+      prims.push(r);
+      // The twin, reflected through x = 0: position flips, and so do rotations about y and z.
+      if (twin) prims.push({ ...r, c: new THREE.Vector3(-r.c.x, r.c.y, r.c.z), q: new THREE.Quaternion(r.q.x, -r.q.y, -r.q.z, r.q.w) });
+    }
   });
-  prims = prims.slice(0, MAX);
-  const u = sculptMat.uniforms; u.uCount.value = prims.length;
+  if (prims.length > MAX) prims.length = MAX;
+  const u = sculptMat.uniforms, m4 = new THREE.Matrix4(), col = new THREE.Color();
+  u.uCount.value = prims.length;
   prims.forEach((r, i) => {
+    r.inv = r.q.clone().invert();
     u.uPos.value[i].copy(r.c); u.uRot.value[i].setFromMatrix4(m4.makeRotationFromQuaternion(r.q));
-    u.uScale.value[i].copy(r.s); u.uColor.value[i].set(r.color.r, r.color.g, r.color.b);
-    u.uType.value[i] = r.type; u.uCarve.value[i] = r.carve ? 1 : 0; u.uSel.value[i] = r.base === selected ? 1 : 0;
+    u.uScale.value[i].copy(r.s); col.set(r.color); u.uColor.value[i].set(col.r, col.g, col.b);
+    u.uType.value[i] = r.type; u.uCarve.value[i] = r.carve ? 1 : 0; u.uKm.value[i] = r.km; u.uSel.value[i] = r.base === selected ? 1 : 0;
   });
-  // The floor shadow follows the footprint.
-  let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
-  for (const r of prims) if (!r.carve) {
-    const e = Math.max(r.s.x, r.s.z) * 1.1;
-    x0 = Math.min(x0, r.c.x - e); x1 = Math.max(x1, r.c.x + e); z0 = Math.min(z0, r.c.z - e); z1 = Math.max(z1, r.c.z + e);
-  }
-  foot.visible = stageView === 'sculpt' && x1 > x0;
-  if (x1 > x0) { foot.position.set((x0 + x1) / 2, .002, (z0 + z1) / 2); foot.scale.set((x1 - x0) * 1.4, (z1 - z0) * 1.4, 1); }
+  const w = Math.max(B.s.x, B.s.z) * 2.6;
+  foot.position.set(0, .002, 0); foot.scale.set(w, w, 1); foot.visible = stageView === 'sculpt';
+  for (const btn of $('#bodies').children) btn.setAttribute('aria-pressed', String(+btn.dataset.body === b0.type));
   if (!running) $('#go').disabled = !canGo();
 }
-// The same field in JS, for picking and dropping.
-const tmp = new THREE.Vector3();
+// The whole monster as a field in JS, for picking.
 function one(r, p) {
   tmp.copy(p).sub(r.c).applyQuaternion(r.inv);
   return prim(r.type, tmp.x / r.s.x, tmp.y / r.s.y, tmp.z / r.s.z) * Math.min(r.s.x, r.s.y, r.s.z);
 }
 function field(p) {
-  const k = Math.max(.005, +$('#melt').value); let d = 1e5, first = true;
+  const K = Math.max(.005, +$('#melt').value); let d = 1e5, first = true;
   for (const r of prims) if (!r.carve) {
-    const di = one(r, p);
-    if (first) { d = di; first = false; continue; }
-    const h = Math.min(1, Math.max(0, .5 + .5 * (d - di) / k)); d = d + (di - d) * h - k * h * (1 - h);
+    const di = one(r, p); if (first) { d = di; first = false; continue; }
+    d = smin(di, d, Math.max(.002, K * r.km));
   }
   for (const r of prims) if (r.carve) {
-    const di = one(r, p), h = Math.min(1, Math.max(0, .5 - .5 * (d + di) / k)); d = d + (-di - d) * h + k * h * (1 - h);
+    const di = one(r, p), k = Math.max(.002, K * r.km), h = Math.min(1, Math.max(0, .5 - .5 * (d + di) / k));
+    d = d + (-di - d) * h + k * h * (1 - h);
   }
   return d;
 }
-// March the pointer's ray into the sculpture: the point it lands on, and the shape it belongs to.
-function pickAt(ndc) {
+function march(ndc, f) {
   ray.setFromCamera(ndc, camera);
   const o = ray.ray.origin, dir = ray.ray.direction, p = new THREE.Vector3();
-  let t = 0;
-  for (let i = 0; i < 220 && t < 40; i++) {
+  for (let i = 0, t = 0; i < 240 && t < 40; i++) {
     p.copy(o).addScaledVector(dir, t);
-    const d = field(p);
-    if (d < .002) {
-      let best = -1, bd = 1e9;
-      prims.forEach((r) => { const di = Math.abs(one(r, p)); if (di < bd) { bd = di; best = r.base; } });
-      return { point: p.clone(), index: best };
-    }
+    const d = f(p); if (d < .002) return p;
     t += Math.max(d * .9, .002);
   }
   return null;
 }
-const clampIn = (v) => [Math.max(BOX.min.x + .3, Math.min(BOX.max.x - .3, v.x)), Math.max(-.2, Math.min(BOX.max.y - .3, v.y)),
-                        Math.max(BOX.min.z + .3, Math.min(BOX.max.z - .3, v.z))];
+// The part under the pointer — a cutter counts too, so a mouth can be grabbed by its hole.
+function pickAt(ndc) {
+  const p = march(ndc, field); if (!p) return null;
+  let best = -1, bd = 1e9;
+  for (const r of prims) { const di = Math.abs(one(r, p)); if (di < bd) { bd = di; best = r.base; } }
+  return { point: p, index: best };
+}
 
 function select(i) {
   selected = i; const b = shapes[i]; $('#selUI').hidden = !b;
   if (b) {
-    $('#selName').textContent = (b.carve ? 'Cutter · ' : '') + SHAPES[b.type];
-    for (const r of document.querySelectorAll('#selUI input[data-k]')) r.value = b[r.dataset.k];
-    $('#carve').checked = b.carve;
+    $('#selUI').dataset.for = b.kind;
+    $('#selName').textContent = b.kind === 'body' ? `${BODIES[b.type]} body` : (b.carve ? 'Cut · ' : '') + PARTS[b.key].name;
+    for (const r of document.querySelectorAll('#selUI input[data-k]')) if (b[r.dataset.k] != null) r.value = b[r.dataset.k];
+    $('#carve').checked = !!b.carve;
     for (const sw of $('#swatches').children) sw.setAttribute('aria-pressed', String(sw.dataset.c === b.color));
   }
   rebuild();
 }
-function add(type, at) {
-  mark();
-  if (!at) {   // dropped on nothing: sit it on top of what's there, on the middle line
-    let top = 0; for (const b of shapes) if (!b.carve) top = Math.max(top, b.p[1] + b.s * b.h * .75);
-    at = [0, shapes.length ? top : .6, .1];
-  }
-  const b = newShape(type, at); b.p = clampIn(new THREE.Vector3(...b.p));
-  shapes.push(b); select(shapes.length - 1);
+function addPart(key, dir) {
+  mark(); shapes.push(newPart(key, dir)); select(shapes.length - 1);
+}
+function setBody(type) {
+  mark(); shapes[0].type = type; select(0);   // parts keep their directions, so they re-seat on the new shape
 }
 
-// Tray: click to add, or drag onto the sculpture to add it where it lands.
-$('#tray').addEventListener('click', (e) => { const b = e.target.closest('[data-shape]'); if (b && !running) add(+b.dataset.shape); });
+// Body tray: click to swap the body. Part tray: click to add where it usually goes, or drag it to a spot.
+$('#bodies').addEventListener('click', (e) => { const b = e.target.closest('[data-body]'); if (b && !running) setBody(+b.dataset.body); });
+$('#tray').addEventListener('click', (e) => { const b = e.target.closest('[data-part]'); if (b && !running) addPart(b.dataset.part); });
 $('#tray').addEventListener('dragstart', (e) => {
-  const b = e.target.closest('[data-shape]'); if (!b) return;
-  e.dataTransfer.setData('text/x-blob', b.dataset.shape); e.dataTransfer.effectAllowed = 'copy';
+  const b = e.target.closest('[data-part]'); if (!b) return;
+  e.dataTransfer.setData('text/x-part', b.dataset.part); e.dataTransfer.effectAllowed = 'copy';
 });
-stageEl.addEventListener('dragover', (e) => { if (mode === 'blobs' && e.dataTransfer.types.includes('text/x-blob')) e.preventDefault(); });
+stageEl.addEventListener('dragover', (e) => { if (mode === 'blobs' && e.dataTransfer.types.includes('text/x-part')) e.preventDefault(); });
 stageEl.addEventListener('drop', (e) => {
-  const t = e.dataTransfer.getData('text/x-blob'); if (t === '' || running) return;
+  const key = e.dataTransfer.getData('text/x-part'); if (!key || running) return;
   e.preventDefault(); aim(e);
-  const hit = pickAt(pointer);
-  if (hit) return add(+t, hit.point.toArray());
-  // Missed the sculpture: land on the plane through its middle, facing the camera.
-  ray.setFromCamera(pointer, camera);
-  const pl = new THREE.Plane().setFromNormalAndCoplanarPoint(camera.getWorldDirection(new THREE.Vector3()).negate(), controls.target);
-  const at = ray.ray.intersectPlane(pl, new THREE.Vector3());
-  add(+t, at ? at.toArray() : null);
+  const B = bodyFrame(), p = march(pointer, (q) => bodyField(B, q));
+  addPart(key, p ? p.sub(B.c).toArray() : null);   // missed the body: its usual place
 });
 
-// Drag a shape across the plane facing the camera; drag anywhere else and the camera orbits.
+// Drag a part and it slides over the body; drag anywhere else and the camera orbits.
 let drag = null;
 view.addEventListener('pointerdown', (e) => {
   if (stageView !== 'sculpt' || running || e.button !== 0) return;
   aim(e);
   const hit = pickAt(pointer);
   if (!hit || hit.index < 0) { drag = { miss: true, x: e.clientX, y: e.clientY }; return; }
+  select(hit.index);
+  if (hit.index === 0) { drag = { miss: true, x: e.clientX, y: e.clientY }; return; }   // the body stays put: orbit
   const b = shapes[hit.index];
-  // A twin was hit: drag it as itself, so the original follows mirrored.
-  const side = mirror && Math.abs(b.p[0]) > .03 && Math.sign(hit.point.x) !== Math.sign(b.p[0]) ? -1 : 1;
-  const centre = new THREE.Vector3(b.p[0] * side, b.p[1], b.p[2]);
-  const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(camera.getWorldDirection(new THREE.Vector3()).negate(), centre);
-  ray.setFromCamera(pointer, camera);
-  const on = ray.ray.intersectPlane(plane, new THREE.Vector3()) || centre.clone();
-  mark(); select(hit.index);
-  drag = { i: hit.index, plane, offset: centre.sub(on), side };
+  // A twin was grabbed: drag it as itself, so the original follows mirrored.
+  const side = mirror && Math.abs(b.dir[0]) > .06 && Math.sign(hit.point.x) !== Math.sign(b.dir[0]) ? -1 : 1;
+  mark(); drag = { i: hit.index, side, moved: false };
   controls.enabled = false;
   try { view.setPointerCapture(e.pointerId); } catch {}   // keeps the drag when the pointer leaves the canvas
 }, { capture: true });   // ahead of OrbitControls, so a grab never also turns the camera
 view.addEventListener('pointermove', (e) => {
   if (!drag || drag.miss) return;
-  aim(e); ray.setFromCamera(pointer, camera);
-  const on = ray.ray.intersectPlane(drag.plane, new THREE.Vector3()); if (!on) return;
-  const p = clampIn(on.add(drag.offset)); p[0] *= drag.side;
-  shapes[drag.i].p = p; rebuild();
+  aim(e);
+  const B = bodyFrame(), p = march(pointer, (q) => bodyField(B, q)); if (!p) return;
+  const d = p.sub(B.c).normalize(); d.x *= drag.side;
+  shapes[drag.i].dir = d.toArray(); drag.moved = true; rebuild();
 });
 view.addEventListener('pointerup', (e) => {
-  if (drag?.miss && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 4) select(-1);   // a click on nothing lets go
-  if (drag && !drag.miss) past.length && past.at(-1) === snapshotState() && past.pop();      // a click without a move isn't an edit
+  if (drag?.miss && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 4 && !pickAt(pointer)) select(-1);   // a click on nothing lets go
+  if (drag && !drag.miss && !drag.moved) past.pop();   // a click without a move isn't an edit
   drag = null; controls.enabled = true;
 });
 
-// The selected shape's panel.
+// The selected thing's panel.
 for (const c of SWATCHES) {
   const b = document.createElement('button'); b.dataset.c = c; b.style.background = c; b.title = c;
-  b.onclick = () => { color = c; const s = shapes[selected]; if (s) { mark(); s.color = c; select(selected); } };
+  b.onclick = () => {
+    const s = shapes[selected]; if (!s) return; mark();
+    // Recolouring the body takes the parts that were its colour along — they're the same skin.
+    if (s.kind === 'body') for (const p of shapes) if (p !== s && p.color === s.color) p.color = c;
+    s.color = c; select(selected);
+  };
   $('#swatches').append(b);
 }
 let sliding = false;
@@ -1049,24 +1164,22 @@ $('#selUI').addEventListener('input', (e) => {
   b[k] = +e.target.value; rebuild();
 });
 $('#selUI').addEventListener('change', () => { sliding = false; });
-$('#carve').onchange = (e) => { const b = shapes[selected]; if (!b) return; mark(); b.carve = e.target.checked; select(selected); };
+$('#carve').onchange = (e) => { const b = shapes[selected]; if (!b || b.kind === 'body') return; mark(); b.carve = e.target.checked; select(selected); };
 function duplicate() {
-  const b = shapes[selected]; if (!b) return; mark();
-  const c = structuredClone(b); c.p = clampIn(new THREE.Vector3(b.p[0] + .25, b.p[1] + .1, b.p[2] + .1));
-  shapes.push(c); select(shapes.length - 1);
+  const b = shapes[selected]; if (!b || b.kind === 'body') return; mark();
+  const c = structuredClone(b), d = new THREE.Vector3(...b.dir); d.applyAxisAngle(UP, .35).y += .12;
+  c.dir = d.normalize().toArray(); shapes.push(c); select(shapes.length - 1);
 }
-function remove() { if (selected < 0) return; mark(); shapes.splice(selected, 1); select(-1); }
+function remove() { if (selected < 1) return; mark(); shapes.splice(selected, 1); select(-1); }
 $('#dup').onclick = duplicate; $('#del').onclick = remove;
 $('#melt').addEventListener('input', (e) => { sculptMat.uniforms.uK.value = Math.max(.005, +e.target.value); });
 $('#mirror').onclick = () => { mirror = !mirror; $('#mirror').setAttribute('aria-pressed', String(mirror)); rebuild(); };
 $('#bundo').onclick = blobUndo;
-$('#bclear').onclick = () => {
-  if (running) return; mark(); shapes.length = 0;
-  shapes.push(newShape(0, [0, .6, 0])); shapes[0].s = .55; select(0);
-};
+function starter() { shapes.length = 0; shapes.push(newBody(1), newPart('eye')); select(-1); }   // a gumdrop and one big eye
+$('#bclear').onclick = () => { if (running) return; mark(); starter(); };
 addEventListener('keydown', (e) => {
   if (mode !== 'blobs' || stageView !== 'sculpt' || e.target.closest?.('input:not([type=range]), textarea')) return;
-  if ((e.key === 'Backspace' || e.key === 'Delete') && selected >= 0) { e.preventDefault(); remove(); }
+  if ((e.key === 'Backspace' || e.key === 'Delete') && selected > 0) { e.preventDefault(); remove(); }
   if ((e.metaKey || e.ctrlKey) && e.key === 'd') { e.preventDefault(); duplicate(); }
 });
 
@@ -1096,7 +1209,7 @@ function drawSource() {
 }
 
 // ── modes and views ──
-let stageView = 'single';   // 'sculpt' — the blobs; 'single' — a finished model
+let stageView = 'single';   // 'sculpt' — the kit; 'single' — a finished model
 // Sculpting wants more room round the work than a finished model does.
 const SCULPT_HOME = { pos: new THREE.Vector3(0, 1.7, 8.2), target: new THREE.Vector3(0, 1.05, 0) };
 function setView(v) {
@@ -1113,8 +1226,8 @@ function setMode(m) {
   mode = m;
   for (const b of $('#modes').children) b.setAttribute('aria-pressed', String(b.dataset.mode === m));
   $('#drawUI').hidden = m !== 'draw'; $('#blobsUI').hidden = m !== 'blobs';
-  $('#desc').placeholder = m === 'blobs' ? 'say what it is, or leave it to Meshy' : 'a piece of toast wearing sunglasses';
-  if (m === 'blobs' && !shapes.length) { shapes.push(newShape(0, [0, .6, 0])); shapes[0].s = .55; select(0); }
+  $('#desc').placeholder = m === 'blobs' ? 'name it, or say what it is' : 'a piece of toast wearing sunglasses';
+  if (m === 'blobs' && !shapes.length) starter();
   setView(m === 'blobs' && !running ? 'sculpt' : 'single');
   if (!running) $('#go').disabled = !canGo();
 }
@@ -1176,8 +1289,8 @@ async function run(src) {
 
   try {
     // 1 · Render
-    step('render', 'run', 0, src.blobs ? 'Your sculpture, made real' : DEFAULT_TEXT.render);
-    status(src.blobs ? 'Rendering your sculpture…' : 'Rendering your sketch…');
+    step('render', 'run', 0, src.blobs ? 'Your monster, made real' : DEFAULT_TEXT.render);
+    status(src.blobs ? 'Rendering your monster…' : 'Rendering your sketch…');
     const img = await task('image-to-image', {
       ai_model: IMAGE_MODEL, prompt: src.prompt, reference_image_urls: [src.image],
     }, (p) => step('render', 'run', p));
@@ -1362,7 +1475,7 @@ drawShelf();
 
 // The way in for a deck or a test, as explore/ has window.__explore.
 window.__monsters = { play, still, clips, get playing() { return current?.getClip().name ?? null; },
-  setMode, add, select, shapes, get selected() { return selected; } };
+  setMode, addPart, setBody, select, shapes, get selected() { return selected; } };
 </script>
 </body>
 </html>
