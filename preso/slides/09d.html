@@ -75,6 +75,13 @@
   .hof.on .fill  { clip-path: inset(52.93% 52.6% 22.3% 11.6%); transition: clip-path .75s cubic-bezier(.3,0,.2,1) .8s; }
   .hof.on .earn  { opacity: 1; transform: none; transition: opacity .4s ease 1.55s, transform .5s cubic-bezier(.2,.8,.2,1) 1.55s; }
   .hof.snap * { transition: none !important; }
+  /* THE TAG, ANIMATED (John, 2026-10-03): the third phone's price tag is the closing slide's own tag (09e: price-modal.mp4, the
+     still tag its first and last frame), laid exactly over the still one — its ink 136 x 141 at 421,468 on the 979 x 2000 export,
+     the video's 629 x 660 at 181,173 in its 1000 square, so 0.2149 of it — on the screen's white, which is the video's own. It
+     plays once as the slide lands, and again on each return. */
+  .adj { position: relative; height: var(--phone-h); aspect-ratio: 979 / 2000; flex: none; }
+  .adj img { height: 100%; width: 100%; }
+  .adj video { position: absolute; left: 39.030%; top: 21.541%; width: 21.951%; height: 10.745%; display: block; }
   .row img {
     height: var(--phone-h);
     width: auto;
@@ -114,13 +121,23 @@
         </div>
         <svg class="chrome" viewBox="0 0 900 1840" fill="none" aria-hidden="true"><path fill="url(#rail)" fill-rule="evenodd" d="M177,14 H723 A161,161 0 0 1 884,175 V1665 A161,161 0 0 1 723,1826 H177 A161,161 0 0 1 16,1665 V175 A161,161 0 0 1 177,14 Z M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/><image href="assets/device/iphone-frame.png" x="0" y="0" width="900" height="1840" clip-path="url(#outsideBezel)" preserveAspectRatio="none"/><path fill="#0b0b0b" fill-rule="evenodd" d="M177,27 H723 A148,148 0 0 1 871,175 V1665 A148,148 0 0 1 723,1813 H177 A148,148 0 0 1 29,1665 V175 A148,148 0 0 1 177,27 Z M177,47 H723 A128,128 0 0 1 851,175 V1665 A128,128 0 0 1 723,1793 H177 A128,128 0 0 1 49,1665 V175 A128,128 0 0 1 177,47 Z"/><rect x="322" y="69" width="256" height="74" rx="37" fill="#000"/><circle cx="529" cy="106" r="12.7" fill="#0f1420"/><circle cx="529" cy="106" r="5.3" fill="#243046"/></svg>
       </div>
-      <img src="assets/fee-adjust.webp" width="979" height="2000"
+      <div class="adj">
+        <img src="assets/fee-adjust.webp" width="979" height="2000"
            alt="Step 6 of 7: let's adjust your prices, so earnings stay the same">
+        <video id="adjTag" muted playsinline preload="auto" poster="assets/price-tag.webp" src="assets/price-modal.mp4" aria-hidden="true"></video>
+      </div>
       <img src="assets/fee-complete.webp" width="979" height="2000"
            alt="Price adjustment complete, confirmed on the host calendar">
     </div>
   </div>
 <script>
+  // the tag plays as the slide lands (the deck's presoshown, or on its own after a moment), and again on each later return
+  (() => {
+    const v = document.getElementById('adjTag'); let last = 0;
+    const play = () => { if (Date.now() - last < 1500) return; last = Date.now(); try { v.currentTime = 0; const p = v.play(); if (p && p.catch) p.catch(() => { try { v.currentTime = v.duration - 0.01; } catch (_) {} }); } catch (_) {} };
+    addEventListener('presoshown', play);
+    if (window.parent === window) setTimeout(play, 600);
+  })();
   // one build: the tap plays the fee from 2 of 7 to 3 of 7; Back plays it back; arriving backwards it stands at 3 of 7
   (() => {
     const h = document.getElementById('hof'); let on = false;
