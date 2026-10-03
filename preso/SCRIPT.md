@@ -7,8 +7,7 @@ here so nothing is lost. Rough, and growing.
 
 ### Why the host-only fee (09d01)
 
-The slide is one sentence: **"To stop the guest hate, we had to move all service fees to be paid by the host. All 5 million of
-them."** The beats behind it, to say:
+The slide is one sentence: **"We had to tell our 5 million hosts that they will now pay for both their AND the guest fees."** (the other cut: "…that they are going to pay all service fees going forward.") The beats behind it, to say:
 
 1. Guests hated the sticker shock of fees at checkout.
 2. To fix it, we had to move all service fees to be paid by the host. All 5+ million.
