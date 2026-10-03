@@ -45,6 +45,14 @@
     object-position: bottom;        /* anything over height comes off the TOP */
   }
 
+  /* THE FILM PLAYS (John, 2026-10-03: "auto play from the start until I tap away"): YouTube's own player, muted and bare (no
+     controls, no captions, no related films), laid exactly over the film's poster in the picture — 1606 x 902 at 497,130 on
+     the 2600 x 1680 page, so 19.115% / 7.738% and 61.769% x 53.690% of the screen. It is only loaded once the slide is on
+     stage (presoshown), so it starts from the top every time; the slide is built fresh on each arrival (presoNoKeep). It
+     fades in over the poster once YouTube says it is playing, so a slow load shows the picture rather than a black box. */
+  .film { position: absolute; left: 19.115%; top: 7.738%; width: 61.769%; height: 53.690%; border: 0; display: block;
+          opacity: 0; transition: opacity .4s ease; pointer-events: none; background: transparent; }
+  .film.on { opacity: 1; }
 </style>
 </head>
 <body>
@@ -53,8 +61,39 @@
       <div class="device">
         <img src="assets/fee-article.webp" width="2600" height="1680"
              alt="Airbnb Resource Center: Simplifying service fees on Airbnb — what to know about switching to a single fee, with the film">
+        <iframe class="film" id="film" title="Simplifying service fees | Airbnb" allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin" tabindex="-1"></iframe>
       </div>
     </div>
   </div>
+<script>
+  (() => {
+    const f = document.getElementById('film');
+    const ID = '0UfCNna5llE';   // Airbnb's "Simplifying service fees" — the film the page itself embeds
+    const start = () => {
+      if (f.src) return;
+      f.src = `https://www.youtube.com/embed/${ID}?autoplay=1&mute=1&controls=0&rel=0&modestbranding=1&iv_load_policy=3&cc_load_policy=0&playsinline=1&disablekb=1&fs=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;
+      // once the player is up: listen to it (YouTube's 'widget' channel) and tell it to play — again every half second until it
+      // reports playing, since autoplay alone is not always honoured (a muted embed usually is, but not in every case)
+      f.addEventListener('load', () => {
+        const say = o => { try { f.contentWindow.postMessage(JSON.stringify({ ...o, id: 1, channel: 'widget' }), '*'); } catch (_) {} };
+        say({ event: 'listening' });
+        const t0 = Date.now();
+        (function nudge() { if (playing || Date.now() - t0 > 15000) return; say({ event: 'command', func: 'mute', args: [] }); say({ event: 'command', func: 'playVideo', args: [] }); setTimeout(nudge, 500); })();
+      });
+      setTimeout(() => f.classList.add('on'), 2500);   // ...shown after a beat regardless
+    };
+    let playing = false, lastT = -1;
+    addEventListener('message', e => {
+      let host = ''; try { host = new URL(e.origin).hostname; } catch (_) {}
+      if (!/(^|\.)youtube\.com$/.test(host)) return;
+      try { const d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data, info = d && d.info; if (!info) return;
+        if (info.playerState === 1 || (typeof info.currentTime === 'number' && lastT >= 0 && info.currentTime > lastT)) { playing = true; f.classList.add('on'); }
+        if (typeof info.currentTime === 'number') lastT = info.currentTime; } catch (_) {}
+    });
+    addEventListener('presoshown', start);
+    if (window.top === window) addEventListener('load', start);
+    window.presoNoKeep = true;   // leaving and coming back plays it from the start again
+  })();
+</script>
 </body>
 </html>
