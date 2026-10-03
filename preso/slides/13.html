@@ -1351,9 +1351,18 @@ const setStage = (stage, instant) => { const b = document.body; if (instant) b.c
 // CADENCE: a finger moving to a new key takes 460ms; the same key tapped again (⌫ ⌫ ⌫) comes 200ms after the last —
 // a thumb drumming one button, not three considered presses (John, 2026-09-21).
 const KEY_GAP = 460, REPEAT_GAP = 200;
+// THE BLAND FORK TYPES LIKE A PERSON IN A HURRY (John, 2026-10-03: "quicker … more realistic to how someone might tap in 480
+// quickly … quickly hitting the X"): on the iOS pad the ⌫ is drummed (~120ms apart, not quite even), the thumb takes a beat
+// longer to reach over to the digits, and 4 8 0 go down ~190ms apart, again not metronomic. Each press shows for 90ms and its
+// digit lands 50ms in. Hand-set gaps, not random, so every run plays the same. The full build keeps its considered cadence.
+const QUICK_REPEAT = [118, 126, 112], QUICK_KEY = [255, 182, 204, 196];
 function typeKeys(keys, instant) {
   const g = ++gen;
-  const at = keys.map((k, i) => 0); for (let i = 1; i < keys.length; i++) at[i] = at[i - 1] + (keys[i] === keys[i - 1] ? REPEAT_GAP : KEY_GAP);
+  const at = keys.map((k, i) => 0); let ri = 0, ki = 0;
+  for (let i = 1; i < keys.length; i++) {
+    const same = keys[i] === keys[i - 1];
+    at[i] = at[i - 1] + (SIMPLE ? (same ? QUICK_REPEAT[ri++ % QUICK_REPEAT.length] : QUICK_KEY[ki++ % QUICK_KEY.length]) : (same ? REPEAT_GAP : KEY_GAP));
+  }
   keys.forEach((k, i) => {
     const go = () => {
       if (g !== gen) return;
@@ -1366,8 +1375,8 @@ function typeKeys(keys, instant) {
       const tap = el.__tap = (el.__tap || 0) + 1;                    // a repeat on the same key restarts its pop...
       el.classList.remove('pressing'); void el.offsetWidth;
       el.classList.add('pressing');                                  // the key pops, a disc blooms (sqa.css key-tap, 420ms)
-      if (SIMPLE) { const ik = d.querySelector('.preso-key[data-k="' + k + '"]'); if (ik) { ik.classList.add('on'); setTimeout(() => ik.classList.remove('on'), 160); } }   // the system pad shows the press
-      setTimeout(() => { el.click(); }, 130);                        // the digit lands at the bottom of the squash
+      if (SIMPLE) { const ik = d.querySelector('.preso-key[data-k="' + k + '"]'); if (ik) { ik.classList.remove('on'); void ik.offsetWidth; ik.classList.add('on'); clearTimeout(ik.__off); ik.__off = setTimeout(() => ik.classList.remove('on'), 90); } }   // the system pad shows the press
+      setTimeout(() => { el.click(); }, SIMPLE ? 50 : 130);          // the digit lands at the bottom of the squash (sooner on the quick pad)
       setTimeout(() => { if (el.__tap === tap) el.classList.remove('pressing'); }, 440);   // ...and only the last one lets go
     };
     setTimeout(go, instant ? 30 : at[i]);   // instant still waits a tick: a replayed beat 8 has only just mounted the keypad
