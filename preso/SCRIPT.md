@@ -7,7 +7,7 @@ here so nothing is lost. Rough, and growing.
 
 ### What it taught (09dl — the lessons slide)
 
-The slide shows only the three lessons. Say the rest:
+The slide is one line now — **"Be honest and own it because your users can smell BS."** — and these are the beats behind it, to say:
 
 1. **Make the call. Own it.**  *(the long form: In a no-win scenario, make the call and own it.)*
    One price fixed it for guests, and moved the cost to hosts. The work was making that trade honestly, not pretending it

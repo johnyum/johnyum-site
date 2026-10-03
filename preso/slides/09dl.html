@@ -18,7 +18,7 @@
   /* AT 40, ONE AT A TIME (John, 2026-10-02): lesson 1 stands alone, centred; each tap opens the next one's room and it rises in, so
      the block is centred at every step — 1, then 1 and 2, then all three. A lesson not yet in takes no height and no gap (its width
      still counts, so the block never shifts sideways as they arrive). A long lesson breaks between its sentences, never inside one. */
-  .copy { max-width: min(32em, 100%);   /* the block is as wide as its longest lesson and centres on the page; a lesson too long for the line breaks between its sentences */ font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 40px; line-height: 1.3; text-align: left; }
+  .copy { max-width: min(1500px, 100%);   /* the block is as wide as its longest lesson and centres on the page; a lesson too long for the line breaks between its sentences */ font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 40px; line-height: 1.3; text-align: left; }
   .beats { margin: 0; padding: 0; list-style: none; counter-reset: beat; display: flex; flex-direction: column; }
   .beats li { counter-increment: beat; display: grid; grid-template-columns: 3ch 1fr; max-height: 3.9em; overflow: hidden;
     transition: max-height .55s cubic-bezier(.2,.8,.2,1), margin-top .55s cubic-bezier(.2,.8,.2,1), opacity .4s ease .12s, transform .55s cubic-bezier(.2,.8,.2,1) .06s; }
@@ -27,34 +27,21 @@
   .beats li.off { max-height: 0; margin-top: 0; opacity: 0; transform: translateY(16px); transition: max-height .45s cubic-bezier(.4,0,.2,1), margin-top .45s cubic-bezier(.4,0,.2,1), opacity .2s ease, transform .3s ease; }
   .beats .s { white-space: nowrap; }   /* a sentence stays on its line */
   body.snap .beats li { transition: none !important; }
+  /* ONE LESSON (John, 2026-10-03): the three became one line, said as it stands — centred, balanced if it has to break */
+  .one { margin: 0; text-align: center; text-wrap: balance; }
 </style>
 </head>
 <body>
   <div class="slide">
     <div class="copy">
-      <ol class="beats">
-        <li><span>Make the call. Own it.</span></li>
-        <li class="off"><span>Hosts can smell BS.</span></li>
-        <li class="off"><span>Don&rsquo;t just explain. Give a fix.</span></li>
-      </ol>
+      <p class="one">Be honest and own it because your users can smell BS.</p>
     </div>
   </div>
 <script>
-(() => {
-  // the taps bring in lesson 2, then lesson 3; back takes them out again. Arriving backwards (presoEnd) or restored, all stand.
-  const items = [...document.querySelectorAll('.beats li')];
-  let n = 1;   // lessons showing
-  const show = (k, instant) => {
-    if (instant) document.body.classList.add('snap');
-    n = k; items.forEach((li, i) => li.classList.toggle('off', i >= n));
-    if (instant) { void document.body.offsetWidth; requestAnimationFrame(() => document.body.classList.remove('snap')); }
-  };
-  window.presoNext = () => { if (n >= items.length) return false; show(n + 1); return true; };
-  window.presoPrev = () => { if (n <= 1) return false; show(n - 1); return true; };
-  window.presoEnd = () => show(items.length, true);
-  window.presoState = () => n - 1;
-  window.presoRestore = k => show(Math.min(items.length, 1 + (k || 0)), true);
-})();
+  window.presoNext = () => false;   // one line, no builds
+  window.presoPrev = () => false;
+  window.presoState = () => 0;
+  window.presoRestore = () => {};
 </script>
 </body>
 </html>
