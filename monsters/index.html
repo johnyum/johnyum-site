@@ -772,17 +772,17 @@ const BODIES = ['Round', 'Gumdrop', 'Hunch', 'Bell', 'Peanut', 'Noodle', 'Slug',
 // A part: its sub-shapes in part units (+y points out of the body), and where it goes by default.
 // c: 'self' takes the part's colour. k: how much it melts into what it touches (× the Melt slider).
 const PARTS = {
-  eye:      { name: 'Eye', s: .24, color: '#3fae9a', dir: [0, .45, 1], subs: [
+  eye:      { name: 'Eye', s: .3, color: '#3fae9a', dir: [0, .42, 1], subs: [
               { t: 0, p: [0, .3, 0], s: [1, 1, 1], c: '#ffffff', k: .15 },
               { t: 0, p: [0, .92, 0], s: [.55, .55, .55], c: 'self', k: .1 },
               { t: 0, p: [0, 1.18, 0], s: [.3, .3, .3], c: '#151515', k: .05 }] },
-  mouth:    { name: 'Mouth', s: .3, color: '#3a1f24', dir: [0, -.08, 1], carve: true, subs: [
+  mouth:    { name: 'Mouth', s: .38, color: '#3a1f24', dir: [0, -.42, 1], carve: true, subs: [
               { t: 2, p: [0, 0, 0], s: [.42, 1.25, .5], r: [0, 0, Math.PI / 2], c: 'self', k: .6 }] },
-  tooth:    { name: 'Tooth', s: .12, color: '#ffffff', dir: [.14, -.2, 1], subs: [
+  tooth:    { name: 'Tooth', s: .11, color: '#ffffff', dir: [.12, -.36, 1], subs: [
               { t: 5, p: [0, -.1, 0], s: [.6, .7, .6], c: 'self', k: .15 }] },
   nose:     { name: 'Nose', s: .14, color: null, dir: [0, .15, 1], subs: [{ t: 0, p: [0, .35, 0], s: [1, .85, 1], c: 'self', k: .6 }] },
   horn:     { name: 'Horn', s: .22, color: '#f1ece4', dir: [.4, 1, .05], subs: [{ t: 16, p: [0, -.25, 0], s: [1, 1, 1], c: 'self', k: .5 }] },
-  ear:      { name: 'Ear', s: .26, color: null, dir: [.9, .55, 0], subs: [{ t: 0, p: [0, .9, 0], s: [.75, 1.15, .28], c: 'self', k: .7 }] },
+  ear:      { name: 'Ear', s: .24, color: null, dir: [.62, .9, .05], subs: [{ t: 0, p: [0, .9, 0], s: [.75, 1.15, .28], c: 'self', k: .7 }] },
   antenna:  { name: 'Antenna', s: .2, color: null, dir: [.22, 1, 0], subs: [
               { t: 6, p: [0, .9, 0], s: [.6, .9, .6], c: 'self', k: .5 },
               { t: 0, p: [0, 1.9, 0], s: [.34, .34, .34], c: '#e8b04a', k: .3 }] },
@@ -794,7 +794,7 @@ const PARTS = {
               { t: 0, p: [0, 1.1, .28], s: [.52, .34, .68], c: 'self', k: .5 }] },
   tentacle: { name: 'Tentacle', s: .3, color: null, dir: [.55, -.7, .45], subs: [{ t: 18, p: [0, -.2, 0], s: [1, 1, 1], c: 'self', k: .8 }] },
   lump:     { name: 'Lump', s: .26, color: null, dir: [0, 1, 0], subs: [{ t: 0, p: [0, .15, 0], s: [1, 1, 1], c: 'self', k: 1 }] },
-  spots:    { name: 'Spots', s: .2, color: '#8a5cd6', dir: [.55, .35, .75], subs: [
+  spots:    { name: 'Spots', s: .14, color: '#8a5cd6', dir: [.62, .15, .7], subs: [
               { t: 7, p: [0, 0, 0], s: [1, 1, 1], c: 'self', k: .04 },
               { t: 7, p: [1.5, -.05, .9], s: [.6, 1, .6], c: 'self', k: .04 },
               { t: 7, p: [-.4, -.05, 1.7], s: [.45, 1, .45], c: 'self', k: .04 }] },
@@ -825,8 +825,8 @@ function prim(t, x, y, z) {
     case 10: return (Math.hypot(x * .92, y * .85, z * 1.12) - (1 + .3 * y)) * .62;            // hunch
     case 11: return roundCone(Math.hypot(x, z), y + .75, 1, .5, 1.45);                       // bell
     case 12: return smin(Math.hypot(x, y - .55, z) - .6, Math.hypot(x, y + .42, z) - .78, .3); // peanut
-    case 13: { const qx = x - .3 * Math.sin(y * 1.4);                                         // noodle
-      return (Math.hypot(qx, y - Math.max(-1.15, Math.min(1.15, y)), z) - .45) * .75; }
+    case 13: { const qz = z - .3 * Math.sin(y * 1.4);                                         // noodle, wiggling front to back
+      return (Math.hypot(x, y - Math.max(-1.15, Math.min(1.15, y)), qz) - .45) * .75; }
     case 14: return (Math.hypot(x * .58, y * 1.3, z * .95) - (1 + .2 * z)) * .5;              // slug
     case 15: return (Math.hypot(x, y, z) - 1 + .08 * Math.sin(3.1 * x + 1) * Math.sin(2.7 * y + 2) * Math.sin(3.3 * z + .5)
                      + .05 * Math.sin(5.3 * y + 1.3) * Math.sin(4.1 * x)) * .85;              // potato
@@ -879,7 +879,7 @@ const sculptMat = new THREE.ShaderMaterial({
       if (t < 10.5) return (length(vec3(p.x * .92, p.y * .85, p.z * 1.12)) - (1. + .3 * p.y)) * .62;
       if (t < 11.5) return roundCone(vec2(length(p.xz), p.y + .75), 1., .5, 1.45);
       if (t < 12.5) return smin(length(p - vec3(0., .55, 0.)) - .6, length(p + vec3(0., .42, 0.)) - .78, .3);
-      if (t < 13.5) { vec3 q = p; q.x -= .3 * sin(p.y * 1.4); q.y -= clamp(q.y, -1.15, 1.15); return (length(q) - .45) * .75; }
+      if (t < 13.5) { vec3 q = p; q.z -= .3 * sin(p.y * 1.4); q.y -= clamp(q.y, -1.15, 1.15); return (length(q) - .45) * .75; }
       if (t < 14.5) return (length(vec3(p.x * .58, p.y * 1.3, p.z * .95)) - (1. + .2 * p.z)) * .5;
       if (t < 15.5) return (length(p) - 1. + .08 * sin(3.1 * p.x + 1.) * sin(2.7 * p.y + 2.) * sin(3.3 * p.z + .5)
                             + .05 * sin(5.3 * p.y + 1.3) * sin(4.1 * p.x)) * .85;
@@ -1019,20 +1019,21 @@ function rebuild() {
   const e = new THREE.Euler(), qa = new THREE.Quaternion(), qt = new THREE.Quaternion();
   shapes.forEach((b, i) => {
     if (i === 0) return;
-    const P = PARTS[b.key], at = anchor(B, b.dir);
-    const q = new THREE.Quaternion().setFromUnitVectors(UP, at.n);
-    q.multiply(qa.setFromAxisAngle(UP, b.turn)).multiply(qt.setFromAxisAngle(new THREE.Vector3(0, 0, 1), b.tilt));
-    const origin = at.p.clone().addScaledVector(at.n, b.lift * b.s);
-    const twin = mirror && Math.abs(b.dir[0]) > .06;
-    for (const sub of P.subs) {
-      const local = new THREE.Vector3(sub.p[0] * b.s, sub.p[1] * b.s * b.h, sub.p[2] * b.s);
-      const sq = sub.r ? new THREE.Quaternion().setFromEuler(e.set(...sub.r)) : new THREE.Quaternion();
-      const r = { type: sub.t, c: origin.clone().add(local.applyQuaternion(q)), q: q.clone().multiply(sq),
-                  s: new THREE.Vector3(sub.s[0], sub.s[1] * b.h, sub.s[2]).multiplyScalar(b.s),
-                  color: sub.c === 'self' ? b.color : sub.c, carve: b.carve, km: sub.k, base: i };
-      prims.push(r);
-      // The twin, reflected through x = 0: position flips, and so do rotations about y and z.
-      if (twin) prims.push({ ...r, c: new THREE.Vector3(-r.c.x, r.c.y, r.c.z), q: new THREE.Quaternion(r.q.x, -r.q.y, -r.q.z, r.q.w) });
+    // A mirror twin is the part reflected through x = 0 — direction, spin, tilt and sub-shapes all
+    // flipped — but anchored on its own, so it sits right even on a body that isn't symmetric.
+    const sides = mirror && Math.abs(b.dir[0]) > .06 ? [1, -1] : [1];
+    for (const m of sides) {
+      const at = anchor(B, [b.dir[0] * m, b.dir[1], b.dir[2]]);
+      const q = new THREE.Quaternion().setFromUnitVectors(UP, at.n);
+      q.multiply(qa.setFromAxisAngle(UP, b.turn * m)).multiply(qt.setFromAxisAngle(new THREE.Vector3(0, 0, 1), b.tilt * m));
+      const origin = at.p.clone().addScaledVector(at.n, b.lift * b.s);
+      for (const sub of PARTS[b.key].subs) {
+        const local = new THREE.Vector3(sub.p[0] * m * b.s, sub.p[1] * b.s * b.h, sub.p[2] * b.s);
+        const sq = sub.r ? new THREE.Quaternion().setFromEuler(e.set(sub.r[0], sub.r[1] * m, sub.r[2] * m)) : new THREE.Quaternion();
+        prims.push({ type: sub.t, c: origin.clone().add(local.applyQuaternion(q)), q: q.clone().multiply(sq),
+                     s: new THREE.Vector3(sub.s[0], sub.s[1] * b.h, sub.s[2]).multiplyScalar(b.s),
+                     color: sub.c === 'self' ? b.color : sub.c, carve: b.carve, km: sub.k, base: i });
+      }
     }
   });
   if (prims.length > MAX) prims.length = MAX;
