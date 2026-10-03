@@ -23,7 +23,7 @@
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 4px 8px rgba(0, 0, 0, 0.08), 0 12px 30px rgba(0, 0, 0, 0.18);
   }
   .screen { position: relative; width: 100%; height: 100%; overflow: hidden; background: #fff; }
-  /* the build lays out at a window of its own and is scaled into the screen — 1600 wide — a real laptop-size browser window, open full size on
+  /* the build lays out at a window of its own and is scaled into the screen — 1680 wide — a real laptop-size browser window, open full size on
      the device's screen, its height following the screen's proportions */
   #app { position: absolute; left: 0; top: 0; border: 0; background: #fff; transform-origin: top left; opacity: 0; transition: opacity .25s ease; }   /* unseen until it stands pristine: the build boots on its own default first */
   #app.ready { opacity: 1; }
@@ -48,7 +48,7 @@
   const box = document.getElementById('box'), screen = document.getElementById('screen');
   const fitScreen = () => {
     const sw = screen.clientWidth, sh = screen.clientHeight; if (!(sw > 0)) return;
-    const k = sw / 1600;   // a REAL monitor: the build always lays out 1600 wide, whatever the device's size (John, 2026-10-03: 1920, a full-HD window, showed a touch too much — 1600 is ~4 dates fewer and a step in; 0.45 was "way too big" — a 2350-wide window no screen has; before that a fixed 0.66)
+    const k = sw / 1680;   // a REAL monitor: the build always lays out 1680 wide, whatever the device's size (John, 2026-10-03: 1920, a full-HD window, showed a touch too much; 1600, ~4 dates fewer, a hair too far in — 1680 gives one back; 0.45 was "way too big" — a 2350-wide window no screen has; before that a fixed 0.66)
     const W2 = (sw / k).toFixed(1) + 'px', H2 = (sh / k).toFixed(1) + 'px', changed = app.style.width !== W2 || app.style.height !== H2;
     app.style.width = W2; app.style.height = H2; app.style.transform = `scale(${k})`;
     if (changed && window.__landToday) { clearTimeout(fitScreen._t); fitScreen._t = setTimeout(window.__landToday, 350); }
@@ -97,7 +97,13 @@
     // the logo, the Today / Calendar / Listings / Messages nav and the account controls stand above the calendar again — and the
     // boot's own landing stays on the calendar (it only opens on Today when it boots WITH a header)
     d.body.classList.remove('no-header');
+    // ...and it slides away the moment the board scrolls down at all, back in when the board is home at its top (John, 2026-10-03).
+    // The build's own auto-hide measured the header at boot, when there was none, so it stays inert; this rides the scroll instead.
+    { const gw = d.getElementById('gridWrap');
+      if (gw) gw.addEventListener('scroll', () => d.body.classList.toggle('preso-hdr-away', gw.scrollTop > 2), { passive: true }); }
     seal.textContent = '#devBar{display:none!important}' + 'body.preso-no-tips #magicPill{display:none!important}'
+      + '.app-header{transition:margin-top .42s cubic-bezier(.2,.85,.25,1)!important}'                 // the build's own slide-away, its own curve
+      + 'body.preso-hdr-away .app-header{margin-top:-93px!important;pointer-events:none}'           // -93 = its height and its rule
       // THE PRESO'S OWN DENSITY (John, 2026-09-22): the 32-home rows 56 → 48 here only — the build at /multi/ is untouched. The
       // cell is 100% of its row and the pill centres geometrically, so card, pill, thumbnail column and the Pricing/Availability
       // rows all follow, per the build's own row-height contract.
