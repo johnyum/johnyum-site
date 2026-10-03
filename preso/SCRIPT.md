@@ -13,7 +13,7 @@ The slide shows only the three lessons. Say the rest:
    One price fixed it for guests, and moved the cost to hosts. The work was making that trade honestly, not pretending it
    wasn't one.
 
-2. **Bad news is forgivable. Feeling swindled isn't.**  *(the long form: People forgive bad news. They don't forgive feeling tricked.)*
+2. **Hosts forgive bad news. Not being swindled.**  *(the long form: People forgive bad news. They don't forgive feeling tricked.)*
    Every version we tested that buried the change to soften the blow drew more backlash, not less.
 
 3. **Don't just explain. Give a fix.**  *(the long form: Give solutions, not just an explanation.)*
