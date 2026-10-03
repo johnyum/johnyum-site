@@ -13,8 +13,8 @@
   .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
   /* THE EXPLORE DEVICE (John, 2026-10-02: "use this exact dimensions… with the same stroke"): 09c's tablet, number for number —
      measured off assets/trip-creator.webp: 3106 x 2031 outer, a 32px black stroke and a 112px radius on its 3200 canvas — so the
-     multi calendar stands in exactly the frame the map does. --canvas is the one knob: raise it to make the device bigger (it is
-     09c's own min(92vw, 82vh x 1.59046) for now). */
+     multi calendar stands in exactly the frame the map does. --canvas sizes it all; the script sets it to fill the band (48
+     from the kicker and from the nav) — the CSS value is only the fallback before the script runs. */
   .box {
     --canvas: min(92vw, calc(82vh * 1.59046));
     position: relative; flex: none; box-sizing: border-box; transform-origin: center; background: #fff;
@@ -54,12 +54,19 @@
     if (changed && window.__landToday) { clearTimeout(fitScreen._t); fitScreen._t = setTimeout(window.__landToday, 350); }
   };
   new ResizeObserver(fitScreen).observe(screen); fitScreen();
-  // THE DEVICE stands centred, as 09c's does; in the duo it steps back to 80% and to the left, and the phone is placed off it
+  // THE DEVICE fills the band the deck's own type leaves: 48 under the kicker ("John Yum · Work") and 48 above the section nav
+  // (John, 2026-10-02), its width following the frame's 3106:2031, never past the screen's sides less 32 each. --canvas is set
+  // from that height, so the stroke and the radius scale with it exactly as 09c's do. In the duo it steps back to 80% and left.
   const fit = () => {
+    let top = 56, bottom = innerHeight - 56;
+    try { const pd = window.parent.document, kk = pd.getElementById('kicker'), c = pd.getElementById('counter'); if (kk) top = kk.getBoundingClientRect().bottom; if (c) bottom = c.getBoundingClientRect().top; } catch (_) {}
+    const PAD = 48, devH = Math.max(200, bottom - top - 2 * PAD), A = 3106 / 2031, W = 0.91901;
+    const canvas = Math.min(devH * A / W, (innerWidth - 64) / W);
+    box.style.setProperty('--canvas', canvas.toFixed(1) + 'px');
     fitScreen();
-    const dw = box.offsetWidth, dh = box.offsetHeight;
-    if (!document.body.classList.contains('duo')) { box.style.transform = 'none'; placePhone(false); return; }
-    const k = 0.8, dx = -innerWidth * 0.07, dy = -dh * 0.03;
+    const dw = box.offsetWidth, dh = box.offsetHeight, cy = (top + bottom) / 2 - innerHeight / 2;
+    if (!document.body.classList.contains('duo')) { box.style.transform = `translateY(${cy.toFixed(1)}px)`; placePhone(false); return; }
+    const k = 0.8, dx = -innerWidth * 0.07, dy = cy - dh * 0.03;
     box.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(${k})`;
     placePhone(true, { right: innerWidth / 2 + dx + dw * k / 2, bottom: innerHeight / 2 + dy + dh * k / 2, h: dh });
   };
