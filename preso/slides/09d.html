@@ -232,11 +232,24 @@
     const auto = () => { if (s === 0) set(1); };
     addEventListener('presoshown', auto);
     if (window.top === window) addEventListener('load', () => setTimeout(auto, 400));
-    window.presoNext = () => { if (s >= LAST) return false; set(s + 1); if (s === LAST) tag.after(4400); return true; };
-    window.presoPrev = () => { if (s <= 1) return false; if (s === LAST) tag.reset(); set(s - 1, true); return true; };
-    window.presoEnd = () => set(LAST, true);
+    // ONE TAP FINISHES IT (John, 2026-10-03: "just finish out the entire thing without adding an extra tap"): after the bars
+    // have landed by themselves, the one tap plays the host's fee and the fill, and the single fee follows on its own once
+    // "You earn $97" is in (2.4s) — then the tag. A tap during that run skips straight to the single fee.
+    let chain = 0;
+    const finish = () => { clearTimeout(chain); set(LAST); tag.after(4400); };
+    window.presoNext = () => {
+      if (s >= LAST) return false;
+      if (s === 0) { set(1); return true; }
+      if (s === 1) { set(2); chain = setTimeout(finish, 2400); return true; }
+      finish(); return true;
+    };
+    window.presoPrev = () => { if (s <= 1) return false; clearTimeout(chain); tag.reset(); set(1, true); return true; };
+    window.presoEnd = () => { clearTimeout(chain); set(LAST, true); };
     window.presoState = () => s;
-    window.presoRestore = n => { set(Math.max(0, Math.min(LAST, n | 0)), true); if (s < LAST) tag.reset(); };
+    window.presoRestore = n => { clearTimeout(chain); set(Math.max(0, Math.min(LAST, n | 0)), true); if (s < LAST) tag.reset(); };
+    // NOT KEPT (John, 2026-10-03: "when I leave that page by pressing back then come back to it, replay the animation"): the deck
+    // keeps the slide just left exactly as it was; this one asks to be built fresh instead, so coming back to it plays it again.
+    window.presoNoKeep = true;
   })();
 </script>
 </body>
