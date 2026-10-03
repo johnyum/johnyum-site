@@ -114,6 +114,14 @@ button, textarea { font: inherit; color: inherit; }
   box-shadow: 0 0 0 1px var(--line), 0 14px 30px -14px rgba(0,0,0,.35); font-size: 13.5px; color: var(--ink-2); pointer-events: auto; cursor: pointer; }
 .card b { display: block; color: var(--ink); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
 .card small { display: block; margin-top: 8px; color: var(--ink-3); font-size: 11.5px; }
+/* 4 · what it's carrying: a warm glow at its middle, breathing */
+.belly { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, #fff6c8 0%, #ffd25e 45%, rgba(255,190,60,0) 72%); mix-blend-mode: screen; animation: glow 1.6s ease-in-out infinite; }
+@keyframes glow { 0%, 100% { opacity: .65; scale: .9; } 50% { opacity: 1; scale: 1.15; } }
+/* the quote it brought along, on the message you sent with it (the demo) */
+.carried { display: block; margin: 0 0 6px; padding: 4px 9px; border-left: 2px solid #ffc94a; color: var(--ink-2); font-size: 12.5px; border-radius: 4px; background: #fff8e3; }
+/* 5 · while you were away: the pills, piled up */
+.chips.piled button { transition: transform .5s cubic-bezier(.3,1.4,.5,1); }
 
 @media (max-width: 760px) {
   .app { grid-template-columns: minmax(0, 1fr); }   /* minmax, or the button row's width props the column open */
@@ -185,7 +193,7 @@ button, textarea { font: inherit; color: inherit; }
 </div>
 
 <canvas id="world"></canvas>
-<div id="fx"></div>
+<div id="fx"><div class="belly" id="belly" hidden></div></div>
 
 <script type="module">
 import * as THREE from 'three';
@@ -642,6 +650,8 @@ const C = {
   shown: 0,                 // 0 → 1 pop in
   arms: 'rest',             // rest · run · up · hold
   hop: 0,                   // px off the ground, for a hop on the spot (hop())
+  surf: 0,                  // lean from riding a scrolling bubble
+  yOff: 0,                  // stands this far below its element's top (on the send button, say)
 };
 const pointer = { x: innerWidth / 2, y: innerHeight / 2, vx: 0 };
 addEventListener('pointermove', (e) => { pointer.vx = e.clientX - pointer.x; pointer.x = e.clientX; pointer.y = e.clientY; });
@@ -666,7 +676,16 @@ function frame() {
     C.x = lerp(C.x, pointer.x, .45); C.y = lerp(C.y, pointer.y + H * S * .82, .45);
   }
   // Feet stick to the element they're on, wherever it's scrolled or reflowed to.
-  if (C.el && (C.mode === 'stand' || C.mode === 'sit' || C.mode === 'run')) C.y = C.el.getBoundingClientRect().top + (C.mode === 'sit' ? 2 : 0);
+  if (C.el && (C.mode === 'stand' || C.mode === 'sit' || C.mode === 'run')) {
+    const top = C.el.getBoundingClientRect().top;
+    // SURFING (2 · it lives in the layout): when what it's standing on is scrolled fast, it rides it — leans
+    // against the motion, arms out — and rights itself as the bubble slows.
+    const dv = C.elTop == null || C.elOf !== C.el ? 0 : (top - C.elTop) / dt;
+    C.elTop = top; C.elOf = C.el;
+    if (Math.abs(dv) > 380) C.surf = clamp(C.surf - dv * .00016, -.38, .38);
+    C.y = top + (C.mode === 'sit' ? 2 : 0) + (C.yOff || 0);
+  } else C.elTop = null;
+  C.surf *= .9;
 
   // Peeking over an element, it holds on to it: scrolled, reflowed or lifted by the keyboard.
   if (C.mode === 'peek' && C.held) {
@@ -721,7 +740,7 @@ function frame() {
     if (C.arms === 'up') target.copy(a.up);
     else if (C.arms === 'hold') target.copy(a.hold);
     else if (running) target.setFromAxisAngle(X, Math.sin(C.phase + (a.side > 0 ? 0 : Math.PI)) * .9).multiply(a.rest);
-    else if (C.mode === 'air') target.setFromAxisAngle(Z, a.side * .9).multiply(a.rest);
+    else if (C.mode === 'air' || Math.abs(C.surf) > .08) target.setFromAxisAngle(Z, a.side * .9).multiply(a.rest);   // airborne, or surfing a scroll
     else target.setFromAxisAngle(Z, Math.sin(t * 2.4 + a.side) * .05).multiply(a.rest);
     a.pivot.quaternion.slerp(target, .25);
   }
@@ -729,7 +748,7 @@ function frame() {
   // Turn toward travel; lean into it.
   C.yaw = lerp(C.yaw, C.facing, 1 - Math.exp(-dt * 10)); yawG.rotation.y = C.yaw;
   const lean = C.mode === 'run' || C.mode === 'air' ? clamp(-C.vx * .0006, -.3, .3) : 0;
-  root.rotation.z = lerp(root.rotation.z, C.mode === 'hang' ? -C.swing : lean + C.lean, C.mode === 'hang' ? 1 : .15);
+  root.rotation.z = lerp(root.rotation.z, C.mode === 'hang' ? -C.swing : lean + C.lean + C.surf, C.mode === 'hang' ? 1 : .15);
   if (moodNow === 'ugh') root.rotation.z += Math.sin(t * 70) * .012;   // grumbling
 
   // Ears, antennae, tentacles: springs that the body's acceleration and squash throw around.
@@ -776,7 +795,7 @@ async function popIn(x, y) {
 }
 async function leave() {
   unsay(); dropCard(); occlude(null); for (const g of grips) g.visible = false;
-  C.look = null; C.lean = 0; C.arms = 'rest'; C.home = false; C.held = null; C.perched = null;
+  C.look = null; C.lean = 0; C.arms = 'rest'; C.home = false; C.held = null; C.perched = null; C.yOff = 0; guarding = false; asleep = null;
   if (C.mode === 'off') return;
   if (C.mode === 'peek' && C.exit) { await C.exit(); }
   else await tween(260, (k) => { C.shown = 1 - k; }, (k) => k * k);
@@ -921,6 +940,8 @@ function placeOverlays() {
     bubble.style.left = x + 'px'; bubble.style.top = y + 'px';
   }
   if (card) { card.style.left = clamp(C.x + 60, 130, vw - 130) + 'px'; card.style.top = headY() - 18 + 'px'; }
+  belly.hidden = !(carrying && root.visible && C.shown > .5 && !occludeEl);
+  if (!belly.hidden) { belly.style.left = C.x + 'px'; belly.style.top = (C.y + C.hop * -1 - H * S * .42 * C.sq) + 'px'; }
 }
 // Your finger on it: a tap is a boop (at home, it pops up out of the box; perched, it stands up
 // or sits down); a drag picks it up, and where you let go it lands — on a message, a pill, the box.
@@ -955,6 +976,8 @@ addEventListener('pointerup', (e) => {
 addEventListener('pointercancel', () => { if (C.grabbed) drop(pointer.x, pointer.y); press = null; });
 function tap() {
   idle();
+  if (asleep) return wake();                                    // 5 · it was asleep: you woke it
+  if (guarding) { mood('ugh'); shake(1).catch(() => {}); say('drag me off first', 1500, 'ugh'); return; }   // 3 · on the send button
   if (C.home) return popUp();
   if (C.perched && (C.mode === 'stand' || C.mode === 'sit')) {
     // Perched: up on its feet, or back down to sit.
@@ -969,8 +992,9 @@ function tap() {
 function grab() {
   epoch++; for (const w of tweenList) w.fail(STOP); tweenList = [];
   unsay(); dropCard(); occlude(null); clearTimeout(popping);
-  Object.assign(C, { grabbed: true, home: false, held: null, perched: null, exit: null, lean: 0, arms: 'up', look: null, hop: 0, facing: 0 });
-  mood('surprised'); C.sqv -= 10; say(heart.sulking ? 'hmph' : 'whoa!', 900);
+  const wasGuarding = guarding; guarding = false; asleep = null; unpile();
+  Object.assign(C, { grabbed: true, home: false, held: null, perched: null, exit: null, lean: 0, arms: 'up', look: null, hop: 0, facing: 0, yOff: 0 });
+  mood('surprised'); C.sqv -= 10; say(wasGuarding ? 'fine… send it' : heart.sulking ? 'hmph' : 'whoa!', 900);
 }
 // What it can be set down on: every piece of the chat.
 function surfaces() {
@@ -999,8 +1023,9 @@ function drop(x, y) {
     await tween(Math.max(120, T), (k) => { C.y = lerp(y0, to, k * k); C.x = lerp(x0, x1, k); });
     if (homeBox) { Object.assign(C, { mode: 'off', shown: 0 }); return; }   // in behind the box: homeward() brings it up
     Object.assign(C, { mode: 'stand', el: best, perched: best, y: rectOf(best).top }); C.sqv -= 12;
-    mood('happy'); say(heart.sulking ? '…' : ['ooh', 'nice spot', 'hi up here', 'wheee'][Math.floor(Math.random() * 4)], 1200);
-    await wait(1400);
+    // 4 · set down on a message, it hugs it: it'll carry that one along with your next message
+    if (isMessage(best) && !heart.sulking) { carry(best); mood('love'); C.arms = 'hold'; say('I\'ll carry this ♥', 1500); await wait(1500); C.arms = 'rest'; }
+    else { mood('happy'); say(heart.sulking ? '…' : ['ooh', 'nice spot', 'hi up here', 'wheee'][Math.floor(Math.random() * 4)], 1200); await wait(1400); }
     // Settle in: sit on the edge, legs over the front.
     if (C.perched === best) { C.mode = 'sit'; C.sqv -= 4; }
   });
@@ -1009,13 +1034,23 @@ function drop(x, y) {
 setInterval(() => {
   if (!C.perched || C.grabbed) return;
   const r = rectOf(C.perched), there = EMBED ? Object.keys(plat).some((k) => stand[k] === C.perched) : C.perched.isConnected;
-  if (!there || r.width <= 0 || r.bottom < 50 || r.top > innerHeight - 20) { C.perched = null; act(leave); }
+  if (!there || r.width <= 0 || r.bottom < 50 || r.top > innerHeight - 20) {
+    // 2 · its bubble scrolled away under it: it catches the next one still on screen, if there is one
+    const next = there && surfaces().filter((el) => el !== C.perched && el !== homeGround()).map((el) => [el, rectOf(el)])
+      .filter(([, q]) => q.width > 40 && q.top > 110 && q.top < innerHeight - 160)
+      .sort((a, z) => Math.abs(a[1].top - innerHeight / 2) - Math.abs(z[1].top - innerHeight / 2))[0];
+    C.perched = null;
+    if (next) act(async () => { const q = rectOf(next[0]); await jumpTo(next[0], clamp(C.x, q.left + 24, q.right - 24)); C.perched = next[0]; C.mode = 'stand'; say('whoa — got it', 1100); await wait(1200); if (C.perched === next[0]) C.mode = 'sit'; });
+    else act(leave);
+  }
 }, 400);
 
 /* ═══════════════ the chat it lives in ═══════════════ */
 
 const log = $('#log'), msgs = $('#msgs'), input = $('#input'), composer = $('#composer');
 const REPLIES = [
+  'Short version: it probably costs about $40 a month, maybe less. Three things to check first:\n1. what you already pay for\n2. the annual discount (usually 20%)\n3. whether you actually need the top tier. Be careful with the free trial — it renews automatically. Want me to compare the plans?',
+  'Definitely doable. Here’s the core of it:\n```\nconst total = items.reduce((s, x) => s + x.price, 0)\n```\nThat’s exactly it — no library needed.',
   'Here’s a start. Three ways in: begin with the one thing that has to be true, sketch the smallest version that proves it, then show it to someone before polishing.',
   'Good question. The short answer is that it depends on who it’s for — tell me a little about them and I’ll get specific.',
   'I’d try it two ways and compare: once as plainly as possible, once with the most personality you can stand. The right one is usually between them.',
@@ -1034,6 +1069,12 @@ function add(cls, html) {
 }
 const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 function reply(el, text) { el.className = 'msg bot'; el.textContent = text; log.scrollTop = log.scrollHeight; }
+// 1 · the demo's answer arrives the way a real one does — a few words at a time — and is performed as it comes
+async function streamReply(el, text) {
+  el.className = 'msg bot'; el.textContent = ''; streamStart();
+  const words = text.split(/(\s+)/);
+  for (let i = 0; i < words.length; i += 2) { el.textContent = words.slice(0, i + 2).join(''); log.scrollTop = log.scrollHeight; performStream(el.textContent); await new Promise((r) => setTimeout(r, 85)); }   // a word a beat, about a real answer's pace
+}
 
 // What the canned Claude says back, by how the message landed.
 const ANSWERS = {
@@ -1048,8 +1089,10 @@ const ANSWERS = {
 };
 async function send(text) {
   text = text.trim(); if (!text) return;
+  if (guarding) { mood('ugh'); shake(1).catch(() => {}); say('drag me off first', 1500, 'ugh'); return; }   // 3 · its paw is on it
   input.value = ''; fit(); idle(); draftFeel = ''; draftLen = 0;
-  const mine = add('user', esc(text));
+  const brought = delivered();   // 4 · the message it was carrying comes along
+  const mine = add('user', (brought ? `<span class="carried">${esc(brought.textContent.slice(0, 120))}${brought.textContent.length > 120 ? '…' : ''}</span>` : '') + esc(text));
   const pending = add('bot typing', '<i></i><i></i><i></i>');
   const felt = await read(text);
   await act(async () => {
@@ -1066,9 +1109,9 @@ async function send(text) {
     await sitOn(pending, r.left + r.width / 2, 'thinking');
     say('hmm…', 0);
     await wait(1600);
-    unsay(); reply(pending, ANSWERS[felt.feel] || REPLIES[replyAt++ % REPLIES.length]);
-    // …and when it lands: a feeling about what it says, then along the answer and down to the box.
-    mood('happy'); C.mode = 'stand'; C.sqv -= 6; await wait(380);
+    unsay(); C.mode = 'stand'; await streamReply(pending, ANSWERS[felt.feel] || REPLIES[replyAt++ % REPLIES.length]);
+    // …and when it lands: its verdict, a feeling about what it says, then along the answer and down to the box.
+    mood('happy'); C.sqv -= 6; const v = verdict(pending.textContent); if (v) { say(v, 1500); await wait(1600); } else await wait(380);
     await feelAnswer(await read(pending.textContent, 'claude'));
     const a = rectOf(pending);
     await runTo(pending, Math.min(a.right - 24, C.x + 260));
@@ -1085,6 +1128,9 @@ function fit() { input.style.height = 'auto'; input.style.height = Math.min(160,
 let typingTimer = 0;
 input.addEventListener('input', () => {
   fit(); idle();
+  if (asleep && input.value.trim()) wake();
+  { const t = input.value, angry = t.trim().length > 2 && sense(t).feel === 'hurt'; if (angry && !guarding && !C.grabbed) act(guardSend); else if (!angry && guarding) unguard(); }   // 3
+  if (guarding) return;
   const r = rectOf(composer);
   if (!input.value.trim()) { clearTimeout(typingTimer); typingTimer = setTimeout(() => { if (C.home) { rise(restShow()); mood(heart.sulking ? 'sad' : 'happy'); } else if (C.mode === 'peek' && occludeEl === composer) act(leave); }, 900); return; }
   const show = mayWatch(input.value);
@@ -1106,7 +1152,12 @@ function idle() {
     const turn = idleTurn++ % 3, ground = EMBED ? V('composer') : composer;
     if (turn === 0) { const [t, s] = TIPS[tipAt++ % TIPS.length]; await holdTip(t, s); await wait(6000); await leave(); }
     else if (turn === 1 && !EMBED) { const pills = [...$('#chips').children], p = pills[1 + (idleTurn % 3)], r = rectOf(p); await hang(p, r.left + r.width / 2); say('wheee', 1600); await wait(5000); await leave(); }
-    else { const c = rectOf(ground); await standOn(ground, c.left + 40); await runTo(ground, c.right - 60); await wait(600); await leave(); }
+    else {
+      // 2 · across the chat's own bubbles, one to the next, the way you'd hop rocks across a stream
+      const rocks = surfaces().filter((el) => isMessage(el)).map((el) => [el, rectOf(el)]).filter(([, q]) => q.width > 50 && q.top > 120 && q.top < innerHeight - 160).sort((a, z) => z[1].top - a[1].top).slice(0, 3);
+      if (rocks.length >= 2) { const [e0, q0] = rocks[0]; await standOn(e0, q0.left + 30); for (const [el, q] of rocks.slice(1)) { await wait(250); await jumpTo(el, q.left + Math.min(q.width - 24, 60)); } say('wheee', 1000); await wait(1100); await leave(); }
+      else { const c = rectOf(ground); await standOn(ground, c.left + 40); await runTo(ground, c.right - 60); await wait(600); await leave(); }
+    }
     idle();
   }), 25000);   // it has a home now: it wanders off now and then, not constantly
 }
@@ -1388,6 +1439,11 @@ async function obey(cmd, ground, line) {
 let draftFeel = '', draftLen = 0;
 function watching(text) {
   const t = String(text || ''), was = draftLen; draftLen = t.length;
+  if (asleep && t.trim()) wake();
+  // 3 · written in anger: it goes and sits on the send button; calm again (or empty), it gets off
+  const angry = t.trim().length > 2 && sense(t).feel === 'hurt';
+  if (angry && !guarding && !C.grabbed) act(guardSend);
+  else if (!angry && guarding) unguard();
   if (!t.trim()) { draftFeel = ''; return; }
   if (!C.perched && (C.mode !== 'peek' || !occludeEl)) return;   // watching over the box, or from its perch
   const f = sense(t), feel = was - t.length > 20 ? 'erased' : f.feel;
@@ -1424,6 +1480,126 @@ async function feelAnswer(f) {
 }
 Object.assign(window.__peek, { heart, sense, read, perform, popUp, homeward });
 
+/* ═══════════════ six ways it lives with you (2026-10-03) ═══════════════
+   1  it ACTS OUT THE ANSWER while it's still being written — points at code, holds up a number, ducks under a list
+   2  it lives IN the layout — surfs a scrolling bubble (frame()), catches the next one when its own scrolls away
+      (the perch check), and now and then wanders across the bubbles on its own (idle())
+   3  it reads YOUR DRAFT on your side — a message written in anger, and it sits on the send button till you drag it off
+   4  it CARRIES CONTEXT — set it down on a message and it hugs it, glowing; your next message takes that one along
+   5  it has A LIFE WHILE YOU'RE AWAY — asleep on the box, piling up the pills, caught reading an old answer
+   6  it shows WHAT CLAUDE IS DOING — "thinking hard" on a long wait, a fidget at a hedge, standing tall at a sure thing,
+      and its verdict when the answer lands */
+const belly = $('#belly');
+let guarding = false, asleep = null, carrying = null;
+const isMessage = (el) => EMBED ? String(el?.id || '').startsWith('msg-') || el?.id === 'last' : !!el?.classList?.contains('msg');
+
+// ── 1 + 6 · the answer, performed as it streams ──
+const stream = { seen: 0, last: 0, conf: 0, on: false, mood: 'thinking' };
+function streamStart() { Object.assign(stream, { seen: 0, last: 0, conf: 0, on: true, mood: 'thinking' }); }
+function cueOf(fresh) {
+  if (/```/.test(fresh)) return { kind: 'code' };
+  const num = fresh.match(/\$\s?\d[\d,]*(\.\d+)?|\b\d+(\.\d+)?\s?%/); if (num) return { kind: 'number', v: num[0].replace(/\s/g, '') };
+  if (/(^|\n)\s*([-*•]|\d+[.)])\s+\S/.test(fresh)) return { kind: 'list' };
+  if (/\b(warning|careful|be careful|important|caution|watch out|never)\b/i.test(fresh)) return { kind: 'warn' };
+  if (/\b(congrat\w*|great news|well done|you did it)\b/i.test(fresh)) return { kind: 'cheer' };
+  if (/\b(might|maybe|perhaps|possibly|probably|not sure|i think|it depends|unclear|could be|roughly|hard to say)\b/i.test(fresh)) return { kind: 'hedge' };
+  if (/\b(definitely|always|exactly|certainly|absolutely|the answer is|for sure|guaranteed|without a doubt)\b/i.test(fresh)) return { kind: 'firm' };
+  if (/\?\s*$/.test(fresh.trim())) return { kind: 'ask' };
+  return null;
+}
+function performStream(text) {
+  text = String(text || '');
+  if (!stream.on || text.length < stream.seen) streamStart();
+  const fresh = text.slice(stream.seen); if (!fresh.trim()) return;
+  const cue = cueOf(fresh), now = performance.now();
+  if (!cue || now - stream.last < 900) return;   // a gesture a beat: keep reading till the next one's due
+  stream.seen = text.length; stream.last = now; gesture(cue);
+}
+function gesture(c) {
+  if (C.grabbed || C.mode === 'off' || heart.sulking || asleep || guarding) return;
+  const back = (ms) => setTimeout(() => { if (!C.grabbed && C.mode !== 'off') { C.arms = 'rest'; C.lean = 0; C.look = null; mood(stream.mood); } }, ms);
+  const sure = () => { stream.mood = stream.conf <= -2 ? 'curious' : stream.conf >= 2 ? 'happy' : 'thinking'; };
+  switch (c.kind) {
+    case 'code': mood('curious'); C.lean = .22; C.sqv -= 6; say('</>', 1300); back(1300); break;               // points its whole self at it
+    case 'number': mood('surprised'); C.arms = 'hold'; C.sqv -= 8; say(c.v, 1600); back(1600); break;         // holds it up
+    case 'list': mood('surprised'); C.sqv += 10; say('a list!', 1100); back(1100); break;                      // ducks
+    case 'warn': mood('surprised'); C.lean = -.14; C.sqv += 6; say('careful…', 1300); back(1300); break;       // leans back
+    case 'cheer': mood('love'); hop(1, 18).catch(() => {}); say('yesss', 1100); back(1200); break;
+    case 'ask': { mood('curious'); C.lean = .16; const g = homeGround(); if (g) { const q = rectOf(g); C.look = { x: q.left + 60, y: q.top + 20 }; } say('your turn…', 1300); back(1500); break; }
+    // 6 · how sure Claude sounds, in its body: a fidget at a hedge, standing tall at a sure thing
+    case 'hedge': stream.conf--; sure(); mood('thinking'); shake(1).catch(() => {}); break;
+    case 'firm': stream.conf++; sure(); mood('happy'); C.sqv -= 12; break;
+  }
+}
+// 6 · its verdict, as the answer lands
+function verdict(text) {
+  const t = String(text || ''), v = stream.conf <= -2 ? 'hmm… not so sure' : stream.conf >= 2 ? 'sounds sure!' : t.length > 1400 ? 'phew, long one' : '';
+  stream.on = false; return v;
+}
+// 6 · a long wait, out loud
+let hardT = 0;
+function thinkingHard() { clearTimeout(hardT); hardT = setTimeout(() => { if (!stream.seen && C.mode !== 'off' && !asleep) { mood('thinking'); say('thinking hard…', 0); } }, 4500); }
+
+// ── 3 · on your side: a draft written in anger gets a paw on the send button ──
+async function guardSend() {
+  const g = homeGround(); if (!g || guarding) return;
+  await leave(); guarding = true; mood('ugh');
+  const r = rectOf(g);
+  Object.assign(C, { mode: 'stand', el: g, facing: 0, yOff: r.height - 6 });   // in front of the box, on its button corner
+  await popIn(r.right - 32, r.bottom - 6);
+  say('breathe first?', 2200);
+}
+function unguard() { if (!guarding) return; guarding = false; act(async () => { mood('happy'); say('better ♥', 1000); await wait(900); await leave(); }); }
+
+// ── 4 · carrying a message along with your next one ──
+function carry(el) {
+  carrying = el;
+  if (EMBED) tell({ type: 'hold', id: el.id });
+}
+function delivered() {   // you sent: it brings it along — a hop, and the glow's gone
+  if (!carrying) return null;
+  const el = carrying; carrying = null;
+  if (EMBED) tell({ type: 'hold', id: null });
+  return el;
+}
+
+// ── 5 · a life of its own while you're away ──
+const AWAY = 'peek.seen';
+const seen = () => store(AWAY, String(Date.now()));
+document.addEventListener('visibilitychange', () => { if (document.hidden) seen(); else awake(); });
+addEventListener('pagehide', seen);
+setInterval(() => { if (!document.hidden) seen(); }, 20000);
+function awake() {
+  const gone = Date.now() - (+store(AWAY) || Date.now()); seen();
+  if (gone < 2 * 60 * 1000) return;
+  act(async () => {
+    const g = homeGround(); if (!g) return;
+    await leave();
+    const old = surfaces().filter((el) => isMessage(el) && el !== stand.last).map((el) => [el, rectOf(el)]).filter(([, q]) => q.width > 60 && q.top > 120 && q.top < innerHeight - 200);
+    const pick = gone > 20 * 60 * 1000 && old.length ? 'reading' : !EMBED && Math.random() < .5 ? 'piled' : 'asleep';
+    if (pick === 'reading') {   // caught in the middle of an old answer
+      const [el, q] = old[Math.floor(Math.random() * old.length)];
+      await sitOn(el, q.left + Math.min(q.width - 30, 90), 'thinking'); C.look = { x: q.left + 40, y: q.top + 30 }; asleep = 'reading';
+    } else if (pick === 'piled') {   // it's been busy: the pills are in a heap, and it's on top
+      pile(); await wait(550); const top = [...$('#chips').children].at(-1), q = rectOf(top); await sitOn(top, q.left + q.width / 2, 'happy'); asleep = 'piled'; say('…', 1200);
+    } else {   // curled up on the box
+      const q = rectOf(g); await sitOn(g, q.left + q.width * .5, 'sleepy'); say('z z z', 0); asleep = 'asleep';
+    }
+  });
+}
+function wake() {
+  const was = asleep; if (!was) return; asleep = null; unpile();
+  act(async () => {
+    mood('surprised'); C.sqv -= 12; C.look = null;
+    say(was === 'reading' ? 'oh! hi — just reading' : was === 'piled' ? 'I can explain' : 'oh! you\'re back', 1600);
+    await hop(1, 22); await wait(1200); await leave();
+  });
+}
+function pile() { const b = [...$('#chips').children]; b.forEach((x, i) => { x.style.transform = `translate(${b[0].offsetLeft - x.offsetLeft + i * 5}px, ${-i * 9}px) rotate(${(i % 2 ? 1 : -1) * (3 + i * 2)}deg)`; }); $('#chips').classList.add('piled'); }   // each onto the first, a little higher and askew
+function unpile() { const c = $('#chips'); if (!c?.classList.contains('piled')) return; [...c.children].forEach((x) => { x.style.transform = ''; }); c.classList.remove('piled'); }
+modelReady.then(() => setTimeout(awake, 900));
+Object.assign(window.__peek, { performStream, guardSend, unguard, carry, delivered, awake, wake, state: () => ({ asleep, carrying: !!carrying, guarding }) });
+
 /* ═══════════════ embed: the host app's chat drives it ═══════════════ */
 var typing = 0;
 const host = window.webkit?.messageHandlers?.peek;
@@ -1445,18 +1621,26 @@ if (EMBED) {
         typing = typeof data === 'number' ? data : draft.length;
         clearTimeout(typingTimer);
         if (!typing) { draftFeel = ''; draftLen = 0; typingTimer = setTimeout(() => { if (C.home) { rise(restShow()); mood(heart.sulking ? 'sad' : 'happy'); } else if (occludeEl === comp) act(leave); }, 900); return; }
+        if (asleep) wake();
+        { const angry = draft.trim().length > 2 && sense(draft).feel === 'hurt'; if (angry && !guarding && !C.grabbed) act(guardSend); else if (!angry && guarding) unguard(); }   // 3
+        if (guarding) return;
         const show = mayWatch(draft);
         if (C.home) rise(show || restShow());
         else if (show && occludeEl !== comp && !C.perched && !C.grabbed && C.mode !== 'sit') act(async () => { if (occludeEl !== comp && typing) { draftFeel = ''; await peekOver(comp, r().right - 110, 'curious', show); watching(draft); } });
         else watching(draft);
         C.look = { x: r().left + 30 + Math.min(r().width - 160, typing * 7.2), y: r().top + 24 };
       } else if (name === 'send') {
-        typing = 0;
+        typing = 0; guarding = false; delivered();   // 4 · the app has sent the message it was carrying along with yours
         const text = String(data || ''); draftFeel = ''; draftLen = 0;
         // Its face drops into the read straight away; the move waits for the read (Haiku, ≤1.6s).
         const felt = read(text);
         act(async () => perform(await felt, comp, comp));
+      } else if (name === 'stream') {
+        performStream(data);   // 1 · the answer so far, as it's written
+      } else if (name === 'status') {
+        if (C.mode !== 'off' && !asleep) { mood('curious'); say(String(data || '').slice(0, 28) || 'working…', 1600); }   // 6 · what Claude is doing (searching, reading…)
       } else if (name === 'thinking') {
+        streamStart(); thinkingHard();
         // It sits on the answer that's on its way — and rides it up as it streams in.
         act(async () => { if (C.perched) { mood('thinking'); say('hmm…', 0); return; } const a = rectOf(V('reply')); if (a.width <= 0 || heart.sulking || Date.now() < heart.shyUntil) return; await sitOn(V('reply'), a.left + Math.min(a.width - 30, 70), 'thinking'); say('hmm…', 0); });
       } else if (name === 'replied') {
@@ -1464,8 +1648,10 @@ if (EMBED) {
         if (C.el === V('reply') && plat.last) C.el = V('last');
         setTimeout(() => { if (C.el !== V('reply')) delete plat.reply; }, 50);
         const felt = typeof data === 'string' && data ? read(data, 'claude') : null;
+        clearTimeout(hardT); const v = verdict(data);
         act(async () => {
           if (C.mode === 'off') return;
+          if (v) { unsay(); say(v, 1500); await wait(1600); }   // 6 · how sure it sounded
           if (C.perched) { unsay(); mood('happy'); if (felt) await feelAnswer(await felt); return; }   // it stays where you put it
           unsay(); mood('happy'); if (C.el === V('reply')) C.el = V('last');
           C.mode = 'stand'; C.sqv -= 6; await wait(380);
