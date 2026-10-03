@@ -300,18 +300,21 @@ The page only ever talks to **`/api/monsters?p=…`**, and two things answer it:
   409 and charges for it anyway; Stop only keeps the later, dearer steps from starting.
 - **Rigging only takes bipeds.** A blob fails step 3 — it keeps the procedural layer
   (breath, turning to the pointer, a squash when tapped) that runs on top of every clip.
-- **Blobs** is the second mode (Draw | Blobs): sculpt from eight shapes — Ball, Egg, Bean, Cube,
-  Ring, Cone, Stick, Disc — that **melt into each other**. Each is a signed distance field; the
-  sculpture is their smooth union, minus any shape set to **Carve**, raymarched in one
-  `ShaderMaterial` on a box bounding the work area (`BOX`), with `uK` (the Melt slider) as the
-  blend. The same `prim()` functions run in JS for picking, dragging and dropping — **change one
-  and change the other**. **Mirror** (on by default, as in Spore) gives any shape off the middle
-  line a twin; the shader takes 32 prims, twins included. **Bring it to life** sends the view as
-  the person left it — square, on white, nothing selected — with `blobPrompt()`, and goes on to
-  try the rig like a drawing does. The shapes are kept on the shelf record (`rec.blobs`).
-- Evolve (procedural "bug" creatures on a 3×3 breeding grid) was built and dropped on 2026-10-02:
-  John didn't want ready-made creatures, he wanted people to make their own. It's in git history.
-- `window.__monsters` exposes `{ play, still, clips, playing, setMode, add, select, shapes, selected }`,
+- **Blobs** is the second mode (Draw | Blobs): a **monster kit**, Monsters, Inc. in spirit. Pick
+  one of eight organic **bodies** (Round, Gumdrop, Hunch, Bell, Peanut, Noodle, Slug, Potato) and
+  build on it with twelve **parts** (Eye, Mouth, Tooth, Nose, Horn, Ear, Antenna, Arm, Leg,
+  Tentacle, Lump, Spots). All signed distance fields, smooth-unioned and raymarched in one
+  `ShaderMaterial`; each sub-shape melts by its own `k` × the Melt slider, so an eye stays crisp
+  and an arm melts in. **A part stores a direction from the body's centre, not a position**: it
+  sits where that direction meets the body (`anchor()`), pointing out along the normal — so
+  swapping or stretching the body re-seats every part, and dragging a part slides it over the
+  surface. A mirror twin is the reflection, anchored on its own. `prim()` exists twice, in JS
+  (anchoring, picking) and GLSL — **change one, change both**. The default parts' `dir`s are
+  where a face wants them (eye high-front, mouth below it, legs underneath).
+- Two earlier versions were built and dropped on 2026-10-02, both in git history: **Evolve**
+  (procedural "bug" creatures on a 3×3 breeding grid — John didn't want ready-made creatures) and
+  plain geometric blobs (ball, cube, ring… — too abstract; he wanted friendly bodies to build on).
+- `window.__monsters` exposes `{ play, still, clips, playing, setMode, addPart, setBody, select, shapes, selected }`,
   the way `explore/` does.
 
 ## Drawing in Claude's visual language
