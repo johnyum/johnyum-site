@@ -4,65 +4,82 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>12d1</title>
-<!-- THE COMPONENTS — one sheet of every piece the two calendars are built from, web and native (rethought, John, 2026-10-03).
+<!-- THE COMPONENT LIBRARY — the primitives the calendars are built from, by component, not by platform (John, 2026-10-03:
+     "I only want the primitives… this is a component library"). Straight after the multi calendar's two-up (12c).
 
-     Straight after the multi calendar's two-up (12c) and before Lesson 3. No words on it but the two halves' names: the
-     components are the page (John: "remove all the tiny grey type, just have the components"). Selection is the stroked
-     kind throughout, never the black fill, and so are the guests' stays; the requests to book wear their coloured discs and
-     the Repeat rules their coloured cells; the homes are real photos.
+     DATE CELLS first and biggest: every state of the phone's cell (the most of it, as the mobile version is the most of the
+     product); every Repeat variation, one cell per colour of the rule palette, each carrying a different rule (price up and
+     down, a minimum, a maximum, closed, a check-in rule, a fixed price); then the cell at its other sizes — the web board's in
+     its states, the phone's multi board's. Then the PILLS: stays (stroked, never black), requests to book in every colour
+     their discs come in, cancelled, past. Then the CONTROLS, the EVENTS AND HOLIDAYS, the HOMES' PHOTOS. ALL THE QUICK ACTIONS
+     stand together down the right: the web bar and its menus, Show tips and a tip, the phone's cards and Repeat's. No boards,
+     no months, no modals: nothing assembled, only the pieces.
 
-     LIFTED, NOT DRAWN. Nothing here is a picture or a copy of the markup. The slide runs the builds themselves, unseen
-     behind the sheet — the web one (/multi/), the native one (/multical/, single and multi) and the native cell sampler
-     (/multical/?sampler=1) — steps each into the state a piece needs (a selection for the quick actions, a rule for the
-     coloured cells, a tip for the green rings...), and lifts the real element out: a deep clone, wrapped in shallow clones of
-     the ancestors it hangs from so every selector and inherited variable still lands, set into the sheet. Each build's half
-     is its own shadow root carrying that build's own stylesheet — the two apps share class names (.cell, .pill, .phone) and
-     must never see each other's rules. A build that changes changes the sheet; nothing can drift.
+     LIFTED, NOT DRAWN. The slide runs the builds themselves unseen behind the sheet — the web one (/multi/), the native one
+     (/multical/, single and multi) and its cell sampler (/multical/?sampler=1) — steps each into the state a piece needs, and
+     lifts the real element out: a deep clone inside shallow clones of the ancestors it hangs from, so every selector and
+     inherited variable still lands. EVERY PIECE IS ITS OWN SHADOW ROOT, adopting its build's stylesheet (one constructed
+     sheet per build, shared by all its pieces): web and native share class names (.cell, .pill, .phone) and must never see
+     each other's rules, yet here they stand side by side in one group. A build that changes changes the sheet.
 
-     The sheet lays itself out at its natural size; the slide measures it and scales it to the band between the deck's
-     kicker and its nav. No build of its own: the deck pushes straight through. -->
+     The deck builds one slide ahead, so the sheet assembles while 12c is up (about 40s from cold). It lays itself out at its
+     natural size and is scaled to the band between the deck's kicker and its nav. No build of its own. -->
 <style>
+  @font-face { font-family: "IBM Plex Mono"; src: url("../fonts/IBMPlexMono-Regular.woff2") format("woff2"); font-weight: 400 500; font-display: block; }
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   /* the builds, running unseen: full size (they lay out as they would on a screen), under the sheet, never touched */
   .src { position: fixed; left: 0; top: 0; border: 0; opacity: 0; pointer-events: none; z-index: -1; }
   .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #fff; }
   .sheet { position: relative; flex: none; transform: scale(var(--s, 1)); transform-origin: center; opacity: 0; transition: opacity .45s; }
   .sheet.ready { opacity: 1; }
-  .ds { display: flex; gap: 120px; align-items: flex-start; padding: 0; }
-  .half { display: flex; flex-direction: column; gap: 32px; }
-  .half > h2 { margin: 0; font: 500 28px/1 "IBM Plex Mono", ui-monospace, Menlo, monospace; color: #111; letter-spacing: 0; }
-  @font-face { font-family: "IBM Plex Mono"; src: url("../fonts/IBMPlexMono-Regular.woff2") format("woff2"); font-weight: 400 500; font-display: block; }
+  /* the library: the primitives on the left, every quick action in one column on the right */
+  .lib { display: flex; gap: 120px; align-items: flex-start; }
+  .main { width: 1700px; display: flex; flex-direction: column; gap: 72px; }
+  .qa { width: 880px; display: flex; flex-direction: column; gap: 40px; }
+  .sec { display: flex; flex-direction: column; gap: 28px; }
+  .sec > h2 { margin: 0; font: 400 26px/1 "IBM Plex Mono", ui-monospace, Menlo, monospace; color: #111; }
+  .grp { display: flex; flex-wrap: wrap; gap: 20px 20px; align-items: flex-start; }
+  .grp.wide { gap: 24px 40px; align-items: center; }
+  .cols { display: flex; gap: 72px; align-items: flex-start; }
+  .pc { flex: none; }
 </style>
 </head>
 <body>
-  <div class="stage"><div class="sheet" id="sheet"><div class="ds">
-    <div class="half"><h2>Web</h2><div id="web" style="width:1620px"></div></div>
-    <div class="half"><h2>Native</h2><div id="nat" style="width:1560px"></div></div>
+  <div class="stage"><div class="sheet" id="sheet"><div class="lib">
+    <div class="main">
+      <section class="sec"><h2>Date cells</h2>
+        <div class="grp" id="cells"></div>
+        <div class="grp" id="repeat"></div>
+        <div class="grp wide" id="sizes"></div>
+      </section>
+      <section class="sec"><h2>Stays</h2><div class="grp wide" id="pills"></div></section>
+      <div class="cols">
+        <section class="sec"><h2>Controls</h2><div class="grp wide" id="controls" style="max-width:1000px"></div></section>
+        <section class="sec"><h2>Homes</h2><div class="grp" id="homes" style="max-width:520px"></div></section>
+      </div>
+      <section class="sec"><h2>Events and holidays</h2><div class="grp" id="events"></div></section>
+    </div>
+    <div class="qa"><section class="sec"><h2>Quick actions</h2><div class="grp wide" id="qa"></div></section></div>
   </div></div></div>
 <script>
 (() => {
   const v = new URLSearchParams(location.search).get('v'), V = v ? '&v=' + v : '';
-  const sheet = document.getElementById('sheet');
+  const sheet = document.getElementById('sheet'), $ = id => document.getElementById(id);
   const wait = ms => new Promise(r => setTimeout(r, ms));
-  // A WAIT IS TIME AND FRAMES. The builds draw on animation frames (the board renders the nights in view on one, a curve rises
-  // on them, a pill lands on them); a timer alone can run out while a page is not being painted and capture a half-drawn
-  // state. So every pause also waits for three real frames — it simply takes longer if the slide is not on screen yet.
+  // A WAIT IS TIME AND FRAMES: the builds draw on animation frames, so every pause also waits for three real ones — a timer
+  // alone could run out while the page is not being painted and capture a half-drawn state
   const frames = (n = 3) => new Promise(r => { let k = 0; const f = () => (++k >= n ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); });
   const settle = async ms => { await wait(ms); await frames(); await wait(60); };
   const until = async (fn, ms = 15000) => { const t = Date.now(); while (Date.now() - t < ms) { try { const x = fn(); if (x) return x; } catch (_) {} await wait(80); } return null; };
-
-  // ── THE BUILDS, unseen ───────────────────────────────────────────────────────────────────────────────────────────────
   const open = (url, w, h) => new Promise(res => {
     const f = document.createElement('iframe'); f.className = 'src'; f.setAttribute('aria-hidden', 'true'); f.tabIndex = -1;
     f.style.width = w + 'px'; f.style.height = h + 'px';
     f.addEventListener('load', () => res(f), { once: true }); f.src = url; document.body.appendChild(f);
   });
 
-  // ── A BUILD'S OWN STYLESHEET, for its shadow root ────────────────────────────────────────────────────────────────────
-  // Every rule, URLs made absolute (they resolve against the build, not this slide); html / :root become :host and body
-  // becomes .ds-body (the shadow has neither); a media rule is decided against the BUILD's window — the native one is a
-  // 430-wide phone, the sheet is not — and kept or dropped whole. Font faces go up to this document: a face declared in a
-  // shadow root is never loaded.
+  // ── A BUILD'S OWN STYLESHEET ─────────────────────────────────────────────────────────────────────────────────────────
+  // Every rule, URLs made absolute; html / :root become :host and body .ds-body; a media rule decided against the BUILD's
+  // window (the phone is 430 wide, the sheet is not); font faces up to this document, where they load.
   const faces = new Set();
   function cssOf(doc, win) {
     const abs = (t, base) => t.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (m, q, u) => /^(data:|https?:|blob:|#)/.test(u) ? m : 'url("' + new URL(u, base).href + '")');
@@ -88,27 +105,21 @@
     return out;
   }
   const flushFaces = () => { let s = document.getElementById('faces'); if (!s) { s = document.createElement('style'); s.id = 'faces'; document.head.appendChild(s); } s.textContent = [...faces].join('\n'); };
-
-  // a half of the sheet: a shadow root with the build's stylesheet, a stand-in for the build's <body> (its classes, none of
-  // its page behaviour), and whatever the slide adds on top
-  function half(host, f, extra) {
-    const doc = f.contentDocument, sr = host.attachShadow({ mode: 'open' });
-    const st = document.createElement('style');
-    st.textContent = cssOf(doc, f.contentWindow) + '\n'
-      + ':host{display:block}'
-      + '.ds-body{position:static!important;inset:auto!important;width:auto!important;height:auto!important;min-height:0!important;overflow:visible!important;background:transparent!important;margin:0!important;padding:0!important;transform:none!important}'
-      // the half's groups pack into its width, a group a block; inside a group its pieces wrap at the group's own measure
-      + '.dsx-rows{display:flex;flex-wrap:wrap;gap:64px 72px;align-items:flex-start}.dsx-row:empty{display:none}.dsx-row{display:flex;flex-wrap:wrap;gap:16px 24px;align-items:flex-start}'
-      + '.dsx-lift{position:relative;flex:none}'
-      + (extra || '');
-    sr.appendChild(st);
-    const body = document.createElement('div'); body.className = 'ds-body ' + doc.body.className;
-    [...doc.body.attributes].forEach(a => { if (a.name.startsWith('data-')) body.setAttribute(a.name, a.value); });
-    const rows = document.createElement('div'); rows.className = 'dsx-rows'; body.appendChild(rows);
-    sr.appendChild(body); flushFaces();
-    return { row(max) { const r = document.createElement('div'); r.className = 'dsx-row'; if (max) r.style.maxWidth = max + 'px'; rows.appendChild(r); return r; } };   // an empty group takes no room (.dsx-row:empty)
+  // one constructed sheet per build, adopted by every piece of it
+  const BASE = ':host{display:block}.ds-body{position:static!important;inset:auto!important;width:auto!important;height:auto!important;min-height:0!important;overflow:visible!important;background:transparent!important;margin:0!important;padding:0!important;transform:none!important}.dsx-lift{position:relative;flex:none}';
+  const SHEETS = {};
+  function register(key, f, extra) {
+    const sh = new CSSStyleSheet();
+    sh.replaceSync(cssOf(f.contentDocument, f.contentWindow) + '\n' + BASE + (extra || ''));
+    SHEETS[key] = { sh, body: 'ds-body ' + f.contentDocument.body.className };
+    flushFaces();
   }
-
+  function piece(key, node) {
+    const host = document.createElement('div'); host.className = 'pc';
+    const sr = host.attachShadow({ mode: 'open' }); sr.adoptedStyleSheets = [SHEETS[key].sh];
+    const b = document.createElement('div'); b.className = SHEETS[key].body; b.appendChild(node); sr.appendChild(b);
+    return host;
+  }
   // ── LIFTING ─────────────────────────────────────────────────────────────────────────────────────────────────────────
   // The element, deep-cloned, inside shallow clones of every ancestor up to <body> — so `.board .cell` and `#gridRows
   // .booking-pill` still match and inherited custom properties still arrive — with the ancestors' own layout neutralised
@@ -162,11 +173,15 @@
     return box;
   }
   const R = (l, t, r, b) => ({ left: l, top: t, right: r, bottom: b, width: r - l, height: b - t });
+  const box = els => { const rs = els.map(e => e.getBoundingClientRect()); return R(Math.min(...rs.map(r => r.left)) - 2, Math.min(...rs.map(r => r.top)) - 2, Math.max(...rs.map(r => r.right)) + 2, Math.max(...rs.map(r => r.bottom)) + 2); };
+  // within a group the phone's pieces come first and the web's after, whichever build is ready first
+  const slot = (id, key) => { const g = $(id); let s = g.querySelector(':scope > [data-k="' + key + '"]');
+    if (!s) { ['nat', 'web'].forEach(k => { if (!g.querySelector(':scope > [data-k="' + k + '"]')) { const d = document.createElement('div'); d.dataset.k = k; d.style.display = 'contents'; g.appendChild(d); } }); s = g.querySelector(':scope > [data-k="' + key + '"]'); }
+    return s; };
+  const put = (id, key, node) => { if (node) slot(id, key).appendChild(piece(key, node)); };
+  window.__ds = { open, lift, crop, R, wait, until };
 
-  window.__ds = { open, half, lift, crop, R, wait, until };   // for a look from the console
-
-  // ── SCALE TO THE BAND ───────────────────────────────────────────────────────────────────────────────────────────────
-  // 40 under the kicker ("John Yum · Work") and 40 above the section nav, as before
+  // ── SCALE TO THE BAND: 40 under the kicker ("John Yum · Work"), 40 above the section nav ────────────────────────────
   const band = () => {
     let top = 0, bottom = innerHeight;
     try { const pd = window.parent.document, k = pd.getElementById('kicker'), c = pd.getElementById('counter');
@@ -174,206 +189,159 @@
     return Math.max(200, bottom - top);
   };
   const fit = () => { const W = sheet.offsetWidth, H = sheet.offsetHeight; if (!W || !H) return; const s = Math.min((innerWidth - 64) / W, band() / H); sheet.style.setProperty('--s', s.toFixed(4)); };
-  addEventListener('resize', fit);
-  new ResizeObserver(fit).observe(sheet);   // photos and faces land after the lift and can grow a group: refit as they do
+  addEventListener('resize', fit); new ResizeObserver(fit).observe(sheet);
 
-  // ── THE PIECES ──────────────────────────────────────────────────────────────────────────────────────────────────────
+  // stays STROKED, never black (John, 2026-10-03); requests to book in their coloured discs
+  const REQ = [['#D7EAFB', '#2E80E0'], ['#FCE7E3', '#F4513C'], ['#E6E2FB', '#7A6CE8'], ['#FBE5CC', '#DD6B0E'], ['#FBE3F1', '#E63FA0']];   // Blue, Coral, Purple, Orange, Pink: the build's own label colours
   const WEB_CSS =
-      // the guests' stays STROKED, not black (John, 2026-10-03) — white, a 1.5 #222 line, the name in #222
       '.booking-pill:not(.preso-req):not(.past){background:#fff!important;border:1.5px solid #222!important;box-sizing:border-box}'
     + '.booking-pill:not(.preso-req):not(.past) .booking-name{color:#222!important}'
-      // the request to book, as 12c dresses it: dashed, its disc in a label colour with the guest's initials
     + '.booking-pill.preso-req{background:#fff!important;border:1.5px dashed #222!important;box-sizing:border-box}'
     + '.booking-pill.preso-req .booking-name{color:#222!important}'
     + '.booking-pill.preso-req .booking-avatar{background:var(--req-bg)!important;display:grid;place-items:center}'
     + '.booking-pill.preso-req .booking-avatar img{display:none}'
     + '.booking-pill.preso-req .booking-avatar::after{content:attr(data-ini);color:var(--req-ink);font:700 11px/1 Cereal,sans-serif;letter-spacing:.02em}'
-      // a guest's message rides on its pill in the build; on the sheet it would only be cut off at a crop's edge
     + '.bp-ask{display:none!important}';
   const NAT_CSS =
-      // stays STROKED (John, 2026-10-03): the month's and the board's — white, a 1.5 #222 line, the name in #222
       '.spill.glass-dark,.pill.glass-dark{background:#fff!important;border:1.5px solid #222!important;box-sizing:border-box;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;box-shadow:none!important}'
     + '.spill.glass-dark::before,.spill.glass-dark::after,.pill.glass-dark::before,.pill.glass-dark::after{display:none!important}'
     + '.spill.glass-dark .name,.pill.glass-dark .name{color:#222!important}'
-      // the board's requests to book, as 12d dresses them
-    + '.board .pill.preso-req{background:#fff!important;border:1.5px dashed #222!important;box-sizing:border-box;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;box-shadow:none!important}'
-    + '.board .pill.preso-req::before,.board .pill.preso-req::after{display:none!important}'
-    + '.board .pill.preso-req .name{color:#222!important}'
-    + '.board .pill.preso-req>span:first-child{background:var(--req-bg)!important;display:grid!important;place-items:center}'
-    + '.board .pill.preso-req>span:first-child img{display:none}'
-    + '.board .pill.preso-req>span:first-child::after{content:attr(data-ini);color:var(--req-ink);font:700 11px/1 Cereal,sans-serif;letter-spacing:.02em}'
-    + '.ds-label{display:none!important}.askwrap,.bar.askonly{display:none!important}';
+    + '.pill.preso-req{background:#fff!important;border:1.5px dashed #222!important;box-sizing:border-box;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;box-shadow:none!important}'
+    + '.pill.preso-req::before,.pill.preso-req::after{display:none!important}.pill.preso-req .name{color:#222!important}'
+    + '.pill.preso-req>span:first-child{background:var(--req-bg)!important;display:grid!important;place-items:center}'
+    + '.pill.preso-req>span:first-child img{display:none}'
+    + '.pill.preso-req>span:first-child::after{content:attr(data-ini);color:var(--req-ink);font:700 11px/1 Cereal,sans-serif;letter-spacing:.02em}'
+    + '.ds-label{display:none!important}';
 
+  // ── WEB (/multi/) ───────────────────────────────────────────────────────────────────────────────────────────────────
   async function web() {
     const f = await open('/multi/?' + V.slice(1), 1720, 1000), w = f.contentWindow, d = f.contentDocument;
     const ev = c => { try { return w.eval(c); } catch (e) { console.warn('[12d1 web]', e); } };
     await until(() => d.querySelectorAll('#gridRows .price-row').length > 5 && d.querySelector('#gridRows .price-card'));
     d.body.classList.remove('no-header');
-    // as the deck shows it (12c): the pro tier — 32 homes, the demand curve on — at the deck's own 48px rows, guests in,
-    // real prices, the homes gathered into their cities
+    // as the deck shows it (12c): the pro tier at 48px rows, guests in, real prices, on today
     const den = d.createElement('style');
-    den.textContent = 'body.host-pro:not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .price-row{height:48px}'
-      + 'body.host-pro:not(.super-collapse-2) .thumb-row{height:48px}body.host-pro .settings-row{height:48px}body.host-pro{--thumb:40px}'
-      + '#devBar{display:none!important}';
+    den.textContent = 'body.host-pro:not(.settings-mode):not(.avail-mode):not(.super-collapse-2) .price-row{height:48px}body.host-pro:not(.super-collapse-2) .thumb-row{height:48px}body.host-pro{--thumb:40px}#devBar{display:none!important}';
     d.head.appendChild(den);
-    try { w.switchHost('pro', true); } catch (e) { console.warn(e); }
-    try { w.setDataMode('none', true); } catch (e) { console.warn(e); }   // off Busy Host: its mode draws no demand curve
+    try { w.switchHost('pro', true); w.setDataMode('none', true); } catch (e) { console.warn(e); }
     await settle(600);
     ['devBookings', 'devVariance'].forEach(id => { const b = d.getElementById(id); if (b && !b.checked) { b.checked = true; b.dispatchEvent(new w.Event('change')); } });
-    await settle(600);
-    ev('groups.length = 0; smartGroups().forEach(g => groups.push(g)); saveGroups(); renderGroups(); applyGroupsToCalendar();');
     ev('gridWrap.scrollLeft = Math.max(0, (rowOffsets[calStartDi()] || 0) - GRID_GUTTER); gridWrap.scrollTop = 0; gridWrap.dispatchEvent(new Event("scroll"));');
     await settle(1200);
-    const H = half(document.getElementById('web'), f, WEB_CSS);
-    // the groups in the order they pack — the offer beside the board, where the board leaves room — filled as each is lifted
-    const slot = {}; ['head', 'tools', 'board', 'offer', 'pick', 'menus', 'tips', 'tip'].forEach(k => { slot[k] = H.row(k === 'menus' ? 1560 : 0); });
+    register('web', f, WEB_CSS);
+    const vis = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.left > 100 && r.right < 1700 && r.top > 150 && r.bottom < 980; };
 
-    // 1 · the chrome: the logo, the nav, the account; the month, the toggle, the arrows and Today, search, Group
-    const r1 = slot.head, hdr = d.querySelector('.app-header');
-    if (hdr) [...hdr.children].forEach(c => { if (c.getBoundingClientRect().width) r1.appendChild(lift(c)); });
-    const r2 = slot.tools;
-    ['monthTitle', 'segToggle', 'calNavGroup', 'searchPill', 'tbGroupBtn'].forEach(id => { const e = d.getElementById(id); if (e) r2.appendChild(lift(e)); });
+    // controls: the view toggle, the arrows and Today, search, Group
+    ['segToggle', 'calNavGroup', 'searchPill', 'tbGroupBtn'].forEach(id => { const e = d.getElementById(id); if (e && e.getBoundingClientRect().width) put('controls', 'web', lift(e)); });
+    // the homes' photos
+    [...d.querySelectorAll('#listingThumbsInner .thumb-img')].slice(0, 12).forEach(t => put('homes', 'web', lift(t)));
 
-    // 2 · the board: a fortnight of San Diego from today — the homes' photos, the dates, the nights at their own prices (struck
-    //     where closed), the guests' stays (stroked), two of them requests to book in their coloured discs
-    const visPills = () => [...d.querySelectorAll('#gridRows .booking-pill:not(.past)')].filter(p => { const r = p.getBoundingClientRect(); return r.right > 120 && r.left < 900 && r.top > 0 && r.top < 760; })
-      .sort((a, z) => a.getBoundingClientRect().top - z.getBoundingClientRect().top);
-    const REQ = [['#D7EAFB', '#2E80E0'], ['#E6E2FB', '#7A6CE8'], ['#FBE5CC', '#DD6B0E']];   // Blue, Purple, Orange: the build's own label colours
-    visPills().filter((p, k) => k % 2 === 1).slice(0, 3).forEach((p, k) => {
+    // the web cell in each of its states, by its own classes (never one under a stay): open, past, closed, closed for a
+    // minimum stay — then, below, picked, and a tip's: resting, in focus, applied
+    const cardsOf = sel => [...d.querySelectorAll('#gridRows .price-card' + sel)].filter(c => { const r = c.getBoundingClientRect(); return r.width > 0 && r.top > 0 && r.left > 92; });
+    const one = (sel, not) => { const c = cardsOf(sel).find(x => !x.classList.contains('booked') && !(not && x.matches(not))); if (c) put('sizes', 'web', lift(c)); };
+    one(':not(.past):not(.unavailable):not(.opt-flag):not(.selected)');
+    one('.past');
+    one('.closed-rule.unavailable');
+    one('.min-closed.unavailable', '.opt-flag');
+
+    // stays: one stroked, one past, and a request to book in each colour its disc comes in
+    const pills = [...d.querySelectorAll('#gridRows .booking-pill')].filter(p => { const r = p.getBoundingClientRect(); return r.width > 0 && r.left > 92 && r.top > 0 && r.top < 1000 && !p.classList.contains('past'); });
+    if (pills[0]) put('pills', 'web', lift(pills[0], { w: 240 }));
+    const past = d.querySelector('#gridRows .booking-pill.past'); if (past) put('pills', 'web', lift(past, { w: 240 }));
+    pills.slice(1, 1 + REQ.length).forEach((p, k) => {
       p.classList.add('preso-req'); const av = p.querySelector('.booking-avatar'), g = p.dataset.guest || 'G';
-      if (av) { av.dataset.ini = (g[0] + 'RMKLTS'[k]).toUpperCase(); av.style.setProperty('--req-bg', REQ[k][0]); av.style.setProperty('--req-ink', REQ[k][1]); }
+      if (av) { av.dataset.ini = (g[0] + 'RMKLT'[k]).toUpperCase(); av.style.setProperty('--req-bg', REQ[k][0]); av.style.setProperty('--req-ink', REQ[k][1]); }
+      put('pills', 'web', lift(p, { w: 240 }));
     });
-    const board = (rows, x1) => {
-      const th = d.getElementById('listingThumbs').getBoundingClientRect(), dh = d.getElementById('dateHeader').getBoundingClientRect();
-      const rr = [...d.querySelectorAll('#gridRows > .price-row')], last = rr[Math.min(rows, rr.length) - 1].getBoundingClientRect();
-      const box = R(th.left, dh.top - 8, x1, last.bottom + 6);
-      const wrap = document.createElement('div'); wrap.className = 'dsx-lift'; Object.assign(wrap.style, { width: box.width + 'px', height: box.height + 'px', position: 'relative' });
-      // the nights under the photo column are clipped off at its edge, as the build's own column covers them; the photos on top
-      const right = crop([...d.querySelectorAll('#dateHeader > *, #gridRows .price-card, #gridRows .booking-pill, #gridRows .group-divider, .ribbon-master-dot, .ribbon-svg, .cal-ribbon, [class*=ribbon]')], R(th.right, box.top, box.right, box.bottom));
-      Object.assign(right.style, { position: 'absolute', left: (th.right - box.left) + 'px', top: '0' });
-      const left = crop([...d.querySelectorAll('#listingThumbsInner > .thumb-row, .cal-group-label')], box);
-      Object.assign(left.style, { position: 'absolute', left: '0', top: '0', overflow: 'visible' });
-      wrap.appendChild(right); wrap.appendChild(left); return wrap;
-    };
-    slot.board.appendChild(board(7, 1040));
 
-    // 3 · picking: three nights selected (the stroked cells), their quick actions, and each menu they open
-    const order = () => [...d.querySelectorAll('#gridRows .price-row')].map(r => +r.dataset.li);
-    ev(`selectRange({ li: ${order()[0]}, di: todayDi + 1 }, { li: ${order()[0]}, di: todayDi + 3 })`);
+    // picking: the picked cell, the quick actions bar and every menu it opens
+    const order = [...d.querySelectorAll('#gridRows .price-row')].map(r => +r.dataset.li);
+    ev(`selectRange({ li: ${order[0]}, di: todayDi + 1 }, { li: ${order[0]}, di: todayDi + 3 })`);
     await settle(900);
-    const r3 = slot.pick;
-    const sel = [...d.querySelectorAll('#gridRows .price-card.selected')];
-    if (sel.length) { const a = sel[0].getBoundingClientRect(), z = sel[sel.length - 1].getBoundingClientRect(); r3.appendChild(crop(sel, R(a.left - 4, a.top - 4, z.right + 4, z.bottom + 4))); }
-    const ma = d.getElementById('maPill'); if (ma) r3.appendChild(lift(ma));
-    const r4 = slot.menus;
+    one('.selected');
+    const ma = d.getElementById('maPill'); if (ma) put('qa', 'web', lift(ma));
     for (const [fn, id] of [['openAvailMenu', 'availMenu'], ['openPriceMenu', 'priceMenu'], ['openDiscountsMenu', 'discountsMenu'], ['openMinNightsMenu', 'minNightsMenu']]) {
       if (typeof w[fn] !== 'function') continue;
       ev(fn + '()'); await settle(700);
-      const m = d.getElementById(id) || [...d.querySelectorAll('.avail-menu.show, [id$=Menu].show')].pop();
-      if (m && m.getBoundingClientRect().width) r4.appendChild(lift(m));
+      const m = d.getElementById(id); if (m && m.getBoundingClientRect().width) put('qa', 'web', lift(m));
     }
     ev('clearSelection()'); await settle(500);
 
-    // 4 · tips: the Show tips button; then a tip in focus — Del Mar's racing — its rings and its curve on the board, and
-    //     the pill that carries it; then its Apply and the offer that follows
-    const r5 = slot.tips;
-    const mp = d.getElementById('magicPill'); if (mp && mp.getBoundingClientRect().width) r5.appendChild(lift(mp));
+    // tips: the button, a tip (Del Mar) and its cells in focus, then applied
+    const mp = d.getElementById('magicPill'); if (mp && mp.getBoundingClientRect().width) put('qa', 'web', lift(mp));
     ev('startOptimize()');
     await until(() => w.__opt && w.__opt.suggs && w.__opt.suggs.length && !d.body.classList.contains('opt-scanning'), 12000); await settle(1200);
     ev("(() => { const o = window.__opt; const i = o.suggs.findIndex(s => /Del Mar/.test(s.title || s.name || '')); if (i >= 0) { o.cur = i; renderMagicPill(); focusOpportunity(); } })()");
     await settle(3200);
-    if (mp) r5.appendChild(lift(mp));
-    const foc = [...d.querySelectorAll('#gridRows .price-card.opt-focus')];
-    if (foc.length) {
-      const xs = foc.map(c => c.getBoundingClientRect()), l = Math.min(...xs.map(r => r.left)), r = Math.max(...xs.map(r => r.right)), b = Math.max(...xs.map(r => r.bottom));
-      const lab = [...d.querySelectorAll('.cal-group-label')].map(e => e.getBoundingClientRect()).filter(q => q.top < Math.min(...xs.map(r => r.top))).pop();
-      const top = lab ? lab.top - 8 : Math.min(...xs.map(r => r.top)) - 140;
-      const curve = [...d.querySelectorAll('body *')].filter(e => { const c = typeof e.className === 'string' ? e.className : ''; return /ribbon|season-band|demand/.test(c) && !e.closest('[class*=ribbon] [class*=ribbon]'); });
-      slot.tip.appendChild(crop([...d.querySelectorAll('#dateHeader > *, #gridRows .price-card, #gridRows .booking-pill, #gridRows .group-divider'), ...curve], R(l - 168, top, r + 168, b + 6)));
-    }
+    if (mp) put('qa', 'web', lift(mp));
+    one('.opt-flag.is-settled.opt-fill:not(.opt-focus)'); one('.opt-flag.opt-focus');
     const ap = d.querySelector('#magicPill [data-magic="apply"]');
-    if (ap) { ap.click(); const ov = await until(() => { const o = d.getElementById('lmUpsellOverlay'); return o && o.classList.contains('visible') && o; }, 6000);
-      if (ov) { await settle(700); const card = ov.querySelector('[class*=card], [class*=modal], [class*=sheet]') || ov.firstElementChild; if (card) slot.offer.appendChild(lift(card)); } }
-
-    window.__ds.web = { f, w, d, ev, H };
+    if (ap) { ap.click(); await settle(2600); one('.opt-applied'); }
   }
 
+  // ── NATIVE (/multical/) ─────────────────────────────────────────────────────────────────────────────────────────────
   async function nat() {
     const base = '/multical/?preso=1&today=2026-09-09' + V;
     const [fS, fM, fX] = await Promise.all([open(base, 430, 932), open(base + '&multi=1', 430, 932), open('/multical/?sampler=1&preso=1&today=2026-09-09' + V, 2400, 1800)]);
     const mS = await until(() => fS.contentWindow.__model), mM = await until(() => fM.contentWindow.__model);
     await until(() => fX.contentDocument.querySelector('.ds .sampler-item'));
     await settle(1200);
-    const H = half(document.getElementById('nat'), fS, NAT_CSS);
+    register('nat', fS, NAT_CSS);
     const S = fS.contentDocument, M = fM.contentDocument, X = fX.contentDocument;
-    const I = (m, d, mo = 9) => m.fx.index({ y: 2026, m: mo, d });
+    const I = (m, d) => m.fx.index({ y: 2026, m: 9, d });
+    const sept = () => [...S.querySelectorAll('.grid')].find(g => { const r = g.getBoundingClientRect(); return r.bottom > 100 && r.top < 700; });
+    const dayCell = d => { const g = sept(); return g && [...g.querySelectorAll('.dcell')].find(c => (c.querySelector('.date') || {}).textContent === String(d)); };
 
-    // 1 · the chrome, from the sampler: the month title through its collapse, the weekday row, Today, the circles, the host
-    const r1 = H.row(1560);
-    X.querySelectorAll('.ds-chrome .ds-art').forEach(a => r1.appendChild(lift(a)));
+    // 1 · the phone's date cell, every state: the sampler's, each pick given the stroked selection (the duplicate that only
+    //     ever showed the stroked one dropped)
+    X.querySelectorAll('.ds-grid.cells > .sampler-item').forEach(it => { if (/original/.test((it.querySelector('.ds-label') || {}).textContent || '')) { it.dataset.skip = 1; return; } it.classList.add('origsel'); const ph = it.querySelector('.phone'); if (ph) ph.classList.add('origsel'); });
+    await settle(400);
+    X.querySelectorAll('.ds-grid.cells > .sampler-item:not([data-skip]) > .phone').forEach(ph => put('cells', 'nat', lift(ph)));
 
-    // 2 · the month, lived in: a guest's stay (stroked), a request to book (its coloured initials), a stay the host cancelled,
-    //     and two Repeat rules wearing their colours — weekends +20% in purple, Tuesdays and Wednesdays a 3-night minimum in orange
-    const rule = (id, days, ci, extra) => ({ id, weekly: true, days: new Set(days), start: I(mS, 10), end: I(mS, 30), mdays: new Set(), listings: [0], price: null, pricePct: null, blocked: null, minNights: null, maxNights: null, checkInDays: new Set(), checkOutDays: new Set(), cancellation: null, name: id, colorIndex: ci, enabled: true, ...extra });
-    try { mS.applyRepeat(rule('Weekends', [6, 7], 0, { pricePct: 20 })); mS.applyRepeat(rule('Midweek', [3, 4], 6, { minNights: 3 })); } catch (e) { console.warn(e); }
-    const stay = { listing: 0, extraGuests: 1, checkIn: '3:00 PM', checkOut: '11:00 AM', nightly: [], earnings: 0 };
-    const faces = mS.bookings.filter(b => b.avatarURL).map(b => b.avatarURL);
-    mS.addStay({ ...stay, startIndex: I(mS, 13), nights: 3, guest: 'Maya', avatarURL: faces[0] || '' });
-    mS.addStay({ ...stay, startIndex: I(mS, 20), nights: 3, guest: 'Daniel', avatarURL: '', kind: 'request', initials: 'DR', extraGuests: 0 });
-    mS.addStay({ ...stay, startIndex: I(mS, 27), nights: 3, guest: 'Priya', avatarURL: faces[1] || '', kind: 'cancelled', extraGuests: 0 });
+    // 2 · REPEAT: a rule in every colour of its palette, a night each, each carrying a different setting
+    const SET = [{ pricePct: 20 }, { pricePct: -15 }, { minNights: 3 }, { maxNights: 7 }, { blocked: true }, { checkInDays: new Set([1, 2, 3, 4, 5, 6, 7]) }, { price: 650 }, { pricePct: 35, minNights: 2 }];
+    // a YEARLY rule on a one-night range (a weekly one ignores its range and would repeat on its weekdays all year)
+    SET.forEach((x, i) => { const n = I(mS, 14 + i); try { mS.applyRepeat({ id: 'r' + i, weekly: false, days: new Set(), start: n, end: n, mdays: new Set(), listings: [0], price: null, pricePct: null, blocked: null, minNights: null, maxNights: null, checkInDays: new Set(), checkOutDays: new Set(), cancellation: null, name: 'r' + i, colorIndex: i, enabled: true, ...x }); } catch (e) { console.warn(e); } });
     mS.setRecurQA(true);
     await settle(1400);
-    const grids = [...S.querySelectorAll('.grid')].map(g => [g, g.getBoundingClientRect()]).filter(([, r]) => r.bottom > 100 && r.top < 700);
-    const r2 = H.row();
-    if (grids.length) { const r = grids[0][1]; r2.appendChild(crop([...S.querySelectorAll('.grid > *, .spill, .grid .pill')], R(r.left - 4, r.top - 4, r.right + 4, r.bottom + 4))); }
+    for (let i = 0; i < SET.length; i++) { const c = dayCell(14 + i); if (c) put('repeat', 'nat', lift(c)); }
 
-    // 3 · picking: three nights (the stroked pick, never the black), and the quick actions they raise — the cards, then the
-    //     Repeat quick actions that go with a rule
+    // 3 · stays on the month: a request to book (its initials on the disc), and one the host cancelled
+    const stay = { listing: 0, extraGuests: 0, checkIn: '3:00 PM', checkOut: '11:00 AM', nightly: [], earnings: 0 };
+    mS.addStay({ ...stay, startIndex: I(mS, 23), nights: 2, guest: 'Daniel', avatarURL: '', kind: 'request', initials: 'DR' });
+    mS.addStay({ ...stay, startIndex: I(mS, 27), nights: 2, guest: 'Priya', avatarURL: '', kind: 'cancelled' });
+    await settle(1200);
+    X.querySelectorAll('.ds-grid.pills .ds-art').forEach(a => put('pills', 'nat', lift(a)));
+    S.querySelectorAll('.spill').forEach(p => { if (p.getBoundingClientRect().width) put('pills', 'nat', lift(p)); });
+
+    // 4 · the phone's quick actions: the cards a pick raises, then Repeat's
     mS.setRecurQA(false); mS.setOrigSel(true);
-    mS.setSelectedNights(new Set([I(mS, 16), I(mS, 17), I(mS, 18)]));
+    mS.setSelectedNights(new Set([I(mS, 9), I(mS, 10), I(mS, 11)]));
     await settle(1300);
-    const r3 = H.row();
-    const pick = [...S.querySelectorAll('.dcell')].filter(c => /\bsel|picked|selected/.test(c.className));
-    if (pick.length) { const a = pick[0].getBoundingClientRect(), z = pick[pick.length - 1].getBoundingClientRect(); r3.appendChild(crop(pick, R(a.left - 4, a.top - 4, z.right + 4, z.bottom + 4))); }
-    const sqa = S.querySelector('.sqa'); if (sqa) { const cards = [...sqa.querySelectorAll('.sqa-card')]; if (cards.length) { const rs = cards.map(c => c.getBoundingClientRect()); r3.appendChild(crop(cards, R(Math.min(...rs.map(r => r.left)) - 2, Math.min(...rs.map(r => r.top)) - 2, Math.max(...rs.map(r => r.right)) + 2, Math.max(...rs.map(r => r.bottom)) + 2))); } }
+    const cards = [...S.querySelectorAll('.sqa .sqa-card')]; if (cards.length) put('qa', 'nat', crop(cards, box(cards)));
     mS.setRecurQA(true); await settle(1300);
-    // the Repeat quick actions live in their own shadow root: the whole layer is lifted (its root and styles carried across)
-    // and cropped to its cards
     const host = S.querySelector('.recur-host');
-    if (host && host.shadowRoot) {
-      const cards = [...host.shadowRoot.querySelectorAll('.card')].map(c => c.getBoundingClientRect()).filter(r => r.width > 40 && r.height > 40 && r.bottom > 0 && r.top < 932);
-      if (cards.length) r3.appendChild(crop([host], R(Math.min(...cards.map(r => r.left)) - 2, Math.min(...cards.map(r => r.top)) - 2, Math.max(...cards.map(r => r.right)) + 2, Math.max(...cards.map(r => r.bottom)) + 2)));
-    }
+    if (host && host.shadowRoot) { const rc = [...host.shadowRoot.querySelectorAll('.card')].filter(c => { const r = c.getBoundingClientRect(); return r.width > 40 && r.height > 40 && r.bottom > 0 && r.top < 932; }); if (rc.length) put('qa', 'nat', crop([host], box(rc))); }
 
-    // 4 · the multi board, its homes in real photos, two of its stays requests to book
-    const REQ = { Mara: ['MK', '#D7EAFB', '#2E80E0'], Britt: ['BH', '#E6E2FB', '#7A6CE8'] };
-    M.querySelectorAll('.board .pill').forEach(p => { const n = (p.querySelector('.name') || {}).textContent || '', k = Object.keys(REQ).find(g => n.startsWith(g)); if (!k) return; p.classList.add('preso-req'); const disc = p.firstElementChild; if (disc) { disc.dataset.ini = REQ[k][0]; disc.style.setProperty('--req-bg', REQ[k][1]); disc.style.setProperty('--req-ink', REQ[k][2]); } });
-    const bd = M.querySelector('.board'); if (bd) { const r = bd.getBoundingClientRect(); H.row().appendChild(crop([...M.querySelectorAll('.board *')].filter(e => e.matches('.daycell, .cell, .pill, img, [class*=thumb], .wd, .num, .ldot, .lphoto') && !e.closest('.pill *')), R(0, Math.max(0, r.top), 430, Math.min(r.bottom, Math.max(0, r.top) + 790)))); }
+    // 5 · the multi board's cell (plain, picked) and its stays (stroked, requests)
+    const bc = [...M.querySelectorAll('.board .cell')].filter(c => { const r = c.getBoundingClientRect(); return r.width && r.top > 150 && r.bottom < 900 && r.left > 60; });
+    if (bc[0]) put('sizes', 'nat', lift(bc[0]));
+    const BREQ = { Mara: ['MK', REQ[0]], Britt: ['BH', REQ[2]] };
+    M.querySelectorAll('.board .pill').forEach(p => { const n = (p.querySelector('.name') || {}).textContent || '', k = Object.keys(BREQ).find(g => n.startsWith(g)); if (!k) return; p.classList.add('preso-req'); const disc = p.firstElementChild; if (disc) { disc.dataset.ini = BREQ[k][0]; disc.style.setProperty('--req-bg', BREQ[k][1][0]); disc.style.setProperty('--req-ink', BREQ[k][1][1]); } });
+    const bp = [...M.querySelectorAll('.board .pill')].filter(p => { const r = p.getBoundingClientRect(); return r.width > 100 && r.left > 60 && !p.classList.contains('snapped'); });   // whole pills only: one clipped at the board's edge draws snapped
+    const plain = bp.find(p => !p.classList.contains('preso-req')); if (plain) put('pills', 'nat', lift(plain, { w: 200 }));
+    bp.filter(p => p.classList.contains('preso-req')).forEach(p => put('pills', 'nat', lift(p, { w: 200 })));
 
-    // 5 · every state of the month's date cell, from the sampler — the picks stroked (each black one given the original,
-    //     stroked selection), the one that only showed the stroked version dropped as a duplicate
-    const r5 = H.row(760);
-    X.querySelectorAll('.ds-grid.cells > .sampler-item').forEach(it => {
-      const label = (it.querySelector('.ds-label') || {}).textContent || '';
-      if (/original/.test(label)) return;
-      it.classList.add('origsel'); const ph = it.querySelector('.phone'); if (ph) ph.classList.add('origsel');
-    });
-    await settle(400);
-    X.querySelectorAll('.ds-grid.cells > .sampler-item > .phone').forEach(ph => { if (/original/.test((ph.parentElement.querySelector('.ds-label') || {}).textContent || '')) return; r5.appendChild(lift(ph)); });
-
-    // 6 · the guests' pills on the month, the views at their own size (month, list, year, day), the drawn events and holidays
-    const r6 = H.row(760); X.querySelectorAll('.ds-grid.pills .ds-art').forEach(a => r6.appendChild(lift(a)));
-    const r7 = H.row(); [...X.querySelectorAll('.ds-views .ds-art')].filter(a => !a.querySelector('.ds-multi')).forEach(a => r7.appendChild(lift(a)));
-    const r8 = H.row(); X.querySelectorAll('.ds-grid.marks .ds-art').forEach(a => r8.appendChild(lift(a)));
-
-    window.__ds.nat = { fS, fM, fX, mS, mM, H };
+    // 6 · the phone's controls and the drawn events and holidays, from the sampler
+    X.querySelectorAll('.ds-chrome .ds-art').forEach(a => put('controls', 'nat', lift(a)));
+    X.querySelectorAll('.ds-grid.marks .ds-art').forEach(a => put('events', 'nat', lift(a)));
   }
 
-  async function run() {
+  (async () => {
     await Promise.all([web().catch(e => console.error('[12d1 web]', e)), nat().catch(e => console.error('[12d1 native]', e))]);
     fit(); sheet.classList.add('ready');
-  }
-  run();
+  })();
 })();
 </script>
 </body>
