@@ -176,6 +176,31 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
 .note { position: absolute; bottom: 72px; left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--ink-2);
   text-align: center; max-width: 420px; padding: 0 16px; }
 
+/* ── evolve ── */
+.modes { grid-template-columns: 1fr 1fr; }
+.drawui { display: flex; flex-direction: column; gap: 18px; }
+.drawui > * { flex: none; }
+.evolve { display: flex; flex-direction: column; gap: 12px; }
+.evolve .gen { display: flex; align-items: baseline; justify-content: space-between; }
+.evolve .gen b { font-size: 26px; font-weight: 600; letter-spacing: -.02em; }
+.evolve .gen span { font: 12px "IBM Plex Mono", monospace; color: var(--ink-3); }
+.evolve p { font-size: 13px; color: var(--ink-2); }
+.evolve .pair { display: flex; gap: 6px; }
+.evolve .pair .tool { flex: 1; }
+.range { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-2); }
+.range input { flex: 1; accent-color: var(--ink); }
+.cells { position: absolute; inset: 14px; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); gap: 10px; }
+.cells button { border: 0; background: transparent; border-radius: 18px; cursor: pointer; position: relative;
+  box-shadow: inset 0 0 0 1px var(--line); transition: box-shadow .15s; }
+.cells button:hover { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.cells button.parent { box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+.cells button.parent:hover { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.cells button span { position: absolute; left: 12px; top: 10px; font: 500 10.5px "IBM Plex Mono", monospace;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); }
+.stage:not(.grid) .cells { display: none; }
+.stage.grid .actions, .stage.grid #recenter, .stage.grid #download, .stage.grid .note,
+.stage.grid .empty, .stage.grid .preview { display: none !important; }
+
 @media (max-width: 900px) {
   .app { grid-template-columns: 1fr; height: auto; }
   .side { border-right: 0; border-bottom: 1px solid var(--line); padding: 18px 16px 22px; }
@@ -197,6 +222,11 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
       <span class="mode" id="mode">…</span>
     </div>
 
+    <div class="seg modes" id="modes">
+      <button data-mode="draw" aria-pressed="true">Draw</button>
+      <button data-mode="evolve" aria-pressed="false">Evolve</button>
+    </div>
+
     <div class="keybox" id="keybox" hidden>
       <p id="keymsg"></p>
       <form id="keyform" autocomplete="off">
@@ -206,6 +236,7 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
       <p class="err" id="keyerr" hidden></p>
     </div>
 
+    <div class="drawui" id="drawUI">
     <div class="pad" id="pad">
       <canvas id="sketch"></canvas>
       <div class="hint" id="hint">Draw a character, or drop in a picture of one</div>
@@ -223,6 +254,17 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
 
     <button class="upload" id="upload" title="A photo or scan of a drawing — you can also drag one onto the pad, or paste it">Upload a drawing</button>
     <input type="file" id="file" accept="image/*" hidden>
+    </div>
+
+    <div class="evolve" id="evolveUI" hidden>
+      <div class="gen"><b id="gen">Generation 1</b><span id="genHint">nine strangers</span></div>
+      <p>Tap the one you like. It moves to the middle and the eight around it are its children. Tap the middle one to roll new children.</p>
+      <label class="range">Gentle <input type="range" id="wild" min="0.05" max="0.6" step="0.01" value="0.22" aria-label="How far children drift"> Wild</label>
+      <div class="pair">
+        <button class="tool" id="back">Back a generation</button>
+        <button class="tool" id="species">New species</button>
+      </div>
+    </div>
 
     <label class="field">
       <span>What is it? <em style="font-style:normal;color:var(--ink-3)">— optional, helps a lot</em></span>
@@ -256,10 +298,12 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
 
   <main class="stage" id="stage">
     <canvas id="view"></canvas>
+    <div class="cells" id="cells"></div>
     <div class="empty" id="empty"><p>Draw something on the left,<br>and it'll stand up here.</p></div>
     <img class="preview" id="preview" alt="">
     <div class="status" id="status"></div>
     <div class="corner">
+      <button id="backToGrid" hidden>Back to evolving</button>
       <button id="recenter" hidden>Reset view</button>
       <a id="download" hidden download>Download .glb</a>
     </div>
@@ -301,6 +345,18 @@ function promptFor(style, desc) {
     'Keep the sketch\'s silhouette, proportions and features — refine them, do not redesign them.',
     'Front view, standing upright facing the camera, arms held a little away from the body, legs slightly apart,',
     'whole body in frame and centred, soft even studio lighting, plain white background, no ground shadow, no text, no props.',
+  ].filter(Boolean).join(' ');
+}
+
+// An evolved creature arrives as a 3D blockout, not a sketch: the body plan is the
+// point, so the prompt holds the image to its count of legs, eyes, horns and fins.
+function evolvedPrompt(style, desc) {
+  return [
+    `Turn this rough 3D blockout of an invented creature into one finished, believable creature: ${STYLES[style]}.`,
+    desc ? `It is ${desc}.` : '',
+    'Keep its body plan exactly: the same number of legs, eyes, horns, spikes and fins, the same tail, the same proportions, colours and pattern.',
+    'Refine the forms and surfaces into something that could really exist. Do not add a human face, hands or clothes.',
+    'Three-quarter view, whole body in frame and centred, soft even studio lighting, plain white background, no ground shadow, no text, no props.',
   ].filter(Boolean).join(' ');
 }
 
@@ -403,7 +459,10 @@ let undo = [], drawing = null, dirty = false;
 function blank() { sx.fillStyle = '#fff'; sx.fillRect(0, 0, SK, SK); }
 blank();
 
-function setDirty(v) { dirty = v; pad.classList.toggle('dirty', v); if (!running) $('#go').disabled = !v; }
+// Drawing needs a mark on the pad; evolving always has a creature in the middle.
+let blocked = false, mode = 'draw';
+const canGo = () => !blocked && (mode === 'evolve' || dirty);
+function setDirty(v) { dirty = v; pad.classList.toggle('dirty', v); if (!running) $('#go').disabled = !canGo(); }
 
 function pt(e) {
   const r = sk.getBoundingClientRect();
@@ -541,6 +600,7 @@ ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground)
 const life = new THREE.Group(), holder = new THREE.Group();
 life.add(holder); scene.add(life);
 let model = null, mixer = null, current = null;
+const cells = [];   // the evolve grid — see 'evolve' below
 
 const loader = new GLTFLoader();
 const load = async (url) => url.startsWith('http') && !url.includes('threejs.org')
@@ -553,7 +613,7 @@ function setModel(gltf) {
   model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
   model.position.set(0, 0, 0); holder.scale.setScalar(1); model.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(model), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
-  holder.scale.setScalar(1.6 / (size.y || 1));
+  holder.scale.setScalar(1.6 / (Math.max(size.y, Math.max(size.x, size.z) * .75) || 1));
   model.position.set(-c.x, -box.min.y, -c.z);
   holder.add(model);
   mixer = new THREE.AnimationMixer(model); current = null;
@@ -618,6 +678,8 @@ view.addEventListener('pointerup', (e) => {
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), .05), t = clock.elapsedTime;
+  if (view === 'grid') return renderGrid(t);
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, stageEl.clientWidth, stageEl.clientHeight);
   mixer?.update(dt);
   // Spring for the boop and the arrival pop: stiff, lightly damped, so it wobbles twice.
   boopV += (-140 * boop - 7 * boopV) * dt; boop += boopV * dt;
@@ -630,6 +692,15 @@ renderer.setAnimationLoop(() => {
   yaw += ((pointer.x * (current ? .25 : .55)) - yaw) * Math.min(1, dt * 3);
   life.rotation.y = yaw;
   if (!current) life.rotation.z = Math.sin(t * 1.3) * .015;
+  // An evolved creature keeps the way it moved on the grid: its tempo, bounce, sway and gait.
+  if (beh && !current) {
+    const ph = t * beh.f * Math.PI * 2;
+    life.position.y = beh.gait === 'hop' ? Math.abs(Math.sin(ph / 2)) * beh.amp * 2.4
+                    : beh.gait === 'float' ? .14 + Math.sin(ph / 2) * beh.amp
+                    : Math.abs(Math.sin(ph)) * beh.amp * .4;
+    life.rotation.x = Math.sin(ph / 2) * beh.sway;
+    life.rotation.z += Math.sin(t * 41) * Math.sin(t * 23) * .03 * beh.jitter;
+  } else { life.position.y = 0; life.rotation.x = 0; }
   controls.update();
   renderer.render(scene, camera);
 });
@@ -640,8 +711,371 @@ function resize() {
   camera.fov = w / h < .8 ? 38 : 28;
   camera.updateProjectionMatrix();
 }
-new ResizeObserver(resize).observe(stageEl); resize();
+new ResizeObserver(() => { resize(); placeCells(); }).observe(stageEl); resize();
 $('#recenter').onclick = () => { camera.position.copy(HOME.pos); controls.target.copy(HOME.target); };
+
+
+/* ═══════════════ evolve ═══════════════
+   Dawkins' biomorphs, in 3D, with behaviour in the genome. A genome is ~36
+   numbers in 0–1; grow() reads it into a body (a swept spine, legs, a head with
+   eyes, mouth and horns, back spikes, a tail and its tip, fins, a palette and a
+   pattern) and a way of moving (tempo, bounce, sway, gait, nerves, curiosity).
+   The grid is a parent in the middle and eight mutants round it. All of this
+   runs in the page — free. Only "Bring it to life" goes to Meshy, with a
+   snapshot of the middle creature as its picture. */
+
+const GENES = ['len', 'arch', 'girth', 'bulge', 'taper', 'neck', 'head', 'legs', 'legLen', 'legThick', 'knee',
+  'eyes', 'eyeSize', 'stalks', 'mouth', 'horns', 'hornLen', 'spikes', 'spikeLen', 'tail', 'tailLift', 'tip', 'fins',
+  'hue', 'hue2', 'sat', 'light', 'pattern', 'scale', 'rough', 'metal',
+  'tempo', 'bounce', 'sway', 'gait', 'jitter', 'curious'];
+const lerp = (a, b, k) => a + (b - a) * k;
+const clamp01 = (x) => Math.min(1, Math.max(0, x));
+const pick = (x, n) => Math.min(n - 1, Math.floor(x * n));
+const gauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+const randomGenome = () => Object.fromEntries(GENES.map((g) => [g, Math.random()]));
+function mutate(parent, k) {
+  const c = { ...parent };
+  for (const g of GENES) {
+    if (Math.random() > .3 + k) continue;
+    const d = gauss() * k * .55;
+    c[g] = g === 'hue' ? (c[g] + d + 1) % 1 : clamp01(c[g] + d);   // hue goes round the wheel
+  }
+  return c;
+}
+function gaitOf(g) {
+  const legs = pick(g.legs, 5);
+  return legs ? (g.gait > .78 ? 'hop' : 'walk') : (g.gait > .5 ? 'float' : 'crawl');
+}
+function setBehaviour(g) {
+  beh = g ? { f: lerp(.45, 2.4, g.tempo), amp: lerp(.01, .12, g.bounce), sway: lerp(0, .1, g.sway),
+              gait: gaitOf(g), jitter: g.jitter > .75 ? (g.jitter - .75) * 4 : 0 } : null;
+}
+let beh = null;   // null → the drawn character's own defaults
+
+const UP = new THREE.Vector3(0, 1, 0), ZED = new THREE.Vector3(0, 0, 1);
+// A capsule from a to b, and a cone standing on p pointing along dir.
+function limb(a, b, r, mat) {
+  const d = new THREE.Vector3().subVectors(b, a), len = d.length();
+  const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, Math.max(.001, len), 4, 10), mat);
+  m.position.copy(a).addScaledVector(d, .5); m.quaternion.setFromUnitVectors(UP, d.normalize());
+  return m;
+}
+function cone(p, dir, r, h, mat) {
+  const d = dir.clone().normalize(), m = new THREE.Mesh(new THREE.ConeGeometry(r, h, 12), mat);
+  m.quaternion.setFromUnitVectors(UP, d); m.position.copy(p).addScaledVector(d, h / 2);
+  return m;
+}
+const put = (m, p) => (m.position.copy(p), m);   // Object3D.position can't be reassigned, only copied into
+function ball(r, mat, sx = 1, sy = 1, sz = 1) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), mat); m.scale.set(r * sx, r * sy, r * sz); return m;
+}
+// The body: a tube swept along a curve in the xy-plane, its radius and colour set per point.
+function sweep(curve, radius, colorAt, S = 64, N = 24) {
+  const pos = [], col = [], idx = [], c = new THREE.Color();
+  for (let i = 0; i <= S; i++) {
+    const u = i / S, p = curve.getPointAt(u), T = curve.getTangentAt(u);
+    const n = new THREE.Vector3().crossVectors(ZED, T).normalize(), r = radius(u);
+    for (let j = 0; j <= N; j++) {
+      const a = j / N * Math.PI * 2;
+      const dir = n.clone().multiplyScalar(Math.cos(a)).addScaledVector(ZED, Math.sin(a));
+      const v = p.clone().addScaledVector(dir, r);
+      pos.push(v.x, v.y, v.z); colorAt(c, u, v, dir.y); col.push(c.r, c.g, c.b);
+    }
+  }
+  for (let i = 0; i < S; i++) for (let j = 0; j < N; j++) {
+    const a = i * (N + 1) + j, b = a + N + 1;
+    idx.push(a, a + 1, b, b, a + 1, b + 1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  return geo;
+}
+
+function grow(g) {
+  const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+  const L = lerp(.7, 2.3, g.len), R = lerp(.16, .44, g.girth);
+  const legs = pick(g.legs, 5), gait = gaitOf(g);
+  const legLen = legs ? lerp(.22, .9, g.legLen) : 0;
+  const H = legs ? legLen + R * .35 : gait === 'float' ? R + .4 : R * .9;
+  const tailLen = g.tail > .25 ? lerp(.15, 1.1, (g.tail - .25) / .75) : 0;
+
+  // Palette: a body colour, a second for pattern and trim, a pale belly.
+  const sat = lerp(.12, .85, g.sat), light = lerp(.3, .66, g.light);
+  const c1 = new THREE.Color().setHSL(g.hue, sat, light);
+  const c2 = new THREE.Color().setHSL((g.hue + lerp(.08, .5, g.hue2)) % 1, lerp(.2, .9, 1 - g.sat * .5), lerp(.22, .78, 1 - g.light));
+  const belly = new THREE.Color().setHSL(g.hue, sat * .45, Math.min(.92, light + .28));
+  const pattern = pick(g.pattern, 4), freq = lerp(6, 26, g.scale);
+  const metal = g.metal > .82 ? lerp(.35, .9, (g.metal - .82) / .18) : 0;
+  const skin = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: lerp(.18, .95, g.rough), metalness: metal,
+    clearcoat: g.rough < .3 ? .8 : 0, clearcoatRoughness: .3 });
+  const trim = new THREE.MeshPhysicalMaterial({ color: c2, roughness: lerp(.25, .8, g.rough), metalness: metal * .6 });
+  const headMat = new THREE.MeshPhysicalMaterial({ color: pattern === 3 ? c2 : c1, roughness: skin.roughness, metalness: metal,
+    clearcoat: skin.clearcoat });
+
+  // Spine, tail to head, along +x; the head end can lift into a neck.
+  const arch = lerp(-.25, .35, g.arch) * L * .4, neck = lerp(-.1, .55, g.neck) * R * 2.2;
+  const pts = [];
+  if (tailLen) pts.push(new THREE.Vector3(-L / 2 - tailLen, H + lerp(-.6, .9, g.tailLift) * tailLen * .5, 0));
+  pts.push(new THREE.Vector3(-L / 2, H, 0), new THREE.Vector3(-L / 6, H + arch * .8, 0),
+           new THREE.Vector3(L / 6, H + arch, 0), new THREE.Vector3(L / 2, H + neck, 0));
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const tailU = tailLen / (L + tailLen);
+  const bodyR = (v) => R * (.5 + .5 * Math.exp(-((v - lerp(.2, .8, g.bulge)) ** 2) / .07)) * lerp(1, lerp(.45, 1, g.taper), v);
+  const radius = (u) => u >= tailU ? bodyR((u - tailU) / (1 - tailU))
+                                    : Math.max(.02, bodyR(0) * Math.pow(u / tailU, .75));
+  const colorAt = (c, u, v, up) => {
+    let k = 0;
+    if (pattern === 1) k = Math.sin(u * freq) > .25 ? 1 : 0;
+    else if (pattern === 2) k = Math.sin(v.x * freq * .9) * Math.sin(v.y * freq * 1.1 + 1.7) * Math.sin(v.z * freq + .6) > .16 ? 1 : 0;
+    else if (pattern === 3) k = u;
+    c.copy(c1).lerp(c2, k);
+    if (up < -.2) c.lerp(belly, Math.min(1, (-up - .2) * 1.5) * .7);   // countershading, as most animals have
+  };
+  body.add(new THREE.Mesh(sweep(curve, radius, colorAt), skin));
+  const at = (u) => curve.getPointAt(u);
+  body.add(put(ball(radius(0) * 1.02, skin), at(0)));   // close the tail end
+
+  // Head, at the front of the spine. Everything on it lives in one group so it can turn.
+  const end = at(1), hr = Math.max(.1, bodyR(1) * lerp(.85, 1.6, g.head));
+  const head = new THREE.Group(); head.position.copy(end).addScaledVector(curve.getTangentAt(1), hr * .45);
+  head.add(ball(hr, headMat)); body.add(head);
+
+  const white = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: .15, clearcoat: 1 });
+  const black = new THREE.MeshPhysicalMaterial({ color: 0x0a0a0a, roughness: .1, clearcoat: 1 });
+  const eyes = [], n = pick(g.eyes, 7), er = hr * lerp(.18, .42, g.eyeSize) * (n > 3 ? .7 : 1);
+  const stalk = g.stalks > .72 && n > 0 ? hr * lerp(.4, 1.3, (g.stalks - .72) / .28) : 0;
+  for (let e = 0; e < n; e++) {
+    const spread = Math.min(1.25, .3 + n * .16);
+    const az = n === 1 ? 0 : lerp(-spread, spread, e / (n - 1));
+    const el = n > 3 ? .2 + (e % 2) * .35 : .35;
+    const dir = new THREE.Vector3(Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az));
+    const eye = new THREE.Group(), w = ball(er, white), pu = ball(er * .5, black);
+    pu.position.x = er * .62; eye.add(w, pu);
+    if (stalk) {
+      const base = dir.clone().multiplyScalar(hr * .8), tip = base.clone().add(new THREE.Vector3(dir.x * .3, 1, dir.z * .5).normalize().multiplyScalar(stalk));
+      head.add(limb(base, tip, Math.max(.012, er * .22), headMat)); eye.position.copy(tip);
+    } else eye.position.copy(dir).multiplyScalar(hr * .86);
+    eye.rotation.set(0, -az, el * .6); head.add(eye); eyes.push(eye);
+  }
+  const mouth = pick(g.mouth, 4);
+  if (mouth === 1) head.add(cone(new THREE.Vector3(hr * .7, -hr * .25, 0), new THREE.Vector3(1, -.25, 0), hr * .3, hr * .8, trim));
+  if (mouth === 2) {
+    const m = new THREE.Mesh(new THREE.TorusGeometry(hr * .38, hr * .07, 8, 24, Math.PI), black);
+    m.position.set(hr * .9, -hr * .22, 0); m.rotation.set(0, Math.PI / 2, Math.PI); head.add(m);
+  }
+  if (mouth === 3) for (const sd of [-1, 1])
+    head.add(cone(new THREE.Vector3(hr * .72, -hr * .4, sd * hr * .3), new THREE.Vector3(.5, -1, sd * .15), hr * .1, hr * .6, white));
+  const horns = pick(g.horns, 5), hl = lerp(.15, .9, g.hornLen) * hr * 1.6;
+  for (let h = 0; h < horns; h++) {
+    const z = horns === 1 ? 0 : lerp(-1, 1, h / (horns - 1)) * hr * .55;
+    head.add(cone(new THREE.Vector3(-hr * .1, hr * .78, z), new THREE.Vector3(-.4, 1, z * 1.2), hr * .15, hl, trim));
+  }
+
+  // Legs in pairs along the body. Each hangs from a hip group so it can swing.
+  const legList = [], thick = lerp(.025, .1, g.legThick) * (R / .3);
+  for (let k = 0; k < legs; k++) {
+    const u = tailU + (1 - tailU) * lerp(.18, .85, legs === 1 ? .5 : k / (legs - 1)), p = at(u), r = radius(u);
+    for (const sd of [-1, 1]) {
+      const hip = new THREE.Group(); hip.position.set(p.x, p.y - r * .35, sd * r * .75);
+      const out = lerp(.1, .5, g.knee) * legLen, y0 = hip.position.y;
+      const knee = new THREE.Vector3(0, -y0 * .5, sd * out), foot = new THREE.Vector3(0, -y0, sd * out * 1.25);
+      hip.add(limb(new THREE.Vector3(), knee, thick, skin), limb(knee, foot, thick * .85, skin));
+      hip.add(put(ball(thick * 1.5, trim, 1.6, .6, 1.2), foot));
+      body.add(hip); legList.push({ hip, phase: k * Math.PI * .5 + (sd > 0 ? Math.PI : 0) });
+    }
+  }
+  // Spikes down the back, the tail's tip, side fins.
+  if (g.spikes > .4) {
+    const count = Math.round(lerp(3, 14, (g.spikes - .4) / .6)), sh = lerp(.04, .32, g.spikeLen) * (R / .3);
+    for (let i = 0; i < count; i++) {
+      const u = tailU + (1 - tailU) * lerp(.08, .9, i / Math.max(1, count - 1)), p = at(u);
+      body.add(cone(p.clone().add(new THREE.Vector3(0, radius(u) * .85, 0)), new THREE.Vector3(-.3, 1, 0), sh * .3, sh, trim));
+    }
+  }
+  if (tailLen) {
+    const tip = pick(g.tip, 4), p0 = at(0), back = curve.getTangentAt(0).negate();
+    if (tip === 1) body.add(put(ball(R * .4, trim), p0));
+    if (tip === 2) { const f = ball(R * .9, trim, .25, 1, .08); f.position.copy(p0); body.add(f); }
+    if (tip === 3) body.add(cone(p0, back, R * .18, R * 1.1, trim));
+  }
+  if (g.fins > .72) for (const sd of [-1, 1]) {
+    const u = tailU + (1 - tailU) * .5, p = at(u), f = ball(R, trim, 1.1, .1, .75);
+    f.position.set(p.x, p.y, sd * radius(u) * 1.05); f.rotation.x = sd * .5; body.add(f);
+  }
+
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(root), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  root.position.x -= c.x; root.position.z -= c.z;
+  return { g, root, body, head, eyes, legs: legList, gait, H, size,
+           center: new THREE.Vector3(0, c.y, 0), radius: size.length() / 2, seed: Math.random() * 10, yaw: 0, pitch: 0 };
+}
+
+// One frame of a creature being itself. `look` is where the pointer is, -1…1 each way.
+function live(cr, t, look) {
+  const g = cr.g, ph = t * lerp(.45, 2.4, g.tempo) * Math.PI * 2 + cr.seed, amp = lerp(.01, .12, g.bounce);
+  let y = 0;
+  if (cr.gait === 'hop') y = Math.abs(Math.sin(ph / 2)) * amp * 2.4;
+  else if (cr.gait === 'float') y = Math.sin(ph / 2) * amp * 1.4;
+  else if (cr.gait === 'walk') y = Math.abs(Math.sin(ph)) * amp * .4;
+  cr.body.position.y = y;
+  if (cr.gait === 'crawl') cr.body.scale.set(1 + Math.sin(ph) * amp * .8, 1 - Math.sin(ph) * amp * .4, 1);
+  cr.body.rotation.x = Math.sin(ph / 2) * lerp(0, .1, g.sway);
+  if (g.jitter > .75) cr.body.rotation.z = Math.sin(t * 41 + cr.seed) * Math.sin(t * 23) * .04 * (g.jitter - .75) * 4;
+  const stride = cr.gait === 'walk' ? .5 : cr.gait === 'hop' ? .25 : 0;
+  for (const l of cr.legs) l.hip.rotation.z = Math.sin(ph + l.phase) * stride * (.4 + g.bounce);
+  // Curiosity: how far it turns its head to follow you.
+  const cu = lerp(.2, 1, g.curious);
+  cr.yaw += ((-.45 + look.x * .7) * cu - cr.yaw) * .08;
+  cr.pitch += (look.y * .4 * cu - cr.pitch) * .08;
+  cr.head.rotation.set(0, cr.yaw, cr.pitch);
+  const blink = (t * .37 + cr.seed) % 4 < .08 ? .1 : 1;
+  for (const e of cr.eyes) e.scale.y = blink;
+}
+
+function dispose(obj) {
+  obj.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); [].concat(o.material).forEach((m) => m.dispose()); } });
+}
+// A soft round shadow to stand on, shared by every cell.
+const blobTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(0,0,0,.22)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+})();
+function stageFor() {
+  const s = new THREE.Scene(); s.environment = scene.environment; s.environmentIntensity = .8;
+  const d = new THREE.DirectionalLight(0xffffff, 1.7); d.position.set(2, 4, 3);
+  s.add(d, new THREE.HemisphereLight(0xffffff, 0xe8e8e8, .7));
+  return s;
+}
+function frame(cam, cr, aspect) {
+  cam.aspect = aspect; cam.updateProjectionMatrix();
+  const vf = cam.fov * Math.PI / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * aspect);
+  const d = cr.radius / Math.sin(Math.min(vf, hf) / 2) * 1.02;
+  cam.position.set(cr.center.x + d * Math.sin(.7), cr.center.y + d * .3, cr.center.z + d * Math.cos(.7));
+  cam.lookAt(cr.center);
+}
+
+// ── the grid ──
+let gen = 1, history = [];
+for (let i = 0; i < 9; i++) {
+  const el = document.createElement('button');
+  el.setAttribute('aria-label', i === 4 ? 'The parent — tap to roll new children' : `Child ${i < 4 ? i + 1 : i} — tap to breed from it`);
+  if (i === 4) { el.className = 'parent'; el.innerHTML = '<span>Parent</span>'; }
+  el.onclick = () => choose(i);
+  $('#cells').append(el);
+  const sc = stageFor(), blob = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false }));
+  blob.rotation.x = -Math.PI / 2; sc.add(blob);
+  cells.push({ el, scene: sc, blob, cam: new THREE.PerspectiveCamera(30, 1, .01, 100), cr: null, rect: null });
+}
+function setCell(i, g) {
+  const c = cells[i];
+  if (c.cr) { c.scene.remove(c.cr.root); dispose(c.cr.root); }
+  c.cr = grow(g); c.cr.born = clock.elapsedTime + (i === 4 ? 0 : .04 * i);
+  c.scene.add(c.cr.root);
+  const w = Math.max(c.cr.size.x, c.cr.size.z) * 1.15; c.blob.scale.set(w, w * .6, 1);
+}
+function placeCells() {
+  const s = stageEl.getBoundingClientRect();
+  for (const c of cells) {
+    const r = c.el.getBoundingClientRect();
+    c.rect = { x: r.left - s.left, y: s.bottom - r.bottom, w: r.width, h: r.height };
+  }
+}
+const easeBack = (x) => 1 + 2.4 * (x - 1) ** 3 + 1.4 * (x - 1) ** 2;
+function renderGrid(t) {
+  const W = stageEl.clientWidth, H = stageEl.clientHeight;
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, W, H); renderer.clear();
+  renderer.setScissorTest(true);
+  const px = (pointer.x + 1) / 2 * W, py = (pointer.y + 1) / 2 * H;
+  for (const c of cells) {
+    const r = c.rect; if (!c.cr || !r || r.w < 2) continue;
+    const look = { x: Math.max(-1, Math.min(1, (px - r.x - r.w / 2) / r.w)), y: Math.max(-1, Math.min(1, (py - r.y - r.h / 2) / r.h)) };
+    live(c.cr, t, look);
+    c.cr.root.scale.setScalar(Math.max(.001, easeBack(Math.min(1, Math.max(0, (t - c.cr.born) / .5)))));
+    frame(c.cam, c.cr, r.w / r.h);
+    renderer.setViewport(r.x, r.y, r.w, r.h); renderer.setScissor(r.x, r.y, r.w, r.h);
+    renderer.render(c.scene, c.cam);
+  }
+  renderer.setScissorTest(false);
+}
+function showGen() {
+  $('#gen').textContent = `Generation ${gen}`;
+  $('#genHint').textContent = gen === 1 ? 'nine strangers' : `${gen - 1} ${gen === 2 ? 'choice' : 'choices'} in`;
+  $('#back').disabled = !history.length;
+}
+function choose(i) {
+  if (running) return;
+  history.push({ gen, gs: cells.map((c) => c.cr.g) }); if (history.length > 60) history.shift();
+  const parent = cells[i].cr.g, k = +$('#wild').value;
+  if (i !== 4) { gen++; setCell(4, parent); }
+  for (let j = 0; j < 9; j++) if (j !== 4) setCell(j, mutate(parent, k));
+  showGen();
+}
+$('#back').onclick = () => {
+  const prev = history.pop(); if (!prev || running) return;
+  prev.gs.forEach((g, j) => setCell(j, g)); gen = prev.gen; showGen();
+};
+$('#species').onclick = () => {
+  if (running) return;
+  history.push({ gen, gs: cells.map((c) => c.cr.g) });
+  for (let j = 0; j < 9; j++) setCell(j, randomGenome());
+  gen = 1; showGen();
+};
+
+// The middle creature, still, on white — the picture Meshy works from.
+function snapshot(g, size = 1024) {
+  const sc = stageFor(); sc.background = new THREE.Color(0xffffff);
+  const cr = grow(g); sc.add(cr.root); live(cr, 0, { x: -.2, y: .1 }); cr.yaw = -.35; cr.head.rotation.y = cr.yaw;
+  const W = stageEl.clientWidth, H = stageEl.clientHeight, cam = new THREE.PerspectiveCamera(30, 1, .01, 100);
+  frame(cam, cr, W / H);
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, W, H);
+  renderer.render(sc, cam);   // read back in the same task, before the canvas is presented
+  const src = renderer.domElement, side = Math.min(src.width, src.height);
+  const out = document.createElement('canvas'); out.width = out.height = size;
+  const x = out.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, size, size);
+  x.drawImage(src, (src.width - side) / 2, (src.height - side) / 2, side, side, 0, 0, size, size);
+  dispose(cr.root);
+  return out;
+}
+function evolvedSource() {
+  const g = cells[4].cr.g, big = snapshot(g), small = document.createElement('canvas');
+  small.width = small.height = 160; small.getContext('2d').drawImage(big, 0, 0, 160, 160);
+  return { kind: 'evolved', genome: g, image: big.toDataURL('image/png'), thumb: small.toDataURL('image/jpeg', .85),
+           prompt: evolvedPrompt(style, $('#desc').value.trim()) };
+}
+function drawSource() {
+  const c = document.createElement('canvas'); c.width = c.height = SK;   // flattened onto white
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, SK, SK); x.drawImage(sk, 0, 0);
+  // A photo drawn in can make a PNG too big for a Vercel request (4.5MB); JPEG then.
+  const png = c.toDataURL('image/png');
+  return { kind: 'sketch', image: png.length < 3e6 ? png : c.toDataURL('image/jpeg', .9), thumb: thumb(),
+           prompt: promptFor(style, $('#desc').value.trim()) };
+}
+
+// ── modes and views ──
+let view = 'single';
+function setView(v) {
+  view = v; stageEl.classList.toggle('grid', v === 'grid');
+  controls.enabled = v === 'single';
+  $('#backToGrid').hidden = !(mode === 'evolve' && v === 'single');
+  if (v === 'grid') requestAnimationFrame(placeCells);
+}
+function setMode(m) {
+  mode = m;
+  for (const b of $('#modes').children) b.setAttribute('aria-pressed', String(b.dataset.mode === m));
+  $('#drawUI').hidden = m !== 'draw'; $('#evolveUI').hidden = m !== 'evolve';
+  $('#desc').placeholder = m === 'evolve' ? 'name it, or say what it is' : 'a piece of toast wearing sunglasses';
+  if (m === 'evolve' && !cells[0].cr) { for (let j = 0; j < 9; j++) setCell(j, randomGenome()); showGen(); }
+  setView(m === 'evolve' && !running ? 'grid' : 'single');
+  if (!running) $('#go').disabled = !canGo();
+}
+$('#modes').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && !running) setMode(b.dataset.mode); });
+$('#backToGrid').onclick = () => !running && setView('grid');
 
 /* ═══════════════ status, steps, shelf ═══════════════ */
 
@@ -685,26 +1119,21 @@ function drawShelf(activeId) {
 
 let running = false;
 
-async function run() {
+async function run(src) {
   running = true; stopper = new AbortController(); resetSteps(); note('');
+  setView('single'); setBehaviour(src.genome || null);
   const go = $('#go'); go.disabled = false; go.textContent = 'Stop'; go.classList.add('stop');
   $('#actions').hidden = true; $('#download').hidden = true;
   for (const k in clips) delete clips[k];
   const desc = $('#desc').value.trim();
-  const rec = { id: Date.now().toString(36), at: Date.now(), desc, style, sketch: thumb(), clips: {} };
-  const sketchPng = (() => {   // flattened onto white; the model reads a transparent stroke as black-on-black
-    const c = document.createElement('canvas'); c.width = c.height = SK;
-    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, SK, SK); x.drawImage(sk, 0, 0);
-    // A photo drawn in can make a PNG too big for a Vercel request (4.5MB); JPEG then.
-    const png = c.toDataURL('image/png');
-    return png.length < 3e6 ? png : c.toDataURL('image/jpeg', .9);
-  })();
+  const rec = { id: Date.now().toString(36), at: Date.now(), desc, style, sketch: src.thumb, kind: src.kind, genome: src.genome, clips: {} };
 
   try {
     // 1 · Render
-    step('render', 'run', 0); status('Rendering your sketch…');
+    step('render', 'run', 0, src.genome ? 'Your creature, made real' : DEFAULT_TEXT.render);
+    status(src.genome ? 'Rendering your creature…' : 'Rendering your sketch…');
     const img = await task('image-to-image', {
-      ai_model: IMAGE_MODEL, prompt: promptFor(style, desc), reference_image_urls: [sketchPng],
+      ai_model: IMAGE_MODEL, prompt: src.prompt, reference_image_urls: [src.image],
     }, (p) => step('render', 'run', p));
     rec.render = img.image_urls?.[0]; rec.renderTask = img.id;
     step('render', 'done'); save(rec);
@@ -713,7 +1142,8 @@ async function run() {
     // 2 · Sculpt
     step('sculpt', 'run', 0); status('Sculpting it in 3D — this is the slow one, about two minutes…');
     const mesh = await task('image-to-3d', {
-      input_task_id: img.id, ai_model: 'latest', pose_mode: 'a-pose',
+      // An A-pose is for the rig; an evolved body plan keeps the stance it evolved.
+      input_task_id: img.id, ai_model: 'latest', pose_mode: src.genome ? '' : 'a-pose',
       should_texture: true, enable_pbr: true, should_remesh: true, target_polycount: 30000,
       target_formats: ['glb'],
     }, (p) => { step('sculpt', 'run', p); status(`Sculpting it in 3D… ${p}%`); });
@@ -721,6 +1151,14 @@ async function run() {
     step('sculpt', 'done'); save(rec);
     setModel(await load(rec.glb)); pv.classList.remove('on');
     showDownload(rec.glb);
+
+    // An evolved creature isn't rigged: the rig only takes bipeds, and it already
+    // has a way of moving — the one it evolved on the grid.
+    if (src.genome) {
+      step('rig', 'skip', 0, 'Not needed — it moves the way it evolved');
+      step('animate', 'done', 0, 'Its own tempo, bounce and sway');
+      status(''); return;
+    }
 
     // 3 · Rig
     step('rig', 'run', 0); status('Giving it a skeleton…');
@@ -775,10 +1213,11 @@ async function run() {
     $('#preview').classList.remove('on');
   } finally {
     running = false; stopper = null;
-    const go = $('#go'); go.textContent = 'Bring it to life'; go.classList.remove('stop'); go.disabled = !dirty;
+    const go = $('#go'); go.textContent = 'Bring it to life'; go.classList.remove('stop'); go.disabled = !canGo();
   }
 }
-$('#go').onclick = () => (running ? stop() : needsPass() ? askPass() : run());
+$('#go').onclick = () => (running ? stop() : needsPass() ? askPass()
+  : run(mode === 'evolve' ? evolvedSource() : drawSource()));
 
 function showDownload(url) { const a = $('#download'); a.href = asset(url); a.hidden = false; }
 
@@ -786,6 +1225,7 @@ function showDownload(url) { const a = $('#download'); a.href = asset(url); a.hi
 // so this works after Meshy's own links have expired.
 async function open(rec) {
   resetSteps(); note(''); for (const k in clips) delete clips[k];
+  setView('single'); setBehaviour(rec.genome || null);
   $('#actions').hidden = true; $('#preview').classList.remove('on');
   drawShelf(rec.id);
   if (rec.render) step('render', 'done');
@@ -805,7 +1245,10 @@ async function open(rec) {
       if (clips.Idle) play('Idle');
     } else {
       setModel(await load(rec.glb)); showDownload(rec.glb);
-      if (rec.rigError) {
+      if (rec.genome) {
+        step('rig', 'skip', 0, 'Not needed — it moves the way it evolved');
+        step('animate', 'done', 0, 'Its own tempo, bounce and sway');
+      } else if (rec.rigError) {
         step('rig', 'fail', 0, 'No skeleton — it isn\'t shaped like a person');
         step('animate', 'skip', 0, 'Breathing and reacting instead');
       }
@@ -869,7 +1312,7 @@ fetch(`${API}?p=status`).then((r) => { if (!r.ok) throw 0; return r.json(); }).t
   Object.assign(env, s);
   if (!env.ready) {
     $('#go').textContent = 'Building is switched off right now'; $('#go').disabled = true;
-    setDirty = () => {};
+    blocked = true;
   }
   showMode();
 }).catch(() => {
@@ -877,12 +1320,13 @@ fetch(`${API}?p=status`).then((r) => { if (!r.ok) throw 0; return r.json(); }).t
   const m = $('#mode'); m.textContent = 'Offline'; m.className = 'mode off';
   m.title = 'Run python3 monsters/serve.py and open this page from it';
   $('#go').textContent = 'Building is unavailable'; $('#go').disabled = true;
-  setDirty = () => {};
+  blocked = true;
 });
 drawShelf();
 
 // The way in for a deck or a test, as explore/ has window.__explore.
-window.__monsters = { play, still, clips, get playing() { return current?.getClip().name ?? null; } };
+window.__monsters = { play, still, clips, get playing() { return current?.getClip().name ?? null; },
+  setMode, choose, get generation() { return gen; }, get parent() { return cells[4].cr?.g; } };
 </script>
 </body>
 </html>
