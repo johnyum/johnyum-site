@@ -89,12 +89,12 @@
       + '.preso-odo{display:inline-flex;align-items:flex-start}.preso-odo .rl{display:inline-block;height:1.25em;line-height:1.25em;overflow:hidden;vertical-align:top}'
       + '.preso-odo .rl.grow{max-width:0;transition:max-width .5s cubic-bezier(.2,.7,.2,1)}.preso-odo .rl.grow.open{max-width:1em}'
       // REQUEST TO BOOK, mixed in with the stays (John, 2026-10-02) — the single calendar's own pill: white, a dashed #222 edge, the
-      // guest's two initials on a pale-blue disc in place of the photo
+      // guest's two initials on a disc in one of the build's label colours, in place of the photo
       + '.booking-pill.preso-req{background:#fff!important;border:1.5px dashed #222!important;box-sizing:border-box}'
       + '.booking-pill.preso-req .booking-name{color:#222!important}'
-      + '.booking-pill.preso-req .booking-avatar{background:rgba(66,139,255,.1)!important;display:grid;place-items:center}'
+      + '.booking-pill.preso-req .booking-avatar{background:var(--req-bg,rgba(66,139,255,.1))!important;display:grid;place-items:center}'
       + '.booking-pill.preso-req .booking-avatar img{display:none}'
-      + '.booking-pill.preso-req .booking-avatar::after{content:attr(data-ini);color:#428BFF;font:700 11px/1 Cereal,sans-serif;letter-spacing:.02em}'
+      + '.booking-pill.preso-req .booking-avatar::after{content:attr(data-ini);color:var(--req-ink,#428BFF);font:700 11px/1 Cereal,sans-serif;letter-spacing:.02em}'
       + '.preso-odo .rr{display:block;will-change:transform}'   // a block: an inline span takes no transform, and the reel would never turn
       // while it rolls, each cell keeps its own re-layout to itself (the places opening re-centre the price inside the cell, never the board)
       + 'body.preso-rolling #gridRows .price-card{contain:layout style}'
@@ -191,16 +191,45 @@
     if (instant) { grow(); void d.body.offsetWidth; w.requestAnimationFrame(() => d.body.classList.remove('preso-snap')); }
     else shape._t = setTimeout(grow, leaving ? 750 : 0);   // the fold first (.3s fade + .44s fold), then the grow
   };
+  // ONE NAME AND ONE FACE PER STAY (John, 2026-10-02: "don't re-use the same avatar names or pictures"). The build deals its 268 stays
+  // from 72 names and 91 faces, so on the 32-home board they come round again. Re-dealt here, before the guests come in: the stays
+  // on screen first — overlapping the first five weeks, nearest today first, row by row — from a long name list per gender (no name
+  // twice, anywhere) and the build's own vetted faces, then the rest of that face set, so a face repeats only far off screen.
+  const MEN = ["James", "Noah", "Liam", "Mateo", "Elijah", "Lucas", "Oliver", "Ethan", "Aiden", "Leo", "Kai", "Rohan", "Arjun", "Wei", "Kenji", "Hiroshi", "Diego", "Carlos", "Javier", "Rafael", "Andre", "Marcus", "Darius", "Jamal", "Malik", "Omar", "Yusuf", "Karim", "Tariq", "Samir", "Felix", "Hugo", "Theo", "Oscar", "Henry", "Jasper", "Silas", "Rowan", "Ezra", "Miles", "Julian", "Adrian", "Nico", "Luca", "Marco", "Paolo", "Matteo", "Enzo", "Stefan", "Lars", "Anders", "Nils", "Sven", "Erik", "Mikael", "Jonas", "Tomas", "Pavel", "Dmitri", "Ivan", "Nikolai", "Viktor", "Anton", "Boris", "Ali", "Hassan", "Mehdi", "Reza", "Arash", "Kian", "Dev", "Vikram", "Sanjay", "Ravi", "Aarav", "Kabir", "Ishaan", "Jun", "Min", "Tae", "Joon", "Hyun", "Daniel", "Samuel", "Benjamin", "Isaac", "Gabriel", "Caleb", "Nathan", "Owen", "Wyatt", "Grant", "Reid", "Beckett", "Callum", "Declan", "Finn", "Seamus", "Ronan", "Kofi", "Kwame", "Tunde", "Emeka", "Chidi", "Obi", "Amadou", "Sekou", "Thabo", "Sipho", "Mandla", "Bongani", "Tom\u00e1s", "Joaqu\u00edn", "Santiago", "Emilio", "Alonso", "Rodrigo", "Bruno", "Caio", "Thiago", "Davi", "Lorenzo", "Dario", "Elio", "Fabio", "Aldo", "Remy", "Bastien", "Florian", "Mathis", "Laurent", "Pierre", "Yannick", "Cyril", "Moritz", "Lukas", "Jannik", "Pablo", "Ignacio", "Manuel", "Kenzo", "Haruto", "Ren", "Sora", "Yuto", "Akira", "Tenzin", "Arnav", "Neel", "Parth"];
+  const WOMEN = ["Olivia", "Emma", "Ava", "Sophia", "Mia", "Amelia", "Harper", "Ella", "Chloe", "Zoe", "Nora", "Lily", "Grace", "Hannah", "Aria", "Layla", "Leila", "Yasmin", "Noor", "Amira", "Zara", "Priya", "Ananya", "Isha", "Meera", "Diya", "Saanvi", "Mei", "Lin", "Yuki", "Hana", "Sakura", "Aiko", "Ji-woo", "Seo-yeon", "Min-ji", "Sofia", "Valentina", "Camila", "Lucia", "Elena", "Isabella", "Gabriela", "Mariana", "Paula", "Carmen", "Ines", "Beatriz", "Clara", "Marta", "Alba", "Freya", "Astrid", "Ingrid", "Sigrid", "Linnea", "Maja", "Elsa", "Saga", "Annika", "Katya", "Daria", "Irina", "Nadia", "Vera", "Alina", "Zlata", "Fatima", "Aisha", "Mariam", "Salma", "Hala", "Rania", "Dina", "Lina", "Rosa", "Julia", "Alice", "Margot", "Louise", "Camille", "Juliette", "Adele", "Manon", "Lea", "Chiara", "Giulia", "Francesca", "Aurora", "Bianca", "Elisa", "Greta", "Ada", "Wren", "Iris", "Hazel", "Ivy", "Willow", "Juniper", "Maeve", "Niamh", "Siobhan", "Aoife", "Orla", "Ciara", "Ama", "Abena", "Efua", "Ngozi", "Chioma", "Adaeze", "Amara", "Zuri", "Imani", "Nia", "Thandi", "Naledi", "Lerato", "Palesa", "Kiara", "Tara", "Leela", "Rhea", "Asha", "Simone", "Naomi", "Ruth", "Esther", "Miriam", "Talia", "Shira", "Noa", "Maya", "Gemma", "Phoebe", "Imogen", "Rosalind", "Tessa", "Daphne", "Sylvie", "Elodie", "Anouk", "Lotte", "Fenna", "Femke"];
+  const dealGuests = w => ev(w, `(() => {
+    const MEN = [...new Set([...MEN_NAMES, ...${JSON.stringify(MEN)}])], WOMEN = [...new Set([...WOMEN_NAMES, ...${JSON.stringify(WOMEN)}])];
+    const VET = { m: [11, 1, 49, 47, 62, 7, 43, 53, 33, 8, 56, 55, 65, 18, 46, 60, 50, 42, 52, 71, 57, 44, 64, 34, 66, 45, 48, 51, 54, 58, 59, 63, 67, 69, 70, 2, 9, 10, 26, 27, 31, 35, 37, 41],
+                  w: [18, 1, 54, 34, 51, 11, 26, 70, 33, 17, 60, 13, 15, 23, 74, 40, 65, 29, 7, 45, 50, 36, 21, 53, 66, 56, 20, 59, 28, 63, 35, 68, 73, 75, 30, 77, 37, 44, 46, 52, 55, 58, 61, 3, 12, 19, 38] };
+    const all = v => { const rest = []; for (let n = 0; n <= 78; n++) if (!v.includes(n)) rest.push(n); return [...v, ...rest]; };
+    const face = (sex, n) => 'https://xsgames.co/randomusers/assets/avatars/' + sex + '/' + n + '.jpg';
+    const mF = all(VET.m).map(n => face('male', n)), wF = all(VET.w).map(n => face('female', n));
+    const rowAt = {}; [...document.querySelectorAll('#gridRows > .price-row')].forEach((r, k) => { rowAt[r.dataset.li] = k; });
+    const lo = todayDi - 2, hi = todayDi + 35, near = b => b.start <= hi && b.start + b.nights >= lo;
+    const order = BOOKINGS.map((b, i) => i).sort((a, z) => { const A = BOOKINGS[a], Z = BOOKINGS[z];
+      return (near(Z) - near(A)) || (Math.abs(A.start - todayDi) - Math.abs(Z.start - todayDi)) || ((rowAt[A.listing] || 0) - (rowAt[Z.listing] || 0)); });
+    let mi = 0, wi = 0;
+    order.forEach((i, k) => { const b = BOOKINGS[i];
+      if (k % 2 === 0) { b.guest = MEN[mi % MEN.length]; b.img = mF[mi % mF.length]; mi++; }
+      else             { b.guest = WOMEN[wi % WOMEN.length]; b.img = wF[wi % wF.length]; wi++; } });
+  })()`);
   // WHICH STAYS ARE REQUESTS: one upcoming stay in three, by guest, the same every run. The build rebuilds its pills as it scrolls and
   // morphs, so the mark is re-applied to every pill it builds — a request never turns back into a stay.
   function markRequests(w) {
     const d = w.document, grid = d.getElementById('gridRows'); if (!grid || grid._presoReq) return;
     const SUR = 'RMKLTSBHDP';
+    const DISC = [['#FCE7E3', '#F4513C'], ['#FBE5CC', '#DD6B0E'], ['#D7EAFB', '#2E80E0'], ['#E6E2FB', '#7A6CE8'], ['#FBE3F1', '#E63FA0'], ['#FBE0DE', '#F03E3E']];   // Coral, Orange, Blue, Purple, Pink, Red
     const dress = () => grid.querySelectorAll('.booking-pill:not(.past)').forEach(p => {
       const g = p.dataset.guest || '', h = [...g].reduce((a, c) => a + c.charCodeAt(0), 0) + (+p.dataset.start || 0);
       const req = h % 3 === 1;
       p.classList.toggle('preso-req', req);
-      const av = p.querySelector('.booking-avatar'); if (av && req) av.dataset.ini = (g.trim()[0] || 'G').toUpperCase() + SUR[h % SUR.length];
+      const av = p.querySelector('.booking-avatar');
+      if (av && req) {
+        av.dataset.ini = (g.trim()[0] || 'G').toUpperCase() + SUR[h % SUR.length];
+        // the disc in one of the build's own label colours (CZ_COLORS: its light fill behind, its darkest tone for the initials), per guest (John, 2026-10-02)
+        // (h / 3, not h: the request pick already fixed h mod 3, which would leave only two colours)
+        const C = DISC[Math.floor(h / 3) % DISC.length]; av.style.setProperty('--req-bg', C[0]); av.style.setProperty('--req-ink', C[1]);
+      }
     });
     grid._presoReq = new w.MutationObserver(dress); grid._presoReq.observe(grid, { childList: true, subtree: true });
     dress();
@@ -273,7 +302,7 @@
     //     in, every pill fading up into its row — about one upcoming stay in three a REQUEST to book (John, 2026-10-02)
     { fwd: (w, instant) => {
         const d = w.document, bk = d.getElementById('devBookings');
-        const guests = () => { markRequests(w); if (!instant) { d.body.classList.add('preso-pills-in'); setTimeout(() => d.body.classList.remove('preso-pills-in'), 1400); } bk.checked = true; bk.dispatchEvent(new w.Event('change')); };
+        const guests = () => { dealGuests(w); markRequests(w); if (!instant) { d.body.classList.add('preso-pills-in'); setTimeout(() => d.body.classList.remove('preso-pills-in'), 1400); } bk.checked = true; bk.dispatchEvent(new w.Event('change')); };
         ev(w, "closePriceMenu(); closeAvailMenu(); clearSelection();");
         if (instant) guests(); else setTimeout(guests, 700);
       },
