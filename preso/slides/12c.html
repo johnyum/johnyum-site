@@ -95,6 +95,7 @@
       + '.booking-pill.preso-req .booking-avatar{background:var(--req-bg,rgba(66,139,255,.1))!important;display:grid;place-items:center}'
       + '.booking-pill.preso-req .booking-avatar img{display:none}'
       + '.booking-pill.preso-req .booking-avatar::after{content:attr(data-ini);color:var(--req-ink,#428BFF);font:700 11px/1 Cereal,sans-serif;letter-spacing:.02em}'
+      + '#tbGroupBtn.pressing{background:var(--grey-300,#DDDDDD)}'
       + '.preso-odo .rr{display:block;will-change:transform}'   // a block: an inline span takes no transform, and the reel would never turn
       // while it rolls, each cell keeps its own re-layout to itself (the places opening re-centre the price inside the cell, never the board)
       + 'body.preso-rolling #gridRows .price-card{contain:layout style}'
@@ -217,11 +218,11 @@
   // morphs, so the mark is re-applied to every pill it builds — a request never turns back into a stay.
   function markRequests(w) {
     const d = w.document, grid = d.getElementById('gridRows'); if (!grid || grid._presoReq) return;
-    const SUR = 'RMKLTSBHDP';
+    const SUR = 'RMKLTSBHDP', today = +ev(w, 'todayDi') || 0;
     const DISC = [['#FCE7E3', '#F4513C'], ['#FBE5CC', '#DD6B0E'], ['#D7EAFB', '#2E80E0'], ['#E6E2FB', '#7A6CE8'], ['#FBE3F1', '#E63FA0'], ['#FBE0DE', '#F03E3E']];   // Coral, Orange, Blue, Purple, Pink, Red
     const dress = () => grid.querySelectorAll('.booking-pill:not(.past)').forEach(p => {
       const g = p.dataset.guest || '', h = [...g].reduce((a, c) => a + c.charCodeAt(0), 0) + (+p.dataset.start || 0);
-      const req = h % 3 === 1;
+      const req = h % 3 === 1 && (+p.dataset.start || 0) >= today;   // a request is always for nights still to come: none starting before today (John, 2026-10-02)
       p.classList.toggle('preso-req', req);
       const av = p.querySelector('.booking-avatar');
       if (av && req) {
@@ -233,6 +234,51 @@
     });
     grid._presoReq = new w.MutationObserver(dress); grid._presoReq.observe(grid, { childList: true, subtree: true });
     dress();
+  }
+  // THE GATHER (John, 2026-10-02: "a brand new animation where the rows actually move around and re-arrange" — not the build's
+  // thinking dots, not its rounds of swaps). The grouping is applied at once underneath, then every home is put back where it
+  // stood and set free: each glides straight to its new place, the whole board moving together, city by city — San Diego's
+  // homes set off first, then Lake Tahoe's, and so on — so the groups visibly assemble. Only when every home has landed do the
+  // gaps open between the cities, and then their names fade in. A home and its photo always move as one.
+  function gather(w, instant) {
+    const d = w.document;
+    const setGroups = "groups.length = 0; smartGroups().forEach(g => groups.push(g)); saveGroups(); renderGroups(); applyGroupsToCalendar();";
+    if (instant) { ev(w, setGroups); return; }
+    const rows = [...d.querySelectorAll('#gridRows > .price-row, #listingThumbsInner > .thumb-row')];
+    const before = new Map(rows.map(r => [r, r.getBoundingClientRect().top]));
+    ev(w, setGroups);
+    const divs = [...d.querySelectorAll('#gridRows > .group-divider, #gridRows > .group-spacer, #listingThumbsInner > .group-divider, #listingThumbsInner > .group-spacer')];
+    const divH = new Map(divs.map(x => [x, x.offsetHeight])), divG = new Map(divs.map(x => [x, parseFloat(w.getComputedStyle(x.parentElement).rowGap) || 0]));
+    const clip = d.getElementById('groupLabelClip');
+    divs.forEach(x => { x.style.display = 'none'; x.style.opacity = '0'; });       // the move runs on the compact board: no gaps yet
+    if (clip) clip.style.opacity = '0';
+    // which city each home joins, in the order the groups stand, and its place within that group
+    const groupOf = new Map(); ev(w, 'groups').forEach((g, gi) => (g.members || []).forEach((li, k) => groupOf.set(String(li), [gi, k])));
+    const moves = rows.map(r => ({ r, dy: before.get(r) - r.getBoundingClientRect().top, at: groupOf.get(r.dataset.li) || [0, 0] }));
+    moves.forEach(m => { m.r.style.transition = 'none'; m.r.style.transform = `translateY(${m.dy}px)`; m.r.style.position = 'relative'; m.r.style.zIndex = String(40 - m.at[0]); });
+    const DUR = 900, CITY = 150, EACH = 35;
+    let end = 0;
+    w.requestAnimationFrame(() => w.requestAnimationFrame(() => {
+      moves.forEach(m => {
+        const delay = m.at[0] * CITY + m.at[1] * EACH, dur = DUR + Math.min(300, Math.abs(m.dy) * 0.15);
+        end = Math.max(end, delay + dur);
+        m.r.style.transition = `transform ${dur}ms cubic-bezier(.65,0,.35,1) ${delay}ms`;
+        m.r.style.transform = 'translateY(0)';
+      });
+      setTimeout(() => {
+        moves.forEach(m => { m.r.style.transition = ''; m.r.style.transform = ''; m.r.style.position = ''; m.r.style.zIndex = ''; });
+        // the gaps open between the cities...
+        divs.forEach(x => { x.style.display = ''; x.style.height = '0px'; x.style.minHeight = '0'; x.style.overflow = 'hidden'; x.style.marginTop = -(divG.get(x) || 0) + 'px'; x.style.transition = 'none'; });
+        void (divs[0] && divs[0].offsetHeight);
+        divs.forEach(x => { x.style.transition = 'height .45s cubic-bezier(.4,0,.2,1), margin-top .45s cubic-bezier(.4,0,.2,1)'; x.style.height = (divH.get(x) || 0) + 'px'; x.style.marginTop = '0px'; });
+        // ...and the names come in
+        setTimeout(() => {
+          divs.forEach(x => { x.style.transition = 'opacity .4s ease'; x.style.opacity = '1'; });
+          if (clip) { clip.style.transition = 'opacity .4s ease'; clip.style.opacity = '1'; }
+          setTimeout(() => { divs.forEach(x => { ['transition', 'opacity', 'height', 'minHeight', 'overflow', 'marginTop', 'display'].forEach(k => { x.style[k] = ''; }); }); if (clip) { clip.style.transition = ''; clip.style.opacity = ''; } }, 450);
+        }, 470);
+      }, end + 60);
+    }));
   }
   const BEATS = [
     // 1 — the top 7 stay; the rest fade and fold away; then the 7 grow to 96
@@ -310,6 +356,14 @@
         const d = w.document, bk = d.getElementById('devBookings'); bk.checked = false; bk.dispatchEvent(new w.Event('change'));
         setTimeout(() => { BEATS[3].fwd(w, true); ev(w, "openPriceMenu()"); }, 120);    // the selection and the Price menu, as they stood — once the guests have left the cells (a booked night is never selected)
       } },
+    // 7 — Group, tapped: the homes gather into their cities (see THE GATHER)
+    { group: true, fwd: (w, instant) => {
+        const b = w.document.getElementById('tbGroupBtn');
+        if (instant) { gather(w, true); return; }
+        if (b) { b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 300); }
+        setTimeout(() => gather(w, false), 220);
+      },
+      back: w => { ev(w, "groups.length = 0; groups.push({ name: 'Group 1', members: [] }); saveGroups(); renderGroups(); applyGroupsToCalendar();"); } },
   ];
   // THE OLD PATH (2026-09-22 … 09-30), parked when John rewrote the slide's path (2026-10-02): group by city, the guests, a swath
   // selected and priced, Tips and its opportunities. Not played; kept whole so any of it can come back.
@@ -468,6 +522,7 @@
       },
       back: w => { ev(w, "startOptimize()"); } },
   ];
+  const GROUP_AT = BEATS.findIndex(b => b.group) + 1;   // the step count once the Group beat has played
   let at = 0, pendingRestore = 0;   // a restore asked for before the build stands ready waits for it, and is applied before any tap
   const runTo = n => { if (n > 0) skipRoll(); for (; at < Math.min(n, BEATS.length); at++) { const b = BEATS[at]; try { b.fwd(W(), true); } catch (e) { console.warn('beat failed', e); } } };
   const settleRestore = () => { if (pendingRestore && app.classList.contains('ready')) { const n = pendingRestore; pendingRestore = 0; runTo(n); } };
@@ -482,7 +537,7 @@
   // HOLD is how long each beat plays before the next may start, read off its own timers. 7 and 8 wait on the build
   // (a modal to rise and go; a handle to be dragged up and back), so theirs are the long ones. Going BACK is never
   // queued: it drops anything waiting and acts at once, because reversing is how you recover from a wrong tap.
-  const HOLD = [1300, 1300, 1300, 2400, 2000, 1600];   // the fold (.75s) and the grow (.44s), and a breath — the old path's were [1500, 1400, 1000, 2900, 1300, 3200, 4600, 6800, 2600, 1800, 1400, 1500]
+  const HOLD = [1300, 1300, 1300, 2400, 2000, 1600, 3200];   // the fold (.75s) and the grow (.44s), and a breath — the old path's were [1500, 1400, 1000, 2900, 1300, 3200, 4600, 6800, 2600, 1800, 1400, 1500]
   let busyUntil = 0, queued = 0, qT = 0;
   const fire = () => { const b = BEATS[at]; at++; safe(() => b.fwd(W(), false)); busyUntil = performance.now() + (HOLD[at - 1] || 1500); };
   const pump = () => {
@@ -503,7 +558,8 @@
     settleRestore(); queued = 0; clearTimeout(qT);
     // GROUPED BY HAND, UNGROUPED BY BACK (John, 2026-10-02): the Group button is tapped live, not a beat — so a Back while the
     // board is grouped is the Ungroup, pressed for you, and only the next Back steps the path back
-    { const b = W() && W().document.getElementById('tbGroupBtn'); if (b && b.textContent.trim() === 'Ungroup') { b.click(); return true; } }
+    // (not when the grouping IS the beat being stepped back — the Group beat's own back ungroups and counts the step)
+    { const b = W() && W().document.getElementById('tbGroupBtn'); if (b && b.textContent.trim() === 'Ungroup' && at !== GROUP_AT) { b.click(); return true; } }
     if (at <= 0) return false;
     at--; safe(() => BEATS[at].back(W())); busyUntil = 0; return true;
   };
