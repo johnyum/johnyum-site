@@ -5,6 +5,19 @@ here so nothing is lost. Rough, and growing.
 
 ## Case Study 1 — Host only fee
 
+### Why the host-only fee (09d01)
+
+The slide is one sentence: **"To stop the guest hate, we had to move all service fees to be paid by the host. All 5 million of
+them."** The beats behind it, to say:
+
+1. Guests hated the sticker shock of fees at checkout.
+2. To fix it, we had to move all service fees to be paid by the host. All 5+ million.
+3. We built a tool to auto-raise prices so host earnings don't change.
+4. The math was very difficult to explain:
+   - Split fee — guest pays $100 + $14 = $114; host earns $100 − $3 = $97.
+   - Host-only fee — guest pays $115 = $115; host earns $115 − $17.83 = $97.17.
+5. We had to get ahead of the backlash.
+
 ### What it taught (09dl — the lessons slide)
 
 The slide is one line now — **"Be honest and own it because your users can smell BS."** — and these are the beats behind it, to say:
