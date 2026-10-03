@@ -82,6 +82,23 @@
   .adj { position: relative; height: var(--phone-h); aspect-ratio: 979 / 2000; flex: none; }
   .adj img { height: 100%; width: 100%; }
   .adj video { position: absolute; left: 39.030%; top: 21.541%; width: 21.951%; height: 10.745%; display: block; }
+  /* THE CHECK, ANIMATED (John, 2026-10-03): once the tag has played to its end, the fourth phone's check comes in — the disc grows
+     from nothing, the tick draws itself, then it pops and turns green as it does. Laid exactly over the export's own: a 100 x 100
+     disc of #222 at 440,1075 on the 979 x 2000 export, the tick's centreline (26,52)–(42.25,68.25)–(74,36.5) at 8.5 in its 100
+     square, square-ended as the export draws it. A white cover a hair bigger hides the still check until the build lands. */
+  .done { position: relative; height: var(--phone-h); aspect-ratio: 979 / 2000; flex: none; }
+  .done img { height: 100%; width: 100%; }
+  .done svg { position: absolute; left: 44.739%; top: 53.65%; width: 10.623%; height: 5.2%; overflow: visible; }
+  .done .disc { fill: #222; transform-origin: 50px 50px; transform: scale(0); }
+  .done .tick { fill: none; stroke: #fff; stroke-width: 8.5; stroke-linecap: butt; stroke-linejoin: miter; stroke-dasharray: 80; stroke-dashoffset: 80; }
+  .done .pop  { transform-origin: 50px 50px; }
+  .done.in .disc { transform: scale(1); transition: transform .45s cubic-bezier(.3,1.4,.5,1); }
+  .done.in .tick { stroke-dashoffset: 0; transition: stroke-dashoffset .4s cubic-bezier(.5,0,.2,1) .35s; }
+  .done.in .pop  { animation: pop .5s cubic-bezier(.3,0,.3,1) 1s both; }
+  .done.in .disc { fill: #038026; transition: transform .45s cubic-bezier(.3,1.4,.5,1), fill .25s ease 1.1s; }
+  @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.22); } 70% { transform: scale(.95); } 100% { transform: scale(1); } }
+  .done.snap * { transition: none !important; animation: none !important; }
+  .done.snap.in .pop { transform: scale(1); }
   .row img {
     height: var(--phone-h);
     width: auto;
@@ -126,8 +143,12 @@
            alt="Step 6 of 7: let's adjust your prices, so earnings stay the same">
         <video id="adjTag" muted playsinline preload="auto" poster="assets/price-tag.webp" src="assets/price-modal.mp4" aria-hidden="true"></video>
       </div>
-      <img src="assets/fee-complete.webp" width="979" height="2000"
+      <div class="done" id="done">
+        <img src="assets/fee-complete.webp" width="979" height="2000"
            alt="Price adjustment complete, confirmed on the host calendar">
+        <svg viewBox="-2 -2 104 104" aria-hidden="true"><circle cx="50" cy="50" r="52" fill="#fff"/>
+          <g class="pop"><circle class="disc" cx="50" cy="50" r="50"/><path class="tick" d="M26 52 L42.25 68.25 L74 36.5"/></g></svg>
+      </div>
     </div>
   </div>
 <script>
@@ -136,18 +157,25 @@
   // frame, which is the still tag, ready to play again.
   const tag = (() => {
     const v = document.getElementById('adjTag'); let t = 0;
-    const play = () => { try { v.currentTime = 0; const p = v.play(); if (p && p.catch) p.catch(() => { try { v.currentTime = v.duration - 0.01; } catch (_) {} }); } catch (_) {} };
-    return { after: ms => { clearTimeout(t); t = setTimeout(play, ms); }, reset: () => { clearTimeout(t); try { v.pause(); v.currentTime = 0; } catch (_) {} } };
+    const play = () => { try { v.currentTime = 0; const p = v.play(); if (p && p.catch) p.catch(() => { try { v.currentTime = v.duration - 0.01; } catch (_) {} check.set(true); }); } catch (_) {} };
+    const end = () => { clearTimeout(t); try { v.pause(); v.currentTime = v.duration || 0; } catch (_) {} check.set(true, true); };
+    return { end, after: ms => { clearTimeout(t); t = setTimeout(play, ms); }, reset: () => { clearTimeout(t); try { v.pause(); v.currentTime = 0; } catch (_) {} check.set(false); } };
   })();
+  // the check comes in once the tag has played to its end (John, 2026-10-03); Back takes it away, ready to come in again
+  const check = (() => {
+    const d = document.getElementById('done');
+    return { set: (v, instant) => { if (instant) d.classList.add('snap'); d.classList.toggle('in', v); if (instant) { void d.offsetWidth; requestAnimationFrame(() => d.classList.remove('snap')); } } };
+  })();
+  document.getElementById('adjTag').addEventListener('ended', () => check.set(true));
   // one build: the tap plays the fee from 2 of 7 to 3 of 7; Back plays it back; arriving backwards it stands at 3 of 7
   (() => {
     const h = document.getElementById('hof'); let on = false;
     const set = (v, instant) => { on = v; if (instant) h.classList.add('snap'); h.classList.toggle('on', v); if (instant) { void h.offsetWidth; requestAnimationFrame(() => h.classList.remove('snap')); } };
     window.presoNext = () => { if (on) return false; set(true); tag.after(2200); return true; };
     window.presoPrev = () => { if (!on) return false; set(false); tag.reset(); return true; };
-    window.presoEnd = () => set(true, true);
+    window.presoEnd = () => { set(true, true); tag.end(); };
     window.presoState = () => on ? 1 : 0;
-    window.presoRestore = n => set(n > 0, true);
+    window.presoRestore = n => { set(n > 0, true); if (n > 0) tag.end(); else tag.reset(); };
   })();
 </script>
 </body>
