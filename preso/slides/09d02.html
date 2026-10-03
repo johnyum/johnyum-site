@@ -48,6 +48,14 @@
   .grid .ph.rest:nth-child(2) { transition-delay: .18s; } .grid .ph.rest:nth-child(3) { transition-delay: .26s; }
   .grid .ph.rest:nth-child(4) { transition-delay: .34s; } .grid .ph.rest:nth-child(5) { transition-delay: .42s; }
   .snap .ph, .snap .ph.rest { transition: none !important; }
+  /* THE RING (John, 2026-10-03): after the four strikes, a tap rings the last phone — the stacked bar, the one that stands — in
+     green, 8px clear of the phone's outer edge all round, following its rounded shape, at the strike's 8px. The phone's outer
+     edge is the drawn iPhone's own rail (16–884 x 14–1826 on its 900 x 1840 frame, corners of 161); the ring's centre line runs
+     12px outside that (8 clear + half its 8px weight), in screen pixels. It draws itself round from the top. */
+  .ph .ring { position: absolute; left: 0; top: 0; overflow: visible; z-index: 3; pointer-events: none; }
+  .ph .ring rect { fill: none; stroke: #008a05; stroke-width: 8; stroke-dasharray: var(--len) var(--len); stroke-dashoffset: var(--len); }
+  .ph.ringed .ring rect { stroke-dashoffset: 0; transition: stroke-dashoffset .6s cubic-bezier(.4,0,.2,1); }
+  .snap .ph .ring rect { transition: none !important; }
   .ph .chrome { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
 </style>
 </head>
@@ -97,6 +105,9 @@
     all[0].classList.add('lead'); all.slice(1).forEach(ph => ph.classList.add('rest'));
     const lines = phones.map(ph => { const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('class', 'x');
       const ln = document.createElementNS(NS, 'line'); svg.appendChild(ln); ph.appendChild(svg); return { ph, svg, ln }; });
+    const last = all[all.length - 1];
+    const ringSvg = document.createElementNS(NS, 'svg'); ringSvg.setAttribute('class', 'ring');
+    const ring = document.createElementNS(NS, 'rect'); ringSvg.appendChild(ring); last.appendChild(ringSvg);
     let k1 = 1;
     const fit = () => {
       // the solo place: centred on the stage, at 13's phone height
@@ -106,6 +117,12 @@
       const hs = Math.min(innerHeight * 0.8, 1080); k1 = hs / h5;
       const cx = innerWidth / 2, cy = innerHeight / 2, mx = box.x + w5 / 2, my = box.y + h5 / 2;
       row.style.setProperty('--sx', (cx - mx) + 'px'); row.style.setProperty('--sy', (cy - my) + 'px'); row.style.setProperty('--sk', k1);
+      { const w = last.offsetWidth, h = last.offsetHeight, f = w / 900, O = 8 + 4;   // the rail, in px; the ring 12 out
+        ringSvg.setAttribute('width', w); ringSvg.setAttribute('height', h);
+        const x = 16 * f - O, y = 14 * f - O, rw = 868 * f + 2 * O, rh = 1812 * f + 2 * O, r = 161 * f + O;
+        ring.setAttribute('x', x); ring.setAttribute('y', y); ring.setAttribute('width', rw); ring.setAttribute('height', rh);
+        ring.setAttribute('rx', r); ring.setAttribute('ry', r);
+        ring.style.setProperty('--len', 2 * (rw + rh) - (8 - 2 * Math.PI) * r); }
       lines.forEach(({ ph, svg, ln }, i) => {
         const w = ph.offsetWidth, h = ph.offsetHeight, d = Math.hypot(w, h), ux = -w / d, uy = h / d;   // unit step, top-right → bottom-left
         const over = OVER / (i === 0 && row.classList.contains('solo') ? k1 : 1);
@@ -116,14 +133,16 @@
       });
     };
     //  0  nothing yet (the slide arriving)   1  the email, alone        2  struck
-    //  3  the five (the email struck)        4–6  each of the next three struck
+    //  3  the five (the email struck)        4–6  each of the next three struck        7  the last phone ringed in green
     let n = 0;
+    const RING = 3 + phones.length, LAST = RING;   // the four strikes, then the ring
     const set = (k, instant) => { n = k;
       if (instant) row.classList.add('snap');
       row.classList.toggle('pre', n === 0); row.classList.toggle('solo', n <= 2); row.classList.toggle('grid', n >= 3);
       fit();
       all[0].classList.toggle('on', n >= 2);
       phones.slice(1).forEach((ph, i) => ph.classList.toggle('on', n >= 4 + i));
+      last.classList.toggle('ringed', n >= RING);
       if (instant) { void row.offsetWidth; setTimeout(() => row.classList.remove('snap'), 60); } };
     set(0, true);
     addEventListener('resize', fit); if (window.ResizeObserver) new ResizeObserver(fit).observe(row);
@@ -131,7 +150,6 @@
     const auto = () => { if (n === 0) set(1); };
     addEventListener('presoshown', auto);
     if (window.top === window) addEventListener('load', () => setTimeout(auto, 300));
-    const LAST = 3 + phones.length - 1;
     window.presoNext = () => { if (n >= LAST) return false; set(Math.max(n, 1) + 1); return true; };
     window.presoPrev = () => { if (n <= 1) return false; set(n - 1, true); return true; };
     window.presoEnd = () => set(LAST, true);
