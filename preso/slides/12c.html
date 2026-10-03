@@ -100,6 +100,16 @@
       + '.booking-pill.preso-req .booking-avatar img{display:none}'
       + '.booking-pill.preso-req .booking-avatar::after{content:attr(data-ini);color:var(--req-ink,#428BFF);font:700 11px/1 Cereal,sans-serif;letter-spacing:.02em}'
       + '#tbGroupBtn.pressing{background:var(--grey-300,#DDDDDD)}'
+      + '[data-hname*="Dinah"]{display:none!important}'
+      // THE COIN (John, 2026-10-02: "the spinning 3 rausch we built for the native version") — TipsPuck.swift / its web port in
+      // multi-host-calendar-web: a rausch disc with real thickness (six darker rim layers offset behind the face by the turn's sine,
+      // the face narrowed by its cosine), two eased turns over 1.6s, the glossy face once it settles. In the Show tips button's 40 circle.
+      + '.magic-count-circle.preso-coin{background:none!important;position:relative;overflow:visible}'
+      + '.preso-coin .rim,.preso-coin .face{position:absolute;top:0;height:100%;border-radius:50%}'
+      + '.preso-coin .rim{background:#C72149}.preso-coin .face{background:var(--brand-rausch,#FF385C)}'
+      + '.preso-coin .face.glass{background:linear-gradient(160deg,#FF5F7E,#FF385C 55%,#E8214C);box-shadow:inset 0 1px 1px rgba(255,255,255,.55)}'
+      + '.preso-coin .num{position:relative;z-index:1;display:inline-block}'   // no Dinah hearts in this flow (John, 2026-10-02) — Pride keeps its own
+      + 'body.preso-price-swap #gridRows .price-val{opacity:0;transition:opacity .2s ease}#gridRows .price-val{transition:opacity .35s ease}'
       + '.preso-odo .rr{display:block}'   // a block: an inline span takes no transform, and the reel would never turn
       // while it rolls, each cell keeps its own re-layout to itself (the places opening re-centre the price inside the cell, never the board)
       + 'body.preso-rolling #gridRows .price-card{contain:layout style}'
@@ -121,6 +131,9 @@
     try { w.switchHost('pro', true); } catch (_) {}
     try { w.autoGroupByCity(false); } catch (_) {}
     try { w.setDataMode('none', true); } catch (_) {}
+    // the REAL prices, kept: this first flattening snapshots them, but the second (below, once the build has booted) would
+    // snapshot the already-flat board over them — so the guests' beat hands this one back (John, 2026-10-02)
+    ev(w, 'window.__presoRealPrices = preZeroSnapshot');
     // ON TODAY, INSTANTLY. The build's own scrollCalendarToToday always glides (it is the Today button's), and a glide queued
     // while this pane stood hidden played out as the slide came in — the "weird animation". The boot's own instant landing is
     // used instead (a straight scrollLeft), and the glide is replaced for this copy so nothing in it ever slides to today.
@@ -290,6 +303,31 @@
       }, end + 60);
     }));
   }
+  function coin(w, animate) {
+    const d = w.document, el = d.querySelector('#magicPill .magic-count-circle'); if (!el) return;
+    const n = el.textContent.trim(), L = 6, T = 3;
+    el.classList.add('preso-coin');
+    el.innerHTML = Array.from({ length: L }, () => '<span class="rim"></span>').join('') + '<span class="face"></span><span class="num">' + n + '</span>';
+    const rims = [...el.querySelectorAll('.rim')], face = el.querySelector('.face'), num = el.querySelector('.num'), S = el.offsetWidth || 40;
+    const draw = a => {
+      const c = Math.cos(a), sn = Math.sin(a), wd = Math.max(1, S * Math.abs(c));
+      rims.forEach((r, i) => { r.style.width = wd + 'px'; r.style.left = (S / 2 - wd / 2 - T * sn * ((L - i) / L)) + 'px'; });
+      face.style.width = wd + 'px'; face.style.left = (S / 2 - wd / 2) + 'px';
+      num.style.visibility = c > 0 ? 'visible' : 'hidden'; num.style.transform = 'scaleX(' + Math.max(0.01, c) + ')';
+    };
+    if (!animate) { draw(0); face.classList.add('glass'); return; }
+    draw(0);
+    const DUR = 1600, TURNS = 2; let t0 = 0;
+    const tick = now => {
+      if (!el.isConnected) return;                                                    // the build redrew its pill: let it go
+      if (!t0) t0 = now;
+      const u = Math.min(1, (now - t0) / DUR), e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+      draw(2 * Math.PI * TURNS * e);
+      if (u > .55) face.classList.add('glass');
+      if (u < 1) w.requestAnimationFrame(tick);
+    };
+    setTimeout(() => w.requestAnimationFrame(tick), 250);                              // it pops in first, then turns
+  }
   const BEATS = [
     // 1 — the top 7 stay; the rest fade and fold away; then the 7 grow to 96
     { fwd: (w, instant) => shape(w, 7, 96, instant),
@@ -362,12 +400,28 @@
     //     in, every pill fading up into its row — about one upcoming stay in three a REQUEST to book (John, 2026-10-02)
     { fwd: (w, instant) => {
         const d = w.document, bk = d.getElementById('devBookings');
-        const guests = () => { dealGuests(w); markRequests(w); if (!instant) { d.body.classList.add('preso-pills-in'); setTimeout(() => d.body.classList.remove('preso-pills-in'), 1400); } bk.checked = true; bk.dispatchEvent(new w.Event('change')); };
+        // ...and the flat $200 gives way to real prices: the build's own price variance back on (each home's base, its weekends,
+        // seasons and events), the numbers fading out and back in as the guests arrive (John, 2026-10-02)
+        const prices = () => {
+          ev(w, 'priceOverride.forEach(o => { for (const k in o) delete o[k]; }); if (window.__presoRealPrices) preZeroSnapshot = window.__presoRealPrices;');   // the slide's own $200s off (an override outranks every computed price), and the real prices' snapshot back in place
+          const v = d.getElementById('devVariance'); if (v && !v.checked) { v.checked = true; v.dispatchEvent(new w.Event('change')); }
+          ev(w, 'refreshCalendarPrices()');
+        };
+        const guests = () => {
+          dealGuests(w); markRequests(w);
+          if (instant) { bk.checked = true; bk.dispatchEvent(new w.Event('change')); prices(); return; }
+          d.body.classList.add('preso-pills-in'); setTimeout(() => d.body.classList.remove('preso-pills-in'), 1400);
+          bk.checked = true; bk.dispatchEvent(new w.Event('change'));
+          d.body.classList.add('preso-price-swap');
+          setTimeout(() => { prices(); d.body.classList.remove('preso-price-swap'); }, 220);
+        };
         ev(w, "closePriceMenu(); closeAvailMenu(); clearSelection();");
         if (instant) guests(); else setTimeout(guests, 700);
       },
       back: w => {
         const d = w.document, bk = d.getElementById('devBookings'); bk.checked = false; bk.dispatchEvent(new w.Event('change'));
+        const v = d.getElementById('devVariance'); if (v && v.checked) { v.checked = false; v.dispatchEvent(new w.Event('change')); }   // back to the flat board...
+        setAll(w, 200);                                                                     // ...at $200
         setTimeout(() => { BEATS[3].fwd(w, true); ev(w, "openPriceMenu()"); }, 120);    // the selection and the Price menu, as they stood — once the guests have left the cells (a booked night is never selected)
       } },
     // 7 — Group, tapped: the homes gather into their cities (see THE GATHER)
@@ -380,7 +434,7 @@
       back: w => { ev(w, "groups.length = 0; groups.push({ name: 'Group 1', members: [] }); saveGroups(); renderGroups(); applyGroupsToCalendar();"); } },
     // 8 — Search: the magnifier, tapped — it unfurls into its field — "Coachella" typed a letter at a time, and Enter: the build's
     //     own search flies the board to the festival and lays its dashed preview over the nights (John, 2026-10-02)
-    { fwd: (w, instant) => {
+    { search: true, fwd: (w, instant) => {
         const d = w.document, pill = d.getElementById('searchPill'), input = d.getElementById('searchPillInput');
         if (!pill || !input) return;
         const set = Object.getOwnPropertyDescriptor(w.HTMLInputElement.prototype, 'value').set;
@@ -398,6 +452,18 @@
         if (input) input.blur();
         ev(w, "clearSelection(); scrollCalendarToToday(true)");
       } },
+    // 9 — home: the search folds away and the board flies back to today, up to the top-left corner; then Show tips (John, 2026-10-02)
+    { fwd: (w, instant) => {
+        const d = w.document, input = d.getElementById('searchPillInput');
+        try { w._resetSearchPill(); } catch (_) {}
+        if (input) input.blur();
+        // ...and once it is there, a beat, and Show tips pops in at the bottom middle, its count the native coin, turning twice
+        const tips = () => { d.body.classList.remove('preso-no-tips'); try { w._oppWandEnter = !instant; w.renderMagicPill(); } catch (_) {} coin(w, !instant); };
+        if (instant) { ev(w, "gridWrap.scrollLeft = Math.max(0, (rowOffsets[calStartDi()] || 0) - GRID_GUTTER); gridWrap.scrollTop = 0;"); tips(); return; }
+        setTimeout(() => ev(w, "scrollCalendarToToday(true)"), 200);
+        clearTimeout(coin._t); coin._t = setTimeout(tips, 200 + 1000 + 600);            // the flight (~1s), a beat, the button
+      },
+      back: w => { clearTimeout(coin._t); w.document.body.classList.add('preso-no-tips'); BEATS.find(b => b.search).fwd(w, true); } },   // the button away, and Coachella searched again, as it stood
   ];
   // THE OLD PATH (2026-09-22 … 09-30), parked when John rewrote the slide's path (2026-10-02): group by city, the guests, a swath
   // selected and priced, Tips and its opportunities. Not played; kept whole so any of it can come back.
@@ -571,7 +637,7 @@
   // HOLD is how long each beat plays before the next may start, read off its own timers. 7 and 8 wait on the build
   // (a modal to rise and go; a handle to be dragged up and back), so theirs are the long ones. Going BACK is never
   // queued: it drops anything waiting and acts at once, because reversing is how you recover from a wrong tap.
-  const HOLD = [1300, 1300, 1300, 2400, 700, 700, 1600, 3200, 2600];   // the fold (.75s) and the grow (.44s), and a breath — the old path's were [1500, 1400, 1000, 2900, 1300, 3200, 4600, 6800, 2600, 1800, 1400, 1500]
+  const HOLD = [1300, 1300, 1300, 2400, 700, 700, 1600, 3200, 2600, 3600];   // the fold (.75s) and the grow (.44s), and a breath — the old path's were [1500, 1400, 1000, 2900, 1300, 3200, 4600, 6800, 2600, 1800, 1400, 1500]
   let busyUntil = 0, queued = 0, qT = 0;
   const fire = () => { const b = BEATS[at]; at++; safe(() => b.fwd(W(), false)); busyUntil = performance.now() + (HOLD[at - 1] || 1500); };
   const pump = () => {

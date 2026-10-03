@@ -300,7 +300,18 @@ The page only ever talks to **`/api/monsters?p=…`**, and two things answer it:
   409 and charges for it anyway; Stop only keeps the later, dearer steps from starting.
 - **Rigging only takes bipeds.** A blob fails step 3 — it keeps the procedural layer
   (breath, turning to the pointer, a squash when tapped) that runs on top of every clip.
-- `window.__monsters` exposes `{ play, still, clips, playing }`, the way `explore/` does.
+- **Evolve** is the second mode (Draw | Evolve): Dawkins' biomorphs in 3D. A genome is ~37
+  numbers in 0–1 (`GENES`); `grow()` reads it into a body — a spine swept along a curve, legs
+  in pairs, a head with eyes / stalks / mouth / horns, back spikes, a tail tip, fins, palette,
+  pattern — and `live()` into a way of moving: tempo, bounce, sway, gait (walk / hop / crawl /
+  float), nerves, curiosity. The grid is the parent in the middle and eight `mutate()`d
+  children, all drawn by one renderer through scissored viewports. It costs nothing until
+  **Bring it to life**, which sends `snapshot()` — the parent, three-quarter, on white — with
+  `evolvedPrompt()`, which holds Meshy to the body plan. Evolved creatures **skip the rig**
+  (it only takes bipeds, and they already move): the finished model is driven by `beh`,
+  their evolved behaviour, and the genome is kept on the shelf record.
+- `window.__monsters` exposes `{ play, still, clips, playing, setMode, choose, generation, parent }`,
+  the way `explore/` does.
 
 ## Drawing in Claude's visual language
 

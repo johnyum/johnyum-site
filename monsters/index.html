@@ -678,7 +678,7 @@ view.addEventListener('pointerup', (e) => {
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), .05), t = clock.elapsedTime;
-  if (view === 'grid') return renderGrid(t);
+  if (stageView === 'grid') return renderGrid(t);
   renderer.setScissorTest(false); renderer.setViewport(0, 0, stageEl.clientWidth, stageEl.clientHeight);
   mixer?.update(dt);
   // Spring for the boop and the arrival pop: stiff, lightly damped, so it wobbles twice.
@@ -803,7 +803,7 @@ function grow(g) {
   const tailLen = g.tail > .25 ? lerp(.15, 1.1, (g.tail - .25) / .75) : 0;
 
   // Palette: a body colour, a second for pattern and trim, a pale belly.
-  const sat = lerp(.12, .85, g.sat), light = lerp(.3, .66, g.light);
+  const sat = lerp(.28, .95, g.sat), light = lerp(.32, .62, g.light);
   const c1 = new THREE.Color().setHSL(g.hue, sat, light);
   const c2 = new THREE.Color().setHSL((g.hue + lerp(.08, .5, g.hue2)) % 1, lerp(.2, .9, 1 - g.sat * .5), lerp(.22, .78, 1 - g.light));
   const belly = new THREE.Color().setHSL(g.hue, sat * .45, Math.min(.92, light + .28));
@@ -813,6 +813,9 @@ function grow(g) {
     clearcoat: g.rough < .3 ? .8 : 0, clearcoatRoughness: .3 });
   const trim = new THREE.MeshPhysicalMaterial({ color: c2, roughness: lerp(.25, .8, g.rough), metalness: metal * .6 });
   const headMat = new THREE.MeshPhysicalMaterial({ color: pattern === 3 ? c2 : c1, roughness: skin.roughness, metalness: metal,
+    clearcoat: skin.clearcoat });
+  // Limbs and caps carry no vertex colours, so they get the body colour as a plain material — on `skin` they'd render black.
+  const flesh = new THREE.MeshPhysicalMaterial({ color: c1.clone().lerp(belly, .25), roughness: skin.roughness, metalness: metal,
     clearcoat: skin.clearcoat });
 
   // Spine, tail to head, along +x; the head end can lift into a neck.
@@ -836,7 +839,7 @@ function grow(g) {
   };
   body.add(new THREE.Mesh(sweep(curve, radius, colorAt), skin));
   const at = (u) => curve.getPointAt(u);
-  body.add(put(ball(radius(0) * 1.02, skin), at(0)));   // close the tail end
+  body.add(put(ball(radius(0) * 1.02, flesh), at(0)));   // close the tail end
 
   // Head, at the front of the spine. Everything on it lives in one group so it can turn.
   const end = at(1), hr = Math.max(.1, bodyR(1) * lerp(.85, 1.6, g.head));
@@ -882,7 +885,7 @@ function grow(g) {
       const hip = new THREE.Group(); hip.position.set(p.x, p.y - r * .35, sd * r * .75);
       const out = lerp(.1, .5, g.knee) * legLen, y0 = hip.position.y;
       const knee = new THREE.Vector3(0, -y0 * .5, sd * out), foot = new THREE.Vector3(0, -y0, sd * out * 1.25);
-      hip.add(limb(new THREE.Vector3(), knee, thick, skin), limb(knee, foot, thick * .85, skin));
+      hip.add(limb(new THREE.Vector3(), knee, thick, flesh), limb(knee, foot, thick * .85, flesh));
       hip.add(put(ball(thick * 1.5, trim, 1.6, .6, 1.2), foot));
       body.add(hip); legList.push({ hip, phase: k * Math.PI * .5 + (sd > 0 ? Math.PI : 0) });
     }
@@ -1058,9 +1061,9 @@ function drawSource() {
 }
 
 // ── modes and views ──
-let view = 'single';
+let stageView = 'single';
 function setView(v) {
-  view = v; stageEl.classList.toggle('grid', v === 'grid');
+  stageView = v; stageEl.classList.toggle('grid', v === 'grid');
   controls.enabled = v === 'single';
   $('#backToGrid').hidden = !(mode === 'evolve' && v === 'single');
   if (v === 'grid') requestAnimationFrame(placeCells);
@@ -1121,7 +1124,9 @@ let running = false;
 
 async function run(src) {
   running = true; stopper = new AbortController(); resetSteps(); note('');
-  setView('single'); setBehaviour(src.genome || null);
+  setView('single'); setBehaviour(src.genome || null); $('#backToGrid').hidden = true;
+  // An evolved creature is on stage from the first second — its own snapshot, until Meshy's render replaces it.
+  if (src.genome) { $('#preview').src = src.image; $('#preview').classList.add('on'); $('#empty').hidden = true; }
   const go = $('#go'); go.disabled = false; go.textContent = 'Stop'; go.classList.add('stop');
   $('#actions').hidden = true; $('#download').hidden = true;
   for (const k in clips) delete clips[k];
@@ -1213,6 +1218,7 @@ async function run(src) {
     $('#preview').classList.remove('on');
   } finally {
     running = false; stopper = null;
+    $('#backToGrid').hidden = mode !== 'evolve';
     const go = $('#go'); go.textContent = 'Bring it to life'; go.classList.remove('stop'); go.disabled = !canGo();
   }
 }
