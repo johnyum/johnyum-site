@@ -136,6 +136,14 @@
   .adj { position: relative; height: var(--phone-h); aspect-ratio: 979 / 2000; flex: none; }
   .adj img { height: 100%; width: 100%; }
   .adj video { position: absolute; left: 39.030%; top: 21.541%; width: 21.951%; height: 10.745%; display: block; }
+  /* THE DETAILS (John, 2026-10-03; Figma 5618:12403): a tap after the tag turns the fourth phone to the adjusted calendar. Two
+     layers of the same frame: above y 518 (where the Aug 9 pill starts) it crossfades in — the prices doubled, Aug 9 picked —
+     and below it the breakdown rises 60pt into place as it comes up, the way a quick action does. */
+  .done .scr .dt { clip-path: inset(0 0 39.2% 0); opacity: 0; }
+  .done .scr .db { clip-path: inset(60.8% 0 0 0); opacity: 0; transform: translateY(7%); }
+  .done.on .scr .dt { opacity: 1; transition: opacity .45s ease; }
+  .done.on .scr .db { opacity: 1; transform: none; transition: opacity .35s ease .25s, transform .55s cubic-bezier(.2,.8,.2,1) .25s; }
+  .done.snap .scr img { transition: none !important; }
   .row img {
     height: var(--phone-h);
     width: auto;
@@ -199,8 +207,8 @@
            alt="Step 6 of 7: let's adjust your prices, so earnings stay the same">
         <video id="adjTag" muted playsinline preload="auto" poster="assets/price-tag.webp" src="assets/price-modal.mp4" aria-hidden="true"></video>
       </div>
-      <div class="hof done" aria-label="Step 7 of 7: this one-time adjustment will update your prices to account for the single service fee; confirm price adjustment">
-        <div class="scr"><img src="assets/fee-confirm.webp" alt="" draggable="false"></div>
+      <div class="hof done" id="done" aria-label="Step 7 of 7: this one-time adjustment will update your prices to account for the single service fee; confirm price adjustment — then the adjusted prices, $200 to $231, and what guests see and you still earn">
+        <div class="scr"><img src="assets/fee-confirm.webp" alt="" draggable="false"><img class="dt" src="assets/fee-details.webp" alt="" draggable="false"><img class="db" src="assets/fee-details.webp" alt="" draggable="false"></div>
         <svg class="chrome" viewBox="0 0 900 1840" fill="none" aria-hidden="true"><path fill="url(#rail)" fill-rule="evenodd" d="M177,14 H723 A161,161 0 0 1 884,175 V1665 A161,161 0 0 1 723,1826 H177 A161,161 0 0 1 16,1665 V175 A161,161 0 0 1 177,14 Z M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/><image href="assets/device/iphone-frame.png" x="0" y="0" width="900" height="1840" clip-path="url(#outsideBezel)" preserveAspectRatio="none"/><path fill="#0b0b0b" fill-rule="evenodd" d="M177,27 H723 A148,148 0 0 1 871,175 V1665 A148,148 0 0 1 723,1813 H177 A148,148 0 0 1 29,1665 V175 A148,148 0 0 1 177,27 Z M177,47 H723 A128,128 0 0 1 851,175 V1665 A128,128 0 0 1 723,1793 H177 A128,128 0 0 1 49,1665 V175 A128,128 0 0 1 177,47 Z"/><rect x="322" y="69" width="256" height="74" rx="37" fill="#000"/><circle cx="529" cy="106" r="12.7" fill="#0f1420"/><circle cx="529" cy="106" r="5.3" fill="#243046"/></svg>
       </div>
     </div>
@@ -212,41 +220,56 @@
   const tag = (() => {
     const v = document.getElementById('adjTag'); let t = 0;
     const play = () => { try { v.currentTime = 0; const p = v.play(); if (p && p.catch) p.catch(() => { try { v.currentTime = v.duration - 0.01; } catch (_) {} }); } catch (_) {} };
-    return { after: ms => { clearTimeout(t); t = setTimeout(play, ms); }, reset: () => { clearTimeout(t); try { v.pause(); v.currentTime = 0; } catch (_) {} } };
+    return { play: () => { clearTimeout(t); play(); }, after: ms => { clearTimeout(t); t = setTimeout(play, ms); },
+             reset: () => { clearTimeout(t); try { v.pause(); v.currentTime = 0; } catch (_) {} },
+             end: () => { clearTimeout(t); try { v.pause(); v.currentTime = Math.max(0, (v.duration || 5) - 0.01); } catch (_) {} } };
   })();
-  // three builds (see THE FEE, ANIMATED): each tap plays the next step of the graph; the tag on the third phone plays once the
-  // last step has landed ("Your price $115" is in at 3.6s, settled by 4.05s). Back snaps a step back; arriving backwards, the
-  // graph stands finished.
+  // THE BUILDS (John, 2026-10-03). The graph's three steps (see THE FEE, ANIMATED) are steps 0–3 of the slide; then two more:
+  //   0 → 1  the bars rise — by themselves, as the slide lands
+  //   1 → 3  one tap: the host's fee and the fill, then the single fee on its own 2.4s later (a tap mid-run skips to the end)
+  //   3 → 4  a tap: the tag on the third phone flips (it never plays by itself)
+  //   4 → 5  a tap: the fourth phone goes from "7 of 7" to the details — the prices doubled (struck $200, $231), Aug 9 picked,
+  //          and the price breakdown rising from the foot ("Your adjusted price", "Guests see", "You still earn", Close details)
+  // Back snaps a step back (from the graph's end straight to the bars); arriving backwards, all of it stands done.
   (() => {
-    const h = document.getElementById('hof'), st = document.getElementById('stage'), scr = st.parentElement, LAST = 3;
+    const h = document.getElementById('hof'), done = document.getElementById('done'), st = document.getElementById('stage'), scr = st.parentElement;
+    const GRAPH = 3, LAST = 5;
     let s = 0;
     const fit = () => { const w = scr.clientWidth, ht = scr.clientHeight, k = Math.max(w / 393, ht / 852);
       st.style.transform = `translate(${(w - 393 * k) / 2}px, 0) scale(${k})`; };
     fit(); addEventListener('resize', fit); if (window.ResizeObserver) new ResizeObserver(fit).observe(scr);
     const g = new URLSearchParams(location.search).get('ghost');
     if (g) { const i = document.createElement('img'); i.className = 'ghost'; i.src = `assets/hof-${g}of7.webp`; st.appendChild(i); }
-    const set = (n, instant) => { s = n; if (instant) h.classList.add('snap'); h.dataset.s = n;
-      if (instant) { void h.offsetWidth; requestAnimationFrame(() => requestAnimationFrame(() => h.classList.remove('snap'))); } };
+    const set = (n, instant) => { s = n;
+      if (instant) { h.classList.add('snap'); done.classList.add('snap'); }
+      h.dataset.s = Math.min(n, GRAPH); done.classList.toggle('on', n >= 5);
+      if (instant) { void h.offsetWidth; setTimeout(() => { h.classList.remove('snap'); done.classList.remove('snap'); }, 60); } };
     // the first step plays by itself as the slide lands (John, 2026-10-03: "so it's not just sitting blank") — the deck says so
     // with presoshown; opened on its own, it plays once the page is up
     const auto = () => { if (s === 0) set(1); };
     addEventListener('presoshown', auto);
     if (window.top === window) addEventListener('load', () => setTimeout(auto, 400));
-    // ONE TAP FINISHES IT (John, 2026-10-03: "just finish out the entire thing without adding an extra tap"): after the bars
-    // have landed by themselves, the one tap plays the host's fee and the fill, and the single fee follows on its own once
-    // "You earn $97" is in (2.4s) — then the tag. A tap during that run skips straight to the single fee.
     let chain = 0;
-    const finish = () => { clearTimeout(chain); set(LAST); tag.after(4400); };
+    const finish = () => { clearTimeout(chain); set(GRAPH); };
     window.presoNext = () => {
       if (s >= LAST) return false;
       if (s === 0) { set(1); return true; }
       if (s === 1) { set(2); chain = setTimeout(finish, 2400); return true; }
-      finish(); return true;
+      if (s === 2) { finish(); return true; }
+      if (s === 3) { set(4); tag.play(); return true; }
+      set(5); return true;
     };
-    window.presoPrev = () => { if (s <= 1) return false; clearTimeout(chain); tag.reset(); set(1, true); return true; };
-    window.presoEnd = () => { clearTimeout(chain); set(LAST, true); };
+    window.presoPrev = () => {
+      if (s <= 1) return false;
+      clearTimeout(chain);
+      if (s === 5) set(4, true);
+      else if (s === 4) { tag.reset(); set(3, true); }
+      else set(1, true);
+      return true;
+    };
+    window.presoEnd = () => { clearTimeout(chain); set(LAST, true); tag.end(); };
     window.presoState = () => s;
-    window.presoRestore = n => { clearTimeout(chain); set(Math.max(0, Math.min(LAST, n | 0)), true); if (s < LAST) tag.reset(); };
+    window.presoRestore = n => { clearTimeout(chain); set(Math.max(0, Math.min(LAST, n | 0)), true); if (s >= 4) tag.end(); else tag.reset(); };
     // NOT KEPT (John, 2026-10-03: "when I leave that page by pressing back then come back to it, replay the animation"): the deck
     // keeps the slide just left exactly as it was; this one asks to be built fresh instead, so coming back to it plays it again.
     window.presoNoKeep = true;
