@@ -378,6 +378,8 @@ up tip cards. One `index.html`, three.js; the chat is canned.
   `tween()` throw `STOP` once `epoch` moves on. Where you put it, it stays (`C.perched`) and reacts
   in place (`inPlace()`); a tap there stands it up or sits it down. The app reports every message as
   `msg-<uuid>` (the bubble, or the answer's text) for this.
+- **It doesn't talk** (2026-10-03, John's call): Claude talks in the chat; the character only reacts,
+  with its face and body. `say()` is off behind `TALKS = false`, and Haiku isn't asked for a line.
 - Its frame loop is `frame()`, exposed on `window.__peek` — a hidden tab pauses
   `requestAnimationFrame`, so a test drives frames by hand.
 

@@ -921,9 +921,12 @@ async function holdTip(title, text) {
 }
 function dropCard() { card?.remove(); card = null; }
 
-// A speech bubble over its head.
+// A speech bubble over its head — switched off: Claude does the talking in the chat, and the
+// character only reacts, with its face and body. Every say() stays in place, so it's one line back.
+const TALKS = false;
 let bubble = null, bubbleTimer = 0;
 function say(text, ms = 2200, cls = '') {
+  if (!TALKS) return;
   unsay();
   bubble = document.createElement('div'); bubble.className = 'bubble ' + cls; bubble.textContent = text; $('#fx').append(bubble);
   bubble.animate([{ opacity: 0, scale: '.6' }, { opacity: 1, scale: '1' }], { duration: 300, easing: 'cubic-bezier(.3,1.45,.5,1)' });
@@ -1286,9 +1289,9 @@ For a message from Claude, it's Peek's reaction to reading the answer: good news
 
 cmd: if the user tells Peek to do something, one of jump, dance, wave, come, away, sleep — else null.
 n: intensity 0 to 1.
-line: what Peek says out loud — 1 to 4 words, lowercase, specific to the message, warm. No emoji except ♥. Never repeat the message back.
+Peek never speaks — it only reacts — so there are no words to write.
 
-Answer with JSON only: {"feel":"…","n":0.0,"cmd":null,"line":"…"}`;
+Answer with JSON only: {"feel":"…","n":0.0,"cmd":null}`;
 const said = [];   // the chat so far, for context: [who, text]
 async function read(text, who = 'you') {
   const quick = sense(text, who);
