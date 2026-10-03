@@ -71,6 +71,8 @@
   // THE SIZE IS THE ONE JOHN LIKED (John, 2026-10-01: "too cropped in … what you had before was perfect"): a tweet at
   // its own 330 on a 1080-tall stage, scaling with the stage's height, the wall run past every edge.
   const COL = 330, GAP = 20, OVER = 1.08;
+  // a tweet with a video in it is never shown twice — the same film playing in two places gives the repeat away
+  const ONCE = new Set(['1691130465648889887']);   // More Perfect Union's
   const slide = document.getElementById('slide');
   const wall = document.getElementById('wall');
 
@@ -94,8 +96,9 @@
       const open = cols.map((c, j) => [c, j]).filter(([c]) => c.h < need);
       if (!open.length) break;
       const [col, j] = open.reduce((a, b) => (b[0].h < a[0].h ? b : a));
-      const ok = TWEETS.filter(([id]) => !(used.get(id) || []).some(c => Math.abs(c - j) <= 1));
-      const pool = ok.length ? ok : TWEETS;
+      const fresh = TWEETS.filter(([id]) => !(ONCE.has(id) && used.has(id)));   // a video is seen once (John, 2026-10-03: "it's too obvious")
+      const ok = fresh.filter(([id]) => !(used.get(id) || []).some(c => Math.abs(c - j) <= 1));
+      const pool = ok.length ? ok : fresh;
       const pick = pool.reduce((best, t) => {
         const ub = (used.get(best[0]) || []), ut = (used.get(t[0]) || []);
         if (ut.length !== ub.length) return ut.length < ub.length ? t : best;
