@@ -58,8 +58,10 @@
     return true;
   };
   const t0 = Date.now();
-  const tick = () => { const got = measure(); if (got) sheet.classList.add('ready'); if (Date.now() - t0 < 9000) setTimeout(tick, 120); };
+  const tick = () => { const got = measure(); if (got) sheet.classList.add('ready'); if (Date.now() - t0 < 14000) setTimeout(tick, 120); };
   frame.addEventListener('load', tick); setTimeout(tick, 300);
+  // ...and for good: pieces land in it after the first seconds (the requests, the Repeat cells, the quick actions)
+  frame.addEventListener('load', () => { const go = () => { const el = frame.contentDocument && frame.contentDocument.querySelector('.ds'); if (!el) { setTimeout(go, 150); return; } new frame.contentWindow.ResizeObserver(() => measure()).observe(el); }; go(); });
   // UPDATED TO TODAY'S COMPONENTS (John, 2026-10-03: "go back to that one but update it with newer components… remove the
   // secondary type everywhere"). The sheet is the app's own sampler, so it is dressed from here rather than rebuilt:
   //  · no words at all — no labels, no section titles: only the components;
@@ -75,6 +77,7 @@
     const HOMES = ['1564013799919-ab600027ffc6', '1600596542815-ffad4c1539a9', '1568605114967-8130f3a36994'];
     st.textContent = '.ds-label{display:none!important}'
       + '.sampler-item[data-dup]{display:none!important}'
+      + '[data-grey]{display:none!important}'   // no grey pride heart (John, 2026-10-03): neither the past mark nor the past cell that carries it
       // no section titles either: pure components (John, 2026-10-03)
       + '.ds-sec h2{display:none!important}'
       // GUEST PILLS, the main ones only, one size (John, 2026-10-03: "get rid of dupes… all the pill sizes the same… I don't
@@ -92,7 +95,9 @@
       const ph = it.querySelector('.phone'); if (ph && !ph.classList.contains('origsel')) ph.classList.add('origsel');
     });
     stroke(); new frame.contentWindow.MutationObserver(stroke).observe(d.body, { childList: true, subtree: true });
-    addKinds(d);
+    const grey = () => d.querySelectorAll('.ds-spec, .sampler-item').forEach(e => { const l = ((e.querySelector('.ds-label') || {}).textContent || '').trim(); if (/^Past(, icon)?$/.test(l)) e.dataset.grey = 1; });
+    grey(); setTimeout(grey, 600);
+    addKinds(d).catch(e => console.error("[12d1 addKinds]", e));
   });
   // THE REQUEST TO BOOK AND THE CANCELLED STAY. The sampler has neither, so the live calendar is run unseen, given one of
   // each (its model's addStay, as slide 13 gives them), and the two pills it draws are lifted into the sampler's Guest pills
@@ -161,6 +166,43 @@
       const k = c.cloneNode(true); k.style.cssText += ';position:relative!important;left:auto!important;top:auto!important;width:' + r.width + 'px!important;height:' + r.height + 'px!important;transform:none!important';
       cur.appendChild(k); cellsGrid.appendChild(item);
     });
+    // QUICK ACTIONS, piece by piece (John, 2026-10-03: "break them out to individual pieces under the events and holidays"):
+    // the cards a pick raises, then Repeat's, each on its own, in a group of their own under the events
+    m.setRecurQA(false); m.setOrigSel(true);
+    m.setSelectedNights(new Set([I(19), I(20), I(21)]));
+    await new Promise(r => setTimeout(r, 1400));
+    const evSec = d.querySelector('.ds-grid.marks') && d.querySelector('.ds-grid.marks').closest('.ds-sec');
+    const qa = d.createElement('section'); qa.className = 'ds-sec';
+    const qaGrid = d.createElement('div'); qaGrid.style.cssText = 'display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;max-width:600px';
+    qa.appendChild(qaGrid); if (evSec) evSec.after(qa);
+    const shellChain = (el, stop) => { const ch = []; for (let e = el.parentElement; e && e !== stop; e = e.parentElement) ch.unshift(e); return ch; };
+    const NEUTRAL = ';position:static!important;transform:none!important;translate:none!important;width:auto!important;height:auto!important;margin:0!important;padding:0!important;overflow:visible!important;display:block!important;inset:auto!important;min-height:0!important;max-height:none!important;background:transparent!important;box-shadow:none!important;border:0!important;opacity:1!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important';
+    const build = (into, el, stop) => {
+      const r = el.getBoundingClientRect(); let cur = into;
+      shellChain(el, stop).forEach(e => { const k = e.cloneNode(false); if (k.removeAttribute) k.removeAttribute('id'); if (k.style) k.style.cssText += NEUTRAL; cur.appendChild(k); cur = k; });
+      const k = el.cloneNode(true); k.style.cssText += ';position:relative!important;left:auto!important;top:auto!important;right:auto!important;bottom:auto!important;width:' + r.width + 'px!important;height:' + r.height + 'px!important;transform:none!important;opacity:1!important';
+      cur.appendChild(k);
+      into.style.width = r.width + 'px'; into.style.height = r.height + 'px';
+    };
+    // the phone's cards (in the page, under the app's own stylesheet — the sampler's, the same one)
+    [...L.querySelectorAll('.sqa .sqa-card')].filter(c => c.getBoundingClientRect().width > 40).forEach(c => { const box = d.createElement('div'); box.style.position = 'relative'; build(box, c, L.body); qaGrid.appendChild(box); });
+    // Repeat's cards live in a shadow root of their own: each goes into a shadow root here, with that root's own styles
+    m.clearSelection(); m.setRecurQA(true);
+    await new Promise(r => setTimeout(r, 600));
+    m.setSelectedNights(new Set([I(19), I(20), I(21)]));   // Repeat's cards are built for a pick made while it is on
+    await until(() => { const h = L.querySelector('.recur-host'); return h && h.shadowRoot && h.shadowRoot.querySelector('.halves2'); }, 6000);
+    await new Promise(r => setTimeout(r, 900));
+    const host = L.querySelector('.recur-host'), root = host && host.shadowRoot;
+    if (root) {
+      const css = [...root.querySelectorAll('style')].map(x => x.textContent).join('\n') + [...(root.adoptedStyleSheets || [])].map(sh => [...sh.cssRules].map(r => r.cssText).join('\n')).join('\n');
+      // only what is Repeat's own: the Settings | Repeat card and its round button — its availability and price cards are the
+      // phone's, already here — wherever they stand (the cards can sit below the frame's edge)
+      [...root.querySelectorAll('.card, .disc')].filter(c => { const r = c.getBoundingClientRect(); return r.width > 16 && r.height > 16 && (c.classList.contains('disc') || c.querySelector('.halves2')); }).forEach(c => {
+        const h = d.createElement('div'), sr = h.attachShadow({ mode: 'open' }), st = d.createElement('style'); st.textContent = css; sr.appendChild(st);
+        const box = d.createElement('div'); box.style.position = 'relative'; sr.appendChild(box);
+        build(box, c, null); h.style.width = box.style.width; h.style.height = box.style.height; qaGrid.appendChild(h);
+      });
+    }
     live.remove();
   }
 })();
