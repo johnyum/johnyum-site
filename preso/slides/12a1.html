@@ -24,17 +24,12 @@
      phone and its label are centred as one block. -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
-  .ref { position: absolute; aspect-ratio: 900 / 1840; transform-origin: 50% 60%; filter: drop-shadow(0 10px 24px rgba(0,0,0,.16)); }
-  .scr {
-    position: absolute;
-    left: 5.4444%; top: 2.5543%; width: 89.1111%; height: 94.8913%;
-    border-radius: 15.9601% / 7.3310%;
-    overflow: hidden; background: #0b0b0b; z-index: 1;
-  }
+  /* THE SCREENS ALONE (John, 2026-10-02): no phone — no rail, bezel or Dynamic Island — just each design, edged in a 1px grey-400
+     stroke with 12px corners, six across in a straight row (the fan undone) */
+  .ref { position: absolute; aspect-ratio: 921 / 2000; }
+  .scr { position: absolute; inset: 0; box-sizing: border-box; border: 1px solid #B0B0B0; border-radius: 12px; overflow: hidden; background: #fff; }
   .scr img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; user-select: none; }
-  /* the fan: out from the stack, the outer phones travelling furthest in the same time, so the hand opens as one */
-  body.fanning .ref { transition: transform 900ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-  .chrome { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+  .chrome { display: none; }   /* the drawn phone, retired with the fan */
 
   /* THE LABELS: the deck's own voice — the kicker's ("John Yum · Work") face, size and grey — 16px under each phone
      (John). Inside the phone's box, so each one travels with its phone as the calendars shrink and slide and the
@@ -78,39 +73,22 @@
 <script>
 (() => {
   const b = document.body, refs = [...document.querySelectorAll('.ref')];
-  const PW = 0.48913;                             // a phone's width, as a fraction of its height
-  // THE FAN (John, 2026-10-02): the six held like a hand of cards — a little smaller, overlapping in the middle, each
-  // tipped a step further out (−22.5° … +22.5°) and dropping on an arc toward the ends, left under right. The labels are gone.
-  // Then (same day) smaller, more fanned, less overlap: 0.52 of the height, 9° a step, 0.8 of a phone apart.
-  const N = 6, STEP = 9, OVER = 0.8, DROP = 0.02;
-  // ARRIVE CLOSED, THEN FAN (John, 2026-10-02): the six come in with the push squared up in one stack at the centre, and
-  // only once the push has landed (the deck's presoshown) do they spread into the fan. Every phone is laid out at its
-  // fanned spot; the stack is a transform pulling it back to the centre, so the fan is one transition on transform alone.
-  let fanned = false;
+  // SIX ACROSS (John, 2026-10-02 — the fan undone): the screens stand in one straight row, a gap of 0.12 of a screen between them,
+  // as tall as 62% of the stage allows (900 at most) and never wider than 90% of it, centred as one block
+  const PW = 921 / 2000, N = 6, GAP = 0.12;
   function layout() {
     const W = innerWidth, H = innerHeight;
     if (!(W > 0 && H > 0)) return;                // parked by the deck: nothing to measure yet
-    const h = Math.min(H * 0.52, 760, W * 0.9 / (PW * (1 + (N - 1) * OVER) + 0.25)), w = h * PW;
+    const h = Math.min(H * 0.62, 900, W * 0.9 / ((N + (N - 1) * GAP) * PW)), w = h * PW, total = N * w + (N - 1) * GAP * w;
     refs.forEach((r, i) => {
-      const t = i - (N - 1) / 2, dx = t * w * OVER, dy = t * t * h * DROP;
       r.style.height = h + 'px';
-      r.style.left = (W / 2 + dx - w / 2) + 'px';
-      r.style.top = ((H - h) / 2 + dy) + 'px';
-      r.style.transform = fanned ? `rotate(${t * STEP}deg)` : `translate(${-dx}px, ${-dy}px) rotate(${t * 0.8}deg)`;
-      r.style.zIndex = String(i + 1);
+      r.style.left = (W / 2 - total / 2 + i * w * (1 + GAP)) + 'px';
+      r.style.top = ((H - h) / 2) + 'px';
+      r.style.transform = 'none';
     });
   }
   layout();
   new ResizeObserver(layout).observe(document.documentElement);
-
-  function fan() {
-    if (fanned) return;
-    fanned = true;
-    b.classList.add('fanning');
-    requestAnimationFrame(() => requestAnimationFrame(layout));
-  }
-  addEventListener('presoshown', () => setTimeout(fan, 120));
-  if (window.parent === window) setTimeout(fan, 400);   // opened on its own, outside the deck
 
   window.presoNext = () => false;                 // no builds: all six arrive with the push
   window.presoPrev = () => false;
