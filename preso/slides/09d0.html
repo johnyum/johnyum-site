@@ -42,6 +42,11 @@
   body.mad .wall .face { opacity: 1; transform: none; transition-delay: var(--d, 0ms); }
   body.snap .wall .face { transition: none !important; }
   .wall img { position: absolute; display: block; user-select: none; -webkit-user-drag: none; }
+  /* ONE, THEN ALL (John, 2026-10-03): the slide opens on aaron's tweet alone, in the middle; a tap brings the rest of the wall
+     in around it, rippling out from the centre — each card rising a little as it fades in, in order of its distance from him */
+  .wall .rest { opacity: 0; transform: translateY(24px) scale(.96); transition: opacity .45s ease, transform .6s cubic-bezier(.2,.8,.2,1); }
+  body.all .wall .rest { opacity: 1; transform: none; transition-delay: var(--r, 0ms); }
+  body.snap .wall .rest { transition: none !important; }
 </style>
 </head>
 <body>
@@ -72,7 +77,7 @@
   // its own 330 on a 1080-tall stage, scaling with the stage's height, the wall run past every edge.
   const COL = 330, GAP = 20, OVER = 1.08;
   // a tweet with a video in it is never shown twice — the same film playing in two places gives the repeat away
-  const ONCE = new Set(['1691130465648889887']);   // More Perfect Union's
+  const ONCE = new Set(['1691130465648889887', '1767906208726335955']);   // More Perfect Union's video; aaron's, the centre
   const slide = document.getElementById('slide');
   const wall = document.getElementById('wall');
 
@@ -81,22 +86,31 @@
   // the shortest column first. A screen this size wants more than twelve, so some come round again, but never
   // beside themselves: a tweet already in this column or either neighbour is not a candidate, and among the rest
   // the one used least — then the one furthest from where it last appeared — goes next.
+  // AARON'S IN THE MIDDLE (John, 2026-10-03: "put aaron's tweet smack in the middle and build all the tweets around that
+  // tweet"). The wall takes an odd number of columns so one stands on the centre line; aaron's tweet is centred in it, on
+  // the stage's centre, and that column grows up and down from it as two halves while the others fill as before.
+  const CENTRE = '1767906208726335955';
   let laidFor = '';
   function layout(w, h) {
     const k = h / 1080;
-    const n = Math.ceil((w * OVER / k + GAP) / (COL + GAP));
+    let n = Math.ceil((w * OVER / k + GAP) / (COL + GAP)); if (n % 2 === 0) n += 1;
+    const mid = (n - 1) / 2;
     const need = h * OVER / k;
     const key = n + 'x' + Math.ceil(need / 50);
     wall.style.setProperty('--s', k.toFixed(4));
     if (key === laidFor) return;                          // same columns, same reach: the wall stands as it is
     laidFor = key;
-    const cols = Array.from({ length: n }, () => ({ h: -GAP, items: [] }));
-    const used = new Map();                              // id -> [columns it is in]
+    const centre = TWEETS.find(([id]) => id === CENTRE);
+    // a column per index, but the middle one is two halves — up from aaron and down from him — each to half the reach
+    const cols = Array.from({ length: n }, (_, j) => j === mid ? null : ({ j, h: -GAP, items: [], reach: need }));
+    const up = { j: mid, h: centre[1] / 2, items: [], reach: need / 2, dir: -1 }, down = { j: mid, h: centre[1] / 2, items: [], reach: need / 2, dir: 1 };
+    const lanes = [...cols.filter(Boolean), up, down];
+    const used = new Map([[CENTRE, [mid]]]);             // id -> [columns it is in]
     for (let guard = 0; guard < 200; guard++) {
-      const open = cols.map((c, j) => [c, j]).filter(([c]) => c.h < need);
+      const open = lanes.filter(c => c.h < c.reach);
       if (!open.length) break;
-      const [col, j] = open.reduce((a, b) => (b[0].h < a[0].h ? b : a));
-      const fresh = TWEETS.filter(([id]) => !(ONCE.has(id) && used.has(id)));   // a video is seen once (John, 2026-10-03: "it's too obvious")
+      const col = open.reduce((a, b) => (b.h / b.reach < a.h / a.reach ? b : a)), j = col.j;
+      const fresh = TWEETS.filter(([id]) => !(ONCE.has(id) && used.has(id)));   // a video, or aaron, is seen once
       const ok = fresh.filter(([id]) => !(used.get(id) || []).some(c => Math.abs(c - j) <= 1));
       const pool = ok.length ? ok : fresh;
       const pick = pool.reduce((best, t) => {
@@ -110,25 +124,33 @@
     }
     const ww = n * COL + (n - 1) * GAP;
     const html = [];
-    cols.forEach((col, j) => col.items.forEach(([[id, ht, hd], y]) => {
-      const x = j * (COL + GAP) - ww / 2, top = y - col.h / 2;
+    const put = ([id, ht, hd], x, top, isCentre) => {
+      const dist = Math.hypot(x + COL / 2, top + ht / 2);                          // from the stage's centre, where aaron is
       html.push(`<img src="assets/tweets/${id}.webp" width="330" height="${ht}" alt="Tweet by @${hd}" ` +
-                `style="left:${x}px;top:${top}px">`);
+                `${isCentre ? '' : `class="rest" `}style="left:${x}px;top:${top}px;--r:${Math.round(dist * 0.42)}ms">`);
       html.push(`<span class="face" aria-hidden="true" style="left:${x + 38.9 - 24.5}px;top:${top + 34.9 - 25 + 2.5}px;--d:${Math.round(Math.random() * 380)}ms">&#x1F621;</span>`);
-    }));
+    };
+    cols.forEach((col, j) => { if (!col) return; const x = j * (COL + GAP) - ww / 2; col.items.forEach(([t, y]) => put(t, x, y - col.h / 2)); });
+    const xm = mid * (COL + GAP) - ww / 2;
+    put(centre, xm, -centre[1] / 2, true);                                      // on the stage's centre
+    down.items.forEach(([t, y]) => put(t, xm, y));                              // y runs down from aaron's foot
+    up.items.forEach(([t, y]) => put(t, xm, -y - t[1]));                        // ...and up from his head
     wall.innerHTML = html.join('');
   }
   const fit = () => { const w = slide.clientWidth, h = slide.clientHeight; if (w > 0 && h > 0) layout(w, h); };
   new ResizeObserver(fit).observe(slide);
   fit();
 
-  // ONE BUILD: the tweets first; the tap turns every face angry, Back turns them back
-  let mad = false;
-  const setMad = (on, snap) => { mad = on; if (snap) document.body.classList.add('snap'); document.body.classList.toggle('mad', on); if (snap) requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('snap'))); };
-  window.presoNext = () => { if (mad) return false; setMad(true); return true; };
-  window.presoPrev = () => { if (!mad) return false; setMad(false); return true; };
-  window.presoState = () => (mad ? 1 : 0);
-  window.presoRestore = n => { if (n > 0) setMad(true, true); };
+  // TWO BUILDS: aaron's tweet alone; a tap brings the wall in around it; the next turns every face angry. Back undoes each.
+  let n = 0;
+  const set = (k, snap) => { n = k; const b = document.body; if (snap) b.classList.add('snap');
+    b.classList.toggle('all', n >= 1); b.classList.toggle('mad', n >= 2);
+    if (snap) requestAnimationFrame(() => requestAnimationFrame(() => b.classList.remove('snap'))); };
+  window.presoNext = () => { if (n >= 2) return false; set(n + 1); return true; };
+  window.presoPrev = () => { if (n <= 0) return false; set(n - 1, true); return true; };
+  window.presoEnd = () => set(2, true);
+  window.presoState = () => n;
+  window.presoRestore = k => set(Math.max(0, Math.min(2, k | 0)), true);
 })();
 </script>
 </body>
