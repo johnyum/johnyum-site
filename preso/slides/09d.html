@@ -72,19 +72,13 @@
   .stage .step { left: 196.5px; top: 86px; font-size: 11px; color: #6b6b6b; }
   .stage .head { left: 196.5px; top: 210px; font-size: 16px; line-height: 22px; text-align: center; color: #1c1c1c; }
   .stage .floor { position: absolute; left: 0; top: 0; width: 393px; height: 663px; overflow: hidden; }
-  /* THE BARS RISE OUT OF WHITE, NOT A CUT (John, 2026-10-03): while they come up, the floor is a 0 → 100% white fade 70px tall,
-     so a bar grows out of the page rather than from behind a clear line. The mask is 70px taller than the floor: hung from the
-     floor's foot its fade sits on the floor; hung from its head the fade is below the floor and does nothing — so once both bars
-     are up (1.9s) it slides away, and the finished graph has no fade on it. */
-  .stage .floor { -webkit-mask-image: linear-gradient(to top, transparent 0, #000 70px); mask-image: linear-gradient(to top, transparent 0, #000 70px);
-                  -webkit-mask-size: 100% calc(100% + 70px); mask-size: 100% calc(100% + 70px); -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
-                  -webkit-mask-position: 0 100%; mask-position: 0 100%; }
-  .hof:not([data-s="0"]) .floor { -webkit-mask-position: 0 0; mask-position: 0 0; transition: -webkit-mask-position .5s ease 2s, mask-position .5s ease 2s; }
   /* the bar is the frame's own, in two halves (top 127 rows, bottom 127) with one row of its middle stretched between them when
-     it stands taller than the frame's 254 — full-width layers, so nothing is resampled in pieces and no seam shows */
-  .stage .bar { position: absolute; bottom: 0; width: 140px; transform: translateY(110%);
+     it stands taller than the frame's 254 — full-width layers, so nothing is resampled in pieces and no seam shows. The strip is
+     sized to the gap between the halves: drawn the bar's full height it showed through the halves' transparent corners as grey
+     squares. */
+  .stage .bar { position: absolute; bottom: 0; width: 140px;
                 background: url('assets/hof-bar-top.webp') top / 140px 127px no-repeat, url('assets/hof-bar-bot.webp') bottom / 140px 127px no-repeat,
-                            url('assets/hof-bar-mid.webp') center / 140px 100% no-repeat; }
+                            url('assets/hof-bar-mid.webp') center / 140px calc(100% - 250px) no-repeat; }   /* the strip only between the halves, never under the rounded corners */
   .stage .barL { left: 126.5px; height: 254px; }
   .stage .barR { left: 207px; height: 313px; }
   .stage .bar > * { position: absolute; }
@@ -100,17 +94,19 @@
   .stage .svc3, .stage .single, .stage .earn, .stage .svc15 { transform: translate(-50%, 50%); }
   .stage .svc15 { transform: translate(-50%, -50%); }
 
-  /* 0 → 1: the bars and the guests' fee */
+  /* 0 → 1 (John, 2026-10-03): the slide lands with the host's bar already standing in the middle ("Your price $100"); the guests'
+     bar slides in from the right, whole — "Guests see $115", its fee ruled off — as the host's bar steps left to make room, and
+     the two wait there. No rise from the floor. */
+  .stage .barR { transform: translateX(170px); opacity: 0; }
+  .hof:not([data-s="0"]) .barR { transform: none; opacity: 1; transition: transform .8s cubic-bezier(.2,.8,.2,1), opacity .4s ease; }
+  .hof:not([data-s="0"]) .barL { left: 46px; transition: left .8s cubic-bezier(.2,.8,.2,1), height .6s cubic-bezier(.4,0,.2,1) .6s; }
   .hof[data-s="0"] .s01, .hof[data-s="1"] .s01 { opacity: 1; }
-  .hof:not([data-s="0"]) .barL { left: 46px; transform: none; transition: transform .7s cubic-bezier(.2,.9,.3,1.05), left .6s cubic-bezier(.5,0,.3,1) 1.1s, height .6s cubic-bezier(.4,0,.2,1) .6s; }
-  .hof:not([data-s="0"]) .barR { transform: none; transition: transform .7s cubic-bezier(.2,.9,.3,1.05) 1.2s; }
-  .hof:not([data-s="0"]) .p100 { opacity: 1; transition: opacity .4s ease .5s; }
-  .hof:not([data-s="0"]) .g115 { opacity: 1; transition: opacity .4s ease 1.8s; }
-  .hof[data-s="1"] .barR .dash, .hof[data-s="2"] .barR .dash { clip-path: inset(0); transition: clip-path .45s cubic-bezier(.4,0,.2,1) 2.4s; }
-  .hof[data-s="1"] .svc15, .hof[data-s="2"] .svc15 { opacity: 1; transition: opacity .4s ease 2.7s; }
+  .hof .p100, .hof .g115 { opacity: 1; }
+  .hof:not([data-s="3"]) .barR .dash { clip-path: inset(0); }
+  .hof:not([data-s="3"]) .svc15 { opacity: 1; }
+  .hof[data-s="3"] .barR .dash { clip-path: inset(0); opacity: 0; transition: opacity .3s ease .3s; }
   /* 1 → 2: the host's fee, the fill, what the host earns */
   .hof[data-s="2"] .s2 { opacity: 1; transition: opacity .35s ease .15s; }
-  .hof[data-s="2"] .barR .dash { transition: none; }  .hof[data-s="2"] .svc15 { transition: none; }
   .hof[data-s="2"] .barL .dash, .hof[data-s="3"] .barL .dash { clip-path: inset(0); transition: clip-path .5s cubic-bezier(.4,0,.2,1) .25s; }
   .hof[data-s="2"] .svc3 { opacity: 1; transition: opacity .4s ease .35s; }
   .hof[data-s="2"] .fill, .hof[data-s="3"] .fill { clip-path: inset(0); transition: clip-path .75s cubic-bezier(.3,0,.2,1) .8s; }
