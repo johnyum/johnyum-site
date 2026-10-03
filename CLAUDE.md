@@ -272,7 +272,8 @@ Draw something simple, or upload a picture of a drawing; get a textured, rigged,
 3D character. One hand-written `index.html` (three.js 0.170 off jsDelivr) and, unusually for
 this repo, **a server half** — still no npm, no build, stdlib Python only. Four Meshy tasks,
 each handed the previous one's **task id**, never a URL: `image-to-image` (the sketch
-restyled; Plush / Vinyl / Clay / Real) → `image-to-3d` (A-posed for the rig, 30k tris, PBR)
+restyled, as **three views** — `generate_multi_view`) → `multi-image-to-3d` (2k geometry, 4k PBR
+textures, no remesh; A-pose only for a kit character with arms and legs)
 → `rigging` → `animations` (Idle 0, Wave 28, Dance 22, Jump 466, plus the rig's walk + run).
 
 The page only ever talks to **`/api/monsters?p=…`**, and two things answer it:

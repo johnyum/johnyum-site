@@ -74,7 +74,7 @@ def mock_get(kind, tid):
     task = MOCK_TASKS.get(tid)
     if not task:
         return 404, {"message": "Not found"}
-    span = {"image-to-image": 3, "image-to-3d": 5, "rigging": 3, "animations": 2}[kind]
+    span = {"image-to-image": 3, "image-to-3d": 5, "multi-image-to-3d": 5, "rigging": 3, "animations": 2}[kind]
     p = min(100, int((time.time() - task["t0"]) / span * 100))
     out = {"id": tid, "type": kind, "progress": p,
            "status": "SUCCEEDED" if p >= 100 else "IN_PROGRESS"}
@@ -83,7 +83,7 @@ def mock_get(kind, tid):
     body = task["body"]
     if kind == "image-to-image":
         out["image_urls"] = (body.get("reference_image_urls") or [""])[:1]
-    elif kind == "image-to-3d":
+    elif kind in ("image-to-3d", "multi-image-to-3d"):
         out["model_urls"] = {"glb": SAMPLE}
     elif kind == "rigging":
         if os.environ.get("MONSTERS_MOCK_RIGFAIL"):

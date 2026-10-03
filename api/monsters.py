@@ -30,10 +30,10 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler
 
 API = "https://api.meshy.ai/openapi/v1/"
-ALLOWED = ("image-to-image", "image-to-3d", "rigging", "animations")
+ALLOWED = ("image-to-image", "image-to-3d", "multi-image-to-3d", "rigging", "animations")
 CHUNK = 4 * 1024 * 1024
 # Only the two steps that start a build are capped; rig and moves follow from them.
-CAPPED = ("image-to-image", "image-to-3d")
+CAPPED = ("image-to-image", "image-to-3d", "multi-image-to-3d")
 
 
 def allowed(path):

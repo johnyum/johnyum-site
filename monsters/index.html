@@ -1225,19 +1225,25 @@ async function run(src) {
     // 1 · Render
     step('render', 'run', 0, src.blobs ? 'Your monster, made real' : DEFAULT_TEXT.render);
     status(src.blobs ? 'Rendering your monster…' : 'Rendering your sketch…');
+    // Three views, not one: from a single front view Meshy has to guess the back and sides,
+    // which is where lumpy, warped backs come from. The sculpt step builds from all three.
     const img = await task('image-to-image', {
-      ai_model: IMAGE_MODEL, prompt: src.prompt, reference_image_urls: [src.image],
+      ai_model: IMAGE_MODEL, prompt: src.prompt, reference_image_urls: [src.image], generate_multi_view: true,
     }, (p) => step('render', 'run', p));
-    rec.render = img.image_urls?.[0]; rec.renderTask = img.id;
+    rec.render = img.image_urls?.[0]; rec.views = img.image_urls || []; rec.renderTask = img.id;
     step('render', 'done'); save(rec);
     const pv = $('#preview'); pv.src = asset(rec.render); pv.classList.add('on'); $('#empty').hidden = true;
 
     // 2 · Sculpt
-    step('sculpt', 'run', 0); status('Sculpting it in 3D — this is the slow one, about two minutes…');
-    const mesh = await task('image-to-3d', {
-      // An A-pose is for the rig; a sculpture keeps the stance it was given.
-      input_task_id: img.id, ai_model: 'latest', pose_mode: src.blobs ? '' : 'a-pose',
-      should_texture: true, enable_pbr: true, should_remesh: true, target_polycount: 30000,
+    step('sculpt', 'run', 0); status('Sculpting it in 3D — this is the slow one, a few minutes…');
+    // Full detail: 2k geometry, 4k textures, and no remesh — squeezing every model to 30k
+    // triangles was what dented surfaces and stretched textures. The arms-out A-pose helps
+    // the rig but bends a round character out of shape, so it's asked for only when a kit
+    // character actually has arms and legs.
+    const limbs = src.blobs && src.blobs.some((b) => b.key === 'arm') && src.blobs.some((b) => b.key === 'leg');
+    const mesh = await task('multi-image-to-3d', {
+      input_task_id: img.id, ai_model: 'latest', geometry_resolution: '2k', texture_resolution: '4k',
+      should_texture: true, enable_pbr: true, should_remesh: false, pose_mode: limbs ? 'a-pose' : '',
       target_formats: ['glb'],
     }, (p) => { step('sculpt', 'run', p); status(`Sculpting it in 3D… ${p}%`); });
     rec.glb = mesh.model_urls.glb; rec.meshTask = mesh.id;
@@ -1249,7 +1255,12 @@ async function run(src) {
     step('rig', 'run', 0); status('Giving it a skeleton…');
     let rig;
     try {
-      rig = await task('rigging', { input_task_id: mesh.id, height_meters: 1.2 }, (p) => step('rig', 'run', p));
+      try { rig = await task('rigging', { input_task_id: mesh.id, height_meters: 1.2 }, (p) => step('rig', 'run', p)); }
+      catch (e) {
+        if (e.stopped) throw e;
+        // If the rig won't take a multi-view task by id, hand it the model file itself.
+        rig = await task('rigging', { model_url: mesh.model_urls.glb, height_meters: 1.2 }, (p) => step('rig', 'run', p));
+      }
     } catch (e) {
       if (e.stopped) throw e;
       // Not a biped. It still lives — the procedural layer is all it needs.
