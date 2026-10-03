@@ -28,7 +28,7 @@
   #app { position: absolute; left: 0; top: 0; border: 0; background: #fff; transform-origin: top left; opacity: 0; transition: opacity .25s ease; }   /* unseen until it stands pristine: the build boots on its own default first */
   #app.ready { opacity: 1; }
   /* THE DUO (John, 2026-10-02; 10-03: the desktop window no longer shrinks or moves): on the last tap the phone — slide 12d's native
-     multi calendar, the next thing the room sees — rises in over its lower right, the way a desktop-and-phone hero shot is set */
+     multi calendar, the next thing the room sees — floats in from the right, its foot on the window's foot, a quarter of it past the window's edge */
   .box { transition: transform .9s cubic-bezier(.2,.8,.2,1); }
   #duoPhone { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; border: 0; background: transparent; pointer-events: none;
     transform-origin: 50% 50%; opacity: 0; transition: transform 1s cubic-bezier(.2,.8,.2,1), opacity .35s ease; z-index: 5; }
@@ -66,20 +66,21 @@
     fitScreen();
     const dw = box.offsetWidth, dh = box.offsetHeight, cy = (top + bottom) / 2 - innerHeight / 2;
     box.style.transform = `translateY(${cy.toFixed(1)}px)`;
-    if (!document.body.classList.contains('duo')) { placePhone(false); return; }
     // in the duo the desktop window stays exactly as it stands — no stepping back, no sliding left; only the phone comes in and lands
     // over its right side (John, 2026-10-03: "don't size down the multi build… I just want the phone to come in and land on the right")
-    placePhone(true, { right: innerWidth / 2 + dw / 2, bottom: innerHeight / 2 + cy + dh / 2, h: dh });
+    placePhone(document.body.classList.contains('duo'), { right: innerWidth / 2 + dw / 2, bottom: innerHeight / 2 + cy + dh / 2, h: dh });
   };
   // the phone layer is 12d full-size (its phone stands at min(80vh, 1080) tall, centred): scaled and moved so its phone lands
-  // where it should — or, out of the duo, parked below the stage
+  // where it should — or, out of the duo, parked off the right side
   function placePhone(on, g) {
     const f = document.getElementById('duoPhone'); if (!f) return;
-    const ph = Math.min(innerHeight * 0.8, 1080), pw = ph * 900 / 1840;
-    if (!on) { f.classList.remove('in'); f.style.transform = `translateY(${innerHeight}px) scale(.6)`; return; }
-    const kk = (g.h * 0.8) / ph, cx = g.right - pw * kk * 0.12, cyy = g.bottom - ph * kk * 0.42;   // the phone 80% of the device's height
-    f.style.transform = `translate(${(cx - innerWidth / 2).toFixed(1)}px, ${(cyy - innerHeight / 2).toFixed(1)}px) scale(${kk.toFixed(4)})`;
-    f.classList.add('in');
+    const ph = Math.min(innerHeight * 0.8, 1080), pw = ph * 900 / 1840;   // 12d's phone: min(80vh, 1080) tall, 900:1840, centred
+    // the phone 80% of the device's height; it FLOATS IN FROM THE RIGHT (John, 2026-10-03), its foot on the exact foot of the desktop
+    // window — the flights slide's relationship — and a quarter of it out past the window's right edge
+    const kk = (g.h * 0.8) / ph, cx = g.right + pw * kk * 0.25 - pw * kk / 2, cyy = g.bottom - ph * kk / 2;
+    const x = on ? cx : innerWidth + pw * kk / 2 + 40;   // parked just off the right side, already at its height
+    f.style.transform = `translate(${(x - innerWidth / 2).toFixed(1)}px, ${(cyy - innerHeight / 2).toFixed(1)}px) scale(${kk.toFixed(4)})`;
+    f.classList.toggle('in', on);
   }
   // the phone, loaded quietly a few seconds in (a React app of its own), so it stands ready long before the last tap
   setTimeout(() => { if (document.getElementById('duoPhone')) return; const f = document.createElement('iframe'); f.id = 'duoPhone'; f.title = 'Multi-Host Calendar — the phone';
@@ -723,7 +724,7 @@
       // BACK: once Del Mar has been applied and the tips closed, the build retires that tip — there is no Del Mar left to reopen on. So
       // this Back rebuilds the calendar and replays the path instantly to here (Del Mar applied, its offer up), as a restore does.
       back: () => reloadTo(BEATS.length - 1) },
-    // 15 — the duo: the desktop window stays where it is, and the phone rises in over its lower right (see THE DUO)
+    // 15 — the duo: the desktop window stays where it is, and the phone floats in from the right onto its foot (see THE DUO)
     { fwd: (w, instant) => {
         const b = document.body, f = document.getElementById('duoPhone');
         if (!f) { setTimeout(() => {}, 0); }
