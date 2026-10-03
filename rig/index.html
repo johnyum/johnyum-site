@@ -11,10 +11,10 @@
   Rig Studio — reshape a rigged, animated character without breaking its rig, then send it
   to Peek to live in a chat.
 
-  Start from one of Quaternius' four CC0 mechs (rig/models). Proportions scale its bones;
-  sculpt brushes (inflate, deflate, grab, smooth) move its surface in the rest pose, so the
-  skinning carries every change into every animation. All of that is rig/rig.js, shared with
-  peek/. The character is a small JSON state — save it as a file, and Claude can open that
+  Start from one of Quaternius' CC0 critters or mechs (rig/models). Proportions scale its
+  bones; sculpt brushes (inflate, deflate, grab, smooth) move its surface in the rest pose, so
+  the skinning carries every change into every animation; Fluff grows fur that rides the
+  skeleton; its moods are its own eyes, moved. All of that is rig/rig.js, shared with peek/. The character is a small JSON state — save it as a file, and Claude can open that
   file, change it, and hand back a version to load: that's how it gets sculpted together.
 -->
 <style>
@@ -59,6 +59,8 @@ h2 { margin: 0 0 -6px; font-size: 12px; font-weight: 500; color: var(--ink-2); }
 .chips { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: calc(100% - 32px); }
 .chips button { height: 32px; padding: 0 12px; border-radius: 99px; border: 1px solid var(--line); background: rgba(255,255,255,.9); cursor: pointer; font-size: 12.5px; color: var(--ink-2); }
 .chips button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.chips.moods { top: 44px; bottom: auto; }
+.chips.moods button { height: 28px; font-size: 12px; }
 .hint { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); font-size: 12.5px; color: var(--ink-3); white-space: nowrap; pointer-events: none; }
 @media (max-width: 860px) { .app { grid-template-columns: 1fr; height: auto; } .side { border-right: 0; border-bottom: 1px solid var(--line); } .stage { height: 75vh; } }
 </style>
@@ -102,7 +104,7 @@ h2 { margin: 0 0 -6px; font-size: 12px; font-weight: 500; color: var(--ink-2); }
 
     <h2>Paint</h2>
     <div id="paint" style="display:flex;flex-direction:column;gap:8px"></div>
-    <label class="check"><input type="checkbox" id="face" checked> Live face in Peek (hides its own eyes)</label>
+    <label class="range"><span>Fluff</span><input type="range" id="fur" min="0" max="1" step="0.01" value="0"><output></output></label>
 
     <div class="row">
       <button class="tool" id="undo" title="Undo (⌘Z)">Undo</button>
@@ -120,6 +122,7 @@ h2 { margin: 0 0 -6px; font-size: 12px; font-weight: 500; color: var(--ink-2); }
     <canvas id="view"></canvas>
     <p class="hint" id="hint">Drag on the character to sculpt · drag the background to turn around</p>
     <div class="chips" id="chips" hidden></div>
+    <div class="chips moods" id="moods"></div>
   </main>
 </div>
 
@@ -127,7 +130,7 @@ h2 { margin: 0 0 -6px; font-size: 12px; font-weight: 500; color: var(--ink-2); }
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { MODELS, PROPS, blankState, loadRig, pack } from './rig.js';
+import { MODELS, PROPS, MOODS, blankState, loadRig, pack } from './rig.js';
 
 const $ = (s) => document.querySelector(s);
 const SWATCHES = ['#f1ece4', '#e8b04a', '#e5734f', '#d6456b', '#f39bb0', '#8a5cd6', '#4a7fd9', '#3fae9a', '#79b84a', '#6b5444', '#2b2b2b'];
@@ -239,13 +242,13 @@ addEventListener('pointerup', () => { if (stroke) { stroke = null; controls.enab
 
 /* ═══════════════ the panel ═══════════════ */
 function buildUI() {
-  $('#models').innerHTML = MODELS.map((m) => `<button data-model="${m}" aria-pressed="${m === state.model}">${m}</button>`).join('');
-  const has = (P) => rig.bones.some((b) => P.bones.some((r) => r.test(b.name)));
-  $('#props').innerHTML = Object.entries(PROPS).filter(([, P]) => has(P)).map(([k, P]) =>
+  $('#models').innerHTML = MODELS.map(({ name }) => `<button data-model="${name}" aria-pressed="${name === state.model}">${name}</button>`).join('');
+  $('#props').innerHTML = Object.entries(PROPS).filter(([k]) => rig.hasProp(k)).map(([k, P]) =>
     `<label class="range"><span>${P.label}</span><input type="range" data-prop="${k}" min="0.5" max="2.2" step="0.01" value="${state.prop[k] ?? 1}"><output>${(state.prop[k] ?? 1).toFixed(2)}</output></label>`).join('');
-  $('#paint').innerHTML = ['Main', 'Accent'].map((name) => `<div class="swatches" data-paint="${name}"><b>${name}</b>${
+  $('#paint').innerHTML = ['Main', 'Accent'].filter((name) => rig.original[name]).map((name) => `<div class="swatches" data-paint="${name}"><b>${name}</b>${
     [rig.original[name], ...SWATCHES].map((c) => `<button data-c="${c}" style="background:${c}" aria-pressed="${(state.colors[name] || rig.original[name]) === c}" title="${c}"></button>`).join('')}</div>`).join('');
-  $('#face').checked = state.face !== false;
+  $('#fur').value = state.fur ?? 0; $('#fur').nextElementSibling.textContent = (+$('#fur').value).toFixed(2);
+  $('#moods').innerHTML = Object.keys(MOODS).map((m) => `<button data-mood="${m}" aria-pressed="${m === moodNow}">${m[0].toUpperCase() + m.slice(1)}</button>`).join('');
   const clips = rig.animations.map((a) => a.name).sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b) || a.localeCompare(b));
   $('#chips').innerHTML = clips.filter((n) => !/Recieve|Holding|_Tall|Pickup/.test(n)).map((n) => `<button data-clip="${n}">${n}</button>`).join('');
   for (const o of document.querySelectorAll('.range output')) if (o.previousElementSibling?.id) o.textContent = (+o.previousElementSibling.value).toFixed(2);
@@ -266,7 +269,11 @@ $('#paint').addEventListener('click', (e) => {
   mark(); state.colors[name] = b.dataset.c; rig.setColors(state.colors);
   for (const x of b.parentElement.querySelectorAll('[data-c]')) x.setAttribute('aria-pressed', String(x === b)); changed();
 });
-$('#face').onchange = (e) => { mark(); state.face = e.target.checked; changed(); };   // it takes effect in Peek; here you always see the whole character
+$('#fur').addEventListener('input', (e) => { if (!sliding) { mark(); sliding = true; } state.fur = +e.target.value; e.target.nextElementSibling.textContent = state.fur.toFixed(2); rig.setFur(state.fur); });
+$('#fur').addEventListener('change', () => { sliding = false; changed(); });
+// Moods: its own eyes, so you see the face it'll have in Peek.
+let moodNow = 'happy';
+$('#moods').addEventListener('click', (e) => { const b = e.target.closest('[data-mood]'); if (!b) return; moodNow = b.dataset.mood; for (const x of $('#moods').children) x.setAttribute('aria-pressed', String(x === b)); });
 $('#chips').addEventListener('click', (e) => { const b = e.target.closest('[data-clip]'); if (b) play(b.dataset.clip); });
 for (const id of ['bSize', 'bStrength']) $('#' + id).addEventListener('input', (e) => { e.target.nextElementSibling.textContent = (+e.target.value).toFixed(2); });
 function setMode(m) {
@@ -274,7 +281,6 @@ function setMode(m) {
   for (const b of $('#modes').children) b.setAttribute('aria-pressed', String(b.dataset.mode === m));
   $('#sculptUI').hidden = m !== 'sculpt'; $('#chips').hidden = m !== 'animate';
   $('#hint').textContent = m === 'sculpt' ? 'Drag on the character to sculpt · drag the background to turn around' : 'Its animations, with your changes';
-  if (rig) rig.setFace(false);   // here you see the whole character; the face swap happens in Peek
   if (m === 'animate') play(action?.getClip().name || 'Idle'); else { mixer?.stopAllAction(); action = null; }
 }
 function play(name) {
@@ -289,7 +295,7 @@ function saveLocal() { try { localStorage.setItem('rig.state', JSON.stringify(cu
 let linkTimer = 0;
 function changed() { saveLocal(); clearTimeout(linkTimer); linkTimer = setTimeout(async () => { $('#toPeek').href = '/peek/#r=' + await pack(current()); }, 150); }
 $('#undo').onclick = undo;
-function undo() { const prev = past.pop(); if (!prev) return; const s = JSON.parse(prev); if (s.model !== state.model) return open(s); state = s; rig.apply(s); rig.setFace(false); lift = rig.groundLift(holder); buildUI(); changed(); }
+function undo() { const prev = past.pop(); if (!prev) return; const s = JSON.parse(prev); if (s.model !== state.model) return open(s); state = s; rig.apply(s); lift = rig.groundLift(holder); buildUI(); changed(); }
 $('#reset').onclick = () => { mark(); open(blankState(state.model)); };
 $('#save').onclick = () => {
   const a = document.createElement('a'); a.download = `${state.model.toLowerCase()}-character.json`;
@@ -301,9 +307,17 @@ addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === '
 
 /* ═══════════════ the loop ═══════════════ */
 const clock = new THREE.Clock();
+const pointer = { x: 0, y: 0 }; let blinkT = 2;
+view.addEventListener('pointermove', (e) => { aim(e); pointer.x = ndc.x; pointer.y = ndc.y; });
 function frame() {
   const dt = Math.min(clock.getDelta(), .05);
-  if (rig) { rig.restore(); if (mode === 'animate') mixer.update(dt); rig.shape(); holder.position.y = lift; }
+  if (rig) {
+    rig.restore(); if (mode === 'animate') mixer.update(dt); rig.shape(); holder.position.y = lift;
+    // Its own eyes: the mood, a blink now and then, the pupils on the pointer.
+    blinkT -= dt; if (blinkT < -.13) blinkT = 2 + Math.random() * 3;
+    const m = MOODS[moodNow], open = blinkT < 0 ? .06 : m.open;
+    if (!stroke) rig.setEyes({ ...m, open, lookX: m.lookX ?? pointer.x * .8, lookY: m.lookY ?? pointer.y * .8 });
+  }
   controls.update(); renderer.render(scene, camera);
 }
 renderer.setAnimationLoop(frame);

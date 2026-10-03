@@ -363,27 +363,32 @@ up tip cards. One `index.html`, three.js; the chat is canned.
 
 ## `rig/` — Rig Studio (johnyum.com/rig)
 
-Reshape a rigged, animated character without breaking it, then send it to Peek. Starts from
-Quaternius' **Animated Mech Pack** (CC0 — `rig/models/LICENSE.txt`): Mike, Stan, George, Leela,
-flat-colour glTF, 18–20 clips each (Idle, Walk, Run, Jump, Hello, Yes, No, Dance…).
+Reshape a rigged, animated character without breaking it, then send it to Peek. Thirteen CC0
+models by Quaternius (`rig/models/LICENSE.txt`): nine critters from the **Ultimate Monsters
+Bundle** (Bunny — the default — Cat, Yeti, Pink Blob, Mushnub, Birb, Frog, Cactoro, Green
+Blob; `.fbx`, loaded with three's FBXLoader) and four mechs from the **Animated Mech Pack**
+(`.gltf`). Bunny and Frog have full skeletons (3-bone ears on the bunny) and Idle / Walk / Run /
+Jump / Wave / Yes / No; the blobs have 4-bone rigs with Idle / Walk / Jump / Yes / No / Dance.
 
-- **`rig/rig.js` is shared with `peek/`.** Two kinds of change, both surviving every clip:
-  **proportions** are bone scales applied *after* the animation each frame, each bone's factor
-  divided out of its children (`shape()`); **sculpt** is offsets on the mesh in its rest pose, so
-  skinning carries them into every pose. Offsets are per **weld group** (all vertices at one
-  position, across the six material parts) — the low-poly meshes split vertices at hard edges,
-  and per-vertex offsets would tear the seams.
-- **three.js strips the dots from bone names** (`UpperArm.L` → `UpperArmL`); `PROPS` matches both.
-- `groundLift()` re-grounds the character from its feet in the rest pose when proportions
-  change — measured in rest, not per frame, so a jump still leaves the floor.
-- A character is a small JSON state (`{ v, model, prop, colors, face, sculpt }`, sculpt as
-  `[group, dx, dy, dz]`). **Save file** downloads it; Claude can read that file from Downloads,
-  change it, and write a version to load — that's the "sculpt it together" loop. **Bring it into
+- **`rig/rig.js` is shared with `peek/`.** Proportions are bone scales applied *after* the
+  animation each frame, each bone's factor divided out of its children (`shape()`); sliders show
+  only for bones a model has (`hasProp`). Sculpt is offsets in the rest pose, per **weld group**
+  (vertices at one position) so seams never tear; hard-edged indexed meshes (mechs) recompute
+  facets, smooth non-indexed ones (critters) get welded smooth normals.
+- **Fluff** is shell fur on the *skinned* mesh: 12 `SkinnedMesh` shells sharing geometry and
+  skeleton, a ShaderMaterial with three's skinning chunks, strands from a hash of the rest
+  position, kept short round the eyes. Only Main/Secondary paint grows fur.
+- **Moods are the character's own eyes, never a pasted face** (John's call — he didn't want the
+  Monsters kit face mixed onto these). `setEyes({ open, lookX, lookY, lift })` rewrites the
+  Eye_White / Eye_Black vertices each frame: blink, pupils on the pointer, `MOODS` (wide,
+  squint, crescents, half-shut). Body language comes from the clips: No for the ugh, Yes when
+  pleased, Wave/Hello on a tap.
+- **three.js strips the dots from bone names** (`UpperArm.L` → `UpperArmL`); FBX clip names come
+  as `Armature|Walk` and are trimmed.
+- `groundLift()` re-grounds from the feet in the rest pose when proportions change.
+- A character is JSON (`{ v, model, prop, colors, fur, sculpt }`). **Save file** downloads it;
+  Claude can read it from Downloads, change it, and write a version to load. **Bring it into
   Peek** gzips it into `/peek/#r=…`.
-- In Peek, a rigged character plays its own clips (Hello → wave, **No for the ugh**, Yes when
-  pleased) and gets the live face **exactly over its own eyes** — the mechs' `Eye` part is
-  hidden and its rims covered. The `Black` part also holds the eye rims but is used elsewhere,
-  so it can't simply be hidden.
 
 ## Drawing in Claude's visual language
 

@@ -51,7 +51,7 @@ button, textarea { font: inherit; color: inherit; }
 [hidden] { display: none !important; }
 
 /* ── the app it lives in ── */
-.app { display: grid; grid-template-columns: 248px 1fr; height: 100vh; }
+.app { display: grid; grid-template-columns: 248px 1fr; height: 100vh; height: 100dvh; }
 .side { border-right: 1px solid var(--line); padding: 18px 14px; display: flex; flex-direction: column; gap: 4px; }
 .brand { font-weight: 600; font-size: 17px; padding: 2px 8px 14px; letter-spacing: -.01em; }
 .brand span { color: var(--ink-3); font-weight: 400; }
@@ -61,7 +61,7 @@ button, textarea { font: inherit; color: inherit; }
 .side a { display: block; padding: 7px 8px; border-radius: 8px; color: var(--ink-2); text-decoration: none; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .side a.on { background: var(--field); color: var(--ink); }
 
-.chat { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; height: 100vh; }
+.chat { display: grid; grid-template-rows: auto 1fr auto; grid-template-columns: minmax(0, 1fr); min-width: 0; height: 100vh; height: 100dvh; }
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 22px; border-bottom: 1px solid var(--line); }
 .top b { font-weight: 500; }
 .director { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
@@ -104,10 +104,14 @@ button, textarea { font: inherit; color: inherit; }
 .card small { display: block; margin-top: 8px; color: var(--ink-3); font-size: 11.5px; }
 
 @media (max-width: 760px) {
-  .app { grid-template-columns: 1fr; }
+  .app { grid-template-columns: minmax(0, 1fr); }   /* minmax, or the button row's width props the column open */
+  .top > * { min-width: 0; }
   .side { display: none; }
-  .top { flex-direction: column; align-items: flex-start; }
-  .director { justify-content: flex-start; }
+  .top { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 16px; }
+  .director { justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+  .director button { flex: none; }
+  .log { padding: 20px 16px 12px; }
+  .foot { padding: 0 16px 14px; }
 }
 </style>
 <script type="importmap">
@@ -176,7 +180,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { loadRig, unpack as unpackRig } from '../rig/rig.js';
+import { loadRig, unpack as unpackRig, MOODS as EYE_MOODS } from '../rig/rig.js';
 import { PARTS, prim, smin, bodyFrameOf, bodyField, anchor, partPose, twinned, unpack } from '../monsters/kit.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -465,12 +469,17 @@ async function loadModel(m) {
   }
   place(gltf.scene, gltf.animations, true);
 }
-// From Rig Studio (#r=…): a reshaped rigged character — proportions, sculpt, paint — with
-// its own clips. Its proportions go back on after the animation each frame (rigged.shape()).
+// From Rig Studio (#r=…): a reshaped rigged character — proportions, sculpt, paint, fluff —
+// with its own clips. Its proportions go back on after the animation each frame (rigged.shape()),
+// and its moods are its own eyes (rigged.setEyes()) — no face is pasted onto it.
 let rigged = null;
 async function loadRigged(state) {
   rigged = await loadRig(state);
-  place(rigged.scene, rigged.animations, state.face !== false);
+  rigged.fur.droop.value = 1.6;   // view space here is pixels
+  // The mittens that grip an edge when it peeks are its own colour.
+  const main = rigged.meshes.flatMap((m) => [].concat(m.material)).find((mt) => /(^|_)Main$/.test(mt.name));
+  if (main) for (const g of grips) g.material.color.copy(main.color);
+  place(rigged.scene, rigged.animations, false);
 }
 function place(obj, animations, withFace) {
   obj.traverse((o) => { if (o.isSkinnedMesh) { o.boundingBox = null; o.frustumCulled = false; } });
@@ -551,6 +560,13 @@ function playClip(label, once = false) {
 let oneShot = 0;
 function animateModel(dt, running) {
   rigged?.restore(); mixer.update(dt); rigged?.shape(); oneShot = Math.max(0, oneShot - dt);
+  if (rigged) {
+    // Its own eyes: the mood, the blink, the pupils on the pointer (or what it's watching).
+    const m = EYE_MOODS[moodNow] || EYE_MOODS.happy, lx = C.look ? C.look.x : pointer.x, ly = C.look ? C.look.y : pointer.y;
+    rigged.setEyes({ ...m, open: blinking > 0 ? .06 : m.open,
+      lookX: m.lookX ?? clamp((lx - C.x) / 300, -1, 1), lookY: m.lookY ?? clamp(-(ly - (C.y - H * S * .8)) / 300, -1, 1) });
+    rigged.fur.drag.value.copy(DRAG.value);
+  }
   if (oneShot > 0) return;
   if (running) playClip('Run') || playClip('Walk') || playClip('Idle');
   else if (C.mode === 'air') playClip('Jump') || playClip('Idle');
@@ -954,7 +970,10 @@ $('#director').addEventListener('click', (e) => {
   };
   act(moves[b.dataset.do]);
 });
-addEventListener('resize', () => act(leave));
+// A phone's keyboard opening resizes the window too — only a change of width sends it off,
+// or it would leave the moment you tap the box it's meant to be watching.
+let lastW = innerWidth;
+addEventListener('resize', () => { if (Math.abs(innerWidth - lastW) > 40) { lastW = innerWidth; act(leave); } });
 
 window.__peek = { C, mood, say, leave, act, standOn, runTo, jumpTo, sitOn, peekOver, peekSide, hang, holdTip, CHAR, frame, get model() { return model; }, clipsFor, get rigged() { return rigged; } };
 </script>
