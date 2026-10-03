@@ -664,7 +664,6 @@ function frame() {
   if (C.mode === 'peek' && C.held) {
     const r = C.held.el.getBoundingClientRect();
     C.x = r.right + C.held.dx; C.y = r.top + H * S * (1 - C.held.show);
-    grips.forEach((g, i) => { g.position.set(C.x + (i ? 1 : -1) * 30, -r.top + 2, 900); g.visible = C.held.show < .98; });   // popped right out, it lets go
   }
   // The pendulum: hands fixed on the edge, body free, gravity and a little air.
   if (C.mode === 'hang' && C.el) {
@@ -816,7 +815,6 @@ async function peekOver(el, x, m = 'curious', show = .62) {
   Object.assign(C, { mode: 'peek', el: null, facing: 0, shown: 1, x, y: top() + hidden }); C.pvx = x; C.pvy = C.y;
   occlude(el);
   await tween(520, (k) => { C.y = top() + hidden - (hidden - (H * S - shown)) * k; }, easeBack);
-  grips.forEach((g, i) => { g.visible = true; g.position.set(x + (i ? 1 : -1) * 30, -top() + 2, 900); });
   C.held = { el, dx: x - rectOf(el).right, show };
   C.exit = () => { C.held = null; for (const g of grips) g.visible = false; const y0 = C.y; return tween(300, (k) => { C.y = lerp(y0, top() + hidden, k); }, (k) => k * k).then(() => occlude(null)); };
 }
