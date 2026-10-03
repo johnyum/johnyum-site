@@ -209,7 +209,7 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
 .topeek:hover { background: var(--ink); color: #fff; }
 .sel[data-for="body"] [data-only="part"], .sel[data-for="part"] [data-only="body"] { display: none; }
 .stage:not(.sculpting) #sculptHint { display: none; }
-.stage.sculpting .actions, .stage.sculpting #recenter, .stage.sculpting #download, .stage.sculpting .note,
+.stage.sculpting .actions, .stage.sculpting #recenter, .stage.sculpting #download, .stage.sculpting #modelToPeek, .stage.sculpting .note,
 .stage.sculpting .empty, .stage.sculpting .preview { display: none !important; }
 #sculptHint { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 12.5px; color: var(--ink-3);
   white-space: nowrap; pointer-events: none; }
@@ -265,6 +265,7 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
       <button class="tool" id="clear" title="Clear">Clear</button>
     </div>
 
+    <label class="check" id="blankRow"><input type="checkbox" id="blank" checked> Blank face — Peek adds live expressions</label>
     <button class="upload" id="upload" title="A photo or scan of a drawing — you can also drag one onto the pad, or paste it">Upload a drawing</button>
     <input type="file" id="file" accept="image/*" hidden>
     </div>
@@ -361,6 +362,7 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
       <button id="backToSculpt" hidden>Back to sculpting</button>
       <button id="recenter" hidden>Reset view</button>
       <a id="download" hidden download>Download .glb</a>
+      <a id="modelToPeek" hidden target="_blank" rel="noopener">Bring it into Peek →</a>
     </div>
     <p class="note" id="note"></p>
     <div class="actions" id="actions" hidden></div>
@@ -400,12 +402,16 @@ const ACTIONS = [
 ];
 const BASIC = [ { label: 'Walk', key: 'walking_glb_url' }, { label: 'Run', key: 'running_glb_url' } ];
 
-function promptFor(style, desc) {
+// For Peek: the face is left smooth and blank, and Peek gives it an animated one — eyes
+// that blink and look, a mouth for every mood. A painted face would show underneath.
+const BLANK = 'Give it a smooth, completely blank face: no eyes, no eyebrows, no mouth, no nose, no facial features or face markings at all — they are added later as animated parts.';
+function promptFor(style, desc, blank = false) {
   return [
     `Turn this rough sketch into one finished full-body 3D character: ${STYLES[style]}.`,
     desc ? `It is ${desc}.` : '',
-    'Keep the sketch\'s silhouette, proportions and features — refine them, do not redesign them.',
-    CUTE,
+    blank ? 'Keep the sketch\'s silhouette and proportions — refine them, do not redesign them — but ignore any face drawn on it.'
+          : 'Keep the sketch\'s silhouette, proportions and features — refine them, do not redesign them.',
+    blank ? CUTE.replace(' and simple cute eyes', '').replace('a gentle happy expression', 'a calm, friendly shape') + ' ' + BLANK : CUTE,
     'Front view, standing upright facing the camera, arms held a little away from the body, legs slightly apart,',
     'whole body in frame and centred, soft even studio lighting, plain white background, no ground shadow, no text, no props.',
   ].filter(Boolean).join(' ');
@@ -1130,7 +1136,7 @@ function drawSource() {
   // A photo drawn in can make a PNG too big for a Vercel request (4.5MB); JPEG then.
   const png = c.toDataURL('image/png');
   return { kind: 'sketch', image: png.length < 3e6 ? png : c.toDataURL('image/jpeg', .9), thumb: thumb(),
-           prompt: promptFor(style, $('#desc').value.trim()) };
+           prompt: promptFor(style, $('#desc').value.trim(), $('#blank').checked) };
 }
 
 // ── modes and views ──
@@ -1213,6 +1219,7 @@ async function run(src) {
   for (const k in clips) delete clips[k];
   const desc = $('#desc').value.trim();
   const rec = { id: Date.now().toString(36), at: Date.now(), desc, style, sketch: src.thumb, kind: src.kind, blobs: src.blobs, clips: {} };
+  shown = rec; $('#modelToPeek').hidden = true;
 
   try {
     // 1 · Render
@@ -1298,11 +1305,19 @@ async function run(src) {
 $('#go').onclick = () => (running ? stop() : needsPass() ? askPass()
   : run(mode === 'blobs' ? blobSource() : drawSource()));
 
-function showDownload(url) { const a = $('#download'); a.href = asset(url); a.hidden = false; }
+function showDownload(url) { const a = $('#download'); a.href = asset(url); a.hidden = false; $('#modelToPeek').hidden = !shown?.glb; }
+// A finished model goes to Peek in the link: its Meshy files — the rigged one and its moves
+// when it has them. (Meshy's links expire after a few days, so a link does too.)
+let shown = null;
+$('#modelToPeek').addEventListener('click', () => {
+  const r = shown; if (!r?.glb) return;
+  $('#modelToPeek').href = '/peek/#m=' + pack({ glb: r.glb, rigged: r.rigged || null, clips: r.clips || {} });
+});
 
 // Re-open a character from the shelf. Its files come out of serve.py's cache,
 // so this works after Meshy's own links have expired.
 async function open(rec) {
+  shown = rec;
   resetSteps(); note(''); for (const k in clips) delete clips[k];
   setView('single');
   $('#actions').hidden = true; $('#preview').classList.remove('on');

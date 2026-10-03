@@ -345,6 +345,15 @@ up tip cards. One `index.html`, three.js; the chat is canned.
   the smile becomes the mood mouth, blush flushes, arms pump and hang, legs run (no legs: it
   hops), ears/antennae/tentacles spring; a character with no arms is lent small ones to hang
   and hold. No link: a default green gumdrop.
+- **A drawn character comes too.** Draw mode's finished model gets a "Bring it into Peek" link
+  (`#m=…`: the Meshy GLB, rigged one and moves). Peek loads it through `/api/monsters` (whole
+  from `serve.py`, 4MB slices with the passcode on johnyum.com), plays its own clips — Idle,
+  Run/Walk, Jump, Wave on a tap — and puts **the kit's live face on it**: it feels across the
+  model's front for the face (`faceOnModel()`), sizes eyes and mouth to the head and attaches
+  them to the head bone, so every mood works. That's why Draw mode's **"Blank face"** box is on
+  by default: it asks Meshy for a featureless face, or the painted one shows under the live one.
+  Face-finding takes the front-most point of the upper body — fine on a blank face, fooled by
+  anything that sticks out further (goggles, a snout).
 - **`monsters/kit.js` is shared by both pages** — bodies, parts, `prim()`, anchoring. The
   Monsters shader still has its own GLSL `prim()`: change one, change both.
 - Its frame loop is `frame()`, exposed on `window.__peek` — a hidden tab pauses

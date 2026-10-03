@@ -175,6 +175,7 @@ button, textarea { font: inherit; color: inherit; }
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { PARTS, prim, smin, bodyFrameOf, bodyField, anchor, partPose, twinned, unpack } from '../monsters/kit.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -419,10 +420,108 @@ if (lend) for (const m of [1, -1]) {
   kitG.add(pivot); arms.push({ pivot, rest: pose.q.clone(), side: m, up: upQ(m, .3), hold: upQ(m, .55), lent: true });
 }
 
+/* ═══════════════ or: a finished Meshy model (from Monsters' Draw mode) ═══════════════
+   #m=… carries the model's Meshy files: the rigged GLB and its moves when it has them.
+   They come through /api/monsters — Meshy's files carry no CORS header — whole when
+   it's monsters/serve.py, in 4MB slices with the passcode on johnyum.com, as Monsters
+   itself loads them. With moves, the rig plays them: Idle standing, Run (or Walk) running,
+   Jump in the air, Wave when tapped. Without, the whole body hops and squashes. */
+const linkedModel = location.hash.startsWith('#m=') ? unpack(location.hash.slice(3)) : null;
+let model = null, mixer = null, playing = null;
+const clipsFor = {};
+async function modelBytes(url) {
+  const api = '/api/monsters', env = await fetch(`${api}?p=status`).then((r) => r.json()).catch(() => null);
+  if (!env) throw new Error('no Monsters server here');
+  if (!env.hosted) return (await fetch(`${api}?p=asset&url=${encodeURIComponent(url)}`)).arrayBuffer();
+  const pass = (() => { try { return localStorage.getItem('monsters.pass') || ''; } catch { return ''; } })(), SLICE = 4 * 1024 * 1024;
+  const slice = async (start) => {
+    const r = await fetch(`${api}?p=asset&url=${encodeURIComponent(url)}&start=${start}&end=${start + SLICE - 1}`, { headers: { 'X-Monsters-Pass': pass } });
+    if (!r.ok) throw new Error(r.status === 401 ? 'unlock Monsters with the passcode first' : 'the model\'s link has expired');
+    return { buf: new Uint8Array(await r.arrayBuffer()), total: +r.headers.get('X-Total-Size') };
+  };
+  const first = await slice(0), out = new Uint8Array(first.total || first.buf.length); out.set(first.buf);
+  const rest = []; for (let at = first.buf.length; at < out.length; at += SLICE) rest.push(slice(at).then(({ buf }) => out.set(buf, at)));
+  await Promise.all(rest); return out.buffer;
+}
+const loader = new GLTFLoader();
+async function loadModel(m) {
+  const gltf = await loader.parseAsync(await modelBytes(m.rigged || m.glb), '');
+  const obj = gltf.scene; obj.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(obj), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const holder = new THREE.Group(); holder.scale.setScalar(H / (size.y || 1)); obj.position.set(-c.x, -box.min.y, -c.z);
+  holder.add(obj); bodyG.add(holder); kitG.visible = false; model = holder;
+  mixer = new THREE.AnimationMixer(obj);
+  // Each move is its own file; its clip plays on this rig — same skeleton, same bone names.
+  const want = { Idle: 'idle', Run: 'run', Walk: 'walk', Jump: 'jump', Wave: 'wave', Dance: 'dance' };
+  for (const [label, url] of Object.entries(m.clips || {})) {
+    try {
+      const g = await loader.parseAsync(await modelBytes(url), '');
+      const key = want[label] || label.toLowerCase();
+      clipsFor[label] = g.animations.find((a) => a.name.toLowerCase().includes(key)) ?? g.animations.reduce((a, b) => (b.duration > (a?.duration ?? 0) ? b : a), null);
+    } catch {}
+  }
+  // A rigged model that came with its own clips (the mock robot does) can use those too.
+  for (const a of gltf.animations) for (const [label, key] of Object.entries(want)) if (!clipsFor[label] && a.name.toLowerCase().includes(key)) clipsFor[label] = a;
+  TOP = H;
+  faceOnModel(holder, obj);
+}
+// The live face on a model: feel across its front for the face, size the eyes and mouth to
+// the head, and fix them to the head bone so they move with the head through every clip.
+// It's the kit face's own rig — eyes, mouth, brows, blush — so every mood works the same.
+function faceOnModel(holder, obj) {
+  // Measure with the character at rest, at the origin, one unit to one unit.
+  const keep = { p: root.position.clone(), r: root.rotation.z, s: root.scale.x, yaw: yawG.rotation.y, b: bodyG.scale.clone(), by: bodyG.position.y };
+  root.position.set(0, 0, 0); root.rotation.z = 0; root.scale.setScalar(1); yawG.rotation.y = 0; bodyG.scale.set(1, 1, 1); bodyG.position.y = 0;
+  root.updateMatrixWorld(true);
+  const rc = new THREE.Raycaster(), meshes = []; obj.traverse((o) => { if (o.isMesh) meshes.push(o); });
+  const hitFront = (x, y) => { rc.set(new THREE.Vector3(x, y, 6), new THREE.Vector3(0, 0, -1)); return rc.intersectObjects(meshes, false)[0]; };
+  const hitSide = (sd, y, z) => { rc.set(new THREE.Vector3(sd * 6, y, z), new THREE.Vector3(-sd, 0, 0)); return rc.intersectObjects(meshes, false)[0]; };
+  // The face: the front-most point in the upper part of the body — the forehead-to-chin bulge.
+  let face = null;
+  for (let y = H * .5; y <= H * .95; y += H * .015) { const h = hitFront(0, y); if (h && (!face || h.point.z > face.point.z + .004)) face = h; }
+  if (!face) { Object.assign(root.position, keep.p); return; }
+  const fy = face.point.y, L = hitSide(-1, fy, face.point.z * .4), R = hitSide(1, fy, face.point.z * .4);
+  const width = L && R ? R.point.x - L.point.x : H * .5;
+  const gap = width * .2, eyeR = clamp(width * .085, H * .035, H * .09), mouthS = clamp(width * .11, H * .05, H * .13);
+  const normalAt = (h) => h.face ? h.face.normal.clone().transformDirection(h.object.matrixWorld) : new THREE.Vector3(0, 0, 1);
+  const put = (g, x, y, size, out = 0) => {
+    const h = hitFront(x, y) || face, n = normalAt(h).lerp(new THREE.Vector3(0, 0, 1), .5).normalize();
+    scene.add(g); g.position.copy(h.point).addScaledVector(n, out); g.lookAt(g.position.clone().add(n)); g.scale.setScalar(size);
+    return g;
+  };
+  const eyeY = fy + H * .03;
+  eyes.forEach((e, i) => put(e.g, i % 2 ? -gap : gap, eyeY, eyeR, eyeR * .25));
+  blush.forEach((b, i) => { put(b.b, i % 2 ? -gap * 1.7 : gap * 1.7, eyeY - H * .08, eyeR * .9, eyeR * .05); b.b.rotateX(Math.PI / 2); });
+  put(mouth, 0, fy - H * .085, mouthS, mouthS * .05);
+  // Onto the head bone when there's a skeleton, so the face rides the head through the moves.
+  let head = null; obj.traverse((o) => { if (!head && o.isBone && /head/i.test(o.name)) head = o; });
+  const host = head || holder;
+  for (const g of [...eyes.map((e) => e.g), ...blush.map((b) => b.b), mouth]) host.attach(g);
+  root.position.copy(keep.p); root.rotation.z = keep.r; root.scale.setScalar(keep.s); yawG.rotation.y = keep.yaw; bodyG.scale.copy(keep.b); bodyG.position.y = keep.by;
+  root.updateMatrixWorld(true);
+}
+function playClip(label, once = false) {
+  const clip = clipsFor[label]; if (!clip || !mixer) return false;
+  const act = mixer.clipAction(clip);
+  if (playing === act && !once) return true;
+  act.reset(); act.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity); act.clampWhenFinished = once;
+  if (playing && playing !== act) act.crossFadeFrom(playing, .25, true);
+  act.play(); playing = act; return true;
+}
+let oneShot = 0;
+function animateModel(dt, running) {
+  mixer.update(dt); oneShot = Math.max(0, oneShot - dt);
+  if (oneShot > 0) return;
+  if (running) playClip('Run') || playClip('Walk') || playClip('Idle');
+  else if (C.mode === 'air') playClip('Jump') || playClip('Idle');
+  else playClip('Idle');
+}
+if (linkedModel?.glb) loadModel(linkedModel).catch((e) => setTimeout(() => say('couldn\'t load that one: ' + e.message, 4000), 1200));
+
 // How far up its hands reach when they're up — the hang's pendulum length.
 const REACH = H + (arms.length ? Math.max(...arms.map(() => .55)) : .3);
 // The whole character's top, for the bubble over its head.
-const TOP = (() => { kitG.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(kitG); return Math.max(H, b.max.y * 1); })();
+let TOP = (() => { kitG.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(kitG); return Math.max(H, b.max.y * 1); })();
 
 // Mittens that grip an edge while it peeks over it — out in front of the occluder.
 const grips = [-1, 1].map(() => { const g = new THREE.Mesh(new THREE.SphereGeometry(.12, 16, 12), matte(SKIN.clone().multiplyScalar(.95), { roughness: .9 })); g.scale.set(S, S * .8, S * .7); g.visible = false; g.position.z = 900; scene.add(g); return g; });
@@ -514,7 +613,9 @@ function frame() {
     else if (C.mode === 'air') swing = -.5;
     l.pivot.quaternion.slerp(qx.setFromAxisAngle(X, swing).multiply(l.rest), .3);
   }
-  bodyG.position.y = running ? (legs.length ? Math.abs(Math.sin(C.phase)) * .07 : Math.abs(Math.sin(C.phase * .5)) * .32) : C.mode === 'sit' ? -.1 : 0;
+  const hops = !legs.length || (model && !clipsFor.Run && !clipsFor.Walk);   // nothing to walk on: it hops
+  bodyG.position.y = running ? (hops ? Math.abs(Math.sin(C.phase * .5)) * .32 : Math.abs(Math.sin(C.phase)) * .07) : C.mode === 'sit' ? -.1 : 0;
+  if (model) animateModel(dt, running);
   // Arms: pump when running, straight up to hang or hold, out when airborne, a sway at rest.
   const target = new THREE.Quaternion();
   for (const a of arms) {
@@ -688,6 +789,7 @@ addEventListener('pointerdown', (e) => {
   const cy = C.y - H * S * .5;
   if (Math.hypot(e.clientX - C.x, e.clientY - cy) < H * S * .55) {
     const was = moodNow; mood('love'); C.sqv -= 10; say('hehe', 900);
+    if (model && playClip('Wave', true)) oneShot = clipsFor.Wave.duration;
     setTimeout(() => { if (moodNow === 'love') mood(was); }, 900);
   }
 });
@@ -811,7 +913,7 @@ $('#director').addEventListener('click', (e) => {
 });
 addEventListener('resize', () => act(leave));
 
-window.__peek = { C, mood, say, leave, act, standOn, runTo, jumpTo, sitOn, peekOver, peekSide, hang, holdTip, CHAR, frame };
+window.__peek = { C, mood, say, leave, act, standOn, runTo, jumpTo, sitOn, peekOver, peekSide, hang, holdTip, CHAR, frame, get model() { return model; }, clipsFor };
 </script>
 </body>
 </html>
