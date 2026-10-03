@@ -779,7 +779,7 @@ function frame() {
   blinkT -= dt; if (blinkT < 0) { blinking = .13; blinkT = 2 + Math.random() * 3.5; }
   blinking = Math.max(0, blinking - dt);
   if (puppet) puppet.update(dt, { t, mode: C.mode, running, phase: C.phase, vx: C.vx, vy: C.vy, ax: C.ax, yaw: C.yaw, arms: C.arms,
-    grabbed: !!C.grabbed, blink: blinking > 0, look: { x: dx, y: dy }, swing: C.swing || 0 });
+    grabbed: !!C.grabbed, blink: blinking > 0, look: { x: dx, y: dy }, swing: C.swing || 0, beat: work.beat });
   for (const e of eyes) e.inner.scale.y = blinking > 0 ? .1 : moodNow === 'ugh' ? .45 : moodNow === 'sad' ? .7 : moodNow === 'surprised' ? 1.2 : 1;
 
   root.position.set(C.x, -C.y + C.hop, 0);
@@ -876,6 +876,7 @@ function homeward() {
     const r = rectOf(g);
     await peekOver(g, r.right - 58, heart.sulking ? 'sad' : 'happy', heart.sulking ? HOME_SULK : HOME);
     C.home = true;
+    if (work.phase) workPose(work.phase);   // back in its spot mid-reply: straight back to the work
   });
 }
 // Up or down behind the box, without leaving it.
@@ -1165,7 +1166,7 @@ let idleTimer = 0, idleTurn = 0;
 function idle() {
   clearTimeout(idleTimer);
   idleTimer = setTimeout(() => act(async () => {
-    if ((C.mode !== 'off' && !C.home) || heart.sulking || (document.activeElement === input && input.value) || (EMBED && (!plat.composer || typing))) return idle();
+    if (EMBED || (C.mode !== 'off' && !C.home) || heart.sulking || (document.activeElement === input && input.value) || (EMBED && (!plat.composer || typing))) return idle();
     const turn = idleTurn++ % 3, ground = EMBED ? V('composer') : composer;
     if (turn === 0) { const [t, s] = TIPS[tipAt++ % TIPS.length]; await holdTip(t, s); await wait(6000); await leave(); }
     else if (turn === 1 && !EMBED) { const pills = [...$('#chips').children], p = pills[1 + (idleTurn % 3)], r = rectOf(p); await hang(p, r.left + r.width / 2); say('wheee', 1600); await wait(5000); await leave(); }
@@ -1617,6 +1618,45 @@ function unpile() { const c = $('#chips'); if (!c?.classList.contains('piled')) 
 modelReady.then(() => setTimeout(awake, 900));
 Object.assign(window.__peek, { performStream, guardSend, unguard, carry, delivered, awake, wake, state: () => ({ asleep, carrying: !!carrying, guarding }) });
 
+/* ═══════════════ the work: how the reply is going, at a glance ═══════════════
+   From its spot behind the chat box — the box's top edge is its desk — it shows the state of
+   Claude's reply, and only ever because something happened in the stream: no loops, so it can't
+   look busy when nothing is arriving. Sent: chin on its hand. Words arriving: its hands work, and
+   trade only when new words land. The stream stalls: it stops and looks up. Done: it rises easy
+   (sure), shrugs (it hedged), puts a hand up (it asked you something) or sinks (it failed). */
+var work = { phase: null, beat: 0, seen: 0, last: 0, stall: 0, end: 0 };
+const WORK_SHOW = { pondering: .78, working: .64, paused: .8, sure: .94, unsure: .84, asking: 1.02, failed: .42 };   // how far up out of the box each one stands
+const WORK_BASE = { pondering: 'thinking', working: 'curious', paused: 'surprised', sure: 'happy', unsure: 'thinking', asking: 'curious', failed: 'sad' };   // for the furry critters
+function workPose(p) {
+  work.phase = p; mood(puppet ? p : WORK_BASE[p]);
+  if (C.home && C.held) rise(WORK_SHOW[p]);
+}
+function workBegin() {
+  clearTimeout(work.end); clearTimeout(work.stall);
+  Object.assign(work, { seen: 0, beat: 0, last: 0 });
+  if (!C.home && !C.perched && !C.grabbed) act(leave);   // back to its spot (homeward() picks the pose up there)
+  workPose('pondering');
+}
+function workStream(text) {
+  text = String(text || '');
+  if (!work.phase) workBegin();
+  if (text.length <= work.seen) return;
+  work.seen = text.length;
+  const now = performance.now();
+  if (work.phase !== 'working') workPose('working');
+  if (now - work.last > 380) { work.beat++; work.last = now; }   // the hands trade as words land — at a pace the eye can follow
+  clearTimeout(work.stall);
+  work.stall = setTimeout(() => { if (work.phase === 'working') workPose('paused'); }, 1600);
+}
+function workEnd(text) {
+  clearTimeout(work.stall);
+  const t = String(text || '').trim(), lower = t.toLowerCase(), words = Math.max(1, t.split(/\s+/).length);
+  const hedges = (lower.match(/\b(i'm not sure|not certain|i don't know|might|perhaps|probably|i think|i believe|it seems|likely|unclear|hard to say|may be)\b/g) || []).length;
+  workPose(!t || t.startsWith('⚠️') ? 'failed' : t.endsWith('?') ? 'asking' : hedges / words * 100 > 1.6 ? 'unsure' : 'sure');
+  // It holds its ending long enough to glance at, then lets go.
+  work.end = setTimeout(() => { work.phase = null; mood('happy'); if (C.home) rise(restShow()); }, 9000);
+}
+
 /* ═══════════════ embed: the host app's chat drives it ═══════════════ */
 var typing = 0;
 const host = window.webkit?.messageHandlers?.peek;
@@ -1648,36 +1688,19 @@ if (EMBED) {
         C.look = { x: r().left + 30 + Math.min(r().width - 160, typing * 7.2), y: r().top + 24 };
       } else if (name === 'send') {
         typing = 0; guarding = false; delivered();   // 4 · the app has sent the message it was carrying along with yours
-        const text = String(data || ''); draftFeel = ''; draftLen = 0;
-        // Its face drops into the read straight away; the move waits for the read (Haiku, ≤1.6s).
-        const felt = read(text);
-        act(async () => perform(await felt, comp, comp));
+        draftFeel = ''; draftLen = 0;
+        workBegin();   // to work: chin on its hand till the first words come
       } else if (name === 'stream') {
-        performStream(data);   // 1 · the answer so far, as it's written
+        workStream(data);   // the answer so far: its hands move only as words arrive
       } else if (name === 'status') {
-        if (C.mode !== 'off' && !asleep) { mood('curious'); say(String(data || '').slice(0, 28) || 'working…', 1600); }   // 6 · what Claude is doing (searching, reading…)
+        if (work.phase) { workPose('pondering'); work.beat++; }   // looking something up: back to its chin
       } else if (name === 'thinking') {
-        streamStart(); thinkingHard();
-        // It sits on the answer that's on its way — and rides it up as it streams in.
-        act(async () => { if (C.perched) { mood('thinking'); say('hmm…', 0); return; } const a = rectOf(V('reply')); if (a.width <= 0 || heart.sulking || Date.now() < heart.shyUntil) return; await sitOn(V('reply'), a.left + Math.min(a.width - 30, 70), 'thinking'); say('hmm…', 0); });
+        if (!work.phase) workBegin();
       } else if (name === 'replied') {
         // The streaming text becomes a message row: move onto it before the stand-in goes.
         if (C.el === V('reply') && plat.last) C.el = V('last');
         setTimeout(() => { if (C.el !== V('reply')) delete plat.reply; }, 50);
-        const felt = typeof data === 'string' && data ? read(data, 'claude') : null;
-        clearTimeout(hardT); const v = verdict(data);
-        act(async () => {
-          if (C.mode === 'off') return;
-          if (v) { unsay(); say(v, 1500); await wait(1600); }   // 6 · how sure it sounded
-          if (C.perched) { unsay(); mood('happy'); if (felt) await feelAnswer(await felt); return; }   // it stays where you put it
-          unsay(); mood('happy'); if (C.el === V('reply')) C.el = V('last');
-          C.mode = 'stand'; C.sqv -= 6; await wait(380);
-          if (felt) await feelAnswer(await felt);
-          const a = rectOf(V('last'));
-          if (a.width > 0) await runTo(V('last'), Math.min(a.right - 24, C.x + 200));
-          const c = r(); if (c.width > 0) { await jumpTo(comp, Math.min(c.right - 40, Math.max(c.left + 40, C.x + 60))); await wait(400); await runTo(comp, c.right - 30); }
-          await leave();
-        });
+        workEnd(data);   // how it ended: sure, unsure, asking or failed
       } else if (name === 'closed') { delete plat.reply; act(leave); }
     },
   };

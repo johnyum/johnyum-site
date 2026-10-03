@@ -388,6 +388,14 @@ up tip cards. One `index.html`, three.js; the chat is canned.
   Joint positions go through `relTo()`, never the world matrix: at scale 0 it's singular, and one
   NaN poisons the paper rig's remembered limb angles. `?big` draws the character 3× to judge it.
   The app's builder has a "Made" tab that picks them.
+- **Its job is the work** (2026-10-04, John's call after "what's the value?"): in the app it shows how
+  Claude's reply is going, at a glance, from its spot behind the box — thinking (scratching its
+  head), writing (low at the box, an arm lifting only as words land), stalled after 1.6s (still),
+  then sure / unsure (a shrug) / asking (a hand up) / failed (sunk). Driven only by the real stream
+  (`work*()` in index.html, poses in puppets.js `MOOD`) — never a loop, which is what makes Muse's
+  Jolly feel canned. The app's send / stream / thinking / replied events all go to it; the older
+  reply gestures, sitting on the reply and wandering off are no longer called in embed mode.
+  John rejected the iOS Live Activity version: it belongs in the app, not the Dynamic Island.
 - Its frame loop is `frame()`, exposed on `window.__peek` — a hidden tab pauses
   `requestAnimationFrame`, so a test drives frames by hand.
 

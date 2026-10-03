@@ -51,6 +51,16 @@ const MOOD = {
   sleepy:    { tilt: .5, drop: .035, side: .05, out: -.02, bend: .05, knee: .15 },
   ugh:       { out: .3, bend: -.12, nod: .45, side: -.1, tremble: 1, stretch: -.03, slump: .5 },   // rigid arms, head sunk, shaking
   sad:       { tilt: .28, nod: .75, drop: .05, side: -.05, out: -.07, bend: .1, knee: .22, slump: 1 },
+
+  // The work: how Claude's reply is going, from behind the chat box, its forearms on the edge
+  // like a desk. These keep their own arms (own) instead of the plain lean-on-the-sill.
+  pondering: { own: 1, outB: 2.4, bendB: -1.6, outA: .3, bendA: .4, tilt: .3, nod: -.15, eyes: .6 },  // scratching its head
+  working:   { own: 1, out: .35, bend: .55, nod: .35, eyes: .7, work: 1 },                              // low at the box, hands down at it — one lifts as words land
+  paused:    { own: 1, outA: .75, bendA: 2.65, outB: .15, bendB: .2, nod: -.35, eyes: 1.15 },           // stopped: hand to its chin, looking up
+  sure:      { own: 1, out: .14, bend: .2, tilt: .06 },                                                 // done: standing tall and easy
+  unsure:    { own: 1, out: 1.25, bend: -1.25, tilt: .26, eyes: .85 },                                  // done, a shrug
+  asking:    { own: 1, outA: 2.6, bendA: .3, outB: .95, bendB: 2.1, tilt: .1, eyes: 1.15 },             // done, a hand up: your turn
+  failed:    { own: 1, out: .45, bend: .9, nod: .55, tilt: .15, eyes: .35, slump: 1 },                  // couldn't
 };
 const EYES = { happy: 1, curious: 1.15, thinking: .7, surprised: 1.5, love: .25, sleepy: .15, ugh: .35, sad: .55 };
 const KEYS = ['slump', 'lean', 'side', 'drop', 'stretch', 'nod', 'tilt', 'turn', 'outA', 'outB', 'fwdA', 'fwdB', 'bendA', 'bendB',
@@ -86,6 +96,7 @@ export function makePuppet(kind, THREE) {
       eyes: c.blink ? .08 : m.eyes ?? EYES[moodNow] ?? 1 };
     const t = c.t;
     if (m.sway) T.side += Math.sin(t * 2.2) * .06;
+    if (m.work) { const odd = (c.beat || 0) % 2; if (odd) { T.outA += .35; T.bendA += .9; } else { T.outB += .35; T.bendB += .9; } T.tilt += odd ? .06 : -.06; }
     T.slump = m.slump || 0;
     if (m.tremble) T.side += Math.sin(t * 55) * .025;
     // Breathing: always, a little — a still figure reads as a picture, not a thing that's alive.
@@ -110,7 +121,7 @@ export function makePuppet(kind, THREE) {
       const k = Math.sin(t * 3.2) * .3;
       Object.assign(T, { hipA: 0, hipB: 0, kneeA: .25 + k, kneeB: .25 - k, outA: .42, outB: .42, bendA: -.25, bendB: -.25 });
       T.drop += D.hip - .03;
-    } else if (c.mode === 'peek') {
+    } else if (c.mode === 'peek' && !m.own) {
       // Behind the box: forearms up on its top edge, like leaning on a windowsill.
       Object.assign(T, { fwdA: 0, fwdB: 0, outA: .95, outB: .95, bendA: 2.1, bendB: 2.1 });
       if (moodNow === 'surprised') { T.outA = T.outB = 2.3; T.bendA = T.bendB = .3; }
