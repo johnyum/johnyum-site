@@ -110,7 +110,8 @@
       + '#tbGroupBtn.pressing{background:var(--grey-300,#DDDDDD)}'
       + '[data-hname*="Dinah"]{display:none!important}'   // no Dinah hearts in this flow (John, 2026-10-02) — Pride keeps its own
       + '.opp-more{display:none!important}'
-      + '#lmUpsellOverlay{display:none!important}'          // no "Automate last-minute discounts" offer after Apply in the preso (John, 2026-10-02: "let's skip this")               // no "1 more date" / "13 more listings" pills in the preso (John, 2026-10-02)
+      + '#eduPill{display:none!important}'                // no "Events and holiday pricing automated" note under Pricing (John, 2026-10-02)
+      + 'body.preso-skip-upsell #lmUpsellOverlay{display:none!important}'   // the last-minute Apply's "Automate last-minute discounts" offer, skipped (John, 2026-10-02) — the events' offer later still shows               // no "1 more date" / "13 more listings" pills in the preso (John, 2026-10-02)
       // THE COIN (John, 2026-10-02: "the spinning 3 rausch we built for the native version") — TipsPuck.swift / its web port in
       // multi-host-calendar-web: a rausch disc with real thickness (six darker rim layers offset behind the face by the turn's sine,
       // the face narrowed by its cosine), two eased turns over 1.6s, the glossy face once it settles. In the Show tips button's 40 circle.
@@ -365,6 +366,36 @@
     const idle = () => { if (!el.isConnected) return; clearTimeout(coin._idle); coin._idle = setTimeout(() => turn(1, 900, idle), 5200); };
     setTimeout(() => turn(3, 1500, idle), 250);                                        // it pops in first, then spins
   }
+  // THE CURVE, TAKEN BY HAND (the parked path's beat 8, John, 2026-09-22 / 09-30, brought back 2026-10-02 without its Apply): the
+  // event's ⇕ handle is held once it has stood still, dragged UP until the pill reads +115%, held a beat, brought back DOWN to
+  // +65%, and let go. One pointermove a frame, the distance by the clock (3px per 16ms), so it moves evenly on any display; if
+  // the number stops answering, the ribbon rebuilt itself under the hand and the handle is taken again.
+  function curveDrag(w) {
+    const d = w.document;
+    const dot = () => d.querySelector('.ribbon-master-dot'), pct = () => { const p = d.querySelector('.ribbon-master-dot .rmd-pct'); return p ? parseInt(p.textContent.replace(/[^\d-]/g, ''), 10) : NaN; };
+    let x = 0, y = 0;
+    const pe = (type, target, extra) => target.dispatchEvent(new w.PointerEvent(type, Object.assign({ bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', isPrimary: true, clientX: x, clientY: y, button: 0, buttons: 1 }, extra || {})));
+    const grab = () => { const el = dot(); if (!el) return false; const r = el.getBoundingClientRect(); x = r.left + r.width / 2; y = r.top + r.height / 2; pe('pointerdown', el); return true; };
+    const SPEED = 3 / 16;
+    const glide = (want, dir, then) => {
+      let last = NaN, changed = 0, prev = 0; const t0 = performance.now();
+      const tick = now => {
+        const v = pct();
+        if (isNaN(v) || (dir < 0 ? v >= want : v <= want) || now - t0 > 10000) { then(); return; }
+        if (v !== last) { last = v; changed = now; }
+        else if (changed && now - changed > 200) { pe('pointerup', w, { buttons: 0 }); grab(); changed = now; }
+        const dt = prev ? Math.min(now - prev, 50) : 16; prev = now;
+        y += dir * SPEED * dt; pe('pointermove', w, { buttons: 1 });
+        w.requestAnimationFrame(tick);
+      };
+      w.requestAnimationFrame(tick);
+    };
+    const letGo = () => pe('pointerup', w, { buttons: 0 });
+    let seen = NaN; const t0 = Date.now();
+    const ready = () => { const v = pct(); if (!isNaN(v) && v === seen) { if (!grab()) return; glide(115, -1, () => setTimeout(() => glide(65, 1, letGo), 900)); return; }
+      seen = v; if (Date.now() - t0 < 12000) setTimeout(ready, 400); };
+    setTimeout(ready, 400);
+  }
   const BEATS = [
     // 1 — the top 7 stay; the rest fade and fold away; then the 7 grow to 96
     { fwd: (w, instant) => shape(w, 7, 96, instant),
@@ -526,7 +557,7 @@
     // 11 — Apply, tapped, on the last-minute discount: the build's own apply — the cells take the discount and settle (John, 2026-10-02)
     { fwd: (w, instant) => {
         const d = w.document;
-        if (instant) { later(() => ev(w, "applyCurrent()"), 600); return; }
+        if (instant) { later(() => ev(w, "applyCurrent()"), 600); later(() => closeUpsell(w), 1600); return; }
         // WAITS FOR THE TIP TO BE UP (John, 2026-10-02: "it's not tapping apply"): a tap that comes while the scan is still running,
         // or the tip still revealing, finds no Apply yet — so it waits until the button is there and the reveal has settled
         const ready = () => { const b = d.querySelector('#magicPill [data-magic="apply"]'), B = d.body.classList;
@@ -534,6 +565,37 @@
         const t0 = performance.now();
         const go = () => { const b = ready();
           if (!b) { if (performance.now() - t0 < 8000) setTimeout(go, 80); else ev(w, "applyCurrent()"); return; }
+          d.body.classList.add('preso-skip-upsell');                                   // its offer is dismissed unseen the moment it rises
+          b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440);
+          setTimeout(() => b.click(), 130);
+          const t1 = performance.now(); const shut = () => { const ov = d.getElementById('lmUpsellOverlay');
+            if (ov && ov.classList.contains('visible')) { closeUpsell(w); setTimeout(() => d.body.classList.remove('preso-skip-upsell'), 300); return; }
+            if (performance.now() - t1 < 5000) setTimeout(shut, 80); else d.body.classList.remove('preso-skip-upsell'); };
+          shut(); };
+        go();
+      },
+      back: w => { closeUpsell(w); ev(w, "(() => { const o = window.__opt, g = o && o.suggs[o.cur]; if (g && g.applied && typeof undoCurrent === 'function') undoCurrent(); })()"); } },
+    // 12 — ›, tapped: on to the next tip — the golf tournament — focused the build's own way; a beat, then its curve dragged up and down
+    { fwd: (w, instant) => {
+        const d = w.document;
+        if (instant) { later(() => ev(w, "optNav(1)"), 300); return; }
+        const b = d.querySelector('#magicPill [data-magic="next"]');
+        if (!b) ev(w, "optNav(1)");
+        else { b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440); setTimeout(() => b.click(), 130); }
+        // ...then, the golf tournament's curve up and back down (John, 2026-10-02: "take a beat and do the up and down animation") —
+        // curveDrag waits for the handle to stand still once the camera has landed, which is the beat
+        setTimeout(() => curveDrag(w), 700);
+      },
+      back: w => { w.dispatchEvent(new w.PointerEvent('pointerup', { bubbles: true, pointerId: 1, buttons: 0 })); ev(w, "optNav(-1)"); } },
+    // 13 — Apply, tapped, on the golf tournament: its prices go on, and this time the build's offer stays up — "Automate events and
+    //      holidays" (John, 2026-10-02: "this time you can show me the automate holiday prices modal")
+    { fwd: (w, instant) => {
+        const d = w.document;
+        if (instant) { later(() => ev(w, "applyCurrent()"), 600); return; }
+        const t0 = performance.now();
+        const go = () => { const b = d.querySelector('#magicPill [data-magic="apply"]'), B = d.body.classList;
+          if (!b || B.contains('opt-scanning') || B.contains('glow-hold')) { if (performance.now() - t0 < 8000) setTimeout(go, 80); else ev(w, "applyCurrent()"); return; }
+          w.dispatchEvent(new w.PointerEvent('pointerup', { bubbles: true, pointerId: 1, buttons: 0 }));   // the curve let go, if the drag was cut short
           b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440);
           setTimeout(() => b.click(), 130); };
         go();
@@ -713,7 +775,7 @@
   // HOLD is how long each beat plays before the next may start, read off its own timers. 7 and 8 wait on the build
   // (a modal to rise and go; a handle to be dragged up and back), so theirs are the long ones. Going BACK is never
   // queued: it drops anything waiting and acts at once, because reversing is how you recover from a wrong tap.
-  const HOLD = [1300, 1300, 1300, 2400, 700, 700, 1600, 3200, 2600, 4000, 3200, 1800];   // the fold (.75s) and the grow (.44s), and a breath — the old path's were [1500, 1400, 1000, 2900, 1300, 3200, 4600, 6800, 2600, 1800, 1400, 1500]
+  const HOLD = [1300, 1300, 1300, 2400, 700, 700, 1600, 3200, 2600, 4000, 3200, 1800, 7000, 2000];   // the fold (.75s) and the grow (.44s), and a breath — the old path's were [1500, 1400, 1000, 2900, 1300, 3200, 4600, 6800, 2600, 1800, 1400, 1500]
   let busyUntil = 0, queued = 0, qT = 0;
   const fire = () => { const b = BEATS[at]; at++; safe(() => b.fwd(W(), false)); busyUntil = performance.now() + (HOLD[at - 1] || 1500); };
   const pump = () => {
