@@ -32,7 +32,17 @@
     mood('happy'|'curious'|'thinking'|'surprised'|'love'|'sleepy'|'ugh') say(text)
 
   The chat is canned — no model behind it. It exists to give the character a level.
+
+  Embed mode (?embed=1): just the character, on a transparent page, for a native app to lay
+  over its own chat (ClaudeClone's "Peek" build). The app tells it where its real bubbles and
+  composer are — peek.platforms({ composer, reply, last }) as [x, y, w, h] in points — and what
+  is happening — peek.event('typing' | 'send' | 'thinking' | 'replied' | 'closed', data). It
+  answers on window.webkit.messageHandlers.peek: { type: 'rects' } with where the character
+  (and any tip card) is, so the app lets touches through everywhere else; { type: 'ready' }.
+  With no character in the link it is the one last built in Rig Studio (same storage), else
+  the Bunny.
 -->
+<script>if (/[?&]embed\b/.test(location.search)) document.documentElement.classList.add('embed');</script>
 <style>
 :root {
   --bg: #ffffff;
@@ -45,6 +55,8 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; }
+html.embed, html.embed body { background: transparent !important; }
+html.embed .app { display: none; }
 body { background: var(--bg); color: var(--ink); font: 14.5px/1.5 "IBM Plex Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 p { margin: 0; }
 button, textarea { font: inherit; color: inherit; }
@@ -180,10 +192,17 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { loadRig, unpack as unpackRig, MOODS as EYE_MOODS } from '../rig/rig.js';
+import { loadRig, unpack as unpackRig, MOODS as EYE_MOODS, blankState as rigBlank } from '../rig/rig.js';
 import { PARTS, prim, smin, bodyFrameOf, bodyField, anchor, partPose, twinned, unpack } from '../monsters/kit.js';
 
 const $ = (s, r = document) => r.querySelector(s);
+const EMBED = document.documentElement.classList.contains('embed');
+// In embed mode the platforms are the host app's own views: rects it sends, behind stand-ins
+// that answer getBoundingClientRect() like any element, so every pose works unchanged.
+const plat = {}, stand = {};
+const V = (id) => stand[id] ||= { id, getBoundingClientRect() {
+  const [x, y, w, h] = plat[id] || [0, -1e5, 0, 0]; return { left: x, top: y, width: w, height: h, right: x + w, bottom: y + h, x, y };
+} };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, k) => a + (b - a) * k;
@@ -573,7 +592,13 @@ function animateModel(dt, running) {
   else playClip('Idle');
 }
 if (linkedModel?.glb) loadModel(linkedModel).catch((e) => setTimeout(() => say('couldn\'t load that one: ' + e.message, 4000), 1200));
-if (location.hash.startsWith('#r=')) unpackRig(location.hash.slice(3)).then((st) => st && loadRigged(st))
+// No character in the link: the one last built in Rig Studio (it saves to this same origin's
+// storage), else the Bunny. A #c=… kit character or #m=… Meshy model keeps its own path.
+const savedRig = () => { try { return JSON.parse(localStorage.getItem('rig.state')); } catch { return null; } };
+const modelReady = (location.hash.startsWith('#r=') ? unpackRig(location.hash.slice(3))
+  : location.hash.startsWith('#c=') || location.hash.startsWith('#m=') ? Promise.resolve(null)
+  : Promise.resolve(savedRig() || rigBlank('Bunny')))
+  .then((st) => st && loadRigged(st))
   .catch((e) => setTimeout(() => say('couldn\'t load that one: ' + e.message, 4000), 1200));
 
 // How far up its hands reach when they're up — the hang's pendulum length.
@@ -725,7 +750,7 @@ function frame() {
 /* ═══════════════ poses ═══════════════ */
 
 let queue = Promise.resolve();
-const act = (fn) => (queue = queue.then(fn).catch((e) => console.error(e)));
+const act = (fn) => (queue = queue.then(() => modelReady).then(fn).catch((e) => console.error(e)));   // nothing moves before the character's in
 const rectOf = (el) => el.getBoundingClientRect();
 const headY = () => C.y - TOP * S * C.sq - 10;
 
@@ -936,11 +961,11 @@ let idleTimer = 0, idleTurn = 0;
 function idle() {
   clearTimeout(idleTimer);
   idleTimer = setTimeout(() => act(async () => {
-    if (C.mode !== 'off' || (document.activeElement === input && input.value)) return idle();
-    const turn = idleTurn++ % 3;
+    if (C.mode !== 'off' || (document.activeElement === input && input.value) || (EMBED && (!plat.composer || typing))) return idle();
+    const turn = idleTurn++ % 3, ground = EMBED ? V('composer') : composer;
     if (turn === 0) { const [t, s] = TIPS[tipAt++ % TIPS.length]; await holdTip(t, s); await wait(6000); await leave(); }
-    else if (turn === 1) { const pills = [...$('#chips').children], p = pills[1 + (idleTurn % 3)], r = rectOf(p); await hang(p, r.left + r.width / 2); say('wheee', 1600); await wait(5000); await leave(); }
-    else { const c = rectOf(composer); await standOn(composer, c.left + 40); await runTo(composer, c.right - 60); await wait(600); await leave(); }
+    else if (turn === 1 && !EMBED) { const pills = [...$('#chips').children], p = pills[1 + (idleTurn % 3)], r = rectOf(p); await hang(p, r.left + r.width / 2); say('wheee', 1600); await wait(5000); await leave(); }
+    else { const c = rectOf(ground); await standOn(ground, c.left + 40); await runTo(ground, c.right - 60); await wait(600); await leave(); }
     idle();
   }), 9000);
 }
@@ -976,6 +1001,59 @@ let lastW = innerWidth;
 addEventListener('resize', () => { if (Math.abs(innerWidth - lastW) > 40) { lastW = innerWidth; act(leave); } });
 
 window.__peek = { C, mood, say, leave, act, standOn, runTo, jumpTo, sitOn, peekOver, peekSide, hang, holdTip, CHAR, frame, get model() { return model; }, clipsFor, get rigged() { return rigged; } };
+
+/* ═══════════════ embed: the host app's chat drives it ═══════════════ */
+var typing = 0;
+const host = window.webkit?.messageHandlers?.peek;
+const tell = (m) => { try { host?.postMessage(m); } catch {} };
+if (EMBED) {
+  let typingTimer = 0;
+  window.peek = {
+    // Where the app's views are: { composer, reply, last } → [x, y, w, h], in points.
+    platforms(map) { for (const k of Object.keys(plat)) if (!(k in map)) delete plat[k]; Object.assign(plat, map); },
+    event(name, data) {
+      idle();
+      const comp = V('composer'), r = () => rectOf(comp);
+      if (name === 'typing') {
+        typing = data || 0;
+        clearTimeout(typingTimer);
+        if (!typing) { typingTimer = setTimeout(() => { if (occludeEl === comp) act(leave); }, 900); return; }
+        if (occludeEl !== comp && C.mode !== 'sit') act(async () => { if (occludeEl !== comp && typing) await peekOver(comp, r().right - 110, 'curious'); });
+        C.look = { x: r().left + 30 + Math.min(r().width - 160, typing * 7.2), y: r().top + 24 };
+      } else if (name === 'send') {
+        typing = 0;
+        const text = String(data || '');
+        if (rude(text)) act(async () => { await leave(); await peekSide('right', innerHeight * .42, 'ugh'); say('ughhhhh', 2300, 'ugh'); await wait(2500); await leave(); });
+        else if (THANKS.test(text)) act(async () => { await leave(); await peekSide('bottom', innerWidth * .62, 'love'); say('aww ♥', 1800); await wait(2000); await leave(); });
+        else act(leave);
+      } else if (name === 'thinking') {
+        // It sits on the answer that's on its way — and rides it up as it streams in.
+        act(async () => { const a = rectOf(V('reply')); if (a.width <= 0) return; await sitOn(V('reply'), a.left + Math.min(a.width - 30, 70), 'thinking'); say('hmm…', 0); });
+      } else if (name === 'replied') {
+        // The streaming text becomes a message row: move onto it before the stand-in goes.
+        if (C.el === V('reply') && plat.last) C.el = V('last');
+        act(async () => {
+          if (C.mode === 'off') return;
+          unsay(); mood('happy'); if (C.el === V('reply')) C.el = V('last');
+          C.mode = 'stand'; C.sqv -= 6; await wait(380);
+          const a = rectOf(V('last'));
+          if (a.width > 0) await runTo(V('last'), Math.min(a.right - 24, C.x + 200));
+          const c = r(); if (c.width > 0) { await jumpTo(comp, Math.min(c.right - 40, Math.max(c.left + 40, C.x + 60))); await wait(400); await runTo(comp, c.right - 30); }
+          await leave();
+        });
+      } else if (name === 'closed') act(leave);
+    },
+  };
+  // Where it is, so the app passes every other touch straight through to itself.
+  let last = '';
+  setInterval(() => {
+    const rs = [];
+    if (root.visible) { const w = 1.3 * S * C.shown, h = TOP * S * 1.15 * C.shown; rs.push([C.x - w / 2, C.y - h, w, h]); }
+    if (card) { const b = card.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }
+    const k = JSON.stringify(rs.map((r) => r.map(Math.round))); if (k !== last) { last = k; tell({ type: 'rects', rects: rs }); }
+  }, 100);
+  modelReady.then(() => tell({ type: 'ready' }));
+}
 </script>
 </body>
 </html>
