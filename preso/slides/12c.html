@@ -88,28 +88,12 @@
       // THE ODOMETER ($0 → $200): each place a reel of digits; the places the $0 does not have yet open from nothing as they roll
       + '.preso-odo{display:inline-flex;align-items:flex-start}.preso-odo .rl{display:inline-block;height:1.25em;line-height:1.25em;overflow:hidden;vertical-align:top}'
       // ONE CLOCK (John, 2026-10-02: "it only does 0 to 9, then the $200 just pops in… it hurries"): a single frame loop sets each
-      // place's progress (--oh hundreds, --ot tens, --oo ones, 0 → 1) on the board, and every reel reads it — so the digits roll
-      // smoothly through each number, the new places open as their digits arrive, and nothing can run ahead of anything else
-      + '.preso-odo .rr.h{transform:translateY(calc(var(--oh,0) * -2.5em))}.preso-odo .rr.t{transform:translateY(calc(var(--ot,0) * -12.5em))}.preso-odo .rr.o{transform:translateY(calc(var(--oo,0) * -12.5em))}'
-      + '.preso-odo .rl.gh{max-width:calc(clamp(0, var(--oh,0) * 5, 1) * 1em)}.preso-odo .rl.gt{max-width:calc(clamp(0, var(--ot,0) * 5, 1) * 1em)}'
-      // REQUEST TO BOOK, mixed in with the stays (John, 2026-10-02) — the single calendar's own pill: white, a dashed #222 edge, the
-      // guest's two initials on a disc in one of the build's label colours, in place of the photo
-      + '.booking-pill.preso-req{background:#fff!important;border:1.5px dashed #222!important;box-sizing:border-box}'
-      + '.booking-pill.preso-req .booking-name{color:#222!important}'
-      + '.booking-pill.preso-req .booking-avatar{background:var(--req-bg,rgba(66,139,255,.1))!important;display:grid;place-items:center}'
-      + '.booking-pill.preso-req .booking-avatar img{display:none}'
-      + '.booking-pill.preso-req .booking-avatar::after{content:attr(data-ini);color:var(--req-ink,#428BFF);font:700 11px/1 Cereal,sans-serif;letter-spacing:.02em}'
-      + '#tbGroupBtn.pressing{background:var(--grey-300,#DDDDDD)}'
-      + '[data-hname*="Dinah"]{display:none!important}'
-      // THE COIN (John, 2026-10-02: "the spinning 3 rausch we built for the native version") — TipsPuck.swift / its web port in
-      // multi-host-calendar-web: a rausch disc with real thickness (six darker rim layers offset behind the face by the turn's sine,
-      // the face narrowed by its cosine), two eased turns over 1.6s, the glossy face once it settles. In the Show tips button's 40 circle.
-      + '.magic-count-circle.preso-coin{background:none!important;position:relative;overflow:visible}'
-      + '.preso-coin .rim,.preso-coin .face{position:absolute;top:0;height:100%;border-radius:50%}'
-      + '.preso-coin .rim{background:#C72149}.preso-coin .face{background:var(--brand-rausch,#FF385C)}'
-      + '.preso-coin .face.glass{background:linear-gradient(160deg,#FF5F7E,#FF385C 55%,#E8214C);box-shadow:inset 0 1px 1px rgba(255,255,255,.55)}'
-      + '.preso-coin .num{position:relative;z-index:1;display:inline-block}'   // no Dinah hearts in this flow (John, 2026-10-02) — Pride keeps its own
-      + 'body.preso-price-swap #gridRows .price-val{opacity:0;transition:opacity .2s ease}#gridRows .price-val{transition:opacity .35s ease}'
+      // place's progress (--o0 ones … --o3 thousands, 0 → 1) on the board, and every reel reads it, turning its own --n steps — so the
+      // digits roll smoothly through each number, a place the price gains opens as its digit arrives (.in) and one it loses closes
+      // (.out), and nothing can run ahead of anything else. Any price to any price: $0 → $200, then $200 → the real ones.
+      + [0, 1, 2, 3].map(k => `.preso-odo .rr.p${k}{transform:translateY(calc(var(--o${k},0) * var(--n,0) * -1.25em))}`
+          + `.preso-odo .rl.in.p${k}{max-width:calc(clamp(0, var(--o${k},0) * 5, 1) * 1em)}`
+          + `.preso-odo .rl.out.p${k}{max-width:calc(clamp(0, (1 - var(--o${k},0)) * 5, 1) * 1em)}`).join('')
       + '.preso-odo .rr{display:block}'   // a block: an inline span takes no transform, and the reel would never turn
       // while it rolls, each cell keeps its own re-layout to itself (the places opening re-centre the price inside the cell, never the board)
       + 'body.preso-rolling #gridRows .price-card{contain:layout style}'
@@ -169,31 +153,50 @@
   // ...and then the cells on screen roll there: $0 → $200, the hundreds turning 0-1-2, the tens and ones a full turn each, the
   // places the $0 lacks opening from nothing as they turn. Off-screen cells are simply $200 by the time anyone gets to them.
   let rolled = false, rollT = 0;
-  function roll() {
-    const w = W(), d = w && w.document; if (!d || rolled) return;
-    rolled = true; setAll(w, 200);
-    const gw = d.getElementById('gridWrap'), R = gw.getBoundingClientRect();
-    const cards = [...d.querySelectorAll('#gridRows .price-card')].filter(c => { if (c.classList.contains('booked') || c.classList.contains('past')) return false; const r = c.getBoundingClientRect(); return r.right > R.left && r.left < R.right && r.bottom > R.top && r.top < R.bottom; });
-    const reel = (seq, cls) => '<span class="rl ' + cls + '"><span class="rr ' + cls[1] + '">' + seq.map(c => '<b>' + c + '</b>').join('') + '</span></span>';
-    // the places the $0 does not have start BLANK and roll in — never a "$000"; the ones place turns a full round from its 0
-    const blank = '&nbsp;', turn = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
-    const html = '<span class="preso-odo">$' + reel([blank, '1', '2'], 'gh') + reel([blank, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'], 'gt') + reel(turn, 'go') + '</span>';
-    const B = d.body.style;
-    ['--oh', '--ot', '--oo'].forEach(k => B.setProperty(k, '0'));
+  // THE ODOMETER: rolls each given cell's price from `from` to `to`, places right-aligned (ones under ones), each place turning
+  // UP from its old digit to its new one; `spin` gives the ones a full turn even when they end where they began. Cells are
+  // dressed in the same task as the data changes, so the browser never paints a plain new number first: no flash.
+  function odometer(w, items, opts) {
+    const d = w.document, B = d.body.style, K = ['--o0', '--o1', '--o2', '--o3'];
+    const blank = '&nbsp;', ch = c => (c === ' ' ? blank : c);
+    items.forEach(({ card, from, to }) => {
+      const v = card.querySelector('.price-val'); if (!v) return;
+      const o = String(from), n = String(to), P = Math.min(4, Math.max(o.length, n.length));
+      let html = '';
+      for (let k = P - 1; k >= 0; k--) {                                             // highest place first, as it reads
+        const od = o.length > k ? o[o.length - 1 - k] : ' ', nd = n.length > k ? n[n.length - 1 - k] : ' ';
+        let seq;
+        if (od === ' ') { seq = [' ']; for (let x = 1; x <= +nd; x++) seq.push(String(x)); if (nd === '0') seq.push('0'); }   // a new place: in from nothing
+        else if (nd === ' ') seq = [od, ' '];                                         // a place the price loses: turns away
+        else { seq = [od]; let x = +od; const want = +nd, turns = (opts && opts.spin && k === 0 && x === want) ? 10 : (want - x + 10) % 10; for (let i = 0; i < turns; i++) { x = (x + 1) % 10; seq.push(String(x)); } }
+        const cls = 'p' + k + (od === ' ' ? ' in' : nd === ' ' ? ' out' : '');
+        html += '<span class="rl ' + cls + '"><span class="rr p' + k + '" style="--n:' + (seq.length - 1) + '">' + seq.map(c => '<b>' + ch(c) + '</b>').join('') + '</span></span>';
+      }
+      v.innerHTML = '<span class="preso-odo">$' + html + '</span>';
+    });
+    K.forEach(k => B.setProperty(k, '0'));
     d.body.classList.add('preso-rolling');
-    cards.forEach(c => { const v = c.querySelector('.price-val'); if (v) v.innerHTML = html; });
-    // 2.2s in all; the ones settle first, then the tens, and the hundreds land last — each eased out, so it slows into place
+    // 2.2s in all; the ones settle first and the highest place lands last — each eased out, so it slows into place
     const DUR = 2200, ease = x => 1 - Math.pow(1 - x, 3), part = (p, a, z) => ease(Math.min(1, Math.max(0, (p - a) / (z - a))));
+    const span = [[0, .8], [.06, .9], [.14, 1], [.2, 1]];
     let t0 = 0;
     const frame = now => {
       if (!t0) t0 = now;
       const p = Math.min(1, (now - t0) / DUR);
-      B.setProperty('--oo', part(p, 0, .8).toFixed(4)); B.setProperty('--ot', part(p, .06, .9).toFixed(4)); B.setProperty('--oh', part(p, .14, 1).toFixed(4));
+      K.forEach((k, i) => B.setProperty(k, part(p, span[i][0], span[i][1]).toFixed(4)));
       if (p < 1) { w.requestAnimationFrame(frame); return; }
-      // landed on $200 exactly: only now does the plain price take over, so the hand-off cannot be seen
-      ev(w, 'refreshCalendarPrices()'); d.body.classList.remove('preso-rolling'); ['--oh', '--ot', '--oo'].forEach(k => B.removeProperty(k));
+      // landed on the new prices exactly: only now does the plain price take over, so the hand-off cannot be seen
+      ev(w, 'refreshCalendarPrices()'); d.body.classList.remove('preso-rolling'); K.forEach(k => B.removeProperty(k));
     };
     w.requestAnimationFrame(frame);
+  }
+  // the cells on screen that show a price
+  const priceCards = w => { const d = w.document, R = d.getElementById('gridWrap').getBoundingClientRect();
+    return [...d.querySelectorAll('#gridRows .price-card')].filter(c => { if (c.classList.contains('booked') || c.classList.contains('past')) return false; const r = c.getBoundingClientRect(); return r.right > R.left && r.left < R.right && r.bottom > R.top && r.top < R.bottom; }); };
+  function roll() {
+    const w = W(), d = w && w.document; if (!d || rolled) return;
+    rolled = true; setAll(w, 200);
+    odometer(w, priceCards(w).map(card => ({ card, from: 0, to: 200 })), { spin: true });
   }
   // ...a beat after the slide has landed (the deck's presoshown), and once only. A restore or a GO skips it: $200 at once.
   function armRoll() {
@@ -412,8 +415,11 @@
           if (instant) { bk.checked = true; bk.dispatchEvent(new w.Event('change')); prices(); return; }
           d.body.classList.add('preso-pills-in'); setTimeout(() => d.body.classList.remove('preso-pills-in'), 1400);
           bk.checked = true; bk.dispatchEvent(new w.Event('change'));
-          d.body.classList.add('preso-price-swap');
-          setTimeout(() => { prices(); d.body.classList.remove('preso-price-swap'); }, 220);
+          // the prices roll from what they show to the real ones — read before the change, dressed in the same task after it
+          const key = c => (c.closest('.price-row') || {}).dataset.li + ':' + c.dataset.di;
+          const was = new Map(priceCards(w).map(c => [key(c), parseInt((c.querySelector('.price-val') || {}).textContent.replace(/[^0-9]/g, ''), 10)]));
+          prices();
+          odometer(w, priceCards(w).filter(c => was.has(key(c))).map(c => { const [li, di] = key(c).split(':').map(Number); return { card: c, from: was.get(key(c)), to: ev(w, `getPrice(${li}, ${di})`) }; }).filter(x => !isNaN(x.from) && x.to != null && x.from !== x.to), {});
         };
         ev(w, "closePriceMenu(); closeAvailMenu(); clearSelection();");
         if (instant) guests(); else setTimeout(guests, 700);

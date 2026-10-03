@@ -176,30 +176,35 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
 .note { position: absolute; bottom: 72px; left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--ink-2);
   text-align: center; max-width: 420px; padding: 0 16px; }
 
-/* ── evolve ── */
+/* ── blobs ── */
 .modes { grid-template-columns: 1fr 1fr; }
-.drawui { display: flex; flex-direction: column; gap: 18px; }
-.drawui > * { flex: none; }
-.evolve { display: flex; flex-direction: column; gap: 12px; }
-.evolve .gen { display: flex; align-items: baseline; justify-content: space-between; }
-.evolve .gen b { font-size: 26px; font-weight: 600; letter-spacing: -.02em; }
-.evolve .gen span { font: 12px "IBM Plex Mono", monospace; color: var(--ink-3); }
-.evolve p { font-size: 13px; color: var(--ink-2); }
-.evolve .pair { display: flex; gap: 6px; }
-.evolve .pair .tool { flex: 1; }
+.drawui, .blobs { display: flex; flex-direction: column; gap: 18px; }
+.drawui > *, .blobs > * { flex: none; }
+.tray { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.tray button { height: 64px; border-radius: 12px; border: 1px solid var(--line); background: transparent; cursor: grab;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--ink-2); font-size: 11.5px; }
+.tray button:hover { border-color: var(--ink); color: var(--ink); }
+.tray svg { width: 24px; height: 24px; }
+.sel { border-radius: 12px; background: var(--field); padding: 12px; display: flex; flex-direction: column; gap: 9px; }
+.selhead { display: flex; align-items: center; justify-content: space-between; }
+.selhead b { font-weight: 600; }
+.selhead span { display: flex; gap: 5px; }
+.selhead .tool { height: 30px; background: #fff; }
 .range { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-2); }
-.range input { flex: 1; accent-color: var(--ink); }
-.cells { position: absolute; inset: 14px; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); gap: 10px; }
-.cells button { border: 0; background: transparent; border-radius: 18px; cursor: pointer; position: relative;
-  box-shadow: inset 0 0 0 1px var(--line); transition: box-shadow .15s; }
-.cells button:hover { box-shadow: inset 0 0 0 1.5px var(--ink); }
-.cells button.parent { box-shadow: inset 0 0 0 1.5px var(--ink-3); }
-.cells button.parent:hover { box-shadow: inset 0 0 0 1.5px var(--ink); }
-.cells button span { position: absolute; left: 12px; top: 10px; font: 500 10.5px "IBM Plex Mono", monospace;
-  text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); }
-.stage:not(.grid) .cells { display: none; }
-.stage.grid .actions, .stage.grid #recenter, .stage.grid #download, .stage.grid .note,
-.stage.grid .empty, .stage.grid .preview { display: none !important; }
+.range > span { width: 38px; flex: none; }
+.range input { flex: 1; min-width: 0; accent-color: var(--ink); }
+.swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.swatches button { width: 24px; height: 24px; border-radius: 50%; border: 0; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+.swatches button[aria-pressed="true"] { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--ink); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--ink-2); cursor: pointer; }
+.check input { accent-color: var(--ink); width: 15px; height: 15px; }
+.trio { display: flex; gap: 6px; }
+.trio .tool { flex: 1; }
+.stage:not(.sculpting) #sculptHint { display: none; }
+.stage.sculpting .actions, .stage.sculpting #recenter, .stage.sculpting #download, .stage.sculpting .note,
+.stage.sculpting .empty, .stage.sculpting .preview { display: none !important; }
+#sculptHint { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 12.5px; color: var(--ink-3);
+  white-space: nowrap; pointer-events: none; }
 
 @media (max-width: 900px) {
   .app { grid-template-columns: 1fr; height: auto; }
@@ -224,7 +229,7 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
 
     <div class="seg modes" id="modes">
       <button data-mode="draw" aria-pressed="true">Draw</button>
-      <button data-mode="evolve" aria-pressed="false">Evolve</button>
+      <button data-mode="blobs" aria-pressed="false">Blobs</button>
     </div>
 
     <div class="keybox" id="keybox" hidden>
@@ -256,13 +261,37 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
     <input type="file" id="file" accept="image/*" hidden>
     </div>
 
-    <div class="evolve" id="evolveUI" hidden>
-      <div class="gen"><b id="gen">Generation 1</b><span id="genHint">nine strangers</span></div>
-      <p>Tap the one you like. It moves to the middle and the eight around it are its children. Tap the middle one to roll new children.</p>
-      <label class="range">Gentle <input type="range" id="wild" min="0.05" max="0.6" step="0.01" value="0.22" aria-label="How far children drift"> Wild</label>
-      <div class="pair">
-        <button class="tool" id="back">Back a generation</button>
-        <button class="tool" id="species">New species</button>
+    <div class="blobs" id="blobsUI" hidden>
+      <div class="tray" id="tray">
+        <button data-shape="0" draggable="true" title="Add a ball — or drag it onto the sculpture"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>Ball</button>
+        <button data-shape="1" draggable="true" title="Add a egg — or drag it onto the sculpture"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c4 0 7 6 7 11a7 7 0 0 1-14 0c0-5 3-11 7-11z"/></svg>Egg</button>
+        <button data-shape="2" draggable="true" title="Add a bean — or drag it onto the sculpture"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="3" width="10" height="18" rx="5"/></svg>Bean</button>
+        <button data-shape="3" draggable="true" title="Add a cube — or drag it onto the sculpture"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="4"/></svg>Cube</button>
+        <button data-shape="4" draggable="true" title="Add a ring — or drag it onto the sculpture"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="3.5"/></svg>Ring</button>
+        <button data-shape="5" draggable="true" title="Add a cone — or drag it onto the sculpture"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c1 0 2 .9 2.6 2.2L20 17.6A2.6 2.6 0 0 1 17.6 21H6.4A2.6 2.6 0 0 1 4 17.6L9.4 5.2C10 3.9 11 3 12 3z"/></svg>Cone</button>
+        <button data-shape="6" draggable="true" title="Add a stick — or drag it onto the sculpture"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="10" y="2" width="4" height="20" rx="2"/></svg>Stick</button>
+        <button data-shape="7" draggable="true" title="Add a disc — or drag it onto the sculpture"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="12" rx="9" ry="3.6"/></svg>Disc</button>
+      </div>
+
+      <div class="sel" id="selUI" hidden>
+        <div class="selhead"><b id="selName">Ball</b><span>
+          <button class="tool" id="dup" title="Duplicate (⌘D)">Duplicate</button>
+          <button class="tool" id="del" title="Delete (⌫)">Delete</button></span></div>
+        <label class="range"><span>Size</span><input type="range" data-k="s" min="0.08" max="1.4" step="0.01"></label>
+        <label class="range"><span>Tall</span><input type="range" data-k="h" min="0.3" max="3" step="0.01"></label>
+        <label class="range"><span>Wide</span><input type="range" data-k="w" min="0.3" max="3" step="0.01"></label>
+        <label class="range"><span>Deep</span><input type="range" data-k="d" min="0.3" max="3" step="0.01"></label>
+        <label class="range"><span>Tilt</span><input type="range" data-k="tilt" min="-3.1416" max="3.1416" step="0.01"></label>
+        <label class="range"><span>Turn</span><input type="range" data-k="turn" min="-3.1416" max="3.1416" step="0.01"></label>
+        <div class="swatches" id="swatches"></div>
+        <label class="check"><input type="checkbox" id="carve"> Carve — cut into the sculpture instead of adding</label>
+      </div>
+
+      <label class="range"><span>Melt</span><input type="range" id="melt" min="0.005" max="0.6" step="0.005" value="0.2" aria-label="How much the shapes melt together"></label>
+      <div class="trio">
+        <button class="tool" id="mirror" aria-pressed="true" title="Mirror left and right, like Spore">Mirror</button>
+        <button class="tool" id="bundo" title="Undo (⌘Z)">Undo</button>
+        <button class="tool" id="bclear">Start over</button>
       </div>
     </div>
 
@@ -298,12 +327,12 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
 
   <main class="stage" id="stage">
     <canvas id="view"></canvas>
-    <div class="cells" id="cells"></div>
+    <p id="sculptHint">Drag a shape to move it · drag the background to turn around</p>
     <div class="empty" id="empty"><p>Draw something on the left,<br>and it'll stand up here.</p></div>
     <img class="preview" id="preview" alt="">
     <div class="status" id="status"></div>
     <div class="corner">
-      <button id="backToGrid" hidden>Back to evolving</button>
+      <button id="backToSculpt" hidden>Back to sculpting</button>
       <button id="recenter" hidden>Reset view</button>
       <a id="download" hidden download>Download .glb</a>
     </div>
@@ -348,15 +377,15 @@ function promptFor(style, desc) {
   ].filter(Boolean).join(' ');
 }
 
-// An evolved creature arrives as a 3D blockout, not a sketch: the body plan is the
-// point, so the prompt holds the image to its count of legs, eyes, horns and fins.
-function evolvedPrompt(style, desc) {
+// A blob sculpture is the person's own form, not a sketch: the prompt holds Meshy to
+// what they built — its parts, holes and colours — and only lets it refine.
+function blobPrompt(style, desc) {
   return [
-    `Turn this rough 3D blockout of an invented creature into one finished, believable creature: ${STYLES[style]}.`,
-    desc ? `It is ${desc}.` : '',
-    'Keep its body plan exactly: the same number of legs, eyes, horns, spikes and fins, the same tail, the same proportions, colours and pattern.',
-    'Refine the forms and surfaces into something that could really exist. Do not add a human face, hands or clothes.',
-    'Three-quarter view, whole body in frame and centred, soft even studio lighting, plain white background, no ground shadow, no text, no props.',
+    `Turn this rough sculpture, built from simple shapes melted together, into one finished, well-made 3D figure: ${STYLES[style]}.`,
+    desc ? `It is ${desc}.` : 'Read it as whatever it most looks like (a creature, a character, an object, a plant) and commit to that.',
+    'Keep its silhouette, proportions and colours and every part as sculpted: the same number of limbs, eyes and features, and any holes.',
+    'Refine the forms and give them the surface detail they need; do not add parts that are not there.',
+    'Whole figure in frame and centred, the same viewing angle, soft even studio lighting, plain white background, no ground shadow, no text, no props.',
   ].filter(Boolean).join(' ');
 }
 
@@ -459,9 +488,9 @@ let undo = [], drawing = null, dirty = false;
 function blank() { sx.fillStyle = '#fff'; sx.fillRect(0, 0, SK, SK); }
 blank();
 
-// Drawing needs a mark on the pad; evolving always has a creature in the middle.
+// Drawing needs a mark on the pad; a sculpture needs at least one shape that isn't a cutter.
 let blocked = false, mode = 'draw';
-const canGo = () => !blocked && (mode === 'evolve' || dirty);
+const canGo = () => !blocked && (mode === 'blobs' ? shapes.some((b) => !b.carve) : dirty);
 function setDirty(v) { dirty = v; pad.classList.toggle('dirty', v); if (!running) $('#go').disabled = !canGo(); }
 
 function pt(e) {
@@ -511,7 +540,7 @@ function isBlank() {
 $('#undo').onclick = doUndo;
 $('#clear').onclick = () => { undo.push(sx.getImageData(0, 0, SK, SK)); blank(); setDirty(false); };
 addEventListener('keydown', (e) => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'z' && document.activeElement !== $('#desc')) { e.preventDefault(); doUndo(); }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z' && document.activeElement !== $('#desc')) { e.preventDefault(); mode === 'blobs' ? blobUndo() : doUndo(); }
 });
 
 // A drawing from a photo or a scan: fitted into the pad on white, and then it is
@@ -600,7 +629,7 @@ ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground)
 const life = new THREE.Group(), holder = new THREE.Group();
 life.add(holder); scene.add(life);
 let model = null, mixer = null, current = null;
-const cells = [];   // the evolve grid — see 'evolve' below
+const shapes = [];   // the blob sculpture — see 'blobs' below
 
 const loader = new GLTFLoader();
 const load = async (url) => url.startsWith('http') && !url.includes('threejs.org')
@@ -670,7 +699,7 @@ view.addEventListener('pointermove', aim);
 let downAt = null;
 view.addEventListener('pointerdown', (e) => { aim(e); downAt = [e.clientX, e.clientY]; });
 view.addEventListener('pointerup', (e) => {
-  if (!downAt || !model || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 4) return;
+  if (!downAt || !model || stageView !== 'single' || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 4) return;
   ray.setFromCamera(pointer, camera);
   if (ray.intersectObject(model, true).length) boopV -= 9;   // a tap squashes it
 });
@@ -678,7 +707,7 @@ view.addEventListener('pointerup', (e) => {
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), .05), t = clock.elapsedTime;
-  if (stageView === 'grid') return renderGrid(t);
+  sculptMat.uniforms.uTime.value = t;
   renderer.setScissorTest(false); renderer.setViewport(0, 0, stageEl.clientWidth, stageEl.clientHeight);
   mixer?.update(dt);
   // Spring for the boop and the arrival pop: stiff, lightly damped, so it wobbles twice.
@@ -692,15 +721,6 @@ renderer.setAnimationLoop(() => {
   yaw += ((pointer.x * (current ? .25 : .55)) - yaw) * Math.min(1, dt * 3);
   life.rotation.y = yaw;
   if (!current) life.rotation.z = Math.sin(t * 1.3) * .015;
-  // An evolved creature keeps the way it moved on the grid: its tempo, bounce, sway and gait.
-  if (beh && !current) {
-    const ph = t * beh.f * Math.PI * 2;
-    life.position.y = beh.gait === 'hop' ? Math.abs(Math.sin(ph / 2)) * beh.amp * 2.4
-                    : beh.gait === 'float' ? .14 + Math.sin(ph / 2) * beh.amp
-                    : Math.abs(Math.sin(ph)) * beh.amp * .4;
-    life.rotation.x = Math.sin(ph / 2) * beh.sway;
-    life.rotation.z += Math.sin(t * 41) * Math.sin(t * 23) * .03 * beh.jitter;
-  } else { life.position.y = 0; life.rotation.x = 0; }
   controls.update();
   renderer.render(scene, camera);
 });
@@ -711,345 +731,359 @@ function resize() {
   camera.fov = w / h < .8 ? 38 : 28;
   camera.updateProjectionMatrix();
 }
-new ResizeObserver(() => { resize(); placeCells(); }).observe(stageEl); resize();
+new ResizeObserver(resize).observe(stageEl); resize();
 $('#recenter').onclick = () => { camera.position.copy(HOME.pos); controls.target.copy(HOME.target); };
 
 
-/* ═══════════════ evolve ═══════════════
-   Dawkins' biomorphs, in 3D, with behaviour in the genome. A genome is ~36
-   numbers in 0–1; grow() reads it into a body (a swept spine, legs, a head with
-   eyes, mouth and horns, back spikes, a tail and its tip, fins, a palette and a
-   pattern) and a way of moving (tempo, bounce, sway, gait, nerves, curiosity).
-   The grid is a parent in the middle and eight mutants round it. All of this
-   runs in the page — free. Only "Bring it to life" goes to Meshy, with a
-   snapshot of the middle creature as its picture. */
+/* ═══════════════ blobs ═══════════════
+   A sculpture from eight simple shapes that melt into each other. Each shape is a
+   signed distance field; the sculpture is their smooth union (minus any set to
+   Carve), raymarched in one shader on a box that bounds the work area — so where
+   two shapes meet they fuse like warm clay, by as much as the Melt slider says.
+   The same distance functions run in JS for picking and dropping. Mirror is on
+   by default, as in Spore: a shape off the middle line gets a twin on the other side.
+   "Bring it to life" sends the view as it is — the angle you left it at — to Meshy. */
 
-const GENES = ['len', 'arch', 'girth', 'bulge', 'taper', 'neck', 'head', 'legs', 'legLen', 'legThick', 'knee',
-  'eyes', 'eyeSize', 'stalks', 'mouth', 'horns', 'hornLen', 'spikes', 'spikeLen', 'tail', 'tailLift', 'tip', 'fins',
-  'hue', 'hue2', 'sat', 'light', 'pattern', 'scale', 'rough', 'metal',
-  'tempo', 'bounce', 'sway', 'gait', 'jitter', 'curious'];
-const lerp = (a, b, k) => a + (b - a) * k;
-const clamp01 = (x) => Math.min(1, Math.max(0, x));
-const pick = (x, n) => Math.min(n - 1, Math.floor(x * n));
-const gauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
-const randomGenome = () => Object.fromEntries(GENES.map((g) => [g, Math.random()]));
-function mutate(parent, k) {
-  const c = { ...parent };
-  for (const g of GENES) {
-    if (Math.random() > .3 + k) continue;
-    const d = gauss() * k * .55;
-    c[g] = g === 'hue' ? (c[g] + d + 1) % 1 : clamp01(c[g] + d);   // hue goes round the wheel
+const SHAPES = ['Ball', 'Egg', 'Bean', 'Cube', 'Ring', 'Cone', 'Stick', 'Disc'];
+const SWATCHES = ['#f1ece4', '#e8b04a', '#e5734f', '#d6456b', '#8a5cd6', '#4a7fd9', '#3fae9a', '#79b84a', '#6b5444', '#222222'];
+const MAX = 32;   // prims the shader takes, mirror twins included
+const BOX = { min: new THREE.Vector3(-2.4, -.05, -2.4), max: new THREE.Vector3(2.4, 3.4, 2.4) };
+
+const roundCone = (qx, qy, r1, r2, h) => {
+  const b = (r1 - r2) / h, a = Math.sqrt(1 - b * b), k = -b * qx + a * qy;
+  if (k < 0) return Math.hypot(qx, qy) - r1;
+  if (k > a * h) return Math.hypot(qx, qy - h) - r2;
+  return qx * a + qy * b - r1;
+};
+// Unit shapes, about two across. Kept identical to prim() in the shader below.
+function prim(t, x, y, z) {
+  switch (t) {
+    case 0: return Math.hypot(x, y, z) - 1;
+    case 1: return (Math.hypot(x, y * .78, z) - (1 - .22 * y)) * .7;
+    case 2: return Math.hypot(x, y - Math.max(-.6, Math.min(.6, y)), z) - .5;
+    case 3: { const qx = Math.abs(x) - .75, qy = Math.abs(y) - .75, qz = Math.abs(z) - .75;
+      return Math.hypot(Math.max(qx, 0), Math.max(qy, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qy, qz), 0) - .25; }
+    case 4: return Math.hypot(Math.hypot(x, z) - .75, y) - .28;
+    case 5: return roundCone(Math.hypot(x, z), y + .7, .7, .08, 1.5);
+    case 6: return Math.hypot(x, y - Math.max(-1, Math.min(1, y)), z) - .14;
+    default: { const dx = Math.hypot(x, z) - .85, dy = Math.abs(y) - .12;
+      return Math.min(Math.max(dx, dy), 0) + Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) - .08; }
   }
-  return c;
 }
-function gaitOf(g) {
-  const legs = pick(g.legs, 5);
-  return legs ? (g.gait > .78 ? 'hop' : 'walk') : (g.gait > .5 ? 'float' : 'crawl');
-}
-function setBehaviour(g) {
-  beh = g ? { f: lerp(.45, 2.4, g.tempo), amp: lerp(.01, .12, g.bounce), sway: lerp(0, .1, g.sway),
-              gait: gaitOf(g), jitter: g.jitter > .75 ? (g.jitter - .75) * 4 : 0 } : null;
-}
-let beh = null;   // null → the drawn character's own defaults
 
-const UP = new THREE.Vector3(0, 1, 0), ZED = new THREE.Vector3(0, 0, 1);
-// A capsule from a to b, and a cone standing on p pointing along dir.
-function limb(a, b, r, mat) {
-  const d = new THREE.Vector3().subVectors(b, a), len = d.length();
-  const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, Math.max(.001, len), 4, 10), mat);
-  m.position.copy(a).addScaledVector(d, .5); m.quaternion.setFromUnitVectors(UP, d.normalize());
-  return m;
-}
-function cone(p, dir, r, h, mat) {
-  const d = dir.clone().normalize(), m = new THREE.Mesh(new THREE.ConeGeometry(r, h, 12), mat);
-  m.quaternion.setFromUnitVectors(UP, d); m.position.copy(p).addScaledVector(d, h / 2);
-  return m;
-}
-const put = (m, p) => (m.position.copy(p), m);   // Object3D.position can't be reassigned, only copied into
-function ball(r, mat, sx = 1, sy = 1, sz = 1) {
-  const m = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), mat); m.scale.set(r * sx, r * sy, r * sz); return m;
-}
-// The body: a tube swept along a curve in the xy-plane, its radius and colour set per point.
-function sweep(curve, radius, colorAt, S = 64, N = 24) {
-  const pos = [], col = [], idx = [], c = new THREE.Color();
-  for (let i = 0; i <= S; i++) {
-    const u = i / S, p = curve.getPointAt(u), T = curve.getTangentAt(u);
-    const n = new THREE.Vector3().crossVectors(ZED, T).normalize(), r = radius(u);
-    for (let j = 0; j <= N; j++) {
-      const a = j / N * Math.PI * 2;
-      const dir = n.clone().multiplyScalar(Math.cos(a)).addScaledVector(ZED, Math.sin(a));
-      const v = p.clone().addScaledVector(dir, r);
-      pos.push(v.x, v.y, v.z); colorAt(c, u, v, dir.y); col.push(c.r, c.g, c.b);
+const sculptMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide,   // the back faces, so it still draws with the camera inside the box
+  uniforms: {
+    uCount: { value: 0 }, uK: { value: .2 }, uTime: { value: 0 },
+    uPos: { value: Array.from({ length: MAX }, () => new THREE.Vector3()) },
+    uRot: { value: Array.from({ length: MAX }, () => new THREE.Matrix3()) },
+    uScale: { value: Array.from({ length: MAX }, () => new THREE.Vector3(1, 1, 1)) },
+    uColor: { value: Array.from({ length: MAX }, () => new THREE.Vector3(1, 1, 1)) },
+    uType: { value: new Array(MAX).fill(0) }, uCarve: { value: new Array(MAX).fill(0) }, uSel: { value: new Array(MAX).fill(0) },
+    uBoxMin: { value: BOX.min }, uBoxMax: { value: BOX.max },
+  },
+  vertexShader: `
+    varying vec3 vWorld;
+    void main() { vec4 w = modelMatrix * vec4(position, 1.); vWorld = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+  fragmentShader: `
+    uniform mat4 projectionMatrix;
+    uniform int uCount; uniform float uK, uTime;
+    uniform vec3 uPos[${MAX}]; uniform mat3 uRot[${MAX}]; uniform vec3 uScale[${MAX}]; uniform vec3 uColor[${MAX}];
+    uniform float uType[${MAX}]; uniform float uCarve[${MAX}]; uniform float uSel[${MAX}];
+    uniform vec3 uBoxMin, uBoxMax;
+    varying vec3 vWorld;
+    float roundCone(vec3 p, float r1, float r2, float h) {
+      vec2 q = vec2(length(p.xz), p.y); float b = (r1 - r2) / h, a = sqrt(1. - b * b), k = dot(q, vec2(-b, a));
+      if (k < 0.) return length(q) - r1;
+      if (k > a * h) return length(q - vec2(0., h)) - r2;
+      return dot(q, vec2(a, b)) - r1;
     }
-  }
-  for (let i = 0; i < S; i++) for (let j = 0; j < N; j++) {
-    const a = i * (N + 1) + j, b = a + N + 1;
-    idx.push(a, a + 1, b, b, a + 1, b + 1);
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  geo.setIndex(idx); geo.computeVertexNormals();
-  return geo;
-}
-
-function grow(g) {
-  const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
-  const L = lerp(.7, 2.3, g.len), R = lerp(.16, .44, g.girth);
-  const legs = pick(g.legs, 5), gait = gaitOf(g);
-  const legLen = legs ? lerp(.22, .9, g.legLen) : 0;
-  const H = legs ? legLen + R * .35 : gait === 'float' ? R + .4 : R * .9;
-  const tailLen = g.tail > .25 ? lerp(.15, 1.1, (g.tail - .25) / .75) : 0;
-
-  // Palette: a body colour, a second for pattern and trim, a pale belly.
-  const sat = lerp(.28, .95, g.sat), light = lerp(.32, .62, g.light);
-  const c1 = new THREE.Color().setHSL(g.hue, sat, light);
-  const c2 = new THREE.Color().setHSL((g.hue + lerp(.08, .5, g.hue2)) % 1, lerp(.2, .9, 1 - g.sat * .5), lerp(.22, .78, 1 - g.light));
-  const belly = new THREE.Color().setHSL(g.hue, sat * .45, Math.min(.92, light + .28));
-  const pattern = pick(g.pattern, 4), freq = lerp(6, 26, g.scale);
-  const metal = g.metal > .82 ? lerp(.35, .9, (g.metal - .82) / .18) : 0;
-  const skin = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: lerp(.18, .95, g.rough), metalness: metal,
-    clearcoat: g.rough < .3 ? .8 : 0, clearcoatRoughness: .3 });
-  const trim = new THREE.MeshPhysicalMaterial({ color: c2, roughness: lerp(.25, .8, g.rough), metalness: metal * .6 });
-  const headMat = new THREE.MeshPhysicalMaterial({ color: pattern === 3 ? c2 : c1, roughness: skin.roughness, metalness: metal,
-    clearcoat: skin.clearcoat });
-  // Limbs and caps carry no vertex colours, so they get the body colour as a plain material — on `skin` they'd render black.
-  const flesh = new THREE.MeshPhysicalMaterial({ color: c1.clone().lerp(belly, .25), roughness: skin.roughness, metalness: metal,
-    clearcoat: skin.clearcoat });
-
-  // Spine, tail to head, along +x; the head end can lift into a neck.
-  const arch = lerp(-.25, .35, g.arch) * L * .4, neck = lerp(-.1, .55, g.neck) * R * 2.2;
-  const pts = [];
-  if (tailLen) pts.push(new THREE.Vector3(-L / 2 - tailLen, H + lerp(-.6, .9, g.tailLift) * tailLen * .5, 0));
-  pts.push(new THREE.Vector3(-L / 2, H, 0), new THREE.Vector3(-L / 6, H + arch * .8, 0),
-           new THREE.Vector3(L / 6, H + arch, 0), new THREE.Vector3(L / 2, H + neck, 0));
-  const curve = new THREE.CatmullRomCurve3(pts);
-  const tailU = tailLen / (L + tailLen);
-  const bodyR = (v) => R * (.5 + .5 * Math.exp(-((v - lerp(.2, .8, g.bulge)) ** 2) / .07)) * lerp(1, lerp(.45, 1, g.taper), v);
-  const radius = (u) => u >= tailU ? bodyR((u - tailU) / (1 - tailU))
-                                    : Math.max(.02, bodyR(0) * Math.pow(u / tailU, .75));
-  const colorAt = (c, u, v, up) => {
-    let k = 0;
-    if (pattern === 1) k = Math.sin(u * freq) > .25 ? 1 : 0;
-    else if (pattern === 2) k = Math.sin(v.x * freq * .9) * Math.sin(v.y * freq * 1.1 + 1.7) * Math.sin(v.z * freq + .6) > .16 ? 1 : 0;
-    else if (pattern === 3) k = u;
-    c.copy(c1).lerp(c2, k);
-    if (up < -.2) c.lerp(belly, Math.min(1, (-up - .2) * 1.5) * .7);   // countershading, as most animals have
-  };
-  body.add(new THREE.Mesh(sweep(curve, radius, colorAt), skin));
-  const at = (u) => curve.getPointAt(u);
-  body.add(put(ball(radius(0) * 1.02, flesh), at(0)));   // close the tail end
-
-  // Head, at the front of the spine. Everything on it lives in one group so it can turn.
-  const end = at(1), hr = Math.max(.1, bodyR(1) * lerp(.85, 1.6, g.head));
-  const head = new THREE.Group(); head.position.copy(end).addScaledVector(curve.getTangentAt(1), hr * .45);
-  head.add(ball(hr, headMat)); body.add(head);
-
-  const white = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: .15, clearcoat: 1 });
-  const black = new THREE.MeshPhysicalMaterial({ color: 0x0a0a0a, roughness: .1, clearcoat: 1 });
-  const eyes = [], n = pick(g.eyes, 7), er = hr * lerp(.18, .42, g.eyeSize) * (n > 3 ? .7 : 1);
-  const stalk = g.stalks > .72 && n > 0 ? hr * lerp(.4, 1.3, (g.stalks - .72) / .28) : 0;
-  for (let e = 0; e < n; e++) {
-    const spread = Math.min(1.25, .3 + n * .16);
-    const az = n === 1 ? 0 : lerp(-spread, spread, e / (n - 1));
-    const el = n > 3 ? .2 + (e % 2) * .35 : .35;
-    const dir = new THREE.Vector3(Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az));
-    const eye = new THREE.Group(), w = ball(er, white), pu = ball(er * .5, black);
-    pu.position.x = er * .62; eye.add(w, pu);
-    if (stalk) {
-      const base = dir.clone().multiplyScalar(hr * .8), tip = base.clone().add(new THREE.Vector3(dir.x * .3, 1, dir.z * .5).normalize().multiplyScalar(stalk));
-      head.add(limb(base, tip, Math.max(.012, er * .22), headMat)); eye.position.copy(tip);
-    } else eye.position.copy(dir).multiplyScalar(hr * .86);
-    eye.rotation.set(0, -az, el * .6); head.add(eye); eyes.push(eye);
-  }
-  const mouth = pick(g.mouth, 4);
-  if (mouth === 1) head.add(cone(new THREE.Vector3(hr * .7, -hr * .25, 0), new THREE.Vector3(1, -.25, 0), hr * .3, hr * .8, trim));
-  if (mouth === 2) {
-    const m = new THREE.Mesh(new THREE.TorusGeometry(hr * .38, hr * .07, 8, 24, Math.PI), black);
-    m.position.set(hr * .9, -hr * .22, 0); m.rotation.set(0, Math.PI / 2, Math.PI); head.add(m);
-  }
-  if (mouth === 3) for (const sd of [-1, 1])
-    head.add(cone(new THREE.Vector3(hr * .72, -hr * .4, sd * hr * .3), new THREE.Vector3(.5, -1, sd * .15), hr * .1, hr * .6, white));
-  const horns = pick(g.horns, 5), hl = lerp(.15, .9, g.hornLen) * hr * 1.6;
-  for (let h = 0; h < horns; h++) {
-    const z = horns === 1 ? 0 : lerp(-1, 1, h / (horns - 1)) * hr * .55;
-    head.add(cone(new THREE.Vector3(-hr * .1, hr * .78, z), new THREE.Vector3(-.4, 1, z * 1.2), hr * .15, hl, trim));
-  }
-
-  // Legs in pairs along the body. Each hangs from a hip group so it can swing.
-  const legList = [], thick = lerp(.025, .1, g.legThick) * (R / .3);
-  for (let k = 0; k < legs; k++) {
-    const u = tailU + (1 - tailU) * lerp(.18, .85, legs === 1 ? .5 : k / (legs - 1)), p = at(u), r = radius(u);
-    for (const sd of [-1, 1]) {
-      const hip = new THREE.Group(); hip.position.set(p.x, p.y - r * .35, sd * r * .75);
-      const out = lerp(.1, .5, g.knee) * legLen, y0 = hip.position.y;
-      const knee = new THREE.Vector3(0, -y0 * .5, sd * out), foot = new THREE.Vector3(0, -y0, sd * out * 1.25);
-      hip.add(limb(new THREE.Vector3(), knee, thick, flesh), limb(knee, foot, thick * .85, flesh));
-      hip.add(put(ball(thick * 1.5, trim, 1.6, .6, 1.2), foot));
-      body.add(hip); legList.push({ hip, phase: k * Math.PI * .5 + (sd > 0 ? Math.PI : 0) });
+    float prim(float t, vec3 p) {
+      if (t < .5) return length(p) - 1.;
+      if (t < 1.5) return (length(vec3(p.x, p.y * .78, p.z)) - (1. - .22 * p.y)) * .7;
+      if (t < 2.5) { vec3 q = p; q.y -= clamp(q.y, -.6, .6); return length(q) - .5; }
+      if (t < 3.5) { vec3 q = abs(p) - .75; return length(max(q, 0.)) + min(max(q.x, max(q.y, q.z)), 0.) - .25; }
+      if (t < 4.5) return length(vec2(length(p.xz) - .75, p.y)) - .28;
+      if (t < 5.5) return roundCone(p + vec3(0., .7, 0.), .7, .08, 1.5);
+      if (t < 6.5) { vec3 q = p; q.y -= clamp(q.y, -1., 1.); return length(q) - .14; }
+      vec2 d = vec2(length(p.xz) - .85, abs(p.y) - .12); return min(max(d.x, d.y), 0.) + length(max(d, 0.)) - .08;
     }
-  }
-  // Spikes down the back, the tail's tip, side fins.
-  if (g.spikes > .4) {
-    const count = Math.round(lerp(3, 14, (g.spikes - .4) / .6)), sh = lerp(.04, .32, g.spikeLen) * (R / .3);
-    for (let i = 0; i < count; i++) {
-      const u = tailU + (1 - tailU) * lerp(.08, .9, i / Math.max(1, count - 1)), p = at(u);
-      body.add(cone(p.clone().add(new THREE.Vector3(0, radius(u) * .85, 0)), new THREE.Vector3(-.3, 1, 0), sh * .3, sh, trim));
+    float one(int i, vec3 p) {
+      vec3 s = uScale[i];
+      return prim(uType[i], (transpose(uRot[i]) * (p - uPos[i])) / s) * min(s.x, min(s.y, s.z));
     }
-  }
-  if (tailLen) {
-    const tip = pick(g.tip, 4), p0 = at(0), back = curve.getTangentAt(0).negate();
-    if (tip === 1) body.add(put(ball(R * .4, trim), p0));
-    if (tip === 2) { const f = ball(R * .9, trim, .25, 1, .08); f.position.copy(p0); body.add(f); }
-    if (tip === 3) body.add(cone(p0, back, R * .18, R * 1.1, trim));
-  }
-  if (g.fins > .72) for (const sd of [-1, 1]) {
-    const u = tailU + (1 - tailU) * .5, p = at(u), f = ball(R, trim, 1.1, .1, .75);
-    f.position.set(p.x, p.y, sd * radius(u) * 1.05); f.rotation.x = sd * .5; body.add(f);
-  }
-
-  root.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(root), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
-  root.position.x -= c.x; root.position.z -= c.z;
-  return { g, root, body, head, eyes, legs: legList, gait, H, size,
-           center: new THREE.Vector3(0, c.y, 0), radius: size.length() / 2, seed: Math.random() * 10, yaw: 0, pitch: 0 };
-}
-
-// One frame of a creature being itself. `look` is where the pointer is, -1…1 each way.
-function live(cr, t, look) {
-  const g = cr.g, ph = t * lerp(.45, 2.4, g.tempo) * Math.PI * 2 + cr.seed, amp = lerp(.01, .12, g.bounce);
-  let y = 0;
-  if (cr.gait === 'hop') y = Math.abs(Math.sin(ph / 2)) * amp * 2.4;
-  else if (cr.gait === 'float') y = Math.sin(ph / 2) * amp * 1.4;
-  else if (cr.gait === 'walk') y = Math.abs(Math.sin(ph)) * amp * .4;
-  cr.body.position.y = y;
-  if (cr.gait === 'crawl') cr.body.scale.set(1 + Math.sin(ph) * amp * .8, 1 - Math.sin(ph) * amp * .4, 1);
-  cr.body.rotation.x = Math.sin(ph / 2) * lerp(0, .1, g.sway);
-  if (g.jitter > .75) cr.body.rotation.z = Math.sin(t * 41 + cr.seed) * Math.sin(t * 23) * .04 * (g.jitter - .75) * 4;
-  const stride = cr.gait === 'walk' ? .5 : cr.gait === 'hop' ? .25 : 0;
-  for (const l of cr.legs) l.hip.rotation.z = Math.sin(ph + l.phase) * stride * (.4 + g.bounce);
-  // Curiosity: how far it turns its head to follow you.
-  const cu = lerp(.2, 1, g.curious);
-  cr.yaw += ((-.45 + look.x * .7) * cu - cr.yaw) * .08;
-  cr.pitch += (look.y * .4 * cu - cr.pitch) * .08;
-  cr.head.rotation.set(0, cr.yaw, cr.pitch);
-  const blink = (t * .37 + cr.seed) % 4 < .08 ? .1 : 1;
-  for (const e of cr.eyes) e.scale.y = blink;
-}
-
-function dispose(obj) {
-  obj.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); [].concat(o.material).forEach((m) => m.dispose()); } });
-}
-// A soft round shadow to stand on, shared by every cell.
-const blobTex = (() => {
+    // Smooth union of everything that adds, then smooth subtraction of every cutter.
+    float map(vec3 p, out vec3 col, out float sel) {
+      float d = 1e5; col = vec3(.8); sel = 0.; bool first = true;
+      for (int i = 0; i < ${MAX}; i++) {
+        if (i >= uCount) break;
+        if (uCarve[i] > .5) continue;
+        float di = one(i, p);
+        if (first) { d = di; col = uColor[i]; sel = uSel[i]; first = false; continue; }
+        float h = clamp(.5 + .5 * (d - di) / uK, 0., 1.);
+        d = mix(d, di, h) - uK * h * (1. - h); col = mix(col, uColor[i], h); sel = mix(sel, uSel[i], h);
+      }
+      for (int i = 0; i < ${MAX}; i++) {
+        if (i >= uCount) break;
+        if (uCarve[i] < .5) continue;
+        float di = one(i, p), h = clamp(.5 - .5 * (d + di) / uK, 0., 1.);
+        d = mix(d, -di, h) + uK * h * (1. - h); sel = max(sel, uSel[i] * h);
+      }
+      return d;
+    }
+    float sdf(vec3 p) { vec3 c; float s; return map(p, c, s); }
+    vec3 normalAt(vec3 p) {
+      vec2 e = vec2(1., -1.) * .0015;
+      return normalize(e.xyy * sdf(p + e.xyy) + e.yyx * sdf(p + e.yyx) + e.yxy * sdf(p + e.yxy) + e.xxx * sdf(p + e.xxx));
+    }
+    float shadow(vec3 p, vec3 l) {
+      float r = 1., t = .03;
+      for (int i = 0; i < 24; i++) { float h = sdf(p + l * t); r = min(r, 8. * h / t); t += clamp(h, .03, .3); if (r < .002 || t > 4.) break; }
+      return clamp(r, 0., 1.);
+    }
+    float occlusion(vec3 p, vec3 n) {
+      float o = 0., k = 1.;
+      for (int i = 0; i < 5; i++) { float h = .01 + .14 * float(i) / 4.; o += (h - sdf(p + n * h)) * k; k *= .9; }
+      return clamp(1. - 2.6 * o, 0., 1.);
+    }
+    void main() {
+      vec3 ro = cameraPosition, rd = normalize(vWorld - cameraPosition);
+      vec3 ta = (uBoxMin - ro) / rd, tb = (uBoxMax - ro) / rd, tn = min(ta, tb), tf = max(ta, tb);
+      float t = max(max(max(tn.x, tn.y), tn.z), 0.), tEnd = min(min(tf.x, tf.y), tf.z);
+      vec3 col; float sel; bool hit = false;
+      for (int i = 0; i < 160; i++) {
+        float d = map(ro + rd * t, col, sel);
+        if (d < .0006 * t + .0004) { hit = true; break; }
+        t += d * .85; if (t > tEnd) break;
+      }
+      if (!hit || uCount == 0) discard;
+      vec3 p = ro + rd * t, n = normalAt(p); map(p, col, sel);
+      vec3 l = normalize(vec3(2.2, 4.5, 3.));
+      float dif = clamp(dot(n, l), 0., 1.) * shadow(p + n * .01, l), ao = occlusion(p, n);
+      float rim = pow(1. - clamp(dot(n, -rd), 0., 1.), 3.), spec = pow(clamp(dot(n, normalize(l - rd)), 0., 1.), 40.) * .16 * dif;
+      vec3 c = col * (dif * 1.15 + (.5 + .5 * n.y) * .55 * ao + .07) + spec + rim * .1 * ao;
+      c += sel * (.09 + .05 * sin(uTime * 5.));   // the selected shape breathes a little light
+      gl_FragColor = vec4(c, 1.);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+      vec4 clip = projectionMatrix * viewMatrix * vec4(p, 1.);
+      gl_FragDepth = clip.z / clip.w * .5 + .5;
+    }`,
+});
+const sculpt = new THREE.Mesh(new THREE.BoxGeometry(...BOX.max.clone().sub(BOX.min).toArray()), sculptMat);
+sculpt.position.copy(BOX.min.clone().add(BOX.max).multiplyScalar(.5)); sculpt.frustumCulled = false; sculpt.visible = false;
+scene.add(sculpt);
+// A soft round shadow under the sculpture (the raymarched surface casts none of its own on the floor).
+const footTex = (() => {
   const c = document.createElement('canvas'); c.width = c.height = 128;
   const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
-  gr.addColorStop(0, 'rgba(0,0,0,.22)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  gr.addColorStop(0, 'rgba(0,0,0,.2)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
   x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
   return new THREE.CanvasTexture(c);
 })();
-function stageFor() {
-  const s = new THREE.Scene(); s.environment = scene.environment; s.environmentIntensity = .8;
-  const d = new THREE.DirectionalLight(0xffffff, 1.7); d.position.set(2, 4, 3);
-  s.add(d, new THREE.HemisphereLight(0xffffff, 0xe8e8e8, .7));
-  return s;
+const foot = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: footTex, transparent: true, depthWrite: false }));
+foot.rotation.x = -Math.PI / 2; foot.position.y = .002; foot.visible = false; scene.add(foot);
+
+// ── the sculpture ──
+let selected = -1, mirror = true, prims = [], color = SWATCHES[2];
+const past = [];
+const snapshotState = () => JSON.stringify(shapes);
+function mark() { past.push(snapshotState()); if (past.length > 80) past.shift(); }
+function blobUndo() {
+  const prev = past.pop(); if (!prev) return;
+  shapes.splice(0, shapes.length, ...JSON.parse(prev)); select(Math.min(selected, shapes.length - 1)); rebuild();
 }
-function frame(cam, cr, aspect) {
-  cam.aspect = aspect; cam.updateProjectionMatrix();
-  const vf = cam.fov * Math.PI / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * aspect);
-  const d = cr.radius / Math.sin(Math.min(vf, hf) / 2) * 1.02;
-  cam.position.set(cr.center.x + d * Math.sin(.7), cr.center.y + d * .3, cr.center.z + d * Math.cos(.7));
-  cam.lookAt(cr.center);
+function newShape(type, at) {
+  return { type, p: at.toArray ? at.toArray() : at, s: type === 6 ? .5 : type === 7 ? .35 : .32, w: 1, h: 1, d: 1, tilt: 0, turn: 0, color, carve: false };
+}
+// Shapes into the shader's arrays, mirror twins added; picking reads the same list.
+function rebuild() {
+  prims = [];
+  const q = new THREE.Quaternion(), e = new THREE.Euler(), m4 = new THREE.Matrix4();
+  const push = (b, i, x, tilt, turn) => {
+    e.set(0, turn, tilt, 'YXZ'); q.setFromEuler(e);
+    prims.push({ type: b.type, c: new THREE.Vector3(x, b.p[1], b.p[2]), q: q.clone(), inv: q.clone().invert(),
+                 s: new THREE.Vector3(b.w, b.h, b.d).multiplyScalar(b.s), color: new THREE.Color(b.color), carve: b.carve, base: i });
+  };
+  shapes.forEach((b, i) => {
+    push(b, i, b.p[0], b.tilt, b.turn);
+    // Reflected through x = 0: a rotation about y or z reverses.
+    if (mirror && Math.abs(b.p[0]) > .03) push(b, i, -b.p[0], -b.tilt, -b.turn);
+  });
+  prims = prims.slice(0, MAX);
+  const u = sculptMat.uniforms; u.uCount.value = prims.length;
+  prims.forEach((r, i) => {
+    u.uPos.value[i].copy(r.c); u.uRot.value[i].setFromMatrix4(m4.makeRotationFromQuaternion(r.q));
+    u.uScale.value[i].copy(r.s); u.uColor.value[i].set(r.color.r, r.color.g, r.color.b);
+    u.uType.value[i] = r.type; u.uCarve.value[i] = r.carve ? 1 : 0; u.uSel.value[i] = r.base === selected ? 1 : 0;
+  });
+  // The floor shadow follows the footprint.
+  let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+  for (const r of prims) if (!r.carve) {
+    const e = Math.max(r.s.x, r.s.z) * 1.1;
+    x0 = Math.min(x0, r.c.x - e); x1 = Math.max(x1, r.c.x + e); z0 = Math.min(z0, r.c.z - e); z1 = Math.max(z1, r.c.z + e);
+  }
+  foot.visible = stageView === 'sculpt' && x1 > x0;
+  if (x1 > x0) { foot.position.set((x0 + x1) / 2, .002, (z0 + z1) / 2); foot.scale.set((x1 - x0) * 1.4, (z1 - z0) * 1.4, 1); }
+  if (!running) $('#go').disabled = !canGo();
+}
+// The same field in JS, for picking and dropping.
+const tmp = new THREE.Vector3();
+function one(r, p) {
+  tmp.copy(p).sub(r.c).applyQuaternion(r.inv);
+  return prim(r.type, tmp.x / r.s.x, tmp.y / r.s.y, tmp.z / r.s.z) * Math.min(r.s.x, r.s.y, r.s.z);
+}
+function field(p) {
+  const k = Math.max(.005, +$('#melt').value); let d = 1e5, first = true;
+  for (const r of prims) if (!r.carve) {
+    const di = one(r, p);
+    if (first) { d = di; first = false; continue; }
+    const h = Math.min(1, Math.max(0, .5 + .5 * (d - di) / k)); d = d + (di - d) * h - k * h * (1 - h);
+  }
+  for (const r of prims) if (r.carve) {
+    const di = one(r, p), h = Math.min(1, Math.max(0, .5 - .5 * (d + di) / k)); d = d + (-di - d) * h + k * h * (1 - h);
+  }
+  return d;
+}
+// March the pointer's ray into the sculpture: the point it lands on, and the shape it belongs to.
+function pickAt(ndc) {
+  ray.setFromCamera(ndc, camera);
+  const o = ray.ray.origin, dir = ray.ray.direction, p = new THREE.Vector3();
+  let t = 0;
+  for (let i = 0; i < 220 && t < 40; i++) {
+    p.copy(o).addScaledVector(dir, t);
+    const d = field(p);
+    if (d < .002) {
+      let best = -1, bd = 1e9;
+      prims.forEach((r) => { const di = Math.abs(one(r, p)); if (di < bd) { bd = di; best = r.base; } });
+      return { point: p.clone(), index: best };
+    }
+    t += Math.max(d * .9, .002);
+  }
+  return null;
+}
+const clampIn = (v) => [Math.max(BOX.min.x + .3, Math.min(BOX.max.x - .3, v.x)), Math.max(-.2, Math.min(BOX.max.y - .3, v.y)),
+                        Math.max(BOX.min.z + .3, Math.min(BOX.max.z - .3, v.z))];
+
+function select(i) {
+  selected = i; const b = shapes[i]; $('#selUI').hidden = !b;
+  if (b) {
+    $('#selName').textContent = (b.carve ? 'Cutter · ' : '') + SHAPES[b.type];
+    for (const r of document.querySelectorAll('#selUI input[data-k]')) r.value = b[r.dataset.k];
+    $('#carve').checked = b.carve;
+    for (const sw of $('#swatches').children) sw.setAttribute('aria-pressed', String(sw.dataset.c === b.color));
+  }
+  rebuild();
+}
+function add(type, at) {
+  mark();
+  if (!at) {   // dropped on nothing: sit it on top of what's there, on the middle line
+    let top = 0; for (const b of shapes) if (!b.carve) top = Math.max(top, b.p[1] + b.s * b.h * .75);
+    at = [0, shapes.length ? top : .6, .1];
+  }
+  const b = newShape(type, at); b.p = clampIn(new THREE.Vector3(...b.p));
+  shapes.push(b); select(shapes.length - 1);
 }
 
-// ── the grid ──
-let gen = 1, history = [];
-for (let i = 0; i < 9; i++) {
-  const el = document.createElement('button');
-  el.setAttribute('aria-label', i === 4 ? 'The parent — tap to roll new children' : `Child ${i < 4 ? i + 1 : i} — tap to breed from it`);
-  if (i === 4) { el.className = 'parent'; el.innerHTML = '<span>Parent</span>'; }
-  el.onclick = () => choose(i);
-  $('#cells').append(el);
-  const sc = stageFor(), blob = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false }));
-  blob.rotation.x = -Math.PI / 2; sc.add(blob);
-  cells.push({ el, scene: sc, blob, cam: new THREE.PerspectiveCamera(30, 1, .01, 100), cr: null, rect: null });
+// Tray: click to add, or drag onto the sculpture to add it where it lands.
+$('#tray').addEventListener('click', (e) => { const b = e.target.closest('[data-shape]'); if (b && !running) add(+b.dataset.shape); });
+$('#tray').addEventListener('dragstart', (e) => {
+  const b = e.target.closest('[data-shape]'); if (!b) return;
+  e.dataTransfer.setData('text/x-blob', b.dataset.shape); e.dataTransfer.effectAllowed = 'copy';
+});
+stageEl.addEventListener('dragover', (e) => { if (mode === 'blobs' && e.dataTransfer.types.includes('text/x-blob')) e.preventDefault(); });
+stageEl.addEventListener('drop', (e) => {
+  const t = e.dataTransfer.getData('text/x-blob'); if (t === '' || running) return;
+  e.preventDefault(); aim(e);
+  const hit = pickAt(pointer);
+  if (hit) return add(+t, hit.point.toArray());
+  // Missed the sculpture: land on the plane through its middle, facing the camera.
+  ray.setFromCamera(pointer, camera);
+  const pl = new THREE.Plane().setFromNormalAndCoplanarPoint(camera.getWorldDirection(new THREE.Vector3()).negate(), controls.target);
+  const at = ray.ray.intersectPlane(pl, new THREE.Vector3());
+  add(+t, at ? at.toArray() : null);
+});
+
+// Drag a shape across the plane facing the camera; drag anywhere else and the camera orbits.
+let drag = null;
+view.addEventListener('pointerdown', (e) => {
+  if (stageView !== 'sculpt' || running || e.button !== 0) return;
+  aim(e);
+  const hit = pickAt(pointer);
+  if (!hit || hit.index < 0) { drag = { miss: true, x: e.clientX, y: e.clientY }; return; }
+  const b = shapes[hit.index];
+  // A twin was hit: drag it as itself, so the original follows mirrored.
+  const side = mirror && Math.abs(b.p[0]) > .03 && Math.sign(hit.point.x) !== Math.sign(b.p[0]) ? -1 : 1;
+  const centre = new THREE.Vector3(b.p[0] * side, b.p[1], b.p[2]);
+  const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(camera.getWorldDirection(new THREE.Vector3()).negate(), centre);
+  ray.setFromCamera(pointer, camera);
+  const on = ray.ray.intersectPlane(plane, new THREE.Vector3()) || centre.clone();
+  mark(); select(hit.index);
+  drag = { i: hit.index, plane, offset: centre.sub(on), side };
+  controls.enabled = false; view.setPointerCapture(e.pointerId);
+}, { capture: true });   // ahead of OrbitControls, so a grab never also turns the camera
+view.addEventListener('pointermove', (e) => {
+  if (!drag || drag.miss) return;
+  aim(e); ray.setFromCamera(pointer, camera);
+  const on = ray.ray.intersectPlane(drag.plane, new THREE.Vector3()); if (!on) return;
+  const p = clampIn(on.add(drag.offset)); p[0] *= drag.side;
+  shapes[drag.i].p = p; rebuild();
+});
+view.addEventListener('pointerup', (e) => {
+  if (drag?.miss && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 4) select(-1);   // a click on nothing lets go
+  if (drag && !drag.miss) past.length && past.at(-1) === snapshotState() && past.pop();      // a click without a move isn't an edit
+  drag = null; controls.enabled = true;
+});
+
+// The selected shape's panel.
+for (const c of SWATCHES) {
+  const b = document.createElement('button'); b.dataset.c = c; b.style.background = c; b.title = c;
+  b.onclick = () => { color = c; const s = shapes[selected]; if (s) { mark(); s.color = c; select(selected); } };
+  $('#swatches').append(b);
 }
-function setCell(i, g) {
-  const c = cells[i];
-  if (c.cr) { c.scene.remove(c.cr.root); dispose(c.cr.root); }
-  c.cr = grow(g); c.cr.born = clock.elapsedTime + (i === 4 ? 0 : .04 * i);
-  c.scene.add(c.cr.root);
-  const w = Math.max(c.cr.size.x, c.cr.size.z) * 1.15; c.blob.scale.set(w, w * .6, 1);
+let sliding = false;
+$('#selUI').addEventListener('input', (e) => {
+  const k = e.target.dataset.k, b = shapes[selected]; if (!k || !b) return;
+  if (!sliding) { mark(); sliding = true; }
+  b[k] = +e.target.value; rebuild();
+});
+$('#selUI').addEventListener('change', () => { sliding = false; });
+$('#carve').onchange = (e) => { const b = shapes[selected]; if (!b) return; mark(); b.carve = e.target.checked; select(selected); };
+function duplicate() {
+  const b = shapes[selected]; if (!b) return; mark();
+  const c = structuredClone(b); c.p = clampIn(new THREE.Vector3(b.p[0] + .25, b.p[1] + .1, b.p[2] + .1));
+  shapes.push(c); select(shapes.length - 1);
 }
-function placeCells() {
-  const s = stageEl.getBoundingClientRect();
-  for (const c of cells) {
-    const r = c.el.getBoundingClientRect();
-    c.rect = { x: r.left - s.left, y: s.bottom - r.bottom, w: r.width, h: r.height };
-  }
-}
-const easeBack = (x) => 1 + 2.4 * (x - 1) ** 3 + 1.4 * (x - 1) ** 2;
-function renderGrid(t) {
+function remove() { if (selected < 0) return; mark(); shapes.splice(selected, 1); select(-1); }
+$('#dup').onclick = duplicate; $('#del').onclick = remove;
+$('#melt').addEventListener('input', (e) => { sculptMat.uniforms.uK.value = Math.max(.005, +e.target.value); });
+$('#mirror').onclick = () => { mirror = !mirror; $('#mirror').setAttribute('aria-pressed', String(mirror)); rebuild(); };
+$('#bundo').onclick = blobUndo;
+$('#bclear').onclick = () => {
+  if (running) return; mark(); shapes.length = 0;
+  shapes.push(newShape(0, [0, .6, 0])); shapes[0].s = .55; select(0);
+};
+addEventListener('keydown', (e) => {
+  if (mode !== 'blobs' || stageView !== 'sculpt' || e.target.closest?.('input:not([type=range]), textarea')) return;
+  if ((e.key === 'Backspace' || e.key === 'Delete') && selected >= 0) { e.preventDefault(); remove(); }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'd') { e.preventDefault(); duplicate(); }
+});
+
+// The view as it stands — the angle you left it at — square, on white, nothing selected.
+function blobSource() {
+  const keep = selected; selected = -1; rebuild(); foot.visible = false;
   const W = stageEl.clientWidth, H = stageEl.clientHeight;
-  renderer.setScissorTest(false); renderer.setViewport(0, 0, W, H); renderer.clear();
-  renderer.setScissorTest(true);
-  const px = (pointer.x + 1) / 2 * W, py = (pointer.y + 1) / 2 * H;
-  for (const c of cells) {
-    const r = c.rect; if (!c.cr || !r || r.w < 2) continue;
-    const look = { x: Math.max(-1, Math.min(1, (px - r.x - r.w / 2) / r.w)), y: Math.max(-1, Math.min(1, (py - r.y - r.h / 2) / r.h)) };
-    live(c.cr, t, look);
-    c.cr.root.scale.setScalar(Math.max(.001, easeBack(Math.min(1, Math.max(0, (t - c.cr.born) / .5)))));
-    frame(c.cam, c.cr, r.w / r.h);
-    renderer.setViewport(r.x, r.y, r.w, r.h); renderer.setScissor(r.x, r.y, r.w, r.h);
-    renderer.render(c.scene, c.cam);
-  }
-  renderer.setScissorTest(false);
-}
-function showGen() {
-  $('#gen').textContent = `Generation ${gen}`;
-  $('#genHint').textContent = gen === 1 ? 'nine strangers' : `${gen - 1} ${gen === 2 ? 'choice' : 'choices'} in`;
-  $('#back').disabled = !history.length;
-}
-function choose(i) {
-  if (running) return;
-  history.push({ gen, gs: cells.map((c) => c.cr.g) }); if (history.length > 60) history.shift();
-  const parent = cells[i].cr.g, k = +$('#wild').value;
-  if (i !== 4) { gen++; setCell(4, parent); }
-  for (let j = 0; j < 9; j++) if (j !== 4) setCell(j, mutate(parent, k));
-  showGen();
-}
-$('#back').onclick = () => {
-  const prev = history.pop(); if (!prev || running) return;
-  prev.gs.forEach((g, j) => setCell(j, g)); gen = prev.gen; showGen();
-};
-$('#species').onclick = () => {
-  if (running) return;
-  history.push({ gen, gs: cells.map((c) => c.cr.g) });
-  for (let j = 0; j < 9; j++) setCell(j, randomGenome());
-  gen = 1; showGen();
-};
-
-// The middle creature, still, on white — the picture Meshy works from.
-function snapshot(g, size = 1024) {
-  const sc = stageFor(); sc.background = new THREE.Color(0xffffff);
-  const cr = grow(g); sc.add(cr.root); live(cr, 0, { x: -.2, y: .1 }); cr.yaw = -.35; cr.head.rotation.y = cr.yaw;
-  const W = stageEl.clientWidth, H = stageEl.clientHeight, cam = new THREE.PerspectiveCamera(30, 1, .01, 100);
-  frame(cam, cr, W / H);
   renderer.setScissorTest(false); renderer.setViewport(0, 0, W, H);
-  renderer.render(sc, cam);   // read back in the same task, before the canvas is presented
+  renderer.render(scene, camera);   // read back in the same task, before the canvas is presented
   const src = renderer.domElement, side = Math.min(src.width, src.height);
-  const out = document.createElement('canvas'); out.width = out.height = size;
-  const x = out.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, size, size);
-  x.drawImage(src, (src.width - side) / 2, (src.height - side) / 2, side, side, 0, 0, size, size);
-  dispose(cr.root);
-  return out;
-}
-function evolvedSource() {
-  const g = cells[4].cr.g, big = snapshot(g), small = document.createElement('canvas');
-  small.width = small.height = 160; small.getContext('2d').drawImage(big, 0, 0, 160, 160);
-  return { kind: 'evolved', genome: g, image: big.toDataURL('image/png'), thumb: small.toDataURL('image/jpeg', .85),
-           prompt: evolvedPrompt(style, $('#desc').value.trim()) };
+  const big = document.createElement('canvas'); big.width = big.height = 1024;
+  const x = big.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 1024, 1024);
+  x.drawImage(src, (src.width - side) / 2, (src.height - side) / 2, side, side, 0, 0, 1024, 1024);
+  const small = document.createElement('canvas'); small.width = small.height = 160;
+  small.getContext('2d').drawImage(big, 0, 0, 160, 160);
+  selected = keep; rebuild();
+  return { kind: 'blobs', blobs: structuredClone(shapes), image: big.toDataURL('image/png'),
+           thumb: small.toDataURL('image/jpeg', .85), prompt: blobPrompt(style, $('#desc').value.trim()) };
 }
 function drawSource() {
   const c = document.createElement('canvas'); c.width = c.height = SK;   // flattened onto white
@@ -1061,24 +1095,24 @@ function drawSource() {
 }
 
 // ── modes and views ──
-let stageView = 'single';
+let stageView = 'single';   // 'sculpt' — the blobs; 'single' — a finished model
 function setView(v) {
-  stageView = v; stageEl.classList.toggle('grid', v === 'grid');
-  controls.enabled = v === 'single';
-  $('#backToGrid').hidden = !(mode === 'evolve' && v === 'single');
-  if (v === 'grid') requestAnimationFrame(placeCells);
+  stageView = v; stageEl.classList.toggle('sculpting', v === 'sculpt');
+  sculpt.visible = v === 'sculpt'; life.visible = v !== 'sculpt';
+  $('#backToSculpt').hidden = !(mode === 'blobs' && v === 'single' && !running);
+  rebuild();
 }
 function setMode(m) {
   mode = m;
   for (const b of $('#modes').children) b.setAttribute('aria-pressed', String(b.dataset.mode === m));
-  $('#drawUI').hidden = m !== 'draw'; $('#evolveUI').hidden = m !== 'evolve';
-  $('#desc').placeholder = m === 'evolve' ? 'name it, or say what it is' : 'a piece of toast wearing sunglasses';
-  if (m === 'evolve' && !cells[0].cr) { for (let j = 0; j < 9; j++) setCell(j, randomGenome()); showGen(); }
-  setView(m === 'evolve' && !running ? 'grid' : 'single');
+  $('#drawUI').hidden = m !== 'draw'; $('#blobsUI').hidden = m !== 'blobs';
+  $('#desc').placeholder = m === 'blobs' ? 'say what it is, or leave it to Meshy' : 'a piece of toast wearing sunglasses';
+  if (m === 'blobs' && !shapes.length) { shapes.push(newShape(0, [0, .6, 0])); shapes[0].s = .55; select(0); }
+  setView(m === 'blobs' && !running ? 'sculpt' : 'single');
   if (!running) $('#go').disabled = !canGo();
 }
 $('#modes').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && !running) setMode(b.dataset.mode); });
-$('#backToGrid').onclick = () => !running && setView('grid');
+$('#backToSculpt').onclick = () => !running && setView('sculpt');
 
 /* ═══════════════ status, steps, shelf ═══════════════ */
 
@@ -1124,19 +1158,19 @@ let running = false;
 
 async function run(src) {
   running = true; stopper = new AbortController(); resetSteps(); note('');
-  setView('single'); setBehaviour(src.genome || null); $('#backToGrid').hidden = true;
-  // An evolved creature is on stage from the first second — its own snapshot, until Meshy's render replaces it.
-  if (src.genome) { $('#preview').src = src.image; $('#preview').classList.add('on'); $('#empty').hidden = true; }
+  setView('single'); $('#backToSculpt').hidden = true;
+  // A sculpture is on stage from the first second — its own snapshot, until Meshy's render replaces it.
+  if (src.blobs) { $('#preview').src = src.image; $('#preview').classList.add('on'); $('#empty').hidden = true; }
   const go = $('#go'); go.disabled = false; go.textContent = 'Stop'; go.classList.add('stop');
   $('#actions').hidden = true; $('#download').hidden = true;
   for (const k in clips) delete clips[k];
   const desc = $('#desc').value.trim();
-  const rec = { id: Date.now().toString(36), at: Date.now(), desc, style, sketch: src.thumb, kind: src.kind, genome: src.genome, clips: {} };
+  const rec = { id: Date.now().toString(36), at: Date.now(), desc, style, sketch: src.thumb, kind: src.kind, blobs: src.blobs, clips: {} };
 
   try {
     // 1 · Render
-    step('render', 'run', 0, src.genome ? 'Your creature, made real' : DEFAULT_TEXT.render);
-    status(src.genome ? 'Rendering your creature…' : 'Rendering your sketch…');
+    step('render', 'run', 0, src.blobs ? 'Your sculpture, made real' : DEFAULT_TEXT.render);
+    status(src.blobs ? 'Rendering your sculpture…' : 'Rendering your sketch…');
     const img = await task('image-to-image', {
       ai_model: IMAGE_MODEL, prompt: src.prompt, reference_image_urls: [src.image],
     }, (p) => step('render', 'run', p));
@@ -1147,8 +1181,8 @@ async function run(src) {
     // 2 · Sculpt
     step('sculpt', 'run', 0); status('Sculpting it in 3D — this is the slow one, about two minutes…');
     const mesh = await task('image-to-3d', {
-      // An A-pose is for the rig; an evolved body plan keeps the stance it evolved.
-      input_task_id: img.id, ai_model: 'latest', pose_mode: src.genome ? '' : 'a-pose',
+      // An A-pose is for the rig; a sculpture keeps the stance it was given.
+      input_task_id: img.id, ai_model: 'latest', pose_mode: src.blobs ? '' : 'a-pose',
       should_texture: true, enable_pbr: true, should_remesh: true, target_polycount: 30000,
       target_formats: ['glb'],
     }, (p) => { step('sculpt', 'run', p); status(`Sculpting it in 3D… ${p}%`); });
@@ -1156,14 +1190,6 @@ async function run(src) {
     step('sculpt', 'done'); save(rec);
     setModel(await load(rec.glb)); pv.classList.remove('on');
     showDownload(rec.glb);
-
-    // An evolved creature isn't rigged: the rig only takes bipeds, and it already
-    // has a way of moving — the one it evolved on the grid.
-    if (src.genome) {
-      step('rig', 'skip', 0, 'Not needed — it moves the way it evolved');
-      step('animate', 'done', 0, 'Its own tempo, bounce and sway');
-      status(''); return;
-    }
 
     // 3 · Rig
     step('rig', 'run', 0); status('Giving it a skeleton…');
@@ -1218,12 +1244,12 @@ async function run(src) {
     $('#preview').classList.remove('on');
   } finally {
     running = false; stopper = null;
-    $('#backToGrid').hidden = mode !== 'evolve';
+    $('#backToSculpt').hidden = mode !== 'blobs';
     const go = $('#go'); go.textContent = 'Bring it to life'; go.classList.remove('stop'); go.disabled = !canGo();
   }
 }
 $('#go').onclick = () => (running ? stop() : needsPass() ? askPass()
-  : run(mode === 'evolve' ? evolvedSource() : drawSource()));
+  : run(mode === 'blobs' ? blobSource() : drawSource()));
 
 function showDownload(url) { const a = $('#download'); a.href = asset(url); a.hidden = false; }
 
@@ -1231,7 +1257,7 @@ function showDownload(url) { const a = $('#download'); a.href = asset(url); a.hi
 // so this works after Meshy's own links have expired.
 async function open(rec) {
   resetSteps(); note(''); for (const k in clips) delete clips[k];
-  setView('single'); setBehaviour(rec.genome || null);
+  setView('single');
   $('#actions').hidden = true; $('#preview').classList.remove('on');
   drawShelf(rec.id);
   if (rec.render) step('render', 'done');
@@ -1251,10 +1277,7 @@ async function open(rec) {
       if (clips.Idle) play('Idle');
     } else {
       setModel(await load(rec.glb)); showDownload(rec.glb);
-      if (rec.genome) {
-        step('rig', 'skip', 0, 'Not needed — it moves the way it evolved');
-        step('animate', 'done', 0, 'Its own tempo, bounce and sway');
-      } else if (rec.rigError) {
+      if (rec.rigError) {
         step('rig', 'fail', 0, 'No skeleton — it isn\'t shaped like a person');
         step('animate', 'skip', 0, 'Breathing and reacting instead');
       }
@@ -1332,7 +1355,7 @@ drawShelf();
 
 // The way in for a deck or a test, as explore/ has window.__explore.
 window.__monsters = { play, still, clips, get playing() { return current?.getClip().name ?? null; },
-  setMode, choose, get generation() { return gen; }, get parent() { return cells[4].cr?.g; } };
+  setMode, add, select, shapes, get selected() { return selected; } };
 </script>
 </body>
 </html>
