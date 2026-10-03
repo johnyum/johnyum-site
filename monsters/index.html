@@ -287,7 +287,7 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
         <label class="check"><input type="checkbox" id="carve"> Carve — cut into the sculpture instead of adding</label>
       </div>
 
-      <label class="range"><span>Melt</span><input type="range" id="melt" min="0.005" max="0.6" step="0.005" value="0.2" aria-label="How much the shapes melt together"></label>
+      <label class="range"><span>Melt</span><input type="range" id="melt" min="0.005" max="0.6" step="0.005" value="0.15" aria-label="How much the shapes melt together"></label>
       <div class="trio">
         <button class="tool" id="mirror" aria-pressed="true" title="Mirror left and right, like Spore">Mirror</button>
         <button class="tool" id="bundo" title="Undo (⌘Z)">Undo</button>
@@ -774,7 +774,7 @@ function prim(t, x, y, z) {
 const sculptMat = new THREE.ShaderMaterial({
   side: THREE.BackSide,   // the back faces, so it still draws with the camera inside the box
   uniforms: {
-    uCount: { value: 0 }, uK: { value: .2 }, uTime: { value: 0 },
+    uCount: { value: 0 }, uK: { value: .15 }, uTime: { value: 0 },
     uPos: { value: Array.from({ length: MAX }, () => new THREE.Vector3()) },
     uRot: { value: Array.from({ length: MAX }, () => new THREE.Matrix3()) },
     uScale: { value: Array.from({ length: MAX }, () => new THREE.Vector3(1, 1, 1)) },
@@ -862,7 +862,7 @@ const sculptMat = new THREE.ShaderMaterial({
       float dif = clamp(dot(n, l), 0., 1.) * shadow(p + n * .01, l), ao = occlusion(p, n);
       float rim = pow(1. - clamp(dot(n, -rd), 0., 1.), 3.), spec = pow(clamp(dot(n, normalize(l - rd)), 0., 1.), 40.) * .16 * dif;
       vec3 c = col * (dif * 1.15 + (.5 + .5 * n.y) * .55 * ao + .07) + spec + rim * .1 * ao;
-      c += sel * (.09 + .05 * sin(uTime * 5.));   // the selected shape breathes a little light
+      c += sel * (.16 + .08 * sin(uTime * 5.));   // the selected shape breathes a little light
       gl_FragColor = vec4(c, 1.);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -1020,7 +1020,8 @@ view.addEventListener('pointerdown', (e) => {
   const on = ray.ray.intersectPlane(plane, new THREE.Vector3()) || centre.clone();
   mark(); select(hit.index);
   drag = { i: hit.index, plane, offset: centre.sub(on), side };
-  controls.enabled = false; view.setPointerCapture(e.pointerId);
+  controls.enabled = false;
+  try { view.setPointerCapture(e.pointerId); } catch {}   // keeps the drag when the pointer leaves the canvas
 }, { capture: true });   // ahead of OrbitControls, so a grab never also turns the camera
 view.addEventListener('pointermove', (e) => {
   if (!drag || drag.miss) return;
@@ -1096,7 +1097,13 @@ function drawSource() {
 
 // ── modes and views ──
 let stageView = 'single';   // 'sculpt' — the blobs; 'single' — a finished model
+// Sculpting wants more room round the work than a finished model does.
+const SCULPT_HOME = { pos: new THREE.Vector3(0, 1.7, 8.2), target: new THREE.Vector3(0, 1.05, 0) };
 function setView(v) {
+  if (v !== stageView) {
+    const h = v === 'sculpt' ? SCULPT_HOME : HOME;
+    camera.position.copy(h.pos); controls.target.copy(h.target);
+  }
   stageView = v; stageEl.classList.toggle('sculpting', v === 'sculpt');
   sculpt.visible = v === 'sculpt'; life.visible = v !== 'sculpt';
   $('#backToSculpt').hidden = !(mode === 'blobs' && v === 'single' && !running);

@@ -300,17 +300,18 @@ The page only ever talks to **`/api/monsters?p=…`**, and two things answer it:
   409 and charges for it anyway; Stop only keeps the later, dearer steps from starting.
 - **Rigging only takes bipeds.** A blob fails step 3 — it keeps the procedural layer
   (breath, turning to the pointer, a squash when tapped) that runs on top of every clip.
-- **Evolve** is the second mode (Draw | Evolve): Dawkins' biomorphs in 3D. A genome is ~37
-  numbers in 0–1 (`GENES`); `grow()` reads it into a body — a spine swept along a curve, legs
-  in pairs, a head with eyes / stalks / mouth / horns, back spikes, a tail tip, fins, palette,
-  pattern — and `live()` into a way of moving: tempo, bounce, sway, gait (walk / hop / crawl /
-  float), nerves, curiosity. The grid is the parent in the middle and eight `mutate()`d
-  children, all drawn by one renderer through scissored viewports. It costs nothing until
-  **Bring it to life**, which sends `snapshot()` — the parent, three-quarter, on white — with
-  `evolvedPrompt()`, which holds Meshy to the body plan. Evolved creatures **skip the rig**
-  (it only takes bipeds, and they already move): the finished model is driven by `beh`,
-  their evolved behaviour, and the genome is kept on the shelf record.
-- `window.__monsters` exposes `{ play, still, clips, playing, setMode, choose, generation, parent }`,
+- **Blobs** is the second mode (Draw | Blobs): sculpt from eight shapes — Ball, Egg, Bean, Cube,
+  Ring, Cone, Stick, Disc — that **melt into each other**. Each is a signed distance field; the
+  sculpture is their smooth union, minus any shape set to **Carve**, raymarched in one
+  `ShaderMaterial` on a box bounding the work area (`BOX`), with `uK` (the Melt slider) as the
+  blend. The same `prim()` functions run in JS for picking, dragging and dropping — **change one
+  and change the other**. **Mirror** (on by default, as in Spore) gives any shape off the middle
+  line a twin; the shader takes 32 prims, twins included. **Bring it to life** sends the view as
+  the person left it — square, on white, nothing selected — with `blobPrompt()`, and goes on to
+  try the rig like a drawing does. The shapes are kept on the shelf record (`rec.blobs`).
+- Evolve (procedural "bug" creatures on a 3×3 breeding grid) was built and dropped on 2026-10-02:
+  John didn't want ready-made creatures, he wanted people to make their own. It's in git history.
+- `window.__monsters` exposes `{ play, still, clips, playing, setMode, add, select, shapes, selected }`,
   the way `explore/` does.
 
 ## Drawing in Claude's visual language
