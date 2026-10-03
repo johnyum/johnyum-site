@@ -276,13 +276,13 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
         <button data-body="4" aria-pressed="false" title="Start from a peanut body"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7.5" r="4.6"/><circle cx="12" cy="16" r="5.8"/></svg>Peanut</button>
         <button data-body="5" aria-pressed="false" title="Start from a noodle body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 2h4c1 0 1.6 1 1.2 2L12.8 12l2.4 8c.3 1-.4 2-1.4 2h-4c-1 0-1.6-1-1.2-2L11 12 8.6 4C8.3 3 9 2 10 2z"/></svg>Noodle</button>
         <button data-body="6" aria-pressed="false" title="Start from a slug body"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="15" rx="10" ry="5.5"/></svg>Slug</button>
-        <button data-body="7" aria-pressed="false" title="Start from a potato body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 8c1-4 6-5 9-4s6 4 5 8-2 8-7 8-8-2-8-6 0-4 1-6z"/></svg>Potato</button>
+        <button data-body="7" aria-pressed="false" title="Start from a mochi body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 15.5C3 10 7 6 12 6s9 4 9 9.5c0 2.6-1.6 3.5-3.6 3.5H6.6C4.6 19 3 18.1 3 15.5z"/></svg>Mochi</button>
       </div>
       <div class="trayhead">Parts <span>click, or drag onto the body</span></div>
       <div class="tray" id="tray">
-        <button data-part="eye" draggable="true" title="Add eye — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="3.6"/></svg>Eye</button>
-        <button data-part="mouth" draggable="true" title="Add mouth — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 9h15c0 5.5-3.4 9-7.5 9s-7.5-3.5-7.5-9z"/></svg>Mouth</button>
-        <button data-part="tooth" draggable="true" title="Add tooth — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5h8l-2.6 12.4c-.3 1.4-2.5 1.4-2.8 0z"/></svg>Tooth</button>
+        <button data-part="eye" draggable="true" title="Add eyes — or drag one onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="12" rx="6" ry="7"/><circle cx="9.6" cy="9.2" r="1.8" fill="#fff"/></svg>Eyes</button>
+        <button data-part="smile" draggable="true" title="Add a smile — or drag it onto the body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M6 10c2.2 5.5 9.8 5.5 12 0"/></svg>Smile</button>
+        <button data-part="blush" draggable="true" title="Add blush — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="6.5" cy="13" rx="4" ry="2.8" opacity=".55"/><ellipse cx="17.5" cy="13" rx="4" ry="2.8" opacity=".55"/></svg>Blush</button>
         <button data-part="nose" draggable="true" title="Add nose — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="13" rx="5.5" ry="4.8"/></svg>Nose</button>
         <button data-part="horn" draggable="true" title="Add horn — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 21c0-7 3-14 10-18-2 5-3 10-3 18z"/></svg>Horn</button>
         <button data-part="ear" draggable="true" title="Add ear — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="12" rx="5" ry="9"/></svg>Ear</button>
@@ -328,7 +328,7 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
         <button data-style="plush" aria-pressed="true">Plush</button>
         <button data-style="vinyl" aria-pressed="false">Vinyl</button>
         <button data-style="clay" aria-pressed="false">Clay</button>
-        <button data-style="real" aria-pressed="false">Real</button>
+        <button data-style="fuzzy" aria-pressed="false">Fuzzy</button>
       </div>
     </div>
 
@@ -374,12 +374,18 @@ const $ = (s) => document.querySelector(s);
 /* ═══════════════ the pipeline's settings ═══════════════ */
 
 const IMAGE_MODEL = 'nano-banana-2';   // Meshy image-to-image; nano-banana-pro is finer and costs more
+// Every finish is toy-like on purpose. A photoreal finish read "monster" as veins,
+// wrinkles and wet eyeballs — this is a page for cute, cuddly, simple characters.
 const STYLES = {
-  plush: 'a soft plush toy with short fuzzy fur and stitched felt details, chunky rounded proportions, embroidered features',
-  vinyl: 'a glossy designer vinyl art toy, smooth rounded forms, crisp painted details, subtle specular highlights',
-  clay:  'a handmade claymation figure, soft matte plasticine with faint fingerprints, rounded forms',
-  real:  'a photorealistic living creature, lifelike skin, fur, feathers or material detail as appropriate, natural colouring',
+  plush: 'a soft, huggable plush toy: short fuzzy fabric, gentle rounded shapes, simple embroidered features',
+  vinyl: 'a smooth glossy vinyl collectible toy: soft rounded shapes, clean simple surfaces, a little shine',
+  clay:  'a cute handmade clay figure: smooth soft plasticine, rounded and simple',
+  fuzzy: 'a soft fluffy little creature with a short, even, velvety fur coat, like a cuddly mascot',
 };
+// Said in every prompt, whatever the finish.
+const CUTE = 'Make it adorable and cuddly, in a simple, minimal style: soft rounded forms, smooth clean surfaces, very few details, '
+  + 'a gentle happy expression and simple cute eyes. Nothing scary, gross or realistic: no veins, wrinkles, warts, pores, slime, '
+  + 'sharp teeth, claws or bulging realistic eyeballs.';
 // The library ids, from GET /animations/library. The rig adds walk + run for free.
 const ACTIONS = [
   { label: 'Idle',  id: 0,   loop: true  },
@@ -394,19 +400,20 @@ function promptFor(style, desc) {
     `Turn this rough sketch into one finished full-body 3D character: ${STYLES[style]}.`,
     desc ? `It is ${desc}.` : '',
     'Keep the sketch\'s silhouette, proportions and features — refine them, do not redesign them.',
+    CUTE,
     'Front view, standing upright facing the camera, arms held a little away from the body, legs slightly apart,',
     'whole body in frame and centred, soft even studio lighting, plain white background, no ground shadow, no text, no props.',
   ].filter(Boolean).join(' ');
 }
 
-// A kit monster is the person's own design: the prompt holds Meshy to every part
-// they placed — each eye, horn, arm and spot — and only lets it refine.
+// A kit character is the person's own design: the prompt holds Meshy to the body and
+// the parts they placed, and asks it to simplify rather than add.
 function blobPrompt(style, desc) {
   return [
-    `Turn this rough clay model of a friendly monster into one finished, well-made 3D character: ${STYLES[style]}.`,
+    `Turn this rough clay model into one finished 3D character: ${STYLES[style]}.`,
     desc ? `It is ${desc}.` : '',
-    'Keep its body shape, proportions and colours, and every part exactly as placed: the same number of eyes, horns, ears, arms, legs, antennae, tentacles, teeth and spots, in the same places.',
-    'Refine the forms and give them appealing surface detail, in the spirit of a feature-animation monster; do not add parts that are not there.',
+    'Keep its body shape, proportions and colours, and the parts that were placed (eyes, smile, blush, ears, horns, antennae, arms, legs, tentacles, spots) in the same places. Simplify them; do not add parts that are not there.',
+    CUTE,
     'Whole character in frame and centred, the same viewing angle, soft even studio lighting, plain white background, no ground shadow, no text, no props.',
   ].filter(Boolean).join(' ');
 }
@@ -768,28 +775,29 @@ $('#recenter').onclick = () => { camera.position.copy(HOME.pos); controls.target
    out along the normal there. So swap or stretch the body and every part re-seats.
    The same distance functions run in JS for anchoring, picking and dragging. */
 
-const BODIES = ['Round', 'Gumdrop', 'Hunch', 'Bell', 'Peanut', 'Noodle', 'Slug', 'Potato'];   // prim types 8–15
+const BODIES = ['Round', 'Gumdrop', 'Hunch', 'Bell', 'Peanut', 'Noodle', 'Slug', 'Mochi'];   // prim types 8–15
 // A part: its sub-shapes in part units (+y points out of the body), and where it goes by default.
 // c: 'self' takes the part's colour. k: how much it melts into what it touches (× the Melt slider).
 const PARTS = {
-  eye:      { name: 'Eye', s: .3, color: '#3fae9a', dir: [0, .42, 1], subs: [
-              { t: 0, p: [0, .3, 0], s: [1, 1, 1], c: '#ffffff', k: .15 },
-              { t: 0, p: [0, .92, 0], s: [.55, .55, .55], c: 'self', k: .1 },
-              { t: 0, p: [0, 1.18, 0], s: [.3, .3, .3], c: '#151515', k: .05 }] },
-  mouth:    { name: 'Mouth', s: .38, color: '#3a1f24', dir: [0, -.42, 1], carve: true, subs: [
-              { t: 2, p: [0, 0, 0], s: [.42, 1.25, .5], r: [0, 0, Math.PI / 2], c: 'self', k: .6 }] },
-  tooth:    { name: 'Tooth', s: .11, color: '#ffffff', dir: [.12, -.36, 1], subs: [
-              { t: 5, p: [0, -.1, 0], s: [.6, .7, .6], c: 'self', k: .15 }] },
-  nose:     { name: 'Nose', s: .14, color: null, dir: [0, .15, 1], subs: [{ t: 0, p: [0, .35, 0], s: [1, .85, 1], c: 'self', k: .6 }] },
+  // A bead eye, as plush toys have: glossy black (or any colour) with a white catch-light.
+  // In a part's frame +y is out of the body and -z is up the face, so the light sits top-left.
+  eye:      { name: 'Eye', s: .14, color: '#1a1a1a', dir: [.36, .36, 1], subs: [
+              { t: 0, p: [0, .2, 0], s: [1, 1, 1.15], c: 'self', k: .08 },
+              { t: 0, p: [-.32, .98, -.38], s: [.26, .26, .26], c: '#ffffff', k: .02 }] },
+  smile:    { name: 'Smile', s: .19, color: '#3a2328', dir: [0, -.14, 1], carve: true, subs: [
+              { t: 19, p: [0, 0, -.35], s: [1, 1, 1], c: 'self', k: .3 }] },
+  blush:    { name: 'Blush', s: .13, color: '#f39bb0', dir: [.55, .02, .85], subs: [
+              { t: 7, p: [0, 0, 0], s: [1, 1, 1], c: 'self', k: .04 }] },
+  nose:     { name: 'Nose', s: .1, color: null, dir: [0, .16, 1], subs: [{ t: 0, p: [0, .35, 0], s: [1, .85, 1], c: 'self', k: .6 }] },
   horn:     { name: 'Horn', s: .22, color: '#f1ece4', dir: [.4, 1, .05], subs: [{ t: 16, p: [0, -.25, 0], s: [1, 1, 1], c: 'self', k: .5 }] },
   ear:      { name: 'Ear', s: .24, color: null, dir: [.62, .9, .05], subs: [{ t: 0, p: [0, .9, 0], s: [.75, 1.15, .28], c: 'self', k: .7 }] },
   antenna:  { name: 'Antenna', s: .2, color: null, dir: [.22, 1, 0], subs: [
               { t: 6, p: [0, .9, 0], s: [.6, .9, .6], c: 'self', k: .5 },
               { t: 0, p: [0, 1.9, 0], s: [.34, .34, .34], c: '#e8b04a', k: .3 }] },
-  arm:      { name: 'Arm', s: .3, color: null, dir: [1, 0, .2], subs: [
+  arm:      { name: 'Arm', s: .2, color: null, dir: [1, 0, .2], subs: [
               { t: 17, p: [0, -.2, 0], s: [1, 1, 1], c: 'self', k: .9 },
               { t: 0, p: [0, 1.3, .41], s: [.42, .42, .42], c: 'self', k: .6 }] },
-  leg:      { name: 'Leg', s: .32, color: null, dir: [.38, -1, .12], subs: [
+  leg:      { name: 'Leg', s: .26, color: null, dir: [.38, -1, .12], subs: [
               { t: 2, p: [0, .45, 0], s: [.58, .72, .58], c: 'self', k: .8 },
               { t: 0, p: [0, 1.1, .28], s: [.52, .34, .68], c: 'self', k: .5 }] },
   tentacle: { name: 'Tentacle', s: .3, color: null, dir: [.55, -.7, .45], subs: [{ t: 18, p: [0, -.2, 0], s: [1, 1, 1], c: 'self', k: .8 }] },
@@ -828,13 +836,13 @@ function prim(t, x, y, z) {
     case 13: { const qz = z - .3 * Math.sin(y * 1.4);                                         // noodle, wiggling front to back
       return (Math.hypot(x, y - Math.max(-1.15, Math.min(1.15, y)), qz) - .45) * .75; }
     case 14: return (Math.hypot(x * .58, y * 1.3, z * .95) - (1 + .2 * z)) * .5;              // slug
-    case 15: return (Math.hypot(x, y, z) - 1 + .08 * Math.sin(3.1 * x + 1) * Math.sin(2.7 * y + 2) * Math.sin(3.3 * z + .5)
-                     + .05 * Math.sin(5.3 * y + 1.3) * Math.sin(4.1 * x)) * .85;              // potato
+    case 15: return smin(Math.hypot(x * .82, y * 1.25, z * .9) - 1, -.55 - y, -.25);         // mochi: soft, wide, sat flat (a negative k is a smooth max)
     // part shapes
     case 16: { const qz = z + .28 * y * y; return roundCone(Math.hypot(x, qz), y, .45, .06, 1.8) * .8; }   // curved horn
     case 17: { const qz = z - .18 * y * y; return (Math.hypot(x, y - Math.max(0, Math.min(1.5, y)), qz) - .3) * .85; }   // bent arm
     case 18: { const qx = x - .25 * Math.sin(y * 2.2), r = .38 + (.08 - .38) * Math.min(1, Math.max(0, y / 2));   // tentacle
       return (Math.hypot(qx, y - Math.max(0, Math.min(2, y)), z) - r) * .7; }
+    case 19: return Math.max(Math.hypot(Math.hypot(x, z) - .8, y) - .2, .25 - z);           // smile: the lower arc of a ring
     default: return Math.hypot(x, y, z) - 1;
   }
 }
@@ -881,12 +889,12 @@ const sculptMat = new THREE.ShaderMaterial({
       if (t < 12.5) return smin(length(p - vec3(0., .55, 0.)) - .6, length(p + vec3(0., .42, 0.)) - .78, .3);
       if (t < 13.5) { vec3 q = p; q.z -= .3 * sin(p.y * 1.4); q.y -= clamp(q.y, -1.15, 1.15); return (length(q) - .45) * .75; }
       if (t < 14.5) return (length(vec3(p.x * .58, p.y * 1.3, p.z * .95)) - (1. + .2 * p.z)) * .5;
-      if (t < 15.5) return (length(p) - 1. + .08 * sin(3.1 * p.x + 1.) * sin(2.7 * p.y + 2.) * sin(3.3 * p.z + .5)
-                            + .05 * sin(5.3 * p.y + 1.3) * sin(4.1 * p.x)) * .85;
+      if (t < 15.5) return smin(length(vec3(p.x * .82, p.y * 1.25, p.z * .9)) - 1., -.55 - p.y, -.25);
       if (t < 16.5) { float qz = p.z + .28 * p.y * p.y; return roundCone(vec2(length(vec2(p.x, qz)), p.y), .45, .06, 1.8) * .8; }
       if (t < 17.5) { vec3 q = vec3(p.x, p.y - clamp(p.y, 0., 1.5), p.z - .18 * p.y * p.y); return (length(q) - .3) * .85; }
       if (t < 18.5) { float qx = p.x - .25 * sin(p.y * 2.2), r = mix(.38, .08, clamp(p.y / 2., 0., 1.));
                       return (length(vec3(qx, p.y - clamp(p.y, 0., 2.), p.z)) - r) * .7; }
+      if (t < 19.5) return max(length(vec2(length(p.xz) - .8, p.y)) - .2, .25 - p.z);
       return length(p) - 1.;
     }
     float one(int i, vec3 p) {
@@ -908,7 +916,7 @@ const sculptMat = new THREE.ShaderMaterial({
         if (i >= uCount) break;
         if (uCarve[i] < .5) continue;
         float di = one(i, p), k = max(.002, uK * uKm[i]), h = clamp(.5 - .5 * (d + di) / k, 0., 1.);
-        d = mix(d, -di, h) + k * h * (1. - h); col = mix(col, uColor[i], h * .7); sel = max(sel, uSel[i] * h);
+        d = mix(d, -di, h) + k * h * (1. - h); col = mix(col, uColor[i], h); sel = max(sel, uSel[i] * h);
       }
       return d;
     }
@@ -974,7 +982,7 @@ function blobUndo() {
   const prev = past.pop(); if (!prev) return;
   shapes.splice(0, shapes.length, ...JSON.parse(prev)); select(Math.min(selected, shapes.length - 1));
 }
-const newBody = (type = 1) => ({ kind: 'body', type, s: .72, w: 1, h: 1, d: 1, color: '#79b84a' });
+const newBody = (type = 1) => ({ kind: 'body', type, s: .72, w: 1, h: 1, d: 1, color: '#9ccf7a' });
 function newPart(key, dir) {
   const P = PARTS[key];
   return { kind: 'part', key, s: P.s, h: 1, lift: 0, tilt: 0, turn: 0, carve: !!P.carve,
@@ -1176,7 +1184,7 @@ $('#dup').onclick = duplicate; $('#del').onclick = remove;
 $('#melt').addEventListener('input', (e) => { sculptMat.uniforms.uK.value = Math.max(.005, +e.target.value); });
 $('#mirror').onclick = () => { mirror = !mirror; $('#mirror').setAttribute('aria-pressed', String(mirror)); rebuild(); };
 $('#bundo').onclick = blobUndo;
-function starter() { shapes.length = 0; shapes.push(newBody(1), newPart('eye')); select(-1); }   // a gumdrop and one big eye
+function starter() { shapes.length = 0; shapes.push(newBody(1), newPart('eye'), newPart('smile'), newPart('blush')); select(-1); }   // a gumdrop with a face
 $('#bclear').onclick = () => { if (running) return; mark(); starter(); };
 addEventListener('keydown', (e) => {
   if (mode !== 'blobs' || stageView !== 'sculpt' || e.target.closest?.('input:not([type=range]), textarea')) return;

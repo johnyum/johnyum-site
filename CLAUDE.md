@@ -301,9 +301,13 @@ The page only ever talks to **`/api/monsters?p=…`**, and two things answer it:
 - **Rigging only takes bipeds.** A blob fails step 3 — it keeps the procedural layer
   (breath, turning to the pointer, a squash when tapped) that runs on top of every clip.
 - **Blobs** is the second mode (Draw | Blobs): a **monster kit**, Monsters, Inc. in spirit. Pick
-  one of eight organic **bodies** (Round, Gumdrop, Hunch, Bell, Peanut, Noodle, Slug, Potato) and
-  build on it with twelve **parts** (Eye, Mouth, Tooth, Nose, Horn, Ear, Antenna, Arm, Leg,
-  Tentacle, Lump, Spots). All signed distance fields, smooth-unioned and raymarched in one
+  one of eight organic **bodies** (Round, Gumdrop, Hunch, Bell, Peanut, Noodle, Slug, Mochi) and
+  build on it with twelve **parts** (Eyes, Smile, Blush, Nose, Horn, Ear, Antenna, Arm, Leg,
+  Tentacle, Lump, Spots). **Everything is pitched cute, cuddly and simple** — John's call after
+  the first real build came back grotesque (wet realistic eyeballs, warts, teeth): eyes are glossy
+  plush-toy beads, the mouth is a small smile, every finish is toy-like (Plush / Vinyl / Clay /
+  Fuzzy — there is no photoreal one), and every prompt carries `CUTE`, which rules out veins,
+  wrinkles, teeth and realistic eyeballs. Don't add parts or finishes that pull the other way. All signed distance fields, smooth-unioned and raymarched in one
   `ShaderMaterial`; each sub-shape melts by its own `k` × the Melt slider, so an eye stays crisp
   and an arm melts in. **A part stores a direction from the body's centre, not a position**: it
   sits where that direction meets the body (`anchor()`), pointing out along the normal — so
