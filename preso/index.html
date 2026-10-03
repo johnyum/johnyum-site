@@ -332,6 +332,10 @@
   // slide replaces it. A jump discards it.
   let kept = null;       // { i, made }
   function discardKept() { if (kept) { kept.made.pane.remove(); kept = null; } }
+  // A SLIDE MAY REFUSE TO BE KEPT (window.presoNoKeep — John, 2026-10-02, the multi calendar: "I don't want it to remember its
+  // state"). Then stepping back onto it builds it fresh — at its end if arriving from ahead, at its start from behind — instead
+  // of showing it exactly as it was left, live taps and all.
+  function noKeep(made) { try { return !!(made && made.frame && made.frame.contentWindow && made.frame.contentWindow.presoNoKeep); } catch (_) { return false; } }
   function stash(made, i) {
     if (!made) return;
     if (kept && kept.made !== made) discardKept();
@@ -348,7 +352,7 @@
   function syncHash(ms = 4000) { const t0 = Date.now(); let last = null; const tick = () => { const st = slideState(current); if (st !== last) { last = st; writeHash(); } if (Date.now() - t0 < ms) setTimeout(tick, 150); }; tick(); }
   function prepareNext(i) {
     if (prepared && prepared.i === i) return;
-    if (kept && kept.i === i) return;   // the slide just left IS the next one (we stepped back onto this): it stands ready already
+    if (kept && kept.i === i && !noKeep(kept.made)) return;   // the slide just left IS the next one (we stepped back onto this): it stands ready already
     discardPrepared();
     if (i < 0 || i >= SLIDES.length || !HTML.test(SLIDES[i])) return;
     const made = makePane(i, 1);
@@ -476,7 +480,7 @@
   async function transitionTo(i, dir) {   // the push: off one way, land centre
     const outgoing = current;
     let made;
-    if (kept && kept.i === i) { made = kept.made; kept = null; made.pane.style.display = ''; made.pane.style.visibility = ''; discardPrepared(); }   // the slide just left: back to it as it was
+    if (kept && kept.i === i && !noKeep(kept.made)) { made = kept.made; kept = null; made.pane.style.display = ''; made.pane.style.visibility = ''; discardPrepared(); }   // the slide just left: back to it as it was
     else if (prepared && prepared.i === i && dir > 0) { made = prepared.made; prepared = null; made.pane.style.visibility = ''; made.pane.style.pointerEvents = ''; }   // built ahead: reveal it
     else { discardPrepared(); made = makePane(i, dir); stage.appendChild(made.pane); }
     made.pane.style.transform = 'translateX(' + (dir > 0 ? 100 : -100) + '%)';

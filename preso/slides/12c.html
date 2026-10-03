@@ -94,6 +94,24 @@
       + [0, 1, 2, 3].map(k => `.preso-odo .rr.p${k}{transform:translateY(calc(var(--o${k},0) * var(--n,0) * -1.25em))}`
           + `.preso-odo .rl.in.p${k}{max-width:calc(clamp(0, var(--o${k},0) * 5, 1) * 1em)}`
           + `.preso-odo .rl.out.p${k}{max-width:calc(clamp(0, (1 - var(--o${k},0)) * 5, 1) * 1em)}`).join('')
+      // REQUEST TO BOOK, mixed in with the stays (John, 2026-10-02) — the single calendar's own pill: white, a dashed #222 edge, the
+      // guest's two initials on a disc in one of the build's label colours, in place of the photo
+      + '.booking-pill.preso-req{background:#fff!important;border:1.5px dashed #222!important;box-sizing:border-box}'
+      + '.booking-pill.preso-req .booking-name{color:#222!important}'
+      + '.booking-pill.preso-req .booking-avatar{background:var(--req-bg,rgba(66,139,255,.1))!important;display:grid;place-items:center}'
+      + '.booking-pill.preso-req .booking-avatar img{display:none}'
+      + '.booking-pill.preso-req .booking-avatar::after{content:attr(data-ini);color:var(--req-ink,#428BFF);font:700 11px/1 Cereal,sans-serif;letter-spacing:.02em}'
+      + '#tbGroupBtn.pressing{background:var(--grey-300,#DDDDDD)}'
+      + '[data-hname*="Dinah"]{display:none!important}'   // no Dinah hearts in this flow (John, 2026-10-02) — Pride keeps its own
+      + '.opp-more{display:none!important}'               // no "1 more date" / "13 more listings" pills in the preso (John, 2026-10-02)
+      // THE COIN (John, 2026-10-02: "the spinning 3 rausch we built for the native version") — TipsPuck.swift / its web port in
+      // multi-host-calendar-web: a rausch disc with real thickness (six darker rim layers offset behind the face by the turn's sine,
+      // the face narrowed by its cosine), two eased turns over 1.6s, the glossy face once it settles. In the Show tips button's 40 circle.
+      + '.magic-count-circle.preso-coin{background:none!important;position:relative;overflow:visible}'
+      + '.preso-coin .rim,.preso-coin .face{position:absolute;top:0;height:100%;border-radius:50%}'
+      + '.preso-coin .rim{background:#C72149}.preso-coin .face{background:var(--brand-rausch,#FF385C)}'
+      + '.preso-coin .face.glass{background:linear-gradient(160deg,#FF5F7E,#FF385C 55%,#E8214C);box-shadow:inset 0 1px 1px rgba(255,255,255,.55)}'
+      + '.preso-coin .num{position:relative;z-index:1;display:inline-block}'
       + '.preso-odo .rr{display:block}'   // a block: an inline span takes no transform, and the reel would never turn
       // while it rolls, each cell keeps its own re-layout to itself (the places opening re-centre the price inside the cell, never the board)
       + 'body.preso-rolling #gridRows .price-card{contain:layout style}'
@@ -324,16 +342,21 @@
     };
     if (!animate) { draw(0); face.classList.add('glass'); return; }
     draw(0);
-    const DUR = 1600, TURNS = 2; let t0 = 0;
-    const tick = now => {
-      if (!el.isConnected) return;                                                    // the build redrew its pill: let it go
-      if (!t0) t0 = now;
-      const u = Math.min(1, (now - t0) / DUR), e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
-      draw(2 * Math.PI * TURNS * e);
-      if (u > .55) face.classList.add('glass');
-      if (u < 1) w.requestAnimationFrame(tick);
-    };
-    setTimeout(() => w.requestAnimationFrame(tick), 250);                              // it pops in first, then turns
+    // ARRIVES SPINNING, THEN RESTS, THEN TURNS NOW AND THEN (John, 2026-10-02: "when it first comes in it spins fast a few times,
+    // then rests, then spins once in a while"): three quick turns on arrival, then a single turn (the native coin's 0.9s) every
+    // few seconds, for as long as the button is up
+    const turn = (turns, dur, then) => { let t0 = 0;
+      const tick = now => {
+        if (!el.isConnected) return;                                                  // the build redrew its pill: let it go
+        if (!t0) t0 = now;
+        const u = Math.min(1, (now - t0) / dur), e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+        draw(2 * Math.PI * turns * e);
+        if (u > .55) face.classList.add('glass');
+        if (u < 1) w.requestAnimationFrame(tick); else if (then) then();
+      };
+      w.requestAnimationFrame(tick); };
+    const idle = () => { if (!el.isConnected) return; clearTimeout(coin._idle); coin._idle = setTimeout(() => turn(1, 900, idle), 5200); };
+    setTimeout(() => turn(3, 1500, idle), 250);                                        // it pops in first, then spins
   }
   const BEATS = [
     // 1 — the top 7 stay; the rest fade and fold away; then the 7 grow to 96
@@ -480,7 +503,7 @@
           coin._t = setTimeout(watch, 60); };
         coin._t = setTimeout(watch, 260);
       },
-      back: w => { clearTimeout(coin._t); w.document.body.classList.add('preso-no-tips'); BEATS.find(b => b.search).fwd(w, true); } },   // the button away, and Coachella searched again, as it stood
+      back: w => { clearTimeout(coin._t); clearTimeout(coin._idle); w.document.body.classList.add('preso-no-tips'); BEATS.find(b => b.search).fwd(w, true); } },   // the button away, and Coachella searched again, as it stood
   ];
   // THE OLD PATH (2026-09-22 … 09-30), parked when John rewrote the slide's path (2026-10-02): group by city, the guests, a swath
   // selected and priced, Tips and its opportunities. Not played; kept whole so any of it can come back.
@@ -671,8 +694,11 @@
     if (at + queued >= BEATS.length) return true;              // already queued to the last beat: hold, do not leave mid-queue
     queued++; pump(); return true;
   };
+  window.presoNoKeep = true;   // the deck never hands this slide back as it was left: it is rebuilt (see the deck's noKeep)
   window.presoPrev = () => {
     settleRestore(); queued = 0; clearTimeout(qT);
+    // what was done by hand comes undone with the step: Tips opened live (its opportunities mode) closes first
+    ev(W(), "if (document.body.classList.contains('optimize-mode')) exitOptimize();");
     // GROUPED BY HAND, UNGROUPED BY BACK (John, 2026-10-02): the Group button is tapped live, not a beat — so a Back while the
     // board is grouped is the Ungroup, pressed for you, and only the next Back steps the path back
     // (not when the grouping IS the beat being stepped back — the Group beat's own back ungroups and counts the step)
