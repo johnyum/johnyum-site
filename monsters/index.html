@@ -204,6 +204,9 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
 .check input { accent-color: var(--ink); width: 15px; height: 15px; }
 .trio { display: flex; gap: 6px; }
 .trio .tool { flex: 1; }
+.topeek { display: flex; align-items: center; justify-content: center; height: 42px; border-radius: 12px; border: 1px solid var(--ink);
+  color: var(--ink); text-decoration: none; font-weight: 500; font-size: 13.5px; }
+.topeek:hover { background: var(--ink); color: #fff; }
 .sel[data-for="body"] [data-only="part"], .sel[data-for="part"] [data-only="body"] { display: none; }
 .stage:not(.sculpting) #sculptHint { display: none; }
 .stage.sculpting .actions, .stage.sculpting #recenter, .stage.sculpting #download, .stage.sculpting .note,
@@ -315,6 +318,7 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
         <button class="tool" id="bundo" title="Undo (⌘Z)">Undo</button>
         <button class="tool" id="bclear">Start over</button>
       </div>
+      <a class="topeek" id="toPeek" href="/peek/" target="_blank" rel="noopener">Bring it into Peek — watch it live in a chat →</a>
     </div>
 
     <label class="field">
@@ -368,6 +372,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { BODIES, PARTS, prim, smin, bodyFrameOf, bodyField, anchor, pack } from './kit.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -775,77 +780,12 @@ $('#recenter').onclick = () => { camera.position.copy(HOME.pos); controls.target
    out along the normal there. So swap or stretch the body and every part re-seats.
    The same distance functions run in JS for anchoring, picking and dragging. */
 
-const BODIES = ['Round', 'Gumdrop', 'Hunch', 'Bell', 'Peanut', 'Noodle', 'Slug', 'Mochi'];   // prim types 8–15
-// A part: its sub-shapes in part units (+y points out of the body), and where it goes by default.
-// c: 'self' takes the part's colour. k: how much it melts into what it touches (× the Melt slider).
-const PARTS = {
-  // A bead eye, as plush toys have: glossy black (or any colour) with a white catch-light.
-  // In a part's frame +y is out of the body and -z is up the face, so the light sits top-left.
-  eye:      { name: 'Eye', s: .14, color: '#1a1a1a', dir: [.36, .36, 1], subs: [
-              { t: 0, p: [0, .2, 0], s: [1, 1, 1.15], c: 'self', k: .08 },
-              { t: 0, p: [-.32, .98, -.38], s: [.26, .26, .26], c: '#ffffff', k: .02 }] },
-  smile:    { name: 'Smile', s: .19, color: '#3a2328', dir: [0, -.14, 1], carve: true, subs: [
-              { t: 19, p: [0, 0, -.35], s: [1, 1, 1], c: 'self', k: .3 }] },
-  blush:    { name: 'Blush', s: .13, color: '#f39bb0', dir: [.55, .02, .85], subs: [
-              { t: 7, p: [0, 0, 0], s: [1, 1, 1], c: 'self', k: .04 }] },
-  nose:     { name: 'Nose', s: .1, color: null, dir: [0, .16, 1], subs: [{ t: 0, p: [0, .35, 0], s: [1, .85, 1], c: 'self', k: .6 }] },
-  horn:     { name: 'Horn', s: .22, color: '#f1ece4', dir: [.4, 1, .05], subs: [{ t: 16, p: [0, -.25, 0], s: [1, 1, 1], c: 'self', k: .5 }] },
-  ear:      { name: 'Ear', s: .24, color: null, dir: [.62, .9, .05], subs: [{ t: 0, p: [0, .9, 0], s: [.75, 1.15, .28], c: 'self', k: .7 }] },
-  antenna:  { name: 'Antenna', s: .2, color: null, dir: [.22, 1, 0], subs: [
-              { t: 6, p: [0, .9, 0], s: [.6, .9, .6], c: 'self', k: .5 },
-              { t: 0, p: [0, 1.9, 0], s: [.34, .34, .34], c: '#e8b04a', k: .3 }] },
-  arm:      { name: 'Arm', s: .2, color: null, dir: [1, 0, .2], subs: [
-              { t: 17, p: [0, -.2, 0], s: [1, 1, 1], c: 'self', k: .9 },
-              { t: 0, p: [0, 1.3, .41], s: [.42, .42, .42], c: 'self', k: .6 }] },
-  leg:      { name: 'Leg', s: .26, color: null, dir: [.38, -1, .12], subs: [
-              { t: 2, p: [0, .45, 0], s: [.58, .72, .58], c: 'self', k: .8 },
-              { t: 0, p: [0, 1.1, .28], s: [.52, .34, .68], c: 'self', k: .5 }] },
-  tentacle: { name: 'Tentacle', s: .3, color: null, dir: [.55, -.7, .45], subs: [{ t: 18, p: [0, -.2, 0], s: [1, 1, 1], c: 'self', k: .8 }] },
-  lump:     { name: 'Lump', s: .26, color: null, dir: [0, 1, 0], subs: [{ t: 0, p: [0, .15, 0], s: [1, 1, 1], c: 'self', k: 1 }] },
-  spots:    { name: 'Spots', s: .14, color: '#8a5cd6', dir: [.62, .15, .7], subs: [
-              { t: 7, p: [0, 0, 0], s: [1, 1, 1], c: 'self', k: .04 },
-              { t: 7, p: [1.5, -.05, .9], s: [.6, 1, .6], c: 'self', k: .04 },
-              { t: 7, p: [-.4, -.05, 1.7], s: [.45, 1, .45], c: 'self', k: .04 }] },
-};
+// BODIES and PARTS — what a character is made of — are in kit.js, shared with peek/.
 const SWATCHES = ['#f1ece4', '#e8b04a', '#e5734f', '#d6456b', '#8a5cd6', '#4a7fd9', '#3fae9a', '#79b84a', '#6b5444', '#222222'];
 const MAX = 48;   // prims the shader takes — sub-shapes and mirror twins included
 const BOX = { min: new THREE.Vector3(-2.6, -.05, -2.6), max: new THREE.Vector3(2.6, 3.6, 2.6) };
 
-const roundCone = (qx, qy, r1, r2, h) => {
-  const b = (r1 - r2) / h, a = Math.sqrt(1 - b * b), k = -b * qx + a * qy;
-  if (k < 0) return Math.hypot(qx, qy) - r1;
-  if (k > a * h) return Math.hypot(qx, qy - h) - r2;
-  return qx * a + qy * b - r1;
-};
-const smin = (a, b, k) => { const h = Math.min(1, Math.max(0, .5 + .5 * (b - a) / k)); return b + (a - b) * h - k * h * (1 - h); };
-// Unit shapes. Kept identical to prim() in the shader below — change one, change both.
-function prim(t, x, y, z) {
-  switch (t) {
-    case 0: return Math.hypot(x, y, z) - 1;
-    case 2: return Math.hypot(x, y - Math.max(-.6, Math.min(.6, y)), z) - .5;
-    case 5: return roundCone(Math.hypot(x, z), y + .7, .7, .08, 1.5);
-    case 6: return Math.hypot(x, y - Math.max(-1, Math.min(1, y)), z) - .14;
-    case 7: { const dx = Math.hypot(x, z) - .85, dy = Math.abs(y) - .06;
-      return Math.min(Math.max(dx, dy), 0) + Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) - .04; }
-    // bodies
-    case 8: return Math.hypot(x, y, z) - 1;                                                   // round
-    case 9: return (Math.hypot(x, y * .85, z) - (1 - .32 * y)) * .62;                         // gumdrop
-    case 10: return (Math.hypot(x * .92, y * .85, z * 1.12) - (1 + .3 * y)) * .62;            // hunch
-    case 11: return roundCone(Math.hypot(x, z), y + .75, 1, .5, 1.45);                       // bell
-    case 12: return smin(Math.hypot(x, y - .55, z) - .6, Math.hypot(x, y + .42, z) - .78, .3); // peanut
-    case 13: { const qz = z - .3 * Math.sin(y * 1.4);                                         // noodle, wiggling front to back
-      return (Math.hypot(x, y - Math.max(-1.15, Math.min(1.15, y)), qz) - .45) * .75; }
-    case 14: return (Math.hypot(x * .58, y * 1.3, z * .95) - (1 + .2 * z)) * .5;              // slug
-    case 15: return smin(Math.hypot(x * .82, y * 1.25, z * .9) - 1, -.55 - y, -.25);         // mochi: soft, wide, sat flat (a negative k is a smooth max)
-    // part shapes
-    case 16: { const qz = z + .28 * y * y; return roundCone(Math.hypot(x, qz), y, .45, .06, 1.8) * .8; }   // curved horn
-    case 17: { const qz = z - .18 * y * y; return (Math.hypot(x, y - Math.max(0, Math.min(1.5, y)), qz) - .3) * .85; }   // bent arm
-    case 18: { const qx = x - .25 * Math.sin(y * 2.2), r = .38 + (.08 - .38) * Math.min(1, Math.max(0, y / 2));   // tentacle
-      return (Math.hypot(qx, y - Math.max(0, Math.min(2, y)), z) - r) * .7; }
-    case 19: return Math.max(Math.hypot(Math.hypot(x, z) - .8, y) - .2, .25 - z);           // smile: the lower arc of a ring
-    default: return Math.hypot(x, y, z) - 1;
-  }
-}
+// prim(), smin() and roundCone() come from kit.js — the shader below keeps its own prim(): change one, change both.
 
 const sculptMat = new THREE.ShaderMaterial({
   side: THREE.BackSide,   // the back faces, so it still draws with the camera inside the box
@@ -991,32 +931,8 @@ function newPart(key, dir) {
 
 // The body alone, as a field — what parts anchor to.
 const UP = new THREE.Vector3(0, 1, 0), tmp = new THREE.Vector3();
-const bottomCache = {};
-function bottomOf(type) {   // how far below its centre a unit body reaches, so it can stand on the floor
-  if (bottomCache[type] == null) { let y = -2.5; while (prim(8 + type, 0, y, 0) > 0 && y < 0) y += .005; bottomCache[type] = y; }
-  return bottomCache[type];
-}
-function bodyFrame() {
-  const b = shapes[0], sc = new THREE.Vector3(b.w, b.h, b.d).multiplyScalar(b.s);
-  return { c: new THREE.Vector3(0, -bottomOf(b.type) * sc.y, 0), s: sc, type: 8 + b.type };
-}
-const bodyField = (B, p) => { tmp.copy(p).sub(B.c); return prim(B.type, tmp.x / B.s.x, tmp.y / B.s.y, tmp.z / B.s.z) * Math.min(B.s.x, B.s.y, B.s.z); };
-// Where a direction from the body's centre meets its surface, and the outward normal there.
-function anchor(B, dir) {
-  const d = new THREE.Vector3(...dir).normalize(), p = new THREE.Vector3(), start = B.c.clone().addScaledVector(d, 6);
-  let t = 0;
-  for (let i = 0; i < 200 && t < 6; i++) {
-    p.copy(start).addScaledVector(d, -t);
-    const f = bodyField(B, p);
-    if (f < .002) break;
-    t += Math.max(f * .9, .002);
-  }
-  const e = .002, n = new THREE.Vector3(
-    bodyField(B, p.clone().add(new THREE.Vector3(e, 0, 0))) - bodyField(B, p.clone().add(new THREE.Vector3(-e, 0, 0))),
-    bodyField(B, p.clone().add(new THREE.Vector3(0, e, 0))) - bodyField(B, p.clone().add(new THREE.Vector3(0, -e, 0))),
-    bodyField(B, p.clone().add(new THREE.Vector3(0, 0, e))) - bodyField(B, p.clone().add(new THREE.Vector3(0, 0, -e)))).normalize();
-  return { p, n };
-}
+// The body's frame and part anchoring live in kit.js, shared with peek/.
+const bodyFrame = () => bodyFrameOf(shapes[0]);
 
 // Body and parts into the shader's arrays: sub-shapes expanded, mirror twins added.
 function rebuild() {
@@ -1242,6 +1158,8 @@ function setMode(m) {
 }
 $('#modes').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && !running) setMode(b.dataset.mode); });
 $('#backToSculpt').onclick = () => !running && setView('sculpt');
+// The character goes to Peek in the link itself, so the link can be shared too.
+$('#toPeek').addEventListener('click', () => { $('#toPeek').href = '/peek/#c=' + pack(shapes); });
 
 /* ═══════════════ status, steps, shelf ═══════════════ */
 

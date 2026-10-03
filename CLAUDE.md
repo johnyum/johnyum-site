@@ -16,6 +16,7 @@ don't introduce bundlers, npm, or a component framework.
 | `explore/` | Explore map drill-in — see below |
 | `multical/` | **Build output — never hand-edit.** The Multi-Host Calendar web app, played live inside the phone on preso slide 13. See below. |
 | `recurrence/` | **Build output — never hand-edit.** The same calendar with the Repeat (recurrence) flow, from its own project. See below. |
+| `peek/` | johnyum.com/peek — a 3D furry character living in a chat UI, built from a Monsters character. See below |
 | `monsters/` | johnyum.com/monsters — sketch → rigged, animated 3D character (Meshy), with `api/monsters.py`. See below |
 | `bento-widgets/` | Standalone widget experiments |
 | `test/` | Scratch prototypes |
@@ -318,8 +319,36 @@ The page only ever talks to **`/api/monsters?p=…`**, and two things answer it:
 - Two earlier versions were built and dropped on 2026-10-02, both in git history: **Evolve**
   (procedural "bug" creatures on a 3×3 breeding grid — John didn't want ready-made creatures) and
   plain geometric blobs (ball, cube, ring… — too abstract; he wanted friendly bodies to build on).
+- `BODIES`, `PARTS`, `prim()` and anchoring live in **`monsters/kit.js`**, shared with `peek/`.
 - `window.__monsters` exposes `{ play, still, clips, playing, setMode, addPart, setBody, select, shapes, selected }`,
   the way `explore/` does.
+
+## `peek/` — a character that lives in the interface (johnyum.com/peek)
+
+A 3D character that runs around a chat UI the way a game character runs around a level:
+it stands on message bubbles, runs along the chat box, jumps between suggestion pills, sits on
+a reply while it "thinks", hangs from a pill and swings, peeks up from behind the input
+gripping its edge, pops in from the right with gritted teeth when you swear at it, and holds
+up tip cards. One `index.html`, three.js; the chat is canned.
+
+- **One pixel, one unit.** A transparent full-window WebGL canvas with an orthographic camera
+  (y flipped), so an element's `getBoundingClientRect().top` *is* a floor. Feet re-read their
+  element's rect every frame, so scrolling and reflow carry the character along.
+- **"Behind an element" is an occluder**: a depth-only plane over the element's rect, drawn
+  first and closer to the camera. **Fur is shell texturing** — 16 offset copies of a mesh cut to
+  strands by a 3D hash, dragged against the motion; it runs short (`uBald`) round the eyes,
+  mouth and cheeks so a face stays a face. Jumps are ballistic, the hang is a real pendulum
+  (a cursor swept past pushes it), squash, lean and ears are springs.
+- **The character comes from Monsters.** Blobs mode's "Bring it into Peek" packs the kit
+  character into the link (`/peek/#c=…`, `pack()`/`unpack()`), and Peek meshes it with three's
+  `MarchingCubes` from the same distance functions. Parts get jobs: eyes blink/look/squint,
+  the smile becomes the mood mouth, blush flushes, arms pump and hang, legs run (no legs: it
+  hops), ears/antennae/tentacles spring; a character with no arms is lent small ones to hang
+  and hold. No link: a default green gumdrop.
+- **`monsters/kit.js` is shared by both pages** — bodies, parts, `prim()`, anchoring. The
+  Monsters shader still has its own GLSL `prim()`: change one, change both.
+- Its frame loop is `frame()`, exposed on `window.__peek` — a hidden tab pauses
+  `requestAnimationFrame`, so a test drives frames by hand.
 
 ## Drawing in Claude's visual language
 

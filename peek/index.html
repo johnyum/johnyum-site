@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peek — a character that lives in the interface</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!--
+  Peek — a little 3D character that lives inside a UI, the way a game character
+  lives in a level. The page's own elements are its platforms.
+
+  One transparent WebGL canvas covers the window, with an orthographic camera set
+  so one world unit is one CSS pixel (y flipped). So "the top edge of that message
+  bubble" is just getBoundingClientRect().top, and the character can stand on it,
+  run along it, jump from it, sit on it, hang under it.
+
+  What makes it feel alive rather than drawn:
+    fur        shell texturing — the body drawn 16 times, each shell pushed out
+               along the normal and cut to strands by a noise texture; the shells
+               trail the motion, so the fur drags when it runs and settles after
+    physics    ballistic jumps with gravity; a real pendulum when it hangs (and the
+               cursor can push it); springs on squash, lean and the ears
+    run cycle  feet plant and lift, body bobs, arms pump, it turns toward travel
+    occlusion  "behind the chat box" is an invisible depth-only plane over the
+               element's rect, drawn first, so anything behind it isn't drawn
+
+  Poses (each returns once it's in place; act() queues them):
+    standOn(el,x) runTo(el,x) jumpTo(el,x) sitOn(el,x) peekOver(el,x)
+    peekSide('right'|'left'|'bottom', at) hang(el,x) holdTip(title,text) leave()
+    mood('happy'|'curious'|'thinking'|'surprised'|'love'|'sleepy'|'ugh') say(text)
+
+  The chat is canned — no model behind it. It exists to give the character a level.
+-->
+<style>
+:root {
+  --bg: #ffffff;
+  --field: #f5f5f5;
+  --ink: #111111;
+  --ink-2: #666666;
+  --ink-3: #a3a3a3;
+  --line: #e6e6e6;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body { background: var(--bg); color: var(--ink); font: 14.5px/1.5 "IBM Plex Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+p { margin: 0; }
+button, textarea { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+
+/* ── the app it lives in ── */
+.app { display: grid; grid-template-columns: 248px 1fr; height: 100vh; }
+.side { border-right: 1px solid var(--line); padding: 18px 14px; display: flex; flex-direction: column; gap: 4px; }
+.brand { font-weight: 600; font-size: 17px; padding: 2px 8px 14px; letter-spacing: -.01em; }
+.brand span { color: var(--ink-3); font-weight: 400; }
+.new { height: 36px; border: 1px solid var(--line); border-radius: 10px; background: transparent; cursor: pointer; text-align: left; padding: 0 12px; margin-bottom: 12px; }
+.new:hover { border-color: var(--ink-3); }
+.side h3 { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); margin: 8px 8px 4px; }
+.side a { display: block; padding: 7px 8px; border-radius: 8px; color: var(--ink-2); text-decoration: none; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side a.on { background: var(--field); color: var(--ink); }
+
+.chat { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; height: 100vh; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 22px; border-bottom: 1px solid var(--line); }
+.top b { font-weight: 500; }
+.director { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.director button { height: 30px; padding: 0 11px; border-radius: 99px; border: 1px solid var(--line); background: transparent; cursor: pointer; font-size: 12.5px; color: var(--ink-2); }
+.director button:hover { border-color: var(--ink); color: var(--ink); }
+.director span { font: 500 10.5px "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); align-self: center; margin-right: 4px; }
+
+.log { overflow-y: auto; padding: 34px 22px 20px; }
+.log-inner { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 26px; padding-top: 40px; }
+.msg { max-width: 82%; }
+.msg.user { align-self: flex-end; background: var(--field); padding: 10px 15px; border-radius: 18px 18px 6px 18px; }
+.msg.bot { align-self: flex-start; padding: 2px 0; }
+.msg.bot.typing { display: inline-flex; gap: 5px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 18px 18px 18px 6px; }
+.typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); animation: dot 1s infinite ease-in-out; }
+.typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes dot { 0%, 80%, 100% { transform: translateY(0); opacity: .5; } 40% { transform: translateY(-4px); opacity: 1; } }
+.hello { color: var(--ink-3); text-align: center; margin-top: 10vh; }
+.hello b { display: block; color: var(--ink); font-size: 26px; font-weight: 600; letter-spacing: -.02em; margin-bottom: 6px; }
+
+.foot { padding: 0 22px 22px; }
+.foot-inner { max-width: 720px; margin: 0 auto; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.chips button { height: 32px; padding: 0 14px; border-radius: 99px; border: 1px solid var(--line); background: #fff; cursor: pointer; font-size: 13px; color: var(--ink-2); }
+.chips button:hover { border-color: var(--ink-3); color: var(--ink); }
+.composer { display: flex; gap: 8px; align-items: flex-end; border: 1px solid var(--line); border-radius: 18px; padding: 8px 8px 8px 16px; background: #fff; }
+.composer:focus-within { border-color: var(--ink-3); }
+.composer textarea { flex: 1; border: 0; outline: none; resize: none; min-height: 24px; max-height: 160px; padding: 6px 0; background: transparent; line-height: 1.5; }
+.composer button { height: 36px; padding: 0 16px; border: 0; border-radius: 12px; background: var(--ink); color: #fff; font-weight: 500; cursor: pointer; }
+.hint { text-align: center; font-size: 12px; color: var(--ink-3); margin-top: 8px; }
+
+/* ── the character's layer ── */
+#world { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 40; }
+#fx { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+.bubble { position: absolute; padding: 8px 13px; border-radius: 16px; background: var(--ink); color: #fff;
+  font-size: 13.5px; font-weight: 500; white-space: nowrap; box-shadow: 0 6px 18px -8px rgba(0,0,0,.35); transform: translate(-50%, -100%); }
+.bubble.ugh { font-size: 17px; font-weight: 600; letter-spacing: .02em; }
+.card { position: absolute; width: 230px; padding: 13px 15px; border-radius: 14px; background: #fff; transform: translate(-50%, -100%) rotate(-3deg);
+  box-shadow: 0 0 0 1px var(--line), 0 14px 30px -14px rgba(0,0,0,.35); font-size: 13.5px; color: var(--ink-2); pointer-events: auto; cursor: pointer; }
+.card b { display: block; color: var(--ink); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+.card small { display: block; margin-top: 8px; color: var(--ink-3); font-size: 11.5px; }
+
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; }
+  .side { display: none; }
+  .top { flex-direction: column; align-items: flex-start; }
+  .director { justify-content: flex-start; }
+}
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">Peek <span>· a character in the UI</span></div>
+    <button class="new" id="newChat">+ New chat</button>
+    <h3>Today</h3>
+    <a class="on" href="#">Untitled chat</a>
+    <a href="#">Trip ideas for March</a>
+    <a href="#">Rewrite the onboarding copy</a>
+    <h3>Earlier</h3>
+    <a href="#">Why is my build failing</a>
+    <a href="#">Gift for a 6 year old</a>
+    <a href="#">Explain signed distance fields</a>
+  </aside>
+
+  <main class="chat">
+    <header class="top">
+      <b>Untitled chat</b>
+      <div class="director" id="director">
+        <span>Try</span>
+        <button data-do="peek">Peek</button>
+        <button data-do="hang">Hang</button>
+        <button data-do="run">Run</button>
+        <button data-do="jump">Jump</button>
+        <button data-do="sit">Sit</button>
+        <button data-do="tip">Tip</button>
+        <button data-do="ugh">Ugh</button>
+        <button data-do="sleep">Sleep</button>
+      </div>
+    </header>
+
+    <div class="log" id="log"><div class="log-inner" id="msgs">
+      <div class="hello" id="hello"><b>What's on your mind?</b>Type something. Be nice — or don't, and see what happens.</div>
+    </div></div>
+
+    <div class="foot"><div class="foot-inner">
+      <div class="chips" id="chips">
+        <button>Summarize this page</button>
+        <button>Make it shorter</button>
+        <button>Explain like I'm five</button>
+        <button>Give me ideas</button>
+      </div>
+      <form class="composer" id="composer">
+        <textarea id="input" rows="1" placeholder="Ask anything…" aria-label="Message"></textarea>
+        <button>Send</button>
+      </form>
+      <p class="hint">Canned replies — this is a demo of the character, not of a model.</p>
+    </div></div>
+  </main>
+</div>
+
+<canvas id="world"></canvas>
+<div id="fx"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
+import { PARTS, prim, smin, bodyFrameOf, bodyField, anchor, partPose, twinned, unpack } from '../monsters/kit.js';
+
+const $ = (s, r = document) => r.querySelector(s);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+const S = 86;   // px per character unit — it stands about 100px tall
+
+/* ═══════════════ the world: one pixel, one unit ═══════════════ */
+
+const canvas = $('#world');
+const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+const scene = new THREE.Scene();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), .04).texture;
+scene.environmentIntensity = .7;
+const camera = new THREE.OrthographicCamera(0, 1, 0, -1, 1, 4000);
+camera.position.z = 2000;
+function resize() {
+  renderer.setSize(innerWidth, innerHeight, false);
+  Object.assign(camera, { left: 0, right: innerWidth, top: 0, bottom: -innerHeight }); camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+const KEY = new THREE.Vector3(.45, .75, .55).normalize();
+const key = new THREE.DirectionalLight(0xffffff, 2.1); key.position.copy(KEY).multiplyScalar(1000); scene.add(key);
+scene.add(new THREE.HemisphereLight(0xffffff, 0xdedede, .9));
+
+// "Behind an element": a plane over its rect that writes depth and no colour, drawn
+// before the character and closer to the camera — whatever's behind it isn't drawn.
+const occluder = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ colorWrite: false }));
+occluder.renderOrder = -1; occluder.position.z = 700; occluder.visible = false; scene.add(occluder);
+let occludeEl = null;
+const occlude = (el) => { occludeEl = el; occluder.visible = !!el; };
+
+/* ═══════════════ the character — built from a Monsters kit character ═══════════════
+   A character arrives in the link (#c=…, from Monsters' "Bring it into Peek") as
+   [body, ...parts] — the same data and the same distance functions (../monsters/kit.js)
+   Monsters draws with. Here it's turned into meshes (marching cubes over each field)
+   and each part is given a job in the rig:
+     body      the furry mesh            eyes    blink, look, squint
+     smile     the mouth, by mood        blush   flushes when it's cross
+     arms      pump, reach, hang         legs    the run cycle (no legs: it hops)
+     ears · antennae · tentacles  on springs     everything else  carried along
+   No link, and it's the default: a green gumdrop with a face, ears, arms and legs. */
+
+const H = 1.15;   // every character is scaled to stand this tall (character units)
+const part = (key, color) => {
+  const P = PARTS[key];
+  return { kind: 'part', key, s: P.s, h: 1, lift: 0, tilt: 0, turn: 0, carve: !!P.carve,
+           color: P.color || color, dir: new THREE.Vector3(...P.dir).normalize().toArray() };
+};
+const DEFAULT = (() => { const c = '#8fcc6c'; return [{ kind: 'body', type: 1, s: .72, w: 1, h: 1, d: 1, color: c },
+  ...['eye', 'smile', 'blush', 'ear', 'arm', 'leg'].map((k) => part(k, c))]; })();
+const linked = location.hash.startsWith('#c=') ? unpack(location.hash.slice(3)) : null;
+const CHAR = Array.isArray(linked) && linked[0]?.kind === 'body' && linked[0].type >= 0 ? linked : DEFAULT;
+const BODY = CHAR[0], SKIN = new THREE.Color(BODY.color);
+
+const root = new THREE.Group();      // at the feet, in page pixels; rotation.z is the screen-space lean / swing
+const yawG = new THREE.Group();      // turns toward where it's going
+const bodyG = new THREE.Group();     // squash and stretch, from the feet up
+const kitG = new THREE.Group();      // the kit character, in kit units, scaled to stand H tall
+root.add(yawG); yawG.add(bodyG); bodyG.add(kitG); root.scale.setScalar(S); scene.add(root);
+root.visible = false;
+
+// The body's frame, and how tall it stands — which sets the kit-to-character scale.
+const B = bodyFrameOf(BODY);
+let bodyTop = B.c.y; { const p = new THREE.Vector3(0, B.c.y, 0); while (bodyField(B, p) < 0 && p.y < 6) p.y += .004; bodyTop = p.y; }
+const K = H / bodyTop; kitG.scale.setScalar(K);
+
+// A distance field into a mesh: three's marching cubes, fed by hand.
+function meshField(f, center, half, res = 44) {
+  const mc = new MarchingCubes(res, new THREE.MeshBasicMaterial(), false, false, 90000);
+  mc.isolation = 0; mc.reset();
+  const hs = res / 2, p = new THREE.Vector3();
+  for (let z = 0; z < res; z++) for (let y = 0; y < res; y++) for (let x = 0; x < res; x++) {
+    p.set(center.x + (x - hs) / hs * half, center.y + (y - hs) / hs * half, center.z + (z - hs) / hs * half);
+    mc.field[x + y * res + z * res * res] = -f(p);   // positive inside
+  }
+  mc.update();
+  const n = mc.count, pos = mc.positionArray.slice(0, n * 3), nor = mc.normalArray.slice(0, n * 3);
+  for (let i = 0; i < n * 3; i += 3) {
+    pos[i] = center.x + pos[i] * half; pos[i + 1] = center.y + pos[i + 1] * half; pos[i + 2] = center.z + pos[i + 2] * half;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  g.normalizeNormals(); mc.geometry.dispose();
+  return g;
+}
+
+// Fur: SHELLS copies of a mesh, each pushed out along the normal and cut into strands by
+// a 3D hash of the surface position. They're displaced against the motion (uDrag, in view
+// space, so pixels) and droop a little. Around the eyes, mouth and cheeks the fur runs
+// short (uBald), so a face stays a face.
+const SHELLS = 16, FUR = .085 / K;   // fur length in kit units
+const KEY_U = { value: KEY }, DRAG = { value: new THREE.Vector2() };
+const bald = { value: Array.from({ length: 10 }, () => new THREE.Vector4(0, -99, 0, 0)) };
+function furry(geo, color, withBald = false) {
+  const g = new THREE.Group(), base = new THREE.Color(color);
+  for (let i = 0; i < SHELLS; i++) {
+    const k = i / (SHELLS - 1);
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uShell: { value: k }, uDrag: DRAG, uKey: KEY_U, uBald: withBald ? bald : { value: bald.value.map(() => new THREE.Vector4(0, -99, 0, 0)) },
+                  uColor: { value: base }, uTint: { value: base.clone().lerp(new THREE.Color('#ffffff'), .5) }, uFur: { value: FUR }, uDensity: { value: 70 / K } },
+      vertexShader: `
+        uniform float uShell, uFur; uniform vec2 uDrag; uniform vec4 uBald[10]; varying vec3 vN, vObj;
+        void main() {
+          vObj = position; vN = normalize(normalMatrix * normal);
+          float b = 0.;
+          for (int i = 0; i < 10; i++) b = max(b, 1. - smoothstep(uBald[i].w * .7, uBald[i].w * 1.5, distance(position, uBald[i].xyz)));
+          vec4 mv = modelViewMatrix * vec4(position + normal * uFur * uShell * (1. - .85 * b), 1.);
+          float bend = uShell * uShell;
+          mv.xy += uDrag * bend;          // trails the motion
+          mv.y -= bend * 1.6;             // and droops a little
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `
+        uniform float uShell, uDensity; uniform vec3 uColor, uTint, uKey; varying vec3 vN, vObj;
+        float hash(vec3 c) { return fract(sin(dot(c, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+        void main() {
+          if (uShell > 0. && hash(floor(vObj * uDensity)) < uShell * .92 + .06) discard;   // strands thin toward their tips
+          vec3 nn = normalize(vN);
+          float dif = clamp(dot(nn, uKey) * .55 + .45, 0., 1.);    // wrapped light — fur is soft, not shiny
+          float rim = pow(1. - clamp(nn.z, 0., 1.), 2.5);
+          vec3 c = mix(uColor * .62, uColor, uShell) * dif + uTint * rim * .3 * uShell;
+          gl_FragColor = vec4(c, 1.);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`,
+    });
+    const m = new THREE.Mesh(geo, mat); m.renderOrder = i; g.add(m);
+  }
+  return g;
+}
+const gloss = (c) => new THREE.MeshPhysicalMaterial({ color: c, roughness: .18, clearcoat: 1, clearcoatRoughness: .1 });
+const matte = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: .7, ...o });
+
+// The body.
+{
+  const half = Math.max(bodyTop / 2, B.s.x * 1.25, B.s.z * 1.25) + .06;
+  kitG.add(furry(meshField((p) => bodyField(B, p), new THREE.Vector3(0, bodyTop / 2, 0), half, 56), SKIN, true));
+}
+
+// A part's own field, in its own frame (+y out of the body); m = -1 for a mirror twin.
+function partField(pt, m) {
+  const subs = PARTS[pt.key].subs.map((sub) => {
+    const q = sub.r ? new THREE.Quaternion().setFromEuler(new THREE.Euler(sub.r[0], sub.r[1] * m, sub.r[2] * m)) : new THREE.Quaternion();
+    return { t: sub.t, c: new THREE.Vector3(sub.p[0] * m * pt.s, sub.p[1] * pt.s * pt.h, sub.p[2] * pt.s), inv: q.invert(),
+             s: new THREE.Vector3(sub.s[0], sub.s[1] * pt.h, sub.s[2]).multiplyScalar(pt.s), k: .12 * sub.k, color: sub.c };
+  });
+  const v = new THREE.Vector3();
+  const one = (sb, p) => { v.copy(p).sub(sb.c).applyQuaternion(sb.inv); return prim(sb.t, v.x / sb.s.x, v.y / sb.s.y, v.z / sb.s.z) * Math.min(sb.s.x, sb.s.y, sb.s.z); };
+  return { subs, one, f: (p) => subs.reduce((d, sb, i) => i ? smin(one(sb, p), d, Math.max(.002, sb.k)) : one(sb, p), 0) };
+}
+// Mesh a part: sub-shapes of the part's own colour together (furry if it's the body's
+// colour), and each other-coloured sub-shape on its own (the antenna's yellow tip).
+function partMesh(pt, m) {
+  const g = new THREE.Group(), F = partField(pt, m), reach = pt.s * Math.max(1, pt.h) * 2.4 + .03;
+  const center = new THREE.Vector3(0, pt.s * pt.h * .9, 0);
+  const own = F.subs.filter((sb) => sb.color === 'self'), other = F.subs.filter((sb) => sb.color !== 'self');
+  if (own.length) {
+    const f = (p) => own.reduce((d, sb, i) => i ? smin(F.one(sb, p), d, Math.max(.002, sb.k)) : F.one(sb, p), 0);
+    const geo = meshField(f, center, reach, 30);
+    g.add(new THREE.Color(pt.color).equals(SKIN) ? furry(geo, pt.color) : new THREE.Mesh(geo, matte(pt.color, { roughness: .5 })));
+  }
+  for (const sb of other) g.add(new THREE.Mesh(meshField((p) => F.one(sb, p), sb.c, Math.max(sb.s.x, sb.s.y, sb.s.z) * 1.4 + .02, 22), gloss(sb.color)));
+  return g;
+}
+
+// Eyes, a mouth and blush — rigs of their own, placed where the kit put them and laid flat
+// against the body facing out (+z out, +y up the face). Sizes are in part units (× part.s).
+const eyes = [], blush = [], springs = [], arms = [], legs = [];
+let baldN = 1;   // slot 0 is the mouth's
+const baldAt = (p, r) => { if (baldN < 10) bald.value[baldN++].set(p.x, p.y, p.z, r); };
+const facing = (o, origin, n) => { o.position.copy(origin); o.lookAt(origin.clone().add(n)); };
+const parts = CHAR.slice(1).filter((p) => PARTS[p.key]);
+for (const pt of parts) for (const m of twinned(pt) ? [1, -1] : [1]) {
+  const pose = partPose(B, pt, m), n = pose.n, s = pt.s;
+  if (pt.key === 'eye') {
+    const g = new THREE.Group(); facing(g, pose.p.clone().addScaledVector(n, s * .25), n); g.scale.setScalar(s);
+    const inner = new THREE.Group(); g.add(inner);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), gloss(pt.color)); ball.scale.set(1, 1.15, .72);
+    const glint = new THREE.Mesh(new THREE.SphereGeometry(.27, 12, 8), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+    glint.position.set(-.34, .42, .62);
+    const arc = new THREE.Mesh(new THREE.TorusGeometry(.72, .17, 8, 20, Math.PI), matte('#141414')); arc.position.z = .35;   // happy / sleepy eyes
+    const brow = new THREE.Mesh(new THREE.CapsuleGeometry(.14, .9, 4, 8), matte('#141414'));
+    brow.position.set(0, 1.55, .3); brow.rotation.z = Math.PI / 2 + Math.sign(pose.p.x || m) * .5;   // slanting down to the middle
+    inner.add(ball, glint); g.add(arc, brow); kitG.add(g);
+    eyes.push({ g, inner, ball, glint, arc, brow });
+    baldAt(pose.p, s * 1.5);
+  } else if (pt.key === 'blush') {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(.85, .85, .14, 24), matte(pt.color, { transparent: true, opacity: .9 }));
+    b.position.copy(pose.p).addScaledVector(n, s * .06); b.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n); b.scale.setScalar(s);
+    kitG.add(b); blush.push({ b, color: new THREE.Color(pt.color) });
+    baldAt(pose.p, s * 1.3);
+  } else if (pt.key === 'smile') {
+    if (!mouthPose) mouthPose = { p: pose.p.clone(), n, s };
+  } else if (pt.carve) {
+    // A cut into the body can't be carved out of a fur mesh; it's left out.
+  } else {
+    const pivot = new THREE.Group(); pivot.position.copy(pose.origin); pivot.quaternion.copy(pose.q);
+    pivot.add(partMesh(pt, m)); kitG.add(pivot);
+    const rest = pose.q.clone(), side = Math.sign(pose.origin.x) || 0;
+    if (pt.key === 'arm') arms.push({ pivot, rest, side, up: upQ(side, .3), hold: upQ(side, .55) });
+    else if (pt.key === 'leg') legs.push({ pivot, rest, side, phase: side < 0 ? Math.PI : 0 });
+    else if (['ear', 'antenna', 'tentacle'].includes(pt.key)) springs.push({ pivot, rest, side, a: 0, v: 0, loose: pt.key === 'tentacle' ? 1.8 : pt.key === 'antenna' ? 1.4 : 1 });
+  }
+}
+// An arm pointing (nearly) straight up, out to its side — for hanging and holding things up.
+function upQ(side, out) { return new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(side * out, 1, .12).normalize()); }
+
+// The mouth: where the kit's smile was — or, with no smile, where a smile would go.
+var mouthPose;
+if (!mouthPose) { const P = PARTS.smile, d = new THREE.Vector3(...P.dir).normalize().toArray(), a = anchor(B, d); mouthPose = { p: a.p, n: a.n, s: P.s }; }
+const mouth = new THREE.Group(); facing(mouth, mouthPose.p.clone().addScaledVector(mouthPose.n, mouthPose.s * .05), mouthPose.n);
+mouth.scale.setScalar(mouthPose.s); kitG.add(mouth);
+bald.value[0].set(mouthPose.p.x, mouthPose.p.y, mouthPose.p.z, mouthPose.s * 1.4);
+const dark = matte('#3a2328');
+const M = {
+  smile: new THREE.Mesh(new THREE.TorusGeometry(.62, .15, 8, 24, Math.PI), dark),
+  o: new THREE.Mesh(new THREE.SphereGeometry(.34, 16, 12), dark),
+  flat: new THREE.Mesh(new THREE.CapsuleGeometry(.13, .7, 4, 8), dark),
+  grin: new THREE.Mesh(new THREE.SphereGeometry(.68, 20, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), dark),
+  ugh: new THREE.Group(),
+};
+M.smile.rotation.z = Math.PI; M.o.scale.set(1, 1.2, .4); M.flat.rotation.z = Math.PI / 2; M.grin.scale.set(1.2, .9, .4);
+{ // the ugh: gritted teeth in a dark rounded box
+  const box = new THREE.Mesh(new THREE.BoxGeometry(1.6, .7, .18), dark);
+  const teeth = new THREE.Mesh(new THREE.BoxGeometry(1.32, .45, .18), matte('#ffffff', { roughness: .35 })); teeth.position.z = .05;
+  M.ugh.add(box, teeth);
+  for (const x of [-.33, 0, .33]) { const gap = new THREE.Mesh(new THREE.BoxGeometry(.035, .45, .18), matte('#c9c1c2')); gap.position.set(x, 0, .07); M.ugh.add(gap); }
+  const mid = new THREE.Mesh(new THREE.BoxGeometry(1.32, .035, .18), matte('#c9c1c2')); mid.position.z = .07; M.ugh.add(mid);
+}
+Object.values(M).forEach((o) => mouth.add(o));
+
+// With no arms of its own, it still needs hands to hang and to hold a tip: small ones
+// that only come out for that.
+const lend = !arms.length;
+if (lend) for (const m of [1, -1]) {
+  const pt = { ...part('arm', BODY.color), s: .16 }, pose = partPose(B, pt, m);
+  const pivot = new THREE.Group(); pivot.position.copy(pose.origin); pivot.quaternion.copy(pose.q); pivot.add(partMesh(pt, m)); pivot.visible = false;
+  kitG.add(pivot); arms.push({ pivot, rest: pose.q.clone(), side: m, up: upQ(m, .3), hold: upQ(m, .55), lent: true });
+}
+
+// How far up its hands reach when they're up — the hang's pendulum length.
+const REACH = H + (arms.length ? Math.max(...arms.map(() => .55)) : .3);
+// The whole character's top, for the bubble over its head.
+const TOP = (() => { kitG.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(kitG); return Math.max(H, b.max.y * 1); })();
+
+// Mittens that grip an edge while it peeks over it — out in front of the occluder.
+const grips = [-1, 1].map(() => { const g = new THREE.Mesh(new THREE.SphereGeometry(.12, 16, 12), matte(SKIN.clone().multiplyScalar(.95), { roughness: .9 })); g.scale.set(S, S * .8, S * .7); g.visible = false; g.position.z = 900; scene.add(g); return g; });
+
+let moodNow = 'happy';
+function mood(m) {
+  moodNow = m;
+  const closed = m === 'love' || m === 'sleepy';
+  for (const e of eyes) { e.ball.visible = e.glint.visible = !closed; e.arc.visible = closed; e.arc.rotation.z = m === 'sleepy' ? Math.PI : 0; e.brow.visible = m === 'ugh'; }
+  M.smile.visible = m === 'happy'; M.o.visible = m === 'curious' || m === 'surprised'; M.flat.visible = m === 'thinking' || m === 'sleepy';
+  M.grin.visible = m === 'love'; M.ugh.visible = m === 'ugh';
+  M.o.scale.set(m === 'surprised' ? 1.5 : 1, m === 'surprised' ? 1.8 : 1.2, .4);
+  for (const b of blush) b.b.material.color.copy(m === 'ugh' ? new THREE.Color('#ee6f86') : b.color);
+}
+mood('happy');
+
+/* ═══════════════ motion ═══════════════
+   One state, integrated every frame. A pose sets the mode and its targets; the
+   frame does the rest — positions, then the springs that make it read as physical. */
+
+const C = {
+  x: -200, y: 0,            // feet, in page px (y down)
+  mode: 'off',              // off · stand · run · air · sit · peek · hang · hold
+  facing: 0, yaw: 0,        // where it's turning to, and where it is
+  lean: 0, swing: 0,        // screen-space tilt (peeks), pendulum angle (hang)
+  sq: 1, sqv: 0,            // squash spring
+  pvx: 0, pvy: 0, vx: 0, vy: 0, ax: 0,
+  phase: 0,                 // run cycle
+  el: null,                 // the element it's standing / sitting / hanging on
+  look: null,               // a point to look at, or null for the pointer
+  shown: 0,                 // 0 → 1 pop in
+  arms: 'rest',             // rest · run · up · hold
+};
+const pointer = { x: innerWidth / 2, y: innerHeight / 2, vx: 0 };
+addEventListener('pointermove', (e) => { pointer.vx = e.clientX - pointer.x; pointer.x = e.clientX; pointer.y = e.clientY; });
+let blinkT = 2, blinking = 0;
+
+const clock = new THREE.Clock();
+let tweenList = [];
+// A timed move: fn(k) for k 0→1 over ms, resolved at the end.
+const tween = (ms, fn, ease = (k) => k) => new Promise((done) => tweenList.push({ t: 0, ms, fn, ease, done }));
+const easeOut = (k) => 1 - (1 - k) ** 3, easeInOut = (k) => k < .5 ? 4 * k * k * k : 1 - (-2 * k + 2) ** 3 / 2;
+const easeBack = (k) => 1 + 2.7 * (k - 1) ** 3 + 1.7 * (k - 1) ** 2;
+
+renderer.setAnimationLoop(frame);
+function frame() {
+  // Never zero (the first frame can be), never huge (a background tab): velocities divide by it.
+  const dt = clamp(clock.getDelta(), 1 / 240, 1 / 30), t = clock.elapsedTime;
+  tweenList = tweenList.filter((w) => { w.t += dt * 1000; const k = Math.min(1, w.t / w.ms); w.fn(w.ease(k)); if (k >= 1) w.done(); return k < 1; });
+
+  // Feet stick to the element they're on, wherever it's scrolled or reflowed to.
+  if (C.el && (C.mode === 'stand' || C.mode === 'sit' || C.mode === 'run')) C.y = C.el.getBoundingClientRect().top + (C.mode === 'sit' ? 2 : 0);
+
+  // The pendulum: hands fixed on the edge, body free, gravity and a little air.
+  if (C.mode === 'hang' && C.el) {
+    const r = C.el.getBoundingClientRect(), L = REACH * S;
+    C.swingV = (C.swingV || 0) + (-(2400 / L) * Math.sin(C.swing) - .45 * C.swingV) * dt;   // light air drag: it swings a good while
+    // A cursor swept past it gives it a push.
+    if (Math.hypot(pointer.x - C.x, pointer.y - (r.bottom + L * .5)) < 90) C.swingV += pointer.vx * .02;
+    C.swing += C.swingV * dt;
+    C.x = C.hx + Math.sin(C.swing) * L; C.y = r.bottom + Math.cos(C.swing) * L - 4;
+  }
+  pointer.vx *= .8;
+
+  // Velocity and acceleration from where it actually went this frame.
+  const vx = (C.x - C.pvx) / dt, vy = (C.y - C.pvy) / dt;
+  C.ax = lerp(C.ax, (vx - C.vx) / dt, .2); C.vx = lerp(C.vx, vx, .35); C.vy = lerp(C.vy, vy, .35);
+  C.pvx = C.x; C.pvy = C.y;
+  if (!Number.isFinite(C.vx + C.vy + C.ax)) { C.vx = C.vy = C.ax = 0; }
+
+  // Squash and stretch: a spring around 1, kicked by vertical speed and landings.
+  const sqT = 1 + clamp(-C.vy * .00022, -.12, .16) * (C.mode === 'air' ? 1 : 0);
+  C.sqv += ((sqT - C.sq) * 320 - C.sqv * 14) * dt; C.sq += C.sqv * dt;
+  if (!Number.isFinite(C.sq)) { C.sq = 1; C.sqv = 0; }
+  const breathe = C.mode === 'stand' || C.mode === 'peek' || C.mode === 'sit' ? Math.sin(t * 2.4) * .012 : 0;
+  bodyG.scale.set(1 / Math.sqrt(C.sq) - breathe * .5, C.sq + breathe, 1 / Math.sqrt(C.sq) - breathe * .5);
+
+  // Run cycle, driven by distance travelled, so the feet never skate.
+  const speed = Math.abs(C.vx);
+  if (C.mode === 'run') C.phase += speed * dt / (S * .55);
+  const running = C.mode === 'run' && speed > 20;
+  // Legs swing from the hip, opposite each other; with no legs it hops instead.
+  const qx = new THREE.Quaternion(), X = new THREE.Vector3(1, 0, 0), Z = new THREE.Vector3(0, 0, 1);
+  for (const l of legs) {
+    let swing = 0;
+    if (running) swing = Math.sin(C.phase + l.phase) * .75;
+    else if (C.mode === 'sit') swing = -1.15 + Math.sin(t * 4 + l.side) * .35;      // forward, over the edge, kicking
+    else if (C.mode === 'hang') swing = Math.sin(C.swing * 2 + l.side) * .3;
+    else if (C.mode === 'air') swing = -.5;
+    l.pivot.quaternion.slerp(qx.setFromAxisAngle(X, swing).multiply(l.rest), .3);
+  }
+  bodyG.position.y = running ? (legs.length ? Math.abs(Math.sin(C.phase)) * .07 : Math.abs(Math.sin(C.phase * .5)) * .32) : C.mode === 'sit' ? -.1 : 0;
+  // Arms: pump when running, straight up to hang or hold, out when airborne, a sway at rest.
+  const target = new THREE.Quaternion();
+  for (const a of arms) {
+    a.pivot.visible = !a.lent || C.arms === 'up' || C.arms === 'hold';
+    if (C.arms === 'up') target.copy(a.up);
+    else if (C.arms === 'hold') target.copy(a.hold);
+    else if (running) target.setFromAxisAngle(X, Math.sin(C.phase + (a.side > 0 ? 0 : Math.PI)) * .9).multiply(a.rest);
+    else if (C.mode === 'air') target.setFromAxisAngle(Z, a.side * .9).multiply(a.rest);
+    else target.setFromAxisAngle(Z, Math.sin(t * 2.4 + a.side) * .05).multiply(a.rest);
+    a.pivot.quaternion.slerp(target, .25);
+  }
+
+  // Turn toward travel; lean into it.
+  C.yaw = lerp(C.yaw, C.facing, 1 - Math.exp(-dt * 10)); yawG.rotation.y = C.yaw;
+  const lean = C.mode === 'run' || C.mode === 'air' ? clamp(-C.vx * .0006, -.3, .3) : 0;
+  root.rotation.z = lerp(root.rotation.z, C.mode === 'hang' ? -C.swing : lean + C.lean, C.mode === 'hang' ? 1 : .15);
+  if (moodNow === 'ugh') root.rotation.z += Math.sin(t * 70) * .012;   // grumbling
+
+  // Ears, antennae, tentacles: springs that the body's acceleration and squash throw around.
+  for (const e of springs) {
+    const force = (-C.ax * .00005 * (e.side || 1) - C.sqv * .05 + (C.mode === 'hang' ? -C.swingV * .12 : 0)) * e.loose;
+    e.v += (force - e.a * 90 - e.v * 7) * dt; e.a += e.v * dt;
+    e.pivot.quaternion.copy(e.rest).multiply(qx.setFromAxisAngle(X, -e.a)).multiply(new THREE.Quaternion().setFromAxisAngle(Z, e.a * .6 * (e.side || 1)));
+  }
+  // Fur trails the motion (view space is pixels here).
+  DRAG.value.set(clamp(-C.vx * .012, -9, 9), clamp(C.vy * .008, -8, 8) - (C.mode === 'hang' ? Math.sin(C.swing) * 3 : 0));
+
+  // Eyes: on the pointer (or what it's been told to watch), and a blink now and then.
+  const lx = C.look ? C.look.x : pointer.x, ly = C.look ? C.look.y : pointer.y;
+  const dx = clamp((lx - C.x) / 300, -1, 1), dy = clamp((ly - (C.y - H * S * .66)) / 300, -1, 1);
+  for (const e of eyes) { e.inner.position.x = lerp(e.inner.position.x, dx * .22, .2); e.inner.position.y = lerp(e.inner.position.y, -dy * .18, .2); }
+  blinkT -= dt; if (blinkT < 0) { blinking = .13; blinkT = 2 + Math.random() * 3.5; }
+  blinking = Math.max(0, blinking - dt);
+  for (const e of eyes) e.inner.scale.y = blinking > 0 ? .1 : moodNow === 'ugh' ? .45 : moodNow === 'surprised' ? 1.2 : 1;
+
+  root.position.set(C.x, -C.y, 0);
+  root.scale.setScalar(S * C.shown);
+  root.visible = C.mode !== 'off' && C.shown > .01;
+
+  if (occludeEl) {
+    const r = occludeEl.getBoundingClientRect();
+    occluder.scale.set(r.width, r.height, 1); occluder.position.set(r.left + r.width / 2, -(r.top + r.height / 2), 700);
+  }
+  placeOverlays();
+  renderer.render(scene, camera);
+}
+
+/* ═══════════════ poses ═══════════════ */
+
+let queue = Promise.resolve();
+const act = (fn) => (queue = queue.then(fn).catch((e) => console.error(e)));
+const rectOf = (el) => el.getBoundingClientRect();
+const headY = () => C.y - TOP * S * C.sq - 10;
+
+async function popIn(x, y) {
+  Object.assign(C, { x, y, pvx: x, pvy: y, vx: 0, vy: 0 }); C.shown = 0;
+  await tween(420, (k) => { C.shown = k; }, easeBack);
+}
+async function leave() {
+  unsay(); dropCard(); occlude(null); for (const g of grips) g.visible = false;
+  C.look = null; C.lean = 0; C.arms = 'rest';
+  if (C.mode === 'off') return;
+  if (C.mode === 'peek' && C.exit) { await C.exit(); }
+  else await tween(260, (k) => { C.shown = 1 - k; }, (k) => k * k);
+  Object.assign(C, { mode: 'off', el: null, exit: null, shown: 0 });
+}
+
+// Stands on an element's top edge at x — popping in, or jumping over if it's already out.
+async function standOn(el, x) {
+  if (C.mode === 'stand' || C.mode === 'run' || C.mode === 'sit') return jumpTo(el, x);
+  await leave(); mood('happy');
+  Object.assign(C, { mode: 'stand', el, facing: 0 }); await popIn(x, rectOf(el).top);
+}
+// Runs along the edge it's on.
+async function runTo(el, x2) {
+  if (C.el !== el || !(C.mode === 'stand' || C.mode === 'run' || C.mode === 'sit')) await standOn(el, x2 < rectOf(el).left + rectOf(el).width / 2 ? rectOf(el).right - 40 : rectOf(el).left + 40);
+  const x1 = C.x, d = Math.abs(x2 - x1); if (d < 4) return;
+  Object.assign(C, { mode: 'run', facing: x2 > x1 ? 1.15 : -1.15 }); mood('happy');
+  // Accelerate, cruise, ease to a stop — the run cycle follows the real speed.
+  await tween(Math.max(450, d / .34), (k) => { C.x = lerp(x1, x2, k); }, easeInOut);
+  C.mode = 'stand'; C.facing = 0;
+}
+// A real ballistic arc onto an element: gravity, apex, a squash on landing.
+async function jumpTo(el, x2) {
+  if (C.mode === 'off') return standOn(el, x2);
+  const x1 = C.x, y1 = C.y, r = rectOf(el), y2 = r.top;
+  const g = 2600, apex = Math.min(y1, y2) - 70 - Math.abs(x2 - x1) * .12;          // px, y down
+  const up = Math.sqrt(2 * g * Math.max(1, y1 - apex)), down = Math.sqrt(2 * g * Math.max(1, y2 - apex));
+  const T = (up + down) / g;
+  // Crouch, then launch.
+  C.facing = x2 > x1 ? 1 : x2 < x1 ? -1 : 0; C.sqv -= 6; await wait(110);
+  C.mode = 'air'; C.el = null;
+  await tween(T * 1000, (k) => { const tt = k * T; C.x = lerp(x1, x2, k); C.y = y1 - up * tt + .5 * g * tt * tt; });
+  Object.assign(C, { mode: 'stand', el, y: rectOf(el).top }); C.sqv -= 9; C.facing = 0;   // land: squash
+}
+// Perches on the edge, feet over the front.
+async function sitOn(el, x, m = 'thinking') {
+  if (C.mode === 'stand' || C.mode === 'run') await jumpTo(el, x); else { await leave(); Object.assign(C, { el, facing: 0 }); await popIn(x, rectOf(el).top); }
+  Object.assign(C, { mode: 'sit', el }); mood(m); C.sqv -= 4;
+}
+// Rises from behind an element: the element hides its body, mittens grip the edge.
+async function peekOver(el, x, m = 'curious', show = .62) {
+  await leave(); mood(m);
+  const top = () => rectOf(el).top, hidden = H * S * 1.15, shown = H * S * show;
+  Object.assign(C, { mode: 'peek', el: null, facing: 0, shown: 1, x, y: top() + hidden }); C.pvx = x; C.pvy = C.y;
+  occlude(el);
+  await tween(520, (k) => { C.y = top() + hidden - (hidden - (H * S - shown)) * k; }, easeBack);
+  grips.forEach((g, i) => { g.visible = true; g.position.set(x + (i ? 1 : -1) * 30, -top() + 2, 900); });
+  C.exit = () => { for (const g of grips) g.visible = false; const y0 = C.y; return tween(300, (k) => { C.y = lerp(y0, top() + hidden, k); }, (k) => k * k).then(() => occlude(null)); };
+}
+// Leans in from the edge of the window.
+async function peekSide(side, at, m = 'curious') {
+  await leave(); mood(m);
+  const vw = innerWidth, vh = innerHeight;
+  Object.assign(C, { mode: 'peek', el: null, shown: 1 });
+  if (side === 'bottom') {
+    Object.assign(C, { x: at, y: vh + H * S * 1.1, facing: 0, lean: 0 }); C.pvx = C.x; C.pvy = C.y;
+    await tween(480, (k) => { C.y = vh + H * S * (1.1 - .72 * k); }, easeBack);
+    C.exit = () => { const y0 = C.y; return tween(280, (k) => { C.y = lerp(y0, vh + H * S * 1.1, k); }, (k) => k * k); };
+    return;
+  }
+  const r = side === 'right', out = r ? vw + S * 1.1 : -S * 1.1, inn = r ? vw + S * .2 : -S * .2;
+  Object.assign(C, { x: out, y: at, facing: r ? -.7 : .7 }); C.pvx = C.x; C.pvy = C.y;
+  await tween(520, (k) => { C.x = lerp(out, inn, k); C.lean = (r ? .42 : -.42) * k; }, easeBack);
+  C.exit = () => tween(300, (k) => { C.x = lerp(inn, out, k); C.lean = (r ? .42 : -.42) * (1 - k); }, (k) => k * k);
+}
+// Hangs from an element's bottom edge by both hands, and swings like a pendulum.
+async function hang(el, x, m = 'happy') {
+  await leave(); mood(m);
+  const r = rectOf(el);
+  Object.assign(C, { mode: 'hang', el, hx: x, swing: -.9, swingV: 0, facing: 0, arms: 'up', shown: 0 });
+  C.x = x; C.y = r.bottom + REACH * S; C.pvx = C.x; C.pvy = C.y;
+  await tween(380, (k) => { C.shown = k; }, easeBack);
+}
+// Pops up from the bottom corner holding a tip card over its head.
+let card = null;
+async function holdTip(title, text) {
+  await peekSide('bottom', 120, 'happy');
+  C.arms = 'hold';
+  card = document.createElement('div'); card.className = 'card';
+  card.innerHTML = `<b>${title}</b>${text}<small>tap to put away</small>`;
+  card.onclick = () => act(leave);
+  $('#fx').append(card);
+  card.animate([{ opacity: 0, translate: '0 20px' }, { opacity: 1, translate: '0 0' }], { duration: 380, easing: 'cubic-bezier(.3,1.4,.5,1)' });
+}
+function dropCard() { card?.remove(); card = null; }
+
+// A speech bubble over its head.
+let bubble = null, bubbleTimer = 0;
+function say(text, ms = 2200, cls = '') {
+  unsay();
+  bubble = document.createElement('div'); bubble.className = 'bubble ' + cls; bubble.textContent = text; $('#fx').append(bubble);
+  bubble.animate([{ opacity: 0, scale: '.6' }, { opacity: 1, scale: '1' }], { duration: 300, easing: 'cubic-bezier(.3,1.45,.5,1)' });
+  if (ms) bubbleTimer = setTimeout(unsay, ms);
+}
+function unsay() { clearTimeout(bubbleTimer); bubble?.remove(); bubble = null; }
+// HTML that rides on the character: the bubble over its head, the card in its hands.
+function placeOverlays() {
+  const vw = innerWidth;
+  if (bubble) {
+    const w = bubble.offsetWidth, rot = root.rotation.z;
+    let x = C.x - Math.sin(rot) * TOP * S, y = headY() + (1 - Math.cos(rot)) * TOP * S;
+    x = clamp(x, w / 2 + 8, vw - w / 2 - 8); y = Math.max(bubble.offsetHeight + 8, y);
+    bubble.style.left = x + 'px'; bubble.style.top = y + 'px';
+  }
+  if (card) { card.style.left = clamp(C.x + 60, 130, vw - 130) + 'px'; card.style.top = headY() - 18 + 'px'; }
+}
+// A tap on it is a boop.
+addEventListener('pointerdown', (e) => {
+  if (C.mode === 'off') return;
+  const cy = C.y - H * S * .5;
+  if (Math.hypot(e.clientX - C.x, e.clientY - cy) < H * S * .55) {
+    const was = moodNow; mood('love'); C.sqv -= 10; say('hehe', 900);
+    setTimeout(() => { if (moodNow === 'love') mood(was); }, 900);
+  }
+});
+
+/* ═══════════════ the chat it lives in ═══════════════ */
+
+const log = $('#log'), msgs = $('#msgs'), input = $('#input'), composer = $('#composer');
+// Rude is swearing, or shouting: a long run of capitals, or "!!!".
+const RUDE = /\b(f+u+c+k\w*|sh+i+t\w*|damn\w*|wtf|stfu|stupid|useless|dumb|idiot|crap\w*|bullshit|hate you|garbage|trash)\b/i;
+const rude = (t) => RUDE.test(t) || /!{3,}/.test(t) || (t.replace(/[^a-z]/gi, '').length >= 8 && t === t.toUpperCase() && /[A-Z]/.test(t));
+const THANKS = /\b(thanks|thank you|thx|ty|love (it|you|this)|amazing|perfect|you rock|awesome)\b/i;
+const REPLIES = [
+  'Here’s a start. Three ways in: begin with the one thing that has to be true, sketch the smallest version that proves it, then show it to someone before polishing.',
+  'Good question. The short answer is that it depends on who it’s for — tell me a little about them and I’ll get specific.',
+  'I’d try it two ways and compare: once as plainly as possible, once with the most personality you can stand. The right one is usually between them.',
+  'Sure. I’ve kept it to the essentials — the details can come once the shape feels right.',
+];
+const TIPS = [
+  ['Tip', 'Press ⌘K to search all your chats.'], ['Tip', 'Drag a file in and ask anything about it.'],
+  ['Tip', 'Shift + Enter starts a new line.'], ['Tip', 'Ask me to “make it shorter” any time.'],
+];
+let tipAt = 0, replyAt = 0;
+
+function add(cls, html) {
+  $('#hello')?.remove();
+  const m = document.createElement('div'); m.className = 'msg ' + cls; m.innerHTML = html;
+  msgs.append(m); log.scrollTop = log.scrollHeight; return m;
+}
+const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+function reply(el, text) { el.className = 'msg bot'; el.textContent = text; log.scrollTop = log.scrollHeight; }
+
+async function send(text) {
+  text = text.trim(); if (!text) return;
+  input.value = ''; fit(); idle();
+  add('user', esc(text));
+  const pending = add('bot typing', '<i></i><i></i><i></i>');
+  await act(async () => {
+    if (rude(text)) {
+      // The ugh: head in from the right, teeth gritted. Then back to work.
+      await peekSide('right', innerHeight * .46, 'ugh');
+      say('ughhhhh', 2300, 'ugh');
+      await wait(2500); await leave();
+      reply(pending, 'Okay — that one stung a little. Tell me what went wrong and I’ll take another run at it.');
+    } else if (THANKS.test(text)) {
+      await peekSide('bottom', rectOf(pending).left + 60, 'love');
+      say('aww ♥', 1800); C.sqv -= 8; await wait(1300);
+      reply(pending, 'Anytime. That’s what I’m here for.');
+      await wait(900); await leave();
+    } else {
+      // Thinking: it sits on the reply that's on its way…
+      const r = rectOf(pending);
+      await sitOn(pending, r.left + r.width / 2, 'thinking');
+      say('hmm…', 0);
+      await wait(1600);
+      unsay(); reply(pending, REPLIES[replyAt++ % REPLIES.length]);
+      // …and when it lands: pleased, up, along the answer, and a jump down to the box.
+      mood('happy'); C.mode = 'stand'; C.sqv -= 6; await wait(380);
+      const a = rectOf(pending);
+      await runTo(pending, Math.min(a.right - 24, C.x + 260));
+      const c = rectOf(composer);
+      await jumpTo(composer, clamp(C.x + 90, c.left + 40, c.right - 40));
+      await wait(500); await runTo(composer, c.right - 30); await leave();
+    }
+  });
+}
+
+composer.addEventListener('submit', (e) => { e.preventDefault(); send(input.value); });
+input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input.value); } });
+function fit() { input.style.height = 'auto'; input.style.height = Math.min(160, input.scrollHeight) + 'px'; }
+// Typing: it comes up behind the box to watch — eyes on what you're writing.
+let typingTimer = 0;
+input.addEventListener('input', () => {
+  fit(); idle();
+  const r = rectOf(composer);
+  if (!input.value.trim()) { clearTimeout(typingTimer); typingTimer = setTimeout(() => { if (C.mode === 'peek' && C.el === null && occludeEl === composer) act(leave); }, 900); return; }
+  if (occludeEl !== composer) act(async () => { if (occludeEl !== composer && input.value.trim()) await peekOver(composer, r.right - 120, 'curious'); });
+  C.look = { x: r.left + 30 + Math.min(r.width - 170, input.value.length * 7.2), y: r.top + 30 };
+});
+input.addEventListener('blur', () => { setTimeout(() => { if (occludeEl === composer && !input.value.trim()) act(leave); }, 400); });
+$('#chips').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) send(b.textContent); });
+$('#newChat').onclick = () => { msgs.innerHTML = '<div class="hello" id="hello"><b>What’s on your mind?</b>Type something. Be nice — or don’t, and see what happens.</div>'; act(leave); };
+
+// Idle: after a while it does something on its own — a tip, a swing from a pill, a wander.
+let idleTimer = 0, idleTurn = 0;
+function idle() {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => act(async () => {
+    if (C.mode !== 'off' || (document.activeElement === input && input.value)) return idle();
+    const turn = idleTurn++ % 3;
+    if (turn === 0) { const [t, s] = TIPS[tipAt++ % TIPS.length]; await holdTip(t, s); await wait(6000); await leave(); }
+    else if (turn === 1) { const pills = [...$('#chips').children], p = pills[1 + (idleTurn % 3)], r = rectOf(p); await hang(p, r.left + r.width / 2); say('wheee', 1600); await wait(5000); await leave(); }
+    else { const c = rectOf(composer); await standOn(composer, c.left + 40); await runTo(composer, c.right - 60); await wait(600); await leave(); }
+    idle();
+  }), 9000);
+}
+addEventListener('pointerdown', idle);
+idle();
+
+// The director: every move on demand.
+$('#director').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-do]'); if (!b) return;
+  idle();
+  const last = [...msgs.querySelectorAll('.msg')].at(-1);
+  const pills = [...$('#chips').children];
+  const moves = {
+    peek: async () => { const r = rectOf(composer); await peekOver(composer, r.left + r.width * .62, 'curious'); say('whatcha writing?', 2000); },
+    hang: async () => { const p = pills[Math.floor(Math.random() * pills.length)], r = rectOf(p); await hang(p, r.left + r.width / 2); say('wheee — push me', 2200); },
+    run: async () => { const r = rectOf(composer); await runTo(composer, r.right - 50); await wait(250); await runTo(composer, r.left + 50); },
+    jump: async () => {
+      // Composer → a pill → the next pill → back down.
+      const c = rectOf(composer); if (C.mode === 'off') await standOn(composer, c.left + 60);
+      for (const p of [pills[0], pills[2], pills[3]]) { const r = rectOf(p); await jumpTo(p, r.left + r.width / 2); await wait(160); }
+      await jumpTo(composer, c.left + c.width * .55);
+    },
+    sit: async () => { const el = last || pills[1], r = rectOf(el); await sitOn(el, r.left + Math.min(r.width - 40, 80), 'happy'); say('comfy', 1600); },
+    tip: async () => { const [t, s] = TIPS[tipAt++ % TIPS.length]; await holdTip(t, s); },
+    ugh: async () => { await peekSide('right', innerHeight * .46, 'ugh'); say('ughhhhh', 2300, 'ugh'); await wait(2500); await leave(); },
+    sleep: async () => { await peekSide('left', innerHeight * .6, 'sleepy'); say('z z z', 2600); await wait(2800); await leave(); },
+  };
+  act(moves[b.dataset.do]);
+});
+addEventListener('resize', () => act(leave));
+
+window.__peek = { C, mood, say, leave, act, standOn, runTo, jumpTo, sitOn, peekOver, peekSide, hang, holdTip, CHAR, frame };
+</script>
+</body>
+</html>
