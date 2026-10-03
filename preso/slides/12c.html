@@ -23,11 +23,11 @@
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 4px 8px rgba(0, 0, 0, 0.08), 0 12px 30px rgba(0, 0, 0, 0.18);
   }
   .screen { position: relative; width: 100%; height: 100%; overflow: hidden; background: #fff; }
-  /* the build lays out at a window of its own and is scaled into the screen — 1680 wide — a real laptop-size browser window, open full size on
+  /* the build lays out at a window of its own and is scaled into the screen — 1720 wide — a real laptop-size browser window, open full size on
      the device's screen, its height following the screen's proportions */
   #app { position: absolute; left: 0; top: 0; border: 0; background: #fff; transform-origin: top left; opacity: 0; transition: opacity .25s ease; }   /* unseen until it stands pristine: the build boots on its own default first */
   #app.ready { opacity: 1; }
-  /* THE DUO (John, 2026-10-02): the last tap shrinks the desktop window back and to the left, and the phone — slide 12d's native
+  /* THE DUO (John, 2026-10-02; 10-03: the desktop window no longer shrinks or moves): on the last tap the phone — slide 12d's native
      multi calendar, the next thing the room sees — rises in over its lower right, the way a desktop-and-phone hero shot is set */
   .box { transition: transform .9s cubic-bezier(.2,.8,.2,1); }
   #duoPhone { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; border: 0; background: transparent; pointer-events: none;
@@ -48,7 +48,7 @@
   const box = document.getElementById('box'), screen = document.getElementById('screen');
   const fitScreen = () => {
     const sw = screen.clientWidth, sh = screen.clientHeight; if (!(sw > 0)) return;
-    const k = sw / 1680;   // a REAL monitor: the build always lays out 1680 wide, whatever the device's size (John, 2026-10-03: 1920, a full-HD window, showed a touch too much; 1600, ~4 dates fewer, a hair too far in — 1680 gives one back; 0.45 was "way too big" — a 2350-wide window no screen has; before that a fixed 0.66)
+    const k = sw / 1720;   // a REAL monitor: the build always lays out 1720 wide, whatever the device's size (John, 2026-10-03: 1920, a full-HD window, showed a touch too much; 1600, ~4 dates fewer, a hair too far in; then 1680; then 1720, his number; 0.45 was "way too big" — a 2350-wide window no screen has; before that a fixed 0.66)
     const W2 = (sw / k).toFixed(1) + 'px', H2 = (sh / k).toFixed(1) + 'px', changed = app.style.width !== W2 || app.style.height !== H2;
     app.style.width = W2; app.style.height = H2; app.style.transform = `scale(${k})`;
     if (changed && window.__landToday) { clearTimeout(fitScreen._t); fitScreen._t = setTimeout(window.__landToday, 350); }
@@ -56,7 +56,7 @@
   new ResizeObserver(fitScreen).observe(screen); fitScreen();
   // THE DEVICE fills the band the deck's own type leaves: 32 under the kicker ("John Yum · Work") and 32 above the section nav
   // (John, 2026-10-03; was 48; 16 and 24 tried), its width following the frame's 3106:2031, never past the screen's sides less 32 each. --canvas is set
-  // from that height, so the stroke and the radius scale with it exactly as 09c's do. In the duo it steps back to 80% and left.
+  // from that height, so the stroke and the radius scale with it exactly as 09c's do. In the duo it stays put.
   const fit = () => {
     let top = 56, bottom = innerHeight - 56;
     try { const pd = window.parent.document, kk = pd.getElementById('kicker'), c = pd.getElementById('counter'); if (kk) top = kk.getBoundingClientRect().bottom; if (c) bottom = c.getBoundingClientRect().top; } catch (_) {}
@@ -65,10 +65,11 @@
     box.style.setProperty('--canvas', canvas.toFixed(1) + 'px');
     fitScreen();
     const dw = box.offsetWidth, dh = box.offsetHeight, cy = (top + bottom) / 2 - innerHeight / 2;
-    if (!document.body.classList.contains('duo')) { box.style.transform = `translateY(${cy.toFixed(1)}px)`; placePhone(false); return; }
-    const k = 0.8, dx = -innerWidth * 0.07, dy = cy - dh * 0.03;
-    box.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(${k})`;
-    placePhone(true, { right: innerWidth / 2 + dx + dw * k / 2, bottom: innerHeight / 2 + dy + dh * k / 2, h: dh });
+    box.style.transform = `translateY(${cy.toFixed(1)}px)`;
+    if (!document.body.classList.contains('duo')) { placePhone(false); return; }
+    // in the duo the desktop window stays exactly as it stands — no stepping back, no sliding left; only the phone comes in and lands
+    // over its right side (John, 2026-10-03: "don't size down the multi build… I just want the phone to come in and land on the right")
+    placePhone(true, { right: innerWidth / 2 + dw / 2, bottom: innerHeight / 2 + cy + dh / 2, h: dh });
   };
   // the phone layer is 12d full-size (its phone stands at min(80vh, 1080) tall, centred): scaled and moved so its phone lands
   // where it should — or, out of the duo, parked below the stage
@@ -340,22 +341,34 @@
   function markRequests(w) {
     const d = w.document, grid = d.getElementById('gridRows'); if (!grid || grid._presoReq) return;
     const SUR = 'RMKLTSBHDP', today = +ev(w, 'todayDi') || 0;
-    // the build's own label colours (CZ_COLORS: its light fill behind, its darkest tone for the initials), in an order that swings hue
-    // every step — Blue, Coral, Purple, Orange, Pink, Red — and DEALT in board order (row, then date) rather than hashed per guest, so no
-    // two requests near each other share a colour. Hashed, coral, pink and red kept landing side by side (John, 2026-10-03)
-    const DISC = [['#D7EAFB', '#2E80E0'], ['#FCE7E3', '#F4513C'], ['#E6E2FB', '#7A6CE8'], ['#FBE5CC', '#DD6B0E'], ['#FBE3F1', '#E63FA0'], ['#FBE0DE', '#F03E3E']];
+    // the build's own label colours (CZ_COLORS: its light fill behind, its darkest tone for the initials) — Blue, Coral, Purple, Orange,
+    // Pink, and no Red: beside Coral it reads as the same colour (John, 2026-10-03: "why is there 3 red together")
+    const DISC = [['#D7EAFB', '#2E80E0'], ['#FCE7E3', '#F4513C'], ['#E6E2FB', '#7A6CE8'], ['#FBE5CC', '#DD6B0E'], ['#FBE3F1', '#E63FA0']];
     const hash = (g, start) => [...g].reduce((a, c) => a + c.charCodeAt(0), 0) + start;
     // one upcoming stay in three, by guest — and, since the hash can leave the opening two weeks with only one, every fourth of the other
     // stays starting in that view (the next 16 nights, rows top down, from the second) besides: two or three on screen (John, 2026-10-03:
     // "1 or 2 more request to book"). A request is always for nights still to come: none starting before today (John, 2026-10-02)
-    const rowAt = {}; [...grid.querySelectorAll(':scope > .price-row')].forEach((r, k) => { rowAt[r.dataset.li] = k; });
+    const rowsNow = () => { const at = {}; [...grid.querySelectorAll(':scope > .price-row')].forEach((r, k) => { at[r.dataset.li] = k; }); return at; };
+    let rowAt = rowsNow();
     const byBoard = (a, z) => ((rowAt[a[0]] || 0) - (rowAt[z[0]] || 0)) || (a[1] - z[1]);
     const up = (JSON.parse(ev(w, 'JSON.stringify(BOOKINGS.map(b => [b.listing, b.start, b.guest]))') || '[]')).filter(([, s]) => s >= today);
     const hashed = ([, s, g]) => hash(g || '', s) % 3 === 1;
     const req = up.filter(hashed);
     up.filter(b => !hashed(b) && b[1] > today && b[1] <= today + 16).sort(byBoard).forEach((b, k) => { if (k % 4 === 1) req.push(b); });
-    const colour = {}; req.sort(byBoard).forEach(([li, s], k) => { colour[li + ':' + s] = DISC[k % DISC.length]; });
-    const dress = () => grid.querySelectorAll('.booking-pill:not(.past)').forEach(p => {
+    // DISPERSED, not dealt in a line: down the board, each request takes the next colour in the cycle that no request already coloured
+    // within 8 rows and 35 nights of it is wearing — so neighbours never match, across rows as well as along them. Dealt again whenever
+    // the rows change order (the gather moves homes into their cities, and a colour dealt for the old order can land beside its twin)
+    let colour = {}, sig = '';
+    const deal = () => {
+      rowAt = rowsNow(); const now = Object.keys(rowAt).sort((a, z) => rowAt[a] - rowAt[z]).join(','); if (now === sig) return; sig = now;
+      colour = {}; const done = [];
+      req.slice().sort(byBoard).forEach(([li, s], k) => {
+        const near = new Set(done.filter(o => Math.abs((rowAt[o.li] || 0) - (rowAt[li] || 0)) <= 8 && Math.abs(o.s - s) <= 35).map(o => o.c));
+        let c = k % DISC.length; for (let t = 0; t < DISC.length && near.has(c); t++) c = (c + 1) % DISC.length;
+        done.push({ li, s, c }); colour[li + ':' + s] = DISC[c];
+      });
+    };
+    const dress = () => { deal(); grid.querySelectorAll('.booking-pill:not(.past)').forEach(p => {
       const g = p.dataset.guest || '', start = +p.dataset.start || 0, h = hash(g, start);
       const C = colour[((p.closest('.price-row') || {}).dataset || {}).li + ':' + start], isReq = !!C;
       p.classList.toggle('preso-req', isReq);
@@ -364,7 +377,7 @@
         av.dataset.ini = (g.trim()[0] || 'G').toUpperCase() + SUR[h % SUR.length];
         av.style.setProperty('--req-bg', C[0]); av.style.setProperty('--req-ink', C[1]);
       }
-    });
+    }); };
     grid._presoReq = new w.MutationObserver(dress); grid._presoReq.observe(grid, { childList: true, subtree: true });
     dress();
   }
@@ -710,7 +723,7 @@
       // BACK: once Del Mar has been applied and the tips closed, the build retires that tip — there is no Del Mar left to reopen on. So
       // this Back rebuilds the calendar and replays the path instantly to here (Del Mar applied, its offer up), as a restore does.
       back: () => reloadTo(BEATS.length - 1) },
-    // 15 — the duo: the desktop window steps back and left, and the phone rises in over its lower right (see THE DUO)
+    // 15 — the duo: the desktop window stays where it is, and the phone rises in over its lower right (see THE DUO)
     { fwd: (w, instant) => {
         const b = document.body, f = document.getElementById('duoPhone');
         if (!f) { setTimeout(() => {}, 0); }
