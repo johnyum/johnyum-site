@@ -44,6 +44,28 @@
     gap: 48px;
     --phone-h: min(80vh, 1080px, calc((76vw - 144px) / 1.958));
   }
+  /* THE FEE, ANIMATED (John, 2026-10-03): the second phone is live — it opens on "2 of 7" (both bars grey) and one tap plays it to
+     "3 of 7": the dotted line draws across the left bar, "Service fee $3" comes in above it, the bar fills from the bottom up to
+     the line in the pink gradient, and "You earn $97" arrives. Built off John's two frames: the 2-of-7 frame underneath, and each
+     part that differs in the 3-of-7 frame laid over it, clipped to that part, and revealed in turn (the fill from a clean plate of
+     the pink, its words rebuilt from the rows above and below, so "You earn $97" can come in after the fill). In the deck's drawn
+     iPhone (12a1's / 13's), sized to the export phones beside it. */
+  .hof { position: relative; height: var(--phone-h); aspect-ratio: 900 / 1840; flex: none; }
+  .hof .scr { position: absolute; left: 5.4444%; top: 2.5543%; width: 89.1111%; height: 94.8913%; border-radius: 15.9601% / 7.3310%; overflow: hidden; background: #fff; z-index: 1; }
+  .hof .scr img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+  .hof .chrome { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+  /* each piece of the 3-of-7 frame, clipped to itself (percentages of the 393 x 852 frame) */
+  .hof .head  { clip-path: inset(21.4% 0 71.6% 0); opacity: 0; transition: opacity .45s ease; }
+  .hof .step  { clip-path: inset(9.5% 40% 88.5% 40%); opacity: 0; transition: opacity .3s ease; }
+  .hof .label { clip-path: inset(49.4% 52.6% 47.8% 12%); opacity: 0; transition: opacity .4s ease .35s; }
+  .hof .dots  { clip-path: inset(52.2% 87.2% 46.8% 11.7%); transition: clip-path .5s cubic-bezier(.4,0,.2,1) .25s; }
+  .hof .fill  { clip-path: inset(77.7% 52.6% 22.3% 11.6%); transition: clip-path .75s cubic-bezier(.3,0,.2,1) .8s; }
+  .hof .earn  { clip-path: inset(64.4% 52.6% 33.6% 11.6%); opacity: 0; transform: translateY(2%); transition: opacity .4s ease 1.55s, transform .5s cubic-bezier(.2,.8,.2,1) 1.55s; }
+  .hof.on .head, .hof.on .step, .hof.on .label { opacity: 1; }
+  .hof.on .dots { clip-path: inset(52.2% 52.6% 46.8% 11.7%); }
+  .hof.on .fill { clip-path: inset(52.7% 52.6% 22.3% 11.6%); }
+  .hof.on .earn { opacity: 1; transform: none; }
+  .hof.snap * { transition: none !important; }
   .row img {
     height: var(--phone-h);
     width: auto;
@@ -54,17 +76,52 @@
 </style>
 </head>
 <body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="rail" x1="16" y1="0" x2="884" y2="0" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#8f8f8c"/><stop offset="0.035" stop-color="#ececea"/>
+        <stop offset="0.10" stop-color="#bfbfbc"/><stop offset="0.50" stop-color="#f2f2f0"/>
+        <stop offset="0.90" stop-color="#bfbfbc"/><stop offset="0.965" stop-color="#ececea"/>
+        <stop offset="1" stop-color="#8f8f8c"/>
+      </linearGradient>
+      <clipPath id="outsideBezel" clipPathUnits="userSpaceOnUse">
+        <path clip-rule="evenodd" d="M-60,-60 H960 V1900 H-60 Z M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/>
+      </clipPath>
+    </defs>
+  </svg>
   <div class="slide">
     <div class="row">
       <img src="assets/fee-required.webp" width="979" height="2000"
            alt="Required actions: we're simplifying service fees, action required by January 17">
-      <img src="assets/fee-single.webp" width="979" height="2000"
-           alt="Step 4 of 7: combining both fees into a single 15.5% fee paid by hosts, with a bar comparison">
+      <div class="hof" id="hof" aria-label="Step 2 to 3 of 7: guests pay a service fee on top; a host service fee is deducted, you earn $97">
+        <div class="scr">
+          <img src="assets/hof-2of7.webp" alt="" draggable="false">
+          <img class="head"  src="assets/hof-3of7.webp" alt="" draggable="false">
+          <img class="step"  src="assets/hof-3of7.webp" alt="" draggable="false">
+          <img class="label" src="assets/hof-3of7.webp" alt="" draggable="false">
+          <img class="fill"  src="assets/hof-3of7-plate.webp" alt="" draggable="false">
+          <img class="dots"  src="assets/hof-3of7.webp" alt="" draggable="false">
+          <img class="earn"  src="assets/hof-3of7.webp" alt="" draggable="false">
+        </div>
+        <svg class="chrome" viewBox="0 0 900 1840" fill="none" aria-hidden="true"><path fill="url(#rail)" fill-rule="evenodd" d="M177,14 H723 A161,161 0 0 1 884,175 V1665 A161,161 0 0 1 723,1826 H177 A161,161 0 0 1 16,1665 V175 A161,161 0 0 1 177,14 Z M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/><image href="assets/device/iphone-frame.png" x="0" y="0" width="900" height="1840" clip-path="url(#outsideBezel)" preserveAspectRatio="none"/><path fill="#0b0b0b" fill-rule="evenodd" d="M177,27 H723 A148,148 0 0 1 871,175 V1665 A148,148 0 0 1 723,1813 H177 A148,148 0 0 1 29,1665 V175 A148,148 0 0 1 177,27 Z M177,47 H723 A128,128 0 0 1 851,175 V1665 A128,128 0 0 1 723,1793 H177 A128,128 0 0 1 49,1665 V175 A128,128 0 0 1 177,47 Z"/><rect x="322" y="69" width="256" height="74" rx="37" fill="#000"/><circle cx="529" cy="106" r="12.7" fill="#0f1420"/><circle cx="529" cy="106" r="5.3" fill="#243046"/></svg>
+      </div>
       <img src="assets/fee-adjust.webp" width="979" height="2000"
            alt="Step 6 of 7: let's adjust your prices, so earnings stay the same">
       <img src="assets/fee-complete.webp" width="979" height="2000"
            alt="Price adjustment complete, confirmed on the host calendar">
     </div>
   </div>
+<script>
+  // one build: the tap plays the fee from 2 of 7 to 3 of 7; Back plays it back; arriving backwards it stands at 3 of 7
+  (() => {
+    const h = document.getElementById('hof'); let on = false;
+    const set = (v, instant) => { on = v; if (instant) h.classList.add('snap'); h.classList.toggle('on', v); if (instant) { void h.offsetWidth; requestAnimationFrame(() => h.classList.remove('snap')); } };
+    window.presoNext = () => { if (on) return false; set(true); return true; };
+    window.presoPrev = () => { if (!on) return false; set(false); return true; };
+    window.presoEnd = () => set(true, true);
+    window.presoState = () => on ? 1 : 0;
+    window.presoRestore = n => set(n > 0, true);
+  })();
+</script>
 </body>
 </html>
