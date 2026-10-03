@@ -358,6 +358,14 @@ up tip cards. One `index.html`, three.js; the chat is canned.
   anything that sticks out further (goggles, a snout).
 - **`monsters/kit.js` is shared by both pages** — bodies, parts, `prim()`, anchoring. The
   Monsters shader still has its own GLSL `prim()`: change one, change both.
+- **It has a heart** (2026-10-03): every message — yours and Claude's — gets an instant on-device
+  read (`sense()`, word lists) and then Haiku's (`read()`), asked through the host app: the page
+  posts `{ type: 'ask', id, system, user }`, the app calls Haiku and answers on `peek.answer()`.
+  **The prompt lives in the page**, so its feelings change with a deploy, not a rebuild. Twelve
+  feelings (`FEELS`) each have a performance in `perform()`; a swear at the code is sympathy, at
+  us it's hurt. Hurt builds and fades (`heart`): grumble, sting, then it sulks out of sight till
+  you say sorry. While you type, its face follows the draft (`watching()`); the app sends the draft
+  text and Claude's finished answer for this. Commands (jump, dance, wave, come, go away, sleep).
 - Its frame loop is `frame()`, exposed on `window.__peek` — a hidden tab pauses
   `requestAnimationFrame`, so a test drives frames by hand.
 

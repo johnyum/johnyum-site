@@ -271,6 +271,7 @@ export const MOODS = {
   love:      { open: .22, lift: .35 },    // scrunched up into happy crescents
   sleepy:    { open: .3, lift: -.25 },
   ugh:       { open: .38, lookY: -.2 },
+  sad:       { open: .62, lift: -.3, lookY: -.45 },  // droopy, eyes down
 };
 
 // A state into a link and back: JSON, gzipped, base64url.

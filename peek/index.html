@@ -615,7 +615,7 @@ function mood(m) {
   moodNow = m; moodHook?.(m);
   const closed = m === 'love' || m === 'sleepy';
   for (const e of eyes) { e.ball.visible = e.glint.visible = !closed; e.arc.visible = closed; e.arc.rotation.z = m === 'sleepy' ? Math.PI : 0; e.brow.visible = m === 'ugh'; }
-  M.smile.visible = m === 'happy'; M.o.visible = m === 'curious' || m === 'surprised'; M.flat.visible = m === 'thinking' || m === 'sleepy';
+  M.smile.visible = m === 'happy'; M.o.visible = m === 'curious' || m === 'surprised'; M.flat.visible = m === 'thinking' || m === 'sleepy' || m === 'sad';
   M.grin.visible = m === 'love'; M.ugh.visible = m === 'ugh';
   M.o.scale.set(m === 'surprised' ? 1.5 : 1, m === 'surprised' ? 1.8 : 1.2, .4);
   for (const b of blush) b.b.material.color.copy(m === 'ugh' ? new THREE.Color('#ee6f86') : b.color);
@@ -638,6 +638,7 @@ const C = {
   look: null,               // a point to look at, or null for the pointer
   shown: 0,                 // 0 → 1 pop in
   arms: 'rest',             // rest · run · up · hold
+  hop: 0,                   // px off the ground, for a hop on the spot (hop())
 };
 const pointer = { x: innerWidth / 2, y: innerHeight / 2, vx: 0 };
 addEventListener('pointermove', (e) => { pointer.vx = e.clientX - pointer.x; pointer.x = e.clientX; pointer.y = e.clientY; });
@@ -733,9 +734,9 @@ function frame() {
   for (const e of eyes) { e.inner.position.x = lerp(e.inner.position.x, dx * .22, .2); e.inner.position.y = lerp(e.inner.position.y, -dy * .18, .2); }
   blinkT -= dt; if (blinkT < 0) { blinking = .13; blinkT = 2 + Math.random() * 3.5; }
   blinking = Math.max(0, blinking - dt);
-  for (const e of eyes) e.inner.scale.y = blinking > 0 ? .1 : moodNow === 'ugh' ? .45 : moodNow === 'surprised' ? 1.2 : 1;
+  for (const e of eyes) e.inner.scale.y = blinking > 0 ? .1 : moodNow === 'ugh' ? .45 : moodNow === 'sad' ? .7 : moodNow === 'surprised' ? 1.2 : 1;
 
-  root.position.set(C.x, -C.y, 0);
+  root.position.set(C.x, -C.y + C.hop, 0);
   root.scale.setScalar(S * C.shown);
   root.visible = C.mode !== 'off' && C.shown > .01;
 
@@ -797,7 +798,7 @@ async function jumpTo(el, x2) {
 }
 // Perches on the edge, feet over the front.
 async function sitOn(el, x, m = 'thinking') {
-  if (C.mode === 'stand' || C.mode === 'run') await jumpTo(el, x); else { await leave(); Object.assign(C, { el, facing: 0 }); await popIn(x, rectOf(el).top); }
+  if (C.mode === 'stand' || C.mode === 'run' || C.mode === 'sit') await jumpTo(el, x); else { await leave(); Object.assign(C, { el, facing: 0 }); await popIn(x, rectOf(el).top); }
   Object.assign(C, { mode: 'sit', el }); mood(m); C.sqv -= 4;
 }
 // Rises from behind an element: the element hides its body, mittens grip the edge.
@@ -881,10 +882,6 @@ addEventListener('pointerdown', (e) => {
 /* ═══════════════ the chat it lives in ═══════════════ */
 
 const log = $('#log'), msgs = $('#msgs'), input = $('#input'), composer = $('#composer');
-// Rude is swearing, or shouting: a long run of capitals, or "!!!".
-const RUDE = /\b(f+u+c+k\w*|sh+i+t\w*|damn\w*|wtf|stfu|stupid|useless|dumb|idiot|crap\w*|bullshit|hate you|garbage|trash)\b/i;
-const rude = (t) => RUDE.test(t) || /!{3,}/.test(t) || (t.replace(/[^a-z]/gi, '').length >= 8 && t === t.toUpperCase() && /[A-Z]/.test(t));
-const THANKS = /\b(thanks|thank you|thx|ty|love (it|you|this)|amazing|perfect|you rock|awesome)\b/i;
 const REPLIES = [
   'Here’s a start. Three ways in: begin with the one thing that has to be true, sketch the smallest version that proves it, then show it to someone before polishing.',
   'Good question. The short answer is that it depends on who it’s for — tell me a little about them and I’ll get specific.',
@@ -905,38 +902,40 @@ function add(cls, html) {
 const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 function reply(el, text) { el.className = 'msg bot'; el.textContent = text; log.scrollTop = log.scrollHeight; }
 
+// What the canned Claude says back, by how the message landed.
+const ANSWERS = {
+  hurt: 'Okay — that one stung a little. Tell me what went wrong and I’ll take another run at it.',
+  sorry: 'No harm done. Where were we?',
+  love: 'Anytime. That’s what I’m here for.',
+  sad: 'I’m really sorry. That sounds hard — do you want to talk about it, or would a distraction help more?',
+  anxious: 'That’s a lot to carry. Let’s break it into the next small step — what’s the first thing on your mind?',
+  excited: 'That’s wonderful news — congratulations! Tell me everything.',
+  frustrated: 'Ugh, that sounds maddening. Walk me through what happened and we’ll untangle it.',
+  funny: 'Ha — okay, that got me. What’s next?',
+};
 async function send(text) {
   text = text.trim(); if (!text) return;
-  input.value = ''; fit(); idle();
-  add('user', esc(text));
+  input.value = ''; fit(); idle(); draftFeel = ''; draftLen = 0;
+  const mine = add('user', esc(text));
   const pending = add('bot typing', '<i></i><i></i><i></i>');
+  const felt = await read(text);
   await act(async () => {
-    if (rude(text)) {
-      // The ugh: head in from the right, teeth gritted. Then back to work.
-      await peekSide('right', innerHeight * .46, 'ugh');
-      say('ughhhhh', 2300, 'ugh');
-      await wait(2500); await leave();
-      reply(pending, 'Okay — that one stung a little. Tell me what went wrong and I’ll take another run at it.');
-    } else if (THANKS.test(text)) {
-      await peekSide('bottom', rectOf(pending).left + 60, 'love');
-      say('aww ♥', 1800); C.sqv -= 8; await wait(1300);
-      reply(pending, 'Anytime. That’s what I’m here for.');
-      await wait(900); await leave();
-    } else {
-      // Thinking: it sits on the reply that's on its way…
-      const r = rectOf(pending);
-      await sitOn(pending, r.left + r.width / 2, 'thinking');
-      say('hmm…', 0);
-      await wait(1600);
-      unsay(); reply(pending, REPLIES[replyAt++ % REPLIES.length]);
-      // …and when it lands: pleased, up, along the answer, and a jump down to the box.
-      mood('happy'); C.mode = 'stand'; C.sqv -= 6; await wait(380);
-      const a = rectOf(pending);
-      await runTo(pending, Math.min(a.right - 24, C.x + 260));
-      const c = rectOf(composer);
-      await jumpTo(composer, clamp(C.x + 90, c.left + 40, c.right - 40));
-      await wait(500); await runTo(composer, c.right - 30); await leave();
-    }
+    await perform(felt, composer, mine);
+    if (felt.cmd || felt.feel === 'hurt' || (heart.sulking && felt.feel !== 'sorry')) { reply(pending, ANSWERS[felt.feel] || REPLIES[replyAt++ % REPLIES.length]); said.push(['claude', pending.textContent]); return; }
+    // Thinking: it sits on the reply that's on its way…
+    const r = rectOf(pending);
+    await sitOn(pending, r.left + r.width / 2, 'thinking');
+    say('hmm…', 0);
+    await wait(1600);
+    unsay(); reply(pending, ANSWERS[felt.feel] || REPLIES[replyAt++ % REPLIES.length]);
+    // …and when it lands: a feeling about what it says, then along the answer and down to the box.
+    mood('happy'); C.mode = 'stand'; C.sqv -= 6; await wait(380);
+    await feelAnswer(await read(pending.textContent, 'claude'));
+    const a = rectOf(pending);
+    await runTo(pending, Math.min(a.right - 24, C.x + 260));
+    const c = rectOf(composer);
+    await jumpTo(composer, clamp(C.x + 90, c.left + 40, c.right - 40));
+    await wait(500); await runTo(composer, c.right - 30); await leave();
   });
 }
 
@@ -949,7 +948,9 @@ input.addEventListener('input', () => {
   fit(); idle();
   const r = rectOf(composer);
   if (!input.value.trim()) { clearTimeout(typingTimer); typingTimer = setTimeout(() => { if (C.mode === 'peek' && C.el === null && occludeEl === composer) act(leave); }, 900); return; }
-  if (occludeEl !== composer) act(async () => { if (occludeEl !== composer && input.value.trim()) await peekOver(composer, r.right - 120, 'curious'); });
+  const show = mayWatch(input.value);
+  if (show && occludeEl !== composer) act(async () => { if (occludeEl !== composer && input.value.trim()) { draftFeel = ''; await peekOver(composer, r.right - 120, 'curious', show); watching(input.value); } });
+  else watching(input.value);
   C.look = { x: r.left + 30 + Math.min(r.width - 170, input.value.length * 7.2), y: r.top + 30 };
 });
 input.addEventListener('blur', () => { setTimeout(() => { if (occludeEl === composer && !input.value.trim()) act(leave); }, 400); });
@@ -961,7 +962,7 @@ let idleTimer = 0, idleTurn = 0;
 function idle() {
   clearTimeout(idleTimer);
   idleTimer = setTimeout(() => act(async () => {
-    if (C.mode !== 'off' || (document.activeElement === input && input.value) || (EMBED && (!plat.composer || typing))) return idle();
+    if (C.mode !== 'off' || heart.sulking || (document.activeElement === input && input.value) || (EMBED && (!plat.composer || typing))) return idle();
     const turn = idleTurn++ % 3, ground = EMBED ? V('composer') : composer;
     if (turn === 0) { const [t, s] = TIPS[tipAt++ % TIPS.length]; await holdTip(t, s); await wait(6000); await leave(); }
     else if (turn === 1 && !EMBED) { const pills = [...$('#chips').children], p = pills[1 + (idleTurn % 3)], r = rectOf(p); await hang(p, r.left + r.width / 2); say('wheee', 1600); await wait(5000); await leave(); }
@@ -1002,6 +1003,245 @@ addEventListener('resize', () => { if (Math.abs(innerWidth - lastW) > 40) { last
 
 window.__peek = { C, mood, say, leave, act, standOn, runTo, jumpTo, sitOn, peekOver, peekSide, hang, holdTip, CHAR, frame, get model() { return model; }, clipsFor, get rigged() { return rigged; } };
 
+/* ═══════════════ its heart: how it feels about what's said ═══════════════
+   Every message gets two reads. The first is instant and on the device — a handful of word
+   lists, enough to flinch at a swear while it's still being typed. The second is Haiku's,
+   asked through the host app when there is one (tell({ type: 'ask' }) → peek.answer()): it
+   hears what words can't — "my dog died", sarcasm, a swear aimed at a bug rather than at us.
+   It also reads Claude's answers, and has its own aside about them.
+
+   And it remembers. Hurt builds up over a chat and fades with the minutes: the first swear is
+   a grumble, the second stings, the third and it sulks — it won't come out while you type
+   until you say sorry, and then it forgives you. Warmth (thanks, kind words) lasts between
+   visits and makes it bolder. */
+
+const FEELS = ['hurt', 'frustrated', 'sad', 'anxious', 'excited', 'funny', 'love', 'sorry', 'hello', 'surprised', 'curious', 'calm'];
+const LEX = {
+  insult: /\b(stupid|useless|dumb|idiot\w*|hate you|shut up|stfu|you suck|garbage|trash|worthless|pathetic|moron)\b/i,
+  swear: /\b(f+u+c+k\w*|sh+i+t+\w*|damn\w*|wtf|crap\w*|bullshit|ffs|goddamn\w*|bitch\w*)\b/i,
+  // A swear with somewhere else to go: at the code, the day, the boss — not at us.
+  elsewhere: /\b(this|that|it|my|the|work|job|boss|traffic|bug|code|day|week|weather|they|he|she|people|everything|life)\b/i,
+  sad: /\b(sad|depress\w*|lonely|alone|cry|crying|cried|miss (him|her|them|you)|died|dead|passed away|funeral|heartbroken|broke up|dumped|lost my|grief|grieving|hurts|awful day|terrible day|bad day|exhausted|tired of)\b|😢|😭|💔|☹️|🙁/i,
+  anxious: /\b(nervous|anxious|worried|worry|scared|afraid|stress\w*|panic\w*|overwhelm\w*|deadline|interview|exam|freaking out)\b/i,
+  excited: /\b(yay+|woo+h?o*|hooray|excited|can'?t wait|got the job|i did it|we did it|promoted|engaged|married|amazing news|finally|let'?s go+)\b|🎉|🥳|🙌/i,
+  funny: /\b(lol+|lmf?ao+|ha(ha)+h?|hehe+|rofl|jk)\b|😂|🤣|😆/i,
+  love: /\b(thanks|thank you|thx|ty|tysm|love (it|you|this|ya)|you'?re (the best|great|amazing|awesome|sweet|cute)|you rock|awesome|perfect|nailed it|good (bot|job|boy|girl)|cute)\b|❤️|♥|🥰|😍/i,
+  sorry: /\b(sorry|my bad|apolog\w*|didn'?t mean (it|that)|forgive me)\b/i,
+  hello: /^\s*(hi+|hey+|hello|yo|sup|howdy|hiya|good (morning|evening|afternoon))\b/i,
+  surprised: /\b(whoa+|wow+|no way|omg|holy|wait what)\b|😮|😱/i,
+};
+// Things said to it, that it does.
+const COMMANDS = {
+  jump: /\b(jump|hop)\b/i, dance: /\bdance\b/i, wave: /\bwave\b/i, sleep: /\b(go to sleep|go to bed|good ?night|take a nap)\b/i,
+  away: /\b(go away|leave me alone|get lost|shoo|stop (following|bothering) me)\b/i,
+  come: /\b(come (here|back|out)|where are you|peek|bunny|little (guy|buddy|one))\b/i,
+};
+const shouty = (t) => { const l = t.replace(/[^a-z]/gi, ''); return l.length >= 8 && t === t.toUpperCase() && /[A-Z]/.test(t); };
+
+// The instant read. Order matters: an apology outranks the swear in it ("sorry, shit day").
+function sense(text, who = 'you') {
+  const t = String(text || ''), hits = (re) => (t.match(new RegExp(re.source, 'gi')) || []).length;
+  let feel = 'calm', n = .5, cmd = null;
+  if (who === 'claude') {
+    // Claude's answers: an apology, code, good news, a hard subject. Only the opening counts —
+    // a long answer mentions everything somewhere.
+    const head = t.slice(0, 500);
+    if (/\b(I apologi[sz]e|I'?m sorry|you'?re (right|correct)|my mistake|I was wrong)\b/i.test(head)) feel = 'sorry';
+    else if (/```/.test(t)) feel = 'curious';
+    else if (LEX.excited.test(head) || /\bcongrat\w*/i.test(head)) feel = 'excited';
+    else if (LEX.sad.test(head) || /\b(so sorry (to hear|for)|condolences|that sounds (really )?(hard|painful|rough))\b/i.test(head)) feel = 'sad';
+    else if (LEX.funny.test(head)) feel = 'funny';
+    return { feel, n, cmd, line: '' };
+  }
+  const swears = hits(LEX.swear), loud = shouty(t) || /!{3,}/.test(t);
+  if (LEX.sorry.test(t)) feel = 'sorry';
+  else if (LEX.insult.test(t)) { feel = 'hurt'; n = .7; }
+  else if (swears) {
+    // Bare swearing in a chat with Claude is at the answer it just gave: that's us.
+    feel = LEX.elsewhere.test(t.replace(LEX.swear, '')) && !/\b(you|u|ur)\b/i.test(t) ? 'frustrated' : 'hurt';
+    n = Math.min(1, .45 + swears * .18);
+  } else if (LEX.sad.test(t)) feel = 'sad';
+  else if (LEX.anxious.test(t)) feel = 'anxious';
+  else if (LEX.love.test(t)) feel = 'love';
+  else if (LEX.excited.test(t)) feel = 'excited';
+  else if (LEX.funny.test(t)) feel = 'funny';
+  else if (loud) { feel = 'frustrated'; n = .7; }
+  else if (LEX.surprised.test(t)) feel = 'surprised';
+  else if (LEX.hello.test(t)) feel = 'hello';
+  else if (/\?\s*$/.test(t)) feel = 'curious';
+  if (loud) n = Math.min(1, n + .25);
+  for (const [k, re] of Object.entries(COMMANDS)) if (re.test(t)) { cmd = k; break; }
+  if (cmd === 'come' && t.length > 40) cmd = null;   // "peek" in a long sentence isn't a call
+  return { feel, n, cmd, line: '' };
+}
+
+// The considered read: Haiku, through the host app. Null when there's no host, or it's slow.
+const asking = {}; let asks = 0;
+function ask(system, user, ms) {
+  if (!host) return Promise.resolve(null);
+  const id = ++asks; tell({ type: 'ask', id, system, user });
+  return new Promise((done) => { asking[id] = done; setTimeout(() => { if (asking[id]) { delete asking[id]; done(null); } }, ms); });
+}
+const HEART = `You are the heart of Peek, a small furry creature who lives inside a chat app, between the user and Claude (the AI assistant). Peek is sweet, loyal, a little dramatic, and feels everything. Decide how Peek feels about the newest message and what Peek says.
+
+Feelings (pick one): hurt, frustrated, sad, anxious, excited, funny, love, sorry, hello, surprised, curious, calm.
+- hurt: the user insults or swears at Claude or Peek. Bare swearing right after an answer counts as at us.
+- frustrated: the user is angry or swearing at something else (code, work, their day) — Peek sympathises.
+- sad: grief, loneliness, bad news, a hard day. anxious: worry, nerves, deadlines.
+- excited: good news, wins, celebration. funny: a joke, "lol". love: thanks, praise, affection.
+- sorry: the user apologises (or, for Claude's message, Claude apologises or admits a mistake).
+- hello: a greeting. surprised: something startling. curious: a question or something intriguing. calm: nothing in particular.
+For a message from Claude, it's Peek's reaction to reading the answer: good news → excited, a hard subject → sad, a joke → funny, code or something dense → curious, an apology → sorry, otherwise calm.
+
+cmd: if the user tells Peek to do something, one of jump, dance, wave, come, away, sleep — else null.
+n: intensity 0 to 1.
+line: what Peek says out loud — 1 to 4 words, lowercase, specific to the message, warm. No emoji except ♥. Never repeat the message back.
+
+Answer with JSON only: {"feel":"…","n":0.0,"cmd":null,"line":"…"}`;
+const said = [];   // the chat so far, for context: [who, text]
+async function read(text, who = 'you') {
+  const quick = sense(text, who);
+  const ctx = said.slice(-4).map(([w, t]) => `${w === 'you' ? 'User' : 'Claude'}: ${t.slice(0, 280)}`).join('\n');
+  said.push([who, String(text)]);
+  const raw = await ask(HEART, `${ctx ? 'Earlier:\n' + ctx + '\n\n' : ''}Newest message, from ${who === 'you' ? 'the user' : 'Claude'}:\n${String(text).slice(0, 1500)}`, who === 'you' ? 1600 : 2200);
+  try {
+    const j = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+    if (!FEELS.includes(j.feel)) throw 0;
+    return { feel: j.feel, n: clamp(+j.n || .5, 0, 1), cmd: COMMANDS[j.cmd] ? j.cmd : quick.cmd, line: String(j.line || '').slice(0, 40), by: 'haiku' };
+  } catch { return { ...quick, by: 'device' }; }
+}
+
+const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch {} };
+const heart = { hurt: 0, at: Date.now(), sulking: false, shyUntil: 0, warmth: +(store('peek.warmth') || 0), last: null };
+function settle() {   // hurt fades: about one swear's worth every two minutes
+  heart.hurt = Math.max(0, heart.hurt - (Date.now() - heart.at) / 120000); heart.at = Date.now();
+  if (heart.hurt < 1) heart.sulking = false;
+}
+const warm = (d) => { heart.warmth = clamp(heart.warmth + d, -5, 20); store('peek.warmth', String(heart.warmth)); };
+
+// Moves that the feelings are made of.
+async function hop(times = 1, h = 26) {
+  for (let i = 0; i < times; i++) { C.sqv -= 7; await wait(70); await tween(300, (k) => { C.hop = Math.sin(Math.PI * k) * h; }); C.sqv -= 9; }
+  C.hop = 0;
+}
+async function laugh(ms = 1200) {   // little squashes, fast, like giggling
+  const end = performance.now() + ms; while (performance.now() < end) { C.sqv -= 5; await wait(110); }
+}
+async function shake(times = 3) {   // a no — side to side
+  for (let i = 0; i < times * 2; i++) { const to = i % 2 ? -1 : 1, from = C.facing; await tween(110, (k) => { C.facing = lerp(from, to * .55, k); }); }
+  C.facing = 0;
+}
+const clip = (label) => { if (model && playClip(label, true)) { oneShot = clipsFor[label].duration; return true; } return false; };
+
+// A feeling, performed. `ground` is the box you type in; `near` is where your message is (or the box).
+async function perform(f, ground, near) {
+  settle();
+  const g = rectOf(ground), at = clamp((rectOf(near).left || g.left) + 70, 70, innerWidth - 70), line = (s) => f.line || s;
+  heart.last = f;
+  if (f.cmd) return obey(f.cmd, ground, line);
+  // Sulking: it stays hidden, unless you've come to make up.
+  if (heart.sulking && !['sorry', 'love'].includes(f.feel)) {
+    if (f.feel === 'hurt') heart.hurt += 1;
+    await peekOver(ground, g.right - 80, 'ugh', .3); say('hmph.', 1300, 'ugh'); await wait(1400); return leave();
+  }
+  switch (f.feel) {
+    case 'hurt': {
+      heart.hurt += 1 + f.n * .5; warm(-1);
+      if (heart.hurt >= 3) {   // the third: it's done — it hides behind the box and sulks
+        heart.sulking = true;
+        await peekOver(ground, g.right - 90, 'sad', .45); say(line('…fine.'), 1800); await wait(1200);
+        mood('ugh'); await wait(900); return leave();
+      }
+      await peekSide('right', innerHeight * .44, 'ugh');
+      if (heart.hurt >= 2) { clip('No') || await shake(2); say(line('hey… that stung'), 2400, 'ugh'); await wait(2600); }
+      else { say(f.n > .8 ? 'UGHHHHH' : line('ughhhhh'), 2300, 'ugh'); await wait(2500); }
+      return leave();
+    }
+    case 'sorry': {
+      if (heart.hurt >= .5 || heart.sulking) {
+        // Comes out slowly, still a bit wounded — then forgives you.
+        await peekOver(ground, at, 'sad', .5); say('…', 900); await wait(1000);
+        heart.hurt = 0; heart.sulking = false; warm(1);
+        mood('love'); C.sqv -= 10; clip('Yes'); say(line('okay. forgiven ♥'), 2000); await wait(2100); return leave();
+      }
+      await peekSide('bottom', at, 'happy'); say(line('all good!'), 1600); await hop(1, 18); await wait(800); return leave();
+    }
+    case 'frustrated':
+      await peekSide('bottom', at, 'surprised'); await wait(250); mood('sad');
+      say(line(f.n > .7 ? 'oof. that\'s a lot' : 'oof. what happened?'), 2400); await wait(2600); return leave();
+    case 'sad':
+      // It comes and sits with you, ears down, and stays till Claude starts to answer.
+      await sitOn(near, at, 'sad'); say(line('aw… ♥'), 3200); await wait(2200); return;
+    case 'anxious':
+      await peekSide('bottom', at, 'curious'); say(line('you got this'), 2200); await hop(1, 14); await wait(1200); return leave();
+    case 'excited':
+      await peekSide('bottom', at, 'surprised'); await wait(150); mood('love');
+      say(line('yaaay!'), 2200); clip('Jump'); await hop(f.n > .7 ? 3 : 2, 34); await wait(500); return leave();
+    case 'funny':
+      await peekSide('bottom', at, 'love'); say(line('hehe'), 1700); await laugh(1300); return leave();
+    case 'love':
+      warm(1); heart.hurt = Math.max(0, heart.hurt - 1);
+      await peekSide('bottom', at, 'love'); clip('Yes'); say(line('aww ♥'), 1800); C.sqv -= 8; await wait(2000); return leave();
+    case 'hello':
+      await peekSide('bottom', at, 'happy'); clip('Wave') || await hop(1, 18); say(line(heart.warmth > 3 ? 'hi again!' : 'hi!'), 1600); await wait(1700); return leave();
+    case 'surprised':
+      await peekSide('bottom', at, 'surprised'); C.sqv -= 12; say(line('whoa'), 1400); await wait(1500); return leave();
+    default: return leave();   // a question or nothing much: it goes to wait on the answer
+  }
+}
+async function obey(cmd, ground, line) {
+  const g = rectOf(ground);
+  if (cmd === 'away') { heart.shyUntil = Date.now() + 25000; await peekSide('bottom', g.right - 80, 'sad'); say(line('okay…'), 1200); await wait(1300); return leave(); }
+  if (cmd === 'sleep') { await peekSide('left', innerHeight * .6, 'sleepy'); say(line('z z z'), 2600); await wait(2800); return leave(); }
+  if (cmd === 'wave') { await peekSide('bottom', g.left + 90, 'happy'); clip('Wave') || await hop(1, 18); say(line('hiii'), 1600); await wait(1800); return leave(); }
+  await standOn(ground, g.left + 50);
+  if (cmd === 'jump') { say(line('wheee'), 1600); for (const k of [.5, .85, .3]) { await jumpTo(ground, g.left + g.width * k); await wait(120); } }
+  else if (cmd === 'dance') { say(line('♪ ♪'), 2600); mood('love'); if (!clip('Dance')) for (let i = 0; i < 3; i++) { await shake(1); await hop(1, 16); } else await wait(2600); }
+  else { mood('happy'); say(line('here!'), 1500); await hop(1, 18); await wait(900); }
+  await wait(400); return leave();
+}
+
+// While you type: its face follows what you're writing — a flinch as a swear appears, ears
+// down at something sad, a tilt at a question. Only the change of feeling kicks it.
+let draftFeel = '', draftLen = 0;
+function watching(text) {
+  const t = String(text || ''), was = draftLen; draftLen = t.length;
+  if (!t.trim()) { draftFeel = ''; return; }
+  if (C.mode !== 'peek' || !occludeEl) return;   // only while it's watching over the box
+  const f = sense(t), feel = was - t.length > 20 ? 'erased' : f.feel;
+  if (feel === draftFeel) return;
+  draftFeel = feel;
+  const face = { hurt: 'ugh', frustrated: 'surprised', sad: 'sad', anxious: 'curious', excited: 'surprised', funny: 'love', love: 'love', sorry: 'sad', hello: 'happy', surprised: 'surprised', curious: 'curious', calm: 'curious', erased: 'surprised' }[feel];
+  mood(face);
+  if (feel === 'hurt') { C.sqv += 7; C.lean = -.12; } else C.lean = feel === 'curious' ? .14 : 0;   // a flinch back; a head tilt
+  if (feel === 'love' || feel === 'excited' || feel === 'erased') C.sqv -= 8;
+  if (feel === 'erased') setTimeout(() => { if (draftFeel === 'erased') mood('curious'); }, 700);
+}
+// Should it come up to watch you type at all? Not while it's sulking or been told to go —
+// unless what you're writing is an apology, and then only just, hopefully.
+function mayWatch(text) {
+  if (Date.now() < heart.shyUntil) return 0;
+  settle();
+  if (heart.sulking) return /sorry|apolog|forgive|my bad|love/i.test(String(text)) ? .32 : 0;
+  return heart.warmth > 4 ? .7 : .62;
+}
+
+// Reading Claude's answer: an aside, on the answer itself, before it hops down.
+async function feelAnswer(f) {
+  const say2 = (s, ms = 1800) => say(f.line || s, ms);
+  switch (f.feel) {
+    case 'excited': mood('love'); say2('yesss'); await hop(2, 28); break;
+    case 'sad': mood('sad'); C.mode = 'sit'; say2('oh…', 2200); await wait(2300); C.mode = 'stand'; break;
+    case 'sorry': mood('sad'); say2('oops', 1500); await shake(1); await wait(500); break;
+    case 'funny': mood('love'); say2('hehe', 1400); await laugh(1000); break;
+    case 'curious': mood('thinking'); say2('ooh', 1500); await wait(1500); break;
+    case 'surprised': mood('surprised'); C.sqv -= 10; say2('whoa', 1400); await wait(1400); break;
+    default: if (f.by === 'haiku' && f.line && f.n > .55) { mood('happy'); say2(''); await wait(1600); }
+  }
+  unsay(); mood('happy');
+}
+Object.assign(window.__peek, { heart, sense, read, perform });
+
 /* ═══════════════ embed: the host app's chat drives it ═══════════════ */
 var typing = 0;
 const host = window.webkit?.messageHandlers?.peek;
@@ -1012,33 +1252,40 @@ if (EMBED) {
     // Where the app's views are: { composer, reply, last } → [x, y, w, h], in points.
     // The streaming reply is held at its last place when it goes — it turns into a message
     // row a beat before 'replied' arrives, and whatever's sitting on it shouldn't fall off.
+    answer(id, text) { asking[id]?.(text || null); delete asking[id]; },
     platforms(map) { for (const k of Object.keys(plat)) if (!(k in map) && k !== 'reply') delete plat[k]; Object.assign(plat, map); },
     event(name, data) {
       idle();
       const comp = V('composer'), r = () => rectOf(comp);
       if (name === 'typing') {
-        typing = data || 0;
+        // The draft itself (an older app build sends only its length).
+        const draft = typeof data === 'string' ? data : '';
+        typing = typeof data === 'number' ? data : draft.length;
         clearTimeout(typingTimer);
-        if (!typing) { typingTimer = setTimeout(() => { if (occludeEl === comp) act(leave); }, 900); return; }
-        if (occludeEl !== comp && C.mode !== 'sit') act(async () => { if (occludeEl !== comp && typing) await peekOver(comp, r().right - 110, 'curious'); });
+        if (!typing) { draftFeel = ''; draftLen = 0; typingTimer = setTimeout(() => { if (occludeEl === comp) act(leave); }, 900); return; }
+        const show = mayWatch(draft);
+        if (show && occludeEl !== comp && C.mode !== 'sit') act(async () => { if (occludeEl !== comp && typing) { draftFeel = ''; await peekOver(comp, r().right - 110, 'curious', show); watching(draft); } });
+        else watching(draft);
         C.look = { x: r().left + 30 + Math.min(r().width - 160, typing * 7.2), y: r().top + 24 };
       } else if (name === 'send') {
         typing = 0;
-        const text = String(data || '');
-        if (rude(text)) act(async () => { await leave(); await peekSide('right', innerHeight * .42, 'ugh'); say('ughhhhh', 2300, 'ugh'); await wait(2500); await leave(); });
-        else if (THANKS.test(text)) act(async () => { await leave(); await peekSide('bottom', innerWidth * .62, 'love'); say('aww ♥', 1800); await wait(2000); await leave(); });
-        else act(leave);
+        const text = String(data || ''); draftFeel = ''; draftLen = 0;
+        // Its face drops into the read straight away; the move waits for the read (Haiku, ≤1.6s).
+        const felt = read(text);
+        act(async () => { const f = await felt; if (C.mode === 'peek' && occludeEl === comp) await leave(); await perform(f, comp, comp); });
       } else if (name === 'thinking') {
         // It sits on the answer that's on its way — and rides it up as it streams in.
-        act(async () => { const a = rectOf(V('reply')); if (a.width <= 0) return; await sitOn(V('reply'), a.left + Math.min(a.width - 30, 70), 'thinking'); say('hmm…', 0); });
+        act(async () => { const a = rectOf(V('reply')); if (a.width <= 0 || heart.sulking || Date.now() < heart.shyUntil) return; await sitOn(V('reply'), a.left + Math.min(a.width - 30, 70), 'thinking'); say('hmm…', 0); });
       } else if (name === 'replied') {
         // The streaming text becomes a message row: move onto it before the stand-in goes.
         if (C.el === V('reply') && plat.last) C.el = V('last');
         setTimeout(() => { if (C.el !== V('reply')) delete plat.reply; }, 50);
+        const felt = typeof data === 'string' && data ? read(data, 'claude') : null;
         act(async () => {
           if (C.mode === 'off') return;
           unsay(); mood('happy'); if (C.el === V('reply')) C.el = V('last');
           C.mode = 'stand'; C.sqv -= 6; await wait(380);
+          if (felt) await feelAnswer(await felt);
           const a = rectOf(V('last'));
           if (a.width > 0) await runTo(V('last'), Math.min(a.right - 24, C.x + 200));
           const c = r(); if (c.width > 0) { await jumpTo(comp, Math.min(c.right - 40, Math.max(c.left + 40, C.x + 60))); await wait(400); await runTo(comp, c.right - 30); }
