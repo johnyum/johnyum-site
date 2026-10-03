@@ -75,6 +75,16 @@
     const HOMES = ['1564013799919-ab600027ffc6', '1600596542815-ffad4c1539a9', '1568605114967-8130f3a36994'];
     st.textContent = '.ds-label{display:none!important}'
       + '.sampler-item[data-dup]{display:none!important}'
+      // the section titles in the deck's mono (John, 2026-10-03)
+      + '@font-face{font-family:"IBM Plex Mono";src:url("/preso/fonts/IBMPlexMono-Regular.woff2") format("woff2");font-weight:400;font-display:block}'
+      + '.ds-sec h2{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace!important;font-weight:400!important;letter-spacing:0!important}'
+      // GUEST PILLS, the main ones only, one size (John, 2026-10-03: "get rid of dupes… all the pill sizes the same… I don't
+      // need middle cells or end cells"): the month's check-in (the board's black pill is the main one), carrying on, past
+      // and the week's tail go; every pill left but the snapped two stands at the board's 176 x 40
+      + '.ds-grid.pills [data-hide]{display:none!important}'
+      + '.ds-grid.pills .ds-art:not(:has(.snapped)){width:176px!important}'
+      + '.ds-grid.pills .ds-pillbox:not(:has(.snapped)){height:40px!important}'
+      + '.ds-grid.pills :is(.spill,.pill):not(.snapped){width:176px!important;height:40px!important;border-radius:20px!important}'
       + HOMES.map((h, i) => `.ds-thumbrow .ds-thumb:nth-child(${i + 1}){background:url("https://images.unsplash.com/photo-${h}?w=120&h=120&fit=crop&q=80") center/cover!important}`).join('');
     d.head.appendChild(st);
     const stroke = () => d.querySelectorAll('.sampler-item').forEach(it => {
@@ -110,17 +120,35 @@
     await new Promise(r => setTimeout(r, 500));
     const after = grid.children[1] || null;
     pills.sort((a, z) => /Daniel/.test(a.textContent) ? -1 : 1).forEach(p => {
-      const r = p.getBoundingClientRect(), W = 168, chain = [];   // at the main pill's width (the sampler's 168), so neither is cut short
+      const r = p.getBoundingClientRect(), W = 176, chain = [];   // at the board pill's 176 x 40, the one size every pill here takes
       for (let e = p.parentElement; e && e !== L.body; e = e.parentElement) chain.unshift(e);
       const spec = d.createElement('div'); spec.className = 'ds-spec';
       const art = d.createElement('div'); art.className = 'ds-art'; art.style.width = W + 'px'; spec.appendChild(art);
       let cur = art;
       chain.forEach(e => { const c = e.cloneNode(false); c.removeAttribute('id'); c.style.cssText += ';position:static!important;transform:none!important;width:auto!important;height:auto!important;margin:0!important;padding:0!important;overflow:visible!important;display:block!important;inset:auto!important;min-height:0!important;background:transparent!important;box-shadow:none!important;border:0!important'; cur.appendChild(c); cur = c; });
-      const c = p.cloneNode(true); c.style.cssText += ';position:relative!important;left:auto!important;top:auto!important;width:' + W + 'px!important;height:36px!important;transform:none!important';   // the main pill's 36 (lifted mid-entrance it can read short)
+      const c = p.cloneNode(true); c.style.cssText += ';position:relative!important;left:auto!important;top:auto!important;width:' + W + 'px!important;height:40px!important;border-radius:20px!important;transform:none!important';   // (lifted mid-entrance it can read short)
       c.querySelectorAll('img[src]').forEach(i => { i.src = new URL(i.getAttribute('src'), L.baseURI).href; });
       cur.appendChild(c);
-      grid.insertBefore(spec, after);   // beside the main pill: the stay, then the request, then the cancelled one
+      grid.insertBefore(spec, after);
+      spec.dataset.kind = /Daniel/.test(p.textContent) ? 'req' : 'cancel';
     });
+    // two more requests to book, so the disc's colours show: Purple and Orange beside Daniel's Blue — the build's own
+    // label colours
+    const req = grid.querySelector('[data-kind="req"]');
+    if (req) [['Maya', 'MK', '#E6E2FB', '#7A6CE8'], ['Leo', 'LT', '#FBE5CC', '#DD6B0E']].reverse().forEach(([n, ini, bg, ink]) => {
+      const c = req.cloneNode(true); c.dataset.kind = 'req';
+      const i = c.querySelector('.initials'), nm = c.querySelector('.name');
+      if (i) { i.textContent = ini; i.style.background = bg; i.style.color = ink; }
+      if (nm) nm.textContent = n;
+      req.after(c);
+    });
+    // the duplicates and the in-between pieces go
+    grid.querySelectorAll('.ds-spec').forEach(sp => { if (/^Month · (check-in|carries on|past|week's tail)$/.test(((sp.querySelector('.ds-label') || {}).textContent || '').trim())) sp.dataset.hide = 1; });
+    // in order: the board's three (the black main pill, past, stepped back), pressed, the requests, cancelled, then the two snapped
+    const boardDefault = [...grid.children].find(e => /Board · default/.test(e.textContent || '') || (e.querySelector && [...e.querySelectorAll('.ds-label')].some(l => /Board · default/.test(l.textContent))));
+    const pressed = [...grid.querySelectorAll(':scope > .ds-spec')].find(sp => /Month · pressed/.test((sp.querySelector('.ds-label') || {}).textContent || ''));
+    const kinds = [...grid.querySelectorAll(':scope > [data-kind]')].sort((a, z) => (a.dataset.kind === 'cancel') - (z.dataset.kind === 'cancel'));
+    if (boardDefault) { let at = boardDefault; [pressed, ...kinds].forEach(e => { if (e) { at.after(e); at = e; } }); grid.prepend(boardDefault); }
     // the eight coloured nights, into the end of the Date cells grid, each in a sampler item of its own
     const cellsGrid = d.querySelector('.ds-grid.cells');
     const sept = [...L.querySelectorAll('.grid')].find(g => { const r = g.getBoundingClientRect(); return r.bottom > 100 && r.top < 700; });
