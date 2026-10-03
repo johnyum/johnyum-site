@@ -34,6 +34,18 @@ The slide is one line now — **"Be honest and own it because your users can sme
 
 ## Case Study 2 — Host calendar
 
+### Why the calendar (12a)
+
+The slide is one sentence: **Calendar is where Airbnb hosts run their business.** (John, 2026-10-03.) The beats it carried, to say:
+
+1. Calendar is where Airbnb hosts run their business.
+2. Each night is inventory for sale, with its own price and rules — Price · Weekend price · Smart Pricing · Cleaning fee ·
+   Pet fee · Extra guest fee · Other fees · Discounts · Availability · Min / max nights · Advance notice · Prep time ·
+   Booking window · Check-in / checkout days · Cancellation · Repeat rules · Events and holidays · Gap nights.
+3. The old calendar was too simple for the tooling hosts needed. *(Its three screens — month, edit, details — are in
+   `slides/assets/old-calendar/`.)*
+4. So we rebuilt from scratch.
+
 ### The verdict (12bs — the two ✓ and the ⨉s)
 
 > Testing told us two things. Hosts found it easy to use — but it was missing what they need every day. So here's how I
