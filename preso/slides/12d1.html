@@ -95,10 +95,17 @@
     const until = async (fn, ms = 12000) => { const t = Date.now(); while (Date.now() - t < ms) { try { const x = fn(); if (x) return x; } catch (_) {} await new Promise(r => setTimeout(r, 80)); } return null; };
     const m = await until(() => live.contentWindow.__model); if (!m) return;
     const I = dd => m.fx.index({ y: 2026, m: 9, d: dd }), base = { listing: 0, extraGuests: 0, checkIn: '3:00 PM', checkOut: '11:00 AM', nightly: [], earnings: 0 };
-    m.addStay({ ...base, startIndex: I(14), nights: 3, guest: 'Daniel', avatarURL: '', kind: 'request', initials: 'DR' });
-    m.addStay({ ...base, startIndex: I(21), nights: 3, guest: 'Priya', avatarURL: '', kind: 'cancelled' });
+    m.addStay({ ...base, startIndex: I(23), nights: 3, guest: 'Daniel', avatarURL: '', kind: 'request', initials: 'DR' });
+    m.addStay({ ...base, startIndex: I(27), nights: 2, guest: 'Priya', avatarURL: '', kind: 'cancelled' });
+    // THE REPEAT COLOURS (John, 2026-10-03: "add the recurrence colored cells to the date cells"): a rule in every colour of
+    // the palette, a night each from the 10th, each carrying a different setting — price up, price down, a minimum, a maximum,
+    // closed, a check-in rule, a fixed price, up with a minimum. YEARLY rules on a one-night range: a weekly rule ignores its
+    // range and would repeat on its weekdays all year.
+    const SET = [{ pricePct: 20 }, { pricePct: -15 }, { minNights: 3 }, { maxNights: 7 }, { blocked: true }, { checkInDays: new Set([1, 2, 3, 4, 5, 6, 7]) }, { price: 650 }, { pricePct: 35, minNights: 2 }];
+    SET.forEach((x, i) => { const n = I(10 + i); try { m.applyRepeat({ id: 'r' + i, weekly: false, days: new Set(), start: n, end: n, mdays: new Set(), listings: [0], price: null, pricePct: null, blocked: null, minNights: null, maxNights: null, checkInDays: new Set(), checkOutDays: new Set(), cancellation: null, name: 'r' + i, colorIndex: i, enabled: true, ...x }); } catch (_) {} });
+    m.setRecurQA(true);
     const L = live.contentDocument;
-    const pills = await until(() => { const ps = [...L.querySelectorAll('.spill')].filter(p => p.getBoundingClientRect().width > 60 && /Daniel|Cancelled/.test(p.textContent)); return ps.length >= 2 && ps; });
+    const pills = await until(() => { const ps = [...L.querySelectorAll('.spill')].filter(p => p.getBoundingClientRect().width > 60 && /Daniel|Cancelled/.test(p.textContent)); return ps.length >= 2 && m.repeatColorNights && m.repeatColorNights.get(0) && m.repeatColorNights.get(0).size >= 8 && ps; });
     const grid = d.querySelector('.ds-grid.pills'); if (!pills || !grid) return;
     await new Promise(r => setTimeout(r, 500));
     const after = grid.children[1] || null;
@@ -113,6 +120,19 @@
       c.querySelectorAll('img[src]').forEach(i => { i.src = new URL(i.getAttribute('src'), L.baseURI).href; });
       cur.appendChild(c);
       grid.insertBefore(spec, after);   // beside the main pill: the stay, then the request, then the cancelled one
+    });
+    // the eight coloured nights, into the end of the Date cells grid, each in a sampler item of its own
+    const cellsGrid = d.querySelector('.ds-grid.cells');
+    const sept = [...L.querySelectorAll('.grid')].find(g => { const r = g.getBoundingClientRect(); return r.bottom > 100 && r.top < 700; });
+    if (cellsGrid && sept) SET.forEach((x, i) => {
+      const c = [...sept.querySelectorAll('.dcell')].find(e => (e.querySelector('.date') || {}).textContent === String(10 + i)); if (!c) return;
+      const r = c.getBoundingClientRect(), chain = [];
+      for (let e = c.parentElement; e && e !== L.body; e = e.parentElement) chain.unshift(e);
+      const item = d.createElement('div'); item.className = 'sampler-item origsel';
+      let cur = item;
+      chain.forEach(e => { const k = e.cloneNode(false); k.removeAttribute('id'); k.style.cssText += ';position:static!important;transform:none!important;width:auto!important;height:auto!important;margin:0!important;padding:0!important;overflow:visible!important;display:block!important;inset:auto!important;min-height:0!important;background:transparent!important;box-shadow:none!important;border:0!important'; cur.appendChild(k); cur = k; });
+      const k = c.cloneNode(true); k.style.cssText += ';position:relative!important;left:auto!important;top:auto!important;width:' + r.width + 'px!important;height:' + r.height + 'px!important;transform:none!important';
+      cur.appendChild(k); cellsGrid.appendChild(item);
     });
     live.remove();
   }
