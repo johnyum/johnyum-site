@@ -57,6 +57,16 @@ canvas.layer { width: 100vw; height: 100vh; }
 #body { position: fixed; z-index: 2; left: 0; top: 0; pointer-events: none; width: 168px; transform-origin: 50% 100%; will-change: transform; filter: drop-shadow(0 10px 14px rgba(70,30,20,.18)); }
 .composer { position: relative; }
 .text strong { font-weight: 600; }
+/* ── the tide pool: plush creatures that fall, pile on the chat box, and can be flicked about ── */
+#pool { position: fixed; inset: 0; z-index: 4; pointer-events: none; }
+.critter { position: absolute; left: 0; top: 0; touch-action: none; cursor: grab; pointer-events: auto; user-select: none; -webkit-user-select: none;
+  filter: drop-shadow(0 6px 6px rgba(0,0,0,.18)); will-change: transform; }
+.critter:active { cursor: grabbing; }
+.critter img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
+.name { position: absolute; left: 0; top: 0; padding: 6px 11px; border-radius: 99px; background: #fff; color: var(--ink); font-size: 13px; font-weight: 500;
+  white-space: nowrap; box-shadow: 0 6px 18px -8px rgba(0,0,0,.3), 0 0 0 1px var(--line); pointer-events: none; transform-origin: 50% 100%; }
+.name::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; margin-left: -5px; background: #fff; transform: rotate(45deg);
+  box-shadow: 1px 1px 0 0 var(--line); }
 .text .li { display: block; padding-left: 22px; text-indent: -14px; }
 
 .foot { padding: 0 12px 14px; }
@@ -80,12 +90,14 @@ canvas.layer { width: 100vw; height: 100vh; }
 .hint { text-align: center; font-size: 11.5px; color: var(--faint); margin-top: 8px; }
 @media (max-width: 600px) { .text { font-size: 17px; } }
 </style>
+<script src="../js/matter.min.js"></script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <path id="spark" d="m19.6 66.5 19.7-11 .3-1-.3-.5h-1l-3.3-.2-11.2-.3L14 53l-9.5-.5-2.4-.5L0 49l.2-1.5 2-1.3 2.9.2 6.3.5 9.5.6 6.9.4L38 49.1h1.6l.2-.7-.5-.4-.4-.4L29 41l-10.6-7-5.6-4.1-3-2-1.5-2-.6-4.2 2.7-3 3.7.3.9.2 3.7 2.9 8 6.1L37 36l1.5 1.2.6-.4.1-.3-.7-1.1L33 25l-6-10.4-2.7-4.3-.7-2.6c-.3-1-.4-2-.4-3l3-4.2L28 0l4.2.6L33.8 2l2.6 6 4.1 9.3L47 29.9l2 3.8 1 3.4.3 1h.7v-.5l.5-7.2 1-8.7 1-11.2.3-3.2 1.6-3.8 3-2L61 2.6l2 2.9-.3 1.8-1.1 7.7L59 27.1l-1.5 8.2h.9l1-1.1 4.1-5.4 6.9-8.6 3-3.5L77 13l2.3-1.8h4.3l3.1 4.7-1.4 4.9-4.4 5.6-3.7 4.7-5.3 7.1-3.2 5.7.3.4h.7l12-2.6 6.4-1.1 7.6-1.3 3.5 1.6.4 1.6-1.4 3.4-8.2 2-9.6 2-14.3 3.3-.2.1.2.3 6.4.6 2.8.2h6.8l12.6 1 3.3 2 1.9 2.7-.3 2-5.1 2.6-6.8-1.6-16-3.8-5.4-1.3h-.8v.4l4.6 4.5 8.3 7.5L89 80.1l.5 2.4-1.3 2-1.4-.2-9.2-7-3.6-3-8-6.8h-.5v.7l1.8 2.7 9.8 14.7.5 4.5-.7 1.4-2.6 1-2.7-.6-5.8-8-6-9-4.7-8.2-.5.4-2.9 30.2-1.3 1.5-3 1.2-2.5-2-1.4-3 1.4-6.2 1.6-8 1.3-6.4 1.2-7.9.7-2.6v-.2H49L43 72l-9 12.3-7.2 7.6-1.7.7-3-1.5.3-2.8L24 86l10-12.8 6-7.9 4-4.6-.1-.5h-.3L17.2 77.4l-4.7.6-2-2 .2-3 1-1 8-5.5Z"/>
 </defs></svg>
 <canvas class="layer" id="front"></canvas>
+<div id="pool"></div>
 <div class="app">
   <header class="top">
     <button class="round" id="newChat" aria-label="New chat"><svg viewBox="0 0 20 20" fill="none" stroke="#1d1d1c" stroke-width="1.6" stroke-linecap="round"><path d="M3 6h14M3 10h11M3 14h8"/></svg></button>
@@ -97,6 +109,7 @@ canvas.layer { width: 100vw; height: 100vh; }
   <div class="foot">
     <div class="chips" id="chips">
       <button data-q="leagues">Give me a synopsis of Twenty Thousand Leagues Under the Sea</button>
+      <button data-q="pool">What lives in a tide pool?</button>
     </div>
     <form class="composer" id="composer">
       <textarea id="input" rows="1" placeholder="Chat with Claude" aria-label="Message"></textarea>
@@ -111,7 +124,7 @@ canvas.layer { width: 100vw; height: 100vh; }
         </button>
       </div>
     </form>
-    <p class="hint">A canned answer, streamed like the real thing.</p>
+    <p class="hint">Canned answers, streamed like the real thing.</p>
   </div>
 </div>
 
@@ -123,7 +136,7 @@ const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>':
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 /* The answer: **bold**, *italic*, "• " list lines, and [[cue|words]] — the squid's two beats. */
-const ANSWER = {
+const ANSWERS = { leagues: {
   q: 'Give me a synopsis of Twenty Thousand Leagues Under the Sea',
   text: `Assuming you mean Jules Verne's *Twenty Thousand Leagues Under the Sea* (1870), here's the short version.
 
@@ -142,7 +155,16 @@ const ANSWER = {
 **Ending:** Aronnax is torn between scientific wonder and Ned's push to escape. As the *Nautilus* is pulled into the Maelstrom off Norway, the three flee in the skiff and wash ashore. Nemo's fate is left unknown (Verne resolves it in *The Mysterious Island*).
 
 **Themes:** The awe of science and exploration, freedom versus captivity, and whether vengeance against injustice can be justified.`,
-};
+}, pool: {
+  q: 'What lives in a tide pool?',
+  text: `A tide pool is a little world the ocean leaves behind when the tide goes out — and it's busier than it looks.
+
+Look for [[anemone|sea anemones]] first: they cling to the rock and open into soft, waving tentacles that sting tiny prey and pull it in. Nearby, a [[starfish|starfish]] creeps along on hundreds of tube feet — it can push its stomach out of its body to eat a mussel. [[crab|Hermit crabs]] scuttle between the stones; they don't grow shells of their own, so they trade up to a bigger one as they grow.
+
+In the cracks, a [[urchin|sea urchin]] grazes on algae with a mouth on its underside, its spines keeping fish away. And if you're lucky and very still, you might spot a small [[octopus|octopus]] — clever, able to change colour to match the rock, and able to squeeze through any gap bigger than its beak.
+
+Come back at the next low tide and it will all have rearranged itself.`,
+} };
 
 /* ═══════════════ the squid ═══════════════
    Everything is placed off the chat box's rect, every frame, so it hugs the box wherever it is.
@@ -251,7 +273,7 @@ function drawArm(g, arm, r, t, grow, from = 0, to = 1) {
 }
 
 let last = performance.now();
-(function frame(now) {
+function frame(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now; const t = now / 1000;
   bx.clearRect(0, 0, innerWidth, innerHeight); fx.clearRect(0, 0, innerWidth, innerHeight);
   const r = composer.getBoundingClientRect();
@@ -275,12 +297,125 @@ let last = performance.now();
       else { drawArm(bx, arm, r, t, e, 0, arm.frontFrom + .02); drawArm(fx, arm, r, t, e, arm.frontFrom, 1); }
     }
   } else bodyImg.hidden = true;
+  stepPool(now);
   requestAnimationFrame(frame);
-})(performance.now());
+}
+requestAnimationFrame(frame);   // first frame after the whole script has run
 
 function cue(name) {
+  if (POOL[name]) { for (let i = 0; i < POOL[name].n; i++) setTimeout(() => drop(name), i * 380); return; }
   if (name === 'creature' && squid.stage < 1) { squid.stage = 1; squid.creep = 0; }
   if (name === 'squid') { squid.stage = 2; squid.t0 = performance.now(); squid.rise = 0; squid.rv = 0; }
+}
+
+/* ═══════════════ the tide pool ═══════════════
+   The same rigid-body logic as the falling phones on johnyum.com (Matter.js, sleeping on, two half
+   steps a frame, a speed cap, a soft tilt limit so a resting heap goes dead still): each creature
+   named in the answer drops in from the top and tumbles down to pile up on the chat box and the
+   bottom of the screen. Grab one to fling it; tap one and its name pops up over it. */
+const POOL = {
+  anemone:  { name: 'Sea anemone', n: 2, w: 92 },
+  starfish: { name: 'Starfish',    n: 1, w: 84 },
+  crab:     { name: 'Hermit crab', n: 2, w: 84 },
+  urchin:   { name: 'Sea urchin',  n: 1, w: 74 },
+  octopus:  { name: 'Octopus',     n: 1, w: 96 },
+};
+const { Engine, Bodies, Body, Composite, Constraint, Sleeping } = Matter;
+const engine = Engine.create({ enableSleeping: true, positionIterations: 16, velocityIterations: 10 });
+engine.gravity.y = 1.0;
+const pool = $('#pool'), critters = [];
+let walls = [], boxBody = null, boxKey = '';
+const SMALL = () => innerWidth < 600 ? .82 : 1;
+function buildWalls() {
+  Composite.remove(engine.world, walls); walls = [];
+  const W = innerWidth, H = innerHeight, t = 200;
+  walls.push(Bodies.rectangle(W / 2, H + t / 2, W * 3, t, { isStatic: true, friction: .5 }));            // the floor
+  walls.push(Bodies.rectangle(-t / 2, H / 2 - H, t, H * 4, { isStatic: true }));                           // the sides, tall so a flick can't leave
+  walls.push(Bodies.rectangle(W + t / 2, H / 2 - H, t, H * 4, { isStatic: true }));
+  Composite.add(engine.world, walls);
+  boxKey = '';
+}
+// The chat box is a shelf they land on — kept where the box really is (the keyboard moves it).
+function syncBox() {
+  const r = composer.getBoundingClientRect(), key = [r.left, r.top, r.width, r.height].map(Math.round).join();
+  if (key === boxKey) return; boxKey = key;
+  if (boxBody) Composite.remove(engine.world, boxBody);
+  boxBody = Bodies.rectangle(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, { isStatic: true, friction: .5, chamfer: { radius: 24 } });
+  Composite.add(engine.world, boxBody);
+  for (const c of critters) Sleeping.set(c.body, false);
+}
+buildWalls(); addEventListener('resize', buildWalls);
+function drop(key) {
+  const P = POOL[key], w = P.w * SMALL(), r = w * .42;
+  const x = 50 + Math.random() * (innerWidth - 100);
+  // a soft round body — they're plush — that rolls and settles
+  const body = Bodies.circle(x, -w, r, { restitution: .18, friction: .35, frictionStatic: .5, frictionAir: .012, density: .0012 });
+  body.sleepThreshold = 30;
+  Body.setVelocity(body, { x: (Math.random() - .5) * 3, y: 2 });
+  Body.setAngularVelocity(body, (Math.random() - .5) * .12);
+  Composite.add(engine.world, body);
+  const el = document.createElement('div'); el.className = 'critter'; el.style.width = el.style.height = w + 'px';
+  el.innerHTML = `<img src="../peek/plush/${key}.webp" alt="${P.name}" draggable="false">`;
+  pool.append(el);
+  const c = { key, el, body, w, bubble: null, bubbleT: 0 };
+  critters.push(c);
+  grabbable(c);
+}
+function clearPool() {
+  for (const c of critters) { Composite.remove(engine.world, c.body); c.el.remove(); c.bubble?.remove(); }
+  critters.length = 0;
+}
+// Grab, fling, tap: a spring from your finger to the point you took hold of.
+let drag = null;
+function grabbable(c) {
+  c.el.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); c.el.setPointerCapture(e.pointerId);
+    Sleeping.set(c.body, false);
+    const b = c.body, dx = e.clientX - b.position.x, dy = e.clientY - b.position.y, ca = Math.cos(-b.angle), sa = Math.sin(-b.angle);
+    const spring = Constraint.create({ pointA: { x: e.clientX, y: e.clientY }, bodyB: b, pointB: { x: dx * ca - dy * sa, y: dx * sa + dy * ca }, stiffness: .14, damping: .1, length: 0 });
+    Composite.add(engine.world, spring);
+    drag = { c, spring, x: e.clientX, y: e.clientY, t: performance.now(), moved: 0 };
+  });
+  c.el.addEventListener('pointermove', (e) => {
+    if (!drag || drag.c !== c) return;
+    drag.spring.pointA = { x: e.clientX, y: e.clientY };
+    drag.moved = Math.max(drag.moved, Math.hypot(e.clientX - drag.x, e.clientY - drag.y));
+  });
+  const up = () => {
+    if (!drag || drag.c !== c) return;
+    Composite.remove(engine.world, drag.spring);
+    if (drag.moved < 8 && performance.now() - drag.t < 400) nameOf(c);   // a tap: its name
+    drag = null;
+  };
+  c.el.addEventListener('pointerup', up); c.el.addEventListener('pointercancel', up);
+}
+// The name, in a little bubble that pops up over it and rides along for a moment.
+function nameOf(c) {
+  c.bubble?.remove();
+  const b = document.createElement('div'); b.className = 'name'; b.textContent = POOL[c.key].name; pool.append(b);
+  b.animate([{ opacity: 0, scale: '.6' }, { opacity: 1, scale: '1' }], { duration: 280, easing: 'cubic-bezier(.3,1.5,.5,1)' });
+  c.bubble = b; c.bubbleT = performance.now();
+  Body.setVelocity(c.body, { x: c.body.velocity.x, y: -4 }); Sleeping.set(c.body, false);   // a little hop as it's named
+}
+const MAX_TILT = .75;
+function stepPool(now) {
+  if (!critters.length) return;
+  syncBox();
+  Engine.update(engine, 1000 / 120); Engine.update(engine, 1000 / 120);
+  for (const c of critters) {
+    const b = c.body;
+    if (!b.isSleeping) {
+      const cap = drag && drag.c === c ? 26 : 13, v = b.velocity, sp = Math.hypot(v.x, v.y);
+      if (sp > cap) Body.setVelocity(b, { x: v.x / sp * cap, y: v.y / sp * cap });
+      let a = b.angle % (2 * Math.PI); if (a > Math.PI) a -= 2 * Math.PI; else if (a < -Math.PI) a += 2 * Math.PI;
+      if (Math.abs(a) > MAX_TILT) { Body.setAngle(b, Math.sign(a) * MAX_TILT); Body.setAngularVelocity(b, b.angularVelocity * .25); }
+    }
+    c.el.style.transform = `translate(${(b.position.x - c.w / 2).toFixed(1)}px, ${(b.position.y - c.w / 2).toFixed(1)}px) rotate(${b.angle.toFixed(3)}rad)`;
+    if (c.bubble) {
+      if (now - c.bubbleT > 1800) { const old = c.bubble; c.bubble = null; old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200 }).onfinish = () => old.remove(); }
+      else c.bubble.style.transform = `translate(${(b.position.x - c.bubble.offsetWidth / 2).toFixed(1)}px, ${(b.position.y - c.w * .5 - c.bubble.offsetHeight - 10).toFixed(1)}px)`;
+    }
+  }
 }
 
 /* ═══════════════ the chat ═══════════════ */
@@ -292,8 +427,9 @@ function add(cls, html) { msgs.querySelector('.hello')?.remove(); const m = docu
 
 // The answer streamed word by word, with its little markup; a cue fires the moment its words land.
 let busy = false;
-async function ask() {
+async function ask(id = 'leagues') {
   if (busy) return; busy = true; $('#chips').hidden = true;
+  const ANSWER = ANSWERS[id];
   add('user', esc(ANSWER.q));
   const bot = add('bot', '<div class="thinking"><svg viewBox="0 0 100 100" fill="#D97757"><use href="#spark"/></svg></div>');
   log.scrollTop = log.scrollHeight;
@@ -327,11 +463,11 @@ async function ask() {
   busy = false;
 }
 
-$('#chips').addEventListener('click', (e) => { if (e.target.closest('button[data-q]')) ask(); });
-composer.addEventListener('submit', (e) => { e.preventDefault(); if (!input.value.trim()) return; input.value = ''; composer.classList.remove('has'); ask(); });
+$('#chips').addEventListener('click', (e) => { const b = e.target.closest('button[data-q]'); if (b) ask(b.dataset.q); });
+composer.addEventListener('submit', (e) => { e.preventDefault(); const t = input.value.trim(); if (!t) return; input.value = ''; composer.classList.remove('has'); ask(/pool|tide|beach|crab|starfish|rock/i.test(t) ? 'pool' : 'leagues'); });
 input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); composer.requestSubmit(); } });
 input.addEventListener('input', () => composer.classList.toggle('has', !!input.value.trim()));
-$('#newChat').onclick = () => { if (busy) return; squid.stage = 0; hello(); };
+$('#newChat').onclick = () => { if (busy) return; squid.stage = 0; clearPool(); hello(); };
 new Image().src = bodyImg.src;
 hello();
 </script>

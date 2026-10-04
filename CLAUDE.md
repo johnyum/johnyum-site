@@ -343,6 +343,11 @@ the squid arrives. Arms stay clear of the + and send buttons.
 - **The arms are drawn live on canvas** in matching felt (shading passes, a grain pattern, a brass
   seam, cream suckers toward the tips) from points relative to the chat box's rect, so they follow
   the real box and breathe. `#back` sits between the conversation and the box, `#front` over it.
+- **The tide pool** is the page's second ask: each creature the answer names drops in from the
+  top as its plush (`peek/plush/*.webp`) and tumbles onto the chat box — Matter.js, the same
+  recipe as the retired phone pile in `index.html` (sleeping on, two half-steps a frame, a speed
+  cap, a soft tilt limit). The box is a static body kept where the box really is; grab one to fling
+  it (a spring from the finger); a tap pops its name in a bubble. The chat stays default.
 - The OpenAI key lives in `~/.zshrc` (`OPENAI_API_KEY`); its safety filter once refused a plain
   "Atlantis ruins" prompt — reword rather than retry.
 
