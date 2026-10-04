@@ -393,8 +393,9 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
 - **Checklist clipboard** — when you asked how to do something (`HOWTO` on your message, `lastAsk`) and the
   answer has 3+ numbered steps (`stepsOf()`): the steps are written on its paper (`PAPER`, ticks and a
   count); tapped, it opens like the timer into a checklist you tick off (remembered in localStorage).
-- **Grocery bag** — an ingredient list (`groceriesOf()`, bullets under an Ingredients/shopping heading):
-  tapped, the same checklist.
+- **Shopping list** — an ingredient list (`groceriesOf()`, bullets under an Ingredients/shopping heading):
+  a notepad with a pencil (`plush/groceries.webp`, was a grocery bag), the items written on its page
+  (`SHOPPAPER`); tapped, the same checklist.
 - **Desk calendar** — a day/time in your own message only (`parseWhen(lastAsk)`; the answer's times are steps, not events): shown on its page
   (weekday on the red band, month, day, time); tapped, `{type:'calendar'}` → the app's EventKitUI editor,
   filled in (no permission needed). Haiku names the event (`calTitle()`).
