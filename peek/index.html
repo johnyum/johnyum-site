@@ -112,19 +112,20 @@ button, textarea { font: inherit; color: inherit; }
 .name::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; margin-left: -5px; background: #fff; transform: rotate(45deg); box-shadow: 1px 1px 0 0 #e7e7e5; }
 /* the timer: a live dial over the generated body, and the card it opens */
 .critter .dial { position: absolute; pointer-events: none; }
-.tcard { position: absolute; left: 0; top: 0; width: 236px; padding: 14px 14px 12px; border-radius: 20px; background: #fff; pointer-events: auto;
-  box-shadow: 0 14px 34px -14px rgba(0,0,0,.35), 0 0 0 1px #e7e7e5; font: 15px/1.3 "Schibsted Grotesk", system-ui, sans-serif; color: #1d1d1c; touch-action: manipulation; }
-.tcard .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.tcard .t { font-size: 13px; color: #87857f; }
-.tcard .x { width: 28px; height: 28px; border-radius: 50%; border: 0; background: #f0f0ee; display: grid; place-items: center; padding: 0; font-size: 15px; color: #1d1d1c; }
-.tcard .big { font: 600 40px/1 "Schibsted Grotesk", system-ui, sans-serif; letter-spacing: -1px; font-variant-numeric: tabular-nums; margin: 8px 0 10px; display: flex; align-items: center; justify-content: space-between; }
-.tcard .nudge { width: 34px; height: 34px; border-radius: 50%; border: 0; background: #f0f0ee; font-size: 20px; line-height: 1; color: #1d1d1c; padding: 0; }
-.tcard .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-.tcard .presets button { border: 1px solid #e7e7e5; background: #fff; border-radius: 99px; padding: 6px 10px; font-size: 13px; color: #1d1d1c; }
-.tcard .go { flex: 1; height: 40px; border-radius: 99px; border: 0; background: #1d1d1c; color: #fff; font-weight: 500; font-size: 15px; }
-.tcard .go.run { background: #d97757; }
-.tcard .reset { height: 40px; padding: 0 14px; border-radius: 99px; border: 0; background: #f0f0ee; font-size: 14px; color: #1d1d1c; }
-.tcard::after { content: ""; position: absolute; left: var(--ax, 50%); bottom: -6px; width: 12px; height: 12px; margin-left: -6px; background: #fff; transform: rotate(45deg); box-shadow: 1px 1px 0 0 #e7e7e5; }
+.tscrim { position: fixed; inset: 0; background: rgba(255,255,255,.62); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); pointer-events: auto; opacity: 0; transition: opacity .3s ease; }
+.tscrim.on { opacity: 1; }
+.critter.grown { z-index: 2; cursor: default; }
+.tui { position: fixed; left: 0; top: 0; width: 300px; text-align: center; pointer-events: auto; font: 15px/1.3 "Schibsted Grotesk", system-ui, sans-serif; color: #1d1d1c;
+  opacity: 0; transform: translateY(10px); transition: opacity .28s ease .12s, transform .32s cubic-bezier(.3,1.3,.5,1) .12s; touch-action: manipulation; }
+.tui.on { opacity: 1; transform: none; }
+.tui .read { font: 600 54px/1 "Schibsted Grotesk", system-ui, sans-serif; letter-spacing: -1.5px; font-variant-numeric: tabular-nums; }
+.tui .hint { font-size: 13px; color: #87857f; margin: 6px 0 16px; }
+.tui .presets { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.tui .presets button { border: 1px solid #e7e7e5; background: #fff; border-radius: 99px; padding: 8px 12px; font-size: 14px; color: #1d1d1c; }
+.tui .row { display: flex; gap: 8px; justify-content: center; }
+.tui .go { min-width: 140px; height: 44px; border-radius: 99px; border: 0; background: #1d1d1c; color: #fff; font-weight: 500; font-size: 16px; }
+.tui .go.run { background: #d97757; }
+.tui .reset { height: 44px; padding: 0 18px; border-radius: 99px; border: 0; background: #f0f0ee; font-size: 15px; color: #1d1d1c; }
 @keyframes ring { 0%, 100% { rotate: 0deg; } 20% { rotate: -9deg; } 40% { rotate: 8deg; } 60% { rotate: -6deg; } 80% { rotate: 4deg; } }
 /* Kept for the character's older moves, out of sight. */
 .chips, .director { display: none; }
@@ -1857,6 +1858,7 @@ function poolGrab(c) {
   const { Composite, Constraint, Sleeping, Body } = Matter;
   c.el.addEventListener('pointerdown', (e) => {
     e.preventDefault(); e.stopPropagation(); try { c.el.setPointerCapture(e.pointerId); } catch {}
+    if (tcard && tcard.c === c) { windStart(c, e); return; }   // grown: the dial winds
     Sleeping.set(c.body, false);
     const b = c.body, dx = e.clientX - b.position.x, dy = e.clientY - b.position.y, ca = Math.cos(-b.angle), sa = Math.sin(-b.angle);
     const spring = Constraint.create({ pointA: { x: e.clientX, y: e.clientY }, bodyB: b, pointB: { x: dx * ca - dy * sa, y: dx * sa + dy * ca }, stiffness: .3, damping: .06, length: 0 });
@@ -1865,6 +1867,7 @@ function poolGrab(c) {
     c.sv -= 3;
   });
   c.el.addEventListener('pointermove', (e) => {
+    if (tcard && tcard.c === c) { windMove(c, e); return; }
     if (!poolDrag || poolDrag.c !== c) return;
     poolDrag.spring.pointA = { x: e.clientX, y: e.clientY };
     poolDrag.moved = Math.max(poolDrag.moved, Math.hypot(e.clientX - poolDrag.x, e.clientY - poolDrag.y));
@@ -1872,6 +1875,7 @@ function poolGrab(c) {
     while (poolDrag.trail.length > 2 && now - poolDrag.trail[0].t > 90) poolDrag.trail.shift();
   });
   const up = () => {
+    if (tcard && tcard.c === c) { windEnd(c); return; }
     if (!poolDrag || poolDrag.c !== c) return;
     Composite.remove(poolEngine.world, poolDrag.spring);
     if (poolDrag.moved < 8 && performance.now() - poolDrag.t < 400) (c.timer ? timerCard(c) : poolName(c));
@@ -1895,56 +1899,128 @@ function poolName(c) {
    sit under the red pointer at the top, as on the real thing, and it unwinds as time passes. */
 const FACE = { cx: .54, cy: .46, r: .3 };   // where the plain face is on timer.webp, as fractions of its width
 function dialSVG() {
-  let ticks = '', nums = '';
+  let ticks = '', nums = '', ridges = '';
   for (let m = 0; m < 60; m++) {
-    const a = m * 6 * Math.PI / 180, long = m % 5 === 0, r1 = long ? 37 : 40, r2 = 44;
-    ticks += `<line x1="${(Math.sin(a) * r1).toFixed(2)}" y1="${(-Math.cos(a) * r1).toFixed(2)}" x2="${(Math.sin(a) * r2).toFixed(2)}" y2="${(-Math.cos(a) * r2).toFixed(2)}" stroke="${long ? '#3a3632' : '#8d877e'}" stroke-width="${long ? 1.6 : .8}" stroke-linecap="round"/>`;
-    // Numbers run round the dial, each turned to its own angle — so whichever sits under the pointer reads upright.
-    if (long) { const x = (Math.sin(a) * 28).toFixed(2), y = (-Math.cos(a) * 28).toFixed(2); nums += `<text x="${x}" y="${(+y + 3.6).toFixed(2)}" transform="rotate(${m * 6} ${x} ${y})" text-anchor="middle" font-size="10" font-weight="600" fill="#2a2724" font-family="Schibsted Grotesk, system-ui, sans-serif">${m}</text>`; }
+    const a = m * 6 * Math.PI / 180, long = m % 5 === 0, r1 = long ? 35.5 : 38.5, r2 = 42.5;
+    ticks += `<line x1="${(Math.sin(a) * r1).toFixed(2)}" y1="${(-Math.cos(a) * r1).toFixed(2)}" x2="${(Math.sin(a) * r2).toFixed(2)}" y2="${(-Math.cos(a) * r2).toFixed(2)}" stroke="${long ? '#2b2724' : '#7d766c'}" stroke-width="${long ? 1.5 : .7}" stroke-linecap="round"/>`;
+    // numbers run round the dial, each turned to its own angle — whichever sits under the pointer reads upright
+    if (long) { const x = (Math.sin(a) * 27.5).toFixed(2), y = (-Math.cos(a) * 27.5).toFixed(2); nums += `<text x="${x}" y="${(+y + 3.4).toFixed(2)}" transform="rotate(${m * 6} ${x} ${y})" text-anchor="middle" font-size="9.5" font-weight="700" fill="#262220" font-family="Schibsted Grotesk, system-ui, sans-serif">${m}</text>`; }
   }
+  for (let i = 0; i < 28; i++) { const a = i / 28 * Math.PI * 2; ridges += `<line x1="${(Math.sin(a) * 8.2).toFixed(2)}" y1="${(-Math.cos(a) * 8.2).toFixed(2)}" x2="${(Math.sin(a) * 10.6).toFixed(2)}" y2="${(-Math.cos(a) * 10.6).toFixed(2)}" stroke="rgba(120,108,92,.45)" stroke-width=".55"/>`; }
   const L = (FACE.cx - FACE.r) * 100, T = (FACE.cy - FACE.r) * 100, D = FACE.r * 200;
   return `<svg class="dial" viewBox="-50 -50 100 100" style="left:${L}%;top:${T}%;width:${D}%;height:${D}%">
-    <defs><radialGradient id="face" cx="45%" cy="35%" r="75%"><stop offset="0" stop-color="#fbf8f2"/><stop offset="1" stop-color="#e9e2d6"/></radialGradient>
-    <radialGradient id="knob" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d8d0c3"/></radialGradient></defs>
-    <circle r="48" fill="url(#face)"/>
-    <g class="ring">${ticks}${nums}</g>
-    <circle r="11" fill="url(#knob)" stroke="#cfc6b8" stroke-width=".8"/>
+    <defs>
+      <radialGradient id="tRecess" cx="50%" cy="40%" r="60%"><stop offset=".86" stop-color="#cfc6b6"/><stop offset=".95" stop-color="#9c9284"/><stop offset="1" stop-color="#7d7466"/></radialGradient>
+      <radialGradient id="tFace" cx="42%" cy="32%" r="78%"><stop offset="0" stop-color="#fffcf6"/><stop offset=".7" stop-color="#f1ebdf"/><stop offset="1" stop-color="#e2d9c9"/></radialGradient>
+      <linearGradient id="tBevel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#ece5d8"/><stop offset="1" stop-color="#bfb5a5"/></linearGradient>
+      <radialGradient id="tKnob" cx="38%" cy="30%" r="75%"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#ece5d9"/><stop offset="1" stop-color="#b9ae9d"/></radialGradient>
+      <radialGradient id="tGlass" cx="35%" cy="18%" r="55%"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+      <filter id="tGrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="2" seed="7"/><feColorMatrix values="0 0 0 0 .35  0 0 0 0 .3  0 0 0 0 .24  0 0 0 .09 0"/><feComposite in2="SourceGraphic" operator="in"/></filter>
+      <filter id="tLift" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx=".5" dy="1.2" stdDeviation="1.1" flood-color="#4a3f30" flood-opacity=".32"/></filter>
+    </defs>
+    <circle r="50" fill="url(#tRecess)"/>
+    <circle r="47.2" fill="url(#tFace)"/>
+    <circle r="47.2" fill="#fff" filter="url(#tGrain)"/>
+    <g class="ring" filter="url(#tLift)">
+      <circle r="45" fill="url(#tFace)" stroke="url(#tBevel)" stroke-width="1.6"/>
+      <circle r="45" fill="#fff" filter="url(#tGrain)" opacity=".8"/>
+      ${ticks}${nums}
+    </g>
+    <g filter="url(#tLift)">
+      <circle r="11.4" fill="url(#tKnob)" stroke="#b3a895" stroke-width=".5"/>
+      ${ridges}
+      <circle r="6.6" fill="url(#tKnob)"/>
+      <ellipse cx="-2.2" cy="-2.6" rx="3.2" ry="1.9" fill="#fff" opacity=".8"/>
+    </g>
+    <ellipse cx="-12" cy="-26" rx="30" ry="15" fill="url(#tGlass)" transform="rotate(-18 -12 -26)" pointer-events="none"/>
   </svg>`;
 }
 function timerLeft(T) { return T.running ? Math.max(0, (T.endAt - Date.now()) / 1000) : T.left; }
 const mmss = (s) => { s = Math.ceil(s); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
-// The card: the special inputs — a big countdown, presets for a cook, −/+ a minute, start, reset.
-let tcard = null, audio = null;   // the open timer card, if any
-function timerCard(c) {
-  if (tcard && tcard.c === c) return closeCard();
-  closeCard();
-  const el = document.createElement('div'); el.className = 'tcard';
-  el.innerHTML = `<div class="row"><span class="t">Timer</span><button class="x" data-a="close" aria-label="Close">×</button></div>
-    <div class="big"><button class="nudge" data-a="-1">−</button><span class="read">0:00</span><button class="nudge" data-a="1">+</button></div>
+/* Tapped, the timer grows into the interface: it lifts out of the pile and scales up to the middle
+   of the screen, the chat softening behind it, and its own dial becomes the control — drag round
+   the face to wind it, ticking at each minute, and let go to start it, as you would the real thing.
+   Under it: the countdown, a few presets, pause and reset. Tap outside and it shrinks back down
+   and drops into the pile, still counting. */
+let tcard = null, audio = null;   // the grown timer, if any
+const grownSize = () => Math.min(innerWidth * .74, innerHeight * .4, 320);
+function timerCard(c) { tcard ? shrinkTimer() : growTimer(c); }
+function growTimer(c) {
+  audio ||= new (window.AudioContext || window.webkitAudioContext)();   // made on a tap, so it can tick and ring
+  const { Composite } = Matter;
+  Composite.remove(poolEngine.world, c.body);   // out of the pile while it's in your hands
+  const scrim = document.createElement('div'); scrim.className = 'tscrim';
+  scrim.addEventListener('pointerdown', (e) => { e.stopPropagation(); shrinkTimer(); });
+  const ui = document.createElement('div'); ui.className = 'tui';
+  ui.innerHTML = `<div class="read">0:00</div><div class="hint">Turn the dial to set it</div>
     <div class="presets"><button data-m="10">Rest 10</button><button data-m="15">Flip 15</button><button data-m="30">Check 30</button><button data-m="60">60 min</button></div>
     <div class="row"><button class="reset" data-a="reset">Reset</button><button class="go" data-a="go">Start</button></div>`;
-  el.addEventListener('pointerdown', (e) => e.stopPropagation());
-  el.addEventListener('click', (e) => {
-    const b = e.target.closest('button'); if (!b) return;
-    const T = c.timer;
-    audio ||= new (window.AudioContext || window.webkitAudioContext)();   // made on a tap, so it can ring later
-    if (b.dataset.m) { T.set = T.left = +b.dataset.m * 60; T.running = false; T.rung = false; startTimer(T); }
-    else if (b.dataset.a === '-1' || b.dataset.a === '1') { const left = timerLeft(T) + +b.dataset.a * 60, v = clamp(left, 0, 3600); T.left = v; T.set = Math.max(T.set, v); if (T.running) T.endAt = Date.now() + v * 1000; T.rung = false; }
+  ui.addEventListener('pointerdown', (e) => e.stopPropagation());
+  ui.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return; const T = c.timer;
+    if (b.dataset.m) { T.set = T.left = +b.dataset.m * 60; startTimer(T); }
     else if (b.dataset.a === 'go') { T.running ? (T.left = timerLeft(T), T.running = false) : (timerLeft(T) > 0 && startTimer(T)); }
     else if (b.dataset.a === 'reset') { T.running = false; T.left = 0; T.rung = false; }
-    else if (b.dataset.a === 'close') return closeCard();
-    c.sv -= 2; Matter.Sleeping.set(c.body, false); paintCard();
+    c.sv -= 2; paintCard();
   });
-  poolEl.append(el);
-  tcard = { c, el }; paintCard();
-  el.animate([{ opacity: 0, scale: '.9' }, { opacity: 1, scale: '1' }], { duration: 220, easing: 'cubic-bezier(.3,1.4,.5,1)' });
+  poolEl.insertBefore(scrim, poolEl.firstChild); poolEl.append(ui);
+  c.el.classList.add('grown'); poolEl.append(c.el);   // on top of the scrim
+  const from = { x: c.body.position.x, y: c.body.position.y, w: c.w, a: c.body.angle };
+  tcard = { c, scrim, ui, from, k: 0, to: 1, wind: null };
+  requestAnimationFrame(() => { scrim.classList.add('on'); ui.classList.add('on'); });
+  paintCard();
+}
+function shrinkTimer() {
+  if (!tcard) return; const t = tcard;
+  t.to = 0; t.scrim.classList.remove('on'); t.ui.classList.remove('on');
+  setTimeout(() => {
+    if (tcard !== t) return;
+    t.scrim.remove(); t.ui.remove(); t.c.el.classList.remove('grown'); tcard = null;
+    t.c.el.style.width = t.c.el.style.height = t.c.w + 'px'; t.c.placed = false;   // back to its pile size, whatever the frame rate
+    // back into the pile from where it is now: a little toss, and gravity does the rest
+    const { Body, Composite, Sleeping } = Matter, b = t.c.body;
+    Body.setPosition(b, { x: innerWidth / 2, y: grownAt().y }); Body.setAngle(b, 0);
+    Body.setVelocity(b, { x: (Math.random() - .5) * 3, y: -2 }); Body.setAngularVelocity(b, (Math.random() - .5) * .1);
+    Composite.add(poolEngine.world, b); Sleeping.set(b, false);
+  }, 280);
 }
 function startTimer(T) { T.endAt = Date.now() + T.left * 1000; T.running = true; T.rung = false; }
-function closeCard() { tcard?.el.remove(); tcard = null; }
+function closeCard() { if (tcard) { tcard.scrim.remove(); tcard.ui.remove(); tcard.c.el.classList.remove('grown'); tcard = null; } }
+const grownAt = () => ({ x: innerWidth / 2, y: Math.max(grownSize() * .55 + 24, innerHeight * .36) });
 function paintCard() {
   if (!tcard) return; const T = tcard.c.timer, left = timerLeft(T);
-  tcard.el.querySelector('.read').textContent = mmss(left);
-  const go = tcard.el.querySelector('.go'); go.textContent = T.running ? 'Pause' : left > 0 && left < T.set ? 'Resume' : 'Start'; go.classList.toggle('run', T.running);
+  tcard.ui.querySelector('.read').textContent = mmss(left);
+  tcard.ui.querySelector('.hint').textContent = tcard.wind ? 'Let go to start' : T.running ? 'Counting down' : left > 0 ? 'Paused' : 'Turn the dial to set it';
+  const go = tcard.ui.querySelector('.go'); go.textContent = T.running ? 'Pause' : left > 0 && left < T.set ? 'Resume' : 'Start'; go.classList.toggle('run', T.running);
+}
+// Winding: the ring follows your finger round the face; each minute that passes the pointer ticks.
+function tick() {
+  if (!audio) return; const t0 = audio.currentTime, o = audio.createOscillator(), g = audio.createGain();
+  o.type = 'square'; o.frequency.value = 2400; g.gain.setValueAtTime(.05, t0); g.gain.exponentialRampToValueAtTime(.0005, t0 + .03);
+  o.connect(g).connect(audio.destination); o.start(t0); o.stop(t0 + .035);
+}
+function faceCentre(c) { const r = c.el.getBoundingClientRect(); return { x: r.left + FACE.cx * r.width, y: r.top + FACE.cy * r.width, r: FACE.r * r.width }; }
+function windStart(c, e) {
+  const f = faceCentre(c), T = c.timer;
+  T.left = timerLeft(T); T.running = false; T.rung = false;
+  tcard.wind = { last: Math.atan2(e.clientX - f.x, -(e.clientY - f.y)), minutes: T.left / 60 };
+  paintCard();
+}
+function windMove(c, e) {
+  const w = tcard?.wind; if (!w) return;
+  const f = faceCentre(c), a = Math.atan2(e.clientX - f.x, -(e.clientY - f.y));
+  let d = a - w.last; if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI; w.last = a;
+  const before = Math.floor(w.minutes);
+  w.minutes = clamp(w.minutes - d * 180 / Math.PI / 6, 0, 60);   // the ring turns with your finger; what's under the pointer is the time
+  if (Math.floor(w.minutes) !== before) tick();
+  const T = c.timer; T.left = Math.round(w.minutes * 60); T.set = Math.max(T.set, T.left);
+  paintCard();
+}
+function windEnd(c) {
+  if (!tcard?.wind) return; tcard.wind = null;
+  const T = c.timer; T.left = Math.round(T.left / 60) * 60;   // settles on the minute
+  if (T.left > 0) { T.set = Math.max(T.set, T.left); startTimer(T); }   // let go and it runs, as a wind-up does
+  paintCard();
 }
 // Done: a chime (three soft notes), and the timer rings — it shakes.
 function ring(c) {
@@ -1963,11 +2039,14 @@ function tickTimers() {
   }
   if (tcard) {
     paintCard();
-    // the card sits over its timer, arrow pointing at it, kept on screen
-    const b = tcard.c.body.position, w = tcard.el.offsetWidth, h = tcard.el.offsetHeight;
-    const x = clamp(b.x - w / 2, 10, innerWidth - w - 10), y = Math.max(10, b.y - tcard.c.w * .55 - h - 12);
-    tcard.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
-    tcard.el.style.setProperty('--ax', `${clamp(b.x - x, 20, w - 20)}px`);
+    // grow / shrink: a spring-free ease between where it was in the pile and the middle of the screen
+    const t = tcard, c = t.c; t.k += (t.to - t.k) * .2;
+    const k = t.k, e = 1 - Math.pow(1 - k, 3), G = grownSize(), at = grownAt();
+    const x = lerp(t.from.x, at.x, e), y = lerp(t.from.y, at.y, e), w = lerp(t.from.w, G, e), a = lerp(t.from.a, 0, e);
+    c.el.style.width = c.el.style.height = w + 'px';
+    c.el.style.transform = `translate(${(x - w / 2).toFixed(1)}px, ${(y - w / 2).toFixed(1)}px) rotate(${a.toFixed(3)}rad)`;
+    if (t.to === 0 && k < .02) c.el.style.width = c.el.style.height = c.w + 'px';
+    t.ui.style.transform = t.ui.classList.contains('on') ? `translate(${(at.x - 150).toFixed(1)}px, ${(at.y + G / 2 + 12).toFixed(1)}px)` : t.ui.style.transform;
   }
 }
 
@@ -1980,6 +2059,7 @@ function poolStep(now) {
   const dt = 1 / 60;
   for (const c of critters) {
     const b = c.body;
+    if (tcard && tcard.c === c) continue;   // grown into the interface: it's placed by the grow, not the pile
     if (poolDrag) Sleeping.set(b, false);
     if (!b.isSleeping) {
       const cap = poolDrag && poolDrag.c === c ? 40 : 30, v = b.velocity, sp = Math.hypot(v.x, v.y);
@@ -2062,7 +2142,7 @@ if (EMBED) {
     }
     if (card) { const b = card.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }
     for (const c of critters) { const b = c.el.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }   // the creatures take touches
-    if (tcard) { const b = tcard.el.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }   // and the timer's card
+    if (tcard) rs.push([0, 0, innerWidth, innerHeight]);   // the grown timer has the whole screen: a tap outside shrinks it back
     // How tall the pile on the chat box is, so the app can make that much room at the chat's end.
     { const g = homeGround(), top = g ? rectOf(g).top : innerHeight; let pile = 0;
       for (const c of critters) { const p = c.body.position, t = p.y - c.w / 2; if (p.y < top + 4 && p.y > top - c.w * 3) pile = Math.max(pile, top - t); }
