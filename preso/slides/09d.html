@@ -207,6 +207,21 @@
   .c-btn .dark { background: #222; opacity: 0; }
   .done.on.det .c-btn .dark { opacity: 1; }
   .c-btn .dark { pointer-events: none; }
+  /* ADJUSTMENT COMPLETE (John, 2026-10-04: "when I tap next, make the confirm price adjustment tap and it opens up the checkmark
+     modal"): the Rausch button presses, the calendar dims to the frame's grey (white → 221), and the "Price adjustment complete"
+     sheet rises from the foot on the iOS sheet curve — its words, check and buttons cut from fee-complete.webp (the screen there
+     is x 53–926, y 50–1950 of the 979 x 2000 export, 2.2214 px a point; the sheet's top at y 894, so 380pt down), on a white
+     sheet with its 27pt corners. */
+  .c-btn { transition: transform .16s ease; }
+  .c-btn.pressing { transform: scale(.97); }
+  .c-dim { position: absolute; left: 0; top: 0; width: 393px; height: 852px; background: rgba(0, 0, 0, .134); opacity: 0;
+           transition: opacity .32s ease; pointer-events: none; z-index: 30; }
+  .c-modal { position: absolute; left: 0; top: 380px; width: 393px; height: 472px; background: #fff; border-radius: 27px 27px 0 0;
+             overflow: hidden; transform: translateY(105%); transition: transform .5s cubic-bezier(.32, .72, 0, 1); z-index: 31; pointer-events: none; }
+  .c-modal img { position: absolute; left: 27.46px; top: 0.9px; width: 338.53px; height: 473.58px; display: block; }
+  .done.fin .c-dim { opacity: 1; }
+  .done.fin .c-modal { transform: none; }
+  .done.snap .c-dim, .done.snap .c-modal { transition: none !important; }
   .done.snap .c-sheet, .done.snap .c-cell, .done.snap .c-num, .done.snap .c-p1, .done.snap .c-p2, .done.snap .c-p2 b, .done.snap .c-up,
   .done.snap .c-fade, .done.snap .c-btn > div { transition: none !important; }
   .row img {
@@ -351,6 +366,8 @@
     [[58.5], [110.5]].forEach(([t]) => { const r = el('div', 'c-rule'); r.style.top = t + 'px'; card.appendChild(r); });
     st.appendChild(el('div', 'c-foot'));
     const btn = el('div', 'c-btn', '<div class="pink">Confirm price adjustment</div><div class="dark">Close details</div>'); st.appendChild(btn);
+    st.appendChild(el('div', 'c-dim'));
+    st.appendChild(el('div', 'c-modal', '<img src="assets/fee-complete-sheet.webp" alt="Price adjustment complete: the primary host confirmed this price adjustment to account for the service fee change. Done, Learn more" draggable="false">'));
     let picked = null;
     const show = n => { pill.textContent = n.label; vAdj.innerHTML = '<s>$' + n.price + '</s>$' + adj(n.price); vSee.textContent = '$' + adj(n.price); vEarn.textContent = '$' + earn(n.price); };
     function pick(n) { if (picked) picked.cell.classList.remove('sel'); picked = n; n.cell.classList.add('sel'); show(n); done.classList.add('det'); }
@@ -366,6 +383,11 @@
       details(instant) { clearTimeout(lower); done.classList.add('on'); if (instant) pick(nine); else setTimeout(() => { if (done.classList.contains('on')) pick(nine); }, 520); },
       // the 7 of 7 page: the breakdown sinks and the pick lets go, then the sheet comes down over the header line (the adjusted
       // prices stay), and the Rausch "Confirm price adjustment" button stands
+      // the confirmation: the button pressed, then the dim and the sheet (see ADJUSTMENT COMPLETE)
+      finish(on, instant) { clearTimeout(lower);
+        if (!on || instant) { done.classList.toggle('fin', on); return; }
+        btn.classList.add('pressing'); setTimeout(() => btn.classList.remove('pressing'), 180);
+        lower = setTimeout(() => done.classList.add('fin'), 200); },
       confirm(instant) { clearTimeout(lower); close(); if (instant) { done.classList.remove('on'); scroll.scrollTop = 0; }
         else lower = setTimeout(() => { done.classList.remove('on'); scroll.scrollTop = 0; }, 260); }
     };
@@ -376,11 +398,12 @@
   //   3 → 4  a tap: the tag on the third phone flips (it never plays by itself)
   //   4 → 5  a tap: the fourth phone, standing on the details from the start (prices adjusted, Aug 9 picked, the breakdown —
   //          John, 2026-10-03: "inverse it"), plays back to the 7 of 7 page with its Rausch "Confirm price adjustment" button
+  //   5 → 6  a tap: Confirm is pressed, and "Price adjustment complete" rises over the dimmed calendar (John, 2026-10-04)
   // Back snaps a step back (the graph's end to "You earn $97", that to the bars); arriving backwards, all of it stands done.
   (() => {
     const h = document.getElementById('hof'), done = document.getElementById('done'), st = document.getElementById('stage'), scr = st.parentElement;
     const cst = document.getElementById('cal'), cscr = cst.parentElement;
-    const GRAPH = 3, LAST = 5;
+    const GRAPH = 3, LAST = 6;
     let s = 0;
     const fit = () => { const w = scr.clientWidth, ht = scr.clientHeight, k = Math.max(w / 393, ht / 852);
       st.style.transform = `translate(${(w - 393 * k) / 2}px, 0) scale(${k})`; };
@@ -392,12 +415,15 @@
     if (g) { const i = document.createElement('img'); i.className = 'ghost'; i.src = `assets/hof-${g}of7.webp`; st.appendChild(i); }
     const set = (n, instant) => { s = n;
       if (instant) { h.classList.add('snap'); done.classList.add('snap'); }
+      fit(); cfit();   // refit both live layers on every step — a window that changed size (full screen) can leave them stale
       h.dataset.s = Math.min(n, GRAPH); if (n >= 5) cal.confirm(instant); else if (!done.classList.contains('on')) cal.details(true);
+      if (n < 6 || instant) cal.finish(n >= 6, true); else cal.finish(true, false);
       if (instant) { void h.offsetWidth; setTimeout(() => { h.classList.remove('snap'); done.classList.remove('snap'); }, 60); } };
     // the first step plays by itself as the slide lands (John, 2026-10-03: "so it's not just sitting blank") — the deck says so
     // with presoshown; opened on its own, it plays once the page is up
     cal.details(true);
     const auto = () => { if (s === 0) set(1); };
+    addEventListener('presoshown', () => { fit(); cfit(); });
     addEventListener('presoshown', auto);
     if (window.top === window) addEventListener('load', () => setTimeout(auto, 400));
     let chain = 0;
@@ -408,12 +434,14 @@
       if (s === 1) { set(2); return true; }   // ...and it HOLDS on "You earn $97" (John, 2026-10-04: "don't go forward until I tap next")
       if (s === 2) { finish(); return true; }
       if (s === 3) { set(4); tag.play(); return true; }
-      set(5); return true;
+      if (s === 4) { set(5); return true; }
+      set(6); return true;   // Confirm, tapped: the adjustment complete (John, 2026-10-04)
     };
     window.presoPrev = () => {
       if (s <= 1) return false;
       clearTimeout(chain);
-      if (s === 5) set(4, true);
+      if (s === 6) set(5, true);
+      else if (s === 5) set(4, true);
       else if (s === 4) { tag.reset(); set(3, true); }
       else if (s === 3) set(2, true);
       else set(1, true);
