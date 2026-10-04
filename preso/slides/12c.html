@@ -279,6 +279,12 @@
     // ONLY THE PRISTINE STATE IS EVER SEEN (John, 2026-09-22): the build boots on its own default — twelve homes, guests in — and
     // is switched over here; it stays unseen until that has landed, then fades in standing at 32 homes, base rate, no pills.
     setTimeout(() => { try { w.setDataMode('none', true); w.autoGroupByCity(false); } catch (_) {} d.body.classList.add('preso-shape'); openPalmSprings(w); setAll(w, rolled ? 200 : 0); landToday(); requestAnimationFrame(() => requestAnimationFrame(() => { landToday(); app.classList.add('ready'); armRoll(); setTimeout(window.__landToday, 400); setTimeout(window.__landToday, 1200); })); }, 260);   // every night $0 until the odometer (John, 2026-10-02)
+    // THE EVENT ICONS, FETCHED AHEAD (John, 2026-10-04: on johnyum.com the city bands could come in bare after Group — their icons
+    // are loading="lazy" and only start downloading once the bands appear). Once the board stands, the files those bands can show
+    // here — the board's cities' events and holidays from two weeks back to two months on, and their seasons in those months — are
+    // fetched into the cache with detached Image()s: nothing is put on the page and nothing on screen changes; the build's own
+    // <img>s, made at the gather, then find them already there. Same URLs as the build's (its ?v=2), or the cache would miss.
+    setTimeout(() => preloadIcons(w), 1500);
     // the deck's keys keep working with focus inside the build
     const NAV = new Set(['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'PageUp', 'PageDown', 'Home', 'End', 'f', 'F']);
     // CAPTURED, and stopped: the build has arrow keys of its own (they page the dates), and with focus inside the frame a
@@ -450,6 +456,21 @@
     }); };
     grid._presoReq = new w.MutationObserver(dress); grid._presoReq.observe(grid, { childList: true, subtree: true });
     dress();
+  }
+  function preloadIcons(w) {
+    const urls = ev(w, `(() => { const u = new Set(), add = s => { if (s && typeof s === 'string') u.add(s + '?v=2'); };
+      const key = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      const lo = Math.max(0, todayDi - 14), hi = Math.min(allDays.length - 1, todayDi + 60), a = key(allDays[lo]), b = key(allDays[hi]);
+      const cities = new Set(smartGroups().map(g => g.name)), months = new Set();
+      for (let di = lo; di <= hi; di++) months.add(allDays[di].getMonth());
+      DEMAND_EVENTS.forEach(e => { if (cities.has(e[1]) && e[3] >= a && e[2] <= b) { add(e[5]); add(e[6]); } });
+      SEASON_MARKERS.forEach(m => { if (cities.has(m[0]) && [..._monthSet(m[3])].some(x => months.has(x))) { add(m[4]); add(m[5]); } });
+      add('event_icons/arrow-up-green.png'); add('event_icons/arrow-down-orange.png');
+      for (let di = lo; di <= hi; di++) { const d = allDays[di], hol = holidayFor(d), sec = hol ? null : secondaryHolidayFor(d), x = hol || sec; if (!x) continue;
+        const f = hol ? x.file : (x.secondaryFile || (x.altFiles && x.altFiles[secondaryAltIndex(d, x) % 2])); if (f) add(encodeURI('holidays/' + f)); }
+      return [...u]; })()`);
+    if (!Array.isArray(urls)) return;
+    w.__presoIcons = urls.map(u => { const i = new w.Image(); i.decoding = 'async'; i.src = u; return i; });   // held, so they stay warm
   }
   // THE GATHER (John, 2026-10-02: "a brand new animation where the rows actually move around and re-arrange" — not the build's
   // thinking dots, not its rounds of swaps). The grouping is applied at once underneath, then every home is put back where it
