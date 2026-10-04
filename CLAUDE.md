@@ -362,7 +362,7 @@ and piles onto the chat box with the plush page's physics; fling them, tap for a
 on the next send. Their rects are reported to the app so they take touches.
 **The timer** (2026-10-04): ask about the Big Green Egg, barbecue, brisket, smoking or grilling and a
 timer drops into the same pile — **a glass puck**, after a desk focus timer John
-pointed at (Kalsten/Noxord): a big black glass face in a thin polished-steel rim with contrast (no knurling — John; a rubber rim didn't read), **straight on** (John's call
+pointed at (Kalsten/Noxord): a big black glass face in a thin satin-metal rim, softly shaded light to dark (no knurling; rubber didn't read; mirror steel was harsh), **straight on** (John's call
 after a tilted version), **all drawn in SVG** (`dialSVG()`, `PUCK`; no image — `plush/timer.webp`,
 the older white wind-up body, is unused). The time is **80s seven-segment digits** (`segDigit()` /
 `segTime()`, drawn as polygons, the unlit segments of every 8 faintly there), minutes big, seconds small,
