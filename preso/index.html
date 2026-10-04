@@ -341,8 +341,12 @@
     if (i < 0 || i >= SLIDES.length || !BACK_READY.has(SLIDES[i])) return;
     if (kept && kept.i === i && !noKeep(kept.made)) return;   // the slide just left is that one: it stands ready, as it was left
     const made = makePane(i, -1);
-    made.pane.style.visibility = 'hidden'; made.pane.style.pointerEvents = 'none';
-    stage.insertBefore(made.pane, stage.firstChild);   // never moved afterwards: moving an iframe reloads it
+    // DRAWN, NOT JUST LOADED (John, 2026-10-03: stepping back cold from the AI section, the multi calendar "restarting weirdly"):
+    // a hidden pane loads but is never painted, and the multi calendar only finishes standing up (its build, the phone's app)
+    // once it is drawn — so it arrived blank and snapped into its end a second later. So it is stood UNDER the slide on stage,
+    // visible and covered, as presoPaintAhead slides are going forward, and arrives finished.
+    made.pane.style.pointerEvents = 'none';
+    stage.insertBefore(made.pane, stage.firstChild);   // under everything, and never moved afterwards: moving an iframe reloads it
     preparedBack = { i, made };
   }
   // THE SLIDE JUST LEFT IS KEPT (John, 2026-09-22): hidden in place rather than removed, so a step back is instant and lands on
