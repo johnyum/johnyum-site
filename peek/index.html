@@ -6,7 +6,7 @@
 <title>Peek — a character that lives in the interface</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Jost:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Oswald:wght@300;400&display=swap" rel="stylesheet">
 <!--
   Peek — a little 3D character that lives inside a UI, the way a game character
   lives in a level. The page's own elements are its platforms.
@@ -1927,7 +1927,7 @@ function poolName(c) {
 const FACE = { cx: .499, cy: .468, r: .318 };   // where the plain face sits inside the steel bezel on timer.webp, as fractions of the (square) element
 /* The dial: one piece of silver. No numbers, no ticks — the whole face is a single domed, polished
    metal knob with a fine turned finish, the light sliding round it as it turns. The time floats on
-   top of it as if shown by magic: big red digits (Jost) and a thin red line round the edge from 0 to
+   top of it as if shown by magic: tall red digits (Oswald, condensed) and a thin red line round the edge from 0 to
    the minutes left. At 0 there's nothing on it but the metal. */
 function dialSVG() {
   const R = FACE.r * 1.13;   // out over the body's steel bezel too, so the bezel and the knob are one piece of metal
@@ -1940,9 +1940,21 @@ function dialSVG() {
   return ptr + `<div class="dial" style="left:${L}%;top:${T}%;width:${D}%;height:${D}%">
     <div class="knob"></div><div class="dome"></div>
     <svg viewBox="-50 -50 100 100">
-      <defs><filter id="tGlow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="1.1" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-      <path class="arc" d="" fill="none" stroke="#ff2a1a" stroke-width="1.2" stroke-linecap="round" filter="url(#tGlow)"/>
-      <text class="lcd" x="0" y="7" text-anchor="middle" font-size="21" font-weight="400" fill="#ff2a1a" filter="url(#tGlow)" font-family="Jost, Futura, system-ui, sans-serif" style="font-variant-numeric: tabular-nums" letter-spacing=".3"></text>
+      <!-- Lit, not printed: red on mid-grey metal has too little contrast to read on its own, so the light
+           gets a soft dark shadow under it to lift it off the silver, a wide red bloom round it, and a hot
+           pale core — a red LED floating just over the knob. -->
+      <defs>
+        <linearGradient id="tHot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a74"/><stop offset=".45" stop-color="#ff3b26"/><stop offset="1" stop-color="#f01e0e"/></linearGradient>
+        <filter id="tGlow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="sa"/><feOffset in="sa" dy=".7" result="so"/>
+          <feFlood flood-color="#3a0602" flood-opacity=".28"/><feComposite in2="so" operator="in" result="shadow"/>
+          <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="bl"/>
+          <feComponentTransfer in="bl" result="bloom"><feFuncA type="linear" slope=".9"/></feComponentTransfer>
+          <feMerge><feMergeNode in="shadow"/><feMergeNode in="bloom"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <path class="arc" d="" fill="none" stroke="#ff3b26" stroke-width="1.2" stroke-linecap="round" filter="url(#tGlow)"/>
+      <text class="lcd" x="0" y="11.2" text-anchor="middle" font-size="31" font-weight="300" fill="url(#tHot)" filter="url(#tGlow)" font-family="Oswald, 'Bebas Neue', 'Arial Narrow', sans-serif" style="font-variant-numeric: tabular-nums" letter-spacing=".6"></text>
     </svg></div>`;
 }
 function timerLeft(T) { return T.running ? Math.max(0, (T.endAt - Date.now()) / 1000) : T.left; }
@@ -1953,7 +1965,7 @@ const mmss = (s) => { s = Math.ceil(s); return `${Math.floor(s / 60)}:${String(s
    Under it: the countdown, a few presets, pause and reset. Tap outside and it shrinks back down
    and drops into the pile, still counting. */
 let tcard = null, audio = null;   // the grown timer, if any
-const grownSize = () => Math.min(innerWidth * .8, innerHeight * .46, 360);   // big: with one button under it, the timer is the whole interface
+const grownSize = () => Math.min(innerWidth * .9, innerHeight * .56, 440);   // big: with one button under it, the timer is the whole interface
 function timerCard(c) { tcard ? shrinkTimer() : growTimer(c); }
 function growTimer(c) {
   audio ||= new (window.AudioContext || window.webkitAudioContext)();   // made on a tap, so it can tick and ring
