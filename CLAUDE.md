@@ -394,7 +394,7 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   answer has 3+ numbered steps (`stepsOf()`): the steps are written on its paper (`PAPER`, ticks and a
   count); tapped, it opens like the timer into a checklist you tick off (remembered in localStorage).
 - **Shopping list** — an ingredient list (`groceriesOf()`, bullets under an Ingredients/shopping heading):
-  a notepad with a pencil (`plush/groceries.webp`, was a grocery bag), the items written on its page
+  a simple yellow legal pad (`plush/groceries.webp`; was a grocery bag, then a notepad with a pencil), the items written on its page
   (`SHOPPAPER`); tapped, the same checklist.
 - **Desk calendar** — a day/time in your own message only (`parseWhen(lastAsk)`; the answer's times are steps, not events): shown on its page
   (weekday on the red band, month, day, time); tapped, `{type:'calendar'}` → the app's EventKitUI editor,
@@ -411,6 +411,9 @@ another splash (`whaleStep()`, a fixed 8.6s script). The drops are bodies in the
 others aside — and the page tells the app `{type:'highlight', terms}` (each `POOL` entry's `terms`): the
 app marks every mention in the answers with a highlighter yellow (`PeekHighlight`, `MarkdownText.marked`)
 and glides the chat to it, its subhead first (MessagesView). Tap again, or another, and it eases back.
+**The phone's motion moves the pile** (2026-10-04): while there's a pile, the page asks the app for motion
+(`{type:'motion', on}`); the app's CoreMotion gravity comes back as `peek.tilt(x, y)` (sets the world's
+gravity — never under 0.25 g down) and a hard shake as `peek.shake()` (everything jumps).
 **Every body is its picture's outline** (`HULLS`, convex hulls traced from the webps) pushed out 2px
 (`POOL_GAP`), so stacked pieces keep ≥4px apart and never overlap; the picture turns about the body's
 centroid (`c.ox/oy`). **The app has demo buttons 1 2 3** top right of the chat (`PeekDemoButtons` in
