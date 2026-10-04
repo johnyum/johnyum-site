@@ -323,18 +323,18 @@ const POOL = {
   sculpin:    { name: 'Tidepool sculpin', n: 1, w: 90 },
   octopus:    { name: 'Octopus',          n: 1, w: 96 },
 };
-const { Engine, Bodies, Body, Composite, Constraint, Sleeping } = Matter;
+const { Engine, Bodies, Body, Composite, Constraint, Sleeping, Events } = Matter;
 const engine = Engine.create({ enableSleeping: true, positionIterations: 16, velocityIterations: 10 });
-engine.gravity.y = 1.0;
+engine.gravity.y = 1.15;   // a touch heavier than the phones: a quicker fall, a livelier bounce
 const pool = $('#pool'), critters = [];
 let walls = [], boxBody = null, boxKey = '';
 const SMALL = () => innerWidth < 600 ? .82 : 1;
 function buildWalls() {
   Composite.remove(engine.world, walls); walls = [];
   const W = innerWidth, H = innerHeight, t = 200;
-  walls.push(Bodies.rectangle(W / 2, H + t / 2, W * 3, t, { isStatic: true, friction: .5 }));            // the floor
-  walls.push(Bodies.rectangle(-t / 2, H / 2 - H, t, H * 4, { isStatic: true }));                           // the sides, tall so a flick can't leave
-  walls.push(Bodies.rectangle(W + t / 2, H / 2 - H, t, H * 4, { isStatic: true }));
+  walls.push(Bodies.rectangle(W / 2, H + t / 2, W * 3, t, { isStatic: true, friction: .1, restitution: .4 }));   // the floor
+  walls.push(Bodies.rectangle(-t / 2, H / 2 - H, t, H * 4, { isStatic: true, restitution: .6, friction: .02 }));   // the sides, tall so a flick can't leave — and springy
+  walls.push(Bodies.rectangle(W + t / 2, H / 2 - H, t, H * 4, { isStatic: true, restitution: .6, friction: .02 }));
   Composite.add(engine.world, walls);
   boxKey = '';
 }
@@ -343,7 +343,7 @@ function syncBox() {
   const r = composer.getBoundingClientRect(), key = [r.left, r.top, r.width, r.height].map(Math.round).join();
   if (key === boxKey) return; boxKey = key;
   if (boxBody) Composite.remove(engine.world, boxBody);
-  boxBody = Bodies.rectangle(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, { isStatic: true, friction: .5, chamfer: { radius: 24 } });
+  boxBody = Bodies.rectangle(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, { isStatic: true, friction: .12, restitution: .45, chamfer: { radius: 24 } });
   Composite.add(engine.world, boxBody);
   for (const c of critters) Sleeping.set(c.body, false);
 }
@@ -352,15 +352,17 @@ function drop(key) {
   const P = POOL[key], w = P.w * SMALL(), r = w * .42;
   const x = 50 + Math.random() * (innerWidth - 100);
   // a soft round body — they're plush — that rolls and settles
-  const body = Bodies.circle(x, -w, r, { restitution: .18, friction: .35, frictionStatic: .5, frictionAir: .012, density: .0012 });
-  body.sleepThreshold = 30;
-  Body.setVelocity(body, { x: (Math.random() - .5) * 3, y: 2 });
-  Body.setAngularVelocity(body, (Math.random() - .5) * .12);
+  // Soft, round, springy, slippery: they bounce off each other and the box, a push slides into
+  // the next one, and they take a few bounces to settle rather than thudding dead.
+  const body = Bodies.circle(x, -w, r, { restitution: .62, friction: .06, frictionStatic: .12, frictionAir: .0045, density: .0011, slop: .02 });
+  body.sleepThreshold = 90;   // stays awake longer, so the pile keeps a little life
+  Body.setVelocity(body, { x: (Math.random() - .5) * 5, y: 3 });
+  Body.setAngularVelocity(body, (Math.random() - .5) * .25);
   Composite.add(engine.world, body);
   const el = document.createElement('div'); el.className = 'critter'; el.style.width = el.style.height = w + 'px';
   el.innerHTML = `<img src="../peek/plush/${key}.webp" alt="${P.name}" draggable="false">`;
   pool.append(el);
-  const c = { key, el, body, w, bubble: null, bubbleT: 0 };
+  const c = { key, el, body, w, bubble: null, bubbleT: 0, sq: 0, sv: 0, held: 0 };   // sq: squash, a spring kicked by impacts
   critters.push(c);
   grabbable(c);
 }
@@ -372,22 +374,32 @@ function clearPool() {
 let drag = null;
 function grabbable(c) {
   c.el.addEventListener('pointerdown', (e) => {
-    e.preventDefault(); c.el.setPointerCapture(e.pointerId);
+    e.preventDefault(); try { c.el.setPointerCapture(e.pointerId); } catch {}
     Sleeping.set(c.body, false);
     const b = c.body, dx = e.clientX - b.position.x, dy = e.clientY - b.position.y, ca = Math.cos(-b.angle), sa = Math.sin(-b.angle);
-    const spring = Constraint.create({ pointA: { x: e.clientX, y: e.clientY }, bodyB: b, pointB: { x: dx * ca - dy * sa, y: dx * sa + dy * ca }, stiffness: .14, damping: .1, length: 0 });
+    const spring = Constraint.create({ pointA: { x: e.clientX, y: e.clientY }, bodyB: b, pointB: { x: dx * ca - dy * sa, y: dx * sa + dy * ca }, stiffness: .3, damping: .06, length: 0 });
     Composite.add(engine.world, spring);
-    drag = { c, spring, x: e.clientX, y: e.clientY, t: performance.now(), moved: 0 };
+    drag = { c, spring, x: e.clientX, y: e.clientY, t: performance.now(), moved: 0, trail: [{ x: e.clientX, y: e.clientY, t: performance.now() }] };
+    c.sv -= 3;   // a little stretch, a pop, as you take hold
   });
   c.el.addEventListener('pointermove', (e) => {
     if (!drag || drag.c !== c) return;
     drag.spring.pointA = { x: e.clientX, y: e.clientY };
     drag.moved = Math.max(drag.moved, Math.hypot(e.clientX - drag.x, e.clientY - drag.y));
+    const now = performance.now(); drag.trail.push({ x: e.clientX, y: e.clientY, t: now });
+    while (drag.trail.length > 2 && now - drag.trail[0].t > 90) drag.trail.shift();   // the last ~90ms of the finger
   });
   const up = () => {
     if (!drag || drag.c !== c) return;
     Composite.remove(engine.world, drag.spring);
     if (drag.moved < 8 && performance.now() - drag.t < 400) nameOf(c);   // a tap: its name
+    else {
+      // A throw: it leaves your hand at your finger's speed (px per physics step), with a spin.
+      const a = drag.trail[0], z = drag.trail[drag.trail.length - 1], dt = Math.max(16, z.t - a.t), step = 1000 / 120;
+      const vx = (z.x - a.x) / dt * step * 1.15, vy = (z.y - a.y) / dt * step * 1.15, sp = Math.hypot(vx, vy), k = sp > 34 ? 34 / sp : 1;
+      Body.setVelocity(c.body, { x: vx * k, y: vy * k });
+      Body.setAngularVelocity(c.body, c.body.angularVelocity + vx * k * .004);
+    }
     drag = null;
   };
   c.el.addEventListener('pointerup', up); c.el.addEventListener('pointercancel', up);
@@ -400,20 +412,34 @@ function nameOf(c) {
   c.bubble = b; c.bubbleT = performance.now();
   Body.setVelocity(c.body, { x: c.body.velocity.x, y: -4 }); Sleeping.set(c.body, false);   // a little hop as it's named
 }
-const MAX_TILT = .75;
+// Impacts: the harder two things meet, the more each squashes.
+Events.on(engine, 'collisionStart', (e) => {
+  for (const pair of e.pairs) {
+    const a = pair.bodyA, b = pair.bodyB, rv = Math.hypot(a.velocity.x - b.velocity.x, a.velocity.y - b.velocity.y);
+    if (rv < 1.2) continue;
+    for (const c of critters) if (c.body === a || c.body === b) c.sv += Math.min(4.2, rv * .32);
+  }
+});
 function stepPool(now) {
   if (!critters.length) return;
   syncBox();
   Engine.update(engine, 1000 / 120); Engine.update(engine, 1000 / 120);
+  const dt = 1 / 60;
   for (const c of critters) {
     const b = c.body;
+    if (drag) Sleeping.set(b, false);   // while one's in your hand, the whole pile is live — a shove carries
     if (!b.isSleeping) {
-      const cap = drag && drag.c === c ? 26 : 13, v = b.velocity, sp = Math.hypot(v.x, v.y);
+      const cap = drag && drag.c === c ? 40 : 30, v = b.velocity, sp = Math.hypot(v.x, v.y);
       if (sp > cap) Body.setVelocity(b, { x: v.x / sp * cap, y: v.y / sp * cap });
+      // Self-righting, like a weighted toy: it can tumble and spin, then wobbles back upright.
       let a = b.angle % (2 * Math.PI); if (a > Math.PI) a -= 2 * Math.PI; else if (a < -Math.PI) a += 2 * Math.PI;
-      if (Math.abs(a) > MAX_TILT) { Body.setAngle(b, Math.sign(a) * MAX_TILT); Body.setAngularVelocity(b, b.angularVelocity * .25); }
+      if (!(drag && drag.c === c)) Body.setAngularVelocity(b, b.angularVelocity * .985 - a * .0045);
+      if (a !== b.angle) Body.setAngle(b, a);
     }
-    c.el.style.transform = `translate(${(b.position.x - c.w / 2).toFixed(1)}px, ${(b.position.y - c.w / 2).toFixed(1)}px) rotate(${b.angle.toFixed(3)}rad)`;
+    // Squash and stretch: a spring around round, kicked by impacts and grabs.
+    c.sv += (-260 * c.sq - 13 * c.sv) * dt; c.sq += c.sv * dt;   // stiff and lightly damped: a quick jiggle
+    const sq = clamp(c.sq, -.22, .22);
+    c.el.style.transform = `translate(${(b.position.x - c.w / 2).toFixed(1)}px, ${(b.position.y - c.w / 2).toFixed(1)}px) rotate(${b.angle.toFixed(3)}rad) scale(${(1 + sq * .6).toFixed(3)}, ${(1 - sq).toFixed(3)})`;
     if (c.bubble) {
       if (now - c.bubbleT > 1800) { const old = c.bubble; c.bubble = null; old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200 }).onfinish = () => old.remove(); }
       else c.bubble.style.transform = `translate(${(b.position.x - c.bubble.offsetWidth / 2).toFixed(1)}px, ${(b.position.y - c.w * .5 - c.bubble.offsetHeight - 10).toFixed(1)}px)`;
