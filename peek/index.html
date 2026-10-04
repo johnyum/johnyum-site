@@ -110,6 +110,22 @@ button, textarea { font: inherit; color: inherit; }
 .name { position: absolute; left: 0; top: 0; padding: 6px 11px; border-radius: 99px; background: #fff; color: #1d1d1c; font: 500 13px/1.2 "Schibsted Grotesk", system-ui, sans-serif;
   white-space: nowrap; box-shadow: 0 6px 18px -8px rgba(0,0,0,.3), 0 0 0 1px #e7e7e5; pointer-events: none; }
 .name::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; margin-left: -5px; background: #fff; transform: rotate(45deg); box-shadow: 1px 1px 0 0 #e7e7e5; }
+/* the timer: a live dial over the generated body, and the card it opens */
+.critter .dial { position: absolute; pointer-events: none; }
+.tcard { position: absolute; left: 0; top: 0; width: 236px; padding: 14px 14px 12px; border-radius: 20px; background: #fff; pointer-events: auto;
+  box-shadow: 0 14px 34px -14px rgba(0,0,0,.35), 0 0 0 1px #e7e7e5; font: 15px/1.3 "Schibsted Grotesk", system-ui, sans-serif; color: #1d1d1c; touch-action: manipulation; }
+.tcard .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tcard .t { font-size: 13px; color: #87857f; }
+.tcard .x { width: 28px; height: 28px; border-radius: 50%; border: 0; background: #f0f0ee; display: grid; place-items: center; padding: 0; font-size: 15px; color: #1d1d1c; }
+.tcard .big { font: 600 40px/1 "Schibsted Grotesk", system-ui, sans-serif; letter-spacing: -1px; font-variant-numeric: tabular-nums; margin: 8px 0 10px; display: flex; align-items: center; justify-content: space-between; }
+.tcard .nudge { width: 34px; height: 34px; border-radius: 50%; border: 0; background: #f0f0ee; font-size: 20px; line-height: 1; color: #1d1d1c; padding: 0; }
+.tcard .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.tcard .presets button { border: 1px solid #e7e7e5; background: #fff; border-radius: 99px; padding: 6px 10px; font-size: 13px; color: #1d1d1c; }
+.tcard .go { flex: 1; height: 40px; border-radius: 99px; border: 0; background: #1d1d1c; color: #fff; font-weight: 500; font-size: 15px; }
+.tcard .go.run { background: #d97757; }
+.tcard .reset { height: 40px; padding: 0 14px; border-radius: 99px; border: 0; background: #f0f0ee; font-size: 14px; color: #1d1d1c; }
+.tcard::after { content: ""; position: absolute; left: var(--ax, 50%); bottom: -6px; width: 12px; height: 12px; margin-left: -6px; background: #fff; transform: rotate(45deg); box-shadow: 1px 1px 0 0 #e7e7e5; }
+@keyframes ring { 0%, 100% { rotate: 0deg; } 20% { rotate: -9deg; } 40% { rotate: 8deg; } 60% { rotate: -6deg; } 80% { rotate: 4deg; } }
 /* Kept for the character's older moves, out of sight. */
 .chips, .director { display: none; }
 .carried { display: block; margin: 0 0 6px; padding: 4px 9px; border-left: 2px solid #ffc94a; color: var(--muted); font-size: 12.5px; border-radius: 4px; background: #fff8e3; }
@@ -1763,6 +1779,8 @@ const POOL = {
   cucumber:   { name: 'Sea cucumber',     w: 92, re: /\bsea cucumber/i },
   sculpin:    { name: 'Tidepool sculpin', w: 90, re: /\bsculpin/i },
   octopus:    { name: 'Octopus',          w: 96, re: /\boctop(us|i|uses)\b/i },
+  // Not a creature: a wind-up kitchen timer, for a cook. Tap it for its card; it really times.
+  timer:      { name: 'Timer',            w: 118, re: /\b(green egg|kamado|bbq|barbe?cue|barbeque|brisket|smok(er|ing|ed)|grill(ing|ed)?|pulled pork|ribs)\b/i, kind: 'timer' },
 };
 const critters = [];
 const poolEl = $('#pool');
@@ -1809,19 +1827,27 @@ function poolSyncBox() {
 function poolDrop(key) {
   if (!poolInit()) return;
   const { Bodies, Body, Composite } = Matter, P = POOL[key], w = P.w * (innerWidth < 600 ? .82 : 1), x = 50 + Math.random() * (innerWidth - 100);
-  const body = Bodies.circle(x, -w, w * .42, { restitution: .62, friction: .06, frictionStatic: .12, frictionAir: .0045, density: .0011, slop: .02 });
+  const body = P.kind === 'timer'
+    ? Bodies.rectangle(x, -w, w * .86, w * .9, { chamfer: { radius: w * .2 }, restitution: .5, friction: .08, frictionStatic: .15, frictionAir: .005, density: .0016, slop: .02 })
+    : Bodies.circle(x, -w, w * .42, { restitution: .62, friction: .06, frictionStatic: .12, frictionAir: .0045, density: .0011, slop: .02 });
   body.sleepThreshold = 90;
   Body.setVelocity(body, { x: (Math.random() - .5) * 5, y: 3 }); Body.setAngularVelocity(body, (Math.random() - .5) * .25);
   Composite.add(poolEngine.world, body);
   const el = document.createElement('div'); el.className = 'critter'; el.style.width = el.style.height = w + 'px';
-  el.innerHTML = `<img src="plush/${key}.webp" alt="${P.name}" draggable="false">`;
+  el.innerHTML = `<img src="plush/${key}.webp" alt="${P.name}" draggable="false">` + (P.kind === 'timer' ? dialSVG() : '');
   poolEl.append(el);
   const c = { key, el, body, w, bubble: null, bubbleT: 0, sq: 0, sv: 0 };
+  if (P.kind === 'timer') c.timer = { set: 0, left: 0, running: false, endAt: 0, rung: false };
   critters.push(c); poolGrab(c);
 }
-function poolClear() {
-  for (const c of critters) { Matter.Composite.remove(poolEngine.world, c.body); c.el.remove(); c.bubble?.remove(); }
-  critters.length = 0; poolSeen = new Set();
+function poolClear(all = true) {
+  for (const c of [...critters]) {
+    if (!all && c.timer && c.timer.running) continue;   // a timer that's counting down keeps counting
+    Matter.Composite.remove(poolEngine.world, c.body); c.el.remove(); c.bubble?.remove();
+    if (tcard && tcard.c === c) closeCard();
+    critters.splice(critters.indexOf(c), 1);
+  }
+  poolSeen = new Set(critters.map((c) => c.key));
 }
 // The answer so far: anything it names that isn't in yet drops in.
 function poolHear(text) {
@@ -1848,7 +1874,7 @@ function poolGrab(c) {
   const up = () => {
     if (!poolDrag || poolDrag.c !== c) return;
     Composite.remove(poolEngine.world, poolDrag.spring);
-    if (poolDrag.moved < 8 && performance.now() - poolDrag.t < 400) poolName(c);
+    if (poolDrag.moved < 8 && performance.now() - poolDrag.t < 400) (c.timer ? timerCard(c) : poolName(c));
     else {
       const a = poolDrag.trail[0], z = poolDrag.trail[poolDrag.trail.length - 1], dt = Math.max(16, z.t - a.t), step = 1000 / 120;
       const vx = (z.x - a.x) / dt * step * 1.15, vy = (z.y - a.y) / dt * step * 1.15, sp = Math.hypot(vx, vy), k = sp > 34 ? 34 / sp : 1;
@@ -1865,8 +1891,89 @@ function poolName(c) {
   c.bubble = b; c.bubbleT = performance.now();
   Matter.Body.setVelocity(c.body, { x: c.body.velocity.x, y: -4 }); Matter.Sleeping.set(c.body, false);
 }
+/* ── the timer ── a live dial over the generated body: numbers 0–55, minute ticks; the minutes left
+   sit under the red pointer at the top, as on the real thing, and it unwinds as time passes. */
+const FACE = { cx: .54, cy: .46, r: .3 };   // where the plain face is on timer.webp, as fractions of its width
+function dialSVG() {
+  let ticks = '', nums = '';
+  for (let m = 0; m < 60; m++) {
+    const a = m * 6 * Math.PI / 180, long = m % 5 === 0, r1 = long ? 37 : 40, r2 = 44;
+    ticks += `<line x1="${(Math.sin(a) * r1).toFixed(2)}" y1="${(-Math.cos(a) * r1).toFixed(2)}" x2="${(Math.sin(a) * r2).toFixed(2)}" y2="${(-Math.cos(a) * r2).toFixed(2)}" stroke="${long ? '#3a3632' : '#8d877e'}" stroke-width="${long ? 1.6 : .8}" stroke-linecap="round"/>`;
+    // Numbers run round the dial, each turned to its own angle — so whichever sits under the pointer reads upright.
+    if (long) { const x = (Math.sin(a) * 28).toFixed(2), y = (-Math.cos(a) * 28).toFixed(2); nums += `<text x="${x}" y="${(+y + 3.6).toFixed(2)}" transform="rotate(${m * 6} ${x} ${y})" text-anchor="middle" font-size="10" font-weight="600" fill="#2a2724" font-family="Schibsted Grotesk, system-ui, sans-serif">${m}</text>`; }
+  }
+  const L = (FACE.cx - FACE.r) * 100, T = (FACE.cy - FACE.r) * 100, D = FACE.r * 200;
+  return `<svg class="dial" viewBox="-50 -50 100 100" style="left:${L}%;top:${T}%;width:${D}%;height:${D}%">
+    <defs><radialGradient id="face" cx="45%" cy="35%" r="75%"><stop offset="0" stop-color="#fbf8f2"/><stop offset="1" stop-color="#e9e2d6"/></radialGradient>
+    <radialGradient id="knob" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d8d0c3"/></radialGradient></defs>
+    <circle r="48" fill="url(#face)"/>
+    <g class="ring">${ticks}${nums}</g>
+    <circle r="11" fill="url(#knob)" stroke="#cfc6b8" stroke-width=".8"/>
+  </svg>`;
+}
+function timerLeft(T) { return T.running ? Math.max(0, (T.endAt - Date.now()) / 1000) : T.left; }
+const mmss = (s) => { s = Math.ceil(s); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+// The card: the special inputs — a big countdown, presets for a cook, −/+ a minute, start, reset.
+let tcard = null, audio = null;   // the open timer card, if any
+function timerCard(c) {
+  if (tcard && tcard.c === c) return closeCard();
+  closeCard();
+  const el = document.createElement('div'); el.className = 'tcard';
+  el.innerHTML = `<div class="row"><span class="t">Timer</span><button class="x" data-a="close" aria-label="Close">×</button></div>
+    <div class="big"><button class="nudge" data-a="-1">−</button><span class="read">0:00</span><button class="nudge" data-a="1">+</button></div>
+    <div class="presets"><button data-m="10">Rest 10</button><button data-m="15">Flip 15</button><button data-m="30">Check 30</button><button data-m="60">60 min</button></div>
+    <div class="row"><button class="reset" data-a="reset">Reset</button><button class="go" data-a="go">Start</button></div>`;
+  el.addEventListener('pointerdown', (e) => e.stopPropagation());
+  el.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    const T = c.timer;
+    audio ||= new (window.AudioContext || window.webkitAudioContext)();   // made on a tap, so it can ring later
+    if (b.dataset.m) { T.set = T.left = +b.dataset.m * 60; T.running = false; T.rung = false; startTimer(T); }
+    else if (b.dataset.a === '-1' || b.dataset.a === '1') { const left = timerLeft(T) + +b.dataset.a * 60, v = clamp(left, 0, 3600); T.left = v; T.set = Math.max(T.set, v); if (T.running) T.endAt = Date.now() + v * 1000; T.rung = false; }
+    else if (b.dataset.a === 'go') { T.running ? (T.left = timerLeft(T), T.running = false) : (timerLeft(T) > 0 && startTimer(T)); }
+    else if (b.dataset.a === 'reset') { T.running = false; T.left = 0; T.rung = false; }
+    else if (b.dataset.a === 'close') return closeCard();
+    c.sv -= 2; Matter.Sleeping.set(c.body, false); paintCard();
+  });
+  poolEl.append(el);
+  tcard = { c, el }; paintCard();
+  el.animate([{ opacity: 0, scale: '.9' }, { opacity: 1, scale: '1' }], { duration: 220, easing: 'cubic-bezier(.3,1.4,.5,1)' });
+}
+function startTimer(T) { T.endAt = Date.now() + T.left * 1000; T.running = true; T.rung = false; }
+function closeCard() { tcard?.el.remove(); tcard = null; }
+function paintCard() {
+  if (!tcard) return; const T = tcard.c.timer, left = timerLeft(T);
+  tcard.el.querySelector('.read').textContent = mmss(left);
+  const go = tcard.el.querySelector('.go'); go.textContent = T.running ? 'Pause' : left > 0 && left < T.set ? 'Resume' : 'Start'; go.classList.toggle('run', T.running);
+}
+// Done: a chime (three soft notes), and the timer rings — it shakes.
+function ring(c) {
+  if (audio) { const t0 = audio.currentTime; [0, .22, .44].forEach((d, i) => { const o = audio.createOscillator(), g = audio.createGain(); o.frequency.value = [1046, 1318, 1568][i]; o.type = 'sine'; g.gain.setValueAtTime(0, t0 + d); g.gain.linearRampToValueAtTime(.25, t0 + d + .02); g.gain.exponentialRampToValueAtTime(.001, t0 + d + .5); o.connect(g).connect(audio.destination); o.start(t0 + d); o.stop(t0 + d + .55); }); }
+  c.el.style.animation = 'none'; void c.el.offsetWidth;
+  c.el.style.animation = 'ring .5s ease-in-out 4';   // it rings: a shake, four times
+  Matter.Body.setVelocity(c.body, { x: (Math.random() - .5) * 4, y: -7 }); Matter.Sleeping.set(c.body, false); c.sv += 4;
+}
+function tickTimers() {
+  for (const c of critters) {
+    if (!c.timer) continue;
+    const T = c.timer, left = timerLeft(T);
+    // the dial: the minutes left under the pointer — turned back by that many minutes
+    const ringEl = c.el.querySelector('.ring'); if (ringEl) ringEl.setAttribute('transform', `rotate(${(-left / 60 * 6).toFixed(2)})`);
+    if (T.running && left <= 0) { T.running = false; T.left = 0; if (!T.rung) { T.rung = true; ring(c); } }
+  }
+  if (tcard) {
+    paintCard();
+    // the card sits over its timer, arrow pointing at it, kept on screen
+    const b = tcard.c.body.position, w = tcard.el.offsetWidth, h = tcard.el.offsetHeight;
+    const x = clamp(b.x - w / 2, 10, innerWidth - w - 10), y = Math.max(10, b.y - tcard.c.w * .55 - h - 12);
+    tcard.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    tcard.el.style.setProperty('--ax', `${clamp(b.x - x, 20, w - 20)}px`);
+  }
+}
+
 function poolStep(now) {
   if (!critters.length || !poolEngine) return;
+  tickTimers();
   const { Engine, Body, Sleeping } = Matter;
   poolSyncBox();
   Engine.update(poolEngine, 1000 / 120); Engine.update(poolEngine, 1000 / 120);
@@ -1928,7 +2035,7 @@ if (EMBED) {
         typing = 0; guarding = false; delivered();   // 4 · the app has sent the message it was carrying along with yours
         draftFeel = ''; draftLen = 0;
         workBegin();   // to work: chin on its hand till the first words come
-        poolClear();   // a new question: last answer's creatures go
+        poolClear(false);   // a new question: last answer's creatures go (a running timer stays)
       } else if (name === 'stream') {
         workStream(data);   // the answer so far: its hands move only as words arrive
         poolHear(String(data || ''));   // any tide-pool creature it names drops in
@@ -1955,6 +2062,7 @@ if (EMBED) {
     }
     if (card) { const b = card.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }
     for (const c of critters) { const b = c.el.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }   // the creatures take touches
+    if (tcard) { const b = tcard.el.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }   // and the timer's card
     // How tall the pile on the chat box is, so the app can make that much room at the chat's end.
     { const g = homeGround(), top = g ? rectOf(g).top : innerHeight; let pile = 0;
       for (const c of critters) { const p = c.body.position, t = p.y - c.w / 2; if (p.y < top + 4 && p.y > top - c.w * 3) pile = Math.max(pile, top - t); }

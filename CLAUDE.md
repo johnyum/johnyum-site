@@ -360,6 +360,13 @@ answer names a tide-pool creature (anemone, starfish, crab, nudibranch, urchin, 
 sculpin, octopus — `POOL`, matched as the text streams), its plush (`peek/plush/*.webp`) drops in
 and piles onto the chat box with the plush page's physics; fling them, tap for a name; they clear
 on the next send. Their rects are reported to the app so they take touches.
+**The timer** (2026-10-04): ask about the Big Green Egg, barbecue, brisket, smoking or grilling and a
+white wind-up kitchen timer drops into the same pile — a generated 3D product-render body with a
+blank face (`plush/timer.webp`; `FACE` is where that face sits) and a live SVG dial over it whose
+minutes-left sit under the red pointer and unwind in real time. Tap it for its card (a countdown,
+Rest 10 / Flip 15 / Check 30 / 60, −/+ a minute, start/pause, reset); at zero it chimes (WebAudio,
+unlocked by the tap) and shakes. A running timer survives the next send; leaving the chat clears it.
+The page also tells the app how tall the pile is (`{type:'inset'}`) so the chat makes room at its end.
 
 A 3D character that runs around a chat UI the way a game character runs around a level:
 it stands on message bubbles, runs along the chat box, jumps between suggestion pills, sits on
