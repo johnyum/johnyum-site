@@ -394,7 +394,7 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   count); tapped, it opens like the timer into a checklist you tick off (remembered in localStorage).
 - **Grocery bag** — an ingredient list (`groceriesOf()`, bullets under an Ingredients/shopping heading):
   tapped, the same checklist.
-- **Desk calendar** — a day/time in your message, else the answer (`parseWhen()`): shown on its page
+- **Desk calendar** — a day/time in your own message only (`parseWhen(lastAsk)`; the answer's times are steps, not events): shown on its page
   (weekday on the red band, month, day, time); tapped, `{type:'calendar'}` → the app's EventKitUI editor,
   filled in (no permission needed). Haiku names the event (`calTitle()`).
 - **Map pins** — on `replied`, if places are in play (`PLACES`), Haiku lists the recommended places as JSON
