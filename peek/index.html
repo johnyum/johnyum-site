@@ -1914,12 +1914,11 @@ function poolName(c) {
 /* ── the timer ── a live dial over the generated body: numbers 0–55, minute ticks; the minutes left
    sit under the red pointer at the top, as on the real thing, and it unwinds as time passes. */
 const FACE = { cx: .5, cy: .5, r: .46 };   // the puck's top face, as fractions of the (square) element — what you twist
-/* The timer is a puck, like a desk focus timer, drawn straight on: a big black glass face in a very
-   thin rim of matte black rubber. Twist the glass to wind it. The time is the 80s digital kind:
+/* The timer is a puck, like a desk focus timer, drawn straight on: a big black glass face in a thin
+   rim of polished steel. Twist the glass to wind it. The time is the 80s digital kind:
    seven-segment numerals, the unlit segments of every 8 faintly there behind the lit ones — minutes big
-   and seconds small (M, S), or from an hour, hours big and minutes small (H, M). Under them, only a
-   small ring that lights while it runs. All drawn here — no image — so it's crisp at any size. */
-const PUCK = { R: 46, glass: 43.4 };   // straight on: a thin black rubber rim, then the glass
+   and seconds small (M, S), or from an hour, hours big and minutes small (H, M). All drawn here — no image — so it's crisp at any size. */
+const PUCK = { R: 46, glass: 42.8 };   // straight on: a thin polished steel rim, then the glass
 const SEG = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg' };
 function segDigit(x, y, w, h, t, n) {
   const g = t * .18, P = (pts) => pts.map((p) => p.map((v) => v.toFixed(2)).join(',')).join(' ');
@@ -1944,19 +1943,21 @@ function dialSVG() {
   const { R, glass } = PUCK, k = glass / 38.8;   // the face's contents were laid out on a 38.8 glass
   return `<svg class="puck" viewBox="-50 -50 100 100">
     <defs>
-      <!-- the rim: soft-touch black rubber — matte, the light lying on it as a broad dull sheen, not a glint -->
-      <linearGradient id="tRubber" x1=".25" y1="0" x2=".75" y2="1"><stop offset="0" stop-color="#3a3b3e"/><stop offset=".45" stop-color="#18191b"/><stop offset="1" stop-color="#0c0c0d"/></linearGradient>
+      <!-- the rim: polished steel with real contrast — bright and dark bands where it mirrors the room -->
+      <linearGradient id="tRim" x1=".15" y1="0" x2=".85" y2="1">
+        <stop offset="0" stop-color="#f4f6f8"/><stop offset=".18" stop-color="#9aa1a9"/><stop offset=".32" stop-color="#e9ecef"/>
+        <stop offset=".5" stop-color="#4b5057"/><stop offset=".66" stop-color="#c9ced4"/><stop offset=".82" stop-color="#5d636a"/><stop offset="1" stop-color="#d7dbe0"/></linearGradient>
       <radialGradient id="tGlass" cx="50%" cy="42%" r="65%"><stop offset="0" stop-color="#1c1e22"/><stop offset="1" stop-color="#060708"/></radialGradient>
       <linearGradient id="tGloss" x1="0" y1="0" x2=".4" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".15"/><stop offset=".55" stop-color="#fff" stop-opacity=".02"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
       <filter id="tShadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2"/></filter>
       <clipPath id="tGlassClip"><circle r="${glass}"/></clipPath>
     </defs>
     <circle cy="2.2" r="${R - .5}" fill="#000" opacity=".3" filter="url(#tShadow)"/>
-    <circle r="${R}" fill="url(#tRubber)"/>
-    <circle r="${R - .3}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width=".6"/>
-    <circle r="${glass + .35}" fill="#000"/>
+    <circle r="${R}" fill="url(#tRim)"/>
+    <circle r="${R - .25}" fill="none" stroke="rgba(255,255,255,.6)" stroke-width=".4"/>
+    <circle r="${R}" fill="none" stroke="rgba(30,34,38,.45)" stroke-width=".4"/>
+    <circle r="${glass + .45}" fill="#0b0c0d"/>
     <circle r="${glass}" fill="url(#tGlass)"/>
-    <g class="run" opacity=".32" transform="scale(${k.toFixed(3)})"><circle cy="25.5" r="2.7" fill="none" stroke="#f2f4f6" stroke-width=".8"/><circle cy="25.5" r="1" fill="#f2f4f6"/></g>
     <g clip-path="url(#tGlassClip)">
       <g class="segs" transform="scale(${k.toFixed(3)}) skewX(-7)"></g>
       <g transform="scale(${k.toFixed(3)})" fill="#f2f4f6" font-family="Schibsted Grotesk, system-ui, sans-serif" font-weight="600" font-size="5" text-anchor="middle" class="labels" opacity="0">
@@ -2066,7 +2067,6 @@ function tickTimers() {
     if (c.shown !== shown) { c.shown = shown; const g = c.el.querySelector('.segs'), lb = c.el.querySelector('.labels');
       if (g) g.innerHTML = segTime(Math.max(0, left));
       if (lb) { const h = left >= 3600, [l1, l2] = lb.querySelectorAll('text'); l1.textContent = h ? 'H' : 'M'; l2.textContent = h ? 'M' : 'S'; lb.setAttribute('opacity', '1'); } }
-    const run = c.el.querySelector('.run'); if (run) run.setAttribute('opacity', T.running ? '1' : '.32');
 
     if (T.running && left <= 0) { T.running = false; T.left = 0; if (!T.rung) { T.rung = true; ring(c); } }
   }
