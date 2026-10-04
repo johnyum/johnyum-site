@@ -364,8 +364,8 @@ on the next send. Their rects are reported to the app so they take touches.
 wind-up kitchen timer drops into the same pile — a generated 3D product render, pure white with a
 steel bezel and a blank face (`plush/timer.webp`; `FACE` is where that face sits in the square
 element; John rejected a cream/yellow first version). **The dial is one piece of silver** — no numbers, no ticks, no separate bezel: a single domed,
-polished knob drawn 1.13× `FACE.r` so it covers the body image's own steel ring (CSS: a turned finish under a conic sheen that turns as you wind, a fixed dome of light
-on top). The time floats on it as if by magic — a red line round the
+polished knob drawn 1.13× `FACE.r` so it covers the body image's own steel ring (CSS: a satin brushed grain — an SVG noise tile, the only layer that turns as you wind —
+under fixed studio light; John found the conic/concentric version weird and too centred). The time floats on it as if by magic — a red line round the
 edge (no digits — John: get rid of the number) from 0 to the minutes left; at 0 there's only the metal. John rejected, in turn: numbered ticks,
 an LED screen, and red light "shining through" micro-holes. **Tap it and it pops up big** — the timer is the whole
 interface, with one round play/pause button under it. Drag round the face to wind (the ring follows
