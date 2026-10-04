@@ -49,15 +49,15 @@
   #said svg.ok { fill: #008A05; }
   #said svg.no { fill: #C13515; }
   #said svg.ne { fill: #E5A800; }   /* neutral — a flat dash in yellow (John, 2026-10-03) */
-  body.said #said li { opacity: 1; transform: none; }
-  body.said #said li:nth-child(1) { transition-delay: 950ms; }
-  body.said #said li:nth-child(2) { transition-delay: 1060ms; }
-  body.said #said li:nth-child(3) { transition-delay: 1170ms; }
-  body.said #said li:nth-child(4) { transition-delay: 1280ms; }
-  body.said #said li:nth-child(5) { transition-delay: 1390ms; }
-  body.said #said li:nth-child(6) { transition-delay: 1500ms; }
-  body.said #said li:nth-child(7) { transition-delay: 1610ms; }
-  body.said #said li:nth-child(8) { transition-delay: 1720ms; }
+  body.saidin #said li { opacity: 1; transform: none; }
+  body.saidin #said li:nth-child(1) { transition-delay: 0ms; }
+  body.saidin #said li:nth-child(2) { transition-delay: 90ms; }
+  body.saidin #said li:nth-child(3) { transition-delay: 180ms; }
+  body.saidin #said li:nth-child(4) { transition-delay: 270ms; }
+  body.saidin #said li:nth-child(5) { transition-delay: 360ms; }
+  body.saidin #said li:nth-child(6) { transition-delay: 450ms; }
+  body.saidin #said li:nth-child(7) { transition-delay: 540ms; }
+  body.saidin #said li:nth-child(8) { transition-delay: 630ms; }
   body.notrans #said li, body.notrans .box { transition: none !important; }
 </style>
 </head>
@@ -564,6 +564,28 @@
     setTimeout(ready, 400);
   }
   let duoT = 0;
+  // THE WORDS NEVER OVER THE WINDOW (John, 2026-10-03: "I don't want this overlap"): they come in only once the window has
+  // actually landed in the left half — on its own transitionend, not a guess at the time — and every way out takes them away
+  // first and moves the window only after (their fade, .32s). A timer-based delay let them in over a window still shrinking.
+  let sayT = 0, sayGen = 0;
+  const sayIn = instant => {
+    const b = document.body, g = ++sayGen; clearTimeout(sayT); b.classList.add('said'); fit();
+    if (instant) { b.classList.add('saidin'); return; }
+    // in only when the window's right edge is truly clear of the words — measured, frame by frame, not timed (a slow machine
+    // runs the window's move slow, and a timer then let the words in over it) — or the window says its move is done
+    const u = document.getElementById('said');
+    const done = () => { if (g !== sayGen || !b.classList.contains('said')) return; b.classList.add('saidin'); };
+    const clear = () => box.getBoundingClientRect().right <= u.getBoundingClientRect().left - 24;
+    const end = e => { if (e.target === box && e.propertyName === 'transform') { box.removeEventListener('transitionend', end); done(); } };
+    box.addEventListener('transitionend', end);
+    const watch = () => { if (g !== sayGen) return; if (clear() && !box.getAnimations().some(a => a.playState === 'running')) { box.removeEventListener('transitionend', end); done(); } else sayT = setTimeout(watch, 60); };
+    sayT = setTimeout(watch, 120);
+  };
+  const sayOut = (instant, then) => {
+    const b = document.body, g = ++sayGen; clearTimeout(sayT); b.classList.remove('saidin');
+    const go = () => { if (g !== sayGen) return; b.classList.remove('said'); if (then) then(); else fit(); };
+    if (instant) go(); else sayT = setTimeout(go, 360);
+  };
   const BEATS = [
     // 1 — the top 7 stay; the rest fade and fold away; then the 7 grow to 96
     { fwd: (w, instant) => shape(w, 7, 96, instant),
@@ -795,18 +817,17 @@
     // 15 — what hosts said (John, 2026-10-03): the desktop window steps into the left two-thirds and the hosts' words come in down
     //      the right third, a check or an X each (see WHAT HOSTS SAID)
     { said: true,
-      fwd: (w, instant) => { const b = document.body; if (instant) b.classList.add('notrans'); b.classList.add('said'); fit();
-        if (instant) requestAnimationFrame(() => requestAnimationFrame(() => b.classList.remove('notrans'))); },
-      back: () => { document.body.classList.remove('said'); fit(); } },
+      fwd: (w, instant) => sayIn(instant),
+      back: () => sayOut(false) },
     // 16 — the duo: the words go and the window steps back to its place as the phone floats in from the right onto its foot (see THE DUO)
     { fwd: (w, instant) => {
         const b = document.body, f = document.getElementById('duoPhone');
         if (!f) { setTimeout(() => {}, 0); }
-        if (instant) { b.classList.remove('said'); b.classList.add('duo'); [box, f].forEach(e => e && (e.style.transition = 'none')); fit(); requestAnimationFrame(() => [box, f].forEach(e => e && (e.style.transition = ''))); return; }
-        // the words go first (their fade, .32s), and only then does the window grow back and the phone come in
-        b.classList.remove('said'); clearTimeout(duoT); duoT = setTimeout(() => { if (b.classList.contains('said')) return; b.classList.add('duo'); fit(); }, 380);
+        if (instant) { sayOut(true, () => {}); b.classList.add('duo'); [box, f].forEach(e => e && (e.style.transition = 'none')); fit(); requestAnimationFrame(() => [box, f].forEach(e => e && (e.style.transition = ''))); return; }
+        // the words go first, and only then does the window grow back and the phone come in
+        sayOut(false, () => { b.classList.add('duo'); fit(); });
       },
-      back: () => { clearTimeout(duoT); document.body.classList.remove('duo'); document.body.classList.add('said'); fit(); } },
+      back: () => { document.body.classList.remove('duo'); sayIn(false); } },
     // 17 — on both screens at once (John, 2026-10-03): a few nights picked, a night at a time — three in the desktop window's top
     //      home, and on the phone today in its top home and three in its second — and only when the last has landed do the two quick-action bars come in, together.
     //      Each build's own selection and its own quick actions; the web one's bar is only held back (preso-qa-hold) and the
