@@ -16,6 +16,7 @@ don't introduce bundlers, npm, or a component framework.
 | `explore/` | Explore map drill-in — see below |
 | `multical/` | **Build output — never hand-edit.** The Multi-Host Calendar web app, played live inside the phone on preso slide 13. See below. |
 | `recurrence/` | **Build output — never hand-edit.** The same calendar with the Repeat (recurrence) flow, from its own project. See below. |
+| `plush/` | johnyum.com/plush — ask for a synopsis of *Twenty Thousand Leagues* and a plush giant squid comes up behind the chat box and hugs it as Claude writes. See below |
 | `rig/` | johnyum.com/rig — Rig Studio: reshape a rigged, animated character (proportions + sculpt) and send it to Peek. See below |
 | `peek/` | johnyum.com/peek — a 3D furry character living in a chat UI, built from a Monsters character. See below |
 | `monsters/` | johnyum.com/monsters — sketch → rigged, animated 3D character (Meshy), with `api/monsters.py`. See below |
@@ -325,6 +326,25 @@ The page only ever talks to **`/api/monsters?p=…`**, and two things answer it:
 - `BODIES`, `PARTS`, `prim()` and anchoring live in **`monsters/kit.js`**, shared with `peek/`.
 - `window.__monsters` exposes `{ play, still, clips, playing, setMode, addPart, setBody, select, shapes, selected }`,
   the way `explore/` does.
+
+## `plush/` — the answer becomes the story (johnyum.com/plush)
+
+One element done beautifully, John's direction after a plush cast felt too childish: as the canned
+*Twenty Thousand Leagues* synopsis streams, a single arm tip creeps out from under the chat box at
+"a mysterious sea creature", and at "giant squid" the squid rises from behind the box — eyes just
+over its top edge — and hugs it: arms round both ends and tucked under, one draped over the top,
+one waving. **The chat itself never changes** (white background, no card round the answer) — only
+the squid arrives. Arms stay clear of the + and send buttons.
+
+- **The body is a generated image** (OpenAI `gpt-image-1`, transparent background): a refined
+  plush, embroidered eyes, muted coral/oxblood/cream felt — "15% less kid-like, still friendly".
+  `peek/plush/squid-hug.webp`. The other plush in `peek/plush/` are from the first pass (a whole
+  cast on a stage), kept but unused.
+- **The arms are drawn live on canvas** in matching felt (shading passes, a grain pattern, a brass
+  seam, cream suckers toward the tips) from points relative to the chat box's rect, so they follow
+  the real box and breathe. `#back` sits between the conversation and the box, `#front` over it.
+- The OpenAI key lives in `~/.zshrc` (`OPENAI_API_KEY`); its safety filter once refused a plain
+  "Atlantis ruins" prompt — reword rather than retry.
 
 ## `peek/` — a character that lives in the interface (johnyum.com/peek)
 

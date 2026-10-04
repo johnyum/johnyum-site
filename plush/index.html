@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Verne — the answer becomes the story</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+<!--
+  One element, done beautifully: ask for a synopsis of Twenty Thousand Leagues Under the Sea and,
+  as Claude writes it, a giant squid comes up from behind the chat box and hugs it — its body
+  peeking over the top edge, its arms wrapped round both ends and curling onto the front corners,
+  more tucked underneath, one lifted in a slow wave. It first shows itself as a single arm tip
+  creeping out from under the box at "a mysterious sea creature", and arrives in full at "giant
+  squid". Nothing else changes: the chat stays the chat — no backdrop, no card round the answer.
+
+  The body is a generated image (OpenAI gpt-image-1: a refined plush in a muted 1870s palette,
+  embroidered eyes, transparent background — peek/plush/squid-hug.webp). The arms are drawn live
+  on canvas in the same felt — tapered, shaded, a brass-thread seam, cream suckers — because only
+  a drawn arm can follow the real chat box wherever it is and keep breathing. The answer is the
+  real synopsis, canned and streamed word by word.
+
+  The chat is drawn like the Claude clone (~/Documents/ClaudeClone).
+-->
+<style>
+:root { --ink: #1d1d1c; --muted: #87857f; --faint: #b2b0ab; --bubble: #f0f0ee; --line: #e7e7e5; --clay: #d97757; color-scheme: light; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #fff; color: var(--ink); font: 16px/1.45 "Schibsted Grotesk", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+button, textarea { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+.app { height: 100vh; height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; max-width: 760px; margin: 0 auto; }
+.top { display: flex; justify-content: space-between; align-items: center; padding: 18px 16px 6px; }
+.round { width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line); background: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 6px 18px -10px rgba(0,0,0,.18); padding: 0; }
+.round svg { width: 20px; height: 20px; }
+
+.log { overflow-y: auto; padding: 8px 20px 18px; scroll-behavior: smooth; }
+.inner { display: flex; flex-direction: column; gap: 24px; min-height: 100%; }
+.msg { max-width: 86%; }
+.msg.user { align-self: flex-end; background: var(--bubble); padding: 11px 16px; border-radius: 20px; font-size: 17px; line-height: 1.4; }
+.msg.bot { align-self: stretch; max-width: 100%; }
+.text { font: 18px/1.62 "Source Serif 4", Georgia, serif; white-space: pre-wrap; }
+.text em { font-style: italic; }
+.thinking svg { width: 22px; height: 22px; animation: breathe 1.4s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { transform: scale(.82); opacity: .7; } 50% { transform: scale(1) rotate(25deg); opacity: 1; } }
+/* a named thing warms for a beat as its plush arrives */
+.named { border-radius: 4px; transition: background-color 1.6s ease; background-color: transparent; }
+.named.warm { background-color: rgba(217, 119, 87, .18); transition: background-color .2s ease; }
+
+/* ── the squid: behind the chat box (its body, the arms behind it) and in front (what wraps round) ── */
+.app { position: relative; z-index: 2; }
+.foot { position: relative; z-index: 3; }
+.layer { position: fixed; inset: 0; pointer-events: none; }
+#back { z-index: 2; } #front { z-index: 5; }   /* back: over the conversation, under the chat box */
+.log { position: relative; z-index: 1; }
+canvas.layer { width: 100vw; height: 100vh; }
+#body { position: fixed; z-index: 2; left: 0; top: 0; pointer-events: none; width: 168px; transform-origin: 50% 100%; will-change: transform; filter: drop-shadow(0 10px 14px rgba(70,30,20,.18)); }
+.composer { position: relative; }
+.text strong { font-weight: 600; }
+.text .li { display: block; padding-left: 22px; text-indent: -14px; }
+
+.foot { padding: 0 12px 14px; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px; }
+.chips button { border: 1px solid var(--line); background: #fff; border-radius: 99px; padding: 8px 14px; font-size: 14px; cursor: pointer; color: var(--ink); }
+.chips button:hover { border-color: var(--faint); }
+.composer { background: #fff; border: 1px solid var(--line); border-radius: 24px; padding: 14px 14px 12px; box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+.composer textarea { display: block; width: 100%; border: 0; outline: none; resize: none; min-height: 26px; padding: 2px 6px 10px; background: transparent; font-size: 16px; }
+.composer textarea::placeholder { color: var(--faint); }
+.bar { display: flex; align-items: center; gap: 8px; }
+.dot, .pill { height: 34px; border: 0; background: var(--bubble); border-radius: 99px; display: inline-flex; align-items: center; justify-content: center; }
+.dot { width: 34px; } .dot svg { width: 17px; height: 17px; }
+.pill { padding: 0 14px; font-size: 14px; gap: 4px; } .pill span { color: var(--muted); }
+.grow { flex: 1; }
+.send { width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--ink); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.send svg { width: 18px; height: 18px; } .send .up { display: none; }
+.composer.has .send { background: var(--clay); } .composer.has .send .up { display: block; } .composer.has .send .wave { display: none; }
+.hello { margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; padding-bottom: 4vh; }
+.hello svg { width: 46px; height: 46px; }
+.hello b { font: 400 30px/1.2 "Source Serif 4", Georgia, serif; }
+.hint { text-align: center; font-size: 11.5px; color: var(--faint); margin-top: 8px; }
+@media (max-width: 600px) { .text { font-size: 17px; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <path id="spark" d="m19.6 66.5 19.7-11 .3-1-.3-.5h-1l-3.3-.2-11.2-.3L14 53l-9.5-.5-2.4-.5L0 49l.2-1.5 2-1.3 2.9.2 6.3.5 9.5.6 6.9.4L38 49.1h1.6l.2-.7-.5-.4-.4-.4L29 41l-10.6-7-5.6-4.1-3-2-1.5-2-.6-4.2 2.7-3 3.7.3.9.2 3.7 2.9 8 6.1L37 36l1.5 1.2.6-.4.1-.3-.7-1.1L33 25l-6-10.4-2.7-4.3-.7-2.6c-.3-1-.4-2-.4-3l3-4.2L28 0l4.2.6L33.8 2l2.6 6 4.1 9.3L47 29.9l2 3.8 1 3.4.3 1h.7v-.5l.5-7.2 1-8.7 1-11.2.3-3.2 1.6-3.8 3-2L61 2.6l2 2.9-.3 1.8-1.1 7.7L59 27.1l-1.5 8.2h.9l1-1.1 4.1-5.4 6.9-8.6 3-3.5L77 13l2.3-1.8h4.3l3.1 4.7-1.4 4.9-4.4 5.6-3.7 4.7-5.3 7.1-3.2 5.7.3.4h.7l12-2.6 6.4-1.1 7.6-1.3 3.5 1.6.4 1.6-1.4 3.4-8.2 2-9.6 2-14.3 3.3-.2.1.2.3 6.4.6 2.8.2h6.8l12.6 1 3.3 2 1.9 2.7-.3 2-5.1 2.6-6.8-1.6-16-3.8-5.4-1.3h-.8v.4l4.6 4.5 8.3 7.5L89 80.1l.5 2.4-1.3 2-1.4-.2-9.2-7-3.6-3-8-6.8h-.5v.7l1.8 2.7 9.8 14.7.5 4.5-.7 1.4-2.6 1-2.7-.6-5.8-8-6-9-4.7-8.2-.5.4-2.9 30.2-1.3 1.5-3 1.2-2.5-2-1.4-3 1.4-6.2 1.6-8 1.3-6.4 1.2-7.9.7-2.6v-.2H49L43 72l-9 12.3-7.2 7.6-1.7.7-3-1.5.3-2.8L24 86l10-12.8 6-7.9 4-4.6-.1-.5h-.3L17.2 77.4l-4.7.6-2-2 .2-3 1-1 8-5.5Z"/>
+</defs></svg>
+<canvas class="layer" id="front"></canvas>
+<div class="app">
+  <header class="top">
+    <button class="round" id="newChat" aria-label="New chat"><svg viewBox="0 0 20 20" fill="none" stroke="#1d1d1c" stroke-width="1.6" stroke-linecap="round"><path d="M3 6h14M3 10h11M3 14h8"/></svg></button>
+    <button class="round" aria-label="More"><svg viewBox="0 0 20 20" fill="#1d1d1c"><circle cx="5" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="15" cy="10" r="1.5"/></svg></button>
+  </header>
+  <canvas class="layer" id="back"></canvas>
+  <img id="body" src="../peek/plush/squid-hug.webp" alt="" hidden>
+  <div class="log" id="log"><div class="inner" id="msgs"></div></div>
+  <div class="foot">
+    <div class="chips" id="chips">
+      <button data-q="leagues">Give me a synopsis of Twenty Thousand Leagues Under the Sea</button>
+    </div>
+    <form class="composer" id="composer">
+      <textarea id="input" rows="1" placeholder="Chat with Claude" aria-label="Message"></textarea>
+      <div class="bar">
+        <span class="dot"><svg viewBox="0 0 20 20" fill="none" stroke="#1d1d1c" stroke-width="1.5" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg></span>
+        <span class="pill">Sonnet 5 <span>High</span></span>
+        <span class="grow"></span>
+        <span class="dot"><svg viewBox="0 0 20 20" fill="none" stroke="#1d1d1c" stroke-width="1.5" stroke-linecap="round"><rect x="7.5" y="3" width="5" height="9" rx="2.5"/><path d="M5 9.5a5 5 0 0 0 10 0M10 14.5V17M7.5 17h5"/></svg></span>
+        <button class="send" aria-label="Send">
+          <svg class="wave" viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="M4 8v4M7 5.5v9M10 3.5v13M13 6.5v7M16 8.5v3"/></svg>
+          <svg class="up" viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 16V4M5 9l5-5 5 5"/></svg>
+        </button>
+      </div>
+    </form>
+    <p class="hint">A canned answer, streamed like the real thing.</p>
+  </div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const log = $('#log'), msgs = $('#msgs'), input = $('#input'), composer = $('#composer');
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* The answer: **bold**, *italic*, "• " list lines, and [[cue|words]] — the squid's two beats. */
+const ANSWER = {
+  q: 'Give me a synopsis of Twenty Thousand Leagues Under the Sea',
+  text: `Assuming you mean Jules Verne's *Twenty Thousand Leagues Under the Sea* (1870), here's the short version.
+
+**Setup:** In 1866, ships worldwide report a [[creature|mysterious sea creature]]. French marine biologist Pierre Aronnax, his servant Conseil, and Canadian harpooner Ned Land join a US expedition to hunt it. The "monster" rams their ship, throws the three overboard, and turns out to be the *Nautilus*, an advanced electric submarine.
+
+**The voyage:** Its commander, Captain Nemo, takes them in as permanent guests: free to roam the ship, never allowed to leave. Over about seven months they travel 20,000 leagues (a distance traveled, not a depth) around the globe. Highlights include:
+• Hunting in underwater forests in diving suits
+• Pearl beds off Ceylon and a shark attack
+• A secret tunnel under the Suez isthmus
+• The sunken ruins of Atlantis
+• Reaching the South Pole and nearly suffocating trapped under ice
+• A battle with [[squid|giant squid]] that kills a crewman
+
+**Nemo:** He's brilliant, cultured, and has renounced human society after an unnamed nation destroyed his family and homeland. He funds oppressed peoples with salvaged treasure, but also sinks a warship in cold revenge, which horrifies Aronnax.
+
+**Ending:** Aronnax is torn between scientific wonder and Ned's push to escape. As the *Nautilus* is pulled into the Maelstrom off Norway, the three flee in the skiff and wash ashore. Nemo's fate is left unknown (Verne resolves it in *The Mysterious Island*).
+
+**Themes:** The awe of science and exploration, freedom versus captivity, and whether vengeance against injustice can be justified.`,
+};
+
+/* ═══════════════ the squid ═══════════════
+   Everything is placed off the chat box's rect, every frame, so it hugs the box wherever it is.
+   An arm is a list of points relative to the box (fractions of its width and height, plus px), a
+   start width, which canvas it lives on (back: behind the box; front: wrapping onto it), and for
+   the arms that come round onto the front, the point along it where it crosses to the front. */
+const back = $('#back'), front = $('#front'), bodyImg = $('#body');
+const bx = back.getContext('2d'), fx = front.getContext('2d');
+const FELT = { base: '#ac5a42', dark: '#7a3627', light: '#cf8566', cream: '#ead3b4', creamDark: '#c9a985', thread: '#caa15c' };
+function size() {
+  const d = Math.min(devicePixelRatio || 1, 2);
+  for (const c of [back, front]) { c.width = innerWidth * d; c.height = innerHeight * d; c.getContext('2d').setTransform(d, 0, 0, d, 0, 0); }
+}
+addEventListener('resize', size); size();
+
+// A felt texture: soft noise, laid over each arm so it reads as fabric, not flat colour.
+const grain = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 96; const g = c.getContext('2d');
+  const im = g.createImageData(96, 96);
+  for (let i = 0; i < im.data.length; i += 4) { const v = 128 + (Math.random() - .5) * 90; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 38; }
+  g.putImageData(im, 0, 0); return c;
+})();
+
+// The arms, about the box: [fx, px-x, fy, px-y] per point — x = box.left + fx*width + px.
+// The body sits behind the box's right half; arms leave it, go round the ends, and come back on.
+const BODY_AT = .76;   // the body's centre, across the box
+const ARMS = [
+  // round the right end and tucked under it — clear of the send button
+  { w: 34, layer: 'back', delay: .0, pts: [[BODY_AT, 26, 0, 30], [1, -30, 0, 26], [1, 16, 0, 36], [1, 24, .55, 0], [1, 12, 1, 10], [1, -24, 1, 18], [1, -48, 1, 12], [1, -58, 1, 2]] },
+  // all the way behind to the left end, round it and tucked under — clear of the + button
+  { w: 32, layer: 'back', delay: .15, pts: [[BODY_AT, -24, 0, 34], [.45, 0, 0, 30], [0, 30, 0, 28], [0, -16, 0, 40], [0, -24, .58, 0], [0, -12, 1, 10], [0, 24, 1, 18], [0, 48, 1, 12], [0, 58, 1, 2]] },
+  // over the top edge, draping onto the front
+  { w: 28, layer: 'front', delay: .3, pts: [[BODY_AT, -34, 0, -16], [BODY_AT, -58, 0, -6], [BODY_AT, -70, 0, 14], [BODY_AT, -60, 0, 34], [BODY_AT, -42, 0, 38]] },
+  // tucked underneath, a tip showing below the box
+  { w: 24, layer: 'back', delay: .45, pts: [[BODY_AT, 10, 0, 40], [BODY_AT, 30, 1, -10], [BODY_AT, 40, 1, 18], [BODY_AT, 18, 1, 30], [BODY_AT, 4, 1, 20]] },
+  { w: 22, layer: 'back', delay: .55, pts: [[BODY_AT, -40, 0, 40], [.32, 0, 1, -8], [.28, 0, 1, 16], [.22, 0, 1, 26], [.18, 6, 1, 18]] },
+  // one lifted, waving slowly over the box
+  { w: 22, layer: 'back', delay: .7, wave: true, pts: [[BODY_AT, 46, 0, 20], [BODY_AT, 70, 0, -30], [BODY_AT, 60, 0, -84], [BODY_AT, 30, 0, -112], [BODY_AT, 8, 0, -102], [BODY_AT, 14, 0, -84]] },
+];
+// The first beat: a single tip creeping out from under the box.
+const CREEP = { w: 15, layer: 'back', pts: [[.55, 0, 1, -6], [.58, 0, 1, 12], [.62, 0, 1, 20], [.66, 0, 1, 14]] };
+
+const squid = { stage: 0, t0: 0, rise: 0, rv: 0, creep: 0 };
+
+// Catmull-Rom through the points, as a dense polyline.
+function spline(P, n = 14) {
+  const out = [];
+  for (let i = 0; i < P.length - 1; i++) {
+    const p0 = P[i - 1] || P[i], p1 = P[i], p2 = P[i + 1], p3 = P[i + 2] || P[i + 1];
+    for (let k = 0; k < n; k++) {
+      const t = k / n, t2 = t * t, t3 = t2 * t;
+      out.push([.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * t + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3),
+                .5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * t + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3)]);
+    }
+  }
+  out.push(P[P.length - 1]); return out;
+}
+// One arm: its centreline alive (a slow breath along it, stronger toward the tip), grown to `grow`
+// of its length, drawn from `from` to `to` (0..1) — so the part behind the box and the part that
+// wraps onto it can go to different canvases.
+function drawArm(g, arm, r, t, grow, from = 0, to = 1) {
+  const P = arm.pts.map(([fx_, px, fy, py]) => [r.left + fx_ * r.width + px, r.top + fy * r.height + py]);
+  let L = spline(P);
+  const N = L.length, ph = arm.delay * 7;
+  // normals, and the breath
+  const pts = L.map((p, i) => {
+    const a = L[Math.max(0, i - 1)], b = L[Math.min(N - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], m = Math.hypot(dx, dy) || 1;
+    const u = i / (N - 1), amp = (arm.wave ? 7 : 2.4) * u * u, s = Math.sin(t * (arm.wave ? 1.6 : 1.1) - u * 5 + ph) * amp;
+    return { x: p[0] - dy / m * s, y: p[1] + dx / m * s, nx: -dy / m, ny: dx / m, u };
+  });
+  const end = Math.max(2, Math.floor((N - 1) * grow)), i0 = Math.floor((N - 1) * from), i1 = Math.min(end, Math.ceil((N - 1) * to));
+  if (i1 - i0 < 2) return;
+  const W = (u) => (arm.w * Math.pow(1 - u * .9, .7) + 3) * clamp(grow * 1.4, .4, 1);   // full, then tapering late, like a soft toy's arm
+  const seg = pts.slice(i0, i1 + 1);
+  // the outline, both sides and a round tip
+  g.beginPath();
+  seg.forEach((p, i) => { const w = W(p.u) / 2; i ? g.lineTo(p.x + p.nx * w, p.y + p.ny * w) : g.moveTo(p.x + p.nx * w, p.y + p.ny * w); });
+  const tip = seg[seg.length - 1]; g.arc(tip.x, tip.y, W(tip.u) / 2, Math.atan2(tip.ny, tip.nx), Math.atan2(-tip.ny, -tip.nx));
+  for (let i = seg.length - 1; i >= 0; i--) { const p = seg[i], w = W(p.u) / 2; g.lineTo(p.x - p.nx * w, p.y - p.ny * w); }
+  g.closePath();
+  g.fillStyle = FELT.base; g.fill();
+  // shading: a darker underside, a soft lit top
+  g.save(); g.clip();
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  const along = (off, k) => { g.beginPath(); seg.forEach((p, i) => { const w = W(p.u) * off; i ? g.lineTo(p.x + p.nx * w, p.y + p.ny * w) : g.moveTo(p.x + p.nx * w, p.y + p.ny * w); }); };
+  // soft round shading: a few wide, faint passes toward the shadow side, one toward the light
+  for (const [off, a] of [[-.5, .14], [-.4, .14], [-.3, .1]]) { along(off); g.strokeStyle = FELT.dark; g.globalAlpha = a; g.lineWidth = arm.w * .55; g.stroke(); }
+  along(.26); g.strokeStyle = FELT.light; g.globalAlpha = .38; g.lineWidth = arm.w * .42; g.stroke();
+  g.globalAlpha = 1; g.fillStyle = g.createPattern(grain, 'repeat'); g.fillRect(0, 0, innerWidth, innerHeight);
+  g.restore();
+  // the seam: brass thread down the middle
+  along(.06); g.setLineDash([3.5, 3.5]); g.strokeStyle = FELT.thread; g.globalAlpha = .9; g.lineWidth = 1.1; g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+  // cream suckers along the underside
+  let acc = 0;
+  for (let i = 1; i < seg.length; i++) {
+    const p = seg[i], q = seg[i - 1]; acc += Math.hypot(p.x - q.x, p.y - q.y);
+    const w = W(p.u); if (p.u < .45 || acc < w * 1.15 || w < 7) continue; acc = 0;   // suckers only toward the tip, on the underside
+    const cx = p.x - p.nx * w * .18, cy = p.y - p.ny * w * .18, rr = w * .15;
+    g.beginPath(); g.arc(cx, cy, rr, 0, 7); g.fillStyle = FELT.cream; g.globalAlpha = .92; g.fill();
+    g.beginPath(); g.arc(cx + p.nx * rr * .2, cy + p.ny * rr * .2, rr * .45, 0, 7); g.fillStyle = FELT.creamDark; g.globalAlpha = .55; g.fill(); g.globalAlpha = 1;
+  }
+  // a soft outline, so it sits on any background
+  g.beginPath();
+  seg.forEach((p, i) => { const w = W(p.u) / 2; i ? g.lineTo(p.x + p.nx * w, p.y + p.ny * w) : g.moveTo(p.x + p.nx * w, p.y + p.ny * w); });
+  g.strokeStyle = 'rgba(90,40,25,.18)'; g.lineWidth = .8; g.stroke();
+}
+
+let last = performance.now();
+(function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now; const t = now / 1000;
+  bx.clearRect(0, 0, innerWidth, innerHeight); fx.clearRect(0, 0, innerWidth, innerHeight);
+  const r = composer.getBoundingClientRect();
+  // the first beat: a tip creeping out from under the box
+  if (squid.stage >= 1) { squid.creep = Math.min(1, squid.creep + dt * .7); if (squid.stage === 1) drawArm(bx, CREEP, r, t, squid.creep); }
+  if (squid.stage >= 2) {
+    const k = (now - squid.t0) / 1000;
+    // the body rises from behind the box on a spring, then breathes
+    squid.rv += (220 * (1 - squid.rise) - 15 * squid.rv) * dt; squid.rise += squid.rv * dt;
+    const bw = bodyImg.offsetWidth || 168, bh = bw * 640 / 407;
+    const settled = r.top - bh * .74;   // its eyes (about halfway down the image) clear the edge, looking at you; the rest tucks behind the box
+    const y = r.top + bh * .1 + (settled - r.top - bh * .1) * squid.rise + Math.sin(t * 1.2) * 2.5;
+    bodyImg.hidden = false;
+    bodyImg.style.transform = `translate(${(r.left + BODY_AT * r.width - bw / 2).toFixed(1)}px, ${y.toFixed(1)}px) rotate(${(Math.sin(t * .8) * 1.6).toFixed(2)}deg)`;
+    // the arms grow out one after another, and stay, breathing
+    for (const arm of ARMS) {
+      const grow = clamp((k - .4 - arm.delay * 1.4) / 1.5, 0, 1), e = 1 - Math.pow(1 - grow, 3);
+      if (e <= 0) continue;
+      if (arm.layer === 'back') drawArm(bx, arm, r, t, e);
+      else if (arm.layer === 'front') drawArm(fx, arm, r, t, e);
+      else { drawArm(bx, arm, r, t, e, 0, arm.frontFrom + .02); drawArm(fx, arm, r, t, e, arm.frontFrom, 1); }
+    }
+  } else bodyImg.hidden = true;
+  requestAnimationFrame(frame);
+})(performance.now());
+
+function cue(name) {
+  if (name === 'creature' && squid.stage < 1) { squid.stage = 1; squid.creep = 0; }
+  if (name === 'squid') { squid.stage = 2; squid.t0 = performance.now(); squid.rise = 0; squid.rv = 0; }
+}
+
+/* ═══════════════ the chat ═══════════════ */
+function hello() {
+  msgs.innerHTML = `<div class="hello"><svg viewBox="0 0 100 100" fill="#D97757"><use href="#spark"/></svg><b>What shall we read?</b></div>`;
+  $('#chips').hidden = false;
+}
+function add(cls, html) { msgs.querySelector('.hello')?.remove(); const m = document.createElement('div'); m.className = 'msg ' + cls; m.innerHTML = html; msgs.append(m); return m; }
+
+// The answer streamed word by word, with its little markup; a cue fires the moment its words land.
+let busy = false;
+async function ask() {
+  if (busy) return; busy = true; $('#chips').hidden = true;
+  add('user', esc(ANSWER.q));
+  const bot = add('bot', '<div class="thinking"><svg viewBox="0 0 100 100" fill="#D97757"><use href="#spark"/></svg></div>');
+  log.scrollTop = log.scrollHeight;
+  await wait(1300);
+  bot.innerHTML = ''; const text = document.createElement('div'); text.className = 'text'; bot.append(text);
+  let bold = false, ital = false, line = null;
+  const newLine = (li) => { line = document.createElement('span'); if (li) line.className = 'li'; text.append(line); };
+  const put = (s) => { let el = line; if (bold) { el = el.lastChild?.tagName === 'STRONG' && el.lastChild.dataset.open ? el.lastChild : el.appendChild(document.createElement('strong')); el.dataset.open = 1; } else if (ital) { el = el.lastChild?.tagName === 'EM' && el.lastChild.dataset.open ? el.lastChild : el.appendChild(document.createElement('em')); el.dataset.open = 1; } el.append(s); };
+  const close = () => { line?.querySelectorAll('[data-open]').forEach((e) => delete e.dataset.open); };
+  for (const raw of ANSWER.text.split('\n')) {
+    const li = raw.startsWith('• ');
+    newLine(li);
+    const src = li ? '•  ' + raw.slice(2) : raw;
+    for (const part of src.split(/(\[\[\w+\|[^\]]+\]\])/)) {
+      const m = part.match(/^\[\[(\w+)\|([^\]]+)\]\]$/);
+      const words = (m ? m[2] : part).split(/(\s+)/);
+      for (const w of words) {
+        if (!w) continue;
+        for (const piece of w.split(/(\*\*|\*)/)) {
+          if (piece === '**') { close(); bold = !bold; continue; }
+          if (piece === '*') { close(); ital = !ital; continue; }
+          if (piece) put(piece);
+        }
+        if (log.scrollHeight - log.scrollTop - log.clientHeight < 160) log.scrollTop = log.scrollHeight;
+        await wait(24 + Math.random() * 40);
+      }
+      if (m) cue(m[1]);
+    }
+    if (!li) line.append('\n');   // a list line is its own block already
+  }
+  busy = false;
+}
+
+$('#chips').addEventListener('click', (e) => { if (e.target.closest('button[data-q]')) ask(); });
+composer.addEventListener('submit', (e) => { e.preventDefault(); if (!input.value.trim()) return; input.value = ''; composer.classList.remove('has'); ask(); });
+input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); composer.requestSubmit(); } });
+input.addEventListener('input', () => composer.classList.toggle('has', !!input.value.trim()));
+$('#newChat').onclick = () => { if (busy) return; squid.stage = 0; hello(); };
+new Image().src = bodyImg.src;
+hello();
+</script>
+</body>
+</html>
