@@ -566,8 +566,54 @@ function playClip(label, once = false) {
   act.play(); playing = act; return true;
 }
 let oneShot = 0;
+// Body language on a rigged critter, on top of whatever clip is playing: the work's poses, through
+// its own bones, each angle a spring so they blend. Angles are about the model's own axes —
+// x tips forward (toward you), z swings out to the side — whatever way each bone is built.
+const POSE_KEYS = ['headX', 'headZ', 'torsoX', 'aLx', 'aLz', 'fLx', 'fLz', 'aRx', 'aRz', 'fRx', 'fRz'];
+const poseSp = Object.fromEntries(POSE_KEYS.map((k) => [k, { x: 0, v: 0 }]));
+let poseBones = null;
+function workTargets() {
+  const T = Object.fromEntries(POSE_KEYS.map((k) => [k, 0])), b = (typeof work !== 'undefined' && work.beat) % 2;
+  switch (typeof work !== 'undefined' && work.phase) {
+    case 'pondering': Object.assign(T, { aRz: -2.4, fRz: -1.7, headZ: .22, headX: -.12 }); break;         // a paw up, scratching its head
+    case 'working':   Object.assign(T, { headX: .38, aLx: b ? -.95 : -.5, aRx: b ? -.5 : -.95, fLx: -.7, fRx: -.7 }); break;   // head down, paws at it
+    case 'paused':    Object.assign(T, { headX: -.32, aLx: -1.15, fLx: -1.9 }); break;                     // looks up, paw at its chin
+    case 'sure':      Object.assign(T, { headZ: .08, torsoX: -.07 }); break;
+    case 'unsure':    Object.assign(T, { aLz: .6, aRz: -.6, fLz: 1.25, fRz: -1.25, headZ: .28 }); break;   // a shrug
+    case 'asking':    Object.assign(T, { aLz: 2.6, fLz: .25, headZ: .12 }); break;                         // a paw up: your turn
+    case 'failed':    Object.assign(T, { headX: .55, torsoX: .2 }); break;                                 // head hung
+  }
+  return T;
+}
+const _M = new THREE.Quaternion(), _P = new THREE.Quaternion(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
+function turnBones(list, ax, az) {
+  for (const bone of list) {
+    // Undo last frame's turn if the clip didn't overwrite it (a bone the clip doesn't key).
+    if (bone.userData.posed && bone.quaternion.equals(bone.userData.posed)) bone.quaternion.copy(bone.userData.unposed);
+    bone.userData.unposed = bone.quaternion.clone();
+    if (Math.abs(ax) + Math.abs(az) > 1e-4) {
+      rigged.scene.getWorldQuaternion(_M); bone.parent.getWorldQuaternion(_P);
+      _q.setFromEuler(_e.set(ax, 0, az)).premultiply(_M).multiply(_M.clone().invert());   // the turn, about the model's axes
+      _q.premultiply(_P.clone().invert()).multiply(_P);                                   // …into the bone's parent's frame
+      bone.quaternion.premultiply(_q);
+    }
+    bone.userData.posed = bone.quaternion.clone();
+  }
+}
+function poseRigged(dt) {
+  if (!poseBones) {
+    const by = (n) => { const a = []; rigged.scene.traverse((o) => { if (o.isBone && o.name === n) a.push(o); }); return a; };
+    poseBones = { torso: by('Torso'), head: by('Head'), aL: by('UpperArmL'), fL: by('LowerArmL'), aR: by('UpperArmR'), fR: by('LowerArmR') };
+  }
+  const T = workTargets();
+  for (const k of POSE_KEYS) { const sp = poseSp[k]; sp.v += (110 * (T[k] - sp.x) - 2 * Math.sqrt(110) * .7 * sp.v) * dt; sp.x += sp.v * dt; }
+  const v = (k) => poseSp[k].x;
+  turnBones(poseBones.torso, v('torsoX'), 0); turnBones(poseBones.head, v('headX'), v('headZ'));
+  turnBones(poseBones.aL, v('aLx'), v('aLz')); turnBones(poseBones.fL, v('fLx'), v('fLz'));
+  turnBones(poseBones.aR, v('aRx'), v('aRz')); turnBones(poseBones.fR, v('fRx'), v('fRz'));
+}
 function animateModel(dt, running) {
-  rigged?.restore(); mixer.update(dt); rigged?.shape(); oneShot = Math.max(0, oneShot - dt);
+  rigged?.restore(); mixer.update(dt); rigged?.shape();   // (poseRigged() is kept but off — it pulled the critters out of shape) oneShot = Math.max(0, oneShot - dt);
   if (rigged) {
     // Its own eyes: the mood, the blink, the pupils on the pointer (or what it's watching).
     const m = EYE_MOODS[moodNow] || EYE_MOODS.happy, lx = C.look ? C.look.x : pointer.x, ly = C.look ? C.look.y : pointer.y;
@@ -586,7 +632,7 @@ if (linkedModel?.glb) loadModel(linkedModel).catch((e) => setTimeout(() => say('
 const savedRig = () => { try { return JSON.parse(localStorage.getItem('rig.state')); } catch { return null; } };
 // #p=paper / #p=line: one of the made characters (./puppets.js) — a rig driven by springs, no fur.
 var puppet = null;
-const puppetKind = (location.hash.match(/^#p=(paper|line)\b/) || [])[1] || (!EMBED && !location.hash ? 'paper' : undefined);   // the demo opens on the paper figure
+const puppetKind = (location.hash.match(/^#p=(paper|line)\b/) || [])[1];
 async function loadPuppet(kind) {
   const { makePuppet } = await import('./puppets.js');
   puppet = makePuppet(kind, THREE); window.__puppet = puppet;
@@ -595,7 +641,7 @@ async function loadPuppet(kind) {
 }
 const modelReady = puppetKind ? loadPuppet(puppetKind).catch((e) => console.error(e)) : ((location.hash.startsWith('#r=') ? unpackRig(location.hash.slice(3))
   : location.hash.startsWith('#c=') || location.hash.startsWith('#m=') ? Promise.resolve(null)
-  : Promise.resolve(savedRig() || rigBlank('Bunny')))
+  : EMBED ? Promise.resolve(savedRig()) : Promise.resolve(null))   // no link: the app keeps what Rig Studio saved; otherwise the original fluffy gumdrop
   .then((st) => st && loadRigged(st))
   .catch((e) => setTimeout(() => say('couldn\'t load that one: ' + e.message, 4000), 1200)));
 
@@ -991,7 +1037,7 @@ function tap() {
 // Picked up: whatever it was doing stops where it is.
 function grab() {
   epoch++; for (const w of tweenList) w.fail(STOP); tweenList = [];
-  unsay(); dropCard(); occlude(null); clearTimeout(popping);
+  unsay(); dropCard(); occlude(null); clearTimeout(popping); canvas.style.clipPath = '';
   const wasGuarding = guarding; guarding = false; asleep = null; unpile();
   Object.assign(C, { grabbed: true, home: false, held: null, perched: null, exit: null, lean: 0, arms: 'up', look: null, hop: 0, facing: 0, yOff: 0 });
   mood('surprised'); C.sqv -= 10; say(wasGuarding ? 'fine… send it' : heart.sulking ? 'hmph' : 'whoa!', 900);
@@ -1002,32 +1048,39 @@ function surfaces() {
   return [...msgs.querySelectorAll('.msg'), ...$('#chips').children, composer];
 }
 // Let go: it falls to the first thing under it and lands there. On the box, it goes home.
+// Let go anywhere: it drops onto the top of the chat box, lands, runs along it to its spot on the
+// right, hops down behind it there, and pokes its head back up.
 function drop(x, y) {
   C.grabbed = false; C.arms = 'rest';
-  C.x = x; C.y = y + H * S * .82;   // from where the finger let go, not where it had swung to
-  const feet = C.y, ground = homeGround();
-  let best = null;
-  for (const el of surfaces()) {
-    const r = rectOf(el);
-    if (r.width < 20 || r.top < (EMBED ? 100 : 40) || r.top > innerHeight - 10) continue;   // not up under the header
-    if (x < r.left - 6 || x > r.right + 6 || r.top < feet - 50) continue;
-    if (!best || r.top < rectOf(best).top) best = el;
-  }
+  C.x = x; C.y = y + H * S * C.size * .82;   // from where the finger let go, not where it had swung to
+  canvas.style.clipPath = '';
   act(async () => {
-    const homeBox = !best || best === ground;
-    // Fall: gravity, from wherever it was let go — onto its perch, or in behind the box.
-    const to = !homeBox ? rectOf(best).top : ground ? rectOf(ground).top + H * S : innerHeight + H * S;
-    const y0 = C.y, x0 = C.x, r = best && !homeBox ? rectOf(best) : null, x1 = r ? clamp(x0, r.left + 22, r.right - 22) : x0;
-    const T = Math.sqrt(2 * Math.max(1, to - y0) / 2600) * 1000;
-    C.mode = 'air'; mood(homeBox ? 'surprised' : 'curious');
-    await tween(Math.max(120, T), (k) => { C.y = lerp(y0, to, k * k); C.x = lerp(x0, x1, k); });
-    if (homeBox) { Object.assign(C, { mode: 'off', shown: 0 }); return; }   // in behind the box: homeward() brings it up
-    Object.assign(C, { mode: 'stand', el: best, perched: best, y: rectOf(best).top }); C.sqv -= 12;
-    // 4 · set down on a message, it hugs it: it'll carry that one along with your next message
-    if (isMessage(best) && !heart.sulking) { carry(best); mood('love'); C.arms = 'hold'; say('I\'ll carry this ♥', 1500); await wait(1500); C.arms = 'rest'; }
-    else { mood('happy'); say(heart.sulking ? '…' : ['ooh', 'nice spot', 'hi up here', 'wheee'][Math.floor(Math.random() * 4)], 1200); await wait(1400); }
-    // Settle in: sit on the edge, legs over the front.
-    if (C.perched === best) { C.mode = 'sit'; C.sqv -= 4; }
+    const g = homeGround();
+    const s0 = C.size;
+    if (!g) {   // no box to land on: it falls away
+      const y0 = C.y; await tween(500, (k) => { C.y = lerp(y0, innerHeight + 200, k * k); }); return leave();
+    }
+    // Fall onto the box's top edge — gravity from wherever it was let go, growing back to full size.
+    const r = () => rectOf(g), x0 = C.x, y0 = C.y, x1 = clamp(x0, r().left + 30, r().right - 30), to = r().top;
+    C.mode = 'air'; mood('surprised');
+    await tween(Math.max(160, Math.sqrt(2 * Math.max(1, to - y0) / 2600) * 1000), (k) => { C.y = lerp(y0, r().top, k * k); C.x = lerp(x0, x1, k); C.size = lerp(s0, 1, k); });
+    // Landed: a squash, a beat standing on top of the box.
+    Object.assign(C, { mode: 'stand', el: g, size: 1, anchor: null, perched: null }); C.sqv -= 14; mood('happy');
+    await wait(420);
+    // Along the top of the box to its spot on the right…
+    await runTo(g, r().right - 58);
+    await wait(160);
+    // …a little hop, and down behind it, right there.
+    C.facing = 0; C.sqv -= 6; await wait(110);
+    C.mode = 'air'; C.el = null;
+    const ya = C.y, hidden = r().top + H * S * 1.2;
+    await tween(260, (k) => { C.y = ya - Math.sin(k * Math.PI / 2) * 46; }, easeOut);
+    occlude(g);
+    const yb = C.y; await tween(300, (k) => { C.y = lerp(yb, hidden, k * k); });
+    Object.assign(C, { mode: 'off', shown: 0, el: null }); occlude(null);
+    // Up at its spot: head and paws over the edge on the right.
+    await peekOver(g, r().right - 58, 'happy', HOME); C.home = true;
+    if (work.phase) workPose(work.phase);
   });
 }
 // A perch scrolled away, or gone: it hops back home.
@@ -1152,7 +1205,7 @@ input.addEventListener('blur', () => { setTimeout(() => { if (C.home && !input.v
 $('#chips').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) send(b.textContent); });
 $('#newChat').onclick = () => { if (busy) return; msgs.innerHTML = '<div class="hello" id="hello"><svg viewBox="0 0 100 100" fill="#D97757"><use href="#spark"/></svg><b id="greet">What’s on your mind?</b></div>'; work.phase = null; mood('happy'); act(() => standAt(byGreeting)); };
 // On an empty chat it stands beside the greeting, on its line.
-const byGreeting = () => { const g = $('#greet'); if (!g) return null; const r = g.getBoundingClientRect(); return { x: r.right + 30, y: r.bottom - 4 }; };
+const byGreeting = () => { const g = $('#greet'); if (!g) return null; const r = g.getBoundingClientRect(); return { x: r.right + 44, y: r.bottom - 4 }; };
 if (!EMBED) { requestAnimationFrame(clipToLog); modelReady.then(() => act(() => standAt(byGreeting))); }
 
 // Idle: after a while it does something on its own — a tip, a swing from a pill, a wander.
@@ -1633,7 +1686,7 @@ async function standAt(anchor) {
   // Near where it already is: it just shifts over. Anywhere else: out, and in again there.
   if (C.anchor && (C.mode === 'stand' || C.mode === 'sit') && Math.hypot(a.x - C.x, a.y - C.y) < 70) { C.anchor = anchor; C.sqv -= 5; return; }
   await leave();
-  Object.assign(C, { size: IN_SIZE, anchor, mode: 'stand', el: null, facing: 0 });
+  Object.assign(C, { size: IN_SIZE, anchor, mode: 'stand', el: null, facing: 0 }); clipToLog();
   await popIn(a.x, a.y);
 }
 

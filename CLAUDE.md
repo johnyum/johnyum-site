@@ -407,6 +407,11 @@ up tip cards. One `index.html`, three.js; the chat is canned.
   zero-width `.caret` after the words), and stays at the end of the answer. The canvas is clipped
   to the chat area (`clipToLog()`), so it scrolls under the header and the box. The app (embed)
   still uses the home spot behind the box.
+- **Drop it anywhere and it goes home** (2026-10-04, John's spec): it falls onto the top of the chat
+  box, runs along it to its spot on the right, hops down behind it there and pokes its head back up
+  (`drop()`). Dropping onto messages (perching, carrying) is gone from this path. The default
+  character is the original fluffy kit gumdrop again (the app keeps a Rig Studio save if there is
+  one); the bone-posing layer for rigged critters (`poseRigged()`) is off — it pulled them out of shape.
 - Its frame loop is `frame()`, exposed on `window.__peek` — a hidden tab pauses
   `requestAnimationFrame`, so a test drives frames by hand.
 
