@@ -371,7 +371,7 @@ titanium rim, Antonio digits — he called the end of it "a digital mess" and as
 simple dial back. Judge the whole object, not one detail at a time. **It comes set from the answer** (`firstCookTime()`): the first time in a sentence with a cooking cue
 ("smoke the brisket for 6 to 8 hours" → 6:00:00; ranges take the low end), else the first time anywhere;
 it follows the answer until you wind it yourself (`T.user`). **Tap it** and it becomes a small column in
-the middle of the screen: the timer as a 48×48 icon, the time under it at 80px `00:00:00` in Sofia Sans Condensed counting down
+the middle of the screen: the timer as a 64×64 icon, the time under it at 80px `00:00:00` in Sofia Sans Condensed counting down
 live (the column — icon, time, button — centred on the screen), and a 48×48 round button under that — black with a play, red with a pause, no shadow. You can still
 twist the little icon to wind it (up to 12h). Opening and closing are one time-based smootherstep
 (~560ms open, ~480ms close); the time and button rise and fade in a beat behind the icon and leave first;
@@ -413,7 +413,9 @@ and glides the chat to it, its subhead first (MessagesView). Tap again, or anoth
 (`POOL_GAP`), so stacked pieces keep ≥4px apart and never overlap; the picture turns about the body's
 centroid (`c.ox/oy`). **The app has demo buttons 1 2 3** top right of the chat (`PeekDemoButtons` in
 ChatPanel.swift): each starts a fresh chat and sends a prompt — tide pool, brisket on the Egg, Moby-Dick.
-The page also tells the app how tall the pile is (`{type:'inset'}`) so the chat makes room at its end.
+The page also tells the app how tall the pile is (`{type:'inset'}`) so the chat makes room at its end —
+only once the pile has come to rest and changed by 16px+: reporting it mid-bounce re-padded and scrolled
+the chat every few frames, which is what made the text jitter as things dropped in.
 
 A 3D character that runs around a chat UI the way a game character runs around a level:
 it stands on message bubbles, runs along the chat box, jumps between suggestion pills, sits on

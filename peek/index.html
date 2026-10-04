@@ -2196,7 +2196,7 @@ const mmss = (s) => { s = Math.ceil(s); return `${Math.floor(s / 60)}:${String(s
    Under it: the countdown, a few presets, pause and reset. Tap outside and it shrinks back down
    and drops into the pile, still counting. */
 let tcard = null, audio = null;   // the grown timer, if any
-const grownSize = () => 48;   // tapped, the timer becomes a small icon over its readout and play button
+const grownSize = () => 64;   // tapped, the timer becomes a small icon over its readout and play button
 function timerCard(c) { tcard ? shrinkTimer() : growTimer(c); }
 function growTimer(c) {
   if (c.timer) audio ||= new (window.AudioContext || window.webkitAudioContext)();   // made on a tap, so it can tick and ring
@@ -2237,7 +2237,7 @@ function shrinkTimer() {
 }
 function startTimer(T) { T.endAt = Date.now() + T.left * 1000; T.running = true; T.rung = false; }
 function closeCard() { if (tcard) { tcard.scrim.remove(); tcard.ui.remove(); tcard.c.el.classList.remove('grown'); tcard = null; } }
-const grownAt = () => ({ x: innerWidth / 2, y: Math.max(40, innerHeight / 2 - (64 + (tcard?.ui.offsetHeight || 144)) / 2 + 24) });   // the icon's centre: the whole column (icon 48 · 16 · what's under it) centred on the screen
+const grownAt = () => ({ x: innerWidth / 2, y: Math.max(40, innerHeight / 2 - (80 + (tcard?.ui.offsetHeight || 144)) / 2 + 32) });   // the icon's centre: the whole column (icon 64 · 16 · what's under it) centred on the screen
 function paintCard() {
   if (!tcard || !tcard.c.timer) return; const T = tcard.c.timer, left = timerLeft(T), b = tcard.ui.querySelector('.play');
   const rd = tcard.ui.querySelector('.tread'), hms = clockOf(left); if (rd.textContent !== hms) rd.textContent = hms;   // counting down, live
@@ -2458,7 +2458,7 @@ if (EMBED) {
     },
   };
   // Where it is, so the app passes every other touch straight through to itself.
-  let last = '', lastInset = 0;
+  let last = '', lastInset = 0, insetSeen = 0, insetAt = 0;
   setInterval(() => {
     const rs = [];
     if (root.visible) {
@@ -2473,7 +2473,11 @@ if (EMBED) {
     { const g = homeGround(), top = g ? rectOf(g).top : innerHeight; let pile = 0;
       for (const c of critters) { const p = c.body.position, t = p.y - c.w / 2; if (p.y < top + 4 && p.y > top - c.w * 3) pile = Math.max(pile, top - t); }
       const px = pile ? Math.round(pile / 8) * 8 + 12 : 0;
-      if (px !== lastInset) { lastInset = px; tell({ type: 'inset', px }); } }
+      // Only once the pile has come to rest, and only for a real change: every report makes the app re-pad
+      // and scroll the chat, so reporting it while things fall and bounce shook the text.
+      const moving = critters.some((c) => !c.body.isSleeping && Math.hypot(c.body.velocity.x, c.body.velocity.y) > .35) || poolDrag || tcard;
+      if (px !== insetSeen) { insetSeen = px; insetAt = performance.now(); }
+      if (!moving && performance.now() - insetAt > 500 && Math.abs(px - lastInset) >= 16 || (px === 0 && lastInset !== 0)) { lastInset = px; tell({ type: 'inset', px }); } }
     const k = JSON.stringify(rs.map((r) => r.map(Math.round))); if (k !== last) { last = k; tell({ type: 'rects', rects: rs }); }
   }, 100);
   modelReady.then(() => tell({ type: 'ready' }));
