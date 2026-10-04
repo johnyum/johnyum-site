@@ -379,11 +379,13 @@ closing sets it back down exactly where it was in the pile, at rest — never to
 restitution/friction/air/density (`feel` in `poolDrop`), only a boxy outline. At zero it chimes (WebAudio, unlocked by the
 tap) and shakes. Tap outside and it shrinks back into the pile, still counting. A running timer
 survives the next send; leaving the chat clears it.
-**The thermometer** (2026-10-03): a cute orange instant-read (`plush/thermo.webp`, a product render in
-the timer's style) drops in with the timer on a cook. Its display (`LCD`, `thermoLCD()`) shows the answer's
-done temperature — the highest one in a sentence about pulling/probing/reaching, ≤212 (`thermoRead()`;
-brisket → 203°). Tapped, it grows like a creature and the app highlights every temperature in the answer
-(its `c.terms`; the app's highlighter uses lookaround word edges so "203°" matches).
+**The thermometer** (2026-10-03): a classic analog dial meat thermometer (after a Taylor dial John
+pointed at), rendered in the timer's style — steel bezel, blank white face, a probe out the bottom
+(`plush/thermo.webp`; an orange instant-read came first and was swapped). Drawn on the face (`TFACE`,
+`thermoLCD()`): ticks on a 100–220°F sweep, a red needle that springs to the answer's done temperature —
+the highest one in a sentence about pulling/probing/reaching, ≤212 (`thermoRead()`; brisket → 203°) — and
+that number small under the hub. Tapped, it grows like a creature and the app highlights every temperature
+in the answer (`c.terms`; the app's highlighter uses lookaround word edges so "203°" matches).
 **Moby-Dick** (2026-10-03): when the answer first names the whale (`WHALE_RE`), a plush white whale
 (`plush/whale.webp`) rises from behind the chat box — clipped at its top edge by `.sea`, eyes just over it —
 blows a spout of water drops that rain onto the box and the pile, sinks, and then its tail
