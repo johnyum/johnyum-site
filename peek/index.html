@@ -202,6 +202,10 @@ let epoch = 0; const STOP = new Error('interrupted');
 const wait = (ms) => { const e = epoch; return new Promise((ok, no) => setTimeout(() => (e === epoch ? ok() : no(STOP)), ms)); };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, k) => a + (b - a) * k;
+// The character itself is retired (2026-10-04, John's call — "the dead end design"): it's never shown,
+// never takes a touch, never goes home. Everything it did is kept, behind this one flag. What still
+// runs here is the tide pool (plush creatures that drop in when the answer names them).
+const CHARACTER = /[?&]character\b/.test(location.search);
 const S = /[?&]big\b/.test(location.search) ? 260 : 86;   // px per character unit — it stands about 100px tall (?big: three times that, to look at it closely)
 
 /* ═══════════════ the world: one pixel, one unit ═══════════════ */
@@ -822,7 +826,7 @@ function frame() {
 
   root.position.set(C.x, -C.y + C.hop, 0);
   root.scale.setScalar(S * C.shown * C.size);
-  root.visible = C.mode !== 'off' && C.shown > .01;
+  root.visible = CHARACTER && C.mode !== 'off' && C.shown > .01;
 
   if (occludeEl) {
     const r = occludeEl.getBoundingClientRect();
@@ -907,7 +911,7 @@ const homeGround = () => {
   const r = rectOf(g); return r.width > 0 && r.left < innerWidth - 40 && r.right > 40 ? g : null;   // not a box still sliding in off the edge
 };
 function homeward() {
-  if (INLINE || acting || C.mode !== 'off') return;
+  if (!CHARACTER || INLINE || acting || C.mode !== 'off') return;
   const g = homeGround(); if (!g || rectOf(g).width <= 0) return;
   if (Date.now() < heart.shyUntil) return void setTimeout(homeward, heart.shyUntil - Date.now() + 100);
   act(async () => {
@@ -1003,7 +1007,7 @@ function placeOverlays() {
 // Your finger on it: a tap is a boop (at home, it pops up out of the box; perched, it stands up
 // or sits down); a drag picks it up, and where you let go it lands — on a message, a pill, the box.
 function onIt(x, y) {
-  if (C.mode === 'off' || C.shown < .5) return false;
+  if (!CHARACTER || C.mode === 'off' || C.shown < .5) return false;   // retired: nothing to touch
   const hs = H * S * C.size, top = C.y - hs * 1.1, bottom = occludeEl ? Math.min(C.y, occludeEl.getBoundingClientRect().top + 8) : C.y + 6;
   return Math.abs(x - C.x) < hs * .55 && y > top && y < bottom;
 }

@@ -353,6 +353,14 @@ the squid arrives. Arms stay clear of the + and send buttons.
 
 ## `peek/` — a character that lives in the interface (johnyum.com/peek)
 
+**Status (2026-10-04): the character is retired — John: "the dead end design".** It's hidden behind
+`CHARACTER` (on only with `?character` in the URL); everything below is kept, not deleted. What
+the page does now, in the app (embed) and the demo, is **the tide pool**: when Claude's real
+answer names a tide-pool creature (anemone, starfish, crab, nudibranch, urchin, sea cucumber,
+sculpin, octopus — `POOL`, matched as the text streams), its plush (`peek/plush/*.webp`) drops in
+and piles onto the chat box with the plush page's physics; fling them, tap for a name; they clear
+on the next send. Their rects are reported to the app so they take touches.
+
 A 3D character that runs around a chat UI the way a game character runs around a level:
 it stands on message bubbles, runs along the chat box, jumps between suggestion pills, sits on
 a reply while it "thinks", hangs from a pill and swings, peeks up from behind the input
