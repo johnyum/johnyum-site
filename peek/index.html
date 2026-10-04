@@ -106,30 +106,6 @@ button, textarea { font: inherit; color: inherit; }
 .sea img { position: absolute; left: 0; top: 0; display: block; -webkit-user-drag: none; will-change: transform; }
 .drop { position: absolute; left: 0; top: 0; pointer-events: none; border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%;
   background: radial-gradient(circle at 34% 30%, #ffffff 0 18%, #d6ebf8 42%, #93c3e4 100%); box-shadow: inset -1px -2px 3px rgba(40,90,130,.25); }
-.pills { position: absolute; left: 0; top: 0; z-index: 1; display: flex; gap: 8px; pointer-events: auto; }
-.pills button { border: 1px solid #e7e7e5; background: #fff; border-radius: 99px; padding: 8px 14px; font: 500 14px/1.2 "Schibsted Grotesk", system-ui, sans-serif; color: #1d1d1c; box-shadow: 0 6px 16px -10px rgba(0,0,0,.3); }
-.quizq { position: absolute; left: 0; top: 0; z-index: 1; width: min(340px, 86vw); padding: 14px 16px; border-radius: 18px; background: #fff; box-shadow: 0 10px 30px -14px rgba(0,0,0,.35), 0 0 0 1px #ecebe8; font: 16px/1.4 "Source Serif 4", Georgia, serif; color: #1d1d1c; pointer-events: none; }
-.quizq b { display: block; margin-bottom: 4px; font: 600 12px/1.2 "Schibsted Grotesk", system-ui, sans-serif; letter-spacing: .05em; text-transform: uppercase; color: #87857f; }
-/* reading: the ones whose part of the answer is on screen stand up — and act it out */
-.critter img { transition: transform .35s cubic-bezier(.3,1.4,.5,1), filter .35s ease; }
-.critter.reading img { transform: translateY(-7%) scale(1.06); filter: drop-shadow(0 6px 6px rgba(0,0,0,.12)); }
-@keyframes pump { 0%, 100% { translate: 0 0; } 50% { translate: 0 -9%; } }
-@keyframes roll { 0%, 100% { rotate: -7deg; } 50% { rotate: 7deg; } }
-@keyframes sway { 0%, 100% { rotate: -3deg; } 50% { rotate: 3deg; } }
-@keyframes wiggle { 0%, 100% { rotate: 0deg; } 25% { rotate: -5deg; } 75% { rotate: 5deg; } }
-.critter.reading.k-piston img, .critter.reading.k-valve img, .critter.reading.k-injector img, .critter.reading.k-sparkplug img { animation: pump .55s ease-in-out infinite; }
-.critter.reading.k-crankshaft img, .critter.reading.k-camshaft img { animation: roll .7s ease-in-out infinite; }
-.critter.reading.c-character img { animation: sway 1.6s ease-in-out infinite; transform-origin: 50% 100%; }
-.critter.reading.c-creature img { animation: wiggle 1.1s ease-in-out infinite; }
-.shelfbtn { position: fixed; right: 12px; top: 128px; z-index: 2; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(255,255,255,.92); box-shadow: 0 4px 14px -6px rgba(0,0,0,.3), 0 0 0 1px #ecebe8; display: grid; place-items: center; pointer-events: auto; }
-.shelfbtn svg { width: 20px; height: 20px; }
-.shelf { position: fixed; inset: 0; z-index: 4; background: rgba(255,255,255,.7); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); opacity: 0; transition: opacity .3s ease; pointer-events: auto; display: grid; place-items: center; }
-.shelf.on { opacity: 1; }
-.shelfin { width: min(360px, 90vw); max-height: 70vh; overflow-y: auto; }
-.shelfin h4 { margin: 0 0 12px; font: 600 12px/1.2 "Schibsted Grotesk", system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #87857f; text-align: center; }
-.shelfgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 8px; }
-.shelfgrid button { border: 0; background: none; display: grid; justify-items: center; gap: 4px; font: 500 12px/1.2 "Schibsted Grotesk", system-ui, sans-serif; color: #1d1d1c; }
-.shelfgrid img { width: 64px; height: 64px; object-fit: contain; }
 .critter { position: absolute; left: 0; top: 0; touch-action: none; pointer-events: auto; user-select: none; -webkit-user-select: none;
   will-change: transform; contain: layout paint; }
 /* A soft shadow painted once, not a live filter — moving it costs nothing, so the chat underneath never stutters. */
@@ -1917,7 +1893,7 @@ function poolDrop(key, extra) {
   body.sleepThreshold = 90;
   Body.setVelocity(body, { x: (Math.random() - .5) * 5, y: 3 }); Body.setAngularVelocity(body, (Math.random() - .5) * .25);
   Composite.add(poolEngine.world, body);
-  const el = document.createElement('div'); el.className = 'critter k-' + key + (CAT[key] ? ' c-' + CAT[key] : ''); el.style.width = el.style.height = w + 'px';
+  const el = document.createElement('div'); el.className = 'critter'; el.style.width = el.style.height = w + 'px';
   el.innerHTML = `<img src="plush/${key}.webp" alt="${P.name}" draggable="false">` + (P.kind === 'timer' ? dialSVG() : P.kind === 'thermo' ? thermoLCD() : key === 'clipboard' ? paperSVG(PAPER) : key === 'groceries' ? paperSVG(SHOPPAPER) : P.kind === 'cal' ? calSVG() : '');
   poolEl.append(el);
   const c = { key, el, body, w, ox, oy, w0: w, ox0: ox, oy0: oy, size: 1, goal: 1, bubble: null, bubbleT: 0, sq: 0, sv: 0 };
@@ -1925,7 +1901,7 @@ function poolDrop(key, extra) {
   if (P.kind === 'thermo') c.terms = [];
   if (P.kind === 'list') { c.items = []; c.done = new Set(); }
   if (extra) Object.assign(c, extra);
-  critters.push(c); poolGrab(c); shelfAdd(c);
+  critters.push(c); poolGrab(c);
   return c;
 }
 function poolClear(all = true) {
@@ -1937,7 +1913,6 @@ function poolClear(all = true) {
   }
   poolSeen = new Set(critters.map((c) => c.key));
   whaleEnd(); whaleSeen = false;
-  if (quiz) quizEnd(); orderCat = null; pillsPaint();
   if (poolFocus && !critters.includes(poolFocus)) { poolFocus = null; tell({ type: 'highlight', terms: [] }); }
   for (const d of drops) { Matter.Composite.remove(poolEngine.world, d.body); d.el.remove(); } drops.length = 0;
 }
@@ -2094,158 +2069,12 @@ function pinTap(c) {
   if (q && host) tell({ type: 'open', url: 'https://maps.apple.com/?q=' + encodeURIComponent(q) });
 }
 function poolTap(c) {
-  if (quiz && CAT[c.key] === quiz.cat) return quizAnswer(c);
   const k = POOL[c.key].kind;
   if (k === 'timer' || k === 'list') return timerCard(c);
   if (k === 'cal') return calTap(c);
   if (k === 'pin') return pinTap(c);
   poolFocusOn(c);
 }
-/* ── playing with the pile ── the objects aren't only bookmarks into the answer; they're a way to talk to it:
-   · drag one onto the chat box — it asks about it ("Tell me more about the camshaft")
-   · drop one on another — it asks how they go together (Darcy on Elizabeth: what's between them)
-   · rearrange a set (3+ parts, characters or creatures) — "Ask in this order" sends your left-to-right order
-   · hold one — everything in the answer that isn't about it fades (the app dims it)
-   · as you read, the ones whose part is on screen stand up, and act it out (pistons pump, people sway)
-   · "Quiz me" — a sentence from the answer with the name blanked; tap the right one
-   · drag one off the side of the screen — out it goes: the calendar to Calendar, a pin to Maps, a list or
-     anything else to the share sheet (Notes, Reminders, Messages…)
-   · the shelf — everything you've met, kept across chats; tap one to go back to where it was */
-const CAT = { anemone: 'creature', starfish: 'creature', crab: 'creature', nudibranch: 'creature', urchin: 'creature', cucumber: 'creature', sculpin: 'creature', octopus: 'creature',
-  piston: 'part', sparkplug: 'part', crankshaft: 'part', valve: 'part', camshaft: 'part', injector: 'part',
-  elizabeth: 'character', darcy: 'character', jane: 'character', bingley: 'character', mrbennet: 'character', mrsbennet: 'character', wickham: 'character', lydia: 'character' };
-const nameOf = (c) => c.label || POOL[c.key].name;
-const termsOf = (c) => c.terms?.length ? c.terms : POOL[c.key].terms || [POOL[c.key].name];
-const termRe = (t) => t.startsWith('/') ? new RegExp(t.slice(1), 'i') : new RegExp('(^|[^A-Za-z0-9])' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(e?s)?(?![A-Za-z0-9])', 'i');
-const mentions = (c, text) => termsOf(c).some((t) => termRe(t).test(text));
-let lastAnswer = '', curChat = '';
-function sayChat(text) {   // a message, sent as if you'd typed it
-  if (host) tell({ type: 'say', text });
-  else { const b = document.createElement('div'); b.className = 'name'; b.textContent = '→ ' + text; poolEl.append(b); b.style.transform = `translate(${innerWidth / 2 - 140}px, ${innerHeight * .4}px)`; setTimeout(() => b.remove(), 2600); }
-}
-function popMsg(c, text, ms = 1600) { c.label = text; poolName(c); c.bubbleT = performance.now() - 1800 + ms; c.label = null; }
-const article = (c) => CAT[c.key] === 'character' ? '' : 'the ';
-function dragAsk(c) {
-  const n = nameOf(c), k = CAT[c.key];
-  sayChat(k === 'character' ? `Tell me more about ${n}.` : k === 'part' ? `Go deeper on the ${n.toLowerCase()} — what does it do?` : `Tell me more about the ${n.toLowerCase()}.`);
-  popMsg(c, 'Asking…');
-}
-function combineAsk(a, b) {
-  const A = nameOf(a), B = nameOf(b), ka = CAT[a.key], kb = CAT[b.key];
-  const q = ka === 'character' && kb === 'character' ? `What's really going on between ${A} and ${B}?`
-    : ka === 'part' && kb === 'part' ? `How do the ${A.toLowerCase()} and the ${B.toLowerCase()} work together?`
-    : ka === 'creature' && kb === 'creature' ? `How do the ${A.toLowerCase()} and the ${B.toLowerCase()} get along in a tide pool?`
-    : `How do ${article(a)}${A} and ${article(b)}${B} go together?`;
-  sayChat(q); popMsg(b, 'Asking…');
-  Matter.Body.setVelocity(b.body, { x: 0, y: -4 }); Matter.Sleeping.set(b.body, false); b.sv += 3;
-}
-// a set on the box, after you've moved one of them: ask in your order
-let orderCat = null, pills = null;
-function setOf(cat) { return critters.filter((c) => CAT[c.key] === cat && !(tcard && tcard.c === c)); }
-function pillsPaint() {
-  const cats = ['part', 'character', 'creature'].filter((k) => setOf(k).length >= 3);
-  const want = cats[0];
-  if (!want) { pills?.remove(); pills = null; return; }
-  if (!pills) {
-    pills = document.createElement('div'); pills.className = 'pills';
-    pills.addEventListener('pointerdown', (e) => e.stopPropagation());
-    pills.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; b.dataset.a === 'order' ? askOrder() : b.dataset.a === 'quiz' ? (quiz ? quizEnd() : quizStart(pills.dataset.cat)) : null; });
-    poolEl.append(pills);
-  }
-  pills.dataset.cat = want;
-  const html = (orderCat === want ? '<button data-a="order">Ask in this order</button>' : '') + `<button data-a="quiz">${quiz ? 'Stop quiz' : 'Quiz me'}</button>`;
-  if (pills.innerHTML !== html) pills.innerHTML = html;
-  const g = homeGround(), r = g ? rectOf(g) : null, set = setOf(want);
-  const top = Math.min(...set.map((c) => c.body.bounds.min.y), r ? r.top : innerHeight);
-  pills.style.transform = `translate(${(innerWidth / 2 - pills.offsetWidth / 2).toFixed(0)}px, ${Math.max(90, top - pills.offsetHeight - 14).toFixed(0)}px)`;
-}
-function askOrder() {
-  const set = setOf(orderCat).sort((a, b) => a.body.position.x - b.body.position.x).map(nameOf);
-  const k = orderCat;
-  sayChat(k === 'part' ? `Walk me through how these work, in this order: ${set.join(', ')}. Tell me if my order is off.`
-    : k === 'character' ? `Tell the story through these characters, in this order: ${set.join(', ')}.`
-    : `Compare these, in this order: ${set.join(', ')}.`);
-  orderCat = null;
-}
-// the quiz: a sentence from the answer with the name blanked out; tap the one it's about
-let quiz = null;
-function quizStart(cat) {
-  const set = setOf(cat).filter((c) => sentenceAbout(c)); if (set.length < 2) return;
-  quiz = { cat, round: 0, right: 0, used: new Set() }; quizNext();
-}
-function sentenceAbout(c) {
-  for (const s of lastAnswer.replace(/[*_#`]/g, '').split(/(?<=[.!?])\s+|\n+/)) if (s.length > 24 && s.length < 220 && mentions(c, s)) return s;
-  return null;
-}
-function quizNext() {
-  const set = setOf(quiz.cat).filter((c) => sentenceAbout(c) && !quiz.used.has(c.key));
-  if (quiz.round >= 3 || !set.length) return quizEnd(true);
-  const c = set[Math.floor(Math.random() * set.length)]; quiz.used.add(c.key); quiz.target = c; quiz.round++;
-  let q = sentenceAbout(c); for (const t of termsOf(c)) q = q.replace(new RegExp(termRe(t).source, 'gi'), (m, pre) => (pre || '') + '_____');
-  quizCard(`${quiz.round} of 3 · Which one?`, q);
-}
-function quizCard(head, body) {
-  let q = poolEl.querySelector('.quizq');
-  if (!q) { q = document.createElement('div'); q.className = 'quizq'; poolEl.append(q); }
-  q.innerHTML = `<b>${head}</b>${body.replace(/</g, '&lt;')}`;
-  const g = homeGround(), r = g ? rectOf(g) : null;
-  q.style.transform = `translate(${(innerWidth / 2 - q.offsetWidth / 2).toFixed(0)}px, ${Math.max(100, (r ? r.top : innerHeight) - 300).toFixed(0)}px)`;
-}
-function quizAnswer(c) {
-  const { Body, Sleeping } = Matter; Sleeping.set(c.body, false);
-  if (c === quiz.target) { quiz.right++; popMsg(c, 'Yes — ' + nameOf(c), 1400); Body.setVelocity(c.body, { x: 0, y: -9 }); c.sv += 4; setTimeout(() => quiz && quizNext(), 1300); }
-  else { popMsg(c, 'Not quite', 1000); Body.setVelocity(c.body, { x: (Math.random() - .5) * 10, y: -3 }); c.sv -= 3; }
-}
-function quizEnd(done) {
-  if (done && quiz) { const r = quiz.right; quizCard('Done', `${r} of ${quiz.round} on the first try.`); setTimeout(() => poolEl.querySelector('.quizq')?.remove(), 2200); }
-  else poolEl.querySelector('.quizq')?.remove();
-  quiz = null;
-}
-// off the side of the screen: out to the right app
-function carryOut(c) {
-  const k = POOL[c.key].kind;
-  if (k === 'cal') return calTap(c);
-  if (k === 'pin') return pinTap(c);
-  const text = k === 'list' ? POOL[c.key].title + '\n' + c.items.map((t, i) => (c.done.has(i) ? '✓ ' : '☐ ') + t).join('\n')
-    : nameOf(c) + (sentenceAbout(c) ? ' — ' + sentenceAbout(c) : '');
-  if (host) tell({ type: 'share', text, image: new URL(`plush/${c.key}.webp`, location.href).href });
-  popMsg(c, 'Sharing…', 1000);
-}
-// as you read: the app says which paragraphs are on screen; theirs stand up and act it out
-function reading(texts) {
-  const text = (texts || []).join('\n');
-  for (const c of critters) { const on = !!text && !!(POOL[c.key].terms || c.terms?.length) && mentions(c, text); c.el.classList.toggle('reading', on); }
-}
-// the shelf: everything you've met, across chats
-const SHELF_KEY = 'peek-shelf';
-const shelfGet = () => { try { return JSON.parse(localStorage.getItem(SHELF_KEY) || '[]'); } catch { return []; } };
-function shelfAdd(c) {
-  if (!CAT[c.key] && !['timer', 'list', 'cal'].includes(POOL[c.key].kind)) return;
-  const all = shelfGet().filter((e) => !(e.key === c.key && e.chat === curChat));
-  all.unshift({ key: c.key, name: nameOf(c), chat: curChat, terms: termsOf(c), ask: lastAsk.slice(0, 80), t: Date.now() });
-  try { localStorage.setItem(SHELF_KEY, JSON.stringify(all.slice(0, 60))); } catch {}
-  shelfButton();
-}
-let shelfBtn = null;
-function shelfButton() {
-  if (!EMBED || !shelfGet().length || shelfBtn) return;
-  shelfBtn = document.createElement('button'); shelfBtn.className = 'shelfbtn'; shelfBtn.setAttribute('aria-label', 'Shelf');
-  shelfBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#1d1d1c" stroke-width="1.8" stroke-linecap="round"><path d="M4 8h16M4 16h16M6 8V5h4v3M14 8V4h3v4M8 16v-4h3v4M15 16v-5h3v5"/></svg>';
-  shelfBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
-  shelfBtn.addEventListener('click', shelfOpen);
-  document.body.append(shelfBtn);
-}
-let shelfEl = null;
-function shelfOpen() {
-  if (shelfEl) return shelfClose();
-  shelfEl = document.createElement('div'); shelfEl.className = 'shelf';
-  const items = shelfGet();
-  shelfEl.innerHTML = '<div class="shelfin"><h4>Your shelf</h4><div class="shelfgrid">' + items.map((e, i) => `<button data-i="${i}"><img src="plush/${e.key}.webp" alt=""><span>${e.name.replace(/</g, '&lt;')}</span></button>`).join('') + '</div></div>';
-  shelfEl.addEventListener('pointerdown', (e) => { e.stopPropagation(); if (e.target === shelfEl) shelfClose(); });
-  shelfEl.addEventListener('click', (e) => { const b = e.target.closest('button[data-i]'); if (!b) return; const it = items[+b.dataset.i]; if (it.chat) tell({ type: 'goto', chat: it.chat, terms: it.terms }); shelfClose(); });
-  document.body.append(shelfEl); requestAnimationFrame(() => shelfEl?.classList.add('on'));
-}
-function shelfClose() { const s = shelfEl; shelfEl = null; if (!s) return; s.classList.remove('on'); setTimeout(() => s.remove(), 300); }
 /* ── the thermometer ── a cute orange instant-read, dropped in with the timer on a cook. Its display shows
    the answer's done temperature on a dial — the highest one it talks about pulling, probing or reaching ("pull
    it at 203°F") — its red needle swinging there, the number small under the hub; tapping it, like a creature, grows it and highlights every temperature in the answer. */
@@ -2296,11 +2125,7 @@ function poolGrab(c) {
     const b = c.body, dx = e.clientX - b.position.x, dy = e.clientY - b.position.y, ca = Math.cos(-b.angle), sa = Math.sin(-b.angle);
     const spring = Constraint.create({ pointA: { x: e.clientX, y: e.clientY }, bodyB: b, pointB: { x: dx * ca - dy * sa, y: dx * sa + dy * ca }, stiffness: .3, damping: .06, length: 0 });
     Composite.add(poolEngine.world, spring);
-    c.body.collisionFilter.mask = 0;   // held, it passes over the others — so it can be dropped ON one; it collides again when let go
     poolDrag = { c, spring, x: e.clientX, y: e.clientY, t: performance.now(), moved: 0, trail: [{ x: e.clientX, y: e.clientY, t: performance.now() }] };
-    // held still for a moment: hold-to-focus — everything in the answer that isn't about it fades
-    const d0 = poolDrag;
-    d0.holdT = setTimeout(() => { if (poolDrag === d0 && d0.moved < 6 && (POOL[c.key].terms || c.terms?.length)) { d0.held = true; c.sv += 2; tell({ type: 'focus', on: true, terms: termsOf(c) }); } }, 450);
     c.sv -= 3;
   });
   c.el.addEventListener('pointermove', (e) => {
@@ -2315,24 +2140,9 @@ function poolGrab(c) {
     if (tcard && tcard.c === c) { if (c.timer) windEnd(c); return; }
     if (!poolDrag || poolDrag.c !== c) return;
     Composite.remove(poolEngine.world, poolDrag.spring);
-    c.body.collisionFilter.mask = 0xFFFFFFFF;
     // A tap is a real lift, close to where it went down, quickly. A cancelled touch (iOS taking a swipe for
     // scrolling) or a quick swipe whose moves were coalesced away used to count — and grew the picture.
     const moved = Math.max(poolDrag.moved, Math.hypot(e.clientX - poolDrag.x, e.clientY - poolDrag.y));
-    clearTimeout(poolDrag.holdT);
-    if (poolDrag.held) { tell({ type: 'focus', on: false }); poolDrag = null; return; }
-    if (e.type === 'pointerup' && moved >= 8) {
-      // a drag that ended somewhere that means something
-      const pt = { x: e.clientX, y: e.clientY }, g = homeGround(), box = g ? rectOf(g) : null;
-      const other = critters.find((o) => o !== c && !(tcard && tcard.c === o) && Matter.Bounds.contains(o.body.bounds, pt) && Matter.Vertices.contains(o.body.vertices, pt));
-      if (CAT[c.key]) orderCat = CAT[c.key];
-      if (pt.x < 26 || pt.x > innerWidth - 26) { carryOut(c); Body.setVelocity(c.body, { x: 0, y: -2 }); poolDrag = null; return; }
-      if (box && pt.y > box.top + 6 && pt.y < box.bottom && pt.x > box.left && pt.x < box.right) {
-        if (quiz && CAT[c.key] === quiz.cat) quizAnswer(c); else dragAsk(c);
-        Body.setPosition(c.body, { x: c.body.position.x, y: box.top - c.w * .6 }); Body.setVelocity(c.body, { x: 0, y: -3 }); poolDrag = null; return;
-      }
-      if (other) { combineAsk(c, other); poolDrag = null; return; }
-    }
     if (e.type === 'pointerup' && moved < 8 && performance.now() - poolDrag.t < 320) poolTap(c);
     else {
       const a = poolDrag.trail[0], z = poolDrag.trail[poolDrag.trail.length - 1], dt = Math.max(16, z.t - a.t), step = 1000 / 120;
@@ -2536,7 +2346,6 @@ function tickTimers() {
 function poolStep(now) {
   if ((!critters.length && !drops.length && !whale) || !poolEngine) return;
   tickTimers(); whaleStep(now);
-  if ((poolStep.n = (poolStep.n || 0) + 1) % 6 === 0) pillsPaint();
   const { Engine, Body, Sleeping } = Matter;
   poolSyncBox();
   Engine.update(poolEngine, 1000 / 120); Engine.update(poolEngine, 1000 / 120);
@@ -2631,8 +2440,7 @@ function whaleStep(now) {
   if (t > 8.6) whaleEnd();
 }
 
-Object.assign(window.__peek, { poolDrop, poolClear, poolHear, poolStep, critters, setAsk: (t) => { lastAsk = t; }, setAnswer: (t) => { lastAnswer = t; }, reading, quizStart, combineAsk, dragAsk });
-setTimeout(shelfButton, 400);
+Object.assign(window.__peek, { poolDrop, poolClear, poolHear, poolStep, critters, setAsk: (t) => { lastAsk = t; } });
 // A debug readout, only for a local copy of the page inside the app (the simulator, pointed here by PEEK_PAGE).
 const DEBUG = EMBED && /^(localhost|127\.|192\.168\.|10\.)/.test(location.hostname);
 const dbg = { ev: [], err: [] };
@@ -2662,8 +2470,6 @@ if (EMBED) {
       if (Math.abs(gx - g.x) + Math.abs(gy - g.y) > .04) for (const c of critters) Matter.Sleeping.set(c.body, false);
       g.x = gx; g.y = gy;
     },
-    // As you read: which of the answer's paragraphs are on screen (the app tells, when that changes).
-    reading(texts) { reading(texts); },
     // A shake: everything on the box jumps.
     shake() {
       const { Body, Sleeping } = Matter;
@@ -2694,9 +2500,7 @@ if (EMBED) {
         workBegin();   // to work: chin on its hand till the first words come
         lastAsk = String(data || '');
         poolClear(false);   // a new question: last answer's creatures go (a running timer stays)
-      } else if (name === 'chat') { curChat = String(data || '');   // which chat is open (for the shelf)
       } else if (name === 'stream') {
-        lastAnswer = String(data || '');
         workStream(data);   // the answer so far: its hands move only as words arrive
         poolHear(String(data || ''));   // any tide-pool creature it names drops in
       } else if (name === 'status') {
@@ -2708,7 +2512,7 @@ if (EMBED) {
         if (C.el === V('reply') && plat.last) C.el = V('last');
         setTimeout(() => { if (C.el !== V('reply')) delete plat.reply; }, 50);
         workEnd(data);   // how it ended: sure, unsure, asking or failed
-        if (data) { lastAnswer = String(data); poolHear(lastAnswer); pinsFor(lastAnswer); }   // the whole answer: anything still to come, and its places
+        if (data) { poolHear(String(data)); pinsFor(String(data)); }   // the whole answer: anything still to come, and its places
       } else if (name === 'closed') { delete plat.reply; act(leave); poolClear(); }   // left the chat: its creatures go too
     },
   };
