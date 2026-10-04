@@ -327,6 +327,24 @@
   // discards it.
   let prepared = null;   // { i, made }
   function discardPrepared() { if (prepared) { prepared.made.pane.remove(); prepared = null; } }
+  // BUILT BEHIND, TOO (John, 2026-10-03: "when I go backwards … just give me what that last page was going to end up as … hop
+  // around back and forth"). The heavy live slides — the bland host calendar, the multi calendar and its design-system sheet —
+  // took seconds to rebuild when stepped back onto: a fresh load, every beat replayed to the end, the phone's own app booting.
+  // So while the slide after one of them is on stage, the deck builds it behind the scenes, already at its end (makePane with
+  // dir -1 puts it there, as a step back always has), and a step back simply reveals it — as instant as a step forward.
+  const BACK_READY = new Set(['12bs.html', '12c.html', '12d1.html']);
+  let preparedBack = null;   // { i, made }
+  function discardPreparedBack() { if (preparedBack) { preparedBack.made.pane.remove(); preparedBack = null; } }
+  function prepareBack(i) {
+    if (preparedBack && preparedBack.i === i) return;
+    discardPreparedBack();
+    if (i < 0 || i >= SLIDES.length || !BACK_READY.has(SLIDES[i])) return;
+    if (kept && kept.i === i && !noKeep(kept.made)) return;   // the slide just left is that one: it stands ready, as it was left
+    const made = makePane(i, -1);
+    made.pane.style.visibility = 'hidden'; made.pane.style.pointerEvents = 'none';
+    stage.insertBefore(made.pane, stage.firstChild);   // never moved afterwards: moving an iframe reloads it
+    preparedBack = { i, made };
+  }
   // THE SLIDE JUST LEFT IS KEPT (John, 2026-09-22): hidden in place rather than removed, so a step back is instant and lands on
   // the exact state it was left in — the live build at its beat, not rebuilt and replayed. One is kept; leaving another
   // slide replaces it. A jump discards it.
@@ -434,6 +452,7 @@
     preload(i + 1); preload(i + 2); preload(i - 1);
     setTimeout(warmTweets, 1500);   // once, a moment after the first slide is up
     setTimeout(() => { if (idx === i && !flight) prepareNext(i + 1); }, DUR + 300);   // once this push has landed
+    setTimeout(() => { if (idx === i && !flight) prepareBack(i - 1); }, DUR + 900);    // ...and the one behind, if it is a heavy one
   }
 
   function show(i, state) {               // first paint: no motion; `state` (from the URL) is put back once the frame is up
@@ -482,6 +501,7 @@
     let made;
     if (kept && kept.i === i && !noKeep(kept.made)) { made = kept.made; kept = null; made.pane.style.display = ''; made.pane.style.visibility = ''; discardPrepared(); }   // the slide just left: back to it as it was
     else if (prepared && prepared.i === i && dir > 0) { made = prepared.made; prepared = null; made.pane.style.visibility = ''; made.pane.style.pointerEvents = ''; }   // built ahead: reveal it
+    else if (preparedBack && preparedBack.i === i && dir < 0) { made = preparedBack.made; preparedBack = null; made.pane.style.visibility = ''; made.pane.style.pointerEvents = ''; discardPrepared(); }   // built behind, at its end: reveal it
     else { discardPrepared(); made = makePane(i, dir); stage.appendChild(made.pane); }
     made.pane.style.transform = 'translateX(' + (dir > 0 ? 100 : -100) + '%)';
     void made.pane.offsetWidth;   // the prepared pane sat at 0: its jump to the wing must land before the transition is set
