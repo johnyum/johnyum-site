@@ -361,15 +361,15 @@ sculpin, octopus — `POOL`, matched as the text streams), its plush (`peek/plus
 and piles onto the chat box with the plush page's physics; fling them, tap for a name; they clear
 on the next send. Their rects are reported to the app so they take touches.
 **The timer** (2026-10-04): ask about the Big Green Egg, barbecue, brisket, smoking or grilling and a
-wind-up kitchen timer drops into the same pile — a generated 3D product render, pure white with a
-steel bezel and a blank face (`plush/timer.webp`; `FACE` is where that face sits in the square
-element; John rejected a cream/yellow first version). **The dial is one piece of silver** — no numbers, no ticks, no separate bezel: a single domed,
-polished knob drawn 1.13× `FACE.r` so it covers the body image's own steel ring (CSS: a pale, calm satin — a barely-there grain that turns as you wind, a soft top highlight,
-no dark band, so the red reads; John found the conic/concentric version weird and too centred). The time floats on it as if by magic — tall condensed red digits in Oswald, inlaid like
-enamel — a hairline of shade above, a catch of light below, the dome's lighting drawn over the ink. John
-rejected glows (smudgy) and flat red (a sticker) and a thin red line round the edge; the red pointer is drawn (vibrant, its tip resting on
-the dial's edge) — the image's own was painted out, and its floor shadow tapers before the image edges from 0 to the minutes left; at 0 there's only the metal. John rejected, in turn: numbered ticks,
-an LED screen, and red light "shining through" micro-holes. **Tap it and it pops up big** — the timer is the whole
+timer drops into the same pile — **a glass puck**, after a desk focus timer John
+pointed at (Kalsten/Noxord): a black glass face in a knurled gunmetal body, seen from a little above so
+the knurled side shows as a band, **all drawn in SVG** (`dialSVG()`, `PUCK`; no image — `plush/timer.webp`,
+the older white wind-up body, is unused). The time is **80s seven-segment digits** (`segDigit()` /
+`segTime()`, drawn as polygons, the unlit segments of every 8 faintly there), minutes big, seconds small,
+M and S over them — and nothing else: no line round the edge. Twisting the glass winds it; the knurling
+turns with the finger (`knurl(phase)`). History John rejected on the way: a cream face, numbered ticks, an
+LED screen, red light through micro-holes, silver knobs (concentric, brushed, satin), red digits glowing,
+flat, or inlaid. **Tap it and it pops up big** — the timer is the whole
 interface, with one round play/pause button under it. Drag round the face to wind (the ring follows
 the finger, a tick per minute); let go and it starts. At zero it chimes (WebAudio, unlocked by the
 tap) and shakes. Tap outside and it shrinks back into the pile, still counting. A running timer

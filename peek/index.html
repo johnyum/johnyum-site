@@ -110,20 +110,10 @@ button, textarea { font: inherit; color: inherit; }
 .name { position: absolute; left: 0; top: 0; padding: 6px 11px; border-radius: 99px; background: #fff; color: #1d1d1c; font: 500 13px/1.2 "Schibsted Grotesk", system-ui, sans-serif;
   white-space: nowrap; box-shadow: 0 6px 18px -8px rgba(0,0,0,.3), 0 0 0 1px #e7e7e5; pointer-events: none; }
 .name::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; margin-left: -5px; background: #fff; transform: rotate(45deg); box-shadow: 1px 1px 0 0 #e7e7e5; }
-/* the timer: a live dial over the generated body, and the card it opens */
-.critter .ptr { position: absolute; pointer-events: none; filter: drop-shadow(0 .5px .6px rgba(120,10,0,.35)); }
-.critter .dial { position: absolute; pointer-events: none; border-radius: 50%; overflow: hidden; }
-.dial svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-/* One silver piece, calm: a pale, smooth satin like a Braun knob — the grain barely there (it's the
-   only layer that turns as you wind), a soft highlight up top easing to a touch darker at the bottom.
-   No band, no centre point: the red digits need a quiet surface to sit on. */
-.dial { background: linear-gradient(180deg, #eef0f2 0%, #d6dade 58%, #e2e5e8 100%); }
-.dial .knob { position: absolute; inset: -2%; border-radius: 50%; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.006 .85' numOctaves='3' seed='4'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 .55 0'/></filter><rect width='240' height='240' filter='url(%23n)'/></svg>") center / 100% 100%; opacity: .34; }
-.dial .dome { position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
-  background:
-    radial-gradient(ellipse 70% 45% at 45% 24%, rgba(255,255,255,.62), rgba(255,255,255,0) 72%),
-    linear-gradient(180deg, rgba(255,255,255,.35) 0%, rgba(255,255,255,0) 45%, rgba(110,118,128,.06) 78%, rgba(110,118,128,.16) 100%);
-  box-shadow: inset 0 2px 1.5px rgba(255,255,255,.95), inset 0 -3px 5px rgba(60,68,78,.16), inset 0 0 0 .5px rgba(80,88,98,.22), 0 2px 5px rgba(30,36,44,.18); }
+/* the timer: a glass puck drawn in SVG, and the card it opens */
+.critter .puck { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.critter .puck .on { fill: #f4f6f8; }
+.critter .puck .off { fill: #fff; fill-opacity: .055; }   /* the unlit segments of every 8, faintly there */
 .tscrim { position: fixed; inset: 0; background: rgba(255,255,255,.62); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); pointer-events: auto; opacity: 0; transition: opacity .3s ease; }
 .tscrim.on { opacity: 1; }
 .critter.grown { z-index: 2; cursor: default; }
@@ -1855,13 +1845,13 @@ function poolDrop(key) {
   if (!poolInit()) return;
   const { Bodies, Body, Composite } = Matter, P = POOL[key], w = P.w * (innerWidth < 600 ? .82 : 1), x = 50 + Math.random() * (innerWidth - 100);
   const body = P.kind === 'timer'
-    ? Bodies.rectangle(x, -w, w * .86, w * .9, { chamfer: { radius: w * .2 }, restitution: .5, friction: .08, frictionStatic: .15, frictionAir: .005, density: .0016, slop: .02 })
+    ? Bodies.circle(x, -w, w * .45, { restitution: .5, friction: .08, frictionStatic: .15, frictionAir: .005, density: .0016, slop: .02 })
     : Bodies.circle(x, -w, w * .42, { restitution: .62, friction: .06, frictionStatic: .12, frictionAir: .0045, density: .0011, slop: .02 });
   body.sleepThreshold = 90;
   Body.setVelocity(body, { x: (Math.random() - .5) * 5, y: 3 }); Body.setAngularVelocity(body, (Math.random() - .5) * .25);
   Composite.add(poolEngine.world, body);
   const el = document.createElement('div'); el.className = 'critter'; el.style.width = el.style.height = w + 'px';
-  el.innerHTML = `<img src="plush/${key}.webp" alt="${P.name}" draggable="false">` + (P.kind === 'timer' ? dialSVG() : '');
+  el.innerHTML = P.kind === 'timer' ? dialSVG() : `<img src="plush/${key}.webp" alt="${P.name}" draggable="false">`;
   poolEl.append(el);
   const c = { key, el, body, w, bubble: null, bubbleT: 0, sq: 0, sv: 0 };
   if (P.kind === 'timer') c.timer = { set: 0, left: 0, running: false, endAt: 0, rung: false };
@@ -1923,34 +1913,71 @@ function poolName(c) {
 }
 /* ── the timer ── a live dial over the generated body: numbers 0–55, minute ticks; the minutes left
    sit under the red pointer at the top, as on the real thing, and it unwinds as time passes. */
-const FACE = { cx: .499, cy: .468, r: .318 };   // where the plain face sits inside the steel bezel on timer.webp, as fractions of the (square) element
-/* The dial: one piece of silver. No numbers, no ticks — the whole face is a single domed, polished
-   metal knob with a fine turned finish, the light sliding round it as it turns. The time floats on
-   top of it as if shown by magic: tall red digits (Oswald, condensed), inlaid like enamel and a thin red line round the edge from 0 to
-   the minutes left. At 0 there's nothing on it but the metal. */
+const FACE = { cx: .5, cy: .44, r: .44 };   // the puck's top face, as fractions of the (square) element — what you twist
+/* The timer is a puck, like a desk focus timer: a black glass face in a knurled gunmetal body, seen from
+   a little above so its knurled side shows as a band below the glass. Twist the glass to wind it — the
+   knurling turns with your finger. The time is the 80s digital kind: seven-segment numerals, the unlit
+   segments of every 8 faintly there behind the lit ones, minutes big and seconds small, M and S over
+   them. Nothing else on the glass. All drawn here — no image — so it's crisp at any size. */
+const PUCK = { cy: -6, rx: 44, ry: 37.8, drop: 11, sq: .86 };   // top face centre, its ellipse, the side's depth, the tilt
+const SEG = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg' };
+function segDigit(x, y, w, h, t, n) {
+  const g = t * .18, P = (pts) => pts.map((p) => p.map((v) => v.toFixed(2)).join(',')).join(' ');
+  const H = (yc) => [[x + t / 2 + g, yc], [x + t + g, yc - t / 2], [x + w - t - g, yc - t / 2], [x + w - t / 2 - g, yc], [x + w - t - g, yc + t / 2], [x + t + g, yc + t / 2]];
+  const V = (xc, y1, y2) => [[xc, y1], [xc + t / 2, y1 + t / 2], [xc + t / 2, y2 - t / 2], [xc, y2], [xc - t / 2, y2 - t / 2], [xc - t / 2, y1 + t / 2]];
+  const m = h / 2, segs = {
+    a: H(y + t / 2), g: H(y + m), d: H(y + h - t / 2),
+    f: V(x + t / 2, y + t / 2 + g, y + m - g), b: V(x + w - t / 2, y + t / 2 + g, y + m - g),
+    e: V(x + t / 2, y + m + g, y + h - t / 2 - g), c: V(x + w - t / 2, y + m + g, y + h - t / 2 - g),
+  };
+  const on = SEG[n] || '';
+  return Object.entries(segs).map(([k, pts]) => `<polygon points="${P(pts)}" class="${on.includes(k) ? 'on' : 'off'}"/>`).join('');
+}
+function segTime(left) {
+  const s = Math.ceil(left), mm = String(Math.min(99, Math.floor(s / 60))).padStart(2, '0'), ss = String(s % 60).padStart(2, '0');
+  return segDigit(-31, -13, 15, 26, 3.4, +mm[0]) + segDigit(-13, -13, 15, 26, 3.4, +mm[1])
+       + segDigit(7.5, -3, 10.5, 16, 2.5, +ss[0]) + segDigit(20.5, -3, 10.5, 16, 2.5, +ss[1]);
+}
+// The knurled side: rows of little diamonds round the cylinder, foreshortened toward its edges; phase
+// is how far it has been twisted, in degrees.
+function knurl(phase) {
+  const { cy, rx, ry, drop } = PUCK; let out = '';
+  const step = 3;
+  for (let row = 0; row < 6; row++) {
+    const off = (row % 2) * step / 2, y0 = 1.3 + row * 1.6;
+    for (let a = -90 + ((phase + off) % step + step) % step; a < 90; a += step) {
+      const r = a * Math.PI / 180, x = rx * Math.sin(r), y = cy + ry * Math.cos(r) + y0, w = Math.max(.12, rx * Math.cos(r) * .03);
+      if (y > cy + ry * Math.cos(r) + drop - .5) continue;
+      const lit = .12 + .38 * Math.max(0, Math.cos(r + .55));   // the lamp is up and to the left
+      out += `<rect x="${(x - w / 2).toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height=".9" rx="${(w / 2).toFixed(2)}" fill="rgba(205,212,220,${lit.toFixed(2)})"/>`;
+    }
+  }
+  return out;
+}
 function dialSVG() {
-  const R = FACE.r * 1.13;   // out over the body's steel bezel too, so the bezel and the knob are one piece of metal
-  const L = (FACE.cx - R) * 100, T = (FACE.cy - R) * 100, D = R * 200;
-  const pw = .074, ph = .06, tip = FACE.cy - R;   // the pointer, as fractions of the element; its tip rests on the dial's edge
-  const ptr = `<svg class="ptr" viewBox="0 0 40 32" style="left:${(FACE.cx - pw / 2) * 100}%;top:${(tip - ph) * 100}%;width:${pw * 100}%;height:${ph * 100}%">
-    <defs><linearGradient id="tPtr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff4a33"/><stop offset="1" stop-color="#e8160a"/></linearGradient></defs>
-    <path d="M4.5 1 H35.5 Q39.5 1 37.4 4.4 L21.6 30.4 Q20 32 18.4 30.4 L2.6 4.4 Q.5 1 4.5 1 Z" fill="url(#tPtr)"/>
-    <path d="M5 2.2 H35" stroke="rgba(255,255,255,.45)" stroke-width="1" stroke-linecap="round"/></svg>`;
-  return ptr + `<div class="dial" style="left:${L}%;top:${T}%;width:${D}%;height:${D}%">
-    <div class="knob"></div>
-    <!-- Inlaid, not stuck on: the red is enamel set into the metal — a hairline of shade along its top edge
-         and a catch of light along its bottom edge, as a shallow recess has — and the dome's light and
-         shade are drawn OVER it, so the ink sits under the same lamp as the silver. -->
-    <svg viewBox="-50 -50 100 100">
-      <path class="arc" d="" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="1.2" stroke-linecap="round" transform="translate(0 .4)"/>
-      <path class="arc" d="" fill="none" stroke="#5b1a12" stroke-opacity=".35" stroke-width="1.2" stroke-linecap="round" transform="translate(0 -.3)"/>
-      <path class="arc" d="" fill="none" stroke="#b81a0e" stroke-width="1.35" stroke-linecap="round"/>
-      <text class="lcd" x="0" y="11.6" text-anchor="middle" font-size="31" font-weight="400" font-family="Oswald, 'Bebas Neue', 'Arial Narrow', sans-serif" style="font-variant-numeric: tabular-nums" letter-spacing=".6" fill="#fff" fill-opacity=".85"></text>
-      <text class="lcd" x="0" y="10.85" text-anchor="middle" font-size="31" font-weight="400" font-family="Oswald, 'Bebas Neue', 'Arial Narrow', sans-serif" style="font-variant-numeric: tabular-nums" letter-spacing=".6" fill="#4a140d" fill-opacity=".38"></text>
-      <text class="lcd" x="0" y="11.2" text-anchor="middle" font-size="31" font-weight="400" font-family="Oswald, 'Bebas Neue', 'Arial Narrow', sans-serif" style="font-variant-numeric: tabular-nums" letter-spacing=".6" fill="#d92a1c" fill-opacity=".94"></text>
-    </svg>
-    <div class="dome"></div>
-    </svg></div>`;
+  const { cy, rx, ry, drop, sq } = PUCK;
+  return `<svg class="puck" viewBox="-50 -50 100 100">
+    <defs>
+      <linearGradient id="tSide" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1c1e21"/><stop offset=".3" stop-color="#4a4f56"/><stop offset=".6" stop-color="#2b2e33"/><stop offset="1" stop-color="#121315"/></linearGradient>
+      <linearGradient id="tChamfer" x1=".2" y1="0" x2=".8" y2="1"><stop offset="0" stop-color="#d9dee4"/><stop offset=".45" stop-color="#5a6068"/><stop offset=".7" stop-color="#2a2d31"/><stop offset="1" stop-color="#8a9097"/></linearGradient>
+      <radialGradient id="tGlass" cx="50%" cy="40%" r="70%"><stop offset="0" stop-color="#1b1d21"/><stop offset="1" stop-color="#060708"/></radialGradient>
+      <linearGradient id="tGloss" x1="0" y1="0" x2=".5" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".5" stop-color="#fff" stop-opacity=".03"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+      <filter id="tShadow" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="2.2"/></filter>
+      <clipPath id="tGlassClip"><ellipse cx="0" cy="${cy}" rx="${rx - 2.6}" ry="${ry - 2.3}"/></clipPath>
+    </defs>
+    <ellipse cx="0" cy="${cy + drop + ry - 1.5}" rx="${rx * .9}" ry="4" fill="#000" opacity=".28" filter="url(#tShadow)"/>
+    <ellipse cx="0" cy="${cy + drop}" rx="${rx}" ry="${ry}" fill="url(#tSide)"/>
+    <g class="knurl">${knurl(0)}</g>
+    <ellipse cx="0" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#tChamfer)"/>
+    <ellipse cx="0" cy="${cy}" rx="${rx - 2.6}" ry="${ry - 2.3}" fill="url(#tGlass)"/>
+    <g clip-path="url(#tGlassClip)">
+      <g class="segs" transform="translate(0 ${cy}) scale(1 ${sq}) skewX(-7)"></g>
+      <g transform="translate(0 ${cy}) scale(1 ${sq})" fill="#f2f4f6" font-family="Schibsted Grotesk, system-ui, sans-serif" font-weight="600" font-size="5.2" text-anchor="middle" class="labels" opacity="0">
+        <text x="-14" y="-17.5">M</text><text x="27" y="-7.5">S</text></g>
+      <path d="M ${-rx} ${cy - 4} Q 0 ${cy - ry * 1.25} ${rx} ${cy - 10} L ${rx} ${cy - ry} L ${-rx} ${cy - ry} Z" fill="url(#tGloss)"/>
+    </g>
+    <ellipse cx="0" cy="${cy}" rx="${rx - 2.6}" ry="${ry - 2.3}" fill="none" stroke="rgba(255,255,255,.14)" stroke-width=".4"/>
+  </svg>`;
 }
 function timerLeft(T) { return T.running ? Math.max(0, (T.endAt - Date.now()) / 1000) : T.left; }
 const mmss = (s) => { s = Math.ceil(s); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -2044,13 +2071,12 @@ function tickTimers() {
   for (const c of critters) {
     if (!c.timer) continue;
     const T = c.timer, left = timerLeft(T);
-    // the dial: the minutes left under the pointer — turned back by that many minutes
-    const knob = c.el.querySelector('.knob'); if (knob) knob.style.transform = `rotate(${(left / 60 * 6).toFixed(2)}deg)`;   // the sheen turns as the knob does
-    { const deg = Math.min(359.9, left / 60 * 6), R = 43.5, a1 = deg * Math.PI / 180;   // the red line: from 0 round to the time left, floating on the face
-      const d = deg < .2 ? '' : `M 0 ${-R} A ${R} ${R} 0 ${deg > 180 ? 1 : 0} 1 ${(Math.sin(a1) * R).toFixed(2)} ${(-Math.cos(a1) * R).toFixed(2)}`;
-      for (const arc of c.el.querySelectorAll('.arc')) if (arc.getAttribute('d') !== d) arc.setAttribute('d', d);
-      const t = left < .5 ? '' : mmss(left); for (const lcd of c.el.querySelectorAll('.lcd')) if (lcd.textContent !== t) lcd.textContent = t; }
-    // the red arc: from where 0 has turned to, back up to the pointer — the time left, at a glance
+    // the knurling turns as the glass is twisted (6° a minute); the digits show the time left
+    const ph = Math.round(left / 60 * 6 * 4) / 4;
+    if (c.ph !== ph) { c.ph = ph; const k = c.el.querySelector('.knurl'); if (k) k.innerHTML = knurl(ph); }
+    const shown = left < .5 ? -1 : Math.ceil(left);
+    if (c.shown !== shown) { c.shown = shown; const g = c.el.querySelector('.segs'), lb = c.el.querySelector('.labels');
+      if (g) g.innerHTML = segTime(Math.max(0, left)); if (lb) lb.setAttribute('opacity', '1'); }
 
     if (T.running && left <= 0) { T.running = false; T.left = 0; if (!T.rung) { T.rung = true; ring(c); } }
   }
