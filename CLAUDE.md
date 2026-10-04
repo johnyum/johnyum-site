@@ -407,7 +407,9 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   filled in (no permission needed). Haiku names the event (`calTitle()`).
 - **Map pins** — on `replied`, if places are in play (`PLACES`), Haiku lists the recommended places as JSON
   (`pinsFor()`); one pin each; tapped, its name and `{type:'open'}` → Maps.
-The app's demo buttons now run 1–7 (4 how-to, 5 groceries, 6 a dated plan, 7 coffee spots).
+The app's demos live in the chat's ⋯ menu, under a line after Delete (`PeekDemos` in ChatPanel.swift; the
+numbered header buttons are gone): Tide pool, Brisket, Moby-Dick, Engine, Pride and Prejudice, Sourdough,
+Lasagna, Dinner party, Coffee spots.
 **Moby-Dick** (2026-10-03): when the answer first names the whale (`WHALE_RE`), a plush white whale
 (`plush/whale.webp`) rises from behind the chat box — clipped at its top edge by `.sea`, eyes just over it —
 blows a spout of water drops that rain onto the box and the pile, sinks, and then its tail
