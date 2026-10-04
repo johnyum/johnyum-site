@@ -100,6 +100,14 @@ button, textarea { font: inherit; color: inherit; }
 .send .up { display: none; }
 .composer.has .send { background: var(--clay); } .composer.has .send .up { display: block; } .composer.has .send .wave { display: none; }
 .hint { text-align: center; font-size: 11.5px; color: var(--faint); margin-top: 8px; }
+/* the tide pool: plush creatures that drop in when the answer names them (see "the tide pool" in the script) */
+#pool { position: fixed; inset: 0; z-index: 45; pointer-events: none; }
+.critter { position: absolute; left: 0; top: 0; touch-action: none; pointer-events: auto; user-select: none; -webkit-user-select: none;
+  filter: drop-shadow(0 6px 6px rgba(0,0,0,.18)); will-change: transform; }
+.critter img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
+.name { position: absolute; left: 0; top: 0; padding: 6px 11px; border-radius: 99px; background: #fff; color: #1d1d1c; font: 500 13px/1.2 "Schibsted Grotesk", system-ui, sans-serif;
+  white-space: nowrap; box-shadow: 0 6px 18px -8px rgba(0,0,0,.3), 0 0 0 1px #e7e7e5; pointer-events: none; }
+.name::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; margin-left: -5px; background: #fff; transform: rotate(45deg); box-shadow: 1px 1px 0 0 #e7e7e5; }
 /* Kept for the character's older moves, out of sight. */
 .chips, .director { display: none; }
 .carried { display: block; margin: 0 0 6px; padding: 4px 9px; border-left: 2px solid #ffc94a; color: var(--muted); font-size: 12.5px; border-radius: 4px; background: #fff8e3; }
@@ -124,6 +132,7 @@ button, textarea { font: inherit; color: inherit; }
 .chips.piled button { transition: transform .5s cubic-bezier(.3,1.4,.5,1); }
 
 </style>
+<script src="../js/matter.min.js"></script>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
@@ -168,6 +177,7 @@ button, textarea { font: inherit; color: inherit; }
 </div>
 
 <canvas id="world"></canvas>
+<div id="pool"></div>
 <div id="fx"><div class="belly" id="belly" hidden></div></div>
 
 <script type="module">
@@ -819,6 +829,7 @@ function frame() {
     occluder.scale.set(r.width, r.height, 1); occluder.position.set(r.left + r.width / 2, -(r.top + r.height / 2), 700);
   }
   placeOverlays();
+  poolStep(performance.now());
   renderer.render(scene, camera);
 }
 
@@ -1729,6 +1740,143 @@ function workEnd(text) {
   work.end = setTimeout(() => { work.phase = null; mood('happy'); if (C.home) rise(restShow()); }, 9000);
 }
 
+/* ═══════════════ the tide pool ═══════════════
+   When the answer names a tide-pool creature, its plush drops in from the top and tumbles onto the
+   chat box — the same physics as johnyum.com/plush (Matter.js; springy, slippery, throwable,
+   squashing on impact, wobbling back upright). Fling them; tap one for its name. Each creature
+   comes once per answer, and they clear when you send the next message. */
+const POOL = {
+  anemone:    { name: 'Sea anemone',      w: 92, re: /\banemone/i },
+  starfish:   { name: 'Starfish',         w: 84, re: /\b(star ?fish|sea stars?)\b/i },
+  crab:       { name: 'Hermit crab',      w: 84, re: /\bcrabs?\b/i },
+  nudibranch: { name: 'Nudibranch',       w: 86, re: /\b(nudibranch|sea slug)/i },
+  urchin:     { name: 'Sea urchin',       w: 74, re: /\burchin/i },
+  cucumber:   { name: 'Sea cucumber',     w: 92, re: /\bsea cucumber/i },
+  sculpin:    { name: 'Tidepool sculpin', w: 90, re: /\bsculpin/i },
+  octopus:    { name: 'Octopus',          w: 96, re: /\boctop(us|i|uses)\b/i },
+};
+const critters = [];
+const poolEl = $('#pool');
+let poolEngine = null, poolWalls = [], poolBox = null, poolBoxKey = '', poolDrag = null, poolSeen = new Set();
+function poolInit() {
+  if (poolEngine || !window.Matter) return !!poolEngine;
+  const { Engine, Events } = Matter;
+  poolEngine = Engine.create({ enableSleeping: true, positionIterations: 16, velocityIterations: 10 });
+  poolEngine.gravity.y = 1.15;
+  poolWallsBuild(); addEventListener('resize', poolWallsBuild);
+  Events.on(poolEngine, 'collisionStart', (e) => {
+    for (const pair of e.pairs) {
+      const a = pair.bodyA, b = pair.bodyB, rv = Math.hypot(a.velocity.x - b.velocity.x, a.velocity.y - b.velocity.y);
+      if (rv < 1.2) continue;
+      for (const c of critters) if (c.body === a || c.body === b) c.sv += Math.min(4.2, rv * .32);
+    }
+  });
+  return true;
+}
+function poolWallsBuild() {
+  const { Bodies, Composite } = Matter, W = innerWidth, H = innerHeight, t = 200;
+  Composite.remove(poolEngine.world, poolWalls); poolWalls = [
+    Bodies.rectangle(W / 2, H + t / 2, W * 3, t, { isStatic: true, friction: .1, restitution: .4 }),
+    Bodies.rectangle(-t / 2, H / 2 - H, t, H * 4, { isStatic: true, restitution: .6, friction: .02 }),
+    Bodies.rectangle(W + t / 2, H / 2 - H, t, H * 4, { isStatic: true, restitution: .6, friction: .02 }),
+  ];
+  Composite.add(poolEngine.world, poolWalls); poolBoxKey = '';
+}
+// The chat box is the shelf they land on, kept where the box really is.
+function poolSyncBox() {
+  const { Bodies, Composite, Sleeping } = Matter, g = homeGround();
+  const r = g ? rectOf(g) : null, key = r ? [r.left, r.top, r.width, r.height].map(Math.round).join() : 'none';
+  if (key === poolBoxKey) return; poolBoxKey = key;
+  if (poolBox) Composite.remove(poolEngine.world, poolBox); poolBox = null;
+  if (r && r.width > 0) { poolBox = Bodies.rectangle(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, { isStatic: true, friction: .12, restitution: .45, chamfer: { radius: 24 } }); Composite.add(poolEngine.world, poolBox); }
+  for (const c of critters) Sleeping.set(c.body, false);
+}
+function poolDrop(key) {
+  if (!poolInit()) return;
+  const { Bodies, Body, Composite } = Matter, P = POOL[key], w = P.w * (innerWidth < 600 ? .82 : 1), x = 50 + Math.random() * (innerWidth - 100);
+  const body = Bodies.circle(x, -w, w * .42, { restitution: .62, friction: .06, frictionStatic: .12, frictionAir: .0045, density: .0011, slop: .02 });
+  body.sleepThreshold = 90;
+  Body.setVelocity(body, { x: (Math.random() - .5) * 5, y: 3 }); Body.setAngularVelocity(body, (Math.random() - .5) * .25);
+  Composite.add(poolEngine.world, body);
+  const el = document.createElement('div'); el.className = 'critter'; el.style.width = el.style.height = w + 'px';
+  el.innerHTML = `<img src="plush/${key}.webp" alt="${P.name}" draggable="false">`;
+  poolEl.append(el);
+  const c = { key, el, body, w, bubble: null, bubbleT: 0, sq: 0, sv: 0 };
+  critters.push(c); poolGrab(c);
+}
+function poolClear() {
+  for (const c of critters) { Matter.Composite.remove(poolEngine.world, c.body); c.el.remove(); c.bubble?.remove(); }
+  critters.length = 0; poolSeen = new Set();
+}
+// The answer so far: anything it names that isn't in yet drops in.
+function poolHear(text) {
+  for (const [k, P] of Object.entries(POOL)) if (!poolSeen.has(k) && P.re.test(text)) { poolSeen.add(k); poolDrop(k); }
+}
+function poolGrab(c) {
+  const { Composite, Constraint, Sleeping, Body } = Matter;
+  c.el.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); e.stopPropagation(); try { c.el.setPointerCapture(e.pointerId); } catch {}
+    Sleeping.set(c.body, false);
+    const b = c.body, dx = e.clientX - b.position.x, dy = e.clientY - b.position.y, ca = Math.cos(-b.angle), sa = Math.sin(-b.angle);
+    const spring = Constraint.create({ pointA: { x: e.clientX, y: e.clientY }, bodyB: b, pointB: { x: dx * ca - dy * sa, y: dx * sa + dy * ca }, stiffness: .3, damping: .06, length: 0 });
+    Composite.add(poolEngine.world, spring);
+    poolDrag = { c, spring, x: e.clientX, y: e.clientY, t: performance.now(), moved: 0, trail: [{ x: e.clientX, y: e.clientY, t: performance.now() }] };
+    c.sv -= 3;
+  });
+  c.el.addEventListener('pointermove', (e) => {
+    if (!poolDrag || poolDrag.c !== c) return;
+    poolDrag.spring.pointA = { x: e.clientX, y: e.clientY };
+    poolDrag.moved = Math.max(poolDrag.moved, Math.hypot(e.clientX - poolDrag.x, e.clientY - poolDrag.y));
+    const now = performance.now(); poolDrag.trail.push({ x: e.clientX, y: e.clientY, t: now });
+    while (poolDrag.trail.length > 2 && now - poolDrag.trail[0].t > 90) poolDrag.trail.shift();
+  });
+  const up = () => {
+    if (!poolDrag || poolDrag.c !== c) return;
+    Composite.remove(poolEngine.world, poolDrag.spring);
+    if (poolDrag.moved < 8 && performance.now() - poolDrag.t < 400) poolName(c);
+    else {
+      const a = poolDrag.trail[0], z = poolDrag.trail[poolDrag.trail.length - 1], dt = Math.max(16, z.t - a.t), step = 1000 / 120;
+      const vx = (z.x - a.x) / dt * step * 1.15, vy = (z.y - a.y) / dt * step * 1.15, sp = Math.hypot(vx, vy), k = sp > 34 ? 34 / sp : 1;
+      Body.setVelocity(c.body, { x: vx * k, y: vy * k }); Body.setAngularVelocity(c.body, c.body.angularVelocity + vx * k * .004);
+    }
+    poolDrag = null;
+  };
+  c.el.addEventListener('pointerup', up); c.el.addEventListener('pointercancel', up);
+}
+function poolName(c) {
+  c.bubble?.remove();
+  const b = document.createElement('div'); b.className = 'name'; b.textContent = POOL[c.key].name; poolEl.append(b);
+  b.animate([{ opacity: 0, scale: '.6' }, { opacity: 1, scale: '1' }], { duration: 280, easing: 'cubic-bezier(.3,1.5,.5,1)' });
+  c.bubble = b; c.bubbleT = performance.now();
+  Matter.Body.setVelocity(c.body, { x: c.body.velocity.x, y: -4 }); Matter.Sleeping.set(c.body, false);
+}
+function poolStep(now) {
+  if (!critters.length || !poolEngine) return;
+  const { Engine, Body, Sleeping } = Matter;
+  poolSyncBox();
+  Engine.update(poolEngine, 1000 / 120); Engine.update(poolEngine, 1000 / 120);
+  const dt = 1 / 60;
+  for (const c of critters) {
+    const b = c.body;
+    if (poolDrag) Sleeping.set(b, false);
+    if (!b.isSleeping) {
+      const cap = poolDrag && poolDrag.c === c ? 40 : 30, v = b.velocity, sp = Math.hypot(v.x, v.y);
+      if (sp > cap) Body.setVelocity(b, { x: v.x / sp * cap, y: v.y / sp * cap });
+      let a = b.angle % (2 * Math.PI); if (a > Math.PI) a -= 2 * Math.PI; else if (a < -Math.PI) a += 2 * Math.PI;
+      if (!(poolDrag && poolDrag.c === c)) Body.setAngularVelocity(b, b.angularVelocity * .985 - a * .0045);
+      if (a !== b.angle) Body.setAngle(b, a);
+    }
+    c.sv += (-260 * c.sq - 13 * c.sv) * dt; c.sq += c.sv * dt;
+    const sq = clamp(c.sq, -.22, .22);
+    c.el.style.transform = `translate(${(b.position.x - c.w / 2).toFixed(1)}px, ${(b.position.y - c.w / 2).toFixed(1)}px) rotate(${b.angle.toFixed(3)}rad) scale(${(1 + sq * .6).toFixed(3)}, ${(1 - sq).toFixed(3)})`;
+    if (c.bubble) {
+      if (now - c.bubbleT > 1800) { const old = c.bubble; c.bubble = null; old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200 }).onfinish = () => old.remove(); }
+      else c.bubble.style.transform = `translate(${(b.position.x - c.bubble.offsetWidth / 2).toFixed(1)}px, ${(b.position.y - c.w * .5 - c.bubble.offsetHeight - 10).toFixed(1)}px)`;
+    }
+  }
+}
+Object.assign(window.__peek, { poolDrop, poolClear, poolHear, poolStep, critters });
+
 /* ═══════════════ embed: the host app's chat drives it ═══════════════ */
 var typing = 0;
 const host = window.webkit?.messageHandlers?.peek;
@@ -1762,8 +1910,10 @@ if (EMBED) {
         typing = 0; guarding = false; delivered();   // 4 · the app has sent the message it was carrying along with yours
         draftFeel = ''; draftLen = 0;
         workBegin();   // to work: chin on its hand till the first words come
+        poolClear();   // a new question: last answer's creatures go
       } else if (name === 'stream') {
         workStream(data);   // the answer so far: its hands move only as words arrive
+        poolHear(String(data || ''));   // any tide-pool creature it names drops in
       } else if (name === 'status') {
         if (work.phase) { workPose('pondering'); work.beat++; }   // looking something up: back to its chin
       } else if (name === 'thinking') {
@@ -1786,6 +1936,7 @@ if (EMBED) {
       if (bottom > top) rs.push([C.x - w / 2, top, w, bottom - top]);
     }
     if (card) { const b = card.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }
+    for (const c of critters) { const b = c.el.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }   // the creatures take touches
     const k = JSON.stringify(rs.map((r) => r.map(Math.round))); if (k !== last) { last = k; tell({ type: 'rects', rects: rs }); }
   }, 100);
   modelReady.then(() => tell({ type: 'ready' }));
