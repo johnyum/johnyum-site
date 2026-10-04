@@ -364,8 +364,8 @@ on the next send. Their rects are reported to the app so they take touches.
 wind-up kitchen timer drops into the same pile — a generated 3D product render, pure white with a
 steel bezel and a blank face (`plush/timer.webp`; `FACE` is where that face sits in the square
 element; John rejected a cream/yellow first version). **The dial is one piece of silver** — no numbers, no ticks, no separate bezel: a single domed,
-polished knob drawn 1.13× `FACE.r` so it covers the body image's own steel ring (CSS: a satin brushed grain — an SVG noise tile, the only layer that turns as you wind —
-under fixed studio light; John found the conic/concentric version weird and too centred). The time floats on it as if by magic — tall condensed red digits in Oswald, lit
+polished knob drawn 1.13× `FACE.r` so it covers the body image's own steel ring (CSS: a pale, calm satin — a barely-there grain that turns as you wind, a soft top highlight,
+no dark band, so the red reads; John found the conic/concentric version weird and too centred). The time floats on it as if by magic — tall condensed red digits in Oswald, lit
 (a dark under-shadow, a wide red bloom, a pale-hot gradient core — plain red on silver read muddy) and a thin red line round the edge; the red pointer is drawn (vibrant, its tip resting on
 the dial's edge) — the image's own was painted out, and its floor shadow tapers before the image edges from 0 to the minutes left; at 0 there's only the metal. John rejected, in turn: numbered ticks,
 an LED screen, and red light "shining through" micro-holes. **Tap it and it pops up big** — the timer is the whole
