@@ -377,7 +377,7 @@ twist the little icon to wind it (up to 12h). Opening and closing are one time-b
 (~560ms open, ~480ms close); the time and button rise and fade in a beat behind the icon and leave first;
 closing sets it back down exactly where it was in the pile, at rest — never tossed. **Physics is shared**: the timer has the creatures' exact
 restitution/friction/air/density (`feel` in `poolDrop`), only a boxy outline. At zero it chimes (WebAudio, unlocked by the
-tap) and shakes. Tap outside and it shrinks back into the pile, still counting. A running timer
+tap) and shakes. Tap outside and it shrinks back into the pile, still counting. While it runs, the time left (`00:00:00`) rides in a bubble above it in the pile (`c.tb`). A running timer
 survives the next send; leaving the chat clears it.
 **The thermometer** (2026-10-03, **switched off 2026-10-04** — John: remove it; its `POOL` entry has `re: null`, give it
 the timer's regex to bring it back): a classic analog dial meat thermometer (after a Taylor dial John
