@@ -371,9 +371,11 @@ titanium rim, Antonio digits — he called the end of it "a digital mess" and as
 simple dial back. Judge the whole object, not one detail at a time. **It comes set from the answer** (`firstCookTime()`): the first time in a sentence with a cooking cue
 ("smoke the brisket for 6 to 8 hours" → 6:00:00; ranges take the low end), else the first time anywhere;
 it follows the answer until you wind it yourself (`T.user`). **Tap it** and it becomes a small column in
-the middle of the screen: the timer as a 48×48 icon, the time under it in 32px `00:00:00` counting down
-live, and a 48×48 round button under that — black with a play, red with a pause, no shadow. You can still
-twist the little icon to wind it (up to 12h). **Physics is shared**: the timer has the creatures' exact
+the middle of the screen: the timer as a 48×48 icon, the time under it at 80px `00:00:00` counting down
+live (the column — icon, time, button — centred on the screen), and a 48×48 round button under that — black with a play, red with a pause, no shadow. You can still
+twist the little icon to wind it (up to 12h). Opening and closing are one time-based smootherstep
+(~560ms open, ~480ms close); the time and button rise and fade in a beat behind the icon and leave first;
+closing sets it back down exactly where it was in the pile, at rest — never tossed. **Physics is shared**: the timer has the creatures' exact
 restitution/friction/air/density (`feel` in `poolDrop`), only a boxy outline. At zero it chimes (WebAudio, unlocked by the
 tap) and shakes. Tap outside and it shrinks back into the pile, still counting. A running timer
 survives the next send; leaving the chat clears it.
