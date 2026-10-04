@@ -6,7 +6,7 @@
 <title>Peek — a character that lives in the interface</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Jost:wght@400;500&display=swap" rel="stylesheet">
 <!--
   Peek — a little 3D character that lives inside a UI, the way a game character
   lives in a level. The page's own elements are its platforms.
@@ -111,6 +111,7 @@ button, textarea { font: inherit; color: inherit; }
   white-space: nowrap; box-shadow: 0 6px 18px -8px rgba(0,0,0,.3), 0 0 0 1px #e7e7e5; pointer-events: none; }
 .name::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; margin-left: -5px; background: #fff; transform: rotate(45deg); box-shadow: 1px 1px 0 0 #e7e7e5; }
 /* the timer: a live dial over the generated body, and the card it opens */
+.critter .ptr { position: absolute; pointer-events: none; filter: drop-shadow(0 .5px .6px rgba(120,10,0,.35)); }
 .critter .dial { position: absolute; pointer-events: none; border-radius: 50%; overflow: hidden; }
 .dial svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* One silver piece, satin-finished like a real appliance knob: a fine brushed grain (the only part
@@ -1926,15 +1927,22 @@ function poolName(c) {
 const FACE = { cx: .499, cy: .468, r: .318 };   // where the plain face sits inside the steel bezel on timer.webp, as fractions of the (square) element
 /* The dial: one piece of silver. No numbers, no ticks — the whole face is a single domed, polished
    metal knob with a fine turned finish, the light sliding round it as it turns. The time floats on
-   top of it as if shown by magic: a red line round the edge from 0 to the minutes left. At 0 there's nothing on it but the metal. */
+   top of it as if shown by magic: big red digits (Jost) and a thin red line round the edge from 0 to
+   the minutes left. At 0 there's nothing on it but the metal. */
 function dialSVG() {
   const R = FACE.r * 1.13;   // out over the body's steel bezel too, so the bezel and the knob are one piece of metal
   const L = (FACE.cx - R) * 100, T = (FACE.cy - R) * 100, D = R * 200;
-  return `<div class="dial" style="left:${L}%;top:${T}%;width:${D}%;height:${D}%">
+  const pw = .074, ph = .06, tip = FACE.cy - R;   // the pointer, as fractions of the element; its tip rests on the dial's edge
+  const ptr = `<svg class="ptr" viewBox="0 0 40 32" style="left:${(FACE.cx - pw / 2) * 100}%;top:${(tip - ph) * 100}%;width:${pw * 100}%;height:${ph * 100}%">
+    <defs><linearGradient id="tPtr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff4a33"/><stop offset="1" stop-color="#e8160a"/></linearGradient></defs>
+    <path d="M4.5 1 H35.5 Q39.5 1 37.4 4.4 L21.6 30.4 Q20 32 18.4 30.4 L2.6 4.4 Q.5 1 4.5 1 Z" fill="url(#tPtr)"/>
+    <path d="M5 2.2 H35" stroke="rgba(255,255,255,.45)" stroke-width="1" stroke-linecap="round"/></svg>`;
+  return ptr + `<div class="dial" style="left:${L}%;top:${T}%;width:${D}%;height:${D}%">
     <div class="knob"></div><div class="dome"></div>
     <svg viewBox="-50 -50 100 100">
       <defs><filter id="tGlow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="1.1" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-      <path class="arc" d="" fill="none" stroke="#ff3b2f" stroke-width="2.4" stroke-linecap="round" filter="url(#tGlow)"/>
+      <path class="arc" d="" fill="none" stroke="#ff2a1a" stroke-width="1.2" stroke-linecap="round" filter="url(#tGlow)"/>
+      <text class="lcd" x="0" y="7" text-anchor="middle" font-size="21" font-weight="400" fill="#ff2a1a" filter="url(#tGlow)" font-family="Jost, Futura, system-ui, sans-serif" style="font-variant-numeric: tabular-nums" letter-spacing=".3"></text>
     </svg></div>`;
 }
 function timerLeft(T) { return T.running ? Math.max(0, (T.endAt - Date.now()) / 1000) : T.left; }
@@ -2033,7 +2041,8 @@ function tickTimers() {
     const knob = c.el.querySelector('.knob'); if (knob) knob.style.transform = `rotate(${(left / 60 * 6).toFixed(2)}deg)`;   // the sheen turns as the knob does
     { const deg = Math.min(359.9, left / 60 * 6), R = 43.5, a1 = deg * Math.PI / 180;   // the red line: from 0 round to the time left, floating on the face
       const d = deg < .2 ? '' : `M 0 ${-R} A ${R} ${R} 0 ${deg > 180 ? 1 : 0} 1 ${(Math.sin(a1) * R).toFixed(2)} ${(-Math.cos(a1) * R).toFixed(2)}`;
-      for (const arc of c.el.querySelectorAll('.arc')) if (arc.getAttribute('d') !== d) arc.setAttribute('d', d); }
+      for (const arc of c.el.querySelectorAll('.arc')) if (arc.getAttribute('d') !== d) arc.setAttribute('d', d);
+      const t = left < .5 ? '' : mmss(left); for (const lcd of c.el.querySelectorAll('.lcd')) if (lcd.textContent !== t) lcd.textContent = t; }
     // the red arc: from where 0 has turned to, back up to the pointer — the time left, at a glance
 
     if (T.running && left <= 0) { T.running = false; T.left = 0; if (!T.rung) { T.rung = true; ring(c); } }
