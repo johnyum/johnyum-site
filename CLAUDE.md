@@ -363,9 +363,9 @@ on the next send. Their rects are reported to the app so they take touches.
 **The timer** (2026-10-04): ask about the Big Green Egg, barbecue, brisket, smoking or grilling and a
 wind-up kitchen timer drops into the same pile — the cute one: a generated 3D render, pure white
 with a steel bezel and its own red pointer (`plush/timer.webp`; `FACE` is where its face sits in the square
-element). **The dial is simple** (`dialSVG()`): a clean white face, a ring of minute ticks with 0, 5, 10 …
-that turns under the pointer (what's under it is the time left, 0–60 min), a small silver cap in the
-middle, no digital readout. **This is where John landed after a long detour (2026-10-03)** — cream faces,
+element). **The dial is simple** (`dialSVG()`): a clean white face, a ring of minute ticks (no numbers — "too much")
+that turns under the pointer (what's under it is the time left, 0–60 min), a long raised white grip
+across the middle that turns with the ring (a silver ball there "sucked"), no digital readout. **This is where John landed after a long detour (2026-10-03)** — cream faces,
 LED screens, red light through metal, silver knobs, a black glass puck with seven-segment digits, a
 titanium rim, Antonio digits — he called the end of it "a digital mess" and asked for the cute timer with a
 simple dial back. Judge the whole object, not one detail at a time. **Tap it and it pops up big** — the timer is the whole
