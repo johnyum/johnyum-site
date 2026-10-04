@@ -387,6 +387,12 @@ pointed at), rendered in the timer's style — steel bezel, blank white face, a 
 the highest one in a sentence about pulling/probing/reaching, ≤212 (`thermoRead()`; brisket → 203°) — and
 that number small under the hub. Tapped, it grows like a creature and the app highlights every temperature
 in the answer (`c.terms`; the app's highlighter uses lookaround word edges so "203°" matches).
+**Parts of a machine and characters in a story** (2026-10-04): the same tap-to-highlight as the tide pool
+with new casts — a car engine's parts (piston, spark plug, crankshaft, valve, camshaft, fuel injector;
+product renders like the timer) and Pride and Prejudice's people (Elizabeth, Darcy, Jane, Bingley, Mr. and
+Mrs. Bennet, Wickham, Lydia; felt figurines). Tapping a character lights up every sentence they're in. A
+`POOL` term starting with `/` is a regex for the app's highlighter (`/Jane(?!\s+Austen)`, `/Mr\.? Bennet`).
+Demo buttons 8 (engine) and 9 (Pride and Prejudice).
 **The useful things** (2026-10-03, after John: "the egg timer is legit something I want"): each drops in
 when the answer calls for it, filled in from it, and does something when tapped (renders in the timer's
 style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful things", `toolsHear()`):
