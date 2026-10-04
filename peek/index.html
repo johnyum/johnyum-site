@@ -118,10 +118,11 @@ button, textarea { font: inherit; color: inherit; }
 .tui { position: fixed; left: 0; top: 0; width: 300px; text-align: center; pointer-events: auto; font: 15px/1.3 "Schibsted Grotesk", system-ui, sans-serif; color: #1d1d1c;
   opacity: 0; transform: translateY(10px); transition: opacity .28s ease .12s, transform .32s cubic-bezier(.3,1.3,.5,1) .12s; touch-action: manipulation; }
 .tui.on { opacity: 1; transform: none; }
-.tui .play { width: 68px; height: 68px; border-radius: 50%; border: 0; padding: 0; background: #1d1d1c; display: inline-grid; place-items: center;
-  box-shadow: 0 10px 24px -10px rgba(0,0,0,.45); transition: background .2s ease, transform .15s ease, opacity .2s ease; }
+.tui .play { width: 48px; height: 48px; border-radius: 50%; border: 0; padding: 0; background: #1d1d1c; display: inline-grid; place-items: center;
+  transition: background .2s ease, transform .15s ease, opacity .2s ease; }
+.tui .tread { font-size: 32px; line-height: 40px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: .01em; color: #1d1d1c; margin: 0 0 16px; }
 .tui .play:active { transform: scale(.94); }
-.tui .play svg { width: 28px; height: 28px; }
+.tui .play svg { width: 20px; height: 20px; }
 .tui .play .i-pause { display: none; } .tui .play.run .i-pause { display: inline; } .tui .play.run .i-play { display: none; }
 .tui .play.run { background: #e5483a; }
 .tui .play.off { opacity: .35; }
@@ -1842,9 +1843,12 @@ function poolSyncBox() {
 function poolDrop(key) {
   if (!poolInit()) return;
   const { Bodies, Body, Composite } = Matter, P = POOL[key], w = P.w * (innerWidth < 600 ? .82 : 1), x = 50 + Math.random() * (innerWidth - 100);
+  // One physics for everything in the pile — the creatures and the timer bounce, slide and weigh the same;
+  // only the outline differs (the timer is boxy, so it doesn't roll like a ball).
+  const feel = { restitution: .62, friction: .06, frictionStatic: .12, frictionAir: .0045, density: .0011, slop: .02 };
   const body = P.kind === 'timer'
-    ? Bodies.rectangle(x, -w, w * .86, w * .9, { chamfer: { radius: w * .2 }, restitution: .5, friction: .08, frictionStatic: .15, frictionAir: .005, density: .0016, slop: .02 })
-    : Bodies.circle(x, -w, w * .42, { restitution: .62, friction: .06, frictionStatic: .12, frictionAir: .0045, density: .0011, slop: .02 });
+    ? Bodies.rectangle(x, -w, w * .86, w * .9, { ...feel, chamfer: { radius: w * .2 } })
+    : Bodies.circle(x, -w, w * .42, feel);
   body.sleepThreshold = 90;
   Body.setVelocity(body, { x: (Math.random() - .5) * 5, y: 3 }); Body.setAngularVelocity(body, (Math.random() - .5) * .25);
   Composite.add(poolEngine.world, body);
@@ -1867,6 +1871,23 @@ function poolClear(all = true) {
 // The answer so far: anything it names that isn't in yet drops in.
 function poolHear(text) {
   for (const [k, P] of Object.entries(POOL)) if (!poolSeen.has(k) && P.re.test(text)) { poolSeen.add(k); poolDrop(k); }
+  // The timer comes set: the answer's first cooking time — "smoke for 6 hours", "on the grill 45 minutes" —
+  // or failing that its first time of any kind. Until you wind it yourself, it follows the answer.
+  const t = critters.find((c) => c.timer && !c.timer.user && !c.timer.running);
+  if (t) { const sec = firstCookTime(text); if (sec) t.timer.left = t.timer.set = sec; }
+}
+const WORDN = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, twenty: 20, thirty: 30, forty: 40, 'forty-five': 45, ninety: 90 };
+const DUR = /\b(\d+(?:\.\d+)?|½|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty-five|forty|ninety|an?)(?:\s*½)?(?:\s*(?:-|–|—|to)\s*\d+(?:\.\d+)?)?\s*(hours?|hrs?|minutes?|mins?)\b(?:\s*(?:and\s*)?(\d+)\s*(?:minutes?|mins?))?/i;
+function durSec(m) {
+  const w = m[1].toLowerCase(), n = w === '½' ? .5 : /^an?$/.test(w) ? 1 : WORDN[w] ?? parseFloat(w);
+  const half = /½/.test(m[0]) && w !== '½' ? .5 : 0, unit = /^h/i.test(m[2]) ? 3600 : 60;
+  return Math.round((n + half) * unit + (m[3] ? +m[3] * 60 : 0));
+}
+function firstCookTime(text) {
+  const cue = /\b(smok\w*|grill\w*|cook\w*|on the (egg|grill|smoker|grate)|hits the|roast\w*|bake\w*|sear\w*|until)\b/i;
+  const sentences = text.split(/(?<=[.!?\n])\s+/);
+  for (const s of sentences) if (cue.test(s)) { const m = s.match(DUR); if (m) return Math.min(12 * 3600, durSec(m)); }
+  const m = text.match(DUR); return m ? Math.min(12 * 3600, durSec(m)) : 0;
 }
 function poolGrab(c) {
   const { Composite, Constraint, Sleeping, Body } = Matter;
@@ -1942,6 +1963,7 @@ function dialSVG() {
   </svg>`;
 }
 function timerLeft(T) { return T.running ? Math.max(0, (T.endAt - Date.now()) / 1000) : T.left; }
+const clockOf = (s) => { s = Math.ceil(s); const p2 = (n) => String(n).padStart(2, '0'); return `${p2(Math.floor(s / 3600))}:${p2(Math.floor(s / 60) % 60)}:${p2(s % 60)}`; };
 const mmss = (s) => { s = Math.ceil(s); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 /* Tapped, the timer grows into the interface: it lifts out of the pile and scales up to the middle
    of the screen, the chat softening behind it, and its own dial becomes the control — drag round
@@ -1949,7 +1971,7 @@ const mmss = (s) => { s = Math.ceil(s); return `${Math.floor(s / 60)}:${String(s
    Under it: the countdown, a few presets, pause and reset. Tap outside and it shrinks back down
    and drops into the pile, still counting. */
 let tcard = null, audio = null;   // the grown timer, if any
-const grownSize = () => Math.min(innerWidth * .9, innerHeight * .56, 440);   // big: with one button under it, the timer is the whole interface
+const grownSize = () => 48;   // tapped, the timer becomes a small icon over its readout and play button
 function timerCard(c) { tcard ? shrinkTimer() : growTimer(c); }
 function growTimer(c) {
   audio ||= new (window.AudioContext || window.webkitAudioContext)();   // made on a tap, so it can tick and ring
@@ -1958,7 +1980,7 @@ function growTimer(c) {
   const scrim = document.createElement('div'); scrim.className = 'tscrim';
   scrim.addEventListener('pointerdown', (e) => { e.stopPropagation(); shrinkTimer(); });
   const ui = document.createElement('div'); ui.className = 'tui';
-  ui.innerHTML = `<button class="play" data-a="go" aria-label="Start"><svg viewBox="0 0 24 24"><path class="i-play" d="M8 5.5v13l11-6.5z" fill="#fff"/><g class="i-pause" fill="#fff"><rect x="6.5" y="5.5" width="4" height="13" rx="1.2"/><rect x="13.5" y="5.5" width="4" height="13" rx="1.2"/></g></svg></button>`;
+  ui.innerHTML = `<div class="tread">00:00:00</div><button class="play" data-a="go" aria-label="Start"><svg viewBox="0 0 24 24"><path class="i-play" d="M8 5.5v13l11-6.5z" fill="#fff"/><g class="i-pause" fill="#fff"><rect x="6.5" y="5.5" width="4" height="13" rx="1.2"/><rect x="13.5" y="5.5" width="4" height="13" rx="1.2"/></g></svg></button>`;
   ui.addEventListener('pointerdown', (e) => e.stopPropagation());
   ui.addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return; const T = c.timer;
@@ -1988,9 +2010,10 @@ function shrinkTimer() {
 }
 function startTimer(T) { T.endAt = Date.now() + T.left * 1000; T.running = true; T.rung = false; }
 function closeCard() { if (tcard) { tcard.scrim.remove(); tcard.ui.remove(); tcard.c.el.classList.remove('grown'); tcard = null; } }
-const grownAt = () => ({ x: innerWidth / 2, y: Math.max(grownSize() * .55 + 24, innerHeight * .36) });
+const grownAt = () => ({ x: innerWidth / 2, y: Math.max(48, innerHeight * .42 - 60) });   // the icon's centre; the column under it is 168 tall
 function paintCard() {
   if (!tcard) return; const T = tcard.c.timer, left = timerLeft(T), b = tcard.ui.querySelector('.play');
+  const rd = tcard.ui.querySelector('.tread'), hms = clockOf(left); if (rd.textContent !== hms) rd.textContent = hms;   // counting down, live
   b.classList.toggle('run', T.running); b.classList.toggle('off', !T.running && left <= 0); b.setAttribute('aria-label', T.running ? 'Pause' : 'Start');
 }
 // Winding: the ring follows your finger round the face; each minute that passes the pointer ticks.
@@ -2002,7 +2025,7 @@ function tick() {
 function faceCentre(c) { const r = c.el.getBoundingClientRect(); return { x: r.left + FACE.cx * r.width, y: r.top + FACE.cy * r.width, r: FACE.r * r.width }; }
 function windStart(c, e) {
   const f = faceCentre(c), T = c.timer;
-  T.left = timerLeft(T); T.running = false; T.rung = false;
+  T.left = timerLeft(T); T.running = false; T.rung = false; T.user = true;   // yours now: the answer won't refill it
   tcard.wind = { last: Math.atan2(e.clientX - f.x, -(e.clientY - f.y)), minutes: T.left / 60 };
   paintCard();
 }
@@ -2012,7 +2035,7 @@ function windMove(c, e) {
   let d = a - w.last; if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI; w.last = a;
   // the ring turns with your finger, as a real dial does; what's under the pointer is the time — a click a minute
   const before = Math.floor(w.minutes);
-  w.minutes = clamp(w.minutes - d * 180 / Math.PI / 6, 0, 60);
+  w.minutes = clamp(w.minutes - d * 180 / Math.PI / 6, 0, 12 * 60);
   if (Math.floor(w.minutes) !== before) tick();
   const T = c.timer; T.left = Math.round(w.minutes * 60); T.set = Math.max(T.set, T.left);
   paintCard();
@@ -2049,7 +2072,7 @@ function tickTimers() {
     c.el.style.width = c.el.style.height = w + 'px';
     c.el.style.transform = `translate(${(x - w / 2).toFixed(1)}px, ${(y - w / 2).toFixed(1)}px) rotate(${a.toFixed(3)}rad)`;
     if (t.to === 0 && k < .02) c.el.style.width = c.el.style.height = c.w + 'px';
-    t.ui.style.transform = t.ui.classList.contains('on') ? `translate(${(at.x - 150).toFixed(1)}px, ${(at.y + G / 2 + 18).toFixed(1)}px)` : t.ui.style.transform;
+    t.ui.style.transform = t.ui.classList.contains('on') ? `translate(${(at.x - 150).toFixed(1)}px, ${(at.y + G / 2 + 16).toFixed(1)}px)` : t.ui.style.transform;
   }
 }
 
