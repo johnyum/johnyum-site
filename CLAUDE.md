@@ -393,6 +393,19 @@ product renders like the timer) and Pride and Prejudice's people (Elizabeth, Dar
 Mrs. Bennet, Wickham, Lydia; felt figurines). Tapping a character lights up every sentence they're in. A
 `POOL` term starting with `/` is a regex for the app's highlighter (`/Jane(?!\s+Austen)`, `/Mr\.? Bennet`).
 Demo buttons 8 (engine) and 9 (Pride and Prejudice).
+**Playing with the pile** (2026-10-04, John: "do it all") — the objects are a way to talk to the answer
+(code under "playing with the pile"; categories in `CAT`):
+- **drag onto the chat box** → it asks about it (`dragAsk`, `{type:'say'}` → the app sends it);
+- **drop on another** → how they go together (`combineAsk`; held objects pass over others — collision
+  mask 0 while held — so one can be dropped ON another);
+- **rearrange a set** (3+ of a category) → an "Ask in this order" pill sends the left-to-right order;
+- **hold** (450ms still) → `{type:'focus'}`: the app fades every paragraph not about it;
+- **reading**: the app reports which answer paragraphs are on screen (`onScrollVisibilityChange`, debounced —
+  `peek.reading(texts)`); those objects stand up and act it out (pistons pump, shafts roll, people sway);
+- **"Quiz me"** pill → a sentence from the answer with the name blanked; tap the right one, three rounds;
+- **drag to the screen edge** → out: calendar → Calendar, pin → Maps, anything else → the share sheet;
+- **the shelf** (button top right): everything met, across chats (localStorage `peek-shelf`, with the chat
+  id from the app's `chat` event); tap one → `{type:'goto'}` → that chat, highlighted.
 **The useful things** (2026-10-03, after John: "the egg timer is legit something I want"): each drops in
 when the answer calls for it, filled in from it, and does something when tapped (renders in the timer's
 style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful things", `toolsHear()`):
