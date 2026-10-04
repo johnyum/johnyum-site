@@ -113,6 +113,16 @@ button, textarea { font: inherit; color: inherit; }
 /* the timer: a live dial over the generated body, and the card it opens */
 .critter .dial { position: absolute; pointer-events: none; border-radius: 50%; overflow: hidden; }
 .dial svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* One silver piece: a turned finish (fine concentric rings) under a brushed conic sheen that turns
+   with the knob, and a fixed dome of light and shade on top so it reads as rounded metal. */
+.dial .knob { position: absolute; inset: 0; border-radius: 50%;
+  background:
+    repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,.10) 0 .6px, rgba(0,0,0,.035) .6px 1.3px),
+    conic-gradient(from 20deg, #f4f6f8, #b9bfc6 12%, #eef1f4 24%, #a9b0b8 37%, #e6e9ed 50%, #b3bac1 62%, #f7f9fb 75%, #aab1b9 88%, #f4f6f8); }
+.dial .dome { position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle at 36% 28%, rgba(255,255,255,.75), rgba(255,255,255,0) 42%),
+              radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 62%, rgba(40,46,54,.18) 88%, rgba(40,46,54,.34) 100%);
+  box-shadow: inset 0 1.5px 1px rgba(255,255,255,.9), inset 0 -2px 3px rgba(30,36,44,.28), 0 2px 4px rgba(30,36,44,.22); }
 .tscrim { position: fixed; inset: 0; background: rgba(255,255,255,.62); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); pointer-events: auto; opacity: 0; transition: opacity .3s ease; }
 .tscrim.on { opacity: 1; }
 .critter.grown { z-index: 2; cursor: default; }
@@ -1912,39 +1922,19 @@ function poolName(c) {
 /* ── the timer ── a live dial over the generated body: numbers 0–55, minute ticks; the minutes left
    sit under the red pointer at the top, as on the real thing, and it unwinds as time passes. */
 const FACE = { cx: .499, cy: .468, r: .318 };   // where the plain face sits inside the steel bezel on timer.webp, as fractions of the (square) element
-/* The dial: a classic kitchen timer. A clean white face with just the numbers printed round it, and
-   one polished silver knob in the middle — a single domed piece with a knurled rim that turns as you
-   wind. The time sits ON it, as if shown by magic: big red digits, and a red line round the face from
-   0 to the minutes left. */
+/* The dial: one piece of silver. No numbers, no ticks — the whole face is a single domed, polished
+   metal knob with a fine turned finish, the light sliding round it as it turns. The time floats on
+   top of it as if shown by magic: big red digits and a red line round the edge from 0 to the minutes
+   left. At 0 there's nothing on it but the metal. */
 function dialSVG() {
-  let nums = '', knurl = '';
-  for (let m = 0; m < 60; m += 5) {
-    const a = m * 6 * Math.PI / 180, x = (Math.sin(a) * 41).toFixed(2), y = (-Math.cos(a) * 41 + 2.6).toFixed(2);
-    nums += `<text x="${x}" y="${y}" text-anchor="middle" font-size="7.4" font-weight="500" fill="#3d4046" font-family="Schibsted Grotesk, system-ui, sans-serif">${m}</text>`;
-  }
-  for (let i = 0; i < 72; i++) { const a = i / 72 * Math.PI * 2; knurl += `<line x1="${(Math.sin(a) * 30.2).toFixed(2)}" y1="${(-Math.cos(a) * 30.2).toFixed(2)}" x2="${(Math.sin(a) * 32.4).toFixed(2)}" y2="${(-Math.cos(a) * 32.4).toFixed(2)}" stroke="rgba(70,76,84,.35)" stroke-width=".55"/>`; }
   const L = (FACE.cx - FACE.r) * 100, T = (FACE.cy - FACE.r) * 100, D = FACE.r * 200;
-  return `<div class="dial" style="left:${L}%;top:${T}%;width:${D}%;height:${D}%"><svg viewBox="-50 -50 100 100">
-    <defs>
-      <radialGradient id="tFace" cx="46%" cy="34%" r="78%"><stop offset="0" stop-color="#ffffff"/><stop offset=".8" stop-color="#f3f4f5"/><stop offset="1" stop-color="#e3e5e8"/></radialGradient>
-      <radialGradient id="tKnob" cx="38%" cy="28%" r="82%"><stop offset="0" stop-color="#ffffff"/><stop offset=".28" stop-color="#e9ecef"/><stop offset=".62" stop-color="#b9bfc6"/><stop offset=".86" stop-color="#8f969e"/><stop offset="1" stop-color="#c9ced3"/></radialGradient>
-      <linearGradient id="tRim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4f6f8"/><stop offset=".5" stop-color="#a7adb4"/><stop offset="1" stop-color="#6f767e"/></linearGradient>
-      <radialGradient id="tSpec" cx="36%" cy="24%" r="42%"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-      <filter id="tGlow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="1.1" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-      <filter id="tKnobShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx=".6" dy="2.2" stdDeviation="2" flood-color="#2e343b" flood-opacity=".3"/></filter>
-    </defs>
-    <circle r="49.5" fill="url(#tFace)"/>
-    ${nums}
-    <g class="knob" filter="url(#tKnobShadow)">
-      <circle r="33" fill="url(#tRim)"/>
-      ${knurl}
-      <circle r="29.6" fill="url(#tKnob)"/>
-      <circle r="29.6" fill="none" stroke="rgba(255,255,255,.7)" stroke-width=".6"/>
-      <ellipse cx="-8" cy="-11" rx="14" ry="9" fill="url(#tSpec)" transform="rotate(-24 -8 -11)"/>
-    </g>
-    <path class="arc" d="" fill="none" stroke="#ff3b2f" stroke-width="2.6" stroke-linecap="round" filter="url(#tGlow)"/>
-    <text class="lcd" x="0" y="6.8" text-anchor="middle" font-size="19.5" fill="#ff3b2f" filter="url(#tGlow)" font-family="Share Tech Mono, ui-monospace, monospace" letter-spacing=".4">0:00</text>
-  </svg></div>`;
+  return `<div class="dial" style="left:${L}%;top:${T}%;width:${D}%;height:${D}%">
+    <div class="knob"></div><div class="dome"></div>
+    <svg viewBox="-50 -50 100 100">
+      <defs><filter id="tGlow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="1.1" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+      <path class="arc" d="" fill="none" stroke="#ff3b2f" stroke-width="2.4" stroke-linecap="round" filter="url(#tGlow)"/>
+      <text class="lcd" x="0" y="7.4" text-anchor="middle" font-size="22" fill="#ff3b2f" filter="url(#tGlow)" font-family="Share Tech Mono, ui-monospace, monospace" letter-spacing=".4"></text>
+    </svg></div>`;
 }
 function timerLeft(T) { return T.running ? Math.max(0, (T.endAt - Date.now()) / 1000) : T.left; }
 const mmss = (s) => { s = Math.ceil(s); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -2039,11 +2029,11 @@ function tickTimers() {
     if (!c.timer) continue;
     const T = c.timer, left = timerLeft(T);
     // the dial: the minutes left under the pointer — turned back by that many minutes
-    const knob = c.el.querySelector('.knob'); if (knob) knob.setAttribute('transform', `rotate(${(left / 60 * 6).toFixed(2)})`);   // the knob's red mark points at the minutes left
+    const knob = c.el.querySelector('.knob'); if (knob) knob.style.transform = `rotate(${(left / 60 * 6).toFixed(2)}deg)`;   // the sheen turns as the knob does
     { const deg = Math.min(359.9, left / 60 * 6), R = 46.4, a1 = deg * Math.PI / 180;   // the red line: from 0 round to the time left, floating on the face
       const d = deg < .2 ? '' : `M 0 ${-R} A ${R} ${R} 0 ${deg > 180 ? 1 : 0} 1 ${(Math.sin(a1) * R).toFixed(2)} ${(-Math.cos(a1) * R).toFixed(2)}`;
       for (const arc of c.el.querySelectorAll('.arc')) if (arc.getAttribute('d') !== d) arc.setAttribute('d', d);
-      const t = mmss(left); for (const lcd of c.el.querySelectorAll('.lcd')) if (lcd.textContent !== t) lcd.textContent = t; }
+      const t = left < .5 ? '' : mmss(left); for (const lcd of c.el.querySelectorAll('.lcd')) if (lcd.textContent !== t) lcd.textContent = t; }
     // the red arc: from where 0 has turned to, back up to the pointer — the time left, at a glance
 
     if (T.running && left <= 0) { T.running = false; T.left = 0; if (!T.rung) { T.rung = true; ring(c); } }
