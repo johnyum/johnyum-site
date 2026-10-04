@@ -365,8 +365,9 @@ timer drops into the same pile — **a glass puck**, after a desk focus timer Jo
 pointed at (Kalsten/Noxord): a big black glass face in a thin rim of bead-blasted natural titanium with a polished diamond-cut chamfer at the glass — "what Apple would use" (no knurling; rubber didn't read; mirror steel was harsh), **straight on** (John's call
 after a tilted version), **all drawn in SVG** (`dialSVG()`, `PUCK`; no image — `plush/timer.webp`,
 the older white wind-up body, is unused). The time is **80s seven-segment digits** (`segDigit()` /
-`segTime()`, drawn as polygons, the unlit segments of every 8 faintly there), **always H M S** — hours and minutes
-big, seconds small, labels over each (John asked twice for hours; up to 12h). Nothing else on the glass: no ticks, no line, no status ring (John took them out).
+`segTime()`, drawn as polygons, the unlit segments of every 8 faintly there), **two at a time** — from an hour, hours
+big and minutes small (H, M); under an hour it switches to minutes and seconds (M, S). Up to 12h. (An
+always-H-M-S version was rejected: "keep it to two".) Nothing else on the glass: no ticks, no line, no status ring (John took them out).
 The wind gears up: an hour a turn under the hour, 3h a turn to 3h, then 9h; clicks every 1/5/15 min. Twisting the glass winds it. History John rejected on the way: a cream face, numbered ticks, an
 LED screen, red light through micro-holes, silver knobs (concentric, brushed, satin), red digits glowing,
 flat, or inlaid. **Tap it and it pops up big** — the timer is the whole
