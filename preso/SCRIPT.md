@@ -53,6 +53,15 @@ The slide is one sentence: **Calendar is where Airbnb hosts run their business, 
 
 Then one short line as each ⨉ is crossed out. *(To write: a line per ⨉.)*
 
+### What it taught (12dl — the lesson, after the library of components)
+
+The slide is one line: **"Users can handle complexity, when it's built the way they think."** (John, 2026-10-04.) The
+thread of the case study is trust — clarity and transparency at every step. The beats behind it, to say:
+
+1. The calendar didn't get simpler. It got much more powerful, and hosts still found it easy.
+2. That's because it was built from listening: their needs, given back in a system that makes sense to them.
+3. I'm a host too. I know how hosts think about their nights, and we built it around that.
+
 ## Multi calendar — Now scale it 100x
 
 *(To write.)*
