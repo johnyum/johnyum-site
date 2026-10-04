@@ -379,7 +379,8 @@ closing sets it back down exactly where it was in the pile, at rest — never to
 restitution/friction/air/density (`feel` in `poolDrop`), only a boxy outline. At zero it chimes (WebAudio, unlocked by the
 tap) and shakes. Tap outside and it shrinks back into the pile, still counting. A running timer
 survives the next send; leaving the chat clears it.
-**The thermometer** (2026-10-03): a classic analog dial meat thermometer (after a Taylor dial John
+**The thermometer** (2026-10-03, **switched off 2026-10-04** — John: remove it; its `POOL` entry has `re: null`, give it
+the timer's regex to bring it back): a classic analog dial meat thermometer (after a Taylor dial John
 pointed at), rendered in the timer's style — steel bezel, blank white face, a probe out the bottom
 (`plush/thermo.webp`; an orange instant-read came first and was swapped). Drawn on the face (`TFACE`,
 `thermoLCD()`): ticks on a 100–220°F sweep, a red needle that springs to the answer's done temperature —
@@ -420,6 +421,16 @@ The app reports only the composer's frame now (`.peekPlatform("composer")`): the
 retired character stood on were measured every frame while streaming and scrolling, and that churn —
 preference updates up through the chat plus a JS call per frame — was the rest of the jitter. Don't put
 `.peekPlatform` back on message rows.
+**The chat's scrolling (2026-10-04, measured from a screen recording):** MessagesView stays at the end with
+`.defaultScrollAnchor(.bottom, for: .sizeChanges)` — no `scrollTo` per streamed word. A scrollTo per word
+plus an animated one when the pile's room changed fought frame by frame (the chat flipping ±30pt), and
+jumping while the last paragraph was still being measured flashed the content 80–110pt for a frame. The
+pile's room is the height of the end marker (`id("bottom")`), not padding after it; the app glides there
+once when the room changes — never while streaming, never while a creature is highlighted. Each chat gets
+its own scroll view (`.id(convo.id)`), or a new chat started from a long one sat off-screen, blank.
+A tap on a creature is a real `pointerup` near where it went down (<8px, <320ms); a `pointercancel` (iOS
+taking the swipe to scroll) used to count, and grew it. The page shows a debug readout when it's served
+from localhost inside the app — point the simulator build at it with `SIMCTL_CHILD_PEEK_PAGE`.
 
 A 3D character that runs around a chat UI the way a game character runs around a level:
 it stands on message bubbles, runs along the chat box, jumps between suggestion pills, sits on

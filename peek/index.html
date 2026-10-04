@@ -1803,7 +1803,7 @@ const POOL = {
   groceries:  { name: 'Grocery list',     w: 104, re: null, kind: 'list', title: 'Groceries' },
   calendar:   { name: 'Calendar',         w: 92, re: null, kind: 'cal' },
   pin:        { name: 'Place',            w: 58, re: null, kind: 'pin' },
-  thermo:     { name: 'Thermometer',      w: 114, re: /\b(green egg|kamado|bbq|barbe?cue|barbeque|brisket|smok(er|ing|ed)|grill(ing|ed)?|pulled pork|ribs)\b/i, kind: 'thermo' },
+  thermo:     { name: 'Thermometer',      w: 114, re: null, kind: 'thermo' },   // off (John: remove the thermometer) — kept, with re: the timer's regex to bring it back
 };
 const critters = [];
 const poolEl = $('#pool');
@@ -2115,11 +2115,14 @@ function poolGrab(c) {
     const now = performance.now(); poolDrag.trail.push({ x: e.clientX, y: e.clientY, t: now });
     while (poolDrag.trail.length > 2 && now - poolDrag.trail[0].t > 90) poolDrag.trail.shift();
   });
-  const up = () => {
+  const up = (e) => {
     if (tcard && tcard.c === c) { if (c.timer) windEnd(c); return; }
     if (!poolDrag || poolDrag.c !== c) return;
     Composite.remove(poolEngine.world, poolDrag.spring);
-    if (poolDrag.moved < 8 && performance.now() - poolDrag.t < 400) poolTap(c);
+    // A tap is a real lift, close to where it went down, quickly. A cancelled touch (iOS taking a swipe for
+    // scrolling) or a quick swipe whose moves were coalesced away used to count — and grew the picture.
+    const moved = Math.max(poolDrag.moved, Math.hypot(e.clientX - poolDrag.x, e.clientY - poolDrag.y));
+    if (e.type === 'pointerup' && moved < 8 && performance.now() - poolDrag.t < 320) poolTap(c);
     else {
       const a = poolDrag.trail[0], z = poolDrag.trail[poolDrag.trail.length - 1], dt = Math.max(16, z.t - a.t), step = 1000 / 120;
       const vx = (z.x - a.x) / dt * step * 1.15, vy = (z.y - a.y) / dt * step * 1.15, sp = Math.hypot(vx, vy), k = sp > 34 ? 34 / sp : 1;
@@ -2406,6 +2409,15 @@ function whaleStep(now) {
 }
 
 Object.assign(window.__peek, { poolDrop, poolClear, poolHear, poolStep, critters, setAsk: (t) => { lastAsk = t; } });
+// A debug readout, only for a local copy of the page inside the app (the simulator, pointed here by PEEK_PAGE).
+const DEBUG = EMBED && /^(localhost|127\.|192\.168\.|10\.)/.test(location.hostname);
+const dbg = { ev: [], err: [] };
+if (DEBUG) {
+  addEventListener('error', (e) => dbg.err.push(e.message + ' @' + e.lineno));
+  const hud = document.createElement('pre'); hud.style.cssText = 'position:fixed;left:8px;top:120px;z-index:9;font:10px/1.3 ui-monospace,monospace;background:rgba(255,255,200,.92);padding:6px;margin:0;max-width:70vw;white-space:pre-wrap;pointer-events:none';
+  document.body.append(hud);
+  setInterval(() => { hud.textContent = `composer ${JSON.stringify(plat.composer)}\ncritters ${critters.map((c) => c.key).join(',')}\nask ${lastAsk.slice(0, 40)}\n` + dbg.ev.slice(-8).join('\n') + (dbg.err.length ? '\nERR ' + dbg.err.slice(-3).join('\nERR ') : ''); }, 300);
+}
 
 /* ═══════════════ embed: the host app's chat drives it ═══════════════ */
 var typing = 0;
@@ -2420,6 +2432,7 @@ if (EMBED) {
     answer(id, text) { asking[id]?.(text || null); delete asking[id]; },
     platforms(map) { for (const k of Object.keys(plat)) if (!(k in map) && k !== 'reply') delete plat[k]; Object.assign(plat, map); if (map.composer) homeward(); },
     event(name, data) {
+      if (DEBUG) dbg.ev.push(name + ' ' + String(data ?? '').length);
       idle();
       const comp = V('composer'), r = () => rectOf(comp);
       if (name === 'typing') {
@@ -2478,7 +2491,7 @@ if (EMBED) {
       // and scroll the chat, so reporting it while things fall and bounce shook the text.
       const moving = critters.some((c) => !c.body.isSleeping && Math.hypot(c.body.velocity.x, c.body.velocity.y) > .35) || poolDrag || tcard;
       if (px !== insetSeen) { insetSeen = px; insetAt = performance.now(); }
-      if (!moving && performance.now() - insetAt > 500 && Math.abs(px - lastInset) >= 16 || (px === 0 && lastInset !== 0)) { lastInset = px; tell({ type: 'inset', px }); } }
+      if (!moving && performance.now() - insetAt > 500 && Math.abs(px - lastInset) >= 16 || (px === 0 && lastInset !== 0)) { lastInset = px; tell({ type: 'inset', px }); if (DEBUG) dbg.ev.push('INSET ' + px); } }
     const k = JSON.stringify(rs.map((r) => r.map(Math.round))); if (k !== last) { last = k; tell({ type: 'rects', rects: rs }); }
   }, 100);
   modelReady.then(() => tell({ type: 'ready' }));
