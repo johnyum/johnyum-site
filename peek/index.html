@@ -1915,9 +1915,9 @@ function poolName(c) {
    sit under the red pointer at the top, as on the real thing, and it unwinds as time passes. */
 const FACE = { cx: .5, cy: .5, r: .46 };   // the puck's top face, as fractions of the (square) element — what you twist
 /* The timer is a puck, like a desk focus timer, drawn straight on: a big black glass face in a thin
-   rim of softly shaded satin metal. Twist the glass to wind it. The time is the 80s digital kind:
-   seven-segment numerals, the unlit segments of every 8 faintly there behind the lit ones — minutes big
-   and seconds small (M, S), or from an hour, hours big and minutes small (H, M). All drawn here — no image — so it's crisp at any size. */
+   rim of bead-blasted titanium with a polished chamfer. Twist the glass to wind it. The time is the 80s digital kind:
+   seven-segment numerals, the unlit segments of every 8 faintly there behind the lit ones — hours and
+   minutes big, seconds small, H M S over them — always, not only past the hour. All drawn here — no image — so it's crisp at any size. */
 const PUCK = { R: 46, glass: 42.8 };   // straight on: a thin polished steel rim, then the glass
 const SEG = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg' };
 function segDigit(x, y, w, h, t, n) {
@@ -1933,20 +1933,26 @@ function segDigit(x, y, w, h, t, n) {
   return Object.entries(segs).map(([k, pts]) => `<polygon points="${P(pts)}" class="${on.includes(k) ? 'on' : 'off'}"/>`).join('');
 }
 function segTime(left) {
-  // under an hour: minutes big, seconds small; from an hour: hours big, minutes small
-  const s = Math.ceil(left), h = s >= 3600;
-  const mm = String(h ? Math.floor(s / 3600) : Math.floor(s / 60)).padStart(2, '0'), ss = String(h ? Math.floor(s / 60) % 60 : s % 60).padStart(2, '0');
-  return segDigit(-31, -13, 15, 26, 3.4, +mm[0]) + segDigit(-13, -13, 15, 26, 3.4, +mm[1])
-       + segDigit(7.5, -3, 10.5, 16, 2.5, +ss[0]) + segDigit(20.5, -3, 10.5, 16, 2.5, +ss[1]);
+  // always hours, minutes and seconds: HH and MM big, SS small, bottoms aligned
+  const s = Math.ceil(left), p2 = (n) => String(n).padStart(2, '0');
+  const hh = p2(Math.floor(s / 3600)), mm = p2(Math.floor(s / 60) % 60), ss = p2(s % 60);
+  return segDigit(-34.5, -10, 10, 20, 2.7, +hh[0]) + segDigit(-23, -10, 10, 20, 2.7, +hh[1])
+       + `<rect x="-11.3" y="-5.6" width="2.3" height="2.3" rx=".35" class="on"/><rect x="-11.3" y="3.3" width="2.3" height="2.3" rx=".35" class="on"/>`   // the colon between hours and minutes
+       + segDigit(-7.25, -10, 10, 20, 2.7, +mm[0]) + segDigit(4.25, -10, 10, 20, 2.7, +mm[1])
+       + segDigit(17.75, -3, 7, 13, 1.9, +ss[0]) + segDigit(25.75, -3, 7, 13, 1.9, +ss[1]);
 }
 function dialSVG() {
   const { R, glass } = PUCK, k = glass / 38.8;   // the face's contents were laid out on a 38.8 glass
   return `<svg class="puck" viewBox="-50 -50 100 100">
     <defs>
-      <!-- the rim: satin metal, softly shaded — lit from the upper left and falling smoothly into shade at
-           the lower right, no mirror bands, so it reads as an edge without glaring -->
-      <linearGradient id="tRim" x1=".2" y1="0" x2=".8" y2="1"><stop offset="0" stop-color="#d9dde1"/><stop offset=".45" stop-color="#a3a9b0"/><stop offset="1" stop-color="#5c6168"/></linearGradient>
-      <radialGradient id="tRimLight" cx="30%" cy="12%" r="55%"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+      <!-- the rim: bead-blasted natural titanium, as Apple finishes a watch case — a fine even matte with a
+           soft grain and little contrast, and a polished diamond-cut chamfer where it meets the glass,
+           catching the light top-left and dropping into shade bottom-right -->
+      <linearGradient id="tRim" x1=".2" y1="0" x2=".8" y2="1"><stop offset="0" stop-color="#d4d1cb"/><stop offset=".5" stop-color="#b9b6b0"/><stop offset="1" stop-color="#9c9993"/></linearGradient>
+      <linearGradient id="tCut" x1=".15" y1="0" x2=".85" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".35" stop-color="#e8e6e2"/><stop offset=".6" stop-color="#8d8a84"/><stop offset="1" stop-color="#5e5b56"/></linearGradient>
+      <linearGradient id="tEdge" x1=".2" y1="0" x2=".8" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".7"/><stop offset=".5" stop-color="#fff" stop-opacity=".1"/><stop offset="1" stop-color="#3b3935" stop-opacity=".35"/></linearGradient>
+      <filter id="tBlast" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="1.8" numOctaves="2" seed="11"/><feColorMatrix values="0 0 0 0 .45  0 0 0 0 .44  0 0 0 0 .42  0 0 0 .22 0"/><feComposite in2="SourceGraphic" operator="in"/></filter>
+      <mask id="tRimMask"><circle r="${R}" fill="#fff"/><circle r="${glass + 1.2}" fill="#000"/></mask>
       <radialGradient id="tGlass" cx="50%" cy="42%" r="65%"><stop offset="0" stop-color="#1c1e22"/><stop offset="1" stop-color="#060708"/></radialGradient>
       <linearGradient id="tGloss" x1="0" y1="0" x2=".4" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".15"/><stop offset=".55" stop-color="#fff" stop-opacity=".02"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
       <filter id="tShadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2"/></filter>
@@ -1954,15 +1960,15 @@ function dialSVG() {
     </defs>
     <circle cy="2.2" r="${R - .5}" fill="#000" opacity=".3" filter="url(#tShadow)"/>
     <circle r="${R}" fill="url(#tRim)"/>
-    <circle r="${R}" fill="url(#tRimLight)"/>
-    <circle r="${R - .25}" fill="none" stroke="rgba(255,255,255,.35)" stroke-width=".35"/>
-    <circle r="${R}" fill="none" stroke="rgba(30,34,38,.3)" stroke-width=".35"/>
-    <circle r="${glass + .45}" fill="#0b0c0d"/>
+    <rect x="-50" y="-50" width="100" height="100" fill="#fff" filter="url(#tBlast)" mask="url(#tRimMask)"/>
+    <circle r="${R - .2}" fill="none" stroke="url(#tEdge)" stroke-width=".4"/>
+    <circle r="${glass + .75}" fill="none" stroke="url(#tCut)" stroke-width="1.1"/>
+    <circle r="${glass + .1}" fill="#0b0c0d"/>
     <circle r="${glass}" fill="url(#tGlass)"/>
     <g clip-path="url(#tGlassClip)">
       <g class="segs" transform="scale(${k.toFixed(3)}) skewX(-7)"></g>
-      <g transform="scale(${k.toFixed(3)})" fill="#f2f4f6" font-family="Schibsted Grotesk, system-ui, sans-serif" font-weight="600" font-size="5" text-anchor="middle" class="labels" opacity="0">
-        <text x="-14" y="-17.5">M</text><text x="26.5" y="-7">S</text></g>
+      <g transform="scale(${k.toFixed(3)})" fill="#f2f4f6" font-family="Schibsted Grotesk, system-ui, sans-serif" font-weight="600" font-size="4.2" text-anchor="middle" class="labels" opacity="0">
+        <text x="-23.2" y="-13.6">H</text><text x="3.5" y="-13.6">M</text><text x="25.6" y="-6.6">S</text></g>
       <path d="M ${-glass} -2 Q -6 ${-glass * .55} ${glass} ${-glass * .5} L ${glass} ${-glass} L ${-glass} ${-glass} Z" fill="url(#tGloss)"/>
     </g>
     <circle r="${glass}" fill="none" stroke="rgba(255,255,255,.12)" stroke-width=".4"/>
@@ -2067,7 +2073,7 @@ function tickTimers() {
     const shown = left < .5 ? -1 : Math.ceil(left);
     if (c.shown !== shown) { c.shown = shown; const g = c.el.querySelector('.segs'), lb = c.el.querySelector('.labels');
       if (g) g.innerHTML = segTime(Math.max(0, left));
-      if (lb) { const h = left >= 3600, [l1, l2] = lb.querySelectorAll('text'); l1.textContent = h ? 'H' : 'M'; l2.textContent = h ? 'M' : 'S'; lb.setAttribute('opacity', '1'); } }
+      if (lb) lb.setAttribute('opacity', '1'); }
 
     if (T.running && left <= 0) { T.running = false; T.left = 0; if (!T.rung) { T.rung = true; ring(c); } }
   }
