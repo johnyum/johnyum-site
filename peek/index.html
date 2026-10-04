@@ -111,7 +111,15 @@ button, textarea { font: inherit; color: inherit; }
   white-space: nowrap; box-shadow: 0 6px 18px -8px rgba(0,0,0,.3), 0 0 0 1px #e7e7e5; pointer-events: none; }
 .name::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; margin-left: -5px; background: #fff; transform: rotate(45deg); box-shadow: 1px 1px 0 0 #e7e7e5; }
 /* the timer: a live dial over the generated body, and the card it opens */
-.critter .dial { position: absolute; pointer-events: none; }
+.critter .dial { position: absolute; pointer-events: none; border-radius: 50%; overflow: hidden; }
+/* Brushed silver: a cool radial base, and over it a turning layer of fine radial striations and the
+   anisotropic sheen of spun metal — it turns as you wind, so the dial reads as moving without ticks. */
+.dial .metal { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 50% 45%, #e4e7ea 0, #c9cdd2 58%, #a7adb4 100%);
+  box-shadow: inset 0 2px 3px rgba(255,255,255,.85), inset 0 -4px 7px rgba(0,0,0,.22), inset 0 0 0 1px rgba(0,0,0,.08); }
+.dial .brush { position: absolute; inset: -3%; border-radius: 50%; opacity: .92; will-change: transform;
+  background: repeating-conic-gradient(from 0deg, rgba(255,255,255,.07) 0deg .5deg, rgba(0,0,0,.055) .5deg 1deg),
+    conic-gradient(from 18deg, #f6f7f8, #9ba1a8 11%, #eceef0 24%, #8e949b 37%, #f3f4f6 50%, #9aa0a7 62%, #e8eaed 75%, #949aa1 88%, #f6f7f8); }
+.dial .light { position: absolute; inset: 0; width: 100%; height: 100%; }
 .tscrim { position: fixed; inset: 0; background: rgba(255,255,255,.62); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); pointer-events: auto; opacity: 0; transition: opacity .3s ease; }
 .tscrim.on { opacity: 1; }
 .critter.grown { z-index: 2; cursor: default; }
@@ -1911,37 +1919,26 @@ function poolName(c) {
 /* ── the timer ── a live dial over the generated body: numbers 0–55, minute ticks; the minutes left
    sit under the red pointer at the top, as on the real thing, and it unwinds as time passes. */
 const FACE = { cx: .499, cy: .468, r: .318 };   // where the plain face sits inside the steel bezel on timer.webp, as fractions of the (square) element
-/* A futuristic dial: a neutral white face, a turning ring of fine minute ticks (marked only at 0, 15,
-   30, 45) that you drag to wind, a red arc for the time left, and a small dark screen in the middle
-   with red LED digits (and the faint 88:88 of its unlit segments behind them). */
+/* The dial is all silver — brushed metal, no ticks, no screen. The time left shows as red light
+   coming through it from behind: the digits and an arc, seen through a fine grid of micro-holes in
+   the metal, with a soft red bloom bleeding round them. Winding turns the metal's sheen. */
 function dialSVG() {
-  let ticks = '';
-  for (let m = 0; m < 60; m++) {
-    const a = m * 6 * Math.PI / 180, five = m % 5 === 0, r1 = five ? 34.5 : 37, r2 = 40;
-    ticks += `<line x1="${(Math.sin(a) * r1).toFixed(2)}" y1="${(-Math.cos(a) * r1).toFixed(2)}" x2="${(Math.sin(a) * r2).toFixed(2)}" y2="${(-Math.cos(a) * r2).toFixed(2)}" stroke="${five ? '#34383d' : '#b9bdc2'}" stroke-width="${five ? 1.3 : .6}" stroke-linecap="round"/>`;
-    if (m % 15 === 0) { const x = (Math.sin(a) * 28.5).toFixed(2), y = (-Math.cos(a) * 28.5).toFixed(2); ticks += `<text x="${x}" y="${(+y + 2.4).toFixed(2)}" transform="rotate(${m * 6} ${x} ${y})" text-anchor="middle" font-size="6.4" fill="#5c6167" font-family="Share Tech Mono, ui-monospace, monospace">${m}</text>`; }
-  }
   const L = (FACE.cx - FACE.r) * 100, T = (FACE.cy - FACE.r) * 100, D = FACE.r * 200;
-  return `<svg class="dial" viewBox="-50 -50 100 100" style="left:${L}%;top:${T}%;width:${D}%;height:${D}%">
-    <defs>
-      <radialGradient id="tFace" cx="44%" cy="30%" r="80%"><stop offset="0" stop-color="#ffffff"/><stop offset=".75" stop-color="#f1f2f3"/><stop offset="1" stop-color="#dfe1e4"/></radialGradient>
-      <linearGradient id="tScreen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22262a"/><stop offset="1" stop-color="#0e1012"/></linearGradient>
-      <linearGradient id="tScreenGlass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>
-      <filter id="tGrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="1.7" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 .3  0 0 0 0 .32  0 0 0 0 .35  0 0 0 .06 0"/><feComposite in2="SourceGraphic" operator="in"/></filter>
-      <filter id="tGlow" x="-30%" y="-60%" width="160%" height="220%"><feGaussianBlur stdDeviation=".9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    </defs>
-    <circle r="49.5" fill="url(#tFace)"/>
-    <circle r="49.5" fill="#fff" filter="url(#tGrain)"/>
-    <path class="arc" d="" fill="none" stroke="#e5483a" stroke-width="4.2" stroke-linecap="round" opacity=".92"/>
-    <g class="ring">${ticks}</g>
-    <g transform="translate(0 2)">
-      <rect x="-23" y="-10.5" width="46" height="21" rx="6" fill="url(#tScreen)"/>
-      <rect x="-23" y="-10.5" width="46" height="21" rx="6" fill="none" stroke="#8d939a" stroke-width=".6"/>
-      <text x="0" y="5.6" text-anchor="middle" font-size="15.5" fill="#ff4a36" opacity=".1" font-family="Share Tech Mono, ui-monospace, monospace">88:88</text>
-      <text class="lcd" x="0" y="5.6" text-anchor="middle" font-size="15.5" fill="#ff4a36" filter="url(#tGlow)" font-family="Share Tech Mono, ui-monospace, monospace">0:00</text>
-      <rect x="-23" y="-10.5" width="46" height="10" rx="6" fill="url(#tScreenGlass)"/>
-    </g>
-  </svg>`;
+  const lit = () => `<path class="arc" d="" fill="none" stroke="#ff2414" stroke-width="3.4" stroke-linecap="round"/>
+      <text class="lcd" x="0" y="7" text-anchor="middle" font-size="21" fill="#ff2414" font-family="Share Tech Mono, ui-monospace, monospace">0:00</text>`;
+  return `<div class="dial" style="left:${L}%;top:${T}%;width:${D}%;height:${D}%">
+    <div class="metal"></div><div class="brush"></div>
+    <svg class="light" viewBox="-50 -50 100 100">
+      <defs>
+        <pattern id="tHolesP" width="1.25" height="1.25" patternUnits="userSpaceOnUse"><circle cx=".625" cy=".625" r=".44" fill="#fff"/></pattern>
+        <mask id="tHoles" maskUnits="userSpaceOnUse" x="-50" y="-50" width="100" height="100"><rect x="-50" y="-50" width="100" height="100" fill="url(#tHolesP)"/></mask>
+        <filter id="tBloom" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.4"/></filter>
+      </defs>
+      <g filter="url(#tBloom)" opacity=".75">${lit()}</g>
+      <g mask="url(#tHoles)">${lit()}</g>
+      <g opacity=".3">${lit()}</g>
+    </svg>
+  </div>`;
 }
 function timerLeft(T) { return T.running ? Math.max(0, (T.endAt - Date.now()) / 1000) : T.left; }
 const mmss = (s) => { s = Math.ceil(s); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -2036,12 +2033,12 @@ function tickTimers() {
     if (!c.timer) continue;
     const T = c.timer, left = timerLeft(T);
     // the dial: the minutes left under the pointer — turned back by that many minutes
-    const ringEl = c.el.querySelector('.ring'); if (ringEl) ringEl.setAttribute('transform', `rotate(${(-left / 60 * 6).toFixed(2)})`);
+    const brush = c.el.querySelector('.brush'); if (brush) brush.style.transform = `rotate(${(-left / 60 * 6).toFixed(2)}deg)`;   // the sheen turns as the dial does
     // the red arc: from where 0 has turned to, back up to the pointer — the time left, at a glance
-    const arc = c.el.querySelector('.arc');
-    if (arc) { const deg = Math.min(359.9, left / 60 * 6), R = 44.5, a0 = -deg * Math.PI / 180;
-      arc.setAttribute('d', deg < .2 ? '' : `M ${(Math.sin(a0) * R).toFixed(2)} ${(-Math.cos(a0) * R).toFixed(2)} A ${R} ${R} 0 ${deg > 180 ? 1 : 0} 1 0 ${-R}`); }
-    const lcd = c.el.querySelector('.lcd'); if (lcd) { const t = mmss(left); if (lcd.textContent !== t) lcd.textContent = t; }
+    { const deg = Math.min(359.9, left / 60 * 6), R = 42.5, a0 = -deg * Math.PI / 180;
+      const d = deg < .2 ? '' : `M ${(Math.sin(a0) * R).toFixed(2)} ${(-Math.cos(a0) * R).toFixed(2)} A ${R} ${R} 0 ${deg > 180 ? 1 : 0} 1 0 ${-R}`;
+      for (const arc of c.el.querySelectorAll('.arc')) if (arc.getAttribute('d') !== d) arc.setAttribute('d', d);
+      const t = mmss(left); for (const lcd of c.el.querySelectorAll('.lcd')) if (lcd.textContent !== t) lcd.textContent = t; }
     if (T.running && left <= 0) { T.running = false; T.left = 0; if (!T.rung) { T.rung = true; ring(c); } }
   }
   if (tcard) {

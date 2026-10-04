@@ -363,9 +363,10 @@ on the next send. Their rects are reported to the app so they take touches.
 **The timer** (2026-10-04): ask about the Big Green Egg, barbecue, brisket, smoking or grilling and a
 wind-up kitchen timer drops into the same pile — a generated 3D product render, pure white with a
 steel bezel and a blank face (`plush/timer.webp`; `FACE` is where that face sits in the square
-element; John rejected a cream/yellow first version), under a live SVG dial: a neutral face, a
-turning ring of fine ticks (marked 0/15/30/45), a red arc for the time left, and a dark screen with
-red LED digits (Share Tech Mono, ghost 88:88). **Tap it and it pops up big** — the timer is the whole
+element; John rejected a cream/yellow first version). **The dial is all brushed silver** (CSS conic
+gradients, the sheen turning as you wind) with no ticks and no screen: the time left is **red light
+coming through the metal** — Share Tech Mono digits and an arc, seen through a micro-hole mask with a
+red bloom behind. **Tap it and it pops up big** — the timer is the whole
 interface, with one round play/pause button under it. Drag round the face to wind (the ring follows
 the finger, a tick per minute); let go and it starts. At zero it chimes (WebAudio, unlocked by the
 tap) and shakes. Tap outside and it shrinks back into the pile, still counting. A running timer
