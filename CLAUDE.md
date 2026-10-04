@@ -401,6 +401,12 @@ up tip cards. One `index.html`, three.js; the chat is canned.
   word by word (a `‖` in one is a 2.6s stall) through the same `work*()` calls the app makes, and it
   opens on the paper figure. The sidebar, director buttons and pills are gone from view (the pills
   stay in the DOM, hidden, for old code paths); the away-life (`awake()`) and idle wandering are off.
+- **On the demo page it lives in the thread, not over it** (2026-10-04): drawn at text size
+  (`IN_SIZE`), it stands beside the greeting, then in Claude's reply — a strip reserved under the
+  words (`.msg.bot.here`) — following the end of the text as it streams (`C.anchor`, read from a
+  zero-width `.caret` after the words), and stays at the end of the answer. The canvas is clipped
+  to the chat area (`clipToLog()`), so it scrolls under the header and the box. The app (embed)
+  still uses the home spot behind the box.
 - Its frame loop is `frame()`, exposed on `window.__peek` — a hidden tab pauses
   `requestAnimationFrame`, so a test drives frames by hand.
 

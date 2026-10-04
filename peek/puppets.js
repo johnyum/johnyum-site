@@ -179,7 +179,7 @@ function makePaper(THREE, R) {
   // On a white chat, paper only exists by its cut edge and its shadow — both have to be crisp.
   const face = new THREE.MeshStandardMaterial({ color: '#f3efe5', map: tex, roughness: 1, side: THREE.DoubleSide });
   const edge = new THREE.MeshBasicMaterial({ color: '#b9ab92', side: THREE.DoubleSide });
-  const shade = new THREE.MeshBasicMaterial({ color: '#3b3226', transparent: true, opacity: .16, depthWrite: false, side: THREE.DoubleSide });
+  const shade = new THREE.MeshBasicMaterial({ color: '#3b3226', transparent: true, opacity: .2, depthWrite: false, side: THREE.DoubleSide });
   const pinM = new THREE.MeshStandardMaterial({ color: '#c39a6b', roughness: .45, metalness: .35 });
   const hole = new THREE.MeshBasicMaterial({ color: '#2a2622' });
 
@@ -199,7 +199,7 @@ function makePaper(THREE, R) {
   }
   function piece(shape, z) {
     const g = new THREE.Group(), geo = new THREE.ShapeGeometry(shape, 10);
-    const out = new THREE.Mesh(new THREE.ShapeGeometry(grow(shape, .0075), 1), edge); out.position.z = -.001;
+    const out = new THREE.Mesh(new THREE.ShapeGeometry(grow(shape, .013), 1), edge);   // a cut edge that still reads when it's drawn at text size out.position.z = -.001;
     const sh = new THREE.Mesh(out.geometry, shade); sh.position.set(.014, -.018, -.03);
     g.add(sh, out, new THREE.Mesh(geo, face)); g.position.z = z; flat.add(g); return g;
   }
