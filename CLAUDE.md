@@ -361,16 +361,14 @@ sculpin, octopus — `POOL`, matched as the text streams), its plush (`peek/plus
 and piles onto the chat box with the plush page's physics; fling them, tap for a name; they clear
 on the next send. Their rects are reported to the app so they take touches.
 **The timer** (2026-10-04): ask about the Big Green Egg, barbecue, brisket, smoking or grilling and a
-timer drops into the same pile — **a glass puck**, after a desk focus timer John
-pointed at (Kalsten/Noxord): a big black glass face in a thin rim of bead-blasted natural titanium with a polished diamond-cut chamfer at the glass — "what Apple would use" (no knurling; rubber didn't read; mirror steel was harsh), **straight on** (John's call
-after a tilted version), **all drawn in SVG** (`dialSVG()`, `PUCK`; no image — `plush/timer.webp`,
-the older white wind-up body, is unused). The time is set in **Antonio** (a tall condensed face, Google Fonts; `segTime()`) — the 80s
-seven-segment digits that came first felt "too weird" (`segDigit()` is still there, unused), **H M S, always** — HH:MM big, seconds
-smaller on the same baseline, no labels. Up to 12h. (John went back and forth; a two-at-a-time H/M → M/S version was
-tried and dropped for this.) Nothing else on the glass: no ticks, no line, no status ring (John took them out).
-The wind gears up: an hour a turn under the hour, 3h a turn to 3h, then 9h; clicks every 1/5/15 min. Twisting the glass winds it. History John rejected on the way: a cream face, numbered ticks, an
-LED screen, red light through micro-holes, silver knobs (concentric, brushed, satin), red digits glowing,
-flat, or inlaid. **Tap it and it pops up big** — the timer is the whole
+wind-up kitchen timer drops into the same pile — the cute one: a generated 3D render, pure white
+with a steel bezel and its own red pointer (`plush/timer.webp`; `FACE` is where its face sits in the square
+element). **The dial is simple** (`dialSVG()`): a clean white face, a ring of minute ticks with 0, 5, 10 …
+that turns under the pointer (what's under it is the time left, 0–60 min), a small silver cap in the
+middle, no digital readout. **This is where John landed after a long detour (2026-10-03)** — cream faces,
+LED screens, red light through metal, silver knobs, a black glass puck with seven-segment digits, a
+titanium rim, Antonio digits — he called the end of it "a digital mess" and asked for the cute timer with a
+simple dial back. Judge the whole object, not one detail at a time. **Tap it and it pops up big** — the timer is the whole
 interface, with one round play/pause button under it. Drag round the face to wind (the ring follows
 the finger, a tick per minute); let go and it starts. At zero it chimes (WebAudio, unlocked by the
 tap) and shakes. Tap outside and it shrinks back into the pile, still counting. A running timer
