@@ -103,7 +103,9 @@ button, textarea { font: inherit; color: inherit; }
 /* the tide pool: plush creatures that drop in when the answer names them (see "the tide pool" in the script) */
 #pool { position: fixed; inset: 0; z-index: 45; pointer-events: none; }
 .critter { position: absolute; left: 0; top: 0; touch-action: none; pointer-events: auto; user-select: none; -webkit-user-select: none;
-  filter: drop-shadow(0 6px 6px rgba(0,0,0,.18)); will-change: transform; }
+  will-change: transform; contain: layout paint; }
+/* A soft shadow painted once, not a live filter — moving it costs nothing, so the chat underneath never stutters. */
+.critter::before { content: ""; position: absolute; left: 14%; right: 14%; bottom: 2%; height: 16%; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,0,0,.18), rgba(0,0,0,0)); }
 .critter img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
 .name { position: absolute; left: 0; top: 0; padding: 6px 11px; border-radius: 99px; background: #fff; color: #1d1d1c; font: 500 13px/1.2 "Schibsted Grotesk", system-ui, sans-serif;
   white-space: nowrap; box-shadow: 0 6px 18px -8px rgba(0,0,0,.3), 0 0 0 1px #e7e7e5; pointer-events: none; }
@@ -715,6 +717,9 @@ const easeBack = (k) => 1 + 2.7 * (k - 1) ** 3 + 1.7 * (k - 1) ** 2;
 
 renderer.setAnimationLoop(frame);
 function frame() {
+  // With the character retired the full-screen 3D layer does nothing at all — not even a clear —
+  // so it never competes with the chat underneath for a frame. Only the tide pool's physics runs.
+  if (!CHARACTER) { clock.getDelta(); poolStep(performance.now()); return; }
   // Never zero (the first frame can be), never huge (a background tab): velocities divide by it.
   const dt = clamp(clock.getDelta(), 1 / 240, 1 / 30), t = clock.elapsedTime;
   tweenList = tweenList.filter((w) => { w.t += dt * 1000; const k = Math.min(1, w.t / w.ms); w.fn(w.ease(k)); if (k >= 1) w.done(); return k < 1; });
@@ -1871,6 +1876,9 @@ function poolStep(now) {
       if (a !== b.angle) Body.setAngle(b, a);
     }
     c.sv += (-260 * c.sq - 13 * c.sv) * dt; c.sq += c.sv * dt;
+    // At rest and done jiggling: leave the element alone — no style write, no work for the page.
+    if (b.isSleeping && Math.abs(c.sq) < .002 && Math.abs(c.sv) < .01 && !c.bubble && c.placed) continue;
+    c.placed = true;
     const sq = clamp(c.sq, -.22, .22);
     c.el.style.transform = `translate(${(b.position.x - c.w / 2).toFixed(1)}px, ${(b.position.y - c.w / 2).toFixed(1)}px) rotate(${b.angle.toFixed(3)}rad) scale(${(1 + sq * .6).toFixed(3)}, ${(1 - sq).toFixed(3)})`;
     if (c.bubble) {

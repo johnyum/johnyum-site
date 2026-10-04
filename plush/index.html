@@ -60,7 +60,8 @@ canvas.layer { width: 100vw; height: 100vh; }
 /* ── the tide pool: plush creatures that fall, pile on the chat box, and can be flicked about ── */
 #pool { position: fixed; inset: 0; z-index: 4; pointer-events: none; }
 .critter { position: absolute; left: 0; top: 0; touch-action: none; cursor: grab; pointer-events: auto; user-select: none; -webkit-user-select: none;
-  filter: drop-shadow(0 6px 6px rgba(0,0,0,.18)); will-change: transform; }
+  will-change: transform; contain: layout paint; }
+.critter::before { content: ""; position: absolute; left: 14%; right: 14%; bottom: 2%; height: 16%; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,0,0,.18), rgba(0,0,0,0)); }   /* painted once, not a live filter */
 .critter:active { cursor: grabbing; }
 .critter img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
 .name { position: absolute; left: 0; top: 0; padding: 6px 11px; border-radius: 99px; background: #fff; color: var(--ink); font-size: 13px; font-weight: 500;
@@ -438,6 +439,8 @@ function stepPool(now) {
     }
     // Squash and stretch: a spring around round, kicked by impacts and grabs.
     c.sv += (-260 * c.sq - 13 * c.sv) * dt; c.sq += c.sv * dt;   // stiff and lightly damped: a quick jiggle
+    if (b.isSleeping && Math.abs(c.sq) < .002 && Math.abs(c.sv) < .01 && !c.bubble && c.placed) continue;   // at rest: leave it be
+    c.placed = true;
     const sq = clamp(c.sq, -.22, .22);
     c.el.style.transform = `translate(${(b.position.x - c.w / 2).toFixed(1)}px, ${(b.position.y - c.w / 2).toFixed(1)}px) rotate(${b.angle.toFixed(3)}rad) scale(${(1 + sq * .6).toFixed(3)}, ${(1 - sq).toFixed(3)})`;
     if (c.bubble) {
