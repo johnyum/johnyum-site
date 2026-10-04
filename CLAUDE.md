@@ -386,6 +386,20 @@ pointed at), rendered in the timer's style — steel bezel, blank white face, a 
 the highest one in a sentence about pulling/probing/reaching, ≤212 (`thermoRead()`; brisket → 203°) — and
 that number small under the hub. Tapped, it grows like a creature and the app highlights every temperature
 in the answer (`c.terms`; the app's highlighter uses lookaround word edges so "203°" matches).
+**The useful things** (2026-10-03, after John: "the egg timer is legit something I want"): each drops in
+when the answer calls for it, filled in from it, and does something when tapped (renders in the timer's
+style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful things", `toolsHear()`):
+- **Checklist clipboard** — when you asked how to do something (`HOWTO` on your message, `lastAsk`) and the
+  answer has 3+ numbered steps (`stepsOf()`): the steps are written on its paper (`PAPER`, ticks and a
+  count); tapped, it opens like the timer into a checklist you tick off (remembered in localStorage).
+- **Grocery bag** — an ingredient list (`groceriesOf()`, bullets under an Ingredients/shopping heading):
+  tapped, the same checklist.
+- **Desk calendar** — a day/time in your message, else the answer (`parseWhen()`): shown on its page
+  (weekday on the red band, month, day, time); tapped, `{type:'calendar'}` → the app's EventKitUI editor,
+  filled in (no permission needed). Haiku names the event (`calTitle()`).
+- **Map pins** — on `replied`, if places are in play (`PLACES`), Haiku lists the recommended places as JSON
+  (`pinsFor()`); one pin each; tapped, its name and `{type:'open'}` → Maps.
+The app's demo buttons now run 1–7 (4 how-to, 5 groceries, 6 a dated plan, 7 coffee spots).
 **Moby-Dick** (2026-10-03): when the answer first names the whale (`WHALE_RE`), a plush white whale
 (`plush/whale.webp`) rises from behind the chat box — clipped at its top edge by `.sea`, eyes just over it —
 blows a spout of water drops that rain onto the box and the pile, sinks, and then its tail

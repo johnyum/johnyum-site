@@ -116,13 +116,20 @@ button, textarea { font: inherit; color: inherit; }
 .name::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; margin-left: -5px; background: #fff; transform: rotate(45deg); box-shadow: 1px 1px 0 0 #e7e7e5; }
 /* the timer: a live dial over the generated body, and the card it opens */
 .critter .dial { position: absolute; pointer-events: none; }
-.tscrim { position: fixed; inset: 0; background: rgba(255,255,255,.62); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); pointer-events: auto; opacity: 0; transition: opacity .55s cubic-bezier(.45,0,.2,1); }
+.tscrim { position: fixed; inset: 0; z-index: 1; background: rgba(255,255,255,.62); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); pointer-events: auto; opacity: 0; transition: opacity .55s cubic-bezier(.45,0,.2,1); }
 .tscrim.on { opacity: 1; }
 .critter.grown { z-index: 2; cursor: default; }
-.tui { position: fixed; left: 0; top: 0; width: 100%; text-align: center; pointer-events: auto; font: 15px/1.3 "Schibsted Grotesk", system-ui, sans-serif; color: #1d1d1c;
+.tui { position: fixed; left: 0; top: 0; z-index: 3; width: 100%; text-align: center; pointer-events: auto; font: 15px/1.3 "Schibsted Grotesk", system-ui, sans-serif; color: #1d1d1c;
   opacity: 0; touch-action: manipulation; will-change: transform, opacity; }   /* placed and faded by tickTimers, in step with the icon */
 .tui .play { width: 48px; height: 48px; border-radius: 50%; border: 0; padding: 0; background: #1d1d1c; display: inline-grid; place-items: center;
   transition: background .2s ease, transform .15s ease, opacity .2s ease; }
+.tui .tlist { width: min(340px, 86vw); margin: 0 auto; max-height: 58vh; overflow-y: auto; text-align: left; overscroll-behavior: contain; }
+.tui .tlist h4 { margin: 0 0 6px 4px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #87857f; }
+.tui .trow { display: flex; gap: 12px; align-items: flex-start; width: 100%; border: 0; background: none; padding: 11px 4px; font: 17px/1.35 "Schibsted Grotesk", system-ui, sans-serif; color: #1d1d1c; text-align: left; border-bottom: 1px solid #efeeec; cursor: pointer; }
+.tui .tbox { flex: 0 0 22px; height: 22px; border-radius: 50%; border: 1.5px solid #c8c6c0; margin-top: 1px; display: grid; place-items: center; transition: background .2s ease, border-color .2s ease; }
+.tui .tbox svg { width: 13px; height: 13px; opacity: 0; transition: opacity .2s ease; }
+.tui .trow.done .tbox { background: #1d1d1c; border-color: #1d1d1c; } .tui .trow.done .tbox svg { opacity: 1; }
+.tui .trow.done .ttxt { color: #a5a39d; text-decoration: line-through; }
 .tui .tread { font-family: 'Sofia Sans Condensed', 'Schibsted Grotesk', system-ui, sans-serif; font-size: min(80px, 19vw); line-height: 1; height: 80px; display: grid; place-items: center; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: .01em; color: #1d1d1c; margin: 0 0 16px; }
 .tui .play:active { transform: scale(.94); }
 .tui .play svg { width: 20px; height: 20px; }
@@ -1792,6 +1799,10 @@ const POOL = {
   octopus:    { name: 'Octopus',          w: 96, re: /\boctop(us|i|uses)\b/i , terms: ['octopus', 'octopuses', 'octopi'] },
   // Not a creature: a wind-up kitchen timer, for a cook. Tap it for its card; it really times.
   timer:      { name: 'Timer',            w: 118, re: /\b(green egg|kamado|bbq|barbe?cue|barbeque|brisket|smok(er|ing|ed)|grill(ing|ed)?|pulled pork|ribs)\b/i, kind: 'timer' },
+  clipboard:  { name: 'Checklist',        w: 96, re: null, kind: 'list', title: 'Steps' },
+  groceries:  { name: 'Grocery list',     w: 104, re: null, kind: 'list', title: 'Groceries' },
+  calendar:   { name: 'Calendar',         w: 92, re: null, kind: 'cal' },
+  pin:        { name: 'Place',            w: 58, re: null, kind: 'pin' },
   thermo:     { name: 'Thermometer',      w: 114, re: /\b(green egg|kamado|bbq|barbe?cue|barbeque|brisket|smok(er|ing|ed)|grill(ing|ed)?|pulled pork|ribs)\b/i, kind: 'thermo' },
 };
 const critters = [];
@@ -1813,7 +1824,7 @@ function poolInit() {
   return true;
 }
 const POOL_GAP = 2;   // the invisible margin round every shape in the pile
-const HULLS = {"thermo":[[-0.345,-0.21],[-0.31,-0.32],[-0.27,-0.38],[-0.225,-0.425],[-0.165,-0.465],[-0.13,-0.48],[-0.05,-0.5],[0.08,-0.495],[0.165,-0.465],[0.225,-0.425],[0.275,-0.375],[0.305,-0.33],[0.335,-0.26],[0.345,-0.21],[0.345,-0.11],[0.325,-0.03],[0.295,0.03],[0.01,0.495],[-0.005,0.5],[-0.305,0.01],[-0.325,-0.035],[-0.345,-0.115]],"anemone":[[-0.5,-0.1625],[-0.445,-0.3125],[-0.335,-0.4225],[-0.16,-0.4925],[-0.03,-0.4925],[0.2,-0.4875],[0.375,-0.3875],[0.39,-0.3725],[0.475,-0.2025],[0.5,-0.1025],[0.5,-0.0725],[0.47,0.0275],[0.36,0.3175],[0.3,0.3925],[0.22,0.4425],[0.145,0.4625],[0.035,0.4725],[-0.07,0.4725],[-0.175,0.4625],[-0.305,0.4325],[-0.33,0.4075],[-0.48,-0.0075]],"starfish":[[-0.4575,-0.215],[-0.4375,-0.24],[-0.4125,-0.255],[-0.0075,-0.495],[0.0075,-0.5],[0.0275,-0.5],[0.0575,-0.49],[0.4325,-0.17],[0.4525,-0.15],[0.4625,-0.125],[0.4625,-0.095],[0.3075,0.445],[0.2825,0.47],[0.2675,0.48],[0.2475,0.485],[0.1825,0.485],[-0.3375,0.405],[-0.3725,0.395],[-0.3925,0.38],[-0.4225,0.35],[-0.4275,0.34],[-0.4625,-0.185]],"crab":[[-0.485,-0.095],[-0.475,-0.17],[-0.44,-0.275],[-0.345,-0.4],[-0.26,-0.45],[-0.115,-0.49],[-0.04,-0.49],[0.04,-0.47],[0.155,-0.395],[0.31,-0.245],[0.325,-0.22],[0.47,0.16],[0.48,0.285],[0.445,0.365],[0.41,0.4],[0.35,0.425],[0.075,0.49],[0.015,0.495],[-0.205,0.45],[-0.33,0.4],[-0.36,0.37],[-0.465,0.05]],"nudibranch":[[-0.5,0.09],[-0.405,-0.335],[-0.385,-0.355],[-0.09,-0.415],[0.065,-0.435],[0.085,-0.435],[0.23,-0.385],[0.355,-0.325],[0.365,-0.315],[0.41,-0.215],[0.5,0.08],[0.49,0.12],[0.36,0.3],[0.32,0.335],[0.0,0.41],[-0.065,0.415],[-0.17,0.4],[-0.305,0.37],[-0.34,0.355],[-0.35,0.345],[-0.49,0.14],[-0.5,0.11]],"urchin":[[-0.4975,-0.105],[-0.4375,-0.245],[-0.3075,-0.4],[-0.2925,-0.415],[-0.1475,-0.49],[0.0675,-0.5],[0.2275,-0.44],[0.3575,-0.345],[0.3675,-0.335],[0.4625,-0.165],[0.4975,0.075],[0.4975,0.095],[0.3775,0.335],[0.2625,0.425],[0.2275,0.435],[-0.0525,0.465],[-0.1275,0.47],[-0.2075,0.47],[-0.3125,0.45],[-0.3675,0.43],[-0.4125,0.395],[-0.4925,0.08]],"cucumber":[[-0.46,-0.1275],[-0.425,-0.1875],[-0.34,-0.2575],[-0.175,-0.3075],[0.02,-0.3075],[0.12,-0.2925],[0.275,-0.2375],[0.395,-0.1525],[0.405,-0.1425],[0.46,-0.0575],[0.49,0.0175],[0.5,0.0875],[0.495,0.1175],[0.43,0.2025],[0.4,0.2175],[0.33,0.2325],[-0.08,0.2825],[-0.19,0.2825],[-0.345,0.2675],[-0.405,0.2575],[-0.43,0.2425],[-0.455,-0.0425]],"sculpin":[[-0.485,0.0675],[-0.44,-0.0425],[-0.385,-0.1225],[-0.34,-0.1675],[-0.13,-0.3325],[-0.07,-0.3525],[0.405,-0.2375],[0.45,-0.2075],[0.48,-0.1225],[0.48,-0.0225],[0.465,0.0375],[0.435,0.0925],[0.195,0.3375],[0.16,0.3475],[0.075,0.3525],[0.03,0.3475],[-0.255,0.2975],[-0.3,0.2875],[-0.39,0.2525],[-0.43,0.2275],[-0.475,0.1725],[-0.49,0.1375]],"octopus":[[-0.495,0.1075],[-0.41,-0.0675],[-0.27,-0.3225],[-0.205,-0.3975],[-0.135,-0.4375],[-0.085,-0.4525],[0.0,-0.4575],[0.08,-0.4425],[0.19,-0.3875],[0.235,-0.3375],[0.4,-0.0275],[0.41,-0.0025],[0.435,0.1575],[0.435,0.3125],[0.42,0.3375],[0.335,0.3825],[0.24,0.4075],[-0.13,0.4325],[-0.2,0.4225],[-0.4,0.2925],[-0.455,0.2425],[-0.485,0.1925]],"timer":[[-0.4525,-0.105],[-0.4375,-0.185],[-0.4025,-0.275],[-0.3675,-0.33],[-0.3075,-0.395],[-0.2175,-0.455],[-0.1375,-0.485],[-0.0575,-0.5],[0.0625,-0.5],[0.1375,-0.485],[0.2175,-0.455],[0.3075,-0.395],[0.3825,-0.31],[0.4175,-0.245],[0.4525,-0.115],[0.4525,0.35],[0.4325,0.395],[0.3325,0.495],[-0.3375,0.495],[-0.3625,0.485],[-0.4425,0.38],[-0.4525,0.35]]};   // each plush's outline: its picture's convex hull, as fractions of the square element from its centre
+const HULLS = {"groceries":[[-0.375,-0.385],[-0.355,-0.435],[-0.34,-0.45],[-0.3,-0.465],[-0.065,-0.49],[0.13,-0.5],[0.19,-0.495],[0.32,-0.44],[0.375,-0.4],[0.36,0.455],[0.355,0.465],[0.32,0.485],[0.285,0.495],[0.235,0.5],[-0.24,0.5],[-0.27,0.495],[-0.31,0.475],[-0.33,0.455],[-0.35,0.405],[-0.36,0.3],[-0.37,-0.005],[-0.375,-0.3]],"pin":[[-0.335,-0.225],[-0.315,-0.3],[-0.29,-0.35],[-0.225,-0.425],[-0.175,-0.46],[-0.105,-0.49],[-0.06,-0.5],[0.055,-0.5],[0.1,-0.49],[0.165,-0.465],[0.24,-0.41],[0.275,-0.37],[0.315,-0.3],[0.335,-0.225],[0.335,-0.13],[0.31,-0.035],[0.115,0.49],[0.03,0.5],[-0.01,0.5],[-0.27,0.05],[-0.31,-0.035],[-0.335,-0.13]],"calendar":[[-0.38,-0.295],[-0.375,-0.315],[-0.365,-0.335],[-0.355,-0.35],[-0.345,-0.36],[-0.2,-0.5],[0.17,-0.5],[0.33,-0.335],[0.34,-0.315],[0.345,-0.29],[0.36,0.465],[0.36,0.485],[0.32,0.495],[0.26,0.5],[-0.165,0.5],[-0.295,0.495],[-0.32,0.485],[-0.335,0.475],[-0.35,0.46],[-0.365,0.43],[-0.37,0.365],[-0.38,-0.175]],"clipboard":[[-0.34,-0.34],[-0.33,-0.36],[-0.295,-0.395],[-0.285,-0.4],[-0.03,-0.5],[0.03,-0.5],[0.285,-0.4],[0.31,-0.385],[0.32,-0.375],[0.33,-0.36],[0.34,-0.34],[0.34,0.43],[0.335,0.445],[0.325,0.46],[0.3,0.485],[0.28,0.495],[0.265,0.5],[-0.265,0.5],[-0.28,0.495],[-0.3,0.485],[-0.325,0.46],[-0.34,0.43]],"thermo":[[-0.345,-0.21],[-0.31,-0.32],[-0.27,-0.38],[-0.225,-0.425],[-0.165,-0.465],[-0.13,-0.48],[-0.05,-0.5],[0.08,-0.495],[0.165,-0.465],[0.225,-0.425],[0.275,-0.375],[0.305,-0.33],[0.335,-0.26],[0.345,-0.21],[0.345,-0.11],[0.325,-0.03],[0.295,0.03],[0.01,0.495],[-0.005,0.5],[-0.305,0.01],[-0.325,-0.035],[-0.345,-0.115]],"anemone":[[-0.5,-0.1625],[-0.445,-0.3125],[-0.335,-0.4225],[-0.16,-0.4925],[-0.03,-0.4925],[0.2,-0.4875],[0.375,-0.3875],[0.39,-0.3725],[0.475,-0.2025],[0.5,-0.1025],[0.5,-0.0725],[0.47,0.0275],[0.36,0.3175],[0.3,0.3925],[0.22,0.4425],[0.145,0.4625],[0.035,0.4725],[-0.07,0.4725],[-0.175,0.4625],[-0.305,0.4325],[-0.33,0.4075],[-0.48,-0.0075]],"starfish":[[-0.4575,-0.215],[-0.4375,-0.24],[-0.4125,-0.255],[-0.0075,-0.495],[0.0075,-0.5],[0.0275,-0.5],[0.0575,-0.49],[0.4325,-0.17],[0.4525,-0.15],[0.4625,-0.125],[0.4625,-0.095],[0.3075,0.445],[0.2825,0.47],[0.2675,0.48],[0.2475,0.485],[0.1825,0.485],[-0.3375,0.405],[-0.3725,0.395],[-0.3925,0.38],[-0.4225,0.35],[-0.4275,0.34],[-0.4625,-0.185]],"crab":[[-0.485,-0.095],[-0.475,-0.17],[-0.44,-0.275],[-0.345,-0.4],[-0.26,-0.45],[-0.115,-0.49],[-0.04,-0.49],[0.04,-0.47],[0.155,-0.395],[0.31,-0.245],[0.325,-0.22],[0.47,0.16],[0.48,0.285],[0.445,0.365],[0.41,0.4],[0.35,0.425],[0.075,0.49],[0.015,0.495],[-0.205,0.45],[-0.33,0.4],[-0.36,0.37],[-0.465,0.05]],"nudibranch":[[-0.5,0.09],[-0.405,-0.335],[-0.385,-0.355],[-0.09,-0.415],[0.065,-0.435],[0.085,-0.435],[0.23,-0.385],[0.355,-0.325],[0.365,-0.315],[0.41,-0.215],[0.5,0.08],[0.49,0.12],[0.36,0.3],[0.32,0.335],[0.0,0.41],[-0.065,0.415],[-0.17,0.4],[-0.305,0.37],[-0.34,0.355],[-0.35,0.345],[-0.49,0.14],[-0.5,0.11]],"urchin":[[-0.4975,-0.105],[-0.4375,-0.245],[-0.3075,-0.4],[-0.2925,-0.415],[-0.1475,-0.49],[0.0675,-0.5],[0.2275,-0.44],[0.3575,-0.345],[0.3675,-0.335],[0.4625,-0.165],[0.4975,0.075],[0.4975,0.095],[0.3775,0.335],[0.2625,0.425],[0.2275,0.435],[-0.0525,0.465],[-0.1275,0.47],[-0.2075,0.47],[-0.3125,0.45],[-0.3675,0.43],[-0.4125,0.395],[-0.4925,0.08]],"cucumber":[[-0.46,-0.1275],[-0.425,-0.1875],[-0.34,-0.2575],[-0.175,-0.3075],[0.02,-0.3075],[0.12,-0.2925],[0.275,-0.2375],[0.395,-0.1525],[0.405,-0.1425],[0.46,-0.0575],[0.49,0.0175],[0.5,0.0875],[0.495,0.1175],[0.43,0.2025],[0.4,0.2175],[0.33,0.2325],[-0.08,0.2825],[-0.19,0.2825],[-0.345,0.2675],[-0.405,0.2575],[-0.43,0.2425],[-0.455,-0.0425]],"sculpin":[[-0.485,0.0675],[-0.44,-0.0425],[-0.385,-0.1225],[-0.34,-0.1675],[-0.13,-0.3325],[-0.07,-0.3525],[0.405,-0.2375],[0.45,-0.2075],[0.48,-0.1225],[0.48,-0.0225],[0.465,0.0375],[0.435,0.0925],[0.195,0.3375],[0.16,0.3475],[0.075,0.3525],[0.03,0.3475],[-0.255,0.2975],[-0.3,0.2875],[-0.39,0.2525],[-0.43,0.2275],[-0.475,0.1725],[-0.49,0.1375]],"octopus":[[-0.495,0.1075],[-0.41,-0.0675],[-0.27,-0.3225],[-0.205,-0.3975],[-0.135,-0.4375],[-0.085,-0.4525],[0.0,-0.4575],[0.08,-0.4425],[0.19,-0.3875],[0.235,-0.3375],[0.4,-0.0275],[0.41,-0.0025],[0.435,0.1575],[0.435,0.3125],[0.42,0.3375],[0.335,0.3825],[0.24,0.4075],[-0.13,0.4325],[-0.2,0.4225],[-0.4,0.2925],[-0.455,0.2425],[-0.485,0.1925]],"timer":[[-0.4525,-0.105],[-0.4375,-0.185],[-0.4025,-0.275],[-0.3675,-0.33],[-0.3075,-0.395],[-0.2175,-0.455],[-0.1375,-0.485],[-0.0575,-0.5],[0.0625,-0.5],[0.1375,-0.485],[0.2175,-0.455],[0.3075,-0.395],[0.3825,-0.31],[0.4175,-0.245],[0.4525,-0.115],[0.4525,0.35],[0.4325,0.395],[0.3325,0.495],[-0.3375,0.495],[-0.3625,0.485],[-0.4425,0.38],[-0.4525,0.35]]};   // each plush's outline: its picture's convex hull, as fractions of the square element from its centre
 const POOL_PAD = 8;   // the pile keeps 8px off the left edge and 8px above the chat box
 function poolWallsBuild() {
   const { Bodies, Composite } = Matter, W = innerWidth, H = innerHeight, t = 200;
@@ -1846,7 +1857,7 @@ function poolSyncBox() {
   if (r && r.width > 0) { poolBox = Bodies.rectangle(r.left + r.width / 2, r.top + r.height / 2 - POOL_PAD / 2, r.width, r.height + POOL_PAD, { isStatic: true, friction: .12, restitution: .45, chamfer: { radius: 24 } }); Composite.add(poolEngine.world, poolBox); }
   for (const c of critters) Sleeping.set(c.body, false);
 }
-function poolDrop(key) {
+function poolDrop(key, extra) {
   if (!poolInit()) return;
   const { Bodies, Body, Composite } = Matter, P = POOL[key], w = P.w * (innerWidth < 600 ? .82 : 1), x = 50 + Math.random() * (innerWidth - 100);
   // One physics for everything in the pile — the creatures and the timer bounce, slide and weigh the same;
@@ -1865,12 +1876,15 @@ function poolDrop(key) {
   Body.setVelocity(body, { x: (Math.random() - .5) * 5, y: 3 }); Body.setAngularVelocity(body, (Math.random() - .5) * .25);
   Composite.add(poolEngine.world, body);
   const el = document.createElement('div'); el.className = 'critter'; el.style.width = el.style.height = w + 'px';
-  el.innerHTML = `<img src="plush/${key}.webp" alt="${P.name}" draggable="false">` + (P.kind === 'timer' ? dialSVG() : P.kind === 'thermo' ? thermoLCD() : '');
+  el.innerHTML = `<img src="plush/${key}.webp" alt="${P.name}" draggable="false">` + (P.kind === 'timer' ? dialSVG() : P.kind === 'thermo' ? thermoLCD() : key === 'clipboard' ? paperSVG() : P.kind === 'cal' ? calSVG() : '');
   poolEl.append(el);
   const c = { key, el, body, w, ox, oy, w0: w, ox0: ox, oy0: oy, size: 1, goal: 1, bubble: null, bubbleT: 0, sq: 0, sv: 0 };
   if (P.kind === 'timer') c.timer = { set: 0, left: 0, running: false, endAt: 0, rung: false };
   if (P.kind === 'thermo') c.terms = [];
+  if (P.kind === 'list') { c.items = []; c.done = new Set(); }
+  if (extra) Object.assign(c, extra);
   critters.push(c); poolGrab(c);
+  return c;
 }
 function poolClear(all = true) {
   for (const c of [...critters]) {
@@ -1886,7 +1900,8 @@ function poolClear(all = true) {
 }
 // The answer so far: anything it names that isn't in yet drops in.
 function poolHear(text) {
-  for (const [k, P] of Object.entries(POOL)) if (!poolSeen.has(k) && P.re.test(text)) { poolSeen.add(k); poolDrop(k); }
+  for (const [k, P] of Object.entries(POOL)) if (P.re && !poolSeen.has(k) && P.re.test(text)) { poolSeen.add(k); poolDrop(k); }
+  toolsHear(text);
   if (!whaleSeen && WHALE_RE.test(text)) { whaleSeen = true; whaleStart(); }
   // The timer comes set: the answer's first cooking time — "smoke for 6 hours", "on the grill 45 minutes" —
   // or failing that its first time of any kind. Until you wind it yourself, it follows the answer.
@@ -1900,6 +1915,143 @@ function durSec(m) {
   const w = m[1].toLowerCase(), n = w === '½' ? .5 : /^an?$/.test(w) ? 1 : WORDN[w] ?? parseFloat(w);
   const half = /½/.test(m[0]) && w !== '½' ? .5 : 0, unit = /^h/i.test(m[2]) ? 3600 : 60;
   return Math.round((n + half) * unit + (m[3] ? +m[3] * 60 : 0));
+}
+/* ── the useful things ── each drops in when the answer calls for it, comes filled in from it, and does
+   something when tapped:
+   · the clipboard: asked how to do something, the answer's steps — written on its paper; tapped, a checklist
+     you tick off (remembered on this device)
+   · the grocery bag: an ingredient list — tapped, the same checklist, for the shop
+   · the desk calendar: a day or a time in the question or the answer — shown on its page; tapped, the app
+     opens a new Calendar event with it filled in
+   · map pins: places the answer recommends (Haiku picks them out once it's done) — one pin each; tapped, its
+     name, and directions in Maps */
+const PAPER = { x: .2264, y: .2238, w: .5471, h: .6819 };   // the clipboard's blank paper, as fractions of the square element
+const CALBAND = { x: .1354, y: .1186, w: .694, h: .2035 }, CALPAGE = { x: .1384, y: .3631, w: .6867, h: .4905 };
+const HOWTO = /\b(how (do|to|can|should|would)|steps?|step[- ]by[- ]step|walk me|guide|set ?up|recipe|show me how|checklist|instructions?|teach me)\b/i;
+const PLACES = /\b(where|near|nearby|spots?|places?|restaurants?|caf[eé]s?|coffee|bars?|hikes?|trails?|parks?|museums?|shops?|stores?|bakery|bakeries|visit|neighbou?rhood|district)\b/i;
+let lastAsk = '';
+const cleanItem = (s) => { s = s.replace(/\*\*|__|`|\[|\]\([^)]*\)/g, '').trim(); const lead = s.match(/^([^:.–—]{3,70})[:.–—]\s/); return (lead ? lead[1] : s).trim().slice(0, 90); };
+function stepsOf(text) {
+  const out = [];
+  for (const line of text.split('\n')) {
+    const m = line.match(/^\s*(?:#+\s*)?(?:\*\*)?(?:step\s*)?(\d{1,2})[.):]\s*(?:\*\*)?\s*(.+)/i);
+    if (m && m[2].trim().length > 2) out.push(cleanItem(m[2]));
+  }
+  return out;
+}
+function groceriesOf(text) {
+  const lines = text.split('\n'), out = []; let on = false;
+  for (const raw of lines) {
+    const line = raw.trim(), bare = line.replace(/[#*_]/g, '').trim();
+    if (!on) { if (bare.length < 60 && /ingredients|shopping list|grocer|you('ll| will) need|what you need|to buy/i.test(bare)) on = true; continue; }
+    if (!line) continue;
+    const b = line.match(/^(?:[-*•]|\d{1,2}[.)])\s+(.+)/);
+    if (b) { out.push(b[1].replace(/\*\*|__|`/g, '').trim().slice(0, 80)); continue; }
+    if (/step|instruction|method|direction|how to|prep|cook/i.test(bare) && out.length) break;
+    if (/:$/.test(bare) && bare.length < 40) continue;   // "For the sauce:" — a sub-list
+    if (out.length) break;
+  }
+  return out;
+}
+const WD = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'], MO = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+function parseWhen(s) {
+  const now = new Date(); let d = null, m, hasTime = false;
+  if (/\btomorrow\b/i.test(s)) { d = new Date(now); d.setDate(d.getDate() + 1); }
+  else if ((m = s.match(/\b(next|this|on|coming)?\s*(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i))) { d = new Date(now); d.setDate(d.getDate() + ((WD.indexOf(m[2].toLowerCase()) - d.getDay() + 7) % 7 || 7)); }
+  else if ((m = s.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b/i))) { d = new Date(now.getFullYear(), MO.indexOf(m[1].toLowerCase().slice(0, 3)), +m[2]); if (d < now - 864e5) d.setFullYear(d.getFullYear() + 1); }
+  else if (/\b(tonight|today|this evening)\b/i.test(s)) d = new Date(now);
+  const t = s.match(/\b(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?(?![a-z])/i), noon = /\bnoon\b/i.test(s);
+  if (t || noon) { hasTime = true; d ||= new Date(now); d.setHours(t ? (+t[1] % 12) + (/p/i.test(t[3]) ? 12 : 0) : 12, t && t[2] ? +t[2] : 0, 0, 0); if (d < now) d.setDate(d.getDate() + 1); }
+  else if (d) d.setHours(9, 0, 0, 0);
+  return d ? { d, hasTime } : null;
+}
+function toolsHear(text) {
+  // the clipboard: only when you asked how to do something, and the answer has 3+ steps
+  const steps = HOWTO.test(lastAsk) ? stepsOf(text) : [];
+  if (steps.length >= 3) { let c = critters.find((o) => o.key === 'clipboard'); if (!c && !poolSeen.has('clipboard')) { poolSeen.add('clipboard'); c = poolDrop('clipboard'); } if (c) listSet(c, steps); }
+  const groc = groceriesOf(text);
+  if (groc.length >= 3) { let c = critters.find((o) => o.key === 'groceries'); if (!c && !poolSeen.has('groceries')) { poolSeen.add('groceries'); c = poolDrop('groceries'); } if (c) listSet(c, groc); }
+  // the calendar: your question first (it's your plan), then the answer
+  const when = parseWhen(lastAsk) || parseWhen(text);
+  if (when) {
+    let c = critters.find((o) => o.key === 'calendar');
+    if (!c && !poolSeen.has('calendar')) { poolSeen.add('calendar'); c = poolDrop('calendar'); if (c) calTitle(c); }
+    if (c && (!c.when || +c.when.d !== +when.d)) { c.when = when; calPaint(c); }
+  }
+}
+// a checklist's items: kept as they stream in; ticks remembered per list, on this device
+const listKey = (c) => 'peek-list:' + c.key + ':' + c.items.slice(0, 3).join('|').slice(0, 120);
+function listSet(c, items) {
+  if (items.join('\n') === c.items.join('\n')) return;
+  c.items = items;
+  try { c.done = new Set(JSON.parse(localStorage.getItem(listKey(c)) || '[]')); } catch { c.done = new Set(); }
+  listPaint(c);
+}
+function listToggle(c, i) {
+  c.done.has(i) ? c.done.delete(i) : c.done.add(i);
+  try { localStorage.setItem(listKey(c), JSON.stringify([...c.done])); } catch {}
+  if (audio) tick();
+  listPaint(c);
+}
+function listHTML(c) {
+  const check = '<svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  return `<div class="tlist"><h4>${POOL[c.key].title}</h4>` + c.items.map((t, i) => `<button class="trow${c.done.has(i) ? ' done' : ''}" data-i="${i}"><span class="tbox">${check}</span><span class="ttxt">${t.replace(/</g, '&lt;')}</span></button>`).join('') + '</div>';
+}
+function listPaint(c) {
+  if (tcard && tcard.c === c) for (const r of tcard.ui.querySelectorAll('.trow')) r.classList.toggle('done', c.done.has(+r.dataset.i));
+  const g = c.el.querySelector('.paper g'); if (!g) return;
+  g.innerHTML = c.items.slice(0, 6).map((t, i) => { const y = 16 + i * 17, d = c.done.has(i);
+    return `<rect x="7" y="${y - 6}" width="6.5" height="6.5" rx="1.6" fill="${d ? '#2a2c2f' : 'none'}" stroke="#2a2c2f" stroke-width=".9"/><text x="18" y="${y}" font-size="8.2" fill="${d ? '#a5a39d' : '#2a2c2f'}" ${d ? 'text-decoration="line-through"' : ''}>${(t.length > 21 ? t.slice(0, 20) + '…' : t).replace(/</g, '&lt;')}</text>`; }).join('')
+    + `<text x="93" y="118" text-anchor="end" font-size="8" fill="#87857f">${c.done.size}/${c.items.length}</text>`;
+}
+function paperSVG() {
+  return `<svg class="paper" viewBox="0 0 100 124.6" style="position:absolute;left:${PAPER.x * 100}%;top:${PAPER.y * 100}%;width:${PAPER.w * 100}%;height:${PAPER.h * 100}%;pointer-events:none"><g font-family="Schibsted Grotesk, system-ui, sans-serif" font-weight="500"></g></svg>`;
+}
+function calSVG() {
+  return `<svg class="calband" viewBox="0 0 100 29" preserveAspectRatio="none" style="position:absolute;left:${CALBAND.x * 100}%;top:${CALBAND.y * 100}%;width:${CALBAND.w * 100}%;height:${CALBAND.h * 100}%;pointer-events:none"><text x="50" y="22" text-anchor="middle" font-size="12" font-weight="700" letter-spacing="1.5" fill="#fff" font-family="Schibsted Grotesk, system-ui, sans-serif"></text></svg>`
+    + `<svg class="calpage" viewBox="0 0 100 71" style="position:absolute;left:${CALPAGE.x * 100}%;top:${CALPAGE.y * 100}%;width:${CALPAGE.w * 100}%;height:${CALPAGE.h * 100}%;pointer-events:none"><g font-family="'Sofia Sans Condensed', system-ui, sans-serif" fill="#1d1d1c" text-anchor="middle"><text class="cm" x="50" y="15" font-size="11" font-weight="600" fill="#e3372a" letter-spacing="1.5"></text><text class="cd" x="50" y="52" font-size="40" font-weight="600"></text><text class="ct" x="50" y="66" font-size="10" font-weight="500" fill="#6f6d68"></text></g></svg>`;
+}
+function calPaint(c) {
+  const { d, hasTime } = c.when, set = (sel, t) => { const e = c.el.querySelector(sel); if (e && e.textContent !== t) e.textContent = t; };
+  set('.calband text', d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase());
+  set('.cm', d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase());
+  set('.cd', String(d.getDate()));
+  set('.ct', hasTime ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: d.getMinutes() ? '2-digit' : undefined }) : '');
+}
+// a title for the event: Haiku names it from your question (through the app); without it, a plain guess
+async function calTitle(c) {
+  const guess = (lastAsk.match(/\b(?:a|an|my|the|our)\s+([a-z][a-z ]{2,28}?)(?=\s+(?:next|this|on|at|tomorrow|tonight|today|for|in)\b)/i) || [])[1];
+  c.title = guess ? guess.replace(/\b\w/g, (ch) => ch.toUpperCase()) : 'Event';
+  const t = await ask('Write a short calendar event title (1 to 4 words, Title Case, no punctuation, no date or time) for what the user is planning. Reply with the title only.', lastAsk, 6000);
+  if (t && t.trim().length < 48) c.title = t.trim().replace(/^["']|["'.]$/g, '');
+}
+function calTap(c) {
+  Matter.Body.setVelocity(c.body, { x: c.body.velocity.x, y: -4 }); Matter.Sleeping.set(c.body, false); c.sv += 2;
+  if (!c.when) return;
+  const { d, hasTime } = c.when;
+  if (host) tell({ type: 'calendar', title: c.title || 'Event', start: d.toISOString(), allDay: !hasTime, notes: lastAsk.slice(0, 400) });
+  c.label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + (hasTime ? ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '');
+  poolName(c);
+}
+// pins: once the answer is done, Haiku picks out the places it recommends; one pin drops for each
+async function pinsFor(answer) {
+  if (!PLACES.test(lastAsk + ' ' + answer.slice(0, 400)) || critters.some((c) => c.key === 'pin')) return;
+  const raw = await ask('List the specific real places (cafés, restaurants, bars, shops, parks, trails, museums, landmarks) this answer recommends, in the order given. Reply with JSON only, like [{"name":"Ritual Coffee Roasters","area":"Mission District, San Francisco"}]. At most 5. If it recommends no specific places, reply [].', answer.slice(0, 5000), 9000);
+  let list = []; try { list = JSON.parse((raw || '').match(/\[[\s\S]*\]/)?.[0] || '[]'); } catch {}
+  list.filter((p) => p && p.name).slice(0, 5).forEach((p, i) => setTimeout(() => poolDrop('pin', { place: p, label: p.name }), i * 260));
+}
+function pinTap(c) {
+  Matter.Body.setVelocity(c.body, { x: c.body.velocity.x, y: -4 }); Matter.Sleeping.set(c.body, false); c.sv += 2;
+  poolName(c);
+  const q = c.place ? c.place.name + (c.place.area ? ', ' + c.place.area : '') : '';
+  if (q && host) tell({ type: 'open', url: 'https://maps.apple.com/?q=' + encodeURIComponent(q) });
+}
+function poolTap(c) {
+  const k = POOL[c.key].kind;
+  if (k === 'timer' || k === 'list') return timerCard(c);
+  if (k === 'cal') return calTap(c);
+  if (k === 'pin') return pinTap(c);
+  poolFocusOn(c);
 }
 /* ── the thermometer ── a cute orange instant-read, dropped in with the timer on a cook. Its display shows
    the answer's done temperature on a dial — the highest one it talks about pulling, probing or reaching ("pull
@@ -1946,7 +2098,7 @@ function poolGrab(c) {
   const { Composite, Constraint, Sleeping, Body } = Matter;
   c.el.addEventListener('pointerdown', (e) => {
     e.preventDefault(); e.stopPropagation(); try { c.el.setPointerCapture(e.pointerId); } catch {}
-    if (tcard && tcard.c === c) { windStart(c, e); return; }   // grown: the dial winds
+    if (tcard && tcard.c === c) { if (c.timer) windStart(c, e); return; }   // grown: the dial winds
     Sleeping.set(c.body, false);
     const b = c.body, dx = e.clientX - b.position.x, dy = e.clientY - b.position.y, ca = Math.cos(-b.angle), sa = Math.sin(-b.angle);
     const spring = Constraint.create({ pointA: { x: e.clientX, y: e.clientY }, bodyB: b, pointB: { x: dx * ca - dy * sa, y: dx * sa + dy * ca }, stiffness: .3, damping: .06, length: 0 });
@@ -1955,7 +2107,7 @@ function poolGrab(c) {
     c.sv -= 3;
   });
   c.el.addEventListener('pointermove', (e) => {
-    if (tcard && tcard.c === c) { windMove(c, e); return; }
+    if (tcard && tcard.c === c) { if (c.timer) windMove(c, e); return; }
     if (!poolDrag || poolDrag.c !== c) return;
     poolDrag.spring.pointA = { x: e.clientX, y: e.clientY };
     poolDrag.moved = Math.max(poolDrag.moved, Math.hypot(e.clientX - poolDrag.x, e.clientY - poolDrag.y));
@@ -1963,10 +2115,10 @@ function poolGrab(c) {
     while (poolDrag.trail.length > 2 && now - poolDrag.trail[0].t > 90) poolDrag.trail.shift();
   });
   const up = () => {
-    if (tcard && tcard.c === c) { windEnd(c); return; }
+    if (tcard && tcard.c === c) { if (c.timer) windEnd(c); return; }
     if (!poolDrag || poolDrag.c !== c) return;
     Composite.remove(poolEngine.world, poolDrag.spring);
-    if (poolDrag.moved < 8 && performance.now() - poolDrag.t < 400) (c.timer ? timerCard(c) : poolFocusOn(c));
+    if (poolDrag.moved < 8 && performance.now() - poolDrag.t < 400) poolTap(c);
     else {
       const a = poolDrag.trail[0], z = poolDrag.trail[poolDrag.trail.length - 1], dt = Math.max(16, z.t - a.t), step = 1000 / 120;
       const vx = (z.x - a.x) / dt * step * 1.15, vy = (z.y - a.y) / dt * step * 1.15, sp = Math.hypot(vx, vy), k = sp > 34 ? 34 / sp : 1;
@@ -1998,7 +2150,7 @@ function poolSize(c) {
 }
 function poolName(c) {
   c.bubble?.remove();
-  const b = document.createElement('div'); b.className = 'name'; b.textContent = POOL[c.key].name; poolEl.append(b);
+  const b = document.createElement('div'); b.className = 'name'; b.textContent = c.label || POOL[c.key].name; poolEl.append(b);
   b.animate([{ opacity: 0, scale: '.6' }, { opacity: 1, scale: '1' }], { duration: 280, easing: 'cubic-bezier(.3,1.5,.5,1)' });
   c.bubble = b; c.bubbleT = performance.now();
   Matter.Body.setVelocity(c.body, { x: c.body.velocity.x, y: -4 }); Matter.Sleeping.set(c.body, false);
@@ -2047,15 +2199,16 @@ let tcard = null, audio = null;   // the grown timer, if any
 const grownSize = () => 48;   // tapped, the timer becomes a small icon over its readout and play button
 function timerCard(c) { tcard ? shrinkTimer() : growTimer(c); }
 function growTimer(c) {
-  audio ||= new (window.AudioContext || window.webkitAudioContext)();   // made on a tap, so it can tick and ring
+  if (c.timer) audio ||= new (window.AudioContext || window.webkitAudioContext)();   // made on a tap, so it can tick and ring
   const { Composite } = Matter;
   Composite.remove(poolEngine.world, c.body);   // out of the pile while it's in your hands
   const scrim = document.createElement('div'); scrim.className = 'tscrim';
   scrim.addEventListener('pointerdown', (e) => { e.stopPropagation(); shrinkTimer(); });
   const ui = document.createElement('div'); ui.className = 'tui';
-  ui.innerHTML = `<div class="tread">00:00:00</div><button class="play" data-a="go" aria-label="Start"><svg viewBox="0 0 24 24"><path class="i-play" d="M8 5.5v13l11-6.5z" fill="#fff"/><g class="i-pause" fill="#fff"><rect x="6.5" y="5.5" width="4" height="13" rx="1.2"/><rect x="13.5" y="5.5" width="4" height="13" rx="1.2"/></g></svg></button>`;
+  if (!c.timer) { ui.innerHTML = listHTML(c); ui.addEventListener('click', (e) => { const r = e.target.closest('.trow'); if (r) listToggle(c, +r.dataset.i); }); }
+  else ui.innerHTML = `<div class="tread">00:00:00</div><button class="play" data-a="go" aria-label="Start"><svg viewBox="0 0 24 24"><path class="i-play" d="M8 5.5v13l11-6.5z" fill="#fff"/><g class="i-pause" fill="#fff"><rect x="6.5" y="5.5" width="4" height="13" rx="1.2"/><rect x="13.5" y="5.5" width="4" height="13" rx="1.2"/></g></svg></button>`;
   ui.addEventListener('pointerdown', (e) => e.stopPropagation());
-  ui.addEventListener('click', (e) => {
+  if (c.timer) ui.addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return; const T = c.timer;
     if (b.dataset.a === 'go') { T.running ? (T.left = timerLeft(T), T.running = false) : (timerLeft(T) > 0 && startTimer(T)); }
     c.sv -= 2; paintCard();
@@ -2084,9 +2237,9 @@ function shrinkTimer() {
 }
 function startTimer(T) { T.endAt = Date.now() + T.left * 1000; T.running = true; T.rung = false; }
 function closeCard() { if (tcard) { tcard.scrim.remove(); tcard.ui.remove(); tcard.c.el.classList.remove('grown'); tcard = null; } }
-const grownAt = () => ({ x: innerWidth / 2, y: Math.max(40, innerHeight / 2 - 208 / 2 + 24) });   // the icon's centre: the whole column (icon 48 · 16 · time 80 · 16 · button 48) centred on the screen
+const grownAt = () => ({ x: innerWidth / 2, y: Math.max(40, innerHeight / 2 - (64 + (tcard?.ui.offsetHeight || 144)) / 2 + 24) });   // the icon's centre: the whole column (icon 48 · 16 · what's under it) centred on the screen
 function paintCard() {
-  if (!tcard) return; const T = tcard.c.timer, left = timerLeft(T), b = tcard.ui.querySelector('.play');
+  if (!tcard || !tcard.c.timer) return; const T = tcard.c.timer, left = timerLeft(T), b = tcard.ui.querySelector('.play');
   const rd = tcard.ui.querySelector('.tread'), hms = clockOf(left); if (rd.textContent !== hms) rd.textContent = hms;   // counting down, live
   b.classList.toggle('run', T.running); b.classList.toggle('off', !T.running && left <= 0); b.setAttribute('aria-label', T.running ? 'Pause' : 'Start');
 }
@@ -2251,7 +2404,7 @@ function whaleStep(now) {
   if (t > 8.6) whaleEnd();
 }
 
-Object.assign(window.__peek, { poolDrop, poolClear, poolHear, poolStep, critters });
+Object.assign(window.__peek, { poolDrop, poolClear, poolHear, poolStep, critters, setAsk: (t) => { lastAsk = t; } });
 
 /* ═══════════════ embed: the host app's chat drives it ═══════════════ */
 var typing = 0;
@@ -2286,6 +2439,7 @@ if (EMBED) {
         typing = 0; guarding = false; delivered();   // 4 · the app has sent the message it was carrying along with yours
         draftFeel = ''; draftLen = 0;
         workBegin();   // to work: chin on its hand till the first words come
+        lastAsk = String(data || '');
         poolClear(false);   // a new question: last answer's creatures go (a running timer stays)
       } else if (name === 'stream') {
         workStream(data);   // the answer so far: its hands move only as words arrive
@@ -2299,6 +2453,7 @@ if (EMBED) {
         if (C.el === V('reply') && plat.last) C.el = V('last');
         setTimeout(() => { if (C.el !== V('reply')) delete plat.reply; }, 50);
         workEnd(data);   // how it ended: sure, unsure, asking or failed
+        if (data) { poolHear(String(data)); pinsFor(String(data)); }   // the whole answer: anything still to come, and its places
       } else if (name === 'closed') { delete plat.reply; act(leave); poolClear(); }   // left the chat: its creatures go too
     },
   };
