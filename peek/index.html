@@ -6,7 +6,7 @@
 <title>Peek — a character that lives in the interface</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <!--
   Peek — a little 3D character that lives inside a UI, the way a game character
   lives in a level. The page's own elements are its platforms.
@@ -118,7 +118,13 @@ button, textarea { font: inherit; color: inherit; }
 .tui { position: fixed; left: 0; top: 0; width: 300px; text-align: center; pointer-events: auto; font: 15px/1.3 "Schibsted Grotesk", system-ui, sans-serif; color: #1d1d1c;
   opacity: 0; transform: translateY(10px); transition: opacity .28s ease .12s, transform .32s cubic-bezier(.3,1.3,.5,1) .12s; touch-action: manipulation; }
 .tui.on { opacity: 1; transform: none; }
-.tui .read { font: 600 54px/1 "Schibsted Grotesk", system-ui, sans-serif; letter-spacing: -1.5px; font-variant-numeric: tabular-nums; }
+.tui .play { width: 68px; height: 68px; border-radius: 50%; border: 0; padding: 0; background: #1d1d1c; display: inline-grid; place-items: center;
+  box-shadow: 0 10px 24px -10px rgba(0,0,0,.45); transition: background .2s ease, transform .15s ease, opacity .2s ease; }
+.tui .play:active { transform: scale(.94); }
+.tui .play svg { width: 28px; height: 28px; }
+.tui .play .i-pause { display: none; } .tui .play.run .i-pause { display: inline; } .tui .play.run .i-play { display: none; }
+.tui .play.run { background: #e5483a; }
+.tui .play.off { opacity: .35; }
 .tui .hint { font-size: 13px; color: #87857f; margin: 6px 0 16px; }
 .tui .presets { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
 .tui .presets button { border: 1px solid #e7e7e5; background: #fff; border-radius: 99px; padding: 8px 12px; font-size: 14px; color: #1d1d1c; }
@@ -1904,42 +1910,37 @@ function poolName(c) {
 }
 /* ── the timer ── a live dial over the generated body: numbers 0–55, minute ticks; the minutes left
    sit under the red pointer at the top, as on the real thing, and it unwinds as time passes. */
-const FACE = { cx: .54, cy: .46, r: .3 };   // where the plain face is on timer.webp, as fractions of its width
+const FACE = { cx: .499, cy: .468, r: .318 };   // where the plain face sits inside the steel bezel on timer.webp, as fractions of the (square) element
+/* A futuristic dial: a neutral white face, a turning ring of fine minute ticks (marked only at 0, 15,
+   30, 45) that you drag to wind, a red arc for the time left, and a small dark screen in the middle
+   with red LED digits (and the faint 88:88 of its unlit segments behind them). */
 function dialSVG() {
-  let ticks = '', nums = '', ridges = '';
+  let ticks = '';
   for (let m = 0; m < 60; m++) {
-    const a = m * 6 * Math.PI / 180, long = m % 5 === 0, r1 = long ? 35.5 : 38.5, r2 = 42.5;
-    ticks += `<line x1="${(Math.sin(a) * r1).toFixed(2)}" y1="${(-Math.cos(a) * r1).toFixed(2)}" x2="${(Math.sin(a) * r2).toFixed(2)}" y2="${(-Math.cos(a) * r2).toFixed(2)}" stroke="${long ? '#2b2724' : '#7d766c'}" stroke-width="${long ? 1.5 : .7}" stroke-linecap="round"/>`;
-    // numbers run round the dial, each turned to its own angle — whichever sits under the pointer reads upright
-    if (long) { const x = (Math.sin(a) * 27.5).toFixed(2), y = (-Math.cos(a) * 27.5).toFixed(2); nums += `<text x="${x}" y="${(+y + 3.4).toFixed(2)}" transform="rotate(${m * 6} ${x} ${y})" text-anchor="middle" font-size="9.5" font-weight="700" fill="#262220" font-family="Schibsted Grotesk, system-ui, sans-serif">${m}</text>`; }
+    const a = m * 6 * Math.PI / 180, five = m % 5 === 0, r1 = five ? 34.5 : 37, r2 = 40;
+    ticks += `<line x1="${(Math.sin(a) * r1).toFixed(2)}" y1="${(-Math.cos(a) * r1).toFixed(2)}" x2="${(Math.sin(a) * r2).toFixed(2)}" y2="${(-Math.cos(a) * r2).toFixed(2)}" stroke="${five ? '#34383d' : '#b9bdc2'}" stroke-width="${five ? 1.3 : .6}" stroke-linecap="round"/>`;
+    if (m % 15 === 0) { const x = (Math.sin(a) * 28.5).toFixed(2), y = (-Math.cos(a) * 28.5).toFixed(2); ticks += `<text x="${x}" y="${(+y + 2.4).toFixed(2)}" transform="rotate(${m * 6} ${x} ${y})" text-anchor="middle" font-size="6.4" fill="#5c6167" font-family="Share Tech Mono, ui-monospace, monospace">${m}</text>`; }
   }
-  for (let i = 0; i < 28; i++) { const a = i / 28 * Math.PI * 2; ridges += `<line x1="${(Math.sin(a) * 8.2).toFixed(2)}" y1="${(-Math.cos(a) * 8.2).toFixed(2)}" x2="${(Math.sin(a) * 10.6).toFixed(2)}" y2="${(-Math.cos(a) * 10.6).toFixed(2)}" stroke="rgba(120,108,92,.45)" stroke-width=".55"/>`; }
   const L = (FACE.cx - FACE.r) * 100, T = (FACE.cy - FACE.r) * 100, D = FACE.r * 200;
   return `<svg class="dial" viewBox="-50 -50 100 100" style="left:${L}%;top:${T}%;width:${D}%;height:${D}%">
     <defs>
-      <radialGradient id="tRecess" cx="50%" cy="40%" r="60%"><stop offset=".86" stop-color="#cfc6b6"/><stop offset=".95" stop-color="#9c9284"/><stop offset="1" stop-color="#7d7466"/></radialGradient>
-      <radialGradient id="tFace" cx="42%" cy="32%" r="78%"><stop offset="0" stop-color="#fffcf6"/><stop offset=".7" stop-color="#f1ebdf"/><stop offset="1" stop-color="#e2d9c9"/></radialGradient>
-      <linearGradient id="tBevel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#ece5d8"/><stop offset="1" stop-color="#bfb5a5"/></linearGradient>
-      <radialGradient id="tKnob" cx="38%" cy="30%" r="75%"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#ece5d9"/><stop offset="1" stop-color="#b9ae9d"/></radialGradient>
-      <radialGradient id="tGlass" cx="35%" cy="18%" r="55%"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-      <filter id="tGrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="2" seed="7"/><feColorMatrix values="0 0 0 0 .35  0 0 0 0 .3  0 0 0 0 .24  0 0 0 .09 0"/><feComposite in2="SourceGraphic" operator="in"/></filter>
-      <filter id="tLift" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx=".5" dy="1.2" stdDeviation="1.1" flood-color="#4a3f30" flood-opacity=".32"/></filter>
+      <radialGradient id="tFace" cx="44%" cy="30%" r="80%"><stop offset="0" stop-color="#ffffff"/><stop offset=".75" stop-color="#f1f2f3"/><stop offset="1" stop-color="#dfe1e4"/></radialGradient>
+      <linearGradient id="tScreen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22262a"/><stop offset="1" stop-color="#0e1012"/></linearGradient>
+      <linearGradient id="tScreenGlass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+      <filter id="tGrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="1.7" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 .3  0 0 0 0 .32  0 0 0 0 .35  0 0 0 .06 0"/><feComposite in2="SourceGraphic" operator="in"/></filter>
+      <filter id="tGlow" x="-30%" y="-60%" width="160%" height="220%"><feGaussianBlur stdDeviation=".9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     </defs>
-    <circle r="50" fill="url(#tRecess)"/>
-    <circle r="47.2" fill="url(#tFace)"/>
-    <circle r="47.2" fill="#fff" filter="url(#tGrain)"/>
-    <g class="ring" filter="url(#tLift)">
-      <circle r="45" fill="url(#tFace)" stroke="url(#tBevel)" stroke-width="1.6"/>
-      <circle r="45" fill="#fff" filter="url(#tGrain)" opacity=".8"/>
-      ${ticks}${nums}
+    <circle r="49.5" fill="url(#tFace)"/>
+    <circle r="49.5" fill="#fff" filter="url(#tGrain)"/>
+    <path class="arc" d="" fill="none" stroke="#e5483a" stroke-width="4.2" stroke-linecap="round" opacity=".92"/>
+    <g class="ring">${ticks}</g>
+    <g transform="translate(0 2)">
+      <rect x="-23" y="-10.5" width="46" height="21" rx="6" fill="url(#tScreen)"/>
+      <rect x="-23" y="-10.5" width="46" height="21" rx="6" fill="none" stroke="#8d939a" stroke-width=".6"/>
+      <text x="0" y="5.6" text-anchor="middle" font-size="15.5" fill="#ff4a36" opacity=".1" font-family="Share Tech Mono, ui-monospace, monospace">88:88</text>
+      <text class="lcd" x="0" y="5.6" text-anchor="middle" font-size="15.5" fill="#ff4a36" filter="url(#tGlow)" font-family="Share Tech Mono, ui-monospace, monospace">0:00</text>
+      <rect x="-23" y="-10.5" width="46" height="10" rx="6" fill="url(#tScreenGlass)"/>
     </g>
-    <g filter="url(#tLift)">
-      <circle r="11.4" fill="url(#tKnob)" stroke="#b3a895" stroke-width=".5"/>
-      ${ridges}
-      <circle r="6.6" fill="url(#tKnob)"/>
-      <ellipse cx="-2.2" cy="-2.6" rx="3.2" ry="1.9" fill="#fff" opacity=".8"/>
-    </g>
-    <ellipse cx="-12" cy="-26" rx="30" ry="15" fill="url(#tGlass)" transform="rotate(-18 -12 -26)" pointer-events="none"/>
   </svg>`;
 }
 function timerLeft(T) { return T.running ? Math.max(0, (T.endAt - Date.now()) / 1000) : T.left; }
@@ -1950,7 +1951,7 @@ const mmss = (s) => { s = Math.ceil(s); return `${Math.floor(s / 60)}:${String(s
    Under it: the countdown, a few presets, pause and reset. Tap outside and it shrinks back down
    and drops into the pile, still counting. */
 let tcard = null, audio = null;   // the grown timer, if any
-const grownSize = () => Math.min(innerWidth * .74, innerHeight * .4, 320);
+const grownSize = () => Math.min(innerWidth * .8, innerHeight * .46, 360);   // big: with one button under it, the timer is the whole interface
 function timerCard(c) { tcard ? shrinkTimer() : growTimer(c); }
 function growTimer(c) {
   audio ||= new (window.AudioContext || window.webkitAudioContext)();   // made on a tap, so it can tick and ring
@@ -1959,15 +1960,11 @@ function growTimer(c) {
   const scrim = document.createElement('div'); scrim.className = 'tscrim';
   scrim.addEventListener('pointerdown', (e) => { e.stopPropagation(); shrinkTimer(); });
   const ui = document.createElement('div'); ui.className = 'tui';
-  ui.innerHTML = `<div class="read">0:00</div><div class="hint">Turn the dial to set it</div>
-    <div class="presets"><button data-m="10">Rest 10</button><button data-m="15">Flip 15</button><button data-m="30">Check 30</button><button data-m="60">60 min</button></div>
-    <div class="row"><button class="reset" data-a="reset">Reset</button><button class="go" data-a="go">Start</button></div>`;
+  ui.innerHTML = `<button class="play" data-a="go" aria-label="Start"><svg viewBox="0 0 24 24"><path class="i-play" d="M8 5.5v13l11-6.5z" fill="#fff"/><g class="i-pause" fill="#fff"><rect x="6.5" y="5.5" width="4" height="13" rx="1.2"/><rect x="13.5" y="5.5" width="4" height="13" rx="1.2"/></g></svg></button>`;
   ui.addEventListener('pointerdown', (e) => e.stopPropagation());
   ui.addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return; const T = c.timer;
-    if (b.dataset.m) { T.set = T.left = +b.dataset.m * 60; startTimer(T); }
-    else if (b.dataset.a === 'go') { T.running ? (T.left = timerLeft(T), T.running = false) : (timerLeft(T) > 0 && startTimer(T)); }
-    else if (b.dataset.a === 'reset') { T.running = false; T.left = 0; T.rung = false; }
+    if (b.dataset.a === 'go') { T.running ? (T.left = timerLeft(T), T.running = false) : (timerLeft(T) > 0 && startTimer(T)); }
     c.sv -= 2; paintCard();
   });
   poolEl.insertBefore(scrim, poolEl.firstChild); poolEl.append(ui);
@@ -1995,10 +1992,8 @@ function startTimer(T) { T.endAt = Date.now() + T.left * 1000; T.running = true;
 function closeCard() { if (tcard) { tcard.scrim.remove(); tcard.ui.remove(); tcard.c.el.classList.remove('grown'); tcard = null; } }
 const grownAt = () => ({ x: innerWidth / 2, y: Math.max(grownSize() * .55 + 24, innerHeight * .36) });
 function paintCard() {
-  if (!tcard) return; const T = tcard.c.timer, left = timerLeft(T);
-  tcard.ui.querySelector('.read').textContent = mmss(left);
-  tcard.ui.querySelector('.hint').textContent = tcard.wind ? 'Let go to start' : T.running ? 'Counting down' : left > 0 ? 'Paused' : 'Turn the dial to set it';
-  const go = tcard.ui.querySelector('.go'); go.textContent = T.running ? 'Pause' : left > 0 && left < T.set ? 'Resume' : 'Start'; go.classList.toggle('run', T.running);
+  if (!tcard) return; const T = tcard.c.timer, left = timerLeft(T), b = tcard.ui.querySelector('.play');
+  b.classList.toggle('run', T.running); b.classList.toggle('off', !T.running && left <= 0); b.setAttribute('aria-label', T.running ? 'Pause' : 'Start');
 }
 // Winding: the ring follows your finger round the face; each minute that passes the pointer ticks.
 function tick() {
@@ -2042,6 +2037,11 @@ function tickTimers() {
     const T = c.timer, left = timerLeft(T);
     // the dial: the minutes left under the pointer — turned back by that many minutes
     const ringEl = c.el.querySelector('.ring'); if (ringEl) ringEl.setAttribute('transform', `rotate(${(-left / 60 * 6).toFixed(2)})`);
+    // the red arc: from where 0 has turned to, back up to the pointer — the time left, at a glance
+    const arc = c.el.querySelector('.arc');
+    if (arc) { const deg = Math.min(359.9, left / 60 * 6), R = 44.5, a0 = -deg * Math.PI / 180;
+      arc.setAttribute('d', deg < .2 ? '' : `M ${(Math.sin(a0) * R).toFixed(2)} ${(-Math.cos(a0) * R).toFixed(2)} A ${R} ${R} 0 ${deg > 180 ? 1 : 0} 1 0 ${-R}`); }
+    const lcd = c.el.querySelector('.lcd'); if (lcd) { const t = mmss(left); if (lcd.textContent !== t) lcd.textContent = t; }
     if (T.running && left <= 0) { T.running = false; T.left = 0; if (!T.rung) { T.rung = true; ring(c); } }
   }
   if (tcard) {
@@ -2053,7 +2053,7 @@ function tickTimers() {
     c.el.style.width = c.el.style.height = w + 'px';
     c.el.style.transform = `translate(${(x - w / 2).toFixed(1)}px, ${(y - w / 2).toFixed(1)}px) rotate(${a.toFixed(3)}rad)`;
     if (t.to === 0 && k < .02) c.el.style.width = c.el.style.height = c.w + 'px';
-    t.ui.style.transform = t.ui.classList.contains('on') ? `translate(${(at.x - 150).toFixed(1)}px, ${(at.y + G / 2 + 12).toFixed(1)}px)` : t.ui.style.transform;
+    t.ui.style.transform = t.ui.classList.contains('on') ? `translate(${(at.x - 150).toFixed(1)}px, ${(at.y + G / 2 + 18).toFixed(1)}px)` : t.ui.style.transform;
   }
 }
 

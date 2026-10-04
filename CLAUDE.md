@@ -361,16 +361,15 @@ sculpin, octopus — `POOL`, matched as the text streams), its plush (`peek/plus
 and piles onto the chat box with the plush page's physics; fling them, tap for a name; they clear
 on the next send. Their rects are reported to the app so they take touches.
 **The timer** (2026-10-04): ask about the Big Green Egg, barbecue, brisket, smoking or grilling and a
-white wind-up kitchen timer drops into the same pile — a generated 3D product-render body with a
-blank face (`plush/timer.webp`; `FACE` is where that face sits) and a live SVG dial over it whose
-minutes-left sit under the red pointer and unwind in real time. Tap it for its card (a countdown,
-Rest 10 / Flip 15 / Check 30 / 60, start/pause, reset); at zero it chimes (WebAudio, unlocked by
-the tap) and shakes. **Tapped, it grows into the interface** (John's design): it lifts out of the
-pile and scales to the middle of the screen over a soft blur, and its dial is the control — drag
-round the face to wind it (the ring follows the finger, a tick per minute), let go to start; the
-countdown, presets, pause and reset sit under it. Tap outside and it shrinks back into the pile,
-still counting. The dial is a skeuomorphic SVG (recessed bezel, grained enamel face, raised bevelled
-ring with a cast shadow, domed ridged knob, a fixed glass glint). A running timer survives the next send; leaving the chat clears it.
+wind-up kitchen timer drops into the same pile — a generated 3D product render, pure white with a
+steel bezel and a blank face (`plush/timer.webp`; `FACE` is where that face sits in the square
+element; John rejected a cream/yellow first version), under a live SVG dial: a neutral face, a
+turning ring of fine ticks (marked 0/15/30/45), a red arc for the time left, and a dark screen with
+red LED digits (Share Tech Mono, ghost 88:88). **Tap it and it pops up big** — the timer is the whole
+interface, with one round play/pause button under it. Drag round the face to wind (the ring follows
+the finger, a tick per minute); let go and it starts. At zero it chimes (WebAudio, unlocked by the
+tap) and shakes. Tap outside and it shrinks back into the pile, still counting. A running timer
+survives the next send; leaving the chat clears it.
 The page also tells the app how tall the pile is (`{type:'inset'}`) so the chat makes room at its end.
 
 A 3D character that runs around a chat UI the way a game character runs around a level:
