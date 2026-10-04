@@ -781,11 +781,13 @@
         const b = d.querySelector('#magicPill [data-magic="next"]');
         if (b) { b.classList.add('pressing'); setTimeout(() => b.classList.remove('pressing'), 440); }
         setTimeout(() => focusTip(w, /Del Mar/), 130);
-        // ...then, the golf tournament's curve up and back down (John, 2026-10-02: "take a beat and do the up and down animation") —
-        // curveDrag waits for the handle to stand still once the camera has landed, which is the beat
-        setTimeout(() => curveDrag(w), 700);
+        // ...and it SITS there (John, 2026-10-04: "let it sit") — the curve's up and down waits for the next tap
       },
       back: w => { w.dispatchEvent(new w.PointerEvent('pointerup', { bubbles: true, pointerId: 1, buttons: 0 })); focusTip(w, /^Fill|last-minute/i, 'near'); } },
+    // 12b — next, tapped, on Del Mar: its curve dragged up into the red and back down to green (John, 2026-10-02: "take a beat and do
+    //       the up and down animation"; its own tap since 2026-10-04). curveDrag waits for the handle to stand still before it takes it
+    { fwd: (w, instant) => { if (!instant) curveDrag(w); },
+      back: w => { w.dispatchEvent(new w.PointerEvent('pointerup', { bubbles: true, pointerId: 1, buttons: 0 })); } },
     // 13 — Apply, tapped, on Del Mar: its prices go on, and this time the build's offer stays up — "Automate events and
     //      holidays" (John, 2026-10-02: "this time you can show me the automate holiday prices modal")
     { fwd: (w, instant) => {
@@ -1031,7 +1033,7 @@
   // HOLD is how long each beat plays before the next may start, read off its own timers. 7 and 8 wait on the build
   // (a modal to rise and go; a handle to be dragged up and back), so theirs are the long ones. Going BACK is never
   // queued: it drops anything waiting and acts at once, because reversing is how you recover from a wrong tap.
-  const HOLD = [1300, 1300, 1300, 2400, 700, 700, 1600, 3200, 2600, 4000, 3200, 1800, 7000, 2000, 1400, 3400, 1200, 1100];   // (1400: what hosts said, John, 2026-10-03)   // the fold (.75s) and the grow (.44s), and a breath — the old path's were [1500, 1400, 1000, 2900, 1300, 3200, 4600, 6800, 2600, 1800, 1400, 1500]
+  const HOLD = [1300, 1300, 1300, 2400, 700, 700, 1600, 3200, 2600, 4000, 3200, 1800, 1400, 6000, 2000, 1400, 3400, 1200, 1100];   // (1400: what hosts said, John, 2026-10-03)   // the fold (.75s) and the grow (.44s), and a breath — the old path's were [1500, 1400, 1000, 2900, 1300, 3200, 4600, 6800, 2600, 1800, 1400, 1500]
   let busyUntil = 0, queued = 0, qT = 0;
   const fire = () => { const b = BEATS[at]; at++; safe(() => b.fwd(W(), false)); busyUntil = performance.now() + (HOLD[at - 1] || 1500); };
   const pump = () => {
