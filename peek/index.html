@@ -1818,11 +1818,12 @@ function poolInit() {
   });
   return true;
 }
+const POOL_PAD = 8;   // the pile keeps 8px off the left edge and 8px above the chat box
 function poolWallsBuild() {
   const { Bodies, Composite } = Matter, W = innerWidth, H = innerHeight, t = 200;
   Composite.remove(poolEngine.world, poolWalls); poolWalls = [
     Bodies.rectangle(W / 2, H + t / 2, W * 3, t, { isStatic: true, friction: .1, restitution: .4 }),
-    Bodies.rectangle(-t / 2, H / 2 - H, t, H * 4, { isStatic: true, restitution: .6, friction: .02 }),
+    Bodies.rectangle(POOL_PAD - t / 2, H / 2 - H, t, H * 4, { isStatic: true, restitution: .6, friction: .02 }),   // an invisible line 8px in from the left
     Bodies.rectangle(W + t / 2, H / 2 - H, t, H * 4, { isStatic: true, restitution: .6, friction: .02 }),
   ];
   Composite.add(poolEngine.world, poolWalls); poolBoxKey = '';
@@ -1846,7 +1847,7 @@ function poolSyncBox() {
   if (poolLastBox) { const dx = r.left - poolLastBox.x, dy = r.top - poolLastBox.y; if (dx || dy) for (const c of critters) Body.translate(c.body, { x: dx, y: dy }); }
   poolLastBox = { x: r.left, y: r.top };
   if (poolBox) Composite.remove(poolEngine.world, poolBox); poolBox = null;
-  if (r && r.width > 0) { poolBox = Bodies.rectangle(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, { isStatic: true, friction: .12, restitution: .45, chamfer: { radius: 24 } }); Composite.add(poolEngine.world, poolBox); }
+  if (r && r.width > 0) { poolBox = Bodies.rectangle(r.left + r.width / 2, r.top + r.height / 2 - POOL_PAD / 2, r.width, r.height + POOL_PAD, { isStatic: true, friction: .12, restitution: .45, chamfer: { radius: 24 } }); Composite.add(poolEngine.world, poolBox); }
   for (const c of critters) Sleeping.set(c.body, false);
 }
 function poolDrop(key) {
