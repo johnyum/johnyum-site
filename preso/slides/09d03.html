@@ -64,6 +64,22 @@
   .inset { position: absolute; left: 19.115%; top: 7.738%; width: 61.769%; height: 53.690%; pointer-events: none; mix-blend-mode: multiply;
            background: linear-gradient(to bottom, #ebebeb, #fff) top / 100% 8px no-repeat,
                        linear-gradient(to top, #ebebeb, #fff) bottom / 100% 8px no-repeat; }
+  /* YOUTUBE, FOR THE FIRST FEW SECONDS (John, 2026-10-03: "slightly more realistic … the first few seconds there still are YouTube
+     controls, then they disappear"): the embed's own start-up chrome, over the film, fading after 3s as YouTube's does — the
+     shade across the top with the channel's avatar, the title and "Airbnb"; the copy-link button bottom left; Watch on YouTube
+     bottom right. Laid out on the film's own 1606 x 902 (the stage is scaled to the film's box); the avatar, the button and the
+     pill are YouTube's own, cut from the page picture's poster (yt-*.webp), the shade and the words are set here. */
+  .ytui { position: absolute; left: 19.115%; top: 7.738%; width: 61.769%; height: 53.690%; overflow: hidden; pointer-events: none;
+          opacity: 1; transition: opacity .5s ease; }
+  .ytui.gone { opacity: 0; }
+  .ytui .s { position: absolute; left: 0; top: 0; width: 1606px; height: 902px; transform-origin: 0 0; }
+  .ytui .shade { position: absolute; left: 0; top: 0; width: 1606px; height: 104px; background: linear-gradient(rgba(0,0,0,.77), rgba(0,0,0,.42) 45%, rgba(0,0,0,0)); }
+  .ytui img { position: absolute; display: block; }
+  .ytui .av { left: 43px; top: 22px; width: 49px; height: 50px; border-radius: 50%; }
+  .ytui .ti { position: absolute; left: 110px; top: 17px; color: #fff; font: 600 26px/32px Roboto, "YouTube Sans", Arial, sans-serif; letter-spacing: -.1px; white-space: nowrap; }
+  .ytui .ch { position: absolute; left: 109px; top: 51px; color: #fff; font: 400 14px/18px Roboto, Arial, sans-serif; }
+  .ytui .ln { left: 43px; top: 814px; width: 77px; height: 77px; border-radius: 50%; }
+  .ytui .wy { left: 1269px; top: 820px; width: 295px; height: 66px; border-radius: 33px; }
 </style>
 </head>
 <body>
@@ -74,6 +90,13 @@
              alt="Airbnb Resource Center: Simplifying service fees on Airbnb — what to know about switching to a single fee, with the film">
         <video class="film" id="film" src="assets/fee-film.mp4" muted playsinline preload="auto" aria-hidden="true"></video>
         <div class="inset" aria-hidden="true"></div>
+        <div class="ytui" id="ytui" aria-hidden="true"><div class="s" id="yts">
+          <div class="shade"></div>
+          <img class="av" src="assets/yt-avatar.webp" alt="">
+          <div class="ti">Simplifying service fees | Airbnb</div><div class="ch">Airbnb</div>
+          <img class="ln" src="assets/yt-link.webp" alt="">
+          <img class="wy" src="assets/yt-watch.webp" alt="">
+        </div></div>
       </div>
     </div>
   </div>
@@ -81,7 +104,13 @@
   (() => {
     const v = document.getElementById('film');
     // it plays from the top as the slide lands, and on until the slide is left; built fresh on each arrival, so it always starts over
-    const play = () => { try { v.currentTime = 0; } catch (_) {} const p = v.play(); if (p && p.catch) p.catch(() => {}); };
+    const ui = document.getElementById('ytui'), yts = document.getElementById('yts');
+    const fitUi = () => { const w = ui.clientWidth; if (w) yts.style.transform = `scale(${w / 1606})`; };
+    fitUi(); addEventListener('resize', fitUi); if (window.ResizeObserver) new ResizeObserver(fitUi).observe(ui);
+    const play = () => { try { v.currentTime = 0; } catch (_) {} ui.classList.remove('gone'); const p = v.play(); if (p && p.catch) p.catch(() => {});
+    };
+    // YouTube puts its chrome away ~3s into playing — off the film's own clock, so a slow start keeps it up until it has played
+    v.addEventListener('timeupdate', () => { if (v.currentTime >= 3) ui.classList.add('gone'); });
     addEventListener('presoshown', play);
     if (window.top === window) addEventListener('load', play);
     window.presoNoKeep = true;
