@@ -1792,10 +1792,16 @@ function poolWallsBuild() {
   Composite.add(poolEngine.world, poolWalls); poolBoxKey = '';
 }
 // The chat box is the shelf they land on, kept where the box really is.
+let poolLastBox = null;
 function poolSyncBox() {
-  const { Bodies, Composite, Sleeping } = Matter, g = homeGround();
+  const { Bodies, Body, Composite, Sleeping } = Matter, g = homeGround();
   const r = g ? rectOf(g) : null, key = r ? [r.left, r.top, r.width, r.height].map(Math.round).join() : 'none';
   if (key === poolBoxKey) return; poolBoxKey = key;
+  // They belong to the chat: no chat box (you've left the chat) — they go with it.
+  if (!r || r.width <= 0) { poolLastBox = null; poolClear(); return; }
+  // The box moved (the keyboard, the chat sliding): the pile moves with it, not left hanging.
+  if (poolLastBox) { const dx = r.left - poolLastBox.x, dy = r.top - poolLastBox.y; if (dx || dy) for (const c of critters) Body.translate(c.body, { x: dx, y: dy }); }
+  poolLastBox = { x: r.left, y: r.top };
   if (poolBox) Composite.remove(poolEngine.world, poolBox); poolBox = null;
   if (r && r.width > 0) { poolBox = Bodies.rectangle(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, { isStatic: true, friction: .12, restitution: .45, chamfer: { radius: 24 } }); Composite.add(poolEngine.world, poolBox); }
   for (const c of critters) Sleeping.set(c.body, false);
@@ -1935,11 +1941,11 @@ if (EMBED) {
         if (C.el === V('reply') && plat.last) C.el = V('last');
         setTimeout(() => { if (C.el !== V('reply')) delete plat.reply; }, 50);
         workEnd(data);   // how it ended: sure, unsure, asking or failed
-      } else if (name === 'closed') { delete plat.reply; act(leave); }
+      } else if (name === 'closed') { delete plat.reply; act(leave); poolClear(); }   // left the chat: its creatures go too
     },
   };
   // Where it is, so the app passes every other touch straight through to itself.
-  let last = '';
+  let last = '', lastInset = 0;
   setInterval(() => {
     const rs = [];
     if (root.visible) {
@@ -1949,6 +1955,11 @@ if (EMBED) {
     }
     if (card) { const b = card.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }
     for (const c of critters) { const b = c.el.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }   // the creatures take touches
+    // How tall the pile on the chat box is, so the app can make that much room at the chat's end.
+    { const g = homeGround(), top = g ? rectOf(g).top : innerHeight; let pile = 0;
+      for (const c of critters) { const p = c.body.position, t = p.y - c.w / 2; if (p.y < top + 4 && p.y > top - c.w * 3) pile = Math.max(pile, top - t); }
+      const px = pile ? Math.round(pile / 8) * 8 + 12 : 0;
+      if (px !== lastInset) { lastInset = px; tell({ type: 'inset', px }); } }
     const k = JSON.stringify(rs.map((r) => r.map(Math.round))); if (k !== last) { last = k; tell({ type: 'rects', rects: rs }); }
   }, 100);
   modelReady.then(() => tell({ type: 'ready' }));
