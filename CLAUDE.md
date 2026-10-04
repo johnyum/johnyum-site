@@ -396,6 +396,11 @@ up tip cards. One `index.html`, three.js; the chat is canned.
   Jolly feel canned. The app's send / stream / thinking / replied events all go to it; the older
   reply gestures, sitting on the reply and wandering off are no longer called in embed mode.
   John rejected the iOS Live Activity version: it belongs in the app, not the Dynamic Island.
+- **The demo page is drawn like the Claude clone** (2026-10-04): Schibsted Grotesk + Source Serif 4,
+  round header buttons, spark over a serif greeting, the clone's composer. Its canned replies stream
+  word by word (a `‖` in one is a 2.6s stall) through the same `work*()` calls the app makes, and it
+  opens on the paper figure. The sidebar, director buttons and pills are gone from view (the pills
+  stay in the DOM, hidden, for old code paths); the away-life (`awake()`) and idle wandering are off.
 - Its frame loop is `frame()`, exposed on `window.__peek` — a hidden tab pauses
   `requestAnimationFrame`, so a test drives frames by hand.
 
