@@ -80,6 +80,13 @@
   .ytui .ch { position: absolute; left: 109px; top: 51px; color: #fff; font: 400 14px/18px Roboto, Arial, sans-serif; }
   .ytui .ln { left: 43px; top: 814px; width: 77px; height: 77px; border-radius: 50%; }
   .ytui .wy { left: 1269px; top: 820px; width: 295px; height: 66px; border-radius: 33px; }
+  /* the bezel: YouTube's pause sign in the middle as the film starts — a dark disc, two white bars — held a moment, then it swells
+     and fades as YouTube's does (John, 2026-10-03: "the pause button in the middle … should be there slightly") */
+  .ytui .bz { position: absolute; left: 735px; top: 383px; width: 136px; height: 136px; border-radius: 50%; background: rgba(0,0,0,.45);
+              display: grid; place-items: center; opacity: 0; }
+  .ytui .bz svg { width: 60px; height: 60px; fill: #fff; }
+  .ytui.play .bz { animation: bezel 1.1s ease-out both; }
+  @keyframes bezel { 0% { opacity: 0; transform: scale(.9); } 12% { opacity: 1; transform: scale(1); } 55% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.6); } }
 </style>
 </head>
 <body>
@@ -96,6 +103,7 @@
           <div class="ti">Simplifying service fees | Airbnb</div><div class="ch">Airbnb</div>
           <img class="ln" src="assets/yt-link.webp" alt="">
           <img class="wy" src="assets/yt-watch.webp" alt="">
+          <div class="bz"><svg viewBox="0 0 36 36"><path d="M11 9h5v18h-5zM20 9h5v18h-5z"/></svg></div>
         </div></div>
       </div>
     </div>
@@ -107,7 +115,7 @@
     const ui = document.getElementById('ytui'), yts = document.getElementById('yts');
     const fitUi = () => { const w = ui.clientWidth; if (w) yts.style.transform = `scale(${w / 1606})`; };
     fitUi(); addEventListener('resize', fitUi); if (window.ResizeObserver) new ResizeObserver(fitUi).observe(ui);
-    const play = () => { try { v.currentTime = 0; } catch (_) {} ui.classList.remove('gone'); const p = v.play(); if (p && p.catch) p.catch(() => {});
+    const play = () => { try { v.currentTime = 0; } catch (_) {} ui.classList.remove('gone', 'play'); void ui.offsetWidth; ui.classList.add('play'); const p = v.play(); if (p && p.catch) p.catch(() => {});
     };
     // YouTube puts its chrome away ~3s into playing — off the film's own clock, so a slow start keeps it up until it has played
     v.addEventListener('timeupdate', () => { if (v.currentTime >= 3) ui.classList.add('gone'); });
