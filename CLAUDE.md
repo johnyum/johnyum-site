@@ -377,6 +377,15 @@ twist the little icon to wind it (up to 12h). **Physics is shared**: the timer h
 restitution/friction/air/density (`feel` in `poolDrop`), only a boxy outline. At zero it chimes (WebAudio, unlocked by the
 tap) and shakes. Tap outside and it shrinks back into the pile, still counting. A running timer
 survives the next send; leaving the chat clears it.
+**Moby-Dick** (2026-10-03): when the answer first names the whale (`WHALE_RE`), a plush white whale
+(`plush/whale.webp`) rises from behind the chat box — clipped at its top edge by `.sea`, eyes just over it —
+blows a spout of water drops that rain onto the box and the pile, sinks, and then its tail
+(`plush/flukes.webp`) comes up at the right and slaps down, throwing everything on the box into the air with
+another splash (`whaleStep()`, a fixed 8.6s script). The drops are bodies in the same world, and dry up.
+**Every body is its picture's outline** (`HULLS`, convex hulls traced from the webps) pushed out 2px
+(`POOL_GAP`), so stacked pieces keep ≥4px apart and never overlap; the picture turns about the body's
+centroid (`c.ox/oy`). **The app has demo buttons 1 2 3** top right of the chat (`PeekDemoButtons` in
+ChatPanel.swift): each starts a fresh chat and sends a prompt — tide pool, brisket on the Egg, Moby-Dick.
 The page also tells the app how tall the pile is (`{type:'inset'}`) so the chat makes room at its end.
 
 A 3D character that runs around a chat UI the way a game character runs around a level:

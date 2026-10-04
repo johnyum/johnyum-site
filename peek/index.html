@@ -102,6 +102,10 @@ button, textarea { font: inherit; color: inherit; }
 .hint { text-align: center; font-size: 11.5px; color: var(--faint); margin-top: 8px; }
 /* the tide pool: plush creatures that drop in when the answer names them (see "the tide pool" in the script) */
 #pool { position: fixed; inset: 0; z-index: 45; pointer-events: none; }
+.sea { position: absolute; left: 0; top: 0; width: 100%; overflow: hidden; pointer-events: none; }
+.sea img { position: absolute; left: 0; top: 0; display: block; -webkit-user-drag: none; will-change: transform; }
+.drop { position: absolute; left: 0; top: 0; pointer-events: none; border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%;
+  background: radial-gradient(circle at 34% 30%, #ffffff 0 18%, #d6ebf8 42%, #93c3e4 100%); box-shadow: inset -1px -2px 3px rgba(40,90,130,.25); }
 .critter { position: absolute; left: 0; top: 0; touch-action: none; pointer-events: auto; user-select: none; -webkit-user-select: none;
   will-change: transform; contain: layout paint; }
 /* A soft shadow painted once, not a live filter — moving it costs nothing, so the chat underneath never stutters. */
@@ -1808,6 +1812,8 @@ function poolInit() {
   });
   return true;
 }
+const POOL_GAP = 2;   // the invisible margin round every shape in the pile
+const HULLS = {"anemone":[[-0.5,-0.1625],[-0.445,-0.3125],[-0.335,-0.4225],[-0.16,-0.4925],[-0.03,-0.4925],[0.2,-0.4875],[0.375,-0.3875],[0.39,-0.3725],[0.475,-0.2025],[0.5,-0.1025],[0.5,-0.0725],[0.47,0.0275],[0.36,0.3175],[0.3,0.3925],[0.22,0.4425],[0.145,0.4625],[0.035,0.4725],[-0.07,0.4725],[-0.175,0.4625],[-0.305,0.4325],[-0.33,0.4075],[-0.48,-0.0075]],"starfish":[[-0.4575,-0.215],[-0.4375,-0.24],[-0.4125,-0.255],[-0.0075,-0.495],[0.0075,-0.5],[0.0275,-0.5],[0.0575,-0.49],[0.4325,-0.17],[0.4525,-0.15],[0.4625,-0.125],[0.4625,-0.095],[0.3075,0.445],[0.2825,0.47],[0.2675,0.48],[0.2475,0.485],[0.1825,0.485],[-0.3375,0.405],[-0.3725,0.395],[-0.3925,0.38],[-0.4225,0.35],[-0.4275,0.34],[-0.4625,-0.185]],"crab":[[-0.485,-0.095],[-0.475,-0.17],[-0.44,-0.275],[-0.345,-0.4],[-0.26,-0.45],[-0.115,-0.49],[-0.04,-0.49],[0.04,-0.47],[0.155,-0.395],[0.31,-0.245],[0.325,-0.22],[0.47,0.16],[0.48,0.285],[0.445,0.365],[0.41,0.4],[0.35,0.425],[0.075,0.49],[0.015,0.495],[-0.205,0.45],[-0.33,0.4],[-0.36,0.37],[-0.465,0.05]],"nudibranch":[[-0.5,0.09],[-0.405,-0.335],[-0.385,-0.355],[-0.09,-0.415],[0.065,-0.435],[0.085,-0.435],[0.23,-0.385],[0.355,-0.325],[0.365,-0.315],[0.41,-0.215],[0.5,0.08],[0.49,0.12],[0.36,0.3],[0.32,0.335],[0.0,0.41],[-0.065,0.415],[-0.17,0.4],[-0.305,0.37],[-0.34,0.355],[-0.35,0.345],[-0.49,0.14],[-0.5,0.11]],"urchin":[[-0.4975,-0.105],[-0.4375,-0.245],[-0.3075,-0.4],[-0.2925,-0.415],[-0.1475,-0.49],[0.0675,-0.5],[0.2275,-0.44],[0.3575,-0.345],[0.3675,-0.335],[0.4625,-0.165],[0.4975,0.075],[0.4975,0.095],[0.3775,0.335],[0.2625,0.425],[0.2275,0.435],[-0.0525,0.465],[-0.1275,0.47],[-0.2075,0.47],[-0.3125,0.45],[-0.3675,0.43],[-0.4125,0.395],[-0.4925,0.08]],"cucumber":[[-0.46,-0.1275],[-0.425,-0.1875],[-0.34,-0.2575],[-0.175,-0.3075],[0.02,-0.3075],[0.12,-0.2925],[0.275,-0.2375],[0.395,-0.1525],[0.405,-0.1425],[0.46,-0.0575],[0.49,0.0175],[0.5,0.0875],[0.495,0.1175],[0.43,0.2025],[0.4,0.2175],[0.33,0.2325],[-0.08,0.2825],[-0.19,0.2825],[-0.345,0.2675],[-0.405,0.2575],[-0.43,0.2425],[-0.455,-0.0425]],"sculpin":[[-0.485,0.0675],[-0.44,-0.0425],[-0.385,-0.1225],[-0.34,-0.1675],[-0.13,-0.3325],[-0.07,-0.3525],[0.405,-0.2375],[0.45,-0.2075],[0.48,-0.1225],[0.48,-0.0225],[0.465,0.0375],[0.435,0.0925],[0.195,0.3375],[0.16,0.3475],[0.075,0.3525],[0.03,0.3475],[-0.255,0.2975],[-0.3,0.2875],[-0.39,0.2525],[-0.43,0.2275],[-0.475,0.1725],[-0.49,0.1375]],"octopus":[[-0.495,0.1075],[-0.41,-0.0675],[-0.27,-0.3225],[-0.205,-0.3975],[-0.135,-0.4375],[-0.085,-0.4525],[0.0,-0.4575],[0.08,-0.4425],[0.19,-0.3875],[0.235,-0.3375],[0.4,-0.0275],[0.41,-0.0025],[0.435,0.1575],[0.435,0.3125],[0.42,0.3375],[0.335,0.3825],[0.24,0.4075],[-0.13,0.4325],[-0.2,0.4225],[-0.4,0.2925],[-0.455,0.2425],[-0.485,0.1925]],"timer":[[-0.4525,-0.105],[-0.4375,-0.185],[-0.4025,-0.275],[-0.3675,-0.33],[-0.3075,-0.395],[-0.2175,-0.455],[-0.1375,-0.485],[-0.0575,-0.5],[0.0625,-0.5],[0.1375,-0.485],[0.2175,-0.455],[0.3075,-0.395],[0.3825,-0.31],[0.4175,-0.245],[0.4525,-0.115],[0.4525,0.35],[0.4325,0.395],[0.3325,0.495],[-0.3375,0.495],[-0.3625,0.485],[-0.4425,0.38],[-0.4525,0.35]]};   // each plush's outline: its picture's convex hull, as fractions of the square element from its centre
 const POOL_PAD = 8;   // the pile keeps 8px off the left edge and 8px above the chat box
 function poolWallsBuild() {
   const { Bodies, Composite } = Matter, W = innerWidth, H = innerHeight, t = 200;
@@ -1845,17 +1851,23 @@ function poolDrop(key) {
   const { Bodies, Body, Composite } = Matter, P = POOL[key], w = P.w * (innerWidth < 600 ? .82 : 1), x = 50 + Math.random() * (innerWidth - 100);
   // One physics for everything in the pile — the creatures and the timer bounce, slide and weigh the same;
   // only the outline differs (the timer is boxy, so it doesn't roll like a ball).
+  // Each one's body is its own outline — the convex hull of its picture (HULLS) — pushed out 2px all
+  // round, an invisible margin, so two that stack keep at least 4px apart and never overlap.
   const feel = { restitution: .62, friction: .06, frictionStatic: .12, frictionAir: .0045, density: .0011, slop: .02 };
-  const body = P.kind === 'timer'
-    ? Bodies.rectangle(x, -w, w * .86, w * .9, { ...feel, chamfer: { radius: w * .2 } })
-    : Bodies.circle(x, -w, w * .42, feel);
+  let body, ox = w / 2, oy = w / 2;
+  if (HULLS[key]) {
+    const pts = HULLS[key].map(([u, v]) => ({ x: u * w, y: v * w })), m = Matter.Vertices.centre(pts);
+    const pad = pts.map((p) => { const dx = p.x - m.x, dy = p.y - m.y, d = Math.hypot(dx, dy) || 1; return { x: p.x + dx / d * POOL_GAP, y: p.y + dy / d * POOL_GAP }; });
+    const cm = Matter.Vertices.centre(pad);
+    body = Bodies.fromVertices(x, -w, [pad], feel); ox = w / 2 + cm.x; oy = w / 2 + cm.y;   // the body turns about its centroid; so does the picture
+  } else body = Bodies.circle(x, -w, w * .42 + POOL_GAP, feel);
   body.sleepThreshold = 90;
   Body.setVelocity(body, { x: (Math.random() - .5) * 5, y: 3 }); Body.setAngularVelocity(body, (Math.random() - .5) * .25);
   Composite.add(poolEngine.world, body);
   const el = document.createElement('div'); el.className = 'critter'; el.style.width = el.style.height = w + 'px';
   el.innerHTML = `<img src="plush/${key}.webp" alt="${P.name}" draggable="false">` + (P.kind === 'timer' ? dialSVG() : '');
   poolEl.append(el);
-  const c = { key, el, body, w, bubble: null, bubbleT: 0, sq: 0, sv: 0 };
+  const c = { key, el, body, w, ox, oy, bubble: null, bubbleT: 0, sq: 0, sv: 0 };
   if (P.kind === 'timer') c.timer = { set: 0, left: 0, running: false, endAt: 0, rung: false };
   critters.push(c); poolGrab(c);
 }
@@ -1867,10 +1879,13 @@ function poolClear(all = true) {
     critters.splice(critters.indexOf(c), 1);
   }
   poolSeen = new Set(critters.map((c) => c.key));
+  whaleEnd(); whaleSeen = false;
+  for (const d of drops) { Matter.Composite.remove(poolEngine.world, d.body); d.el.remove(); } drops.length = 0;
 }
 // The answer so far: anything it names that isn't in yet drops in.
 function poolHear(text) {
   for (const [k, P] of Object.entries(POOL)) if (!poolSeen.has(k) && P.re.test(text)) { poolSeen.add(k); poolDrop(k); }
+  if (!whaleSeen && WHALE_RE.test(text)) { whaleSeen = true; whaleStart(); }
   // The timer comes set: the answer's first cooking time — "smoke for 6 hours", "on the grill 45 minutes" —
   // or failing that its first time of any kind. Until you wind it yourself, it follows the answer.
   const t = critters.find((c) => c.timer && !c.timer.user && !c.timer.running);
@@ -2069,7 +2084,7 @@ function tickTimers() {
     const t = tcard, c = t.c; t.k += (t.to - t.k) * .2;
     const k = t.k, e = 1 - Math.pow(1 - k, 3), G = grownSize(), at = grownAt();
     const x = lerp(t.from.x, at.x, e), y = lerp(t.from.y, at.y, e), w = lerp(t.from.w, G, e), a = lerp(t.from.a, 0, e);
-    c.el.style.width = c.el.style.height = w + 'px';
+    c.el.style.width = c.el.style.height = w + 'px'; c.el.style.transformOrigin = '50% 50%';
     c.el.style.transform = `translate(${(x - w / 2).toFixed(1)}px, ${(y - w / 2).toFixed(1)}px) rotate(${a.toFixed(3)}rad)`;
     if (t.to === 0 && k < .02) c.el.style.width = c.el.style.height = c.w + 'px';
     t.ui.style.transform = t.ui.classList.contains('on') ? `translate(${(at.x - 150).toFixed(1)}px, ${(at.y + G / 2 + 16).toFixed(1)}px)` : t.ui.style.transform;
@@ -2077,8 +2092,8 @@ function tickTimers() {
 }
 
 function poolStep(now) {
-  if (!critters.length || !poolEngine) return;
-  tickTimers();
+  if ((!critters.length && !drops.length && !whale) || !poolEngine) return;
+  tickTimers(); whaleStep(now);
   const { Engine, Body, Sleeping } = Matter;
   poolSyncBox();
   Engine.update(poolEngine, 1000 / 120); Engine.update(poolEngine, 1000 / 120);
@@ -2099,13 +2114,74 @@ function poolStep(now) {
     if (b.isSleeping && Math.abs(c.sq) < .002 && Math.abs(c.sv) < .01 && !c.bubble && c.placed) continue;
     c.placed = true;
     const sq = clamp(c.sq, -.22, .22);
-    c.el.style.transform = `translate(${(b.position.x - c.w / 2).toFixed(1)}px, ${(b.position.y - c.w / 2).toFixed(1)}px) rotate(${b.angle.toFixed(3)}rad) scale(${(1 + sq * .6).toFixed(3)}, ${(1 - sq).toFixed(3)})`;
+    c.el.style.transformOrigin = `${c.ox.toFixed(1)}px ${c.oy.toFixed(1)}px`;
+    c.el.style.transform = `translate(${(b.position.x - c.ox).toFixed(1)}px, ${(b.position.y - c.oy).toFixed(1)}px) rotate(${b.angle.toFixed(3)}rad) scale(${(1 + sq * .6).toFixed(3)}, ${(1 - sq).toFixed(3)})`;
     if (c.bubble) {
       if (now - c.bubbleT > 1800) { const old = c.bubble; c.bubble = null; old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200 }).onfinish = () => old.remove(); }
       else c.bubble.style.transform = `translate(${(b.position.x - c.bubble.offsetWidth / 2).toFixed(1)}px, ${(b.position.y - c.w * .5 - c.bubble.offsetHeight - 10).toFixed(1)}px)`;
     }
   }
+  for (const d of [...drops]) {
+    const age = now - d.t0, b = d.body;
+    if (age > 6500) { Matter.Composite.remove(poolEngine.world, b); d.el.remove(); drops.splice(drops.indexOf(d), 1); continue; }
+    d.el.style.opacity = age > 5800 ? (1 - (age - 5800) / 700).toFixed(2) : '';
+    d.el.style.transform = `translate(${(b.position.x - d.r).toFixed(1)}px, ${(b.position.y - d.r).toFixed(1)}px) rotate(${b.angle.toFixed(2)}rad)`;
+  }
 }
+
+/* ── Moby-Dick ── when the answer first names the whale, a plush white whale rises from behind the
+   chat box (clipped at its top edge, so it's behind it), blows a spout of water that rains down onto
+   the box and the pile, and sinks; then its tail comes up at the right and slaps down, knocking
+   everything on the box into the air and splashing again. The drops are bodies in the same world
+   as the creatures — same physics — and dry up after a few seconds. */
+const WHALE_RE = /\b(moby|white whale|sperm whale)\b/i;
+let whale = null, whaleSeen = false;
+const drops = [];
+function whaleStart() {
+  if (!poolInit() || whale) return;
+  const sea = document.createElement('div'); sea.className = 'sea';
+  sea.innerHTML = `<img class="w" src="plush/whale.webp" alt="" draggable="false"><img class="f" src="plush/flukes.webp" alt="" draggable="false">`;
+  poolEl.prepend(sea);
+  whale = { sea, w: sea.querySelector('.w'), f: sea.querySelector('.f'), t0: performance.now(), spouted: false, slapped: false };
+}
+function whaleEnd() { whale?.sea.remove(); whale = null; }
+function splash(x, y, n, up) {
+  const { Bodies, Body, Composite } = Matter;
+  for (let i = 0; i < n; i++) {
+    const r = 6 + Math.random() * 5, b = Bodies.circle(x + (Math.random() - .5) * 14, y, r + POOL_GAP, { restitution: .62, friction: .06, frictionStatic: .12, frictionAir: .0045, density: .0011, slop: .02 });
+    Body.setVelocity(b, { x: (Math.random() - .5) * 7, y: -up - Math.random() * up * .5 }); Composite.add(poolEngine.world, b);
+    const el = document.createElement('div'); el.className = 'drop'; el.style.width = el.style.height = r * 2 + 'px'; poolEl.append(el);
+    drops.push({ body: b, el, r, t0: performance.now() });
+  }
+}
+const ease = (k) => k <= 0 ? 0 : k >= 1 ? 1 : 1 - Math.pow(1 - k, 3);
+function whaleStep(now) {
+  if (!whale) return;
+  const g = homeGround(), r = g ? rectOf(g) : null; if (!r || r.width <= 0) return;
+  const t = (now - whale.t0) / 1000, sea = whale.sea;
+  sea.style.height = Math.max(0, r.top) + 'px';
+  // the whale: up behind the box (0–1s), a slow bob, the spout at 1.2s, down again 4.6–5.4s
+  const WW = Math.min(innerWidth * .44, 200), WH = WW * 903 / 520;
+  const up = ease(t / 1) * (1 - ease((t - 4.6) / .8)), bob = Math.sin(t * 2.2) * 3 * up;
+  const shown = WH * .5 * up + bob, wx = r.left + r.width * .42 - WW / 2;
+  whale.w.style.width = WW + 'px';
+  whale.w.style.transform = `translate(${wx.toFixed(1)}px, ${(r.top - shown).toFixed(1)}px) rotate(${(Math.sin(t * 1.3) * 1.5).toFixed(2)}deg)`;
+  if (!whale.spouted && t > 1.2) { whale.spouted = true; splash(wx + WW * .5, r.top - shown - 4, 13, 15); }
+  // the tail: up at the right 6–6.8s, held, then over and down — the slap — at 7.8s
+  const FW = Math.min(innerWidth * .32, 140), FH = FW * 623 / 520;
+  const fup = ease((t - 6) / .8), slap = ease((t - 7.8) / .28), fshown = FH * .8 * fup * (1 - slap);
+  whale.f.style.width = FW + 'px'; whale.f.style.transformOrigin = '50% 100%';
+  whale.f.style.transform = `translate(${(r.right - FW * 1.05).toFixed(1)}px, ${(r.top - fshown).toFixed(1)}px) rotate(${(-slap * 70 + Math.sin(t * 2) * 3 * fup).toFixed(2)}deg)`;
+  if (!whale.slapped && t > 7.95) {
+    whale.slapped = true;
+    const { Body, Sleeping } = Matter;
+    for (const c of critters) { if (tcard && tcard.c === c) continue; Sleeping.set(c.body, false); Body.setVelocity(c.body, { x: (Math.random() - .5) * 6 - 2, y: -9 - Math.random() * 5 }); Body.setAngularVelocity(c.body, (Math.random() - .5) * .3); c.sv += 3; }
+    for (const d of drops) Body.setVelocity(d.body, { x: (Math.random() - .5) * 6, y: -8 - Math.random() * 4 });
+    splash(r.right - FW * .6, r.top - 6, 14, 12);
+  }
+  if (t > 8.6) whaleEnd();
+}
+
 Object.assign(window.__peek, { poolDrop, poolClear, poolHear, poolStep, critters });
 
 /* ═══════════════ embed: the host app's chat drives it ═══════════════ */
