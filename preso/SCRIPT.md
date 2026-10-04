@@ -55,7 +55,7 @@ Then one short line as each ⨉ is crossed out. *(To write: a line per ⨉.)*
 
 ### What it taught (12dl — the lesson, after the library of components)
 
-The slide is one line: **"Users can handle complexity, when it's built the way they think."** (John, 2026-10-04.) The
+The slide is one line: **"Users can handle complexity when it's built the way they think."** (John, 2026-10-04.) The
 thread of the case study is trust — clarity and transparency at every step. The beats behind it, to say:
 
 1. The calendar didn't get simpler. It got much more powerful, and hosts still found it easy.
