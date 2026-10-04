@@ -384,6 +384,10 @@ survives the next send; leaving the chat clears it.
 blows a spout of water drops that rain onto the box and the pile, sinks, and then its tail
 (`plush/flukes.webp`) comes up at the right and slaps down, throwing everything on the box into the air with
 another splash (`whaleStep()`, a fixed 8.6s script). The drops are bodies in the same world, and dry up.
+**Tap a creature** and it eases up to 2× — body and all (`poolSize()`, `Body.scale`), shoving the
+others aside — and the page tells the app `{type:'highlight', terms}` (each `POOL` entry's `terms`): the
+app marks every mention in the answers with a highlighter yellow (`PeekHighlight`, `MarkdownText.marked`)
+and glides the chat to it, its subhead first (MessagesView). Tap again, or another, and it eases back.
 **Every body is its picture's outline** (`HULLS`, convex hulls traced from the webps) pushed out 2px
 (`POOL_GAP`), so stacked pieces keep ≥4px apart and never overlap; the picture turns about the body's
 centroid (`c.ox/oy`). **The app has demo buttons 1 2 3** top right of the chat (`PeekDemoButtons` in

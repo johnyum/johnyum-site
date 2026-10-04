@@ -1782,14 +1782,14 @@ function workEnd(text) {
    squashing on impact, wobbling back upright). Fling them; tap one for its name. Each creature
    comes once per answer, and they clear when you send the next message. */
 const POOL = {
-  anemone:    { name: 'Sea anemone',      w: 92, re: /\banemone/i },
-  starfish:   { name: 'Starfish',         w: 84, re: /\b(star ?fish|sea stars?)\b/i },
-  crab:       { name: 'Hermit crab',      w: 84, re: /\bcrabs?\b/i },
-  nudibranch: { name: 'Nudibranch',       w: 86, re: /\b(nudibranch|sea slug)/i },
-  urchin:     { name: 'Sea urchin',       w: 74, re: /\burchin/i },
-  cucumber:   { name: 'Sea cucumber',     w: 92, re: /\bsea cucumber/i },
-  sculpin:    { name: 'Tidepool sculpin', w: 90, re: /\bsculpin/i },
-  octopus:    { name: 'Octopus',          w: 96, re: /\boctop(us|i|uses)\b/i },
+  anemone:    { name: 'Sea anemone',      w: 92, re: /\banemone/i , terms: ['sea anemone', 'anemone'] },
+  starfish:   { name: 'Starfish',         w: 84, re: /\b(star ?fish|sea stars?)\b/i , terms: ['starfish', 'sea star'] },
+  crab:       { name: 'Hermit crab',      w: 84, re: /\bcrabs?\b/i , terms: ['hermit crab', 'crab'] },
+  nudibranch: { name: 'Nudibranch',       w: 86, re: /\b(nudibranch|sea slug)/i , terms: ['nudibranch', 'sea slug'] },
+  urchin:     { name: 'Sea urchin',       w: 74, re: /\burchin/i , terms: ['sea urchin', 'urchin'] },
+  cucumber:   { name: 'Sea cucumber',     w: 92, re: /\bsea cucumber/i , terms: ['sea cucumber'] },
+  sculpin:    { name: 'Tidepool sculpin', w: 90, re: /\bsculpin/i , terms: ['tidepool sculpin', 'sculpin'] },
+  octopus:    { name: 'Octopus',          w: 96, re: /\boctop(us|i|uses)\b/i , terms: ['octopus', 'octopuses', 'octopi'] },
   // Not a creature: a wind-up kitchen timer, for a cook. Tap it for its card; it really times.
   timer:      { name: 'Timer',            w: 118, re: /\b(green egg|kamado|bbq|barbe?cue|barbeque|brisket|smok(er|ing|ed)|grill(ing|ed)?|pulled pork|ribs)\b/i, kind: 'timer' },
 };
@@ -1866,7 +1866,7 @@ function poolDrop(key) {
   const el = document.createElement('div'); el.className = 'critter'; el.style.width = el.style.height = w + 'px';
   el.innerHTML = `<img src="plush/${key}.webp" alt="${P.name}" draggable="false">` + (P.kind === 'timer' ? dialSVG() : '');
   poolEl.append(el);
-  const c = { key, el, body, w, ox, oy, bubble: null, bubbleT: 0, sq: 0, sv: 0 };
+  const c = { key, el, body, w, ox, oy, w0: w, ox0: ox, oy0: oy, size: 1, goal: 1, bubble: null, bubbleT: 0, sq: 0, sv: 0 };
   if (P.kind === 'timer') c.timer = { set: 0, left: 0, running: false, endAt: 0, rung: false };
   critters.push(c); poolGrab(c);
 }
@@ -1879,6 +1879,7 @@ function poolClear(all = true) {
   }
   poolSeen = new Set(critters.map((c) => c.key));
   whaleEnd(); whaleSeen = false;
+  if (poolFocus && !critters.includes(poolFocus)) { poolFocus = null; tell({ type: 'highlight', terms: [] }); }
   for (const d of drops) { Matter.Composite.remove(poolEngine.world, d.body); d.el.remove(); } drops.length = 0;
 }
 // The answer so far: anything it names that isn't in yet drops in.
@@ -1927,7 +1928,7 @@ function poolGrab(c) {
     if (tcard && tcard.c === c) { windEnd(c); return; }
     if (!poolDrag || poolDrag.c !== c) return;
     Composite.remove(poolEngine.world, poolDrag.spring);
-    if (poolDrag.moved < 8 && performance.now() - poolDrag.t < 400) (c.timer ? timerCard(c) : poolName(c));
+    if (poolDrag.moved < 8 && performance.now() - poolDrag.t < 400) (c.timer ? timerCard(c) : poolFocusOn(c));
     else {
       const a = poolDrag.trail[0], z = poolDrag.trail[poolDrag.trail.length - 1], dt = Math.max(16, z.t - a.t), step = 1000 / 120;
       const vx = (z.x - a.x) / dt * step * 1.15, vy = (z.y - a.y) / dt * step * 1.15, sp = Math.hypot(vx, vy), k = sp > 34 ? 34 / sp : 1;
@@ -1936,6 +1937,26 @@ function poolGrab(c) {
     poolDrag = null;
   };
   c.el.addEventListener('pointerup', up); c.el.addEventListener('pointercancel', up);
+}
+// Tapped, a creature grows to twice its size — its body too, so it shoves the others aside — and the
+// app highlights it in the answer (every mention, its subhead too) and scrolls there. Tap it again, or
+// tap another, and it eases back.
+let poolFocus = null;
+function poolFocusOn(c) {
+  const was = poolFocus;
+  if (was) was.goal = 1;
+  poolFocus = was === c ? null : c;
+  if (poolFocus) { c.goal = 2; c.sv += 2.5; Matter.Body.setVelocity(c.body, { x: c.body.velocity.x, y: -3 }); }
+  for (const o of critters) Matter.Sleeping.set(o.body, false);
+  tell({ type: 'highlight', terms: poolFocus ? POOL[c.key].terms || [POOL[c.key].name] : [] });
+  if (!EMBED && poolFocus) poolName(c);   // the demo page has no app to highlight in: its name bubble instead
+}
+// eases a creature's size toward its goal, scaling its physics body with it
+function poolSize(c) {
+  const g = c.goal || 1, cur = c.size || 1; if (Math.abs(g - cur) < .002) return;
+  const next = Math.abs(g - cur) < .01 ? g : cur + (g - cur) * .16, f = next / cur;
+  Matter.Body.scale(c.body, f, f); c.size = next;
+  c.w = c.w0 * next; c.ox = c.ox0 * next; c.oy = c.oy0 * next; c.el.style.width = c.el.style.height = c.w + 'px'; c.placed = false;
 }
 function poolName(c) {
   c.bubble?.remove();
@@ -2105,6 +2126,7 @@ function poolStep(now) {
   for (const c of critters) {
     const b = c.body;
     if (tcard && tcard.c === c) continue;   // grown into the interface: it's placed by the grow, not the pile
+    poolSize(c);
     if (poolDrag) Sleeping.set(b, false);
     if (!b.isSleeping) {
       const cap = poolDrag && poolDrag.c === c ? 40 : 30, v = b.velocity, sp = Math.hypot(v.x, v.y);
