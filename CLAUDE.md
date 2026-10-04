@@ -416,6 +416,10 @@ ChatPanel.swift): each starts a fresh chat and sends a prompt — tide pool, bri
 The page also tells the app how tall the pile is (`{type:'inset'}`) so the chat makes room at its end —
 only once the pile has come to rest and changed by 16px+: reporting it mid-bounce re-padded and scrolled
 the chat every few frames, which is what made the text jitter as things dropped in.
+The app reports only the composer's frame now (`.peekPlatform("composer")`): the per-message platforms the
+retired character stood on were measured every frame while streaming and scrolling, and that churn —
+preference updates up through the chat plus a JS call per frame — was the rest of the jitter. Don't put
+`.peekPlatform` back on message rows.
 
 A 3D character that runs around a chat UI the way a game character runs around a level:
 it stands on message bubbles, runs along the chat box, jumps between suggestion pills, sits on
