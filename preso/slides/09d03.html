@@ -45,19 +45,19 @@
     object-position: bottom;        /* anything over height comes off the TOP */
   }
 
-  /* THE FILM PLAYS (John, 2026-10-03: "auto play from the start until I tap away"): YouTube's own player, muted and bare (no
-     controls, no captions, no related films), laid exactly over the film's poster in the picture — 1606 x 902 at 497,130 on
-     the 2600 x 1680 page, so 19.115% / 7.738% and 61.769% x 53.690% of the screen. It is only loaded once the slide is on
-     stage (presoshown), so it starts from the top every time; the slide is built fresh on each arrival (presoNoKeep). It
-     fades in over the poster once YouTube says it is playing, so a slow load shows the picture rather than a black box. */
-  .film { position: absolute; left: 19.115%; top: 7.738%; width: 61.769%; height: 53.690%; overflow: hidden;
-          opacity: 0; transition: opacity .4s ease; pointer-events: none; }
-  .film.on { opacity: 1; }
-  /* NO YOUTUBE CHROME (John, 2026-10-03: no "Watch on YouTube", no gradients top and bottom): the player is made half as
-     tall again as the window it shows through and centred on it. YouTube letterboxes the film into the middle of its own
-     frame — so the film still fills the window exactly — and its title bar, its two gradients and its Watch on YouTube button,
-     which hang off the player's top and bottom edges, land in the 25% above and below, cut off by the window. */
-  .film iframe { position: absolute; left: 0; top: -25%; width: 100%; height: 150%; border: 0; display: block; background: #000; }
+  /* THE FILM PLAYS, CLEAN (John, 2026-10-03: "auto play from the start until I tap away … go straight into the video without
+     all the UI … start even quicker and shorten the time between the header and the graph"). The film is a plain file
+     (assets/fee-film.mp4) in a bare <video>, so there is no player and no chrome, laid exactly over the film's poster in the
+     picture — 1606 x 902 at 497,130 on the 2600 x 1680 page, so 19.115% / 7.738% and 61.769% x 53.690% of the screen.
+     THE RECUT is in the file, made from John's 1080p download of Airbnb's "Simplifying service fees" (no sound — it plays muted):
+     1.2s–3.1s of the original (the tag already in, the title fading up and held a beat) and then 6.3s on (the title fading out
+     and the first bar rising) — the bar is up 2.6s in, against 6.9s in the original. With ffmpeg:
+       -filter_complex "[0:v]trim=start=1.2:end=3.1,setpts=PTS-STARTPTS[a];[0:v]trim=start=6.3,setpts=PTS-STARTPTS[b];
+                        [a][b]concat=n=2:v=1:a=0[v]" -map "[v]" -c:v libx264 -crf 20 -preset slow -pix_fmt yuv420p
+                        -movflags +faststart -an
+     It starts as the slide lands (presoshown); the slide is built fresh on each arrival (presoNoKeep). */
+  .film { position: absolute; left: 19.115%; top: 7.738%; width: 61.769%; height: 53.690%; display: block; object-fit: cover;
+          background: #fff; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -66,39 +66,18 @@
       <div class="device">
         <img src="assets/fee-article.webp" width="2600" height="1680"
              alt="Airbnb Resource Center: Simplifying service fees on Airbnb — what to know about switching to a single fee, with the film">
-        <div class="film" id="filmbox"><iframe id="film" title="Simplifying service fees | Airbnb" allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin" tabindex="-1"></iframe></div>
+        <video class="film" id="film" src="assets/fee-film.mp4" muted playsinline preload="auto" aria-hidden="true"></video>
       </div>
     </div>
   </div>
 <script>
   (() => {
-    const f = document.getElementById('film'), box = document.getElementById('filmbox');
-    const ID = '0UfCNna5llE';   // Airbnb's "Simplifying service fees" — the film the page itself embeds
-    const start = () => {
-      if (f.src) return;
-      f.src = `https://www.youtube.com/embed/${ID}?autoplay=1&mute=1&controls=0&rel=0&modestbranding=1&iv_load_policy=3&cc_load_policy=0&playsinline=1&disablekb=1&fs=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;
-      // once the player is up: listen to it (YouTube's 'widget' channel) and tell it to play — again every half second until it
-      // reports playing, since autoplay alone is not always honoured (a muted embed usually is, but not in every case)
-      f.addEventListener('load', () => {
-        const say = o => { try { f.contentWindow.postMessage(JSON.stringify({ ...o, id: 1, channel: 'widget' }), '*'); } catch (_) {} };
-        say({ event: 'listening' });
-        const t0 = Date.now();
-        // only if it has not started by itself: a play command flashes YouTube's pause/play icon over the film
-        (function nudge() { if (playing || Date.now() - t0 > 15000) return; if (Date.now() - t0 > 1500) { say({ event: 'command', func: 'mute', args: [] }); say({ event: 'command', func: 'playVideo', args: [] }); } setTimeout(nudge, 500); })();
-      });
-      setTimeout(() => box.classList.add('on'), 2500);   // ...shown after a beat regardless
-    };
-    let playing = false, lastT = -1;
-    addEventListener('message', e => {
-      let host = ''; try { host = new URL(e.origin).hostname; } catch (_) {}
-      if (!/(^|\.)youtube\.com$/.test(host)) return;
-      try { const d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data, info = d && d.info; if (!info) return;
-        if (info.playerState === 1 || (typeof info.currentTime === 'number' && lastT >= 0 && info.currentTime > lastT)) { playing = true; box.classList.add('on'); }
-        if (typeof info.currentTime === 'number') lastT = info.currentTime; } catch (_) {}
-    });
-    addEventListener('presoshown', start);
-    if (window.top === window) addEventListener('load', start);
-    window.presoNoKeep = true;   // leaving and coming back plays it from the start again
+    const v = document.getElementById('film');
+    // it plays from the top as the slide lands, and on until the slide is left; built fresh on each arrival, so it always starts over
+    const play = () => { try { v.currentTime = 0; } catch (_) {} const p = v.play(); if (p && p.catch) p.catch(() => {}); };
+    addEventListener('presoshown', play);
+    if (window.top === window) addEventListener('load', play);
+    window.presoNoKeep = true;
   })();
 </script>
 </body>
