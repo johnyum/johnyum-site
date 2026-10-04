@@ -30,7 +30,7 @@ johnyum.com goes **straight to the portfolio stage** — there is no password.
 John's name and bio on the left, three columns of work on the right that animate
 in on load. Built to Figma frame `5445:843924` in the *Yum Portfolio* file.
 
-Three things sit behind flags, all switched OFF, all intact — nothing was
+Four things sit behind flags, all switched OFF, all intact — nothing was
 deleted to make room for the stage:
 
 | Flag | Where | What it brings back |
@@ -38,6 +38,7 @@ deleted to make room for the stage:
 | `GATE_ENABLED` | `<head>` | the password curtain (`KnockKnock`; spaces stripped, so "Knock Knock" also lands) |
 | `FILM_ENABLED` | `<head>` | the play button and the portfolio film |
 | `PILE_ENABLED` | the Matter.js block | the falling-work pile (retired 2026-08-30) |
+| `WORK_ENABLED` | `<head>` | the three columns of work beside the words (off 2026-10-04: the page is the info alone, at every width, and the screens aren't fetched) |
 
 The first two are declared in the `<head>` rather than beside their code for one
 reason: `GATE_ENABLED` puts `nogate` on `<html>`, and that has to land **before

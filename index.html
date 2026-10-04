@@ -24,13 +24,18 @@
                    true  = the password curtain comes back, exactly as it was.
      FILM_ENABLED  false = the stage is the portfolio (current).
                    true  = the stage is the play button and the film.
+     WORK_ENABLED  false = the words alone, centred, at every width — no screens,
+                           and none of the 2.3MB fetched (current, 2026-10-04).
+                   true  = the three columns of work beside the words, as built.
 
      Neither curtain nor film was deleted to switch them off. Same spirit as
      PILE_ENABLED further down: the code stays, the flag decides. -->
 <script>
   const GATE_ENABLED = false;
   const FILM_ENABLED = false;
+  const WORK_ENABLED = false;
   if (!GATE_ENABLED) document.documentElement.classList.add('nogate');
+  if (!WORK_ENABLED) document.documentElement.classList.add('nowork');
 </script>
 <!-- Vercel Web Analytics queue shim. Defined early so events fired before the
      analytics script finishes loading are queued, not lost. track() is a safe
@@ -668,6 +673,12 @@
     #portfolio.pre .bio > *, #portfolio.pre .col { transform: none; }
   }
 
+  /* ── the words alone (WORK_ENABLED = false) ─────────────────────────────
+     No screens at any width: the bio sits in the middle of the page, left-set,
+     at its own desktop scale — narrow still takes over below 1100 as before. */
+  html.nowork #portfolio .work { display: none; }
+  html.nowork #portfolio .stage { justify-content: center; }
+
   /* ── narrow ──────────────────────────────────────────────────────────────
      Under 1100 the three columns cannot stand beside 854 of text without
      either crushing the measure or shrinking the phones past legibility, and
@@ -1027,7 +1038,7 @@
     // that started narrow still fills in. 1101 is the CSS's 1100 + 1: the two
     // have to be changed together.
     const WIDE = matchMedia('(min-width: 1101px)');
-    const warmIfShown = () => { if (WIDE.matches) warm(); };
+    const warmIfShown = () => { if (WORK_ENABLED && WIDE.matches) warm(); };   // no work, no fetch
     WIDE.addEventListener('change', warmIfShown);
 
     if (GATE_ENABLED) {
