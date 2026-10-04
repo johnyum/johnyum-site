@@ -33,9 +33,43 @@
   #duoPhone { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; border: 0; background: transparent; pointer-events: none;
     transform-origin: 50% 50%; opacity: 0; transition: transform 1s cubic-bezier(.2,.8,.2,1), opacity .35s ease; z-index: 5; }
   #duoPhone.in { opacity: 1; }
+  /* WHAT HOSTS SAID (John, 2026-10-03): between the web build and the phone, a tap steps the desktop window into the left two-thirds
+     (scaled to fit, its centre on theirs) and the hosts' own words from the feedback widget — Host Pricing · Multi-calendar
+     Modernization, Sep 26 – Oct 3, 2026 — come in down the right third, verbatim, in the deck's mono: a check where the
+     feedback was positive, an X where it was negative (the neutral questions, which are neither, are left out). The checks and
+     Xs are the bland calendar's list (12bs): Material check / close, Airbnb's success green and error red. */
+  @font-face { font-family: "IBM Plex Mono"; src: url("../fonts/IBMPlexMono-Regular.woff2") format("woff2"); font-weight: 400; font-display: block; }
+  #said { position: fixed; top: 50%; right: 48px; width: calc(33.333vw - 72px); margin: 0; padding: 0; list-style: none; transform: translateY(-50%);
+          font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 15px; line-height: 1.45; color: #111; z-index: 4; pointer-events: none; }
+  #said li { display: flex; gap: 12px; align-items: flex-start; opacity: 0; transform: translateX(24px);
+             transition: opacity .32s ease, transform .52s cubic-bezier(.16,1,.3,1); }
+  #said li + li { margin-top: 14px; }
+  #said svg { flex: none; width: 22px; height: 22px; margin-top: -1px; }
+  #said svg.ok { fill: #008A05; }
+  #said svg.no { fill: #C13515; }
+  body.said #said li { opacity: 1; transform: none; }
+  body.said #said li:nth-child(1) { transition-delay: 300ms; }
+  body.said #said li:nth-child(2) { transition-delay: 410ms; }
+  body.said #said li:nth-child(3) { transition-delay: 520ms; }
+  body.said #said li:nth-child(4) { transition-delay: 630ms; }
+  body.said #said li:nth-child(5) { transition-delay: 740ms; }
+  body.said #said li:nth-child(6) { transition-delay: 850ms; }
+  body.said #said li:nth-child(7) { transition-delay: 960ms; }
+  body.said #said li:nth-child(8) { transition-delay: 1070ms; }
+  body.notrans #said li, body.notrans .box { transition: none !important; }
 </style>
 </head>
 <body>
+  <ul id="said" aria-label="What hosts said">
+    <li><svg class="ok" viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>&ldquo;This is ABSOLUTELY a game changer for us as hosts!! THANK YOU so very much&rdquo;</span></li>
+    <li><svg class="ok" viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>&ldquo;I think it's a good tool for those of us who manage multiple listings.&rdquo;</span></li>
+    <li><svg class="ok" viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>&ldquo;This looks good, i think it is similar to guesty platform.&rdquo;</span></li>
+    <li><svg class="ok" viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>&ldquo;Like it.&rdquo;</span></li>
+    <li><svg class="no" viewBox="0 -960 960 960" aria-hidden="true"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg><span>&ldquo;There isn't an option to group certain nights on all of the listings, and then add a special event.&rdquo;</span></li>
+    <li><svg class="no" viewBox="0 -960 960 960" aria-hidden="true"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg><span>&ldquo;Weekend prices are randomly displayed as percentage or amount. Why????&rdquo;</span></li>
+    <li><svg class="no" viewBox="0 -960 960 960" aria-hidden="true"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg><span>&ldquo;Why would you not allow base weekend price be switched from % to amount?&rdquo;</span></li>
+    <li><svg class="no" viewBox="0 -960 960 960" aria-hidden="true"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg><span>&ldquo;nice would appriciate some more features related to price insights&rdquo;</span></li>
+  </ul>
   <div class="stage"><div class="box" id="box"><div class="screen" id="screen"><iframe id="app" title="Multi-Host Calendar — the web build"></iframe></div></div></div>
 <script>
 (() => {
@@ -65,7 +99,10 @@
     box.style.setProperty('--canvas', canvas.toFixed(1) + 'px');
     fitScreen();
     const dw = box.offsetWidth, dh = box.offsetHeight, cy = (top + bottom) / 2 - innerHeight / 2;
-    box.style.transform = `translateY(${cy.toFixed(1)}px)`;
+    // in "what hosts said" the window steps into the left two-thirds — scaled to fit 32 clear of the left edge and 48 short of the words
+    const said = document.body.classList.contains('said');
+    const room = innerWidth * 2 / 3 - 32 - 48, ks = said ? Math.min(1, room / dw) : 1, tx = said ? (32 + room / 2) - innerWidth / 2 : 0;
+    box.style.transform = `translate(${tx.toFixed(1)}px, ${cy.toFixed(1)}px) scale(${ks.toFixed(4)})`;
     // in the duo the desktop window stays exactly as it stands — no stepping back, no sliding left; only the phone comes in and lands
     // over its right side (John, 2026-10-03: "don't size down the multi build… I just want the phone to come in and land on the right")
     placePhone(document.body.classList.contains('duo'), { left: innerWidth / 2 - dw / 2, w: dw, bottom: innerHeight / 2 + cy + dh / 2 });
@@ -735,16 +772,22 @@
       },
       // BACK: once Del Mar has been applied and the tips closed, the build retires that tip — there is no Del Mar left to reopen on. So
       // this Back rebuilds the calendar and replays the path instantly to here (Del Mar applied, its offer up), as a restore does.
-      back: () => reloadTo(BEATS.length - 2) },   // (−2: the duo and its picked nights come after it)
-    // 15 — the duo: the desktop window stays where it is, and the phone floats in from the right onto its foot (see THE DUO)
+      back: () => reloadTo(BEATS.length - 3) },   // (−3: what hosts said, the duo and its picked nights come after it)
+    // 15 — what hosts said (John, 2026-10-03): the desktop window steps into the left two-thirds and the hosts' words come in down
+    //      the right third, a check or an X each (see WHAT HOSTS SAID)
+    { said: true,
+      fwd: (w, instant) => { const b = document.body; if (instant) b.classList.add('notrans'); b.classList.add('said'); fit();
+        if (instant) requestAnimationFrame(() => requestAnimationFrame(() => b.classList.remove('notrans'))); },
+      back: () => { document.body.classList.remove('said'); fit(); } },
+    // 16 — the duo: the words go and the window steps back to its place as the phone floats in from the right onto its foot (see THE DUO)
     { fwd: (w, instant) => {
         const b = document.body, f = document.getElementById('duoPhone');
         if (!f) { setTimeout(() => {}, 0); }
-        if (instant) { b.classList.add('duo'); [box, f].forEach(e => e && (e.style.transition = 'none')); fit(); requestAnimationFrame(() => [box, f].forEach(e => e && (e.style.transition = ''))); return; }
-        b.classList.add('duo'); fit();
+        if (instant) { b.classList.remove('said'); b.classList.add('duo'); [box, f].forEach(e => e && (e.style.transition = 'none')); fit(); requestAnimationFrame(() => [box, f].forEach(e => e && (e.style.transition = ''))); return; }
+        b.classList.remove('said'); b.classList.add('duo'); fit();
       },
-      back: () => { document.body.classList.remove('duo'); fit(); } },
-    // 16 — on both screens at once (John, 2026-10-03): a few nights picked, a night at a time — three in the desktop window's top
+      back: () => { document.body.classList.remove('duo'); document.body.classList.add('said'); fit(); } },
+    // 17 — on both screens at once (John, 2026-10-03): a few nights picked, a night at a time — three in the desktop window's top
     //      home, and on the phone today in its top home and three in its second — and only when the last has landed do the two quick-action bars come in, together.
     //      Each build's own selection and its own quick actions; the web one's bar is only held back (preso-qa-hold) and the
     //      phone's held with its own holdQuick, then both let go in the same frame.
@@ -940,7 +983,7 @@
   // HOLD is how long each beat plays before the next may start, read off its own timers. 7 and 8 wait on the build
   // (a modal to rise and go; a handle to be dragged up and back), so theirs are the long ones. Going BACK is never
   // queued: it drops anything waiting and acts at once, because reversing is how you recover from a wrong tap.
-  const HOLD = [1300, 1300, 1300, 2400, 700, 700, 1600, 3200, 2600, 4000, 3200, 1800, 7000, 2000, 3400, 1200, 1100];   // the fold (.75s) and the grow (.44s), and a breath — the old path's were [1500, 1400, 1000, 2900, 1300, 3200, 4600, 6800, 2600, 1800, 1400, 1500]
+  const HOLD = [1300, 1300, 1300, 2400, 700, 700, 1600, 3200, 2600, 4000, 3200, 1800, 7000, 2000, 1400, 3400, 1200, 1100];   // (1400: what hosts said, John, 2026-10-03)   // the fold (.75s) and the grow (.44s), and a breath — the old path's were [1500, 1400, 1000, 2900, 1300, 3200, 4600, 6800, 2600, 1800, 1400, 1500]
   let busyUntil = 0, queued = 0, qT = 0;
   const fire = () => { const b = BEATS[at]; at++; safe(() => b.fwd(W(), false)); busyUntil = performance.now() + (HOLD[at - 1] || 1500); };
   const pump = () => {
