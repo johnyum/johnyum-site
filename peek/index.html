@@ -121,7 +121,7 @@ button, textarea { font: inherit; color: inherit; }
 .dial .knob { position: absolute; inset: -2%; border-radius: 50%; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.006 .85' numOctaves='3' seed='4'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 .55 0'/></filter><rect width='240' height='240' filter='url(%23n)'/></svg>") center / 100% 100%; opacity: .34; }
 .dial .dome { position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
   background:
-    radial-gradient(ellipse 80% 55% at 45% 16%, rgba(255,255,255,.9), rgba(255,255,255,0) 72%),
+    radial-gradient(ellipse 70% 45% at 45% 24%, rgba(255,255,255,.62), rgba(255,255,255,0) 72%),
     linear-gradient(180deg, rgba(255,255,255,.35) 0%, rgba(255,255,255,0) 45%, rgba(110,118,128,.06) 78%, rgba(110,118,128,.16) 100%);
   box-shadow: inset 0 2px 1.5px rgba(255,255,255,.95), inset 0 -3px 5px rgba(60,68,78,.16), inset 0 0 0 .5px rgba(80,88,98,.22), 0 2px 5px rgba(30,36,44,.18); }
 .tscrim { position: fixed; inset: 0; background: rgba(255,255,255,.62); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); pointer-events: auto; opacity: 0; transition: opacity .3s ease; }
@@ -1926,7 +1926,7 @@ function poolName(c) {
 const FACE = { cx: .499, cy: .468, r: .318 };   // where the plain face sits inside the steel bezel on timer.webp, as fractions of the (square) element
 /* The dial: one piece of silver. No numbers, no ticks — the whole face is a single domed, polished
    metal knob with a fine turned finish, the light sliding round it as it turns. The time floats on
-   top of it as if shown by magic: tall red digits (Oswald, condensed — crisp, flat, no glow) and a thin red line round the edge from 0 to
+   top of it as if shown by magic: tall red digits (Oswald, condensed), inlaid like enamel and a thin red line round the edge from 0 to
    the minutes left. At 0 there's nothing on it but the metal. */
 function dialSVG() {
   const R = FACE.r * 1.13;   // out over the body's steel bezel too, so the bezel and the knob are one piece of metal
@@ -1937,10 +1937,19 @@ function dialSVG() {
     <path d="M4.5 1 H35.5 Q39.5 1 37.4 4.4 L21.6 30.4 Q20 32 18.4 30.4 L2.6 4.4 Q.5 1 4.5 1 Z" fill="url(#tPtr)"/>
     <path d="M5 2.2 H35" stroke="rgba(255,255,255,.45)" stroke-width="1" stroke-linecap="round"/></svg>`;
   return ptr + `<div class="dial" style="left:${L}%;top:${T}%;width:${D}%;height:${D}%">
-    <div class="knob"></div><div class="dome"></div>
+    <div class="knob"></div>
+    <!-- Inlaid, not stuck on: the red is enamel set into the metal — a hairline of shade along its top edge
+         and a catch of light along its bottom edge, as a shallow recess has — and the dome's light and
+         shade are drawn OVER it, so the ink sits under the same lamp as the silver. -->
     <svg viewBox="-50 -50 100 100">
-      <path class="arc" d="" fill="none" stroke="#e8261a" stroke-width="1.2" stroke-linecap="round"/>
-      <text class="lcd" x="0" y="11.2" text-anchor="middle" font-size="31" font-weight="400" fill="#e8261a" font-family="Oswald, 'Bebas Neue', 'Arial Narrow', sans-serif" style="font-variant-numeric: tabular-nums" letter-spacing=".6"></text>
+      <path class="arc" d="" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="1.2" stroke-linecap="round" transform="translate(0 .4)"/>
+      <path class="arc" d="" fill="none" stroke="#5b1a12" stroke-opacity=".35" stroke-width="1.2" stroke-linecap="round" transform="translate(0 -.3)"/>
+      <path class="arc" d="" fill="none" stroke="#b81a0e" stroke-width="1.35" stroke-linecap="round"/>
+      <text class="lcd" x="0" y="11.6" text-anchor="middle" font-size="31" font-weight="400" font-family="Oswald, 'Bebas Neue', 'Arial Narrow', sans-serif" style="font-variant-numeric: tabular-nums" letter-spacing=".6" fill="#fff" fill-opacity=".85"></text>
+      <text class="lcd" x="0" y="10.85" text-anchor="middle" font-size="31" font-weight="400" font-family="Oswald, 'Bebas Neue', 'Arial Narrow', sans-serif" style="font-variant-numeric: tabular-nums" letter-spacing=".6" fill="#4a140d" fill-opacity=".38"></text>
+      <text class="lcd" x="0" y="11.2" text-anchor="middle" font-size="31" font-weight="400" font-family="Oswald, 'Bebas Neue', 'Arial Narrow', sans-serif" style="font-variant-numeric: tabular-nums" letter-spacing=".6" fill="#d92a1c" fill-opacity=".94"></text>
+    </svg>
+    <div class="dome"></div>
     </svg></div>`;
 }
 function timerLeft(T) { return T.running ? Math.max(0, (T.endAt - Date.now()) / 1000) : T.left; }
