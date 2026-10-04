@@ -1811,13 +1811,20 @@ function poolWallsBuild() {
   Composite.add(poolEngine.world, poolWalls); poolBoxKey = '';
 }
 // The chat box is the shelf they land on, kept where the box really is.
-let poolLastBox = null;
+let poolLastBox = null, poolGoneT = 0;
 function poolSyncBox() {
   const { Bodies, Body, Composite, Sleeping } = Matter, g = homeGround();
   const r = g ? rectOf(g) : null, key = r ? [r.left, r.top, r.width, r.height].map(Math.round).join() : 'none';
   if (key === poolBoxKey) return; poolBoxKey = key;
-  // They belong to the chat: no chat box (you've left the chat) — they go with it.
-  if (!r || r.width <= 0) { poolLastBox = null; poolClear(); return; }
+  // No chat box: usually a blink while the app rebuilds the chat view (sending from a fresh chat
+  // does it), so they're kept — they only go if it stays gone (you've left the chat; 'closed'
+  // clears them straight away).
+  if (!r || r.width <= 0) {
+    poolLastBox = null;
+    clearTimeout(poolGoneT); poolGoneT = setTimeout(() => { const g2 = homeGround(); if (!g2 || rectOf(g2).width <= 0) poolClear(); }, 1500);
+    return;
+  }
+  clearTimeout(poolGoneT);
   // The box moved (the keyboard, the chat sliding): the pile moves with it, not left hanging.
   if (poolLastBox) { const dx = r.left - poolLastBox.x, dy = r.top - poolLastBox.y; if (dx || dy) for (const c of critters) Body.translate(c.body, { x: dx, y: dy }); }
   poolLastBox = { x: r.left, y: r.top };
