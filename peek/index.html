@@ -108,7 +108,6 @@ button, textarea { font: inherit; color: inherit; }
   -webkit-mask-image: linear-gradient(to top, #000 calc(var(--rv, 0) * 130% - 30%), transparent calc(var(--rv, 0) * 130%));
   mask-image: linear-gradient(to top, #000 calc(var(--rv, 0) * 130% - 30%), transparent calc(var(--rv, 0) * 130%)); }
 .print img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; -webkit-user-drag: none; }
-.print .sea { filter: url(#seaShimmer); }   /* below the waterline the engraved water moves, very slowly */
 .drop { position: absolute; left: 0; top: 0; pointer-events: none; border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%;
   background: radial-gradient(circle at 34% 30%, #ffffff 0 18%, #d6ebf8 42%, #93c3e4 100%); box-shadow: inset -1px -2px 3px rgba(40,90,130,.25); }
 .critter { position: absolute; left: 0; top: 0; touch-action: none; pointer-events: auto; user-select: none; -webkit-user-select: none;
@@ -2829,30 +2828,24 @@ function poolStep(now) {
 }
 
 /* ── Moby-Dick ── when the answer first names the whale, a wood engraving develops around the chat box: one plate
-   drawn for this space (moby/print.webp — the white whale's flukes towering mid-slap in a fan of spray, a whaleboat
-   pitched up beside them, sailors and oars flung into the air: a silhouette with character against the page; gpt-image-1
-   in the manner of an 1850s edition, the flukes edited white). Ink only, on the page's own white; no paper, no frame, no
-   pieces. The box's top edge sits on the sea line, hiding it, so above the box is pure silhouette and the textured sea
-   fills down its sides and under it to the bottom of the screen (the plate is cut around the box's rounded shape). It develops up out of the box
+   drawn to frame the box, filigree-light (moby/print.webp — an airy engraved sea with no horizon, its swells rising
+   toward both sides; the white whale's flukes small at the far right, mid-slap in a fan of spray; sailors flung up from a
+   whaleboat at the far left; the middle open so the answer flows down into it). Ink only, on the page's own white; no
+   paper, no frame, no pieces. The box sits ~45 down into the sea, so swell shows above it in the middle and rises higher
+   at the sides (the plate is cut around the box's rounded shape). It develops up out of the box
    like a print coming off the block — a soft edge rising, the ink settling from pale to full, a last small press — and
-   then only the water moves: below the waterline a slow displacement drifts through the engraved lines (#seaShimmer).
-   It stays till the next send. */
+   then holds still (a split copy for moving water left seams). It stays till the next send. */
 const WHALE_RE = /\b(moby|white whale|sperm whale)\b/i;
-const PRINT = { src: 'moby/print.webp', aspect: 657 / 1000, water: .523, boxAt: .53 };   // the box's top edge sits on the sea line, hiding it   // the waterline, and where the box's top sits, as fractions of the print's height
+const PRINT = { src: 'moby/print.webp', aspect: 485 / 1000, water: .45, boxAt: .68 };   // the sea's top in the middle, and the box's top ~45 below it, so swell shows above the box
 let whale = null, whaleSeen = false;
 const drops = [];
 const CLIP_HOLE = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('clip-path', 'path(evenodd, "M0 0H1V1Z")');
 function whaleStart() {
   if (!poolInit() || whale) return;
-  if (!document.getElementById('seaShimmerSvg')) {   // the water's drift: noise, slid sideways a little each frame, displacing the lines
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.id = 'seaShimmerSvg'; svg.setAttribute('width', '0'); svg.setAttribute('height', '0'); svg.style.position = 'absolute';
-    svg.innerHTML = '<filter id="seaShimmer" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.006 0.05" numOctaves="2" seed="7" result="n"/><feOffset in="n" dx="0" result="m"/><feDisplacementMap in="SourceGraphic" in2="m" scale="2.6" xChannelSelector="R" yChannelSelector="G"/></filter>';
-    document.body.append(svg);
-  }
   const el = document.createElement('div'); el.className = 'print';
-  el.innerHTML = `<div class="pv"><img class="top" src="${PRINT.src}" alt="" draggable="false"><img class="sea" src="${PRINT.src}" alt="" draggable="false"></div>`;
+  el.innerHTML = `<div class="pv"><img src="${PRINT.src}" alt="" draggable="false"></div>`;   // one image, untouched: a split for moving water left seams
   poolEl.prepend(el);
-  const w = whale = { el, pv: el.querySelector('.pv'), top: el.querySelector('.top'), sea: el.querySelector('.sea'), off: document.querySelector('#seaShimmer feOffset'), t0: null, clipKey: '' };
+  const w = whale = { el, pv: el.querySelector('.pv'), t0: null, clipKey: '' };
   w.pv.style.opacity = '0';
   el.querySelector('img').decode().catch(() => {}).then(() => { if (whale === w) w.t0 = performance.now(); });   // nothing shows half-loaded
 }
@@ -2881,9 +2874,6 @@ function whaleStep(now) {
       const hole = `M${x + R} ${y}H${x + w - R}A${R} ${R} 0 0 1 ${x + w} ${y + R}V${y + h - R}A${R} ${R} 0 0 1 ${x + w - R} ${y + h}H${x + R}A${R} ${R} 0 0 1 ${x} ${y + h - R}V${y + R}A${R} ${R} 0 0 1 ${x + R} ${y}Z`;
       whale.el.style.clipPath = `path(evenodd, "M0 0H${innerWidth}V${innerHeight}H0Z ${hole}")`;
     } else { whale.el.style.height = r.top + 'px'; whale.el.style.overflow = 'hidden'; }
-    // the water moves, the whale and boat don't: the two copies split at the waterline
-    const cut = (PRINT.water * 100).toFixed(2);
-    whale.top.style.clipPath = `inset(0 0 ${(100 - +cut).toFixed(2)}% 0)`; whale.sea.style.clipPath = `inset(${cut}% 0 0 0)`;
   }
   // developing: the edge rises out of the box over 1.6s while the ink settles from pale to full; then one small press
   const rv = outC(t / 1.6), ink = .35 + .65 * outC((t - .2) / 1.6), press = 1 + .01 * Math.sin(Math.PI * clamp((t - 1.5) / .4, 0, 1));
@@ -2891,8 +2881,6 @@ function whaleStep(now) {
   pv.style.width = W + 'px'; pv.style.height = H + 'px';
   pv.style.setProperty('--rv', rv.toFixed(4)); pv.style.opacity = ink.toFixed(3);
   pv.style.transform = `translate(0px, ${top.toFixed(1)}px) scale(${press.toFixed(4)})`;
-  // the drift: the noise slides slowly sideways, so the engraved swell seems to move under the boat and the whale
-  if (whale.off && (now | 0) % 2 === 0) whale.off.setAttribute('dx', (Math.sin(t * .35) * 40 + t * 6).toFixed(1));
 }
 const plateRise = () => Math.round(innerWidth * PRINT.aspect * (PRINT.boxAt - .03));   // the top of the silhouette above the box: the room the chat makes
 

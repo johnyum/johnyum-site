@@ -465,17 +465,17 @@ numbered header buttons are gone): Tide pool, Brisket, Moby-Dick, Engine, Pride 
 Lasagna, Dinner party, Coffee spots.
 **Moby-Dick** (2026-10-05, redone twice — the plush whale, then a five-layer cut-out plate, both retired; John: the layers
 looked like paper cut-outs rubbing together, and the horizon line was unnecessary): when the answer first names the whale
-(`WHALE_RE`), ONE wood engraving drawn for this space develops around the chat box — the white whale's flukes towering
-mid-slap in a fan of spray, a whaleboat pitched up beside them, sailors and oars flung into the air (John: "more like it's
-coming out… a tail slap… a fun silhouette at the top… give it character"; a long low whale on the surface came first).
-Refined 1850s black-line hatching (gpt-image-1, the flukes edited white; `peek/moby/print.webp`). The box's top edge sits
-on the sea line and hides it, so above the box is pure silhouette and the textured sea fills its sides and below. Ink only on the page's white: the paper is mapped to
-nothing *locally* (a blurred max of the paper tone, so its uneven tint can't survive as a grey rectangle) and faint alpha
-is dropped. The plate is cut around the box's rounded shape (`clip-path: path(evenodd …)`); `PRINT.boxAt` is the sea line; the
-silhouette's top is ~135 above the box (`plateRise()`, the room the chat makes). It develops
-up out of the box like a print off the block (a rising soft mask edge, ink pale → full, one small press), then only the
-water moves: two copies split at the waterline, the lower one through an SVG displacement whose noise slides slowly
-(`#seaShimmer`). It stays till the next send.
+(`WHALE_RE`), ONE wood engraving drawn to frame the chat box develops around it — filigree-light (John: "this is
+filigree… epic but framing the chat box, letting the content flow in"): an airy engraved sea with no horizon whose swells
+rise toward both sides, the white whale's flukes small at the far right mid-slap in a fan of spray, sailors flung up at the
+far left, the middle open for the answer (gpt-image-1, `peek/moby/print.webp`). The box sits ~45 down into the sea
+(`PRINT.boxAt`), so swell shows above it. Tried and dropped, in order: the plush whale; a five-layer cut-out plate ("paper
+cut-outs rubbing together", a needless horizon); a long low whale; a tail slap as a heavy black slab with a hairline of
+water above the box; a moving-water shimmer (a split copy under an SVG displacement — it left seams). Ink only on the page's
+white: the paper mapped to nothing *locally* (a blurred max of its tone, so its uneven tint can't survive as a grey
+rectangle), faint alpha dropped. Cut around the box's rounded rect (`clip-path: path(evenodd …)`); the chat makes room for
+it (`plateRise()`). It develops up out of the box like a print off the block (a rising soft mask edge, ink pale → full, one
+small press), then holds still till the next send.
 **Tap a creature** and it eases up to 2× — body and all (`poolSize()`, `Body.scale`), shoving the
 others aside — and the page tells the app `{type:'highlight', terms}` (each `POOL` entry's `terms`): the
 app marks every mention in the answers with a highlighter yellow (`PeekHighlight`, `MarkdownText.marked`)
