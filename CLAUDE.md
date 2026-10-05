@@ -411,7 +411,8 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   of the recipe card; it opens to the same checklist (`isRecipe()`). For a brisket each step has its picture
   (`peek/bbq/*.webp`, matched by `BBQ_PICS`): simple friendly 3D (Airbnb-icon-like, simpler, real but quiet texture, not plush) —
   **one brisket, exactly the same size and place in every picture**, with what's happening around it: base, trim, rub, smoke,
-  bark, wrap, probe, rest, slice; plus the gear in the same style (egg, charcoal, paper, cooler, thermo). Made with
+  fatdown (the same brisket flipped, fat cap on the grate), bark, wrap (creased paper, grease spots), probe, rest (a towel
+  draped loose, steam lines), slice; the Egg a brighter, livelier green; plus the gear in the same style (egg, charcoal, paper, cooler, thermo). Made with
   gpt-image-1 *edits* of one base image (`input_fidelity: high`), then each scaled so its brisket matches the base and all
   cropped to one shared square — the model drifts the size by up to 25%, so the normalising step is not optional.
   **Opened, a recipe is one white page that scrolls whole** (`.tui.page`): 24 a side, page to page, two columns — the book
