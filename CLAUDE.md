@@ -374,8 +374,8 @@ simple dial back. Judge the whole object, not one detail at a time. **It comes s
 it follows the answer until you wind it yourself (`T.user`). **Tap it** and it becomes a small column in
 the middle of the screen: the timer as a 64×64 icon, the time under it at 80px `00:00:00` in Sofia Sans Condensed counting down
 live (the column — icon, time, button — centred on the screen), and a 48×48 round button under that — black with a play, red with a pause, no shadow. You can still
-twist the little icon to wind it (up to 12h). The backdrop is a light, well-blurred white (42% over a 22px blur) so the chat shows through; a
-grey-200 X sits bottom centre, 32px up, and a tap or a swipe down on the backdrop also closes it. Opening and closing are one time-based smootherstep
+twist the little icon to wind it (up to 12h). The backdrop is a light, well-blurred white (42% over a 22px blur) so the chat shows through; the
+close X is the top nav's glass button (44px, white glass, its halo), bottom centre, 48px up, and a tap or a swipe down on the backdrop also closes it. Opening and closing are one time-based smootherstep
 (~560ms open, ~480ms close); the time and button rise and fade in a beat behind the icon and leave first;
 closing sets it back down exactly where it was in the pile, at rest — never tossed. **Physics is shared**: the timer has the creatures' exact
 restitution/friction/air/density (`feel` in `poolDrop`), only a boxy outline. At zero it chimes (WebAudio, unlocked by the
