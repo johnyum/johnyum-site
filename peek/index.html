@@ -148,11 +148,11 @@ button, textarea { font: inherit; color: inherit; }
 .tui.page .thead h3 { margin: 0; font: 500 22px/1.15 "Source Serif 4", Georgia, serif; letter-spacing: -.01em; color: #1d1d1c; text-wrap: balance; }
 .tui.page .tpic { margin: 0; }
 .tui.page .trow .tpic { flex: 0 0 56px; width: 56px; height: 56px; }
-.tui.page .trow { gap: 14px; align-items: stretch; padding: 0; border-bottom: 0; cursor: default; font: 17px/1.3 "Source Serif 4", Georgia, serif; }   /* the whole page in the serif */   /* the rule runs under the words only, never the pictures */
+.tui.page .trow { gap: 14px; align-items: stretch; padding: 0; border-bottom: 0; cursor: default; font: 17px/1.3 "Source Serif 4", Georgia, serif; }   /* the step names in the serif; their specifics in the sans */   /* the rule runs under the words only, never the pictures */
 .tui.page .trow .tpic { align-self: center; }
 .tui.page .trow .ttxt { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 7px 0; min-height: 56px; box-sizing: border-box; border-bottom: 1px solid #efeeec; }
 .tui.page .tlist:not(.cols) .trow .ttxt { min-height: 0; padding: 14px 0; }
-.tui.page .ttxt small { margin-top: 2px; font: 13px/1.35 "Source Serif 4", Georgia, serif; color: #8a8882; font-variant-numeric: normal; text-wrap: pretty; }
+.tui.page .ttxt small { margin-top: 3px; font: 13px/1.35 "Schibsted Grotesk", system-ui, sans-serif; color: #8a8882; font-variant-numeric: normal; text-wrap: pretty; }
 .tui .tlist h4 { margin: 0 0 6px 4px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #87857f; }
 .tui .trow { display: flex; gap: 12px; align-items: flex-start; width: 100%; border: 0; background: none; padding: 11px 4px; font: 17px/1.35 "Schibsted Grotesk", system-ui, sans-serif; color: #1d1d1c; text-align: left; border-bottom: 1px solid #efeeec; cursor: pointer; }
 .tui .tbox { flex: 0 0 22px; height: 22px; border-radius: 50%; border: 1.5px solid #c8c6c0; margin-top: 1px; display: grid; place-items: center; transition: background .2s ease, border-color .2s ease; }
@@ -2149,7 +2149,7 @@ const TIME_RE = /(\d+(?:\.\d+)?(?:\s*(?:-|–|to)\s*\d+(?:\.\d+)?)?)\s*(hours?|h
 // Claude rewrites both once the answer is done (recipeCore); until then they're read off the step's words.
 const STEP_NAMES = [[/fat (cap|side) down|\bplace\b|\bput\b.*\bon\b/i, 'Smoke'], [/\brest|cooler|towel/i, 'Rest'], [/slic|serve|carv/i, 'Serve'],
   [/wrap|butcher|foil/i, 'Wrap'], [/probe|tender|internal|finish|until/i, 'Finish'], [/trim/i, 'Trim'], [/\brub|season|salt|pepper/i, 'Season'],
-  [/set ?up|light|fire|preheat|stabili|cooker|\begg\b|charcoal/i, 'Light'], [/smok|cook/i, 'Smoke']];
+  [/plate setter|convegg|prepare|\bfill\b|set ?up the (egg|cooker|grill|smoker)/i, 'Prepare'], [/set ?up|light|fire|preheat|stabili|cooker|\begg\b|charcoal/i, 'Light'], [/smok|cook/i, 'Smoke']];
 const stepName = (step) => STEP_NAMES.find(([re]) => re.test(step))?.[1]   // one word: Trim, Season, Light, Smoke, Wrap, Finish, Rest, Serve
   ?? (step.replace(/^\*\*([^*]+)\*\*.*/, '$1').match(/[A-Za-z]+/) || ['Step'])[0].replace(/^./, (a) => a.toUpperCase());
 // Each name carries its number when the step has one — "Smoke · 250°", "Wrap · 165°", "Finish · 203°", "Rest · 2–4 hr":
@@ -2158,10 +2158,14 @@ const stepName = (step) => STEP_NAMES.find(([re]) => re.test(step))?.[1]   // on
 function tagSteps(names, texts) {
   let cooker = null;
   return names.map((n, i) => {
-    const t = String(texts[i] || ''), deg = t.match(/\b(\d{3})\s*°/), tm = t.match(TIME_RE);
-    if (deg && /^(light|fire|set|heat|preheat)/i.test(n)) cooker = deg[1];
-    const tag = deg ? deg[1] + '°' : /^smoke/i.test(n) && cooker ? cooker + '°'
-      : tm ? tm[1].replace(/\s*(?:-|to)\s*/, '–') + (/^h/i.test(tm[2]) ? ' hr' : ' min') : '';
+    const t = String(texts[i] || ''), temps = [...t.matchAll(/\b(\d{3})\s*°/g)].map((m) => +m[1]), tm = t.match(TIME_RE);
+    // the temperature that belongs to the step: the cooker's (200–350) to light and smoke, the stall's
+    // (150–185) to wrap, done (190–215) to finish; resting is told by its time, not its holding temperature
+    const want = /^(light|fire|set|heat|preheat|smoke)/i.test(n) ? [200, 350] : /^wrap/i.test(n) ? [150, 185] : /^finish/i.test(n) ? [190, 215] : /^rest/i.test(n) ? null : [100, 550];
+    const deg = want && temps.find((d) => d >= want[0] && d <= want[1]);
+    if (deg && /^(light|fire|set|heat|preheat)/i.test(n)) cooker = deg;
+    const time = tm ? tm[1].replace(/\s*(?:-|to)\s*/, '–') + (/^h/i.test(tm[2]) ? ' hr' : ' min') : '';
+    const tag = deg ? deg + '°' : /^smoke/i.test(n) && cooker ? cooker + '°' : /^(wrap|light|prepare)/i.test(n) ? '' : time;
     return tag && !n.includes('·') ? `${n} · ${tag}` : n;
   });
 }
