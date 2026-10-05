@@ -131,21 +131,8 @@ button, textarea { font: inherit; color: inherit; }
 .tui .tbox svg { width: 13px; height: 13px; opacity: 0; transition: opacity .2s ease; }
 .tui .trow.done .tbox { background: #1d1d1c; border-color: #1d1d1c; } .tui .trow.done .tbox svg { opacity: 1; }
 .tui .trow.done .ttxt { color: #a5a39d; text-decoration: line-through; }
-.tui .rcard { width: min(352px, 88vw); margin: 0 auto; max-height: 64vh; overflow-y: auto; text-align: left; background: #fbf7ee; border-radius: 18px; padding: 18px 18px 8px; box-shadow: 0 18px 40px -22px rgba(60,40,20,.45), 0 0 0 1px #efe6d4; border-top: 3px solid #e3735e; overscroll-behavior: contain; }
-.tui .rcard .rhead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 14px; }
-.tui .rcard .rtot { flex: none; font: 600 15px/1 'Sofia Sans Condensed', 'Schibsted Grotesk', sans-serif; color: #8a7f72; letter-spacing: .02em; white-space: nowrap; }
-.tui .rcard .rtot b { color: #2b2420; font-size: 19px; }
-.tui .rcard h3 { margin: 0; font: 600 26px/1.15 "Source Serif 4", Georgia, serif; color: #2b2420; }
-.tui .rnums { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; margin-bottom: 14px; }
-.tui .rnum { background: #fff; border-radius: 12px; padding: 9px 8px 7px; text-align: center; box-shadow: 0 0 0 1px #efe6d4; }
-.tui .rnum b { display: block; white-space: nowrap; font: 600 22px/1 'Sofia Sans Condensed', 'Schibsted Grotesk', sans-serif; color: #c4452f; font-variant-numeric: tabular-nums; }
-.tui .rnum span { display: block; margin-top: 4px; font: 600 10.5px/1.1 "Schibsted Grotesk", sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #8a7f72; }
-.tui .rcard .trow { padding: 10px 0; border-bottom: 1px dashed #e6dcc8; font-size: 17px; color: #2b2420; gap: 12px; }
-.tui .rcard .trow:last-child { border-bottom: 0; }
-.tui .rcard .tbox { flex-basis: 24px; height: 24px; border: 1.5px solid #d8cdb8; font: 600 12px/1 "Schibsted Grotesk", sans-serif; color: #8a7f72; }
-.tui .rcard .tbox { position: relative; } .tui .rcard .tbox svg { position: absolute; }
-.tui .rcard .tbox i { font-style: normal; } .tui .rcard .trow.done .tbox i { display: none; }
-.tui .rcard .trow.done .tbox { background: #c4452f; border-color: #c4452f; }
+.tui .ttxt small { display: block; margin-top: 3px; font-size: 14px; color: #87857f; font-variant-numeric: tabular-nums; }
+.tui .trow.done .ttxt small { text-decoration: none; }
 .tui .tread { font-family: 'Sofia Sans Condensed', 'Schibsted Grotesk', system-ui, sans-serif; font-size: min(80px, 19vw); line-height: 1; height: 80px; display: grid; place-items: center; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: .01em; color: #1d1d1c; margin: 0 0 16px; }
 .tui .play:active { transform: scale(.94); }
 .tui .play svg { width: 20px; height: 20px; }
@@ -2007,7 +1994,7 @@ function toolsHear(text) {
   if (steps.length >= 3) {
     const k = /\b(recipe|cook\w*|bak\w*|brisket|smok\w*|grill\w*|roast\w*|oven|bread|dough|sauce|season\w*|marinat\w*|simmer|boil|fry|fried|°F|egg)\b/i.test(lastAsk + ' ' + text.slice(0, 600)) ? 'recipe' : 'clipboard';
     let c = critters.find((o) => o.key === k); if (!c && !poolSeen.has(k)) { poolSeen.add(k); c = poolDrop(k); if (c && k === 'recipe') recipeTitle(c); }
-    if (c && k === 'recipe' && c.cored !== 'done') { const short = steps.map(shortStep); c.nums = numsGuess(short, text); listSet(c, short); }
+    if (c && k === 'recipe' && c.cored !== 'done') { const st = steps.map(shortStep).map(stageOf); c.meta = st.map((x) => x.meta); listSet(c, st.map((x) => x.act)); }
     else if (c && k !== 'recipe') listSet(c, steps);
   }
   const groc = groceriesOf(text);
@@ -2029,44 +2016,37 @@ function listSet(c, items) {
   try { c.done = new Set(JSON.parse(localStorage.getItem(listKey(c)) || '[]')); } catch { c.done = new Set(); }
   listPaint(c);
 }
-// The recipe card, opened: the dish, its key numbers big (temps, times), then short numbered steps to tick off
+// The recipe card, opened: the same simple checklist as the others — one line of action per step, and under
+// it that stage's temperature and time
 function recipeHTML(c) {
   const check = '<svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  // the total time sits by the name; the other key numbers, at most four, in one row
-  const all = c.nums || [], tot = all.find((n) => /^total/i.test(n.label)), rest = all.filter((n) => n !== tot).slice(0, 4);
-  const nums = rest.map((n) => `<div class="rnum"><b>${escR(n.value)}</b><span>${escR(n.label)}</span></div>`).join('');
-  return `<div class="rcard"><div class="rhead"><h3>${escR(c.dish || 'Recipe')}</h3>${tot ? `<span class="rtot"><b>${escR(tot.value)}</b> total</span>` : ''}</div>${nums ? `<div class="rnums">${nums}</div>` : ''}`
-    + c.items.map((t, i) => `<button class="trow${c.done.has(i) ? ' done' : ''}" data-i="${i}"><span class="tbox"><i>${i + 1}</i>${check}</span><span class="ttxt">${escR(t)}</span></button>`).join('') + '</div>';
+  return `<div class="tlist"><h4>${escR(c.dish || 'Recipe')}</h4>` + c.items.map((t, i) => { const m = (c.meta || [])[i];
+    return `<button class="trow${c.done.has(i) ? ' done' : ''}" data-i="${i}"><span class="tbox">${check}</span><span class="ttxt">${escR(t)}${m ? `<small>${escR(m)}</small>` : ''}</span></button>`; }).join('') + '</div>';
 }
 const escR = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 // Until Claude has boiled it down: each step trimmed to its core (no asides in brackets, nothing after the
-// first comma), and the temperatures in the steps as the key numbers, named for the step they're in
+// first comma), its temperatures and times lifted out into the line under it
 const shortStep = (s) => { s = s.replace(/\s*\([^)]*\)/g, '').trim(); const cut = s.split(/,\s|\s[—–]\s|;\s/)[0].trim(); return (cut.length >= 10 ? cut : s).replace(/[.:]$/, ''); };
-function numsGuess(steps, answer = '') {
-  const out = [];
-  // how long it all takes, if the answer says
-  const tot = answer.match(/total(?:\s+(?:cook|time|cooking time))?[^\d\n]{0,24}(\d+(?:\.\d+)?(?:\s*(?:-|–|to)\s*\d+(?:\.\d+)?)?)\s*(hours?|hrs?|minutes?|mins?)/i);
-  if (tot) out.push({ label: 'Total', value: tot[1].replace(/\s*(?:-|to)\s*/, '–') + (/^h/i.test(tot[2]) ? ' hr' : ' min') });
-  for (const st of steps) for (const m of st.matchAll(/(\d{2,3})\s*°\s*F/g)) {
-    const verb = (st.match(/^[A-Za-z]+/) || ['Temp'])[0], internal = /internal|hits|until/i.test(st.slice(0, m.index));
-    if (!out.some((o) => o.value === m[1] + '°F')) out.push({ label: internal ? 'Internal' : verb, value: m[1] + '°F' });
-  }
-  // and the steps' own times ("Rest 1–2 hours", "Smoke 6 hours")
-  for (const st of steps) { const m = st.match(/(\d+(?:\.\d+)?(?:\s*(?:-|–|to)\s*\d+(?:\.\d+)?)?)\s*(hours?|hrs?|minutes?|mins?)\b/i); if (!m) continue;
-    const v = m[1].replace(/\s*(?:-|to)\s*/, '–') + (/^h/i.test(m[2]) ? ' hr' : ' min'), verb = (st.match(/^[A-Za-z]+/) || ['Time'])[0];
-    if (!out.some((o) => o.value === v)) out.push({ label: verb, value: v }); }
-  return out.slice(0, 5);
+const TIME_RE = /(\d+(?:\.\d+)?(?:\s*(?:-|–|to)\s*\d+(?:\.\d+)?)?)\s*(hours?|hrs?|minutes?|mins?)\b/i;
+function stageOf(step) {
+  const meta = [];
+  for (const m of step.matchAll(/(internal[^\d]{0,16})?(\d{2,3})\s*°\s*F/gi)) meta.push(m[2] + '°F' + (m[1] || /\b(hits|reaches|until)\s*$/i.test(step.slice(0, m.index)) ? ' internal' : ''));
+  const tm = step.match(TIME_RE); if (tm) meta.push(tm[1].replace(/\s*(?:-|to)\s*/, '–') + (/^h/i.test(tm[2]) ? ' hr' : ' min'));
+  const act = step.replace(/\s*(?:at|to)\s+\d{2,3}\s*°\s*F/gi, '').replace(/\s*until\s+(?:the\s+)?(?:internal\s+)?(?:temp\w*\s+)?(?:hits|reaches)\s+\d{2,3}\s*°\s*F/gi, ' until done')
+    .replace(/\s*(?:for|minimum|about|around)?\s*\d+(?:\.\d+)?(?:\s*(?:-|–|to)\s*\d+(?:\.\d+)?)?\s*(?:hours?|hrs?|minutes?|mins?)\b/gi, '').replace(/\s+until done$/, '').replace(/\s{2,}/g, ' ').trim();
+  return { act: act || step, meta: meta.join(' · ') };
 }
 // Once the answer is done: Claude (Haiku, through the app) writes just the core — title, key numbers, short steps
 async function recipeCore(c, answer) {
   if (c.cored) return; c.cored = true;
-  const raw = await ask('From this recipe, write only its core as JSON: {"title": the dish in 1 to 3 words, "numbers": up to 5 key numbers as [{"label": a 1-2 word label, "value": short}] — FIRST the total time it takes (label "Total", value like "10–14 hr"), then the key temperatures and times (labels like "Smoker", "Wrap at", "Pull at", "Rest", "Oven", "Bake"; values like "250°F" or "1–2 hr"), "steps": 4 to 7 steps, each an imperative under 8 words, ending with its time if it has one (like "Rest, wrapped — 1 to 2 hr")}. JSON only.', answer.slice(0, 6000), 12000);
+  const raw = await ask('From this recipe, write only its core as JSON: {"title": the dish in 1 to 3 words, "steps": 4 to 7 stages, each {"do": one short line of action, under 7 words, with no temperature or time in it, "temp": that stage\'s temperature or "" (like "250°F" or "165°F internal"), "time": that stage\'s time or "" (like "6–8 hr")}}. JSON only.', answer.slice(0, 6000), 12000);
   let r = null; try { r = JSON.parse((raw || '').match(/\{[\s\S]*\}/)?.[0] || 'null'); } catch {}
   if (!r || !Array.isArray(r.steps) || r.steps.length < 3) return;
   c.dish = String(r.title || c.dish || 'Recipe').slice(0, 28);
   const t = c.el.querySelector('.ctitle text'); if (t) t.textContent = c.dish;
-  c.nums = (r.numbers || []).filter((n) => n && n.value).slice(0, 5).map((n) => ({ label: String(n.label || ''), value: String(n.value) }));
-  c.cored = 'done'; listSet(c, r.steps.map(String)); if (tcard && tcard.c === c) tcard.ui.innerHTML = recipeHTML(c);
+  const st = r.steps.map((x) => typeof x === 'string' ? { do: x } : x);
+  c.meta = st.map((x) => [x.temp, x.time].filter(Boolean).join(' · '));
+  c.cored = 'done'; listSet(c, st.map((x) => String(x.do || ''))); if (tcard && tcard.c === c) tcard.ui.innerHTML = recipeHTML(c);
 }
 // the card's title: Haiku names the dish (through the app); without it, the first words of your question
 async function recipeTitle(c) {
