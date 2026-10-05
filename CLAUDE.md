@@ -430,10 +430,12 @@ and glides the chat to it, its subhead first (MessagesView). Tap again, or anoth
 **The phone's motion moves the pile** (2026-10-04): while there's a pile, the page asks the app for motion
 (`{type:'motion', on}`); the app's CoreMotion gravity comes back as `peek.tilt(x, y)` (sets the world's
 gravity — never under 0.25 g down) and a hard shake as `peek.shake()` (everything jumps).
-**The tide pool game (2026-10-04):** ask for a game after (or about) the tide pool and a sand pail drops in
-(`plush/pail.webp`); tap it and it opens on solid white: a clue a child can follow (`CLUES`, written in the page —
-instant, no network), three creature pictures to pick from, five rounds, the last answer's creatures first
-(`recentPool`), then "You know your tide pool!" and Play again. The menu has a "Tide pool game" follow-up.
+**The tide pool game (2026-10-04):** ask for a game after (or about) the tide pool and the pile IS the board —
+the creatures stay put (a game question doesn't clear them), a glass clue card floats above them with a clue a
+child can follow (`CLUES`, written in the page — instant), and you tap the creature right there; right: it hops
+and its name pill says "Yes!"; wrong: a wiggle and "try another". Five rounds, then Play again (`pileGame*()`).
+No pile yet: five creatures drop in first. (A sand pail you tapped to open a game screen came first — John: weird.)
+After the Tide pool demo's answer the app fills the box with the game question, ready to send.
 Tapping a creature shows its name above it — only the tapped one — while it's enlarged.
 **The highlight (2026-10-04, John: make it consistent, like a real highlighter pass — snappy):** once an
 answer is done the page asks Haiku for each dropped thing's own sentences (`askSpans()`, `spansFor`), and a tap
