@@ -138,8 +138,11 @@ button, textarea { font: inherit; color: inherit; }
 .tui .tpic { flex: 0 0 72px; height: 72px; margin: 0 -2px; }
 .tui .tpic img { width: 100%; height: 100%; object-fit: contain; transition: opacity .2s ease; }
 .tui.page { inset: 0; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; text-align: left; }
-.tui.page .tlist { width: auto; max-height: none; overflow: visible; margin: 0; padding: 112px 24px 148px; }   /* the book 64 under the island (48); page to page, 24 a side; the end clears the X */
-.tui.page .thead { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-bottom: 64px; text-align: center; }   /* the book centred, its name under it, 64 to the first step */
+.tui.page .tlist { width: min(340px, calc(100% - 48px)); max-height: none; overflow: visible; margin: 0 auto; padding: 112px 0 148px; }   /* a held page, not edge to edge; the book 64 under the island (48); the end clears the X */
+.tui.page .thead { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px solid #e3e2de; text-align: center; }   /* the book centred, its name under it, a grey rule, then the steps */
+/* the steps come in one by one under the rule */
+.tui.page .trow { opacity: 0; animation: stepIn .42s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: calc(320ms + var(--i) * 90ms); }
+@keyframes stepIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .tui.page .thead .tpic { flex: 0 0 64px; width: 64px; height: 64px; }
 .tui.page .thead h3 { margin: 0; font: 500 26px/1.15 "Source Serif 4", Georgia, serif; letter-spacing: -.01em; color: #1d1d1c; text-wrap: balance; }
 .tui.page .tpic { margin: 0; }
@@ -2130,7 +2133,7 @@ function recipeHTML(c) {
   const pics = c.items.map((t) => bbqPic(c, t)), cols = pics.some(Boolean);   // with pictures, two columns: pictures, words
   return `<div class="tlist${cols ? ' cols' : ''}"><div class="thead"><span class="tpic"><img class="tbook" src="plush/${c.key}.webp" alt=""></span><h3>${escR(c.dish || 'Recipe')}</h3></div>`
     + c.items.map((t, i) => { const m = (c.meta || [])[i];
-      return `<div class="trow">${cols ? `<span class="tpic">${pics[i] ? `<img src="bbq/${pics[i]}.webp" alt="">` : ''}</span>` : ''}<span class="ttxt">${escR(t)}${m ? `<small>${escR(m)}</small>` : ''}</span></div>`; }).join('') + '</div>';
+      return `<div class="trow" style="--i:${i}">${cols ? `<span class="tpic">${pics[i] ? `<img src="bbq/${pics[i]}.webp" alt="">` : ''}</span>` : ''}<span class="ttxt">${escR(t)}${m ? `<small>${escR(m)}</small>` : ''}</span></div>`; }).join('') + '</div>';
 }
 const escR = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 // Until Claude has boiled it down: each step trimmed to its core (no asides in brackets, nothing after the
