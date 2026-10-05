@@ -435,11 +435,14 @@ fanned stack of felt picture cards (`plush/pail.webp`, the file name kept; a san
 full-screen game opens: solid white, a clue a child can follow (`CLUES`, written in the page — instant), three
 creatures in white rounded boxes, each name inside its box under the picture in serif (black ring when picked;
 sticker outlines were tried and dropped), five rounds (no progress dots); good rag throughout — clues balanced, their last two words bound, "Who am I?" never split,
-list rows `text-wrap: pretty`, Play again, the X to close. The pile stays (a game question doesn't clear it).
+list rows `text-wrap: pretty`, Play again, the X to close. The pile flushes away (below).
 John tried and rejected: the game opening on its own, and a clue card on the pile instead of the full screen.
 After the Tide pool demo's answer the app fills the box with the game question, ready to send.
-Tapping a creature shows its name above it — only the tapped one — while it's enlarged: a 40px pill in black glass
-with white type, no pointer under it. In the open game the icon sits up top, 48 under the Dynamic Island (`ISLAND`).
+Tapping a creature shows its name above it — only the tapped one — while it's enlarged: a 40px white glass pill,
+no pointer under it; on white it's held by a hairline ring and a two-layer soft shadow, never one dark drop (black
+glass was tried). **The game question flushes the pile** (`poolFlush()`): each creature hops and drops through
+everything into the chat box (a layer clipped at the box's top swallows it), one after another; then the cards
+drop in from the top, straight down to the middle where the pile was. In the open game the icon sits up top, 48 under the Dynamic Island (`ISLAND`).
 **The close X in the app is native** (`PeekCloseButton` in PeekLayer.swift — the same 44pt glass circle and 1pt X as
 the top-left menu button, 48pt from the bottom): the page sends `{type:'close', on}` when a view opens/shuts and the
 app's X calls `peek.closeOpen()`. The page's own `.tclose` is hidden in embed and only serves the web demo.

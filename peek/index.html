@@ -114,9 +114,10 @@ button, textarea { font: inherit; color: inherit; }
 .name.tleft { font: 600 24px/1 'Sofia Sans Condensed', 'Schibsted Grotesk', system-ui, sans-serif; font-variant-numeric: tabular-nums; letter-spacing: .02em; padding: 0 16px; transition: opacity .25s ease; }
 .name { position: absolute; left: 0; top: 0; height: 40px; padding: 0 16px; display: inline-flex; align-items: center; border-radius: 20px; color: #1d1d1c; font: 500 15px/1 "Schibsted Grotesk", system-ui, sans-serif;
   white-space: nowrap; pointer-events: none;
-  /* black glass, white type: a dark smoked pane over a blur, with a faint light rim and the nav's soft halo */
-  color: #fff; background: rgba(22,22,21,.78); -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6);
-  box-shadow: inset 0 .5px 0 rgba(255,255,255,.22), 0 0 0 .5px rgba(0,0,0,.25), 0 2px 16px rgba(0,0,0,.14); }
+  /* white glass that still reads on white: a hairline edge, a bright top rim, and a shadow in two soft layers —
+     a close one that gives it an edge, a wide faint one that lifts it — rather than one dark drop */
+  background: rgba(255,255,255,.9); -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6);
+  box-shadow: 0 0 0 .5px rgba(0,0,0,.09), inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(0,0,0,.06), 0 4px 10px -2px rgba(0,0,0,.07), 0 12px 28px -8px rgba(0,0,0,.12); }
 /* the timer: a live dial over the generated body, and the card it opens */
 .critter .dial { position: absolute; pointer-events: none; }
 .tscrim { position: fixed; inset: 0; z-index: 1; background: rgba(255,255,255,.42); -webkit-backdrop-filter: blur(22px) saturate(1.1); backdrop-filter: blur(22px) saturate(1.1); pointer-events: auto; opacity: 0; transition: opacity .55s cubic-bezier(.45,0,.2,1); }
@@ -1932,7 +1933,7 @@ function poolSyncBox() {
 }
 function poolDrop(key, extra) {
   if (!poolInit()) return;
-  const { Bodies, Body, Composite } = Matter, P = POOL[key], w = P.w * (innerWidth < 600 ? .82 : 1), x = 50 + Math.random() * (innerWidth - 100);
+  const { Bodies, Body, Composite } = Matter, P = POOL[key], w = P.w * (innerWidth < 600 ? .82 : 1), x = extra?.x ?? 50 + Math.random() * (innerWidth - 100);
   // One physics for everything in the pile — the creatures and the timer bounce, slide and weigh the same;
   // only the outline differs (the timer is boxy, so it doesn't roll like a ball).
   // Each one's body is its own outline — the convex hull of its picture (HULLS) — pushed out 2px all
@@ -1946,7 +1947,8 @@ function poolDrop(key, extra) {
     body = Bodies.fromVertices(x, -w, [pad], feel); ox = w / 2 + cm.x; oy = w / 2 + cm.y;   // the body turns about its centroid; so does the picture
   } else body = Bodies.circle(x, -w, w * .42 + POOL_GAP, feel);
   body.sleepThreshold = 90;
-  Body.setVelocity(body, { x: (Math.random() - .5) * 5, y: 3 }); Body.setAngularVelocity(body, (Math.random() - .5) * .25);
+  const aimed = extra?.x != null;   // dropped to a spot (the game's cards): straight down, no spin
+  Body.setVelocity(body, { x: aimed ? 0 : (Math.random() - .5) * 5, y: 3 }); Body.setAngularVelocity(body, aimed ? 0 : (Math.random() - .5) * .25);
   Composite.add(poolEngine.world, body);
   const el = document.createElement('div'); el.className = 'critter'; el.style.width = el.style.height = w + 'px';
   el.innerHTML = `<img src="plush/${key}.webp" alt="${P.name}" draggable="false">` + (P.kind === 'timer' ? dialSVG() : P.kind === 'thermo' ? thermoLCD() : key === 'recipe' ? recipeSVG() : key === 'clipboard' ? paperSVG(PAPER) : key === 'groceries' ? paperSVG(SHOPPAPER) : P.kind === 'cal' ? calSVG() : '');
@@ -1960,6 +1962,28 @@ function poolDrop(key, extra) {
   if (CLUES[key]) recentPool.add(key);
   return c;
 }
+// The game question flushes the pile: every creature gives a little hop and drops straight down into the
+// chat box — it falls through everything (no collisions), and a layer clipped at the box's top edge swallows
+// it, so it reads as going down a drain, not across the box. The cards then come in from the top.
+const flushing = [];
+let flushEl = null;
+function poolFlush() {
+  if (!critters.length) return;
+  const g = homeGround(), top = g ? rectOf(g).top : innerHeight;
+  if (!flushEl) { flushEl = document.createElement('div'); flushEl.style.cssText = 'position:absolute;left:0;top:0;right:0;overflow:hidden;pointer-events:none'; poolEl.append(flushEl); }
+  flushEl.style.height = Math.max(0, top) + 'px';
+  if (poolFocus) { poolFocus = null; tell({ type: 'highlight', terms: [] }); }
+  if (tcard) closeCard();
+  critters.forEach((c, i) => {
+    if (c.timer && c.timer.running) return;
+    const b = c.body; b.collisionFilter = { ...b.collisionFilter, mask: 0 };
+    Matter.Sleeping.set(b, false);
+    c.flushAt = performance.now() + i * 45;   // one after another, quickly — a pour, not a block
+    c.bubble?.remove(); c.bubble = null; c.tb?.remove();
+    flushEl.append(c.el); flushing.push(c);
+  });
+  for (const c of flushing) if (critters.includes(c)) critters.splice(critters.indexOf(c), 1);
+}
 function poolClear(all = true) {
   for (const c of [...critters]) {
     if (!all && c.timer && c.timer.running) continue;   // a timer that's counting down keeps counting
@@ -1971,6 +1995,7 @@ function poolClear(all = true) {
   whaleEnd(); whaleSeen = false;
   if (poolFocus && !critters.includes(poolFocus)) { poolFocus = null; tell({ type: 'highlight', terms: [] }); }
   for (const d of drops) { Matter.Composite.remove(poolEngine.world, d.body); d.el.remove(); } drops.length = 0;
+  for (const c of flushing) { Matter.Composite.remove(poolEngine.world, c.body); c.el.remove(); } flushing.length = 0;
 }
 // The answer so far: anything it names that isn't in yet drops in.
 function poolHear(text) {
@@ -2043,7 +2068,7 @@ function parseWhen(s) {
 }
 function toolsHear(text) {
   // a game, asked for after (or about) the tide pool
-  if (/\bgames?\b/i.test(lastAsk) && (/tide ?pool|creature/i.test(lastAsk) || recentPool.size) && !poolSeen.has('pail')) { poolSeen.add('pail'); const c = poolDrop('pail'); if (c) c.game = gameNew(); }
+  if (/\bgames?\b/i.test(lastAsk) && (/tide ?pool|creature/i.test(lastAsk) || recentPool.size) && !poolSeen.has('pail')) { poolSeen.add('pail'); const c = poolDrop('pail', { x: innerWidth / 2 }); if (c) c.game = gameNew(); }
   // the clipboard: only when you asked how to do something, and the answer has 3+ steps
   const steps = HOWTO.test(lastAsk) ? stepsOf(text) : [];
   if (steps.length >= 3) {
@@ -2532,7 +2557,7 @@ function tickTimers() {
 }
 
 function poolStep(now) {
-  if ((!critters.length && !drops.length && !whale) || !poolEngine) return;
+  if ((!critters.length && !drops.length && !whale && !flushing.length) || !poolEngine) return;
   tickTimers(); whaleStep(now);
   const { Engine, Body, Sleeping } = Matter;
   poolSyncBox();
@@ -2566,6 +2591,12 @@ function poolStep(now) {
       if (now - c.bubbleT > 1800 && c !== poolFocus) { const old = c.bubble; c.bubble = null; old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200 }).onfinish = () => old.remove(); }
       else c.bubble.style.transform = `translate(${(b.position.x - c.bubble.offsetWidth / 2).toFixed(1)}px, ${(b.position.y - c.w * .5 - c.bubble.offsetHeight - 10).toFixed(1)}px)`;
     }
+  }
+  for (const c of [...flushing]) {
+    const b = c.body;
+    if (c.flushAt) { if (now < c.flushAt) { c.hold ||= { ...b.position }; Matter.Body.setPosition(b, c.hold); Matter.Body.setVelocity(b, { x: 0, y: 0 }); continue; } Matter.Body.setVelocity(b, { x: (Math.random() - .5) * 1.5, y: -3.5 }); Matter.Body.setAngularVelocity(b, (Math.random() - .5) * .06); c.flushAt = 0; }
+    if (b.position.y - c.w > innerHeight) { Matter.Composite.remove(poolEngine.world, b); c.el.remove(); flushing.splice(flushing.indexOf(c), 1); continue; }
+    c.el.style.transform = `translate(${(b.position.x - c.ox).toFixed(1)}px, ${(b.position.y - c.oy).toFixed(1)}px) rotate(${b.angle.toFixed(3)}rad)`;
   }
   for (const d of [...drops]) {
     const age = now - d.t0, b = d.body;
@@ -2689,7 +2720,8 @@ if (EMBED) {
         draftFeel = ''; draftLen = 0;
         workBegin();   // to work: chin on its hand till the first words come
         lastAsk = String(data || '');
-        if (!(/\bgames?\b/i.test(lastAsk) && critters.some((c) => CLUES[c.key]))) poolClear(false);   // a new question: last answer's creatures go (a running timer stays) — but a game keeps the pool: it's the board
+        if (/\bgames?\b/i.test(lastAsk) && critters.some((c) => CLUES[c.key])) poolFlush();   // the game question: the creatures pour down into the box, and the cards come in where they were
+        else poolClear(false);   // a new question: last answer's creatures go (a running timer stays)
       } else if (name === 'stream') {
         workStream(data);   // the answer so far: its hands move only as words arrive
         poolHear(String(data || ''));   // any tide-pool creature it names drops in
