@@ -2876,12 +2876,14 @@ function whaleStep(now) {
   }
   // developing: the edge rises out of the box over 1.6s while the ink settles from pale to full; then one small press
   const rv = outC(t / 1.6), ink = .35 + .65 * outC((t - .2) / 1.6), press = 1 + .01 * Math.sin(Math.PI * clamp((t - 1.5) / .4, 0, 1));
+  // the keyboard's up (the box has risen off the bottom): you're writing, and that space is for reading — it steps aside, and back
+  whale.kb = lerp(whale.kb ?? 1, r.bottom < innerHeight - 120 ? 0 : 1, .12);
   const pv = whale.pv;
   pv.style.width = W + 'px'; pv.style.height = H + 'px';
-  pv.style.setProperty('--rv', rv.toFixed(4)); pv.style.opacity = ink.toFixed(3);
+  pv.style.setProperty('--rv', rv.toFixed(4)); pv.style.opacity = (ink * whale.kb).toFixed(3); pv.style.visibility = whale.kb < .01 ? 'hidden' : '';
   pv.style.transform = `translate(${L.toFixed(1)}px, ${top.toFixed(1)}px) scale(${press.toFixed(4)})`;
 }
-const plateRise = () => PRINT.room;   // the room the chat keeps: enough to clear the boat's crew; scrolled, the answer passes under the sea, the boat and the tail (their white bodies hide it)
+const plateRise = () => whale && whale.kb < .5 ? 0 : PRINT.room;   // the room the chat keeps: enough to clear the boat's crew; scrolled, the answer passes under the sea, the boat and the tail (their white bodies hide it)
 
 /* ── Spider-Man ── ask about Spider-Man and the classic Spider-Man (a Meshy-rigged model, spidey/spidey.glb: the rig
    and twelve moves merged into one file — Idle, Jump, Hang, Run, Land, Backflip, Kick, WallFlip, Crawl, Climb, Roll,
@@ -2956,44 +2958,87 @@ function spCornerWeb(side) {
   const spokes = [0, 14, 30, 47, 63, 78, 90].map((deg) => deg * Math.PI / 180);
   for (const a of spokes) d += `M0 0L${(Math.cos(a) * S * 1.05).toFixed(1)} ${(Math.sin(a) * S * 1.05).toFixed(1)}`;
   for (let r = 22; r < S; r += 19) { const pts = spokes.map((a) => [Math.cos(a) * r, Math.sin(a) * r]); d += `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`; for (let i = 1; i < pts.length; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], mx = (x0 + x1) / 2 * .9, my = (y0 + y1) / 2 * .9; d += `Q${mx.toFixed(1)} ${my.toFixed(1)} ${x1.toFixed(1)} ${y1.toFixed(1)}`; } }
-  el.innerHTML = `<path d="${d}" fill="none" stroke="#b9b9b9" stroke-width="1" stroke-linecap="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/>`;
+  // the app's ☰ / ⋯ glass buttons (centre ~34, 82 from their corner) and the status bar (time; signal and battery) sit over
+  // the web, not under it: the web is cut away round them (the right-hand web is mirrored, so one mask serves both)
+  const mid = `wm${side < 0 ? 'l' : 'r'}`;
+  el.innerHTML = `<defs><mask id="${mid}" maskUnits="userSpaceOnUse" x="0" y="0" width="${S}" height="${S}"><rect width="${S}" height="${S}" fill="#fff"/><circle cx="34.5" cy="82" r="27" fill="#000"/><rect x="12" y="8" width="128" height="48" rx="12" fill="#000"/></mask></defs>`
+    + `<path d="${d}" mask="url(#${mid})" fill="none" stroke="#b9b9b9" stroke-width="1" stroke-linecap="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/>`;
   poolEl.append(el); sp.webs.push({ el, side });
   el.querySelector('path').animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: 1600, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
 }
-// left alone, what he does next — never the same thing twice running
-function spNext(from) {
-  const sp = spidey, r = spBox(), pick = (a) => { const o = a.filter((x) => x !== sp.last); const c = o[Math.floor(Math.random() * o.length)]; sp.last = c; return c; };
-  if (from === 'hang') {   // off the web: drop to the box, or swing across the screen
-    const c = pick(['drop', 'swing']);
-    if (c === 'swing') spSwingFrom(sp.x, sp.y + SP_H * .55);
-    else { spSet('fall'); sp.vx = (Math.random() - .5) * 120; sp.vy = 0; sp.y = sp.y + SP_H * .6; sp.anchor = null; spPlay('Jump', true); spFace(0); }
-  } else if (from === 'box') {   // on the box: run and pose, crawl and look back, roll, or go up the wall
-    const c = pick(['run', 'crawl', 'roll', 'wall']), right = sp.x < r.left + r.width / 2;
-    sp.side = right ? 1 : -1; sp.runTo = right ? r.right - 36 : r.left + 36; spFace(sp.side);
-    if (c === 'run') { spSet('run'); sp.then = 'pose'; spPlay('Run'); }
-    else if (c === 'crawl') { spSet('crawl'); sp.runTo = clamp(sp.x + sp.side * 120, r.left + 36, r.right - 36); spPlay('Crawl'); }
-    else if (c === 'roll') { spSet('roll'); sp.rollDur = spPlay('Roll', true); sp.rollFrom = sp.x; }
-    else { spSet('run'); sp.then = 'wall'; spPlay('Run'); }
-  } else if (from === 'wall') spSwingFrom(sp.x, sp.y);
+// what he does on the box: run to an end and pose, crawl, roll, or run and go up the wall
+function spNext(from, c = 'run') {
+  const sp = spidey, r = spBox();
+  if (from !== 'box') return;
+  const right = sp.side ? sp.side > 0 && sp.x < r.right - 60 || sp.x < r.left + 60 : sp.x < r.left + r.width / 2;
+  sp.side = right ? 1 : -1; sp.runTo = right ? r.right - 36 : r.left + 36; spFace(sp.side);
+  if (c === 'run') { spSet('run'); sp.then = 'pose'; spPlay('Run'); }
+  else if (c === 'crawl') { spSet('crawl'); sp.runTo = clamp(sp.x + sp.side * 140, r.left + 36, r.right - 36); spPlay('Crawl'); }
+  else if (c === 'roll') { spSet('roll'); sp.rollDur = spPlay('Roll', true); }
+  else if (c === 'wall') { spSet('run'); sp.then = 'wall'; spPlay('Run'); }
 }
+// He does what you ask him in the chat — "swing", "climb the wall", "do a backflip", "kick", "crawl", "roll", "run",
+// "come down", "hang" — and anything else is heard with a spin on his web. Nothing loops on its own.
+const SP_ASK = [[/swing/i, 'swing'], [/climb|wall|corner|web ?up the/i, 'wall'], [/back ?flip|\bflip/i, 'Backflip'], [/kick/i, 'Kick'],
+  [/crawl|sneak/i, 'crawl'], [/roll/i, 'roll'], [/\brun|race|sprint/i, 'run'], [/come down|get down|drop|jump down|\bland\b/i, 'down'], [/hang|go up|up there|upside/i, 'up']];
+function spAsk(text) {
+  const sp = spidey; if (!sp || sp.loading) return;
+  const hit = SP_ASK.find(([re]) => re.test(text));
+  if (!hit) return spToBubble(text);   // anything else: he leaps onto your new message and stands on it
+  sp.after = hit[1]; if (['hang', 'perch', 'land', 'bubble', 'watch'].includes(sp.mode)) spDoNow();   // otherwise it happens when he's done
+}
+// your new bubble: right-aligned just above the "Thinking…" row and the box; its height from what you typed (the app
+// doesn't report message frames — that churn shook the chat — so this is where it appears, which is where he lands)
+function spToBubble(text) {
+  const sp = spidey, r = spBox(), lines = Math.max(1, Math.ceil(String(text).length / 30)), h = 22 + lines * 24;
+  const top = r.top - 70 - h, x = innerWidth - 16 - Math.min(innerWidth * .72, 30 + String(text).length * 8.6) * .3;
+  sp.after = null; sp.from = { x: sp.x, y: sp.mode === 'hang' ? sp.y + SP_H * .55 : sp.y }; sp.to = { x, y: top }; sp.anchor = null;
+  spSet('leap'); sp.leapTo = 'bubble'; spPlay('Jump', true); spFace(x > sp.x ? 1 : -1);
+}
+function spOffBubble() {   // the answer has started moving: off the bubble, onto the chat box
+  const sp = spidey; if (!sp || !['bubble', 'leap'].includes(sp.mode)) return;
+  if (sp.mode === 'leap') { sp.offSoon = true; return; }   // still on his way: off as soon as he lands
+  const r = spBox(); sp.from = { x: sp.x, y: sp.y }; sp.to = { x: clamp(sp.x - 40, r.left + 40, r.right - 40), y: r.top };
+  spSet('leap'); sp.leapTo = 'watch'; spPlay('Jump', true); spFace(-1);
+}
+function spDoNow() {
+  const sp = spidey, c = sp.after, r = spBox(); sp.after = null; if (!c) return;
+  const onBox = ['land', 'pose', 'run', 'crawl', 'roll', 'crouch', 'watch'].includes(sp.mode);
+  if (c === 'up') { if (onBox) spWebUp(sp.x); else { sp.spin = 1; } return; }
+  if (c === 'swing') { spSwingFrom(sp.x, sp.mode === 'hang' ? sp.y + SP_H * .55 : sp.y); return; }
+  if (!onBox) {   // everything else happens on the box: down first, then this
+    sp.after = c === 'down' ? null : c;
+    spSet('fall'); sp.vx = 0; sp.vy = 0; if (sp.mode !== 'perch') sp.y = sp.y + SP_H * .6; sp.anchor = null; spPlay('Jump', true); spFace(0); return;
+  }
+  if (c === 'down') return;
+  if (c === 'Backflip' || c === 'Kick') { sp.y = r.top; spSet('pose'); spFace(0); sp.poseDur = spPlay(c, true); return; }
+  spNext('box', c);
+}
+function spDone() { const sp = spidey; if (sp && !sp.loading && (sp.mode === 'watch' || sp.mode === 'bubble')) spWebUp(sp.x); }   // the answer's done: up to hang
 function spideyLeave() { if (spidey && !spidey.loading && spidey.mode !== 'leave') { const sp = spidey; spSet('leave'); sp.anchor = { x: sp.x, y: -40 }; sp.from = { x: sp.x, y: sp.y }; spPlay('Jump', true); } else if (spidey?.loading) spidey = null; }
 function spideyEnd() { if (spidey?.g) { spScene.remove(spidey.g, spidey.web); for (const w of spidey.webs) w.el.remove(); spClear = true; } spidey = null; }
 const ease2 = (k) => k <= 0 ? 0 : k >= 1 ? 1 : k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
 function spideyStep(dt) {
   const sp = spidey; if (!sp || sp.loading) return;
   sp.t += dt; sp.mixer.update(dt);
-  const r = spBox(), floor = r.top, W = innerWidth, wallX = (s) => s < 0 ? 26 : W - 26;
+  const r = spBox(), floor = r.top, W = innerWidth, wallX = (s) => s < 0 ? 6 : W - 6;   // flush on the screen's own edge — that's the wall
   let pose = 'up';   // 'up' standing, feet at (x, y) · 'hang' upside down from his toes · 'swing' upright from his raised hand · 'wall' side-on to the screen's edge
   if (sp.mode === 'enter') {   // a bound in from the right, landing on the chat box
     const k = clamp(sp.t / .85, 0, 1);
     sp.x = lerp(sp.from.x, sp.to.x, k); sp.y = lerp(sp.from.y, sp.to.y, k) - Math.sin(Math.PI * k) * 150;
     if (k >= 1) { spSet('crouch'); spPlay('Idle'); spFace(0); }
   } else if (sp.mode === 'crouch') { sp.y = floor; if (sp.t > .45) spWebUp(sp.x); }
+  else if (sp.mode === 'leap') {   // a jump in an arc, to your bubble or down to the box
+    const k = clamp(sp.t / .6, 0, 1), up = Math.max(40, Math.abs(sp.to.y - sp.from.y) * .35 + 50);
+    sp.x = lerp(sp.from.x, sp.to.x, ease2(k)); sp.y = lerp(sp.from.y, sp.to.y, k) - Math.sin(Math.PI * k) * up;
+    if (k >= 1) { spSet(sp.leapTo); spPlay('Idle', false, .15); spFace(0); if (sp.leapTo === 'watch') sp.y = floor; else if (sp.offSoon) { sp.offSoon = false; spOffBubble(); } }
+  } else if (sp.mode === 'bubble') { /* standing on your message, till the answer starts */ }
+  else if (sp.mode === 'watch') { sp.y = floor; }   // on the box, watching the answer come in; it's done: back up (spDone)
   else if (sp.mode === 'webup' || sp.mode === 'leave') {   // up his web
     const k = ease2(clamp(sp.t / (sp.mode === 'leave' ? .7 : .8), 0, 1));
     sp.x = lerp(sp.from.x, sp.anchor.x, k); sp.y = lerp(sp.from.y, sp.anchor.y + (sp.mode === 'leave' ? 0 : sp.len), k);
     if (sp.mode === 'webup' && k > .55) { pose = 'hang'; if (!sp.turned) { sp.turned = true; spPlay('Hang', false, .3); spHangFrom(); } }
-    if (k >= 1) { if (sp.mode === 'leave') return spideyEnd(); spSet('hang'); sp.ang = .25 * (Math.random() < .5 ? -1 : 1); sp.av = 0; sp.stay = 5 + Math.random() * 3; }
+    if (k >= 1) { if (sp.mode === 'leave') return spideyEnd(); spSet('hang'); sp.ang = .25 * (Math.random() < .5 ? -1 : 1); sp.av = 0; if (sp.after) spDoNow(); }
   } else if (sp.mode === 'hang' || sp.mode === 'held') {   // a pendulum on his web: from its anchor, or from your finger
     pose = 'hang';
     if (sp.mode === 'held') { const px = sp.hold.x, py = sp.hold.y; sp.hold.ax = (px - (sp.anchor?.x ?? px)) / Math.max(dt, 1e-3); sp.anchor = { x: px, y: py }; }
@@ -3002,7 +3047,6 @@ function spideyStep(dt) {
     sp.av += acc * dt; sp.ang += sp.av * dt;
     if (sp.act && !sp.act.paused && sp.act.time >= sp.act.getClip().duration * .75) sp.act.paused = true;   // he hangs and just hangs: the move holds upside down
     sp.x = sp.anchor.x + Math.sin(sp.ang) * sp.len; sp.y = sp.anchor.y + Math.cos(sp.ang) * sp.len;   // (x, y) is where the web holds him: his toes
-    if (sp.mode === 'hang' && sp.t > sp.stay) spNext('hang');
   } else if (sp.mode === 'swing') {   // across the screen on a web, gripping it overhead; let go past the far side
     pose = 'swing';
     const G = SP_G / sp.len; sp.av += (-G * Math.sin(sp.ang) - .05 * sp.av) * dt; sp.ang += sp.av * dt;
@@ -3010,13 +3054,13 @@ function spideyStep(dt) {
     sp.x = hx; sp.y = hy + SP_H * SP_HAND;
     if (Math.sign(sp.ang) === -sp.swing0 && Math.abs(sp.ang) > .32 && sp.av * sp.swing0 < 0) {   // over the far side and still rising: let go
       sp.vx = sp.len * sp.av * Math.cos(sp.ang); sp.vy = -sp.len * sp.av * Math.sin(sp.ang);
-      spSet('fall'); sp.anchor = null; sp.flip = Math.random() < .5; spPlay(sp.flip ? 'Backflip' : 'Jump', true); spFace(0);
+      spSet('fall'); sp.anchor = null; sp.swung = true; sp.flip = Math.random() < .5; spPlay(sp.flip ? 'Backflip' : 'Jump', true); spFace(0);
     }
   } else if (sp.mode === 'fall') {   // in the air: falling, turning right way up, onto the chat box
     sp.vy += SP_G * dt; sp.x += sp.vx * dt; sp.y += sp.vy * dt;
     sp.x = clamp(sp.x, r.left + 30, r.right - 30);
     if (sp.y >= floor && sp.vy > 0) { sp.y = floor; spSet('land'); spPlay('Idle', false, .12); spFace(0); }
-  } else if (sp.mode === 'land') { sp.y = floor; if (sp.t > (sp.press ? .1 : .5)) spNext('box'); }
+  } else if (sp.mode === 'land') { sp.y = floor; if (sp.t > (sp.press ? .1 : .4)) { if (sp.after) spDoNow(); else if (sp.swung) { sp.swung = false; spSet('pose'); spFace(0); sp.poseDur = .5; spPlay('Idle'); } else spNext('box', 'run'); } }
   else if (sp.mode === 'run' || sp.mode === 'crawl') {   // off to one end of the box — running, or creeping on all fours
     sp.y = floor; const v = sp.mode === 'run' ? 230 : SP_SPEED.Crawl, d = sp.runTo - sp.x; sp.x += Math.sign(d) * Math.min(Math.abs(d), v * dt);
     if (Math.abs(d) < 2) {
@@ -3027,7 +3071,7 @@ function spideyStep(dt) {
   } else if (sp.mode === 'roll') {   // a sprint into a roll and a flip along the box
     sp.y = floor; sp.x = clamp(sp.x + sp.side * SP_SPEED.Roll * dt, r.left + 36, r.right - 36);
     if (sp.t > sp.rollDur - .1) { spSet('pose'); spFace(0); sp.poseDur = .2; spPlay('Idle', false, .2); }
-  } else if (sp.mode === 'pose') { sp.y = floor; if (sp.t > (sp.poseDur || 1.2) + .15) spWebUp(sp.x); }
+  } else if (sp.mode === 'pose') { sp.y = floor; if (sp.t > (sp.poseDur || 1.2) + .15) { if (sp.after) spDoNow(); else spWebUp(sp.x); } }   // done: back up to hang
   else if (sp.mode === 'towall') {   // a leap from the end of the box onto the side of the screen
     const k = clamp(sp.t / .5, 0, 1), tx = wallX(sp.side), ty = floor - 70;
     sp.x = lerp(sp.from.x, tx, k); sp.y = lerp(sp.from.y, ty, k) - Math.sin(Math.PI * k) * 60;
@@ -3035,7 +3079,7 @@ function spideyStep(dt) {
   } else if (sp.mode === 'climb') {   // up the side of the screen, hand over hand
     pose = 'wall'; sp.x = wallX(sp.side); sp.y -= SP_SPEED.Climb * 2.2 * dt;
     if (sp.y <= sp.climbTo) { spSet('perch'); if (sp.act) sp.act.paused = true; spCornerWeb(sp.side); }
-  } else if (sp.mode === 'perch') { pose = 'wall'; sp.x = wallX(sp.side); if (sp.t > 2.2) spNext('wall'); }
+  } else if (sp.mode === 'perch') { pose = 'wall'; sp.x = wallX(sp.side); if (sp.t > 2.2) { if (sp.after) spDoNow(); else spSwingFrom(sp.x, sp.y); } }
   // a tap's trick, hanging: a spin on his web
   if (sp.spin) { sp.spin = Math.max(0, sp.spin - dt * 2.2); }
   // place him
@@ -3061,6 +3105,7 @@ window.__peek.spStep = (dt, n = 1) => { for (let i = 0; i < n; i++) spideyStep(d
 function spTrick() {
   const sp = spidey;
   if (sp.mode === 'hang' || sp.mode === 'perch') { sp.spin = 1; sp.av += .9 * (Math.random() < .5 ? -1 : 1); return; }   // a spin on his web
+  if (sp.mode === 'bubble' || sp.mode === 'watch') { sp.spin = 1; return; }
   if (['land', 'run', 'crawl', 'pose', 'roll', 'crouch'].includes(sp.mode)) { sp.y = spBox().top; spSet('pose'); spFace(0); sp.poseDur = spPlay(['Backflip', 'WallFlip', 'Kick'][sp.pose++ % 3], true); }
 }
 addEventListener('pointerdown', (e) => {
@@ -3146,17 +3191,19 @@ if (EMBED) {
         draftFeel = ''; draftLen = 0;
         workBegin();   // to work: chin on its hand till the first words come
         lastAsk = String(data || '');
-        if (SPIDEY_RE.test(lastAsk)) spideyStart(); else spideyLeave();   // Spider-Man: here for his question, off for the next
+        if (spidey) spAsk(lastAsk); else if (SPIDEY_RE.test(lastAsk)) spideyStart();   // Spider-Man: comes with his question, stays with the chat, and does what you ask
         if (/\bgames?\b/i.test(lastAsk) && critters.some((c) => CLUES[c.key])) poolFlush();   // the game question: the creatures pour down into the box, and the cards come in where they were
         else poolClear(false);   // a new question: last answer's creatures go (a running timer stays)
       } else if (name === 'stream') {
         workStream(data);   // the answer so far: its hands move only as words arrive
+        if (spidey?.mode === 'bubble' || spidey?.mode === 'leap' && spidey.leapTo === 'bubble') spOffBubble();   // the answer's moving: Spider-Man jumps off your bubble onto the box
         poolHear(String(data || ''));   // any tide-pool creature it names drops in
       } else if (name === 'status') {
         if (work.phase) { workPose('pondering'); work.beat++; }   // looking something up: back to its chin
       } else if (name === 'thinking') {
         if (!work.phase) workBegin();
       } else if (name === 'replied') {
+        spDone();   // Spider-Man: the answer's in, back up his web
         // The streaming text becomes a message row: move onto it before the stand-in goes.
         if (C.el === V('reply') && plat.last) C.el = V('last');
         setTimeout(() => { if (C.el !== V('reply')) delete plat.reply; }, 50);

@@ -474,19 +474,24 @@ clears the crew. Tried and dropped, in order: the plush whale; a five-layer cut-
 together", a needless horizon); a long low whale; a tail slap as a heavy black slab; a moving-water shimmer (seams); a
 filigree sea with tiny tail and boat. Ink only, no paper (mapped to nothing *locally*, so no grey rectangle). Cut around
 the box's rounded rect. It develops up out of the box like a print off the block, then holds still till the next send.
+While the keyboard is up (the box has risen) it fades away and the chat stops keeping room for it — that space is for
+reading while you write (John: "taking up too much space where it's valuable").
 **Spider-Man** (2026-10-05): ask about Spider-Man (`SPIDEY_RE`) and the classic Spider-Man comes into the chat in 3D and
 lives there — a Meshy-rigged model from John's Downloads (`spiderman-moves/`), the rig and twelve moves merged into one
 file (`peek/spidey/spidey.glb`, 3.5MB: Idle, Jump, Hang, Run, Land, Backflip, Kick, WallFlip, Crawl, Climb, Roll, Walk —
 each Meshy move ships as a whole GLB, so the merge copies only the animation data, re-pointed by bone name). His own
 module and scene (`spScene`) on the old character's canvas and ortho camera (one unit, one pixel, y up). He bounds in
-onto the box, webs up from just off the top edge and hangs upside down. **Left alone he keeps busy** (`spNext()`, never
-the same thing twice running): drops to the box and runs to an end and poses; crawls along it and wall-flips; sprints
-into a roll-flip; or runs, leaps onto the side of the screen and climbs it side-on, perches, **spins a web in that top
-corner** (an SVG drawn line by line, kept till the next question), then fires a web and **swings across the screen**,
-lets go over the far side (sometimes in a backflip) and lands — then webs up and hangs again. **Tap him** for a trick
+onto the box, webs up from just off the top edge and hangs upside down — and **just hangs till you do something; nothing
+loops** (John: an endless run-around loop wasn't wanted). **He reacts to you**: send a follow-up and he leaps onto your new
+bubble (`spToBubble()`, aimed where the app draws it — the app doesn't report message frames) and stands on it; when the
+answer starts moving he jumps off onto the box and watches; when it's done he webs back up. **Ask him things** (`spAsk()`,
+`SP_ASK`): "swing" — across the screen on a web, letting go over the far side (sometimes in a backflip); "climb the
+wall" — runs to an end, leaps onto the screen's own edge (flush, `wallX`) and climbs it side-on, perches and **spins a
+web in that top corner** (an SVG drawn line by line, cut away round the app's ☰/⋯ buttons and status bar so they sit
+over it; kept till the chat changes), then swings; "backflip", "kick", "crawl", "roll", "run", "come down", "hang".
+He stays with the chat (talking to him doesn't send him off); switching chats does. **Tap him** for a trick
 (backflip / wall flip / kick on the box; a spin on his web hanging); **press and drag** and he dangles from your finger;
-let go and he drops. The next question about anything else sends him off up his web.
-**The Hang move is already upside down** (and starts upright, gripping the web — that early part is his swinging grip):
+let go and he drops. **The Hang move is already upside down** (and starts upright, gripping the web — that early part is his swinging grip):
 hanging, it's begun at 45% and held at 75%, the model offset to hang from his toes (`SP_TOE`); swinging, from his raised
 hand (`SP_HAND`). Climb, Crawl and Roll carry him forward in the clip and snap back on the loop, so their travel is
 taken out (`spInPlace()`) and he's moved at the clip's speed (`SP_SPEED`). He takes touches (his box is in the rects).
