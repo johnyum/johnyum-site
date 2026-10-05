@@ -149,24 +149,20 @@ button, textarea { font: inherit; color: inherit; }
   -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
 .tui.page::after { bottom: 0; height: 150px; background: linear-gradient(rgba(255,255,255,0), rgba(255,255,255,.92) 55%, #fff);
   -webkit-mask-image: linear-gradient(transparent, #000 45%); mask-image: linear-gradient(transparent, #000 45%); }
-.tui.page .tlist { width: min(340px, calc(100% - 48px)); max-height: none; overflow: visible; margin: 0 auto; padding: 281px 0 150px; }   /* a held page, not edge to edge; under the book (96 + 137 + 48); the end clears the X.
+.tui.page .tlist { width: min(340px, calc(100% - 48px)); max-height: none; overflow: visible; margin: 0 auto; padding: 96px 0 150px; }   /* a held page, not edge to edge; the book 48 under the island, the steps 32 under it; the end clears the X.
    Sized so a whole recipe fits on one screen: the point is a glance, without scrolling the chat (or this) */
-.tui.page .thead { position: absolute; top: 96px; left: 0; right: 0; z-index: 3; display: flex; justify-content: center; pointer-events: none; }   /* the book, pinned where the game's icon sits; it shrinks to 32 as the steps scroll up under it */
-.tui.page .thead .tpic { transform-origin: 50% 0; will-change: transform; }
-.tui.page .thead { flex-direction: column; align-items: center; gap: 16px; }
+.tui.page .thead { display: flex; justify-content: center; margin-bottom: 32px; }   /* the book, where the game's icon sits, scrolling with the steps under the fade */
 .tgo { position: fixed; bottom: 48px; z-index: 3; height: 48px; padding: 0 22px; border: 0; border-radius: 24px; background: #1d1d1c; color: #fff; pointer-events: auto;
   font: 500 16px/1 "Schibsted Grotesk", system-ui, sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap;
   opacity: 0; transform: translateY(8px); transition: opacity .3s ease, transform .35s cubic-bezier(.3,1.3,.5,1); }
 .tgo.on { opacity: 1; transform: none; }
 /* the stopwatch, opened: one line on what to expect now, under the count */
-.tui .wsay { width: min(300px, 82vw); margin: 24px auto 0; text-align: center; }
-.tui .wsay b { display: block; font: 400 19px/1.3 "Source Serif 4", Georgia, serif; color: #1d1d1c; text-wrap: balance; }
-.tui .wsay small { display: block; margin-top: 6px; font: 14px/1.4 "Schibsted Grotesk", system-ui, sans-serif; color: #8a8882; text-wrap: balance; }
-.tui .wend { margin-top: 20px; border: 0; background: none; color: #8a8882; font: 14px "Schibsted Grotesk", system-ui, sans-serif; padding: 8px; }
+.tui .wsay { width: min(340px, calc(100vw - 48px)); margin: 8px auto 0; text-align: center; font: 400 20px/1.35 "Source Serif 4", Georgia, serif; color: #1d1d1c; text-wrap: pretty; }
+.tui .wend { margin-top: 28px; height: 48px; padding: 0 22px; border: 0; border-radius: 24px; background: #e5483a; color: #fff; font: 500 16px/1 "Schibsted Grotesk", system-ui, sans-serif; }
 /* the steps come in one by one under the rule */
 .tui.page .trow { opacity: 0; animation: stepIn .42s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: calc(320ms + var(--i) * 90ms); }
 @keyframes stepIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-.tui.page .thead .tpic { flex: 0 0 137px; width: 137px; height: 137px; }   /* the book 120 wide */
+.tui.page .thead .tpic { flex: 0 0 64px; width: 64px; height: 64px; }
 .tui.page .thead h3 { margin: 0; font: 500 22px/1.15 "Source Serif 4", Georgia, serif; letter-spacing: -.01em; color: #1d1d1c; text-wrap: balance; }
 .tui.page .tpic { margin: 0; }
 .tui.page .trow .tpic { flex: 0 0 56px; width: 56px; height: 56px; }
@@ -2155,13 +2151,13 @@ const BBQ_PICS = [[/fat (cap|side) down|flip/i, 'fatdown'], [/^prepare|plate set
   [/probe|tender|internal|thermometer|done/i, 'probe'], [/trim|square/i, 'trim'], [/\brub|season|salt|pepper|slather/i, 'rub'],
   [/set ?up|cooker|smoker|\begg\b|kamado|stabili|preheat|lump|oak|wood|charcoal|light/i, 'egg'], [/bark|stall|spritz/i, 'bark'], [/./, 'smoke']];
 const bbqPic = (c, t, d = '') => !/brisket/i.test((c.dish || '') + ' ' + lastAsk) ? null
-  : (BBQ_PICS.slice(0, -1).find(([re]) => re.test(t)) || BBQ_PICS.find(([re]) => re.test(t + ' ' + d)))[1];
+  : /^smoke/i.test(t) ? (/fat (cap|side) down/i.test(d) ? 'fatdown' : 'smoke') : /^set ?up/i.test(t) ? 'light' : (BBQ_PICS.slice(0, -1).find(([re]) => re.test(t)) || BBQ_PICS.find(([re]) => re.test(t + ' ' + d)))[1];
 // a range and its unit never split across lines: "4–6 hours", "2–4 hr", "203°F"
 const keepTogether = (t) => t.replace(/(\d)\s*([–-])\s*(\d)/g, '$1\u2060$2\u2060$3').replace(/(\d[\d\u2060–-]*)\s+(hours?|hrs?|minutes?|mins?|inch(?:es)?|lb|oz)\b/g, '$1\u00a0$2');
 const isRecipe = (k) => k === 'recipe' || k === 'cookbook';
 function recipeHTML(c) {
   const pics = c.items.map((t, i) => bbqPic(c, t, (c.meta || [])[i])), cols = pics.some(Boolean);   // with pictures, two columns: pictures, words
-  return `<div class="thead"><span class="tpic"><img class="tbook" src="plush/${c.key}.webp" alt="${escR(c.dish || 'Recipe')}"></span></div><div class="tscroll"><div class="tlist${cols ? ' cols' : ''}">`
+  return `<div class="tscroll"><div class="tlist${cols ? ' cols' : ''}"><div class="thead"><span class="tpic"><img class="tbook" src="plush/${c.key}.webp" alt="${escR(c.dish || 'Recipe')}"></span></div>`
     + c.items.map((t, i) => { const m = (c.meta || [])[i];
       return `<div class="trow" style="--i:${i}">${cols ? `<span class="tpic">${pics[i] ? `<img src="bbq/${pics[i]}.webp" alt="">` : ''}</span>` : ''}<span class="ttxt">${escR(t)}${m ? `<small>${keepTogether(escR(m))}</small>` : ''}</span></div>`; }).join('') + '</div></div>';
 }
@@ -2175,14 +2171,16 @@ const TIME_RE = /(\d+(?:\.\d+)?(?:\s*(?:-|–|to)\s*\d+(?:\.\d+)?)?)\s*(hours?|h
 const STEP_NAMES = [[/fat (cap|side) down|\bplace\b|\bput\b.*\bon\b/i, 'Smoke'], [/\brest|cooler|towel/i, 'Rest'], [/slic|serve|carv/i, 'Serve'],
   [/wrap|butcher|foil/i, 'Wrap'], [/probe|tender|internal|finish|until/i, 'Finish'], [/trim/i, 'Trim'], [/\brub|season|salt|pepper/i, 'Season'],
   [/plate setter|convegg|prepare|\bfill\b|set ?up the (egg|cooker|grill|smoker)/i, 'Prepare'], [/set ?up|light|fire|preheat|stabili|cooker|\begg\b|charcoal/i, 'Light'], [/smok|cook/i, 'Smoke']];
-const stepName = (step) => STEP_NAMES.find(([re]) => re.test(step))?.[1]   // one word: Trim, Season, Light, Smoke, Wrap, Finish, Rest, Serve
+// the step's own bold label wins ("**Smoke.** Unwrapped 6–8 hours…" is Smoke, not Wrap); else read it off the words
+const stepName = (step) => (step.match(/^(?:\*\*)?([A-Za-z][A-Za-z]{1,14})[.:]?\*\*/)?.[1].replace(/^./, (a) => a.toUpperCase())) ?? STEP_NAMES.find(([re]) => re.test(step))?.[1]   // one word: Trim, Season, Light, Smoke, Wrap, Finish, Rest, Serve
   ?? (step.replace(/^\*\*([^*]+)\*\*.*/, '$1').match(/[A-Za-z]+/) || ['Step'])[0].replace(/^./, (a) => a.toUpperCase());
 // Each name carries its number when the step has one — "Smoke · 250°", "Wrap · 165°", "Finish · 203°", "Rest · 2–4 hr":
 // a temperature first, else a time — except Smoke, which tells you how long to smoke before wrapping ("Smoke · 6 hr";
 // failing a time, the stall temperature you wrap at).
 function tagSteps(names, texts) {
   return names.map((n, i) => {
-    const t = String(texts[i] || ''), temps = [...t.matchAll(/\b(\d{3})(?:\s*[–-]\s*\d{3})?\s*°/g)].map((m) => +m[1]), tm = t.match(TIME_RE);
+    const t = String(texts[i] || ''), temps = [...t.matchAll(/\b(\d{3})(?:\s*[–-]\s*\d{3})?\s*°/g)].map((m) => +m[1]);
+    const times = [...t.matchAll(new RegExp(TIME_RE.source, 'gi'))], tm = (/^rest/i.test(n) && times.find((m) => /^h/i.test(m[2]))) || times[0];
     // the temperature that belongs to the step: the cooker's (200–350) to light, the stall's
     // (150–185) to wrap, done (190–215) to finish; resting is told by its time, not its holding temperature
     const want = /^smoke/i.test(n) ? (tm ? null : [150, 185]) : /^(light|fire|set|heat|preheat)/i.test(n) ? [200, 350] : /^wrap/i.test(n) ? [150, 185] : /^finish/i.test(n) ? [190, 215] : /^rest/i.test(n) ? null : [100, 550];
@@ -2532,10 +2530,6 @@ function growTimer(c) {
   else if (c.game) { c.game = c.game.round >= c.game.rounds.length ? gameNew() : c.game; ui.innerHTML = gameHTML(c.game); ui.addEventListener('click', (e) => gameClick(c, e)); scrim.classList.add('solid'); }
   else if (isRecipe(c.key)) {
     ui.classList.add('page'); ui.innerHTML = listHTML(c); scrim.classList.add('solid');
-    ui.addEventListener('scroll', (e) => {   // the book 120 → 32 wide over the first 110 of scroll, rising toward the island
-      const p = clamp((e.target.scrollTop || 0) / 110, 0, 1), b = ui.querySelector('.thead .tpic');
-      if (b) b.style.transform = p ? `translateY(${(-36 * p).toFixed(1)}px) scale(${(1 - (1 - 36 / 137) * p).toFixed(3)})` : '';   // 120 wide → 32
-    }, true);
     // Pull down from the top past 90 and let go: the page goes, and the book floats back to the pile. Nothing
     // is drawn during the pull — iOS's own bounce is the feel; this only watches how far the finger went.
     let y0 = null, dy = 0;
@@ -2564,11 +2558,11 @@ function growTimer(c) {
   // back so you see it land); once it's going it says how long, and takes you to the stopwatch
   let go = null;
   if (c.key === 'cookbook') {
-    go = document.createElement('button'); go.className = 'tgo'; go.textContent = cook ? `${cook.running ? 'Smoking' : 'Paused'} · ${hm(cookMs())}` : 'Start smoke';
+    go = document.createElement('button'); go.className = 'tgo'; go.textContent = cook ? `Smoking · ${ticking(cookMs())}` : 'Start smoke';
     go.addEventListener('pointerdown', (e) => e.stopPropagation());
     go.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (!cook) { go.textContent = 'Smoking · 0:00'; shrinkTimer(); setTimeout(() => startCook(c), 420); }
+      if (!cook) { go.textContent = 'Smoking · 0:00'; go.dataset.fixed = '1'; shrinkTimer(); setTimeout(() => startCook(c), 420); }
       else { shrinkTimer(); setTimeout(() => { const w = critters.find((o) => o.key === 'stopwatch'); if (w && !tcard) growTimer(w); }, 560); }
     });
   }
@@ -2691,6 +2685,7 @@ function watchSVG() {
     <g class="wsec"><line y1="8" y2="-44" stroke="#2c4a8c" stroke-width="1.3" stroke-linecap="round"/><circle r="2.6" fill="#2c4a8c"/><circle r=".9" fill="#c9ced6"/></g></svg>`;
 }
 function tickWatch() {
+  if (tcard?.go && cook && !tcard.go.dataset.fixed) { const t = `Smoking · ${ticking(cookMs())}`; if (tcard.go.textContent !== t) tcard.go.textContent = t; }   // the cookbook's button counts with the stopwatch
   const w = critters.find((o) => o.key === 'stopwatch'); if (!w || !cook) return;
   const ms = cookMs(), sec = (ms / 1000) % 60, min = (ms / 60000) % 30;
   const a = w.el.querySelector('.wsec'), b = w.el.querySelector('.wmin');
@@ -2709,26 +2704,27 @@ function tickWatch() {
     w.tb.style.opacity = cook.running ? '' : '.55';
   }
 }
-// opened, as simple as the egg timer: how long it's been going, big; play / pause; and one line on what to expect now
+// opened, as simple as the egg timer: how long it's been going, big, and one line on what to expect now
 function watchHTML() {
-  return `<div class="tread">00:00:00</div><button class="play${cook?.running ? ' run' : ''}" data-a="cook" aria-label="Pause"><svg viewBox="0 0 24 24"><path class="i-play" d="M8 5.5v13l11-6.5z" fill="#fff"/><g class="i-pause" fill="#fff"><rect x="6.5" y="5.5" width="4" height="13" rx="1.2"/><rect x="13.5" y="5.5" width="4" height="13" rx="1.2"/></g></svg></button><div class="wsay"><b></b><small></small></div><button class="wend" data-a="end">End the cook</button>`;
+  return `<div class="tread">00:00:00</div><div class="wsay"></div><button class="wend" data-a="end">End the cook</button>`;   // no pause: a cook doesn't pause
 }
 // what to expect right now: waiting, a check come due (for 45 minutes), back to waiting, the end
+// "6 hours", "5½ hours", "40 minutes" — said, not abbreviated
+const inWords = (h) => { if (h < 1) return `${Math.max(1, Math.round(h * 60))} minutes`; const n = Math.round(h * 2) / 2; return `${Math.floor(n)}${n % 1 ? '½' : ''} hour${n === 1 ? '' : 's'}`; };
 const about = (h) => h < 1 ? `${Math.max(1, Math.round(h * 60))} min` : `${+(Math.round(h * 2) / 2).toFixed(1)} hr`;
 function cookNow(h) {
   const timed = cook.checks.filter((ch) => ch.at != null), after = cook.checks.find((ch) => ch.at == null), last = timed.at(-1);
-  const due = timed.find((ch) => h >= ch.at && h < ch.at + .75); if (due) return [`${due.look}.`, `${due.if} ${due.then}.`.replace(/\.\.$/, '.')];
+  const due = timed.find((ch) => h >= ch.at && h < ch.at + .75); if (due) return `${due.look}. ${due.if} ${due.then}.`.replace(/\.\.$/, '.');
   const next = timed.find((ch) => ch.at > h);
-  if (next && next === timed[0]) return ['Fat cap down, lid shut. Now you wait.', `${next.look} in about ${about(next.at - h)}` + (last && last !== next ? ` · done in about ${about(last.at)}` : '')];
-  if (next) return ['Back on, lid shut.', `${next.look} in about ${about(next.at - h)}`];
-  return after ? ['Pull it and rest.', after.then] : ['Pull it.', 'Then let it rest before you slice.'];
+  if (next && next === timed[0]) return `Fat cap down, lid shut. Check back in ${inWords(next.at - h)}.`;
+  if (next) return `Back on, lid shut. ${next.look} in about ${inWords(next.at - h)}.`;
+  return after ? `Pull it and rest it. ${after.then}.`.replace(/\.\.$/, '.') : 'Pull it, and let it rest before you slice.';
 }
 function paintWatch() {
   const ui = tcard.ui, ms = cookMs(), rd = ui.querySelector('.tread'), t = clockOf(ms / 1000); if (rd && rd.textContent !== t) rd.textContent = t;
   const b = ui.querySelector('.play'); if (b) { b.classList.toggle('run', !!cook?.running); b.setAttribute('aria-label', cook?.running ? 'Pause' : 'Start'); }
   const say = ui.querySelector('.wsay'); if (!say || !cook) return;
-  const [lead, sub] = cookNow(ms / 3600000), b1 = say.querySelector('b'), s1 = say.querySelector('small');
-  if (b1.textContent !== lead) b1.textContent = lead; const sk = keepTogether(escR(sub)); if (s1.innerHTML !== sk) s1.innerHTML = sk;
+  const line = keepTogether(escR(cookNow(ms / 3600000))); if (say.innerHTML !== line) say.innerHTML = line;
 }
 function tickTimers() {
   tickWatch();

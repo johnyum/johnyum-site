@@ -429,10 +429,10 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   open, plate setter and grate in) and `bbq/light.webp` (open, coals lit) — so the Egg is never the same picture twice.
   Claude writes both (`recipeCore`: a one-word name + detail under 11 words); until then `stepName()` / `stepDetail()` read them off
   the streamed step's whole line (`stepsOf(text, true)`), and the picture comes from the name first, then the detail.
-  **The steps scroll under a pinned book** (`.tscroll`; the book sits outside it in `.thead`): scrolling shrinks it 64 → 32
-  over the first 72 and lifts it 32 toward the island; white fade-and-blur scrims top and bottom, after ChatGPT's header
-  (`.tui.page::before/::after`). The list is always 1px taller than the screen so even a short recipe can be pulled and
-  springs back (iOS only bounces a box that can scroll).
+  **The whole page scrolls, the book with it** (64, where the game's icon sits, the steps 32 under it) up under white
+  fade-and-blur scrims top and bottom, after ChatGPT's header (`.tui.page::before/::after`) — no shrinking or pinning
+  (John: "no more weird scale changes"; a 120-wide book was tried and reverted). Always 1px taller than the screen so
+  even a short recipe can be pulled and springs back.
   A held 340 column (edge to edge read as a screen; the tighter page felt nicer). **It aims to fit on one screen** — John: what's
   useful is not scrolling the chat up and down to find the recipe again, so the page is a glance, not a scroll. **No
   step-by-step / cook-along mode** — John rejected it: "I don't work that way, I don't think many people do."
@@ -441,11 +441,14 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   pusher, black bezel, white dial, 30-minute sub-dial) with live blued hands drawn over it (`watchSVG()`, `WATCH`). The
   cookbook's page has **Start smoke** beside the X (black, 48 tall, the pair centred 8 apart): it closes the book and the
   stopwatch drops into the pile, its bubble counting from 0:00 (`ticking()`); once going the button reads "Smoking ·
-  3:12" and opens the stopwatch. Tapped, it's as simple as the egg timer: the count up, play/pause, and ONE line of what to
-  expect now (`cookNow()`): "Fat cap down, lid shut. Now you wait." / "Check the bark in about 6 hr · done in about 10
-  hr"; when a check comes due it chimes and shakes and says "Check the bark." / "Set, and 165° or higher? Wrap it.".
+  3:12", ticking with the stopwatch, and opens it. Tapped, it's as simple as the egg timer: the count up (no pause — a cook
+  doesn't pause) and ONE serif line of what to expect now (`cookNow()`): "Fat cap down, lid shut. Check back in 6 hours.";
+  when a check comes due it chimes and shakes and says "Check the bark. Set, and 165° or higher? Wrap it." End the cook is a
+  red button under it.
   The checks come from Claude (`recipeCore` → `checks`) or, until then, `cookChecks()` off the steps. The cook lives in
   localStorage (`peek-cook`) and comes back into the pile after a reload or a new chat; "End the cook" (tap twice) ends it.
+  A step's own bold label names it ("**Smoke.** Unwrapped…" is Smoke, not Wrap); Smoke's picture is the brisket on the
+  grate, Claude's "Setup" the lit Egg; Rest takes its hours, not the minutes it vents.
   The page can't chime while Peek is closed — real phone notifications for the checks would need the app.
   The recipe page's pull-down is plain: iOS's own bounce, and past 90 the page closes (no growing book — John: janky).
 - **Shopping list** — an ingredient list (`groceriesOf()`, bullets under an Ingredients/shopping heading):
