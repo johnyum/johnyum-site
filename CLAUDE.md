@@ -491,6 +491,10 @@ hanging, it's begun at 45% and held at 75%, the model offset to hang from his to
 hand (`SP_HAND`). Climb, Crawl and Roll carry him forward in the clip and snap back on the loop, so their travel is
 taken out (`spInPlace()`) and he's moved at the clip's speed (`SP_SPEED`). He takes touches (his box is in the rects).
 The hidden test tab throttles timers to 1s, so tests step him by hand (`__peek.spStep(dt, n)`).
+**Everything belongs to its chat** (2026-10-05, John: the tide pool and the timer were "sharing icons" across chats): the
+app sends `event('chat', id)` when the open chat changes; the page clears the pile, the whale and Spider-Man then. A cook
+remembers its chat (`cook.chat`) and its stopwatch only comes back there (`cookHere()`); a cook from before this, with no
+chat, stays hidden until its cookbook's Smoking button adopts it. "Doctor Octopus" doesn't drop the octopus.
 **Tap a creature** and it eases up to 2× — body and all (`poolSize()`, `Body.scale`), shoving the
 others aside — and the page tells the app `{type:'highlight', terms}` (each `POOL` entry's `terms`): the
 app marks every mention in the answers with a highlighter yellow (`PeekHighlight`, `MarkdownText.marked`)

@@ -1884,7 +1884,8 @@ const POOL = {
   urchin:     { name: 'Sea urchin',       w: 74, re: /\burchin/i , terms: ['sea urchin', 'urchin'] },
   cucumber:   { name: 'Sea cucumber',     w: 92, re: /\bsea cucumber/i , terms: ['sea cucumber'] },
   sculpin:    { name: 'Tidepool sculpin', w: 90, re: /\bsculpin/i , terms: ['tidepool sculpin', 'sculpin'] },
-  octopus:    { name: 'Octopus',          w: 96, re: /\boctop(us|i|uses)\b/i , terms: ['octopus', 'octopuses', 'octopi'] },
+  octopus:    { name: 'Octopus',          w: 96, re: /(?<!\b(doc|doctor|dr\.?)\s)\boctop(us|i|uses)\b/i ,   // not Doctor Octopus
+                terms: ['octopus', 'octopuses', 'octopi'] },
   // more of the pool, so whatever Claude talks about has something to drop
   mussel:     { name: 'Mussels',          w: 80, re: /\bmussels?\b/i, terms: ['mussel'] },
   barnacle:   { name: 'Barnacles',        w: 76, re: /\bbarnacles?\b/i, terms: ['barnacle'] },
@@ -2023,7 +2024,7 @@ function poolFlush() {
 }
 function poolClear(all = true) {
   for (const c of [...critters]) {
-    if (!all && ((c.timer && c.timer.running) || (c.key === 'stopwatch' && cook))) continue;   // a timer that's counting down keeps counting; so does a cook
+    if (!all && ((c.timer && c.timer.running) || (c.key === 'stopwatch' && cookHere()))) continue;   // a timer that's counting down keeps counting; so does a cook
     Matter.Composite.remove(poolEngine.world, c.body); c.el.remove(); c.bubble?.remove(); c.tb?.remove();
     if (tcard && tcard.c === c) closeCard();
     critters.splice(critters.indexOf(c), 1);
@@ -2563,7 +2564,8 @@ function growTimer(c) {
     go.addEventListener('click', (e) => {
       e.stopPropagation();
       if (!cook) { go.textContent = 'Smoking · 0:00'; go.dataset.fixed = '1'; shrinkTimer(); setTimeout(() => startCook(c), 420); }
-      else { shrinkTimer(); setTimeout(() => { const w = critters.find((o) => o.key === 'stopwatch'); if (w && !tcard) growTimer(w); }, 560); }
+      else { if (!cookHere()) { cook.chat = chatId; saveCook(); }   // a cook with no chat (or another's) belongs to this cookbook's chat now
+        shrinkTimer(); setTimeout(() => { let w = critters.find((o) => o.key === 'stopwatch'); if (!w) { poolSeen.add('stopwatch'); w = poolDrop('stopwatch', { x: innerWidth * .66 }); } setTimeout(() => { if (w && !tcard) growTimer(w); }, 400); }, 560); }
     });
   }
   poolEl.insertBefore(scrim, poolEl.firstChild); poolEl.append(ui, close);   // in the pool's layer, which sits over everything (z 45)
@@ -2670,13 +2672,15 @@ function cookChecks(c) {
 function startCook(book) {
   audio ||= new (window.AudioContext || window.webkitAudioContext)();   // made on the tap, so it can chime later
   const pit = [...(book.items || []).concat(book.meta || []).join(' ').matchAll(/\b(\d{3})(?:\s*[–-]\s*\d{3})?\s*°/g)].map((m) => +m[1]).find((d) => d >= 200 && d <= 350);
-  cook = { startAt: Date.now(), acc: 0, running: true, dish: book.dish || 'The cook', pit, checks: cookChecks(book), fired: [] }; saveCook();
+  cook = { startAt: Date.now(), acc: 0, running: true, chat: chatId, dish: book.dish || 'The cook', pit, checks: cookChecks(book), fired: [] }; saveCook();
   let w = critters.find((o) => o.key === 'stopwatch'); if (!w) { poolSeen.add('stopwatch'); w = poolDrop('stopwatch', { x: innerWidth * .66 }); }
   return w;
 }
 function endCook() { cook = null; saveCook(); const w = critters.find((o) => o.key === 'stopwatch'); if (w) { if (tcard && tcard.c === w) closeCard(); Matter.Composite.remove(poolEngine.world, w.body); w.el.remove(); w.tb?.remove(); critters.splice(critters.indexOf(w), 1); poolSeen.delete('stopwatch'); } }
 // a cook in progress comes back into the pile whenever there's a pile to come back to
-function restoreCook() { if (cook && !critters.some((o) => o.key === 'stopwatch') && !restoreCook.busy) { restoreCook.busy = true; setTimeout(() => { restoreCook.busy = false; if (cook && !critters.some((o) => o.key === 'stopwatch')) { poolSeen.add('stopwatch'); poolDrop('stopwatch'); } }, 600); } }
+let chatId = null;   // the chat the app has open (its 'chat' event); a cook shows only in its own
+const cookHere = () => cook && (chatId == null ? true : cook.chat === chatId);   // a cook from before chats were known shows nowhere till its cookbook adopts it
+function restoreCook() { if (cookHere() && !critters.some((o) => o.key === 'stopwatch') && !restoreCook.busy) { restoreCook.busy = true; setTimeout(() => { restoreCook.busy = false; if (cookHere() && !critters.some((o) => o.key === 'stopwatch')) { poolSeen.add('stopwatch'); poolDrop('stopwatch'); } }, 600); } }
 // the hands: blued steel, as on the old Heuer — seconds sweeping the big dial, minutes round the 30-minute sub-dial
 function watchSVG() {
   const D = WATCH.r * 200, L = (WATCH.cx - WATCH.r) * 100, T = (WATCH.cy - WATCH.r) * 100, k = 50 / (WATCH.r * 100);
@@ -3164,6 +3168,10 @@ if (EMBED) {
         }
         if (rc) recipeCore(rc, String(data)); }   // the whole answer: anything still to come, and its places
       } else if (name === 'closed') { delete plat.reply; act(leave); poolClear(); recentPool.clear(); spideyEnd(); }   // left the chat: its creatures go too
+      else if (name === 'chat') {   // another chat: nothing from the last one comes along — its pile, its whale, its Spider-Man (a cook comes back in its own chat)
+        const id = String(data || '');
+        if (id !== chatId) { chatId = id; poolClear(); recentPool.clear(); whaleEnd(); whaleSeen = false; spideyEnd(); restoreCook(); }
+      }
     },
   };
   // Where it is, so the app passes every other touch straight through to itself.
