@@ -420,7 +420,7 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   title Claude gives it (`recipeCore`: what a cookbook would call it, e.g. "Big Green Egg Perfect Brisket", Source Serif 26),
   then a grey rule and the steps, arriving one by one, each picture (56) beside its words, the rule under the words only.
   **Each step is one word** — Trim, Season, Light, Smoke, Wrap, Finish, Rest, Serve (John: "just one word if we can";
-  "Trim it" came first) — with the specifics, temperatures and times in 12px grey under it.
+  "Trim it" came first; Finish carries its number, "Finish · 203°", `withTemp()`) — with the specifics, temperatures and times in 12px grey under it.
   Claude writes both (`recipeCore`: a one-word name + detail under 11 words); until then `stepName()` / `stepDetail()` read them off
   the streamed step's whole line (`stepsOf(text, true)`), and the picture comes from the name first, then the detail.
   A held 340 column (edge to edge read as a screen; the tighter page felt nicer). **It fits on one screen** — John: what's
