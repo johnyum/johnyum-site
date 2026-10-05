@@ -462,17 +462,18 @@ numbered header buttons are gone): Tide pool, Brisket, Moby-Dick, Engine, Pride 
 Lasagna, Dinner party, Coffee spots.
 **Moby-Dick** (2026-10-05, redone twice — the plush whale, then a five-layer cut-out plate, both retired; John: the layers
 looked like paper cut-outs rubbing together, and the horizon line was unnecessary): when the answer first names the whale
-(`WHALE_RE`), ONE wood engraving drawn to frame the chat box develops around it — filigree-light (John: "this is
-filigree… epic but framing the chat box, letting the content flow in"): an airy engraved sea with no horizon whose swells
-rise toward both sides, the white whale's flukes small at the far right mid-slap in a fan of spray, sailors flung up at the
-far left, the middle open for the answer (gpt-image-1, `peek/moby/print.webp`). The box sits ~45 down into the sea
-(`PRINT.boxAt`), so swell shows above it. Tried and dropped, in order: the plush whale; a five-layer cut-out plate ("paper
-cut-outs rubbing together", a needless horizon); a long low whale; a tail slap as a heavy black slab with a hairline of
-water above the box; a moving-water shimmer (a split copy under an SVG displacement — it left seams). Ink only on the page's
-white: the paper mapped to nothing *locally* (a blurred max of its tone, so its uneven tint can't survive as a grey
-rectangle), faint alpha dropped. Cut around the box's rounded rect (`clip-path: path(evenodd …)`); the chat makes room for
-it (`plateRise()`). It develops up out of the box like a print off the block (a rising soft mask edge, ink pale → full, one
-small press), then holds still till the next send.
+(`WHALE_RE`), ONE wood engraving framing the chat box develops around it, filigree-light: the white whale's tail big at
+the right, rising from behind the chat bar and running off the screen's edge; a whaleboat at the left, its sailors large
+and flung into the air; open white space between them for the answer; an airy engraved sea at the box, wrapping its sides
+and fizzling out below with its texture kept (gpt-image-1 edit of the filigree plate John liked; `peek/moby/print.webp`).
+**The answer goes UNDER the art** (John): the water, the boat and crew and the tail each carry a white body under their
+lines (the dense drawing, closed up; the water filled down from its surface), so scrolled text disappears behind them;
+thin oars and spray stay ink on the page. The water's flat far edge dissolves in the open middle only (~36px). Placed
+108% of the screen wide, a touch off the left (`PRINT`); the chat keeps 170 above the box (`PRINT.room`) so the last line
+clears the crew. Tried and dropped, in order: the plush whale; a five-layer cut-out plate ("paper cut-outs rubbing
+together", a needless horizon); a long low whale; a tail slap as a heavy black slab; a moving-water shimmer (seams); a
+filigree sea with tiny tail and boat. Ink only, no paper (mapped to nothing *locally*, so no grey rectangle). Cut around
+the box's rounded rect. It develops up out of the box like a print off the block, then holds still till the next send.
 **Spider-Man** (2026-10-05): ask about Spider-Man (`SPIDEY_RE`) and the classic Spider-Man comes into the chat in 3D — a
 Meshy-rigged model from John's Downloads (`spiderman-moves/`), the rig and eight moves merged into one file
 (`peek/spidey/spidey.glb`, 3.1MB: Idle, Jump, Hang, Run, Land, Backflip, Kick, WallFlip — each Meshy move ships as a whole

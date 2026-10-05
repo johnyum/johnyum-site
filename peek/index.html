@@ -2831,7 +2831,7 @@ function poolStep(now) {
    like a print coming off the block — a soft edge rising, the ink settling from pale to full, a last small press — and
    then holds still (a split copy for moving water left seams). It stays till the next send. */
 const WHALE_RE = /\b(moby|white whale|sperm whale)\b/i;
-const PRINT = { src: 'moby/print.webp', aspect: 485 / 1000, water: .45, boxAt: .68 };   // the sea's top in the middle, and the box's top ~45 below it, so swell shows above the box
+const PRINT = { src: 'moby/print.webp', aspect: 733 / 1100, water: .667, wide: 1.08, left: -.02, under: 4, room: 170 };   // the water's surface in the middle (of the plate's height); 108% of the screen wide, a touch off the left, so the tail runs off the right; the box's top just at the surface; the room the chat keeps above the box
 let whale = null, whaleSeen = false;
 const drops = [];
 const CLIP_HOLE = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('clip-path', 'path(evenodd, "M0 0H1V1Z")');
@@ -2859,7 +2859,7 @@ const ease = (k) => k <= 0 ? 0 : k >= 1 ? 1 : 1 - Math.pow(1 - k, 3);
 function whaleStep(now) {
   if (!whale || whale.t0 == null) return;
   const g = homeGround(), r = g ? rectOf(g) : null; if (!r || r.width <= 0) return;
-  const t = (now - whale.t0) / 1000, W = innerWidth, H = W * PRINT.aspect, top = r.top - H * PRINT.boxAt;
+  const t = (now - whale.t0) / 1000, W = innerWidth * PRINT.wide, H = W * PRINT.aspect, top = r.top - H * PRINT.water - PRINT.under, L = W * PRINT.left;
   // the cut: everything but the chat box (its rounded rectangle), so the box sits in the sea
   const key = [r.left, r.top, r.width, r.height, innerWidth, innerHeight].map(Math.round).join();
   if (key !== whale.clipKey) {
@@ -2875,9 +2875,9 @@ function whaleStep(now) {
   const pv = whale.pv;
   pv.style.width = W + 'px'; pv.style.height = H + 'px';
   pv.style.setProperty('--rv', rv.toFixed(4)); pv.style.opacity = ink.toFixed(3);
-  pv.style.transform = `translate(0px, ${top.toFixed(1)}px) scale(${press.toFixed(4)})`;
+  pv.style.transform = `translate(${L.toFixed(1)}px, ${top.toFixed(1)}px) scale(${press.toFixed(4)})`;
 }
-const plateRise = () => Math.round(innerWidth * PRINT.aspect * (PRINT.boxAt - .03));   // the top of the silhouette above the box: the room the chat makes
+const plateRise = () => PRINT.room;   // the room the chat keeps: enough to clear the boat's crew; scrolled, the answer passes under the sea, the boat and the tail (their white bodies hide it)
 
 /* ── Spider-Man ── ask about Spider-Man and the classic Spider-Man (a Meshy-rigged model, spidey/spidey.glb: the rig
    plus its moves merged into one file — Idle, Jump, Hang, Run, Land, Backflip, Kick, WallFlip) comes into the chat
