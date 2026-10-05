@@ -389,12 +389,9 @@ pointed at), rendered in the timer's style — steel bezel, blank white face, a 
 the highest one in a sentence about pulling/probing/reaching, ≤212 (`thermoRead()`; brisket → 203°) — and
 that number small under the hub. Tapped, it grows like a creature and the app highlights every temperature
 in the answer (`c.terms`; the app's highlighter uses lookaround word edges so "203°" matches).
-**Parts of a machine and characters in a story** (2026-10-04): the same tap-to-highlight as the tide pool
-with new casts — a car engine's parts (piston, spark plug, crankshaft, valve, camshaft, fuel injector;
-product renders like the timer) and Pride and Prejudice's people (Elizabeth, Darcy, Jane, Bingley, Mr. and
-Mrs. Bennet, Wickham, Lydia; felt figurines). Tapping a character lights up every sentence they're in. A
-`POOL` term starting with `/` is a regex for the app's highlighter (`/Jane(?!\s+Austen)`, `/Mr\.? Bennet`).
-Demo buttons 8 (engine) and 9 (Pride and Prejudice).
+**Parts of a machine** (2026-10-04): the same tap-to-highlight as the tide pool with a car engine's parts (piston,
+spark plug, crankshaft, valve, camshaft, fuel injector; product renders like the timer). Pride and Prejudice's felt
+figurines were removed 2026-10-05 (John: "get rid of it" — Jane caught Mary Jane in a Spider-Man answer).
 **The useful things** (2026-10-03, after John: "the egg timer is legit something I want"): each drops in
 when the answer calls for it, filled in from it, and does something when tapped (renders in the timer's
 style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful things", `toolsHear()`):
@@ -483,7 +480,9 @@ GLB, so the merge copies only the animation data, re-pointed by bone name). His 
 the old character's canvas and ortho camera (one unit, one pixel, y up) — not the retired character system. He bounds in
 onto the chat box, webs up from just off the top edge and hangs upside down, swinging (a pendulum on his web). Grab him
 and he dangles from your finger on a short web; let go and he drops onto the box, runs to its far end, strikes a pose
-(Kick / Backflip, alternating), webs up and hangs there. The next question about anything else sends him off up his web.
+(Kick / Backflip, alternating), webs up and hangs there. **Hanging, he just hangs** (John): the Hang move
+starts upright gripping the web, so it's begun at 45% (already over) and held still at 75%; only the web's swing settles.
+He's 128 tall (`SP_H`). The next question about anything else sends him off up his web.
 **The Hang move is already upside down** and lifts his toes ~1 height above the model's origin: hanging, the model is
 offset so it hangs from his toes (`SP_TOE`) and never flipped again. He takes touches (his box is in the rects). The
 hidden test tab throttles timers to 1s, so tests step him by hand (`__peek.spStep(dt, n)`).
