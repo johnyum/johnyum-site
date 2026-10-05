@@ -152,10 +152,14 @@ button, textarea { font: inherit; color: inherit; }
 .gdots span { display: inline-block; width: 8px; height: 8px; margin: 0 3px; border-radius: 50%; background: #e5e5e2; transition: background .25s ease; }
 .gdots span.on { background: #1d1d1c; }
 .gclue { margin: 14px 4px 22px; min-height: 3.6em; font: 22px/1.35 "Source Serif 4", Georgia, serif; color: #1d1d1c; text-wrap: balance; }
-.gopts { display: flex; justify-content: center; gap: 14px; }
-.gopt { width: 100px; height: 100px; border: 0; border-radius: 24px; background: #fff; display: grid; place-items: center; box-shadow: 0 0 0 1px #ecebe8, 0 10px 22px -16px rgba(0,0,0,.35); transition: opacity .25s ease; cursor: pointer; }
-.gopt img { width: 82px; height: 82px; object-fit: contain; pointer-events: none; }
-.gopt.right { animation: gpop .55s cubic-bezier(.3,1.5,.5,1); box-shadow: 0 0 0 2px #1d1d1c; }
+.gopts { display: flex; justify-content: center; gap: 22px; }
+.gopt { width: 104px; border: 0; padding: 0; background: none; display: grid; justify-items: center; gap: 8px; transition: opacity .25s ease; cursor: pointer; }
+/* a die-cut sticker: a white stroke around the creature's own shape, and a soft shadow so it lifts off the white */
+.gopt img { width: 88px; height: 88px; object-fit: contain; pointer-events: none;
+  filter: drop-shadow(2.5px 0 0 #fff) drop-shadow(-2.5px 0 0 #fff) drop-shadow(0 2.5px 0 #fff) drop-shadow(0 -2.5px 0 #fff) drop-shadow(0 4px 7px rgba(0,0,0,.18)); }
+.gopt span { font: 15px/1.2 "Source Serif 4", Georgia, serif; color: #1d1d1c; }
+.gopt.right { animation: gpop .55s cubic-bezier(.3,1.5,.5,1); }
+.gopt.right img { filter: drop-shadow(2.5px 0 0 #1d1d1c) drop-shadow(-2.5px 0 0 #1d1d1c) drop-shadow(0 2.5px 0 #1d1d1c) drop-shadow(0 -2.5px 0 #1d1d1c) drop-shadow(0 4px 7px rgba(0,0,0,.18)); }
 .gopt.wrong { animation: gshake .4s ease; opacity: .35; }
 @keyframes gpop { 0% { transform: scale(1); } 45% { transform: scale(1.16); } 100% { transform: scale(1); } }
 @keyframes gshake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-7px); } 75% { transform: translateX(7px); } }
@@ -2213,10 +2217,10 @@ function gameNew() {
   return { round: 0, right: [], rounds: answers.map((k) => ({ k, opts: shuffle([k, ...shuffle(all.filter((o) => o !== k)).slice(0, 2)]) })), missed: false };
 }
 function gameHTML(g) {
-  const dots = `<div class="gdots">${g.rounds.map((_, i) => `<span class="${i < g.round ? 'on' : ''}"></span>`).join('')}</div>`;
+  const dots = '';
   if (g.round >= g.rounds.length) return `<div class="game">${dots}<p class="gclue">You know your tide pool!</p><div class="gwon">${g.right.map((k) => `<img src="plush/${k}.webp" alt="">`).join('')}</div><button class="gagain">Play again</button></div>`;
   const r = g.rounds[g.round];
-  return `<div class="game">${dots}<p class="gclue">${CLUES[r.k]} <b>Who am I?</b></p><div class="gopts">${r.opts.map((k) => `<button class="gopt" data-k="${k}" aria-label="${POOL[k].name}"><img src="plush/${k}.webp" alt=""></button>`).join('')}</div><div class="gsay"></div></div>`;
+  return `<div class="game">${dots}<p class="gclue">${CLUES[r.k]} <b>Who am I?</b></p><div class="gopts">${r.opts.map((k) => `<button class="gopt" data-k="${k}"><img src="plush/${k}.webp" alt=""><span>${POOL[k].name}</span></button>`).join('')}</div><div class="gsay"></div></div>`;
 }
 function gameClick(c, e) {
   const g = c.game;

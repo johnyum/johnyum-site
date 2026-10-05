@@ -433,7 +433,8 @@ gravity — never under 0.25 g down) and a hard shake as `peek.shake()` (everyth
 **The tide pool game (2026-10-04):** ask for a game after (or about) the tide pool and an icon drops in — a little
 fanned stack of felt picture cards (`plush/pail.webp`, the file name kept; a sand pail was "weird") — tap it and the
 full-screen game opens: solid white, a clue a child can follow (`CLUES`, written in the page — instant), three
-creature pictures, five rounds, Play again, the X to close. The pile stays (a game question doesn't clear it).
+creatures as die-cut stickers (a white stroke round each shape, black when picked) with their names under in
+serif, five rounds (no progress dots), Play again, the X to close. The pile stays (a game question doesn't clear it).
 John tried and rejected: the game opening on its own, and a clue card on the pile instead of the full screen.
 After the Tide pool demo's answer the app fills the box with the game question, ready to send.
 Tapping a creature shows its name above it — only the tapped one — while it's enlarged.
