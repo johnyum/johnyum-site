@@ -465,12 +465,14 @@ numbered header buttons are gone): Tide pool, Brisket, Moby-Dick, Engine, Pride 
 Lasagna, Dinner party, Coffee spots.
 **Moby-Dick** (2026-10-05, redone twice — the plush whale, then a five-layer cut-out plate, both retired; John: the layers
 looked like paper cut-outs rubbing together, and the horizon line was unnecessary): when the answer first names the whale
-(`WHALE_RE`), ONE wood engraving drawn for this space develops around the chat box — the white whale long and low on the
-surface, a whaleboat of six off his flank, refined 1850s black-line hatching (gpt-image-1, its horizon edited away so the
-sea's far edge breaks up into sparse strokes; `peek/moby/print.webp`). Ink only on the page's white: the paper is mapped to
+(`WHALE_RE`), ONE wood engraving drawn for this space develops around the chat box — the white whale's flukes towering
+mid-slap in a fan of spray, a whaleboat pitched up beside them, sailors and oars flung into the air (John: "more like it's
+coming out… a tail slap… a fun silhouette at the top… give it character"; a long low whale on the surface came first).
+Refined 1850s black-line hatching (gpt-image-1, the flukes edited white; `peek/moby/print.webp`). The box's top edge sits
+on the sea line and hides it, so above the box is pure silhouette and the textured sea fills its sides and below. Ink only on the page's white: the paper is mapped to
 nothing *locally* (a blurred max of the paper tone, so its uneven tint can't survive as a grey rectangle) and faint alpha
-is dropped. The box sits in the middle of the dense sea (`PRINT.boxAt`), the plate cut around its rounded shape
-(`clip-path: path(evenodd …)`), the whale's crown ~110 above the box (`plateRise()`, the room the chat makes). It develops
+is dropped. The plate is cut around the box's rounded shape (`clip-path: path(evenodd …)`); `PRINT.boxAt` is the sea line; the
+silhouette's top is ~135 above the box (`plateRise()`, the room the chat makes). It develops
 up out of the box like a print off the block (a rising soft mask edge, ink pale → full, one small press), then only the
 water moves: two copies split at the waterline, the lower one through an SVG displacement whose noise slides slowly
 (`#seaShimmer`). It stays till the next send.
