@@ -442,7 +442,7 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   cookbook's page has **Start smoke** beside the X (black, 48 tall, the pair centred 8 apart): it closes the book and the
   stopwatch drops into the pile, its bubble counting from 0:00 (`ticking()`); once going the button reads "Smoking ·
   3:12", ticking with the stopwatch, and opens it. Tapped, it's as simple as the egg timer: the count up and ONE 16px serif
-  line of what to expect now (`cookNow()`): "Fat cap down, lid shut. Check back in 6 hours."; when a check comes due it
+  line (18px) of what to expect now (`cookNow()`): "Fat cap down, lid shut at 250°." / "Check back in 6 hours." (two lines); when a check comes due it
   chimes and shakes and says "Check the bark. Set, and 165° or higher? Wrap it." Under it two 14px words, not buttons:
   Pause (black; Resume when paused) · End the cook (red).
   The checks come from Claude (`recipeCore` → `checks`) or, until then, `cookChecks()` off the steps. The cook lives in
@@ -476,6 +476,17 @@ white: the paper mapped to nothing *locally* (a blurred max of its tone, so its 
 rectangle), faint alpha dropped. Cut around the box's rounded rect (`clip-path: path(evenodd …)`); the chat makes room for
 it (`plateRise()`). It develops up out of the box like a print off the block (a rising soft mask edge, ink pale → full, one
 small press), then holds still till the next send.
+**Spider-Man** (2026-10-05): ask about Spider-Man (`SPIDEY_RE`) and the classic Spider-Man comes into the chat in 3D — a
+Meshy-rigged model from John's Downloads (`spiderman-moves/`), the rig and eight moves merged into one file
+(`peek/spidey/spidey.glb`, 3.1MB: Idle, Jump, Hang, Run, Land, Backflip, Kick, WallFlip — each Meshy move ships as a whole
+GLB, so the merge copies only the animation data, re-pointed by bone name). His own small module and scene (`spScene`) on
+the old character's canvas and ortho camera (one unit, one pixel, y up) — not the retired character system. He bounds in
+onto the chat box, webs up from just off the top edge and hangs upside down, swinging (a pendulum on his web). Grab him
+and he dangles from your finger on a short web; let go and he drops onto the box, runs to its far end, strikes a pose
+(Kick / Backflip, alternating), webs up and hangs there. The next question about anything else sends him off up his web.
+**The Hang move is already upside down** and lifts his toes ~1 height above the model's origin: hanging, the model is
+offset so it hangs from his toes (`SP_TOE`) and never flipped again. He takes touches (his box is in the rects). The
+hidden test tab throttles timers to 1s, so tests step him by hand (`__peek.spStep(dt, n)`).
 **Tap a creature** and it eases up to 2× — body and all (`poolSize()`, `Body.scale`), shoving the
 others aside — and the page tells the app `{type:'highlight', terms}` (each `POOL` entry's `terms`): the
 app marks every mention in the answers with a highlighter yellow (`PeekHighlight`, `MarkdownText.marked`)

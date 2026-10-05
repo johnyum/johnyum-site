@@ -161,8 +161,8 @@ button, textarea { font: inherit; color: inherit; }
   opacity: 0; transform: translateY(8px); transition: opacity .3s ease, transform .35s cubic-bezier(.3,1.3,.5,1); }
 .tgo.on { opacity: 1; transform: none; }
 /* the stopwatch, opened: one line on what to expect now, under the count */
-.tui .wsay { width: min(340px, calc(100vw - 48px)); margin: 8px auto 0; text-align: center; font: 400 16px/1.4 "Source Serif 4", Georgia, serif; color: #1d1d1c; text-wrap: pretty; }
-.tui .wacts { margin-top: 20px; display: flex; justify-content: center; align-items: center; gap: 8px; font: 14px/1 "Schibsted Grotesk", system-ui, sans-serif; color: #a5a39d; }
+.tui .wsay { width: min(340px, calc(100vw - 48px)); margin: 8px auto 0; text-align: center; font: 400 18px/1.35 "Source Serif 4", Georgia, serif; color: #1d1d1c; text-wrap: pretty; }
+.tui .wacts { margin-top: 4px;   /* 12 from the line to the words: 4 here + their 8px touch pad */ display: flex; justify-content: center; align-items: center; gap: 8px; font: 14px/1 "Schibsted Grotesk", system-ui, sans-serif; color: #a5a39d; }
 .tui .wacts button { border: 0; background: none; padding: 8px 2px; font: inherit; }
 .tui .wpause { color: #1d1d1c; } .tui .wend { color: #e5483a; }
 /* the steps come in one by one under the rule */
@@ -837,7 +837,11 @@ renderer.setAnimationLoop(frame);
 function frame() {
   // With the character retired the full-screen 3D layer does nothing at all — not even a clear —
   // so it never competes with the chat underneath for a frame. Only the tide pool's physics runs.
-  if (!CHARACTER) { clock.getDelta(); poolStep(performance.now()); return; }
+  if (!CHARACTER) {
+    const dt0 = clamp(clock.getDelta(), 1 / 240, 1 / 30); poolStep(performance.now());
+    if (spidey?.g) { spideyStep(dt0); renderer.render(spScene, camera); } else if (spClear) { spClear = false; renderer.clear(); }   // Spider-Man, when he's here; one clear when he goes
+    return;
+  }
   // Never zero (the first frame can be), never huge (a background tab): velocities divide by it.
   const dt = clamp(clock.getDelta(), 1 / 240, 1 / 30), t = clock.elapsedTime;
   tweenList = tweenList.filter((w) => { w.t += dt * 1000; const k = Math.min(1, w.t / w.ms); w.fn(w.ease(k)); if (k >= 1) w.done(); return k < 1; });
@@ -2675,7 +2679,8 @@ function cookChecks(c) {
 }
 function startCook(book) {
   audio ||= new (window.AudioContext || window.webkitAudioContext)();   // made on the tap, so it can chime later
-  cook = { startAt: Date.now(), acc: 0, running: true, dish: book.dish || 'The cook', checks: cookChecks(book), fired: [] }; saveCook();
+  const pit = [...(book.items || []).concat(book.meta || []).join(' ').matchAll(/\b(\d{3})(?:\s*[–-]\s*\d{3})?\s*°/g)].map((m) => +m[1]).find((d) => d >= 200 && d <= 350);
+  cook = { startAt: Date.now(), acc: 0, running: true, dish: book.dish || 'The cook', pit, checks: cookChecks(book), fired: [] }; saveCook();
   let w = critters.find((o) => o.key === 'stopwatch'); if (!w) { poolSeen.add('stopwatch'); w = poolDrop('stopwatch', { x: innerWidth * .66 }); }
   return w;
 }
@@ -2722,7 +2727,7 @@ function cookNow(h) {
   const timed = cook.checks.filter((ch) => ch.at != null), after = cook.checks.find((ch) => ch.at == null), last = timed.at(-1);
   const due = timed.find((ch) => h >= ch.at && h < ch.at + .75); if (due) return `${due.look}. ${due.if} ${due.then}.`.replace(/\.\.$/, '.');
   const next = timed.find((ch) => ch.at > h);
-  if (next && next === timed[0]) return `Fat cap down, lid shut. Check back in ${inWords(next.at - h)}.`;
+  if (next && next === timed[0]) return `Fat cap down, lid shut${cook.pit ? ` at ${cook.pit}°` : ''}.\nCheck back in ${inWords(next.at - h)}.`;   // two lines, broken before "Check back"
   if (next) return `Back on, lid shut. ${next.look} in about ${inWords(next.at - h)}.`;
   return after ? `Pull it and rest it. ${after.then}.`.replace(/\.\.$/, '.') : 'Pull it, and let it rest before you slice.';
 }
@@ -2730,7 +2735,7 @@ function paintWatch() {
   const ui = tcard.ui, ms = cookMs(), rd = ui.querySelector('.tread'), t = clockOf(ms / 1000); if (rd && rd.textContent !== t) rd.textContent = t;
   const pz = ui.querySelector('.wpause'); if (pz) { const w = cook?.running ? 'Pause' : 'Resume'; if (pz.textContent !== w) pz.textContent = w; }
   const say = ui.querySelector('.wsay'); if (!say || !cook) return;
-  const line = keepTogether(escR(cookNow(ms / 3600000))); if (say.innerHTML !== line) say.innerHTML = line;
+  const line = keepTogether(escR(cookNow(ms / 3600000))).replace(/\n/g, '<br>'); if (say.innerHTML !== line) say.innerHTML = line;
 }
 function tickTimers() {
   tickWatch();
@@ -2884,6 +2889,120 @@ function whaleStep(now) {
 }
 const plateRise = () => Math.round(innerWidth * PRINT.aspect * (PRINT.boxAt - .03));   // the top of the silhouette above the box: the room the chat makes
 
+/* ── Spider-Man ── ask about Spider-Man and the classic Spider-Man (a Meshy-rigged model, spidey/spidey.glb: the rig
+   plus its moves merged into one file — Idle, Jump, Hang, Run, Land, Backflip, Kick, WallFlip) comes into the chat
+   in 3D: he bounds in onto the chat box, leaps, shoots a web up to the top of the screen and hangs upside down from
+   it, swinging. Grab him and he dangles from your finger on his web, swinging as you move; let go and he drops onto
+   the chat box, runs off left or right, strikes a pose, then webs up and hangs there again. Asked about anything
+   else, he swings away. His own scene (spScene) on the same canvas and camera — one unit, one pixel, y up. */
+const SPIDEY_RE = /spider-?\s?man|peter parker/i;
+const spScene = new THREE.Scene();
+{ const k = new THREE.DirectionalLight(0xffffff, 2.4); k.position.set(300, 600, 900); spScene.add(k); spScene.add(new THREE.HemisphereLight(0xffffff, 0xd8d8d8, 1.1)); }
+const SP_H = 92, SP_HANG_Y = -10, SP_WEB = 170, SP_HELD = 70, SP_G = 2600;   // his height; his web's anchor (just off the top), its length; on your finger; gravity
+const SP_TOE = .86;   // hanging, the model hangs this far (of his height) below the web's end, so the web meets his toes
+let spidey = null, spClear = false;
+const spBox = () => { const g = homeGround(), r = g ? rectOf(g) : null; return r && r.width > 0 ? r : { left: 12, right: innerWidth - 12, top: innerHeight - 128, width: innerWidth - 24, height: 88 }; };
+async function spideyStart() {
+  if (spidey) return; spidey = { loading: true };
+  const gl = await loader.loadAsync('spidey/spidey.glb').catch(() => null);
+  if (!spidey || !spidey.loading || !gl) { spidey = null; return; }
+  spScene.environment = scene.environment; spScene.environmentIntensity = .8;
+  const obj = gl.scene; obj.traverse((o) => { if (o.isSkinnedMesh) o.frustumCulled = false; });
+  obj.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(obj), size = bb.getSize(new THREE.Vector3()), c = bb.getCenter(new THREE.Vector3());
+  obj.position.set(-c.x, -bb.min.y, -c.z);
+  const holder = new THREE.Group(); holder.add(obj); holder.scale.setScalar(SP_H / (size.y || 1));
+  const yaw = new THREE.Group(); yaw.add(holder);
+  const g = new THREE.Group(); g.add(yaw); spScene.add(g);   // g sits at his feet (upright) or his web's end (hanging), in page pixels
+  const web = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineBasicMaterial({ color: 0xa9a9a9 }));
+  web.visible = false; spScene.add(web);
+  const mixer = new THREE.AnimationMixer(obj), clips = Object.fromEntries(gl.animations.map((a) => [a.name, a]));
+  const r = spBox();
+  spidey = { g, yaw, holder, web, mixer, clips, act: null, mode: 'enter', t: 0, x: innerWidth + 60, y: r.top, from: { x: innerWidth + 60, y: r.top - 40 }, to: { x: r.left + r.width * .72, y: r.top },
+             ang: 0, av: 0, anchor: null, len: 0, vx: 0, vy: 0, dir: -1, hold: null, pose: 0, bbox: [0, 0, 0, 0] };
+  spPlay('Jump', true); spFace(-1);
+}
+function spPlay(name, once = false, fade = .2) {
+  const sp = spidey, clip = sp?.clips[name]; if (!clip) return 0;
+  const a = sp.mixer.clipAction(clip); if (sp.act === a && !once) return clip.duration;
+  a.reset(); a.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity); a.clampWhenFinished = once;
+  if (sp.act && sp.act !== a) a.crossFadeFrom(sp.act, fade, true); a.play(); sp.act = a; return clip.duration;
+}
+const spFace = (d) => { if (spidey) spidey.dir = d; };   // -1 left, 1 right, 0 to camera
+function spWebUp(x) {   // shoot a web straight up from here, and climb it to hang
+  const sp = spidey; sp.anchor = { x, y: SP_HANG_Y }; sp.len = SP_WEB; sp.mode = 'webup'; sp.t = 0; sp.turned = false; sp.from = { x: sp.x, y: sp.y }; spPlay('Jump', true); spFace(0);
+}
+function spideyLeave() { if (spidey && !spidey.loading && spidey.mode !== 'leave') { const sp = spidey; sp.mode = 'leave'; sp.t = 0; sp.anchor = { x: sp.x, y: -40 }; spPlay('Jump', true); } else if (spidey?.loading) spidey = null; }
+function spideyEnd() { if (spidey?.g) { spScene.remove(spidey.g, spidey.web); spClear = true; } spidey = null; }
+const ease2 = (k) => k <= 0 ? 0 : k >= 1 ? 1 : k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+function spideyStep(dt) {
+  const sp = spidey; if (!sp || sp.loading) return;
+  sp.t += dt; sp.mixer.update(dt);
+  const r = spBox(), floor = r.top;
+  let inverted = false;
+  if (sp.mode === 'enter') {   // a bound in from the right, landing on the chat box
+    const k = clamp(sp.t / .85, 0, 1);
+    sp.x = lerp(sp.from.x, sp.to.x, k); sp.y = lerp(sp.from.y, sp.to.y, k) - Math.sin(Math.PI * k) * 150;
+    if (k >= 1) { sp.mode = 'crouch'; sp.t = 0; spPlay('Idle'); spFace(0); }
+  } else if (sp.mode === 'crouch') { sp.y = floor; if (sp.t > .45) spWebUp(sp.x); }
+  else if (sp.mode === 'webup' || sp.mode === 'leave') {   // up his web
+    const k = ease2(clamp(sp.t / (sp.mode === 'leave' ? .7 : .8), 0, 1));
+    sp.x = lerp(sp.from.x, sp.anchor.x, k); sp.y = lerp(sp.from.y, sp.anchor.y + (sp.mode === 'leave' ? 0 : sp.len), k);
+    inverted = sp.mode === 'webup' && k > .55;   // he turns over partway up, so the hang isn't a snap
+    if (inverted && !sp.turned) { sp.turned = true; spPlay('Hang', false, .3); }
+    if (k >= 1) { if (sp.mode === 'leave') return spideyEnd(); sp.mode = 'hang'; sp.t = 0; sp.ang = .25 * (Math.random() < .5 ? -1 : 1); sp.av = 0; }
+  } else if (sp.mode === 'hang' || sp.mode === 'held') {   // a pendulum on his web: from its anchor, or from your finger
+    inverted = true;
+    if (sp.mode === 'held') { const px = sp.hold.x, py = sp.hold.y; sp.hold.ax = (px - (sp.anchor?.x ?? px)) / Math.max(dt, 1e-3); sp.anchor = { x: px, y: py }; }
+    const acc = -9.5 * Math.sin(sp.ang) - 1.4 * sp.av - (sp.mode === 'held' ? (sp.hold.ax - (sp.hold.pax || 0)) * .0006 : 0);
+    if (sp.mode === 'held') sp.hold.pax = sp.hold.ax;
+    sp.av += acc * dt; sp.ang += sp.av * dt;
+    if (sp.mode === 'hang' && Math.abs(sp.ang) < .02 && Math.abs(sp.av) < .02) sp.av += (Math.random() - .5) * .08;   // never quite still
+    sp.x = sp.anchor.x + Math.sin(sp.ang) * sp.len; sp.y = sp.anchor.y + Math.cos(sp.ang) * sp.len;   // (x, y) is where the web holds him: his toes
+  } else if (sp.mode === 'fall') {   // let go: he drops, turning right way up, onto the chat box
+    sp.vy += SP_G * dt; sp.x += sp.vx * dt; sp.y += sp.vy * dt;
+    sp.x = clamp(sp.x, r.left + 30, r.right - 30);
+    if (sp.y >= floor && sp.vy > 0) { sp.y = floor; sp.mode = 'land'; sp.t = 0; spPlay('Idle', false, .12); spFace(0); }
+  } else if (sp.mode === 'land') {
+    sp.y = floor; if (sp.t > .3) { sp.mode = 'run'; sp.t = 0; const right = sp.x < r.left + r.width / 2; sp.runTo = right ? r.right - 40 : r.left + 40; spFace(right ? 1 : -1); spPlay('Run'); }
+  } else if (sp.mode === 'run') {   // off to one side of the box
+    sp.y = floor; const d = sp.runTo - sp.x, step = Math.sign(d) * Math.min(Math.abs(d), 230 * dt); sp.x += step;
+    if (Math.abs(d) < 2) { sp.mode = 'pose'; sp.t = 0; spFace(0); sp.poseDur = spPlay(sp.pose++ % 2 ? 'Backflip' : 'Kick', true); }
+  } else if (sp.mode === 'pose') { sp.y = floor; if (sp.t > (sp.poseDur || 1.2) + .15) spWebUp(sp.x); }
+  // place him: upright, his feet at (x, y); hanging, the web's end at his feet and his body below it
+  const turn = sp.dir ? sp.dir * Math.PI * .42 : 0;
+  sp.yaw.rotation.y = lerp(sp.yaw.rotation.y, turn, .2);
+  sp.g.rotation.z = lerp(sp.g.rotation.z, inverted ? sp.ang * -1 : 0, .25);   // the Hang move is already upside down; the swing tilts him on his web
+  // (x, y) is his feet: on the floor standing, on the web's end hanging — and hanging, the model hangs from his toes
+  sp.yaw.position.y = inverted ? -SP_H * SP_TOE : 0;
+  sp.g.position.set(sp.x, -sp.y, 0);
+  // the web: from its anchor (or your finger) to his feet
+  const showWeb = sp.anchor && (inverted || sp.mode === 'webup' || sp.mode === 'leave');
+  sp.web.visible = !!showWeb;
+  if (showWeb) {
+    const fx = sp.x, fy = inverted ? sp.y : sp.y - SP_H * .9;
+    const pos = sp.web.geometry.attributes.position; pos.setXYZ(0, sp.anchor.x, -sp.anchor.y, 0); pos.setXYZ(1, fx, -fy, 0); pos.needsUpdate = true;
+  }
+  // where he is, for touches: his body's box
+  sp.bbox = inverted ? [sp.x - 36, sp.y - 6, 72, SP_H * .7 + 12] : [sp.x - 34, sp.y - SP_H - 6, 68, SP_H + 12];
+}
+Object.defineProperty(window.__peek, 'spidey', { get: () => spidey });   // for tests
+window.__peek.spStep = (dt, n = 1) => { for (let i = 0; i < n; i++) spideyStep(dt); renderer.render(spScene, camera); };   // tests: step him by a set time
+// grab him: he dangles from your finger on his web; let go and he drops
+addEventListener('pointerdown', (e) => {
+  const sp = spidey; if (!sp || sp.loading || sp.mode === 'leave') return;
+  const [x, y, w, h] = sp.bbox; if (e.clientX < x || e.clientX > x + w || e.clientY < y || e.clientY > y + h) return;
+  e.stopPropagation(); sp.mode = 'held'; sp.hold = { x: e.clientX, y: e.clientY - 10, ax: 0, pax: 0, hist: [[performance.now(), e.clientX, e.clientY]] };
+  sp.anchor = { x: e.clientX, y: e.clientY - 10 }; sp.len = SP_HELD; spPlay('Hang');
+}, true);
+addEventListener('pointermove', (e) => { const h = spidey?.hold; if (!h || spidey.mode !== 'held') return; h.x = e.clientX; h.y = e.clientY - 10; h.hist.push([performance.now(), e.clientX, e.clientY]); if (h.hist.length > 6) h.hist.shift(); });
+addEventListener('pointerup', () => {
+  const sp = spidey; if (!sp || sp.mode !== 'held') return;
+  const h = sp.hold.hist, a = h[0], b = h[h.length - 1], dt = Math.max(16, b[0] - a[0]) / 1000;
+  sp.vx = clamp((b[1] - a[1]) / dt, -900, 900); sp.vy = clamp((b[2] - a[2]) / dt, -1200, 900);
+  sp.mode = 'fall'; sp.t = 0; sp.hold = null; sp.anchor = null; sp.y = sp.y; spPlay('Jump', true); spFace(0);
+});
+
 Object.assign(window.__peek, { poolDrop, poolClear, poolHear, poolStep, critters, setAsk: (t) => { lastAsk = t; } });
 // A debug readout, only for a local copy of the page inside the app (the simulator, pointed here by PEEK_PAGE).
 const DEBUG = EMBED && /^(localhost|127\.|192\.168\.|10\.)/.test(location.hostname);
@@ -2945,6 +3064,7 @@ if (EMBED) {
         draftFeel = ''; draftLen = 0;
         workBegin();   // to work: chin on its hand till the first words come
         lastAsk = String(data || '');
+        if (SPIDEY_RE.test(lastAsk)) spideyStart(); else spideyLeave();   // Spider-Man: here for his question, off for the next
         if (/\bgames?\b/i.test(lastAsk) && critters.some((c) => CLUES[c.key])) poolFlush();   // the game question: the creatures pour down into the box, and the cards come in where they were
         else poolClear(false);   // a new question: last answer's creatures go (a running timer stays)
       } else if (name === 'stream') {
@@ -2965,7 +3085,7 @@ if (EMBED) {
           if (rc) { recipeTitle(rc); const w = stepsOf(String(data), true); if (w.length) { rc.meta = w.map(stepDetail); listSet(rc, tagSteps(w.map(stepName), w)); } }
         }
         if (rc) recipeCore(rc, String(data)); }   // the whole answer: anything still to come, and its places
-      } else if (name === 'closed') { delete plat.reply; act(leave); poolClear(); recentPool.clear(); }   // left the chat: its creatures go too
+      } else if (name === 'closed') { delete plat.reply; act(leave); poolClear(); recentPool.clear(); spideyEnd(); }   // left the chat: its creatures go too
     },
   };
   // Where it is, so the app passes every other touch straight through to itself.
@@ -2979,6 +3099,7 @@ if (EMBED) {
     }
     if (card) { const b = card.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }
     for (const c of critters) { const b = c.el.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }   // the creatures take touches
+    if (spidey?.g) rs.push(spidey.bbox);   // so does Spider-Man
     if (tcard) rs.push([0, 0, innerWidth, innerHeight]);
     if ((critters.length > 0) !== motionOn) { motionOn = critters.length > 0; tell({ type: 'motion', on: motionOn }); }   // the app reads the motion sensor only while there's a pile   // the grown timer has the whole screen: a tap outside shrinks it back
     // How tall the pile on the chat box is, so the app can make that much room at the chat's end.
