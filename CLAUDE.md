@@ -406,6 +406,14 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   name typed above its red rule (Haiku names it, `recipeTitle()`), the steps typed on its lines (Special Elite). Opened, it's the same simple checklist as the others (John
   rejected a cream card with big number tiles): one line of action per stage, and under it that stage's temp and
   time — Haiku boils the finished answer down to that (`recipeCore()`); until then `stageOf()` lifts them out.
+- **The BBQ cookbook and the brisket pictures** (2026-10-04): barbecue (brisket, smoking, the Egg, ribs…) gets a made-up
+  hardcover, *How to Brisket* (`plush/cookbook.webp`, charcoal bookcloth, cream title, ember grill mark, red ribbon) in place
+  of the recipe card; it opens to the same checklist (`isRecipe()`). For a brisket each step has its picture
+  (`peek/bbq/*.webp`, matched by `BBQ_PICS`): simple friendly 3D (Airbnb-icon-like, simpler, real but quiet texture, not plush) —
+  **one brisket, exactly the same size and place in every picture**, with what's happening around it: base, trim, rub, smoke,
+  bark, wrap, probe, rest, slice; plus the gear in the same style (egg, charcoal, paper, cooler, thermo). Made with
+  gpt-image-1 *edits* of one base image (`input_fidelity: high`), then each scaled so its brisket matches the base and all
+  cropped to one shared square — the model drifts the size by up to 25%, so the normalising step is not optional.
 - **Shopping list** — an ingredient list (`groceriesOf()`, bullets under an Ingredients/shopping heading):
   a simple yellow legal pad (`plush/groceries.webp`; was a grocery bag, then a notepad with a pencil), the items written on its page
   (`SHOPPAPER`); tapped, the same checklist.
