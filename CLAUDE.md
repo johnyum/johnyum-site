@@ -426,8 +426,6 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   Smoke shows how long to smoke before wrapping ("Smoke · 6 hr" — John: 250° there is wrong, it's the Egg's, on Light).
   Prepare (plate setter, filling the charcoal) is its own word, before Light. Their pictures: `bbq/prepare.webp` (the Egg
   open, plate setter and grate in) and `bbq/light.webp` (open, coals lit) — so the Egg is never the same picture twice.
-  **Pull down from the top and the book grows with your finger** while the steps sink and fade; past 110 the page dismisses
-  (the book flies home from its grown size), short of it springs back (touch events on `.tui.page`, `paintPull()`).
   Claude writes both (`recipeCore`: a one-word name + detail under 11 words); until then `stepName()` / `stepDetail()` read them off
   the streamed step's whole line (`stepsOf(text, true)`), and the picture comes from the name first, then the detail.
   **The steps scroll under a pinned book** (`.tscroll`; the book sits outside it in `.thead`): scrolling shrinks it 64 → 32
@@ -437,6 +435,18 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   A held 340 column (edge to edge read as a screen; the tighter page felt nicer). **It aims to fit on one screen** — John: what's
   useful is not scrolling the chat up and down to find the recipe again, so the page is a glance, not a scroll. **No
   step-by-step / cook-along mode** — John rejected it: "I don't work that way, I don't think many people do."
+- **The cook stopwatch** (2026-10-05): a long cook is a stopwatch, not a countdown — the egg timer no longer drops for
+  barbecue. A vintage stopwatch (`plush/stopwatch.webp`, after an estate Heuer John pointed at: chrome bow and crown,
+  pusher, black bezel, white dial, 30-minute sub-dial) with live blued hands drawn over it (`watchSVG()`, `WATCH`). The
+  cookbook's page has **Start smoke** beside the X (black, 48 tall, the pair centred 8 apart): it closes the book and the
+  stopwatch drops into the pile, its bubble counting from 0:00 (`ticking()`); once going the button reads "Smoking ·
+  3:12" and opens the stopwatch. Tapped, it's as simple as the egg timer: the count up, play/pause, and ONE line of what to
+  expect now (`cookNow()`): "Fat cap down, lid shut. Now you wait." / "Check the bark in about 6 hr · done in about 10
+  hr"; when a check comes due it chimes and shakes and says "Check the bark." / "Set, and 165° or higher? Wrap it.".
+  The checks come from Claude (`recipeCore` → `checks`) or, until then, `cookChecks()` off the steps. The cook lives in
+  localStorage (`peek-cook`) and comes back into the pile after a reload or a new chat; "End the cook" (tap twice) ends it.
+  The page can't chime while Peek is closed — real phone notifications for the checks would need the app.
+  The recipe page's pull-down is plain: iOS's own bounce, and past 90 the page closes (no growing book — John: janky).
 - **Shopping list** — an ingredient list (`groceriesOf()`, bullets under an Ingredients/shopping heading):
   a simple yellow legal pad (`plush/groceries.webp`; was a grocery bag, then a notepad with a pencil), the items written on its page
   (`SHOPPAPER`); tapped, the same checklist.
@@ -474,7 +484,7 @@ no pointer under it; on white it's held by a hairline ring and a two-layer soft 
 glass was tried). **The game question flushes the pile** (`poolFlush()`): each creature hops and drops through
 everything into the chat box (a layer clipped at the box's top swallows it), one after another; then the cards
 drop in from the top, straight down to the middle where the pile was. In the open game the icon sits up top, 48 under the Dynamic Island (`ISLAND`).
-**The close X is the page's** (`.tclose`): 48 round, black with a white X drawn 20 × 20, 2px line, 48 up from the bottom of the screen,
+**The close X is the page's** (`.tclose`): 48 round, black with a white X 12 × 12, 48 up from the bottom of the screen,
 in the app too. A native glass one (`PeekCloseButton`, asked for with `{type:'close', on}`) is still in the app but
 the page no longer asks for it. The game's question and choices sit centred on the screen; only the icon is up top.
 **The highlight (2026-10-04, John: make it consistent, like a real highlighter pass — snappy):** once an
