@@ -443,9 +443,9 @@ no pointer under it; on white it's held by a hairline ring and a two-layer soft 
 glass was tried). **The game question flushes the pile** (`poolFlush()`): each creature hops and drops through
 everything into the chat box (a layer clipped at the box's top swallows it), one after another; then the cards
 drop in from the top, straight down to the middle where the pile was. In the open game the icon sits up top, 48 under the Dynamic Island (`ISLAND`).
-**The close X in the app is native** (`PeekCloseButton` in PeekLayer.swift — the same 44pt glass circle and 1pt X as
-the top-left menu button, 48pt from the bottom): the page sends `{type:'close', on}` when a view opens/shuts and the
-app's X calls `peek.closeOpen()`. The page's own `.tclose` is hidden in embed and only serves the web demo.
+**The close X is the page's** (`.tclose`): 48 round, black with a white X, 48 up from the bottom of the screen,
+in the app too. A native glass one (`PeekCloseButton`, asked for with `{type:'close', on}`) is still in the app but
+the page no longer asks for it. The game's question and choices sit centred on the screen; only the icon is up top.
 **The highlight (2026-10-04, John: make it consistent, like a real highlighter pass — snappy):** once an
 answer is done the page asks Haiku for each dropped thing's own sentences (`askSpans()`, `spansFor`), and a tap
 sends them with the terms; the app marks exactly those (`PeekHighlight.ranges`), falling back to the term rules.
