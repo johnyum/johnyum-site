@@ -106,7 +106,7 @@ button, textarea { font: inherit; color: inherit; }
 .plate img { position: absolute; left: 0; top: 0; display: block; -webkit-user-drag: none; will-change: transform, opacity; opacity: 0; transform-origin: 50% 50%; }
 /* no edges: the sky is only a band of cloud and the Pequod on the horizon, fading up into the page; the sea's
    horizon dissolves instead of ending in a line (and the wave the boat rides isn't drawn twice) */
-.plate .p-sky { -webkit-mask-image: linear-gradient(to bottom, transparent 46%, rgba(0,0,0,.5) 62%, #000 73%, #000 76.6%, transparent 77.6%); mask-image: linear-gradient(to bottom, transparent 46%, rgba(0,0,0,.5) 62%, #000 73%, #000 76.6%, transparent 77.6%); }
+.plate .p-sky { -webkit-mask-image: linear-gradient(to bottom, transparent 62%, rgba(0,0,0,.5) 69%, #000 74%, #000 76.6%, transparent 77.6%); mask-image: linear-gradient(to bottom, transparent 62%, rgba(0,0,0,.5) 69%, #000 74%, #000 76.6%, transparent 77.6%); }
 .plate .p-sea { -webkit-mask-image: linear-gradient(to bottom, transparent 41%, rgba(0,0,0,.6) 47%, #000 54%); mask-image: linear-gradient(to bottom, transparent 41%, rgba(0,0,0,.6) 47%, #000 54%); }
 .drop { position: absolute; left: 0; top: 0; pointer-events: none; border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%;
   background: radial-gradient(circle at 34% 30%, #ffffff 0 18%, #d6ebf8 42%, #93c3e4 100%); box-shadow: inset -1px -2px 3px rgba(40,90,130,.25); }
@@ -2866,7 +2866,7 @@ const ease = (k) => k <= 0 ? 0 : k >= 1 ? 1 : 1 - Math.pow(1 - k, 3);
 function whaleStep(now) {
   if (!whale || whale.t0 == null) return;
   const g = homeGround(), r = g ? rectOf(g) : null; if (!r || r.width <= 0) return;
-  const t = (now - whale.t0) / 1000, W = plateSize(), L = (innerWidth - W) / 2, T = r.top - W * .7;   // 70% of the plate shows above the box
+  const t = (now - whale.t0) / 1000, B = plateBase(r);
   // the cut: everything but the chat box (its rounded rectangle), so the box sits in the sea, not under a picture
   const key = [r.left, r.top, r.width, r.height, innerWidth, innerHeight].map(Math.round).join();
   if (key !== whale.clipKey) {
@@ -2877,28 +2877,42 @@ function whaleStep(now) {
       whale.el.style.clipPath = `path(evenodd, "M0 0H${innerWidth}V${innerHeight}H0Z ${hole}")`;
     } else { whale.el.style.height = r.top + 'px'; whale.el.style.overflow = 'hidden'; }   // no holes: stop at the box's top edge
   }
-  // the landing: each piece from its own place, one after another; then the plate settles, once
+  // the landing: the sea swells up, the whale breaches in from the right, the wave carries the boat in from the left,
+  // the near waves roll up; then it settles, once
   const P = {
-    sky:   { p: outC((t - 0) / 1.2), from: (q) => [0, -14 * (1 - q), 0, 1] },
-    sea:   { p: outC((t - .15) / 1.15), from: (q) => [0, W * .32 * (1 - q), 0, 1] },
-    whale: { p: outBack((t - .6) / 1.3), from: (q) => [W * .06 * (1 - q), W * .55 * (1 - q), -9 * (1 - q), .9 + .1 * q] },
-    boat:  { p: outBack((t - .95) / 1.1), from: (q) => [-W * .45 * (1 - q), W * .22 * (1 - q), -14 * (1 - q), 1] },
-    front: { p: outC((t - 1.25) / .95), from: (q) => [0, W * .2 * (1 - q), 0, 1] },
+    sky:   { p: outC((t - 0) / 1.2), from: (q, b) => [0, -10 * (1 - q), 0, 1] },
+    sea:   { p: outC((t - .1) / 1.1), from: (q, b) => [0, b.w * .12 * (1 - q), 0, 1] },
+    whale: { p: outBack((t - .5) / 1.3), from: (q, b) => [b.w * .55 * (1 - q), b.w * .35 * (1 - q), 10 * (1 - q), .92 + .08 * q] },
+    boat:  { p: outBack((t - .85) / 1.15), from: (q, b) => [-b.w * .85 * (1 - q), b.w * .15 * (1 - q), -12 * (1 - q), 1] },
+    front: { p: outC((t - 1.2) / .9), from: (q, b) => [0, b.w * .08 * (1 - q), 0, 1] },
   };
-  const settle = 1 + .014 * Math.sin(Math.PI * clamp((t - 2.05) / .45, 0, 1));   // the plate lands
+  const settle = 1 + .014 * Math.sin(Math.PI * clamp((t - 2) / .45, 0, 1));   // the plate lands
   const idle = clamp((t - 2) / 1.5, 0, 1), tx = plateTilt.x, ty = plateTilt.y;
   const live = {   // breathing, after it lands: the swell, the boat rocking on its crest, the whale riding the sea
-    sky: [0, 0, 0], sea: [0, Math.sin(t * .9) * 2.5, 0], whale: [0, Math.sin(t * .7 + 1) * 3, Math.sin(t * .5) * .6],
-    boat: [Math.sin(t * .6) * 2, Math.sin(t * 1.1 + .5) * 4, Math.sin(t * 1.1) * 1.4], front: [Math.sin(t * .8) * 3, Math.sin(t * .9 + 2) * 2, 0],
+    sky: [0, 0, 0], sea: [0, Math.sin(t * .9) * 2, 0], whale: [0, Math.sin(t * .7 + 1) * 3, Math.sin(t * .5) * .7],
+    boat: [Math.sin(t * .6) * 2, Math.sin(t * 1.1 + .5) * 3.5, Math.sin(t * 1.1) * 1.6], front: [Math.sin(t * .8) * 3, Math.sin(t * .9 + 2) * 1.5, 0],
   };
   for (const k of PLATE) {
-    const img = whale.imgs[k], { p, from } = P[k], [fx, fy, fr, fs] = from(p), [lx, ly, lr] = live[k], d = DEPTH[k];
-    const x = L + fx + lx * idle + tx * d * 12, y = T + fy + ly * idle + ty * d * 7 + (k === 'sky' ? -W * .31 : 0);   // the sky's horizon (76%) onto the sea's (45%)
-    img.style.width = W + 'px';
-    img.style.opacity = (clamp(p * 2.5, 0, 1) * (k === 'sky' ? .8 : 1)).toFixed(3);
+    const img = whale.imgs[k], b = B[k], { p, from } = P[k], [fx, fy, fr, fs] = from(p, b), [lx, ly, lr] = live[k], d = DEPTH[k];
+    const x = b.x + fx + lx * idle + tx * d * 12, y = b.y + fy + ly * idle + ty * d * 7;
+    img.style.width = b.w + 'px';
+    img.style.opacity = (clamp(p * 2.5, 0, 1) * (k === 'sky' ? .7 : 1)).toFixed(3);
     img.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${(fr + lr * idle).toFixed(2)}deg) scale(${(fs * settle).toFixed(4)})`;
   }
 }
+// Where each piece sits, hugging the box (each layer is the whole plate's square; these place the part that matters):
+// a thin band of sea, its horizon just over the box, with the Pequod and a sliver of sky on it; the wave and boat at
+// the left, two thirds of it above the box; the whale's head at the right, rising from behind the box's right end.
+function plateBase(r) {
+  const S = innerWidth, Ws = S * 1.08, seaTop = r.top - 34 - Ws * .47;   // the sea's horizon (47% down its layer) just above the box
+  const Wb = Math.min(S * .6, 260), Ww = Math.min(S * .64, 280);
+  return {
+    sky: { x: (S - Ws) / 2, y: seaTop - Ws * .31, w: Ws }, sea: { x: (S - Ws) / 2, y: seaTop, w: Ws }, front: { x: (S - Ws) / 2, y: seaTop, w: Ws },
+    boat: { x: -Wb * .06, y: r.top - Wb * .7, w: Wb },
+    whale: { x: S - Ww * .97, y: r.top - Ww * .6, w: Ww },
+  };
+}
+const plateRise = () => Math.round(Math.min(innerWidth * .6, 260) * .7);   // how high it reaches above the box: the harpooneer's iron
 // the layers part as the phone tilts (the app's motion sensor, peek.tilt) — or, on a computer, with the pointer
 addEventListener('pointermove', (e) => { if (!EMBED && whale) plateTilt = { x: (e.clientX / innerWidth - .5) * 2, y: (e.clientY / innerHeight - .5) * 2 }; });
 
@@ -3003,7 +3017,7 @@ if (EMBED) {
     // How tall the pile on the chat box is, so the app can make that much room at the chat's end.
     { const g = homeGround(), top = g ? rectOf(g).top : innerHeight; let pile = 0;
       for (const c of critters) { const p = c.body.position, t = p.y - c.w / 2; if (p.y < top + 4 && p.y > top - c.w * 3) pile = Math.max(pile, top - t); }
-      if (whale) pile = Math.max(pile, plateSize() * .66);   // the engraving: room for it above the box
+      if (whale) pile = Math.max(pile, plateRise());   // the engraving: room for it above the box
       const px = pile ? Math.round(pile / 8) * 8 + 12 : 0;
       // Only once the pile has come to rest, and only for a real change: every report makes the app re-pad
       // and scroll the chat, so reporting it while things fall and bounce shook the text.

@@ -471,8 +471,12 @@ him; gpt-image-1) cut into five registered layers by asking the image model to k
 paper is remapped to the page's white, the sky and sea are ink only (alpha from the line) and dissolve upward by CSS masks
 (the sky's horizon is shifted up 31% to meet the sea's — the layers drifted when cut), the whale and boat are cut-outs, and
 the whole plate is clipped around the chat box's rounded rect (`clip-path: path(evenodd …)`) so the box sits in the sea and
-the near waves wrap under it. It lands in pieces (sky, the sea swelling up, the whale breaching with overshoot, the wave
-carrying the boat in from the left, the near waves, then a settle), breathes after (swell, boat rocking, whale riding), and
+the near waves wrap under it. **It hugs the box, it doesn't fill the page** (John: "takes up too much"): each layer is
+placed on its own (`plateBase()`) — the wave and boat at the left, the whale's head at the right rising from behind the
+box's right end, a thin band of sea between with its horizon just over the box (and a sliver of sky with the Pequod);
+the highest point, the harpooneer's iron, is ~170 above the box (`plateRise()`, the room the chat makes). It lands in
+pieces (sky, the sea swelling up, the whale breaching in from the right, the wave carrying the boat in from the left, the
+near waves, then a settle), breathes after (swell, boat rocking, whale riding), and
 the layers part with the phone's tilt (`plateTilt` from `peek.tilt`; the pointer on a computer). The chat makes room for it
 (the inset), and it stays till the next send. A Meshy 3D whale with an engraving shader was considered and not built.
 **Tap a creature** and it eases up to 2× — body and all (`poolSize()`, `Body.scale`), shoving the
