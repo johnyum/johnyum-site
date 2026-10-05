@@ -2126,7 +2126,7 @@ function listSet(c, items) {
 // A brisket's stages, each its own picture (bbq/*.webp): one brisket, the same size and place in every one,
 // with what's happening around it — the knife and trimmings, the rub, the grate and smoke, the paper, the probe,
 // the towel, the slices — and the Egg for setting up. Matched from the stage's words, first rule wins.
-const BBQ_PICS = [[/fat (cap|side) down|flip|start the cook/i, 'fatdown'], [/fire it up/i, 'egg'], [/\brest|cooler|towel|vent/i, 'rest'], [/slic|serve|carv/i, 'slice'], [/wrap|butcher|paper|foil/i, 'wrap'],
+const BBQ_PICS = [[/fat (cap|side) down|flip/i, 'fatdown'], [/^(light|fire)/i, 'egg'], [/\brest|cooler|towel|vent/i, 'rest'], [/slic|serve|carv/i, 'slice'], [/wrap|butcher|paper|foil/i, 'wrap'],
   [/probe|tender|internal|thermometer|done/i, 'probe'], [/trim|square/i, 'trim'], [/\brub|season|salt|pepper|slather/i, 'rub'],
   [/set ?up|cooker|smoker|\begg\b|kamado|stabili|preheat|lump|oak|wood|charcoal|light/i, 'egg'], [/bark|stall|spritz/i, 'bark'], [/./, 'smoke']];
 const bbqPic = (c, t, d = '') => !/brisket/i.test((c.dish || '') + ' ' + lastAsk) ? null
@@ -2145,15 +2145,11 @@ const shortStep = (s) => { s = s.replace(/\s*\([^)]*\)/g, '').trim(); const cut 
 const TIME_RE = /(\d+(?:\.\d+)?(?:\s*(?:-|–|to)\s*\d+(?:\.\d+)?)?)\s*(hours?|hrs?|minutes?|mins?)\b/i;
 // A step as a cook says it — "Trim it", "Wrap it", "Finish at 203°" — with the specifics in a line under it.
 // Claude rewrites both once the answer is done (recipeCore); until then they're read off the step's words.
-const STEP_NAMES = [[/fat (cap|side) down|\bplace\b|\bput\b.*\bon\b/i, 'Start the cook'], [/\brest|cooler|towel/i, 'Rest it'], [/slic|serve|carv/i, 'Serve'],
-  [/wrap|butcher|foil/i, 'Wrap it'], [/probe|tender|internal|finish|until/i, 'finish'], [/trim/i, 'Trim it'], [/\brub|season|salt|pepper/i, 'Season it'],
-  [/set ?up|light|fire|preheat|stabili|cooker|\begg\b|charcoal/i, 'Fire it up'], [/smok|cook/i, 'Smoke it']];
-function stepName(step) {
-  const hit = STEP_NAMES.find(([re]) => re.test(step));
-  if (!hit) return step.replace(/^\*\*([^*]+)\*\*.*/, '$1').split(/\s+/).slice(0, 3).join(' ').replace(/[.:,;]$/, '');
-  if (hit[1] !== 'finish') return hit[1];
-  const t = step.match(/\b(19\d|20\d|21\d)\s*°/); return t ? `Finish at ${t[1]}°` : 'Finish it';
-}
+const STEP_NAMES = [[/fat (cap|side) down|\bplace\b|\bput\b.*\bon\b/i, 'Smoke'], [/\brest|cooler|towel/i, 'Rest'], [/slic|serve|carv/i, 'Serve'],
+  [/wrap|butcher|foil/i, 'Wrap'], [/probe|tender|internal|finish|until/i, 'Finish'], [/trim/i, 'Trim'], [/\brub|season|salt|pepper/i, 'Season'],
+  [/set ?up|light|fire|preheat|stabili|cooker|\begg\b|charcoal/i, 'Light'], [/smok|cook/i, 'Smoke']];
+const stepName = (step) => STEP_NAMES.find(([re]) => re.test(step))?.[1]   // one word: Trim, Season, Light, Smoke, Wrap, Finish, Rest, Serve
+  ?? (step.replace(/^\*\*([^*]+)\*\*.*/, '$1').match(/[A-Za-z]+/) || ['Step'])[0].replace(/^./, (a) => a.toUpperCase());
 const stepDetail = (step) => { const d = step.replace(/^(?:\*\*)?[^*]{1,30}?\*\*[.:]?\s*/, '').replace(/\*\*/g, '').trim().replace(/\.$/, ''); return d.length > 110 ? d.slice(0, 108).replace(/\s+\S*$/, '') + '…' : d; };
 function stageOf(step) {
   const meta = [];
@@ -2166,7 +2162,7 @@ function stageOf(step) {
 // Once the answer is done: Claude (Haiku, through the app) writes just the core — title, key numbers, short steps
 async function recipeCore(c, answer) {
   if (c.cored) return; c.cored = true;
-  const raw = await ask('From this recipe, write only its core as JSON: {"title": what a cookbook would call this recipe, 2 to 5 words, Title Case, with a little flavour, naming the style or cooker if there is one (like "Texas Style Perfect Brisket" or "Big Green Egg Perfect Brisket"), "steps": 4 to 8 stages, each {"name": 1 to 4 words, a plain imperative the way a cook says it (like "Trim it", "Season it", "Start the cook", "Wrap it", "Finish at 203°", "Rest in cooler", "Serve"), "detail": one line of the specifics, under 11 words, with amounts, temperatures and times (like "Trim the fat cap to ¼ inch, remove the hard fat, square the edges")}}. JSON only.', answer.slice(0, 6000), 15000, 900);
+  const raw = await ask('From this recipe, write only its core as JSON: {"title": what a cookbook would call this recipe, 2 to 5 words, Title Case, with a little flavour, naming the style or cooker if there is one (like "Texas Style Perfect Brisket" or "Big Green Egg Perfect Brisket"), "steps": 4 to 8 stages, each {"name": ONE word, the verb a cook would say (like "Trim", "Season", "Light", "Smoke", "Wrap", "Finish", "Rest", "Serve"), "detail": one line of the specifics, under 11 words, including any temperature and time, with amounts, temperatures and times (like "Trim the fat cap to ¼ inch, remove the hard fat, square the edges")}}. JSON only.', answer.slice(0, 6000), 15000, 900);
   let r = null; try { r = JSON.parse((raw || '').match(/\{[\s\S]*\}/)?.[0] || 'null'); } catch {}
   if (!r || !Array.isArray(r.steps) || r.steps.length < 3) return;
   c.dish = String(r.title || c.dish || 'Recipe').slice(0, 48);

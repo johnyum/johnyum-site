@@ -419,9 +419,9 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   (64, centred, 64 under the island; the flying book lands in the head's slot and hands over to the page's copy) over the
   title Claude gives it (`recipeCore`: what a cookbook would call it, e.g. "Big Green Egg Perfect Brisket", Source Serif 26),
   then a grey rule and the steps, arriving one by one, each picture (56) beside its words, the rule under the words only.
-  **Each step is said the way a cook says it** — "Trim it", "Season it", "Fire it up", "Start the cook", "Wrap it",
-  "Finish at 203°", "Rest it", "Serve" — with the specifics in 12px grey under it (John liked "trim it, smoke it, rest it").
-  Claude writes both (`recipeCore`: name + detail under 11 words); until then `stepName()` / `stepDetail()` read them off
+  **Each step is one word** — Trim, Season, Light, Smoke, Wrap, Finish, Rest, Serve (John: "just one word if we can";
+  "Trim it" came first) — with the specifics, temperatures and times in 12px grey under it.
+  Claude writes both (`recipeCore`: a one-word name + detail under 11 words); until then `stepName()` / `stepDetail()` read them off
   the streamed step's whole line (`stepsOf(text, true)`), and the picture comes from the name first, then the detail.
   A held 340 column (edge to edge read as a screen; the tighter page felt nicer). **It fits on one screen** — John: what's
   useful is not scrolling the chat up and down to find the recipe again, so the page is a glance, not a scroll. **No
