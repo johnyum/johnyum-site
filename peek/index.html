@@ -140,7 +140,7 @@ button, textarea { font: inherit; color: inherit; }
 .tui.page { inset: 0; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; text-align: left; }
 .tui.page .tlist { width: min(340px, calc(100% - 48px)); max-height: none; overflow: visible; margin: 0 auto; padding: 112px 0 120px; }   /* a held page, not edge to edge; the book 64 under the island (48); the end clears the X.
    Sized so a whole recipe fits on one screen: the point is a glance, without scrolling the chat (or this) */
-.tui.page .thead { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 6px; padding-bottom: 16px; border-bottom: 1px solid #e3e2de; text-align: center; }   /* the book centred, its name under it, a grey rule, then the steps */
+.tui.page .thead { display: flex; flex-direction: column; align-items: center; gap: 0; margin-bottom: 41px; padding-bottom: 0; border-bottom: 0; text-align: center; }   /* just the book; 48 to the first step's words */   /* the book centred, its name under it, a grey rule, then the steps */
 /* the steps come in one by one under the rule */
 .tui.page .trow { opacity: 0; animation: stepIn .42s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: calc(320ms + var(--i) * 90ms); }
 @keyframes stepIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
@@ -148,11 +148,11 @@ button, textarea { font: inherit; color: inherit; }
 .tui.page .thead h3 { margin: 0; font: 500 22px/1.15 "Source Serif 4", Georgia, serif; letter-spacing: -.01em; color: #1d1d1c; text-wrap: balance; }
 .tui.page .tpic { margin: 0; }
 .tui.page .trow .tpic { flex: 0 0 56px; width: 56px; height: 56px; }
-.tui.page .trow { gap: 14px; align-items: stretch; padding: 0; border-bottom: 0; cursor: default; font-size: 16px; line-height: 1.3; }   /* the rule runs under the words only, never the pictures */
+.tui.page .trow { gap: 14px; align-items: stretch; padding: 0; border-bottom: 0; cursor: default; font: 17px/1.3 "Source Serif 4", Georgia, serif; }   /* the whole page in the serif */   /* the rule runs under the words only, never the pictures */
 .tui.page .trow .tpic { align-self: center; }
 .tui.page .trow .ttxt { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 7px 0; min-height: 56px; box-sizing: border-box; border-bottom: 1px solid #efeeec; }
 .tui.page .tlist:not(.cols) .trow .ttxt { min-height: 0; padding: 14px 0; }
-.tui.page .ttxt small { margin-top: 2px; font-size: 12px; line-height: 1.35; color: #8a8882; font-variant-numeric: normal; text-wrap: pretty; }
+.tui.page .ttxt small { margin-top: 2px; font: 13px/1.35 "Source Serif 4", Georgia, serif; color: #8a8882; font-variant-numeric: normal; text-wrap: pretty; }
 .tui .tlist h4 { margin: 0 0 6px 4px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #87857f; }
 .tui .trow { display: flex; gap: 12px; align-items: flex-start; width: 100%; border: 0; background: none; padding: 11px 4px; font: 17px/1.35 "Schibsted Grotesk", system-ui, sans-serif; color: #1d1d1c; text-align: left; border-bottom: 1px solid #efeeec; cursor: pointer; }
 .tui .tbox { flex: 0 0 22px; height: 22px; border-radius: 50%; border: 1.5px solid #c8c6c0; margin-top: 1px; display: grid; place-items: center; transition: background .2s ease, border-color .2s ease; }
@@ -2131,12 +2131,14 @@ const BBQ_PICS = [[/fat (cap|side) down|flip/i, 'fatdown'], [/^(light|fire)/i, '
   [/set ?up|cooker|smoker|\begg\b|kamado|stabili|preheat|lump|oak|wood|charcoal|light/i, 'egg'], [/bark|stall|spritz/i, 'bark'], [/./, 'smoke']];
 const bbqPic = (c, t, d = '') => !/brisket/i.test((c.dish || '') + ' ' + lastAsk) ? null
   : (BBQ_PICS.slice(0, -1).find(([re]) => re.test(t)) || BBQ_PICS.find(([re]) => re.test(t + ' ' + d)))[1];
+// a range and its unit never split across lines: "4–6 hours", "2–4 hr", "203°F"
+const keepTogether = (t) => t.replace(/(\d)\s*([–-])\s*(\d)/g, '$1\u2060$2\u2060$3').replace(/(\d[\d\u2060–-]*)\s+(hours?|hrs?|minutes?|mins?|inch(?:es)?|lb|oz)\b/g, '$1\u00a0$2');
 const isRecipe = (k) => k === 'recipe' || k === 'cookbook';
 function recipeHTML(c) {
   const pics = c.items.map((t, i) => bbqPic(c, t, (c.meta || [])[i])), cols = pics.some(Boolean);   // with pictures, two columns: pictures, words
-  return `<div class="tlist${cols ? ' cols' : ''}"><div class="thead"><span class="tpic"><img class="tbook" src="plush/${c.key}.webp" alt=""></span><h3>${escR(c.dish || 'Recipe')}</h3></div>`
+  return `<div class="tlist${cols ? ' cols' : ''}"><div class="thead"><span class="tpic"><img class="tbook" src="plush/${c.key}.webp" alt="${escR(c.dish || 'Recipe')}"></span></div>`
     + c.items.map((t, i) => { const m = (c.meta || [])[i];
-      return `<div class="trow" style="--i:${i}">${cols ? `<span class="tpic">${pics[i] ? `<img src="bbq/${pics[i]}.webp" alt="">` : ''}</span>` : ''}<span class="ttxt">${escR(t)}${m ? `<small>${escR(m)}</small>` : ''}</span></div>`; }).join('') + '</div>';
+      return `<div class="trow" style="--i:${i}">${cols ? `<span class="tpic">${pics[i] ? `<img src="bbq/${pics[i]}.webp" alt="">` : ''}</span>` : ''}<span class="ttxt">${escR(t)}${m ? `<small>${keepTogether(escR(m))}</small>` : ''}</span></div>`; }).join('') + '</div>';
 }
 const escR = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 // Until Claude has boiled it down: each step trimmed to its core (no asides in brackets, nothing after the

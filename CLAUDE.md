@@ -418,9 +418,9 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   **Opened, a recipe is one white page that scrolls whole** (`.tui.page`): 24 a side, page to page, two columns — the book
   (64, centred, 64 under the island; the flying book lands in the head's slot and hands over to the page's copy) over the
   title Claude gives it (`recipeCore`: what a cookbook would call it, e.g. "Big Green Egg Perfect Brisket", Source Serif 26),
-  then a grey rule and the steps, arriving one by one, each picture (56) beside its words, the rule under the words only.
+  (no title or rule under it now — just the book, 48 to the steps; John asked for both and then took them out) then the steps, arriving one by one, each picture (56) beside its words, the rule under the words only.
   **Each step is one word** — Trim, Season, Light, Smoke, Wrap, Finish, Rest, Serve (John: "just one word if we can";
-  "Trim it" came first; each name carries its number when the step has one — "Light · 250°", "Smoke · 250°" (the cooker's, carried), "Wrap · 165°", "Finish · 203°", "Rest · 2–4 hr", temperature first, `tagSteps()`) — with the specifics, temperatures and times in 12px grey under it.
+  "Trim it" came first; each name carries its number when the step has one — "Light · 250°", "Smoke · 250°" (the cooker's, carried), "Wrap · 165°", "Finish · 203°", "Rest · 2–4 hr", temperature first, `tagSteps()`) — with the specifics, temperatures and times in 13px grey under it. The whole page is in the serif (Source Serif 4), and a range and its unit never break (`keepTogether()`).
   Claude writes both (`recipeCore`: a one-word name + detail under 11 words); until then `stepName()` / `stepDetail()` read them off
   the streamed step's whole line (`stepsOf(text, true)`), and the picture comes from the name first, then the detail.
   A held 340 column (edge to edge read as a screen; the tighter page felt nicer). **It fits on one screen** — John: what's
