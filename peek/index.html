@@ -2984,7 +2984,7 @@ const SP_ASK = [[/swing/i, 'swing'], [/climb|wall|corner|web ?up the/i, 'wall'],
 function spAsk(text) {
   const sp = spidey; if (!sp || sp.loading) return;
   const hit = SP_ASK.find(([re]) => re.test(text));
-  if (!hit) return spToBubble(text);   // anything else: he leaps onto your new message and stands on it
+  if (!hit) return spToBox();   // anything else: he jumps down onto the chat box and watches the answer come in
   sp.after = hit[1]; if (['hang', 'perch', 'land', 'bubble', 'watch'].includes(sp.mode)) spDoNow();   // otherwise it happens when he's done
 }
 // your new bubble: right-aligned just above the "Thinking…" row and the box; its height from what you typed (the app
@@ -2994,6 +2994,17 @@ function spToBubble(text) {
   const top = r.top - 70 - h, x = innerWidth - 16 - Math.min(innerWidth * .72, 30 + String(text).length * 8.6) * .3;
   sp.after = null; sp.from = { x: sp.x, y: sp.mode === 'hang' ? sp.y + SP_H * .55 : sp.y }; sp.to = { x, y: top }; sp.anchor = null;
   spSet('leap'); sp.leapTo = 'bubble'; spPlay('Jump', true); spFace(x > sp.x ? 1 : -1);
+}
+function spGrabWall(side) {   // onto the screen's edge, and up it
+  const sp = spidey; sp.side = side; sp.anchor = null; sp.hold = null; sp.vx = sp.vy = 0;
+  sp.y = clamp(sp.y, 150 + SP_H, spBox().top - 40); sp.climbTo = 150 + SP_H;
+  spSet('climb'); spPlay('Climb'); if (sp.act) sp.act.timeScale = 2.2; spFace(2 * side);
+}
+function spToBox() {   // down onto the chat box to watch (from his web, the wall, wherever he is); the answer done, back up (spDone)
+  const sp = spidey, r = spBox(); if (sp.mode === 'leave' || sp.mode === 'held') return;
+  if (['land', 'pose', 'run', 'crawl', 'roll', 'crouch', 'watch'].includes(sp.mode)) { sp.y = r.top; spSet('watch'); spPlay('Idle', false, .2); spFace(0); return; }
+  sp.after = null; sp.from = { x: sp.x, y: sp.mode === 'hang' ? sp.y + SP_H * .55 : sp.y }; sp.to = { x: clamp(sp.x, r.left + 40, r.right - 40), y: r.top }; sp.anchor = null;
+  spSet('leap'); sp.leapTo = 'watch'; spPlay('Jump', true); spFace(0);
 }
 function spOffBubble() {   // the answer has started moving: off the bubble, onto the chat box
   const sp = spidey; if (!sp || !['bubble', 'leap'].includes(sp.mode)) return;
@@ -3058,7 +3069,8 @@ function spideyStep(dt) {
     }
   } else if (sp.mode === 'fall') {   // in the air: falling, turning right way up, onto the chat box
     sp.vy += SP_G * dt; sp.x += sp.vx * dt; sp.y += sp.vy * dt;
-    sp.x = clamp(sp.x, r.left + 30, r.right - 30);
+    if ((sp.x < 22 || sp.x > W - 22) && sp.y < floor - 50) return spGrabWall(sp.x < W / 2 ? -1 : 1);   // pushed into a side: the screen's edge is a wall
+    if (sp.y > floor - 80) sp.x = clamp(sp.x, r.left + 30, r.right - 30);
     if (sp.y >= floor && sp.vy > 0) { sp.y = floor; spSet('land'); spPlay('Idle', false, .12); spFace(0); }
   } else if (sp.mode === 'land') { sp.y = floor; if (sp.t > (sp.press ? .1 : .4)) { if (sp.after) spDoNow(); else if (sp.swung) { sp.swung = false; spSet('pose'); spFace(0); sp.poseDur = .5; spPlay('Idle'); } else spNext('box', 'run'); } }
   else if (sp.mode === 'run' || sp.mode === 'crawl') {   // off to one end of the box — running, or creeping on all fours
@@ -3079,7 +3091,7 @@ function spideyStep(dt) {
   } else if (sp.mode === 'climb') {   // up the side of the screen, hand over hand
     pose = 'wall'; sp.x = wallX(sp.side); sp.y -= SP_SPEED.Climb * 2.2 * dt;
     if (sp.y <= sp.climbTo) { spSet('perch'); if (sp.act) sp.act.paused = true; spCornerWeb(sp.side); }
-  } else if (sp.mode === 'perch') { pose = 'wall'; sp.x = wallX(sp.side); if (sp.t > 2.2) { if (sp.after) spDoNow(); else spSwingFrom(sp.x, sp.y); } }
+  } else if (sp.mode === 'perch') { pose = 'wall'; sp.x = wallX(sp.side); if (sp.after) spDoNow(); }   // on the wall, he stays till you do something
   // a tap's trick, hanging: a spin on his web
   if (sp.spin) { sp.spin = Math.max(0, sp.spin - dt * 2.2); }
   // place him
@@ -3127,6 +3139,7 @@ addEventListener('pointerup', () => {
   if (sp.mode !== 'held') { if (press && performance.now() - press.t < 400) spTrick(); return; }   // a tap: a trick
   const h = sp.hold.hist, a = h[0], b = h[h.length - 1], dt = Math.max(16, b[0] - a[0]) / 1000;
   sp.vx = clamp((b[1] - a[1]) / dt, -900, 900); sp.vy = clamp((b[2] - a[2]) / dt, -1200, 900);
+  if (sp.hold.x < 44 || sp.hold.x > innerWidth - 44) { const side = sp.hold.x < innerWidth / 2 ? -1 : 1; sp.x = sp.hold.x; sp.y = sp.hold.y + SP_H; return spGrabWall(side); }   // let go against a side: he takes the wall
   spSet('fall'); sp.hold = null; sp.anchor = null; spPlay('Jump', true); spFace(0);
 });
 

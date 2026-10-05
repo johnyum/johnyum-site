@@ -482,9 +482,10 @@ file (`peek/spidey/spidey.glb`, 3.5MB: Idle, Jump, Hang, Run, Land, Backflip, Ki
 each Meshy move ships as a whole GLB, so the merge copies only the animation data, re-pointed by bone name). His own
 module and scene (`spScene`) on the old character's canvas and ortho camera (one unit, one pixel, y up). He bounds in
 onto the box, webs up from just off the top edge and hangs upside down — and **just hangs till you do something; nothing
-loops** (John: an endless run-around loop wasn't wanted). **He reacts to you**: send a follow-up and he leaps onto your new
-bubble (`spToBubble()`, aimed where the app draws it — the app doesn't report message frames) and stands on it; when the
-answer starts moving he jumps off onto the box and watches; when it's done he webs back up. **Ask him things** (`spAsk()`,
+loops** (John: an endless run-around loop wasn't wanted). **He reacts to you**: send a follow-up and he jumps down onto the
+chat box and watches the answer come in (`spToBox()`); when it's done he webs back up (landing on your bubble was tried
+and dropped — `spToBubble()` is kept, unused). **Push him into a side** — let go against the screen's edge, or fling him
+into it — and he takes it as a wall (`spGrabWall()`): climbs to the top, perches, spins the corner web, and stays. **Ask him things** (`spAsk()`,
 `SP_ASK`): "swing" — across the screen on a web, letting go over the far side (sometimes in a backflip); "climb the
 wall" — runs to an end, leaps onto the screen's own edge (flush, `wallX`) and climbs it side-on, perches and **spins a
 web in that top corner** (an SVG drawn line by line, cut away round the app's ☰/⋯ buttons and status bar so they sit
