@@ -135,10 +135,15 @@ button, textarea { font: inherit; color: inherit; }
 .tui .play { width: 48px; height: 48px; border-radius: 50%; border: 0; padding: 0; background: #1d1d1c; display: inline-grid; place-items: center;
   transition: background .2s ease, transform .15s ease, opacity .2s ease; }
 .tui .tlist { width: min(340px, 86vw); margin: 0 auto; max-height: 58vh; overflow-y: auto; text-align: left; overscroll-behavior: contain; }
-.tui .trow.pic { align-items: center; gap: 12px; padding: 8px 4px; }
 .tui .tpic { flex: 0 0 72px; height: 72px; margin: 0 -2px; }
 .tui .tpic img { width: 100%; height: 100%; object-fit: contain; transition: opacity .2s ease; }
-.tui .trow.pic.done .tpic img { opacity: .4; }
+.tui.page { inset: 0; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; text-align: left; }
+.tui.page .tlist { width: auto; max-height: none; overflow: visible; margin: 0; padding: 104px 24px 148px; }   /* page to page, 24 a side; the end clears the X */
+.tui.page .thead { display: flex; align-items: center; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid #efeeec; }
+.tui.page .thead h3 { margin: 0; font: 500 26px/1.15 "Source Serif 4", Georgia, serif; letter-spacing: -.01em; color: #1d1d1c; text-wrap: balance; }
+.tui.page .tpic { margin: 0; }
+.tui.page .trow { gap: 16px; align-items: center; padding: 12px 0; cursor: default; }
+.tui.page .tlist:not(.cols) .trow { padding: 14px 0; }
 .tui .tlist h4 { margin: 0 0 6px 4px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #87857f; }
 .tui .trow { display: flex; gap: 12px; align-items: flex-start; width: 100%; border: 0; background: none; padding: 11px 4px; font: 17px/1.35 "Schibsted Grotesk", system-ui, sans-serif; color: #1d1d1c; text-align: left; border-bottom: 1px solid #efeeec; cursor: pointer; }
 .tui .tbox { flex: 0 0 22px; height: 22px; border-radius: 50%; border: 1.5px solid #c8c6c0; margin-top: 1px; display: grid; place-items: center; transition: background .2s ease, border-color .2s ease; }
@@ -2112,10 +2117,10 @@ const BBQ_PICS = [[/\brest|cooler|towel|vent/i, 'rest'], [/slic|serve|carv/i, 's
 const bbqPic = (c, t) => /brisket/i.test((c.dish || '') + ' ' + lastAsk) ? BBQ_PICS.find(([re]) => re.test(t))[1] : null;
 const isRecipe = (k) => k === 'recipe' || k === 'cookbook';
 function recipeHTML(c) {
-  const check = '<svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  return `<div class="tlist"><h4>${escR(c.dish || 'Recipe')}</h4>` + c.items.map((t, i) => { const m = (c.meta || [])[i], pic = bbqPic(c, t);
-    const box = `<span class="tbox">${check}</span>` + (pic ? `<span class="tpic"><img src="bbq/${pic}.webp" alt=""></span>` : '');
-    return `<button class="trow${pic ? ' pic' : ''}${c.done.has(i) ? ' done' : ''}" data-i="${i}">${box}<span class="ttxt">${escR(t)}${m ? `<small>${escR(m)}</small>` : ''}</span></button>`; }).join('') + '</div>';
+  const pics = c.items.map((t) => bbqPic(c, t)), cols = pics.some(Boolean);   // with pictures, two columns: pictures, words
+  return `<div class="tlist${cols ? ' cols' : ''}"><div class="thead"><span class="tpic"><img class="tbook" src="plush/${c.key}.webp" alt=""></span><h3>${escR(c.dish || 'Recipe')}</h3></div>`
+    + c.items.map((t, i) => { const m = (c.meta || [])[i];
+      return `<div class="trow">${cols ? `<span class="tpic">${pics[i] ? `<img src="bbq/${pics[i]}.webp" alt="">` : ''}</span>` : ''}<span class="ttxt">${escR(t)}${m ? `<small>${escR(m)}</small>` : ''}</span></div>`; }).join('') + '</div>';
 }
 const escR = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 // Until Claude has boiled it down: each step trimmed to its core (no asides in brackets, nothing after the
@@ -2133,11 +2138,11 @@ function stageOf(step) {
 // Once the answer is done: Claude (Haiku, through the app) writes just the core — title, key numbers, short steps
 async function recipeCore(c, answer) {
   if (c.cored) return; c.cored = true;
-  const raw = await ask('From this recipe, write only its core as JSON: {"title": the dish in 1 to 3 words, "steps": 4 to 7 stages, each {"do": one short line of action, under 7 words, with no temperature or time in it, "temp": that stage\'s temperature or "" (like "250°F" or "165°F internal"), "time": that stage\'s time or "" (like "6–8 hr")}}. JSON only.', answer.slice(0, 6000), 15000, 900);
+  const raw = await ask('From this recipe, write only its core as JSON: {"title": what a cookbook would call this recipe, 2 to 5 words, Title Case, naming the cooker if there is one (like "Big Green Egg Perfect Brisket"), "steps": 4 to 7 stages, each {"do": one short line of action, under 7 words, with no temperature or time in it, "temp": that stage\'s temperature or "" (like "250°F" or "165°F internal"), "time": that stage\'s time or "" (like "6–8 hr")}}. JSON only.', answer.slice(0, 6000), 15000, 900);
   let r = null; try { r = JSON.parse((raw || '').match(/\{[\s\S]*\}/)?.[0] || 'null'); } catch {}
   if (!r || !Array.isArray(r.steps) || r.steps.length < 3) return;
-  c.dish = String(r.title || c.dish || 'Recipe').slice(0, 28);
-  const t = c.el.querySelector('.ctitle text'); if (t) t.textContent = c.dish;
+  c.dish = String(r.title || c.dish || 'Recipe').slice(0, 48);
+  const t = c.el.querySelector('.ctitle text'); if (t) t.textContent = c.dish.length > 18 ? c.dish.slice(0, 17) + '…' : c.dish;   // the little card's title line is short
   const st = r.steps.map((x) => typeof x === 'string' ? { do: x } : x);
   c.meta = st.map((x) => [x.temp, x.time].filter(Boolean).join(' · '));
   c.cored = 'done'; listSet(c, st.map((x) => String(x.do || ''))); if (tcard && tcard.c === c) tcard.ui.innerHTML = recipeHTML(c);
@@ -2438,7 +2443,7 @@ const mmss = (s) => { s = Math.ceil(s); return `${Math.floor(s / 60)}:${String(s
    Under it: the countdown, a few presets, pause and reset. Tap outside and it shrinks back down
    and drops into the pile, still counting. */
 let tcard = null, audio = null;   // the grown timer, if any
-const grownSize = () => 64;   // tapped, the timer becomes a small icon over its readout and play button
+const grownSize = () => tcard?.ui.classList.contains('page') ? 72 : 64;   // tapped, the timer becomes a small icon over its readout and play button
 function timerCard(c) { tcard ? shrinkTimer() : growTimer(c); }
 function growTimer(c) {
   if (c.timer) audio ||= new (window.AudioContext || window.webkitAudioContext)();   // made on a tap, so it can tick and ring
@@ -2455,6 +2460,7 @@ function growTimer(c) {
   const ui = document.createElement('div'); ui.className = 'tui';
   if (c.places) { ui.innerHTML = placesHTML(c); ui.addEventListener('click', (e) => { const r = e.target.closest('.trow'); if (r) placeOpen(c.places[+r.dataset.p]); }); }
   else if (c.game) { c.game = c.game.round >= c.game.rounds.length ? gameNew() : c.game; ui.innerHTML = gameHTML(c.game); ui.addEventListener('click', (e) => gameClick(c, e)); scrim.classList.add('solid'); }
+  else if (isRecipe(c.key)) { ui.classList.add('page'); ui.innerHTML = listHTML(c); scrim.classList.add('solid'); }   // a recipe: one white page, scrolled whole
   else if (!c.timer) { ui.innerHTML = listHTML(c); ui.addEventListener('click', (e) => { const r = e.target.closest('.trow'); if (r) listToggle(c, +r.dataset.i); }); }
   else ui.innerHTML = `<div class="tread">00:00:00</div><button class="play" data-a="go" aria-label="Start"><svg viewBox="0 0 24 24"><path class="i-play" d="M8 5.5v13l11-6.5z" fill="#fff"/><g class="i-pause" fill="#fff"><rect x="6.5" y="5.5" width="4" height="13" rx="1.2"/><rect x="13.5" y="5.5" width="4" height="13" rx="1.2"/></g></svg></button>`;
   ui.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -2475,7 +2481,7 @@ function shrinkTimer() {
   t.kFrom = t.k; t.to = 0; t.t0 = performance.now(); t.dur = 480; t.scrim.classList.remove('on'); t.ui.classList.remove('on'); t.close.classList.remove('on');
   setTimeout(() => {
     if (tcard !== t) return;
-    t.scrim.remove(); t.ui.remove(); t.close.remove(); t.c.el.classList.remove('grown'); tcard = null;
+    t.scrim.remove(); t.ui.remove(); t.close.remove(); t.c.el.classList.remove('grown'); t.c.el.style.visibility = ''; tcard = null;
     t.c.el.style.width = t.c.el.style.height = t.c.w + 'px'; t.c.placed = false;   // back to its pile size, whatever the frame rate
     // back where it came from in the pile, at rest — set down, not thrown (a hair high, so it settles
     // onto whatever has shifted under it rather than into it)
@@ -2486,9 +2492,10 @@ function shrinkTimer() {
   }, 500);
 }
 function startTimer(T) { T.endAt = Date.now() + T.left * 1000; T.running = true; T.rung = false; }
-function closeCard() { if (tcard) { tcard.scrim.remove(); tcard.ui.remove(); tcard.close.remove(); tcard.c.el.classList.remove('grown'); tcard = null; } }
+function closeCard() { if (tcard) { tcard.scrim.remove(); tcard.ui.remove(); tcard.close.remove(); tcard.c.el.classList.remove('grown'); tcard.c.el.style.visibility = ''; tcard = null; } }
 const ISLAND = 48;   // the Dynamic Island's bottom edge, in points from the top
-const grownAt = () => tcard?.c.game ? { x: innerWidth / 2, y: ISLAND + 48 + grownSize() / 2 }   // the game: its icon up top, 48 under the island
+const grownAt = () => tcard?.ui.classList.contains('page') ? (({ left, top }) => ({ x: left + 36, y: top + 36 }))(tcard.ui.querySelector('.thead .tpic').getBoundingClientRect())   // a recipe: the book at the head of its page
+  : tcard?.c.game ? { x: innerWidth / 2, y: ISLAND + 48 + grownSize() / 2 }   // the game: its icon up top, 48 under the island
   : { x: innerWidth / 2, y: Math.max(40, innerHeight / 2 - (80 + (tcard?.ui.offsetHeight || 144)) / 2 + 32) };   // the icon's centre: the whole column (icon 64 · 16 · what's under it) centred on the screen
 function paintCard() {
   if (!tcard || !tcard.c.timer) return; const T = tcard.c.timer, left = timerLeft(T), b = tcard.ui.querySelector('.play');
@@ -2565,6 +2572,12 @@ function tickTimers() {
     c.el.style.transform = `translate(${(x - w / 2).toFixed(1)}px, ${(y - w / 2).toFixed(1)}px) rotate(${a.toFixed(3)}rad)`;
     const u = clamp((k - .3) / .7, 0, 1), ue = u * u * (3 - 2 * u);
     t.ui.style.opacity = ue.toFixed(3);
+    if (t.ui.classList.contains('page')) {   // the page fades in in place; the flying book hands over to the page's own when it lands
+      t.ui.style.transform = `translate(0px, ${((1 - ue) * 14).toFixed(1)}px)`;
+      const landed = t.to === 1 && p >= 1, b = t.ui.querySelector('.tbook');
+      if (b) b.style.visibility = landed ? '' : 'hidden'; c.el.style.visibility = landed ? 'hidden' : '';
+      return;
+    }
     const uy = c.game ? Math.max(at.y + G / 2 + 16, (innerHeight - t.ui.offsetHeight) / 2) : at.y + G / 2 + 16;   // the game: the question and choices in the middle, only the icon up top
     t.ui.style.transform = `translate(0px, ${(uy + (1 - ue) * 14).toFixed(1)}px) scale(${(.97 + .03 * ue).toFixed(4)})`;
   }

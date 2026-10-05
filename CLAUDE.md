@@ -414,6 +414,10 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   bark, wrap, probe, rest, slice; plus the gear in the same style (egg, charcoal, paper, cooler, thermo). Made with
   gpt-image-1 *edits* of one base image (`input_fidelity: high`), then each scaled so its brisket matches the base and all
   cropped to one shared square — the model drifts the size by up to 25%, so the normalising step is not optional.
+  **Opened, a recipe is one white page that scrolls whole** (`.tui.page`): 24 a side, page to page, two columns — the book
+  (the same 72 as the pictures; the flying book lands in the head's slot and hands over to the page's copy) beside the
+  title Claude gives it (`recipeCore`: what a cookbook would call it, e.g. "Big Green Egg Perfect Brisket", Source Serif 26),
+  then each step's picture beside its words. No tick circles, no small-caps label; the black X floats over the page.
 - **Shopping list** — an ingredient list (`groceriesOf()`, bullets under an Ingredients/shopping heading):
   a simple yellow legal pad (`plush/groceries.webp`; was a grocery bag, then a notepad with a pencil), the items written on its page
   (`SHOPPAPER`); tapped, the same checklist.
