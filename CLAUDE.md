@@ -399,6 +399,9 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
 - **Checklist clipboard** — when you asked how to do something (`HOWTO` on your message, `lastAsk`) and the
   answer has 3+ numbered steps (`stepsOf()`): the steps are written on its paper (`PAPER`, ticks and a
   count); tapped, it opens like the timer into a checklist you tick off (remembered in localStorage).
+- **Recipe card** — a how-to that's cooking (recipe/cook/bake/smoke/grill/oven… in your question or the
+  answer's start) gets an old-school recipe card instead of the clipboard (`plush/recipe.webp`): the dish's
+  name typed above its red rule (Haiku names it, `recipeTitle()`), the steps typed on its lines (Special Elite).
 - **Shopping list** — an ingredient list (`groceriesOf()`, bullets under an Ingredients/shopping heading):
   a simple yellow legal pad (`plush/groceries.webp`; was a grocery bag, then a notepad with a pencil), the items written on its page
   (`SHOPPAPER`); tapped, the same checklist.
