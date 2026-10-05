@@ -421,9 +421,12 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   (no title or rule under it now — just the book, 48 to the steps; John asked for both and then took them out) then the steps, arriving one by one, each picture (56) beside its words, the rule under the words only.
   **Each step is one word** — Trim, Season, Light, Smoke, Wrap, Finish, Rest, Serve (John: "just one word if we can";
   "Trim it" came first; each name carries its number when the step has one — "Light · 250°", "Smoke · 250°" (the cooker's, carried), "Wrap · 165°", "Finish · 203°", "Rest · 2–4 hr", temperature first, `tagSteps()`) — with the specifics, temperatures and times in 13px grey under it. Names in the serif (Source Serif 4, 17), specifics in the sans (Schibsted 13) — after trying all-serif; a range and its unit never break (`keepTogether()`).
-  Each step takes only the temperature that belongs to it: the cooker's (200–350) for Light/Smoke, the stall's (150–185) for
+  Each step takes only the temperature that belongs to it: the cooker's (200–350) for Light, the stall's (150–185) for
   Wrap, done (190–215) for Finish; Rest is told by its time — Claude folds steps together ("wrap… back on until 203°F").
+  Smoke shows how long to smoke before wrapping ("Smoke · 6 hr" — John: 250° there is wrong, it's the Egg's, on Light).
   Prepare (plate setter, filling the charcoal) is its own word, before Light.
+  **Pull down from the top and the book grows with your finger** while the steps sink and fade; past 110 the page dismisses
+  (the book flies home from its grown size), short of it springs back (touch events on `.tui.page`, `paintPull()`).
   Claude writes both (`recipeCore`: a one-word name + detail under 11 words); until then `stepName()` / `stepDetail()` read them off
   the streamed step's whole line (`stepsOf(text, true)`), and the picture comes from the name first, then the detail.
   **The steps scroll under a pinned book** (`.tscroll`; the book sits outside it in `.thead`): scrolling shrinks it 64 → 32

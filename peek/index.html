@@ -2164,19 +2164,17 @@ const STEP_NAMES = [[/fat (cap|side) down|\bplace\b|\bput\b.*\bon\b/i, 'Smoke'],
 const stepName = (step) => STEP_NAMES.find(([re]) => re.test(step))?.[1]   // one word: Trim, Season, Light, Smoke, Wrap, Finish, Rest, Serve
   ?? (step.replace(/^\*\*([^*]+)\*\*.*/, '$1').match(/[A-Za-z]+/) || ['Step'])[0].replace(/^./, (a) => a.toUpperCase());
 // Each name carries its number when the step has one — "Smoke · 250°", "Wrap · 165°", "Finish · 203°", "Rest · 2–4 hr":
-// a temperature first, else a time. Smoke takes the cooker's temperature from the step that set it, if its own
-// line only gives hours.
+// a temperature first, else a time — except Smoke, which tells you how long to smoke before wrapping ("Smoke · 6 hr";
+// failing a time, the stall temperature you wrap at).
 function tagSteps(names, texts) {
-  let cooker = null;
   return names.map((n, i) => {
     const t = String(texts[i] || ''), temps = [...t.matchAll(/\b(\d{3})\s*°/g)].map((m) => +m[1]), tm = t.match(TIME_RE);
-    // the temperature that belongs to the step: the cooker's (200–350) to light and smoke, the stall's
+    // the temperature that belongs to the step: the cooker's (200–350) to light, the stall's
     // (150–185) to wrap, done (190–215) to finish; resting is told by its time, not its holding temperature
-    const want = /^(light|fire|set|heat|preheat|smoke)/i.test(n) ? [200, 350] : /^wrap/i.test(n) ? [150, 185] : /^finish/i.test(n) ? [190, 215] : /^rest/i.test(n) ? null : [100, 550];
+    const want = /^smoke/i.test(n) ? (tm ? null : [150, 185]) : /^(light|fire|set|heat|preheat)/i.test(n) ? [200, 350] : /^wrap/i.test(n) ? [150, 185] : /^finish/i.test(n) ? [190, 215] : /^rest/i.test(n) ? null : [100, 550];
     const deg = want && temps.find((d) => d >= want[0] && d <= want[1]);
-    if (deg && /^(light|fire|set|heat|preheat)/i.test(n)) cooker = deg;
     const time = tm ? tm[1].replace(/\s*(?:-|to)\s*/, '–') + (/^h/i.test(tm[2]) ? ' hr' : ' min') : '';
-    const tag = deg ? deg + '°' : /^smoke/i.test(n) && cooker ? cooker + '°' : /^(wrap|light|prepare)/i.test(n) ? '' : time;
+    const tag = /^smoke/i.test(n) && time ? time : deg ? deg + '°' : /^(wrap|light|prepare)/i.test(n) ? '' : time;
     return tag && !n.includes('·') ? `${n} · ${tag}` : n;
   });
 }
@@ -2192,7 +2190,7 @@ function stageOf(step) {
 // Once the answer is done: Claude (Haiku, through the app) writes just the core — title, key numbers, short steps
 async function recipeCore(c, answer) {
   if (c.cored) return; c.cored = true;
-  const raw = await ask('From this recipe, write only its core as JSON: {"title": what a cookbook would call this recipe, 2 to 5 words, Title Case, with a little flavour, naming the style or cooker if there is one (like "Texas Style Perfect Brisket" or "Big Green Egg Perfect Brisket"), "steps": 4 to 8 stages, each {"name": ONE word, the verb a cook would say (like "Trim", "Season", "Light", "Smoke", "Wrap", "Finish", "Rest", "Serve"), "detail": one line of the specifics, under 11 words, including any temperature and time, with amounts, temperatures and times (like "Trim the fat cap to ¼ inch, remove the hard fat, square the edges")}}. JSON only.', answer.slice(0, 6000), 15000, 900);
+  const raw = await ask('From this recipe, write only its core as JSON: {"title": what a cookbook would call this recipe, 2 to 5 words, Title Case, with a little flavour, naming the style or cooker if there is one (like "Texas Style Perfect Brisket" or "Big Green Egg Perfect Brisket"), "steps": 4 to 8 stages, each {"name": ONE word, the verb a cook would say (like "Trim", "Season", "Light", "Smoke", "Wrap", "Finish", "Rest", "Serve"), "detail": one line of the specifics, under 11 words, including any temperature and time (for the smoke, how long to smoke before wrapping), with amounts, temperatures and times (like "Trim the fat cap to ¼ inch, remove the hard fat, square the edges")}}. JSON only.', answer.slice(0, 6000), 15000, 900);
   let r = null; try { r = JSON.parse((raw || '').match(/\{[\s\S]*\}/)?.[0] || 'null'); } catch {}
   if (!r || !Array.isArray(r.steps) || r.steps.length < 3) return;
   c.dish = String(r.title || c.dish || 'Recipe').slice(0, 48);
@@ -2523,6 +2521,27 @@ function growTimer(c) {
       const p = clamp((e.target.scrollTop || 0) / 72, 0, 1), b = ui.querySelector('.thead .tpic');
       if (b) b.style.transform = p ? `translateY(${(-32 * p).toFixed(1)}px) scale(${(1 - .5 * p).toFixed(3)})` : '';
     }, true);
+    // Pull down from the top and the book grows with your finger while the steps sink and fade; let go past
+    // 110 and the page goes — the book flies home from the size it's grown to. Short of that, it springs back.
+    let y0 = null, pull = 0;
+    const parts = () => [ui.querySelector('.thead .tpic'), ui.querySelector('.tscroll > .tlist')];
+    const paintPull = (ease) => {
+      const [b, l] = parts(), tr = ease ? 'transform .38s cubic-bezier(.2,.9,.25,1.15), opacity .3s ease' : '';
+      if (b) { b.style.transition = tr; b.style.transform = pull ? `scale(${(1 + pull / 120).toFixed(3)})` : ''; }
+      if (l) { l.style.transition = tr; l.style.transform = pull ? `translateY(${(pull * .45).toFixed(1)}px)` : ''; l.style.opacity = pull ? (1 - Math.min(pull / 220, .7)).toFixed(3) : ''; }
+    };
+    ui.addEventListener('touchstart', (e) => { const sc = ui.querySelector('.tscroll'); y0 = sc && sc.scrollTop <= 0 ? e.touches[0].clientY : null; pull = 0; }, { passive: true });
+    ui.addEventListener('touchmove', (e) => {
+      if (y0 == null) return; const dy = e.touches[0].clientY - y0;
+      if (dy <= 0) { if (pull) { pull = 0; paintPull(); } return; }   // going up: an ordinary scroll
+      e.preventDefault(); pull = dy < 160 ? dy : 160 + (dy - 160) * .35; paintPull();   // a little resistance past 160
+    }, { passive: false });
+    const release = () => {
+      if (y0 == null) return; y0 = null;
+      if (pull > 110) { const [, l] = parts(); if (l) { l.style.transition = 'opacity .2s ease'; l.style.opacity = '0'; } shrinkTimer(); }
+      else if (pull) { pull = 0; paintPull(true); }
+    };
+    ui.addEventListener('touchend', release); ui.addEventListener('touchcancel', release);
   }   // a recipe: one white page, scrolled whole
   else if (!c.timer) { ui.innerHTML = listHTML(c); ui.addEventListener('click', (e) => { const r = e.target.closest('.trow'); if (r) listToggle(c, +r.dataset.i); }); }
   else ui.innerHTML = `<div class="tread">00:00:00</div><button class="play" data-a="go" aria-label="Start"><svg viewBox="0 0 24 24"><path class="i-play" d="M8 5.5v13l11-6.5z" fill="#fff"/><g class="i-pause" fill="#fff"><rect x="6.5" y="5.5" width="4" height="13" rx="1.2"/><rect x="13.5" y="5.5" width="4" height="13" rx="1.2"/></g></svg></button>`;
