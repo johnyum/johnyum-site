@@ -401,7 +401,9 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   count); tapped, it opens like the timer into a checklist you tick off (remembered in localStorage).
 - **Recipe card** — a how-to that's cooking (recipe/cook/bake/smoke/grill/oven… in your question or the
   answer's start) gets an old-school recipe card instead of the clipboard (`plush/recipe.webp`): the dish's
-  name typed above its red rule (Haiku names it, `recipeTitle()`), the steps typed on its lines (Special Elite).
+  name typed above its red rule (Haiku names it, `recipeTitle()`), the steps typed on its lines (Special Elite). Opened, it reads like a recipe: a cream card, the dish in
+  serif, the key numbers big (total time first, then temps and times), short numbered steps to tick off — Haiku
+  boils the finished answer down to that core (`recipeCore()`); until then the page trims the steps itself.
 - **Shopping list** — an ingredient list (`groceriesOf()`, bullets under an Ingredients/shopping heading):
   a simple yellow legal pad (`plush/groceries.webp`; was a grocery bag, then a notepad with a pencil), the items written on its page
   (`SHOPPAPER`); tapped, the same checklist.
