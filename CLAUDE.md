@@ -474,19 +474,23 @@ clears the crew. Tried and dropped, in order: the plush whale; a five-layer cut-
 together", a needless horizon); a long low whale; a tail slap as a heavy black slab; a moving-water shimmer (seams); a
 filigree sea with tiny tail and boat. Ink only, no paper (mapped to nothing *locally*, so no grey rectangle). Cut around
 the box's rounded rect. It develops up out of the box like a print off the block, then holds still till the next send.
-**Spider-Man** (2026-10-05): ask about Spider-Man (`SPIDEY_RE`) and the classic Spider-Man comes into the chat in 3D — a
-Meshy-rigged model from John's Downloads (`spiderman-moves/`), the rig and eight moves merged into one file
-(`peek/spidey/spidey.glb`, 3.1MB: Idle, Jump, Hang, Run, Land, Backflip, Kick, WallFlip — each Meshy move ships as a whole
-GLB, so the merge copies only the animation data, re-pointed by bone name). His own small module and scene (`spScene`) on
-the old character's canvas and ortho camera (one unit, one pixel, y up) — not the retired character system. He bounds in
-onto the chat box, webs up from just off the top edge and hangs upside down, swinging (a pendulum on his web). Grab him
-and he dangles from your finger on a short web; let go and he drops onto the box, runs to its far end, strikes a pose
-(Kick / Backflip, alternating), webs up and hangs there. **Hanging, he just hangs** (John): the Hang move
-starts upright gripping the web, so it's begun at 45% (already over) and held still at 75%; only the web's swing settles.
-He's 128 tall (`SP_H`). The next question about anything else sends him off up his web.
-**The Hang move is already upside down** and lifts his toes ~1 height above the model's origin: hanging, the model is
-offset so it hangs from his toes (`SP_TOE`) and never flipped again. He takes touches (his box is in the rects). The
-hidden test tab throttles timers to 1s, so tests step him by hand (`__peek.spStep(dt, n)`).
+**Spider-Man** (2026-10-05): ask about Spider-Man (`SPIDEY_RE`) and the classic Spider-Man comes into the chat in 3D and
+lives there — a Meshy-rigged model from John's Downloads (`spiderman-moves/`), the rig and twelve moves merged into one
+file (`peek/spidey/spidey.glb`, 3.5MB: Idle, Jump, Hang, Run, Land, Backflip, Kick, WallFlip, Crawl, Climb, Roll, Walk —
+each Meshy move ships as a whole GLB, so the merge copies only the animation data, re-pointed by bone name). His own
+module and scene (`spScene`) on the old character's canvas and ortho camera (one unit, one pixel, y up). He bounds in
+onto the box, webs up from just off the top edge and hangs upside down. **Left alone he keeps busy** (`spNext()`, never
+the same thing twice running): drops to the box and runs to an end and poses; crawls along it and wall-flips; sprints
+into a roll-flip; or runs, leaps onto the side of the screen and climbs it side-on, perches, **spins a web in that top
+corner** (an SVG drawn line by line, kept till the next question), then fires a web and **swings across the screen**,
+lets go over the far side (sometimes in a backflip) and lands — then webs up and hangs again. **Tap him** for a trick
+(backflip / wall flip / kick on the box; a spin on his web hanging); **press and drag** and he dangles from your finger;
+let go and he drops. The next question about anything else sends him off up his web.
+**The Hang move is already upside down** (and starts upright, gripping the web — that early part is his swinging grip):
+hanging, it's begun at 45% and held at 75%, the model offset to hang from his toes (`SP_TOE`); swinging, from his raised
+hand (`SP_HAND`). Climb, Crawl and Roll carry him forward in the clip and snap back on the loop, so their travel is
+taken out (`spInPlace()`) and he's moved at the clip's speed (`SP_SPEED`). He takes touches (his box is in the rects).
+The hidden test tab throttles timers to 1s, so tests step him by hand (`__peek.spStep(dt, n)`).
 **Tap a creature** and it eases up to 2× — body and all (`poolSize()`, `Body.scale`), shoving the
 others aside — and the page tells the app `{type:'highlight', terms}` (each `POOL` entry's `terms`): the
 app marks every mention in the answers with a highlighter yellow (`PeekHighlight`, `MarkdownText.marked`)

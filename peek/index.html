@@ -2880,18 +2880,28 @@ function whaleStep(now) {
 const plateRise = () => PRINT.room;   // the room the chat keeps: enough to clear the boat's crew; scrolled, the answer passes under the sea, the boat and the tail (their white bodies hide it)
 
 /* ── Spider-Man ── ask about Spider-Man and the classic Spider-Man (a Meshy-rigged model, spidey/spidey.glb: the rig
-   plus its moves merged into one file — Idle, Jump, Hang, Run, Land, Backflip, Kick, WallFlip) comes into the chat
-   in 3D: he bounds in onto the chat box, leaps, shoots a web up to the top of the screen and hangs upside down from
-   it, swinging. Grab him and he dangles from your finger on his web, swinging as you move; let go and he drops onto
-   the chat box, runs off left or right, strikes a pose, then webs up and hangs there again. Asked about anything
-   else, he swings away. His own scene (spScene) on the same canvas and camera — one unit, one pixel, y up. */
+   and twelve moves merged into one file — Idle, Jump, Hang, Run, Land, Backflip, Kick, WallFlip, Crawl, Climb, Roll,
+   Walk) comes into the chat in 3D and lives there. He bounds in onto the chat box, webs up from the top of the screen
+   and hangs upside down. Left alone he keeps busy (`spNext()`): drops onto the box and runs, crawls along it looking
+   back, sprints into a roll-flip, leaps onto the side of the screen and climbs it like a wall, spins a web in the top
+   corner, fires a web and swings across the whole screen, lets go and lands — then webs up and hangs again. Tap him
+   for a trick (a backflip, a wall flip, a flying kick; hanging, a spin on his web); grab him and he dangles from your
+   finger on his web; let go and he drops onto the box. Asked about anything else, he swings away. His own scene
+   (spScene) on the same canvas and ortho camera — one unit, one pixel, y up. The Climb, Crawl and Roll moves carry
+   him forward in the clip and snap back on the loop, so their travel is taken out (`spInPlace()`) and he's moved here
+   at the same speed instead. */
 const SPIDEY_RE = /spider-?\s?man|peter parker/i;
 const spScene = new THREE.Scene();
 { const k = new THREE.DirectionalLight(0xffffff, 2.4); k.position.set(300, 600, 900); spScene.add(k); spScene.add(new THREE.HemisphereLight(0xffffff, 0xd8d8d8, 1.1)); }
 const SP_H = 128, SP_HANG_Y = -10, SP_WEB = 180, SP_HELD = 90, SP_G = 2600;   // his height; his web's anchor (just off the top), its length; on your finger; gravity
-const SP_TOE = .86;   // hanging, the model hangs this far (of his height) below the web's end, so the web meets his toes
+const SP_TOE = .86, SP_HAND = 1.04;   // hanging upside down the model hangs this far (of his height) below the web; swinging, his raised hand is this far above his feet
+const SP_SPEED = { Climb: 35, Crawl: 42, Roll: 165 };   // px/s at SP_H 128 — what each move covered in its clip
 let spidey = null, spClear = false;
 const spBox = () => { const g = homeGround(), r = g ? rectOf(g) : null; return r && r.width > 0 ? r : { left: 12, right: innerWidth - 12, top: innerHeight - 128, width: innerWidth - 24, height: 88 }; };
+// take a move's travel out of it: the hips keep their bob, not the ground they cover
+function spInPlace(clip, axes) {
+  for (const t of clip.tracks) if (/Hips\.position$/.test(t.name)) for (let i = 0; i < t.values.length; i += 3) for (const a of axes) t.values[i + a] = t.values[a];
+}
 async function spideyStart() {
   if (spidey) return; spidey = { loading: true };
   const gl = await loader.loadAsync('spidey/spidey.glb').catch(() => null);
@@ -2903,96 +2913,172 @@ async function spideyStart() {
   obj.position.set(-c.x, -bb.min.y, -c.z);
   const holder = new THREE.Group(); holder.add(obj); holder.scale.setScalar(SP_H / (size.y || 1));
   const yaw = new THREE.Group(); yaw.add(holder);
-  const g = new THREE.Group(); g.add(yaw); spScene.add(g);   // g sits at his feet (upright) or his web's end (hanging), in page pixels
+  const g = new THREE.Group(); g.add(yaw); spScene.add(g);   // g sits at his feet (upright), his toes (hanging) or his hand (swinging), in page pixels
   const web = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineBasicMaterial({ color: 0xa9a9a9 }));
   web.visible = false; spScene.add(web);
-  const mixer = new THREE.AnimationMixer(obj), clips = Object.fromEntries(gl.animations.map((a) => [a.name, a]));
-  const r = spBox();
+  const clips = Object.fromEntries(gl.animations.map((a) => [a.name, a]));
+  if (clips.Climb) spInPlace(clips.Climb, [0, 1, 2]); if (clips.Crawl) spInPlace(clips.Crawl, [0, 2]); if (clips.Roll) spInPlace(clips.Roll, [0, 2]);
+  const mixer = new THREE.AnimationMixer(obj), r = spBox();
   spidey = { g, yaw, holder, web, mixer, clips, act: null, mode: 'enter', t: 0, x: innerWidth + 60, y: r.top, from: { x: innerWidth + 60, y: r.top - 40 }, to: { x: r.left + r.width * .72, y: r.top },
-             ang: 0, av: 0, anchor: null, len: 0, vx: 0, vy: 0, dir: -1, hold: null, pose: 0, bbox: [0, 0, 0, 0] };
+             ang: 0, av: 0, anchor: null, len: 0, vx: 0, vy: 0, dir: -1, side: 0, hold: null, press: null, pose: 0, bbox: [0, 0, 0, 0], webs: [], spin: 0, plan: [] };
   spPlay('Jump', true); spFace(-1);
 }
 function spPlay(name, once = false, fade = .2) {
   const sp = spidey, clip = sp?.clips[name]; if (!clip) return 0;
-  const a = sp.mixer.clipAction(clip); a.paused = false; if (sp.act === a && !once) return clip.duration;
+  const a = sp.mixer.clipAction(clip); a.paused = false; a.timeScale = 1; if (sp.act === a && !once) return clip.duration;
   a.reset(); a.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity); a.clampWhenFinished = once;
   if (sp.act && sp.act !== a) a.crossFadeFrom(sp.act, fade, true); a.play(); sp.act = a; return clip.duration;
 }
-// the Hang move starts upright, gripping the web, and is over by 45% of the way through (steadiest at 75%, where it holds)
+// the Hang move starts upright gripping the web (≤30%: how he holds on to swing) and is over by 45% (steadiest at 75%)
+const spHangAt = (k, hold = false) => { const a = spidey?.act; if (a && a.getClip().name === 'Hang') { a.time = a.getClip().duration * k; a.paused = hold; } };
 const spHangFrom = () => { const a = spidey?.act, d = a?.getClip().duration || 0; if (a && a.getClip().name === 'Hang' && a.time < d * .45) a.time = d * .45; };
-const spFace = (d) => { if (spidey) spidey.dir = d; };   // -1 left, 1 right, 0 to camera
+const spFace = (d) => { if (spidey) spidey.dir = d; };   // -1 left, 1 right, 0 to camera; on a wall: ±2 (side-on, facing the wall)
+const spSet = (mode) => { const sp = spidey; sp.mode = mode; sp.t = 0; };
 function spWebUp(x) {   // shoot a web straight up from here, and climb it to hang
-  const sp = spidey; sp.anchor = { x, y: SP_HANG_Y }; sp.len = SP_WEB; sp.mode = 'webup'; sp.t = 0; sp.turned = false; sp.from = { x: sp.x, y: sp.y }; spPlay('Jump', true); spFace(0);
+  const sp = spidey; sp.anchor = { x, y: SP_HANG_Y }; sp.len = SP_WEB; spSet('webup'); sp.turned = false; sp.from = { x: sp.x, y: sp.y }; spPlay('Jump', true); spFace(0);
 }
-function spideyLeave() { if (spidey && !spidey.loading && spidey.mode !== 'leave') { const sp = spidey; sp.mode = 'leave'; sp.t = 0; sp.anchor = { x: sp.x, y: -40 }; spPlay('Jump', true); } else if (spidey?.loading) spidey = null; }
-function spideyEnd() { if (spidey?.g) { spScene.remove(spidey.g, spidey.web); spClear = true; } spidey = null; }
+function spSwingFrom(x, y) {   // fire a web up and across, and swing on it from here
+  const sp = spidey, ax = innerWidth / 2 + (x < innerWidth / 2 ? 30 : -30), ay = SP_HANG_Y + 20;
+  sp.anchor = { x: ax, y: ay }; sp.len = Math.hypot(x - ax, (y - SP_H * SP_HAND) - ay);
+  sp.ang = Math.atan2(x - ax, (y - SP_H * SP_HAND) - ay); sp.av = 0; sp.swing0 = Math.sign(sp.ang) || 1;
+  spSet('swing'); spPlay('Hang', false, .15); spHangAt(.12, true); spFace(0);
+}
+// the corner web: spun line by line where he perches near the top, kept till the next question
+function spCornerWeb(side) {
+  const sp = spidey; if (sp.webs.some((w) => w.side === side)) return;
+  const S = 150, el = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); el.setAttribute('viewBox', `0 0 ${S} ${S}`);
+  Object.assign(el.style, { position: 'absolute', top: '0px', [side < 0 ? 'left' : 'right']: '0px', width: S + 'px', height: S + 'px', pointerEvents: 'none', transform: side < 0 ? '' : 'scaleX(-1)' });
+  let d = '';
+  const spokes = [0, 14, 30, 47, 63, 78, 90].map((deg) => deg * Math.PI / 180);
+  for (const a of spokes) d += `M0 0L${(Math.cos(a) * S * 1.05).toFixed(1)} ${(Math.sin(a) * S * 1.05).toFixed(1)}`;
+  for (let r = 22; r < S; r += 19) { const pts = spokes.map((a) => [Math.cos(a) * r, Math.sin(a) * r]); d += `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`; for (let i = 1; i < pts.length; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], mx = (x0 + x1) / 2 * .9, my = (y0 + y1) / 2 * .9; d += `Q${mx.toFixed(1)} ${my.toFixed(1)} ${x1.toFixed(1)} ${y1.toFixed(1)}`; } }
+  el.innerHTML = `<path d="${d}" fill="none" stroke="#b9b9b9" stroke-width="1" stroke-linecap="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/>`;
+  poolEl.append(el); sp.webs.push({ el, side });
+  el.querySelector('path').animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: 1600, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
+}
+// left alone, what he does next — never the same thing twice running
+function spNext(from) {
+  const sp = spidey, r = spBox(), pick = (a) => { const o = a.filter((x) => x !== sp.last); const c = o[Math.floor(Math.random() * o.length)]; sp.last = c; return c; };
+  if (from === 'hang') {   // off the web: drop to the box, or swing across the screen
+    const c = pick(['drop', 'swing']);
+    if (c === 'swing') spSwingFrom(sp.x, sp.y + SP_H * .55);
+    else { spSet('fall'); sp.vx = (Math.random() - .5) * 120; sp.vy = 0; sp.y = sp.y + SP_H * .6; sp.anchor = null; spPlay('Jump', true); spFace(0); }
+  } else if (from === 'box') {   // on the box: run and pose, crawl and look back, roll, or go up the wall
+    const c = pick(['run', 'crawl', 'roll', 'wall']), right = sp.x < r.left + r.width / 2;
+    sp.side = right ? 1 : -1; sp.runTo = right ? r.right - 36 : r.left + 36; spFace(sp.side);
+    if (c === 'run') { spSet('run'); sp.then = 'pose'; spPlay('Run'); }
+    else if (c === 'crawl') { spSet('crawl'); sp.runTo = clamp(sp.x + sp.side * 120, r.left + 36, r.right - 36); spPlay('Crawl'); }
+    else if (c === 'roll') { spSet('roll'); sp.rollDur = spPlay('Roll', true); sp.rollFrom = sp.x; }
+    else { spSet('run'); sp.then = 'wall'; spPlay('Run'); }
+  } else if (from === 'wall') spSwingFrom(sp.x, sp.y);
+}
+function spideyLeave() { if (spidey && !spidey.loading && spidey.mode !== 'leave') { const sp = spidey; spSet('leave'); sp.anchor = { x: sp.x, y: -40 }; sp.from = { x: sp.x, y: sp.y }; spPlay('Jump', true); } else if (spidey?.loading) spidey = null; }
+function spideyEnd() { if (spidey?.g) { spScene.remove(spidey.g, spidey.web); for (const w of spidey.webs) w.el.remove(); spClear = true; } spidey = null; }
 const ease2 = (k) => k <= 0 ? 0 : k >= 1 ? 1 : k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
 function spideyStep(dt) {
   const sp = spidey; if (!sp || sp.loading) return;
   sp.t += dt; sp.mixer.update(dt);
-  const r = spBox(), floor = r.top;
-  let inverted = false;
+  const r = spBox(), floor = r.top, W = innerWidth, wallX = (s) => s < 0 ? 26 : W - 26;
+  let pose = 'up';   // 'up' standing, feet at (x, y) · 'hang' upside down from his toes · 'swing' upright from his raised hand · 'wall' side-on to the screen's edge
   if (sp.mode === 'enter') {   // a bound in from the right, landing on the chat box
     const k = clamp(sp.t / .85, 0, 1);
     sp.x = lerp(sp.from.x, sp.to.x, k); sp.y = lerp(sp.from.y, sp.to.y, k) - Math.sin(Math.PI * k) * 150;
-    if (k >= 1) { sp.mode = 'crouch'; sp.t = 0; spPlay('Idle'); spFace(0); }
+    if (k >= 1) { spSet('crouch'); spPlay('Idle'); spFace(0); }
   } else if (sp.mode === 'crouch') { sp.y = floor; if (sp.t > .45) spWebUp(sp.x); }
   else if (sp.mode === 'webup' || sp.mode === 'leave') {   // up his web
     const k = ease2(clamp(sp.t / (sp.mode === 'leave' ? .7 : .8), 0, 1));
     sp.x = lerp(sp.from.x, sp.anchor.x, k); sp.y = lerp(sp.from.y, sp.anchor.y + (sp.mode === 'leave' ? 0 : sp.len), k);
-    inverted = sp.mode === 'webup' && k > .55;   // he turns over partway up, so the hang isn't a snap
-    if (inverted && !sp.turned) { sp.turned = true; spPlay('Hang', false, .3); spHangFrom(); }
-    if (k >= 1) { if (sp.mode === 'leave') return spideyEnd(); sp.mode = 'hang'; sp.t = 0; sp.ang = .25 * (Math.random() < .5 ? -1 : 1); sp.av = 0; }
+    if (sp.mode === 'webup' && k > .55) { pose = 'hang'; if (!sp.turned) { sp.turned = true; spPlay('Hang', false, .3); spHangFrom(); } }
+    if (k >= 1) { if (sp.mode === 'leave') return spideyEnd(); spSet('hang'); sp.ang = .25 * (Math.random() < .5 ? -1 : 1); sp.av = 0; sp.stay = 5 + Math.random() * 3; }
   } else if (sp.mode === 'hang' || sp.mode === 'held') {   // a pendulum on his web: from its anchor, or from your finger
-    inverted = true;
+    pose = 'hang';
     if (sp.mode === 'held') { const px = sp.hold.x, py = sp.hold.y; sp.hold.ax = (px - (sp.anchor?.x ?? px)) / Math.max(dt, 1e-3); sp.anchor = { x: px, y: py }; }
     const acc = -9.5 * Math.sin(sp.ang) - 1.4 * sp.av - (sp.mode === 'held' ? (sp.hold.ax - (sp.hold.pax || 0)) * .0006 : 0);
     if (sp.mode === 'held') sp.hold.pax = sp.hold.ax;
     sp.av += acc * dt; sp.ang += sp.av * dt;
-    if (sp.act && !sp.act.paused && sp.act.time >= sp.act.getClip().duration * .75) sp.act.paused = true;   // he hangs and just hangs: the move holds upside down, only the web swings, and settles
+    if (sp.act && !sp.act.paused && sp.act.time >= sp.act.getClip().duration * .75) sp.act.paused = true;   // he hangs and just hangs: the move holds upside down
     sp.x = sp.anchor.x + Math.sin(sp.ang) * sp.len; sp.y = sp.anchor.y + Math.cos(sp.ang) * sp.len;   // (x, y) is where the web holds him: his toes
-  } else if (sp.mode === 'fall') {   // let go: he drops, turning right way up, onto the chat box
+    if (sp.mode === 'hang' && sp.t > sp.stay) spNext('hang');
+  } else if (sp.mode === 'swing') {   // across the screen on a web, gripping it overhead; let go past the far side
+    pose = 'swing';
+    const G = SP_G / sp.len; sp.av += (-G * Math.sin(sp.ang) - .05 * sp.av) * dt; sp.ang += sp.av * dt;
+    const hx = sp.anchor.x + Math.sin(sp.ang) * sp.len, hy = sp.anchor.y + Math.cos(sp.ang) * sp.len;   // his hand
+    sp.x = hx; sp.y = hy + SP_H * SP_HAND;
+    if (Math.sign(sp.ang) === -sp.swing0 && Math.abs(sp.ang) > .32 && sp.av * sp.swing0 < 0) {   // over the far side and still rising: let go
+      sp.vx = sp.len * sp.av * Math.cos(sp.ang); sp.vy = -sp.len * sp.av * Math.sin(sp.ang);
+      spSet('fall'); sp.anchor = null; sp.flip = Math.random() < .5; spPlay(sp.flip ? 'Backflip' : 'Jump', true); spFace(0);
+    }
+  } else if (sp.mode === 'fall') {   // in the air: falling, turning right way up, onto the chat box
     sp.vy += SP_G * dt; sp.x += sp.vx * dt; sp.y += sp.vy * dt;
     sp.x = clamp(sp.x, r.left + 30, r.right - 30);
-    if (sp.y >= floor && sp.vy > 0) { sp.y = floor; sp.mode = 'land'; sp.t = 0; spPlay('Idle', false, .12); spFace(0); }
-  } else if (sp.mode === 'land') {
-    sp.y = floor; if (sp.t > .3) { sp.mode = 'run'; sp.t = 0; const right = sp.x < r.left + r.width / 2; sp.runTo = right ? r.right - 40 : r.left + 40; spFace(right ? 1 : -1); spPlay('Run'); }
-  } else if (sp.mode === 'run') {   // off to one side of the box
-    sp.y = floor; const d = sp.runTo - sp.x, step = Math.sign(d) * Math.min(Math.abs(d), 230 * dt); sp.x += step;
-    if (Math.abs(d) < 2) { sp.mode = 'pose'; sp.t = 0; spFace(0); sp.poseDur = spPlay(sp.pose++ % 2 ? 'Backflip' : 'Kick', true); }
+    if (sp.y >= floor && sp.vy > 0) { sp.y = floor; spSet('land'); spPlay('Idle', false, .12); spFace(0); }
+  } else if (sp.mode === 'land') { sp.y = floor; if (sp.t > (sp.press ? .1 : .5)) spNext('box'); }
+  else if (sp.mode === 'run' || sp.mode === 'crawl') {   // off to one end of the box — running, or creeping on all fours
+    sp.y = floor; const v = sp.mode === 'run' ? 230 : SP_SPEED.Crawl, d = sp.runTo - sp.x; sp.x += Math.sign(d) * Math.min(Math.abs(d), v * dt);
+    if (Math.abs(d) < 2) {
+      if (sp.mode === 'crawl') { spSet('pose'); spFace(0); sp.poseDur = spPlay('WallFlip', true); }
+      else if (sp.then === 'wall') { spSet('towall'); sp.from = { x: sp.x, y: sp.y }; spPlay('Jump', true); }
+      else { spSet('pose'); spFace(0); sp.poseDur = spPlay(sp.pose++ % 2 ? 'Backflip' : 'Kick', true); }
+    }
+  } else if (sp.mode === 'roll') {   // a sprint into a roll and a flip along the box
+    sp.y = floor; sp.x = clamp(sp.x + sp.side * SP_SPEED.Roll * dt, r.left + 36, r.right - 36);
+    if (sp.t > sp.rollDur - .1) { spSet('pose'); spFace(0); sp.poseDur = .2; spPlay('Idle', false, .2); }
   } else if (sp.mode === 'pose') { sp.y = floor; if (sp.t > (sp.poseDur || 1.2) + .15) spWebUp(sp.x); }
-  // place him: upright, his feet at (x, y); hanging, the web's end at his feet and his body below it
-  const turn = sp.dir ? sp.dir * Math.PI * .42 : 0;
-  sp.yaw.rotation.y = lerp(sp.yaw.rotation.y, turn, .2);
-  sp.g.rotation.z = lerp(sp.g.rotation.z, inverted ? sp.ang * -1 : 0, .25);   // the Hang move is already upside down; the swing tilts him on his web
-  // (x, y) is his feet: on the floor standing, on the web's end hanging — and hanging, the model hangs from his toes
-  sp.yaw.position.y = inverted ? -SP_H * SP_TOE : 0;
-  sp.g.position.set(sp.x, -sp.y, 0);
-  // the web: from its anchor (or your finger) to his feet
-  const showWeb = sp.anchor && (inverted || sp.mode === 'webup' || sp.mode === 'leave');
+  else if (sp.mode === 'towall') {   // a leap from the end of the box onto the side of the screen
+    const k = clamp(sp.t / .5, 0, 1), tx = wallX(sp.side), ty = floor - 70;
+    sp.x = lerp(sp.from.x, tx, k); sp.y = lerp(sp.from.y, ty, k) - Math.sin(Math.PI * k) * 60;
+    if (k >= 1) { spSet('climb'); spPlay('Climb'); if (sp.act) sp.act.timeScale = 2.2; spFace(2 * sp.side); sp.climbTo = 150 + SP_H; }   // a brisk climb: the move at 2.2×, and he rises to match
+  } else if (sp.mode === 'climb') {   // up the side of the screen, hand over hand
+    pose = 'wall'; sp.x = wallX(sp.side); sp.y -= SP_SPEED.Climb * 2.2 * dt;
+    if (sp.y <= sp.climbTo) { spSet('perch'); if (sp.act) sp.act.paused = true; spCornerWeb(sp.side); }
+  } else if (sp.mode === 'perch') { pose = 'wall'; sp.x = wallX(sp.side); if (sp.t > 2.2) spNext('wall'); }
+  // a tap's trick, hanging: a spin on his web
+  if (sp.spin) { sp.spin = Math.max(0, sp.spin - dt * 2.2); }
+  // place him
+  const turn = sp.dir === 0 ? 0 : Math.abs(sp.dir) === 2 ? -Math.sign(sp.dir) * Math.PI / 2 : sp.dir * Math.PI * .42;
+  sp.yaw.rotation.y = lerp(sp.yaw.rotation.y, turn, .2) + (sp.spin ? (1 - sp.spin) * Math.PI * 2 : 0);
+  sp.yaw.position.y = pose === 'hang' ? -SP_H * SP_TOE : pose === 'swing' ? -SP_H * SP_HAND : 0;
+  sp.g.rotation.z = lerp(sp.g.rotation.z, pose === 'hang' || pose === 'swing' ? -sp.ang : 0, pose === 'swing' ? .5 : .25);
+  sp.g.position.set(sp.x, -(pose === 'swing' ? sp.y - SP_H * SP_HAND : sp.y), pose === 'wall' ? -40 : 0);
+  // the web: from its anchor (or your finger) to his toes (hanging) or hand (swinging)
+  const showWeb = sp.anchor && (pose === 'hang' || pose === 'swing' || sp.mode === 'webup' || sp.mode === 'leave');
   sp.web.visible = !!showWeb;
   if (showWeb) {
-    const fx = sp.x, fy = inverted ? sp.y : sp.y - SP_H * .9;
-    const pos = sp.web.geometry.attributes.position; pos.setXYZ(0, sp.anchor.x, -sp.anchor.y, 0); pos.setXYZ(1, fx, -fy, 0); pos.needsUpdate = true;
+    const fy = pose === 'hang' ? sp.y : pose === 'swing' ? sp.y - SP_H * SP_HAND : sp.y - SP_H * .9;
+    const pos = sp.web.geometry.attributes.position; pos.setXYZ(0, sp.anchor.x, -sp.anchor.y, 0); pos.setXYZ(1, sp.x, -fy, 0); pos.needsUpdate = true;
   }
-  // where he is, for touches: his body's box
-  sp.bbox = inverted ? [sp.x - 36, sp.y - 6, 72, SP_H * .7 + 12] : [sp.x - 34, sp.y - SP_H - 6, 68, SP_H + 12];
+  // where he is, for touches
+  sp.bbox = pose === 'hang' ? [sp.x - 36, sp.y - 6, 72, SP_H * .7 + 12] : pose === 'swing' ? [sp.x - 34, sp.y - SP_H - 6, 68, SP_H + 12]
+    : pose === 'wall' ? [sp.x - 30, sp.y - SP_H - 6, 60, SP_H + 12] : [sp.x - 34, sp.y - SP_H - 6, 68, SP_H + 12];
 }
 Object.defineProperty(window.__peek, 'spidey', { get: () => spidey });   // for tests
 window.__peek.spStep = (dt, n = 1) => { for (let i = 0; i < n; i++) spideyStep(dt); renderer.render(spScene, camera); };   // tests: step him by a set time
-// grab him: he dangles from your finger on his web; let go and he drops
+// touch him: a quick tap is a trick; a press that moves picks him up — he dangles from your finger on his web
+function spTrick() {
+  const sp = spidey;
+  if (sp.mode === 'hang' || sp.mode === 'perch') { sp.spin = 1; sp.av += .9 * (Math.random() < .5 ? -1 : 1); return; }   // a spin on his web
+  if (['land', 'run', 'crawl', 'pose', 'roll', 'crouch'].includes(sp.mode)) { sp.y = spBox().top; spSet('pose'); spFace(0); sp.poseDur = spPlay(['Backflip', 'WallFlip', 'Kick'][sp.pose++ % 3], true); }
+}
 addEventListener('pointerdown', (e) => {
   const sp = spidey; if (!sp || sp.loading || sp.mode === 'leave') return;
   const [x, y, w, h] = sp.bbox; if (e.clientX < x || e.clientX > x + w || e.clientY < y || e.clientY > y + h) return;
-  e.stopPropagation(); sp.mode = 'held'; sp.hold = { x: e.clientX, y: e.clientY - 10, ax: 0, pax: 0, hist: [[performance.now(), e.clientX, e.clientY]] };
-  sp.anchor = { x: e.clientX, y: e.clientY - 10 }; sp.len = SP_HELD; sp.t = 0; spPlay('Hang'); spHangFrom();
+  e.stopPropagation(); sp.press = { x: e.clientX, y: e.clientY, t: performance.now() };
 }, true);
-addEventListener('pointermove', (e) => { const h = spidey?.hold; if (!h || spidey.mode !== 'held') return; h.x = e.clientX; h.y = e.clientY - 10; h.hist.push([performance.now(), e.clientX, e.clientY]); if (h.hist.length > 6) h.hist.shift(); });
+addEventListener('pointermove', (e) => {
+  const sp = spidey; if (!sp) return;
+  if (sp.press && sp.mode !== 'held' && Math.hypot(e.clientX - sp.press.x, e.clientY - sp.press.y) > 8) {   // it moved: pick him up
+    spSet('held'); sp.hold = { x: e.clientX, y: e.clientY - 10, ax: 0, pax: 0, hist: [[performance.now(), e.clientX, e.clientY]] };
+    sp.anchor = { x: e.clientX, y: e.clientY - 10 }; sp.len = SP_HELD; spPlay('Hang'); spHangFrom(); sp.ang = 0; sp.av = 0;
+  }
+  const h = sp.hold; if (!h || sp.mode !== 'held') return; h.x = e.clientX; h.y = e.clientY - 10; h.hist.push([performance.now(), e.clientX, e.clientY]); if (h.hist.length > 6) h.hist.shift();
+});
 addEventListener('pointerup', () => {
-  const sp = spidey; if (!sp || sp.mode !== 'held') return;
+  const sp = spidey; if (!sp) return;
+  const press = sp.press; sp.press = null;
+  if (sp.mode !== 'held') { if (press && performance.now() - press.t < 400) spTrick(); return; }   // a tap: a trick
   const h = sp.hold.hist, a = h[0], b = h[h.length - 1], dt = Math.max(16, b[0] - a[0]) / 1000;
   sp.vx = clamp((b[1] - a[1]) / dt, -900, 900); sp.vy = clamp((b[2] - a[2]) / dt, -1200, 900);
-  sp.mode = 'fall'; sp.t = 0; sp.hold = null; sp.anchor = null; sp.y = sp.y; spPlay('Jump', true); spFace(0);
+  spSet('fall'); sp.hold = null; sp.anchor = null; spPlay('Jump', true); spFace(0);
 });
 
 Object.assign(window.__peek, { poolDrop, poolClear, poolHear, poolStep, critters, setAsk: (t) => { lastAsk = t; } });
