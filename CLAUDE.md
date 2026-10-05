@@ -412,8 +412,9 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
 - **Desk calendar** — a day/time in your own message only (`parseWhen(lastAsk)`; the answer's times are steps, not events): shown on its page
   (weekday on the red band, month, day, time); tapped, `{type:'calendar'}` → the app's EventKitUI editor,
   filled in (no permission needed). Haiku names the event (`calTitle()`).
-- **Map pins** — on `replied`, if places are in play (`PLACES`), Haiku lists the recommended places as JSON
-  (`pinsFor()`); one pin each; tapped, its name and `{type:'open'}` → Maps.
+- **Map** — on `replied`, if places are in play (`PLACES`), Haiku lists the recommended places as JSON
+  (`pinsFor()`) and ONE folded map drops in (`plush/map.webp`; a pin per place was "bad"); tapped, the simple
+  list — name, area, an arrow — and a place tapped opens Maps (`{type:'open'}`).
 The app's demos live in the chat's ⋯ menu, under a line after Delete (`PeekDemos` in ChatPanel.swift; the
 numbered header buttons are gone): Tide pool, Brisket, Moby-Dick, Engine, Pride and Prejudice, Sourdough,
 Lasagna, Dinner party, Coffee spots.
