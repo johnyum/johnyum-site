@@ -1410,9 +1410,9 @@ function sense(text, who = 'you') {
 
 // The considered read: Haiku, through the host app. Null when there's no host, or it's slow.
 const asking = {}; let asks = 0;
-function ask(system, user, ms) {
+function ask(system, user, ms, max) {
   if (!host) return Promise.resolve(null);
-  const id = ++asks; tell({ type: 'ask', id, system, user });
+  const id = ++asks; tell({ type: 'ask', id, system, user, ...(max ? { max } : {}) });
   return new Promise((done) => { asking[id] = done; setTimeout(() => { if (asking[id]) { delete asking[id]; done(null); } }, ms); });
 }
 const HEART = `You are the heart of Peek, a small furry creature who lives inside a chat app, between the user and Claude (the AI assistant). Peek is sweet, loyal, a little dramatic, and feels everything. Decide how Peek feels about the newest message and what Peek says.
@@ -2074,7 +2074,7 @@ function stageOf(step) {
 // Once the answer is done: Claude (Haiku, through the app) writes just the core — title, key numbers, short steps
 async function recipeCore(c, answer) {
   if (c.cored) return; c.cored = true;
-  const raw = await ask('From this recipe, write only its core as JSON: {"title": the dish in 1 to 3 words, "steps": 4 to 7 stages, each {"do": one short line of action, under 7 words, with no temperature or time in it, "temp": that stage\'s temperature or "" (like "250°F" or "165°F internal"), "time": that stage\'s time or "" (like "6–8 hr")}}. JSON only.', answer.slice(0, 6000), 12000);
+  const raw = await ask('From this recipe, write only its core as JSON: {"title": the dish in 1 to 3 words, "steps": 4 to 7 stages, each {"do": one short line of action, under 7 words, with no temperature or time in it, "temp": that stage\'s temperature or "" (like "250°F" or "165°F internal"), "time": that stage\'s time or "" (like "6–8 hr")}}. JSON only.', answer.slice(0, 6000), 15000, 900);
   let r = null; try { r = JSON.parse((raw || '').match(/\{[\s\S]*\}/)?.[0] || 'null'); } catch {}
   if (!r || !Array.isArray(r.steps) || r.steps.length < 3) return;
   c.dish = String(r.title || c.dish || 'Recipe').slice(0, 28);
@@ -2300,10 +2300,11 @@ let spansFor = {};
 async function askSpans(answer) {
   const named = critters.filter((c) => POOL[c.key].terms && !c.timer); if (!named.length) return;
   const names = named.map((c) => POOL[c.key].name);
-  const raw = await ask('For each thing listed, copy out every sentence of the text that is about it, word for word, without markdown symbols (no **, no leading dashes). A sentence that only mentions it in passing among others counts only if it says something about it. Reply with JSON only: {"<thing>": ["sentence", ...]}. Things: ' + names.join(', '), answer.slice(0, 8000), 15000);
+  const raw = await ask('For each thing listed, copy out every sentence of the text that is about it, word for word, without markdown symbols (no **, no leading dashes). A sentence that only mentions it in passing among others counts only if it says something about it. Reply with JSON only: {"<thing>": ["sentence", ...]}. Things: ' + names.join(', '), answer.slice(0, 8000), 20000, 2000);
   let r = null; try { r = JSON.parse((raw || '').match(/\{[\s\S]*\}/)?.[0] || 'null'); } catch {}
-  if (!r) return;
+  if (!r) { if (DEBUG) dbg.ev.push('SPANS none: ' + String(raw).slice(0, 40)); return; }
   for (const c of named) { const v = r[POOL[c.key].name]; if (Array.isArray(v) && v.length) spansFor[c.key] = v.map(String).filter((x) => x.length > 3); }
+  if (DEBUG) dbg.ev.push('SPANS ' + Object.keys(spansFor).join(','));
 }
 function poolFocusOn(c) {
   const was = poolFocus;
@@ -2619,6 +2620,7 @@ if (EMBED) {
     // The streaming reply is held at its last place when it goes — it turns into a message
     // row a beat before 'replied' arrives, and whatever's sitting on it shouldn't fall off.
     answer(id, text) { asking[id]?.(text || null); delete asking[id]; },
+    reading() {},   // the app still reports what's on screen; nothing here uses it now
     // The phone's own gravity, from the app's motion sensor: tilt it and the pile tips that way. Never less
     // than a quarter of a g downward, so turning the phone over doesn't throw everything off the box.
     tilt(x, y) {
