@@ -102,8 +102,12 @@ button, textarea { font: inherit; color: inherit; }
 .hint { text-align: center; font-size: 11.5px; color: var(--faint); margin-top: 8px; }
 /* the tide pool: plush creatures that drop in when the answer names them (see "the tide pool" in the script) */
 #pool { position: fixed; inset: 0; z-index: 45; pointer-events: none; }
-.sea { position: absolute; left: 0; top: 0; width: 100%; overflow: hidden; pointer-events: none; }
-.sea img { position: absolute; left: 0; top: 0; display: block; -webkit-user-drag: none; will-change: transform; }
+.plate { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+.plate img { position: absolute; left: 0; top: 0; display: block; -webkit-user-drag: none; will-change: transform, opacity; opacity: 0; transform-origin: 50% 50%; }
+/* no edges: the sky is only a band of cloud and the Pequod on the horizon, fading up into the page; the sea's
+   horizon dissolves instead of ending in a line (and the wave the boat rides isn't drawn twice) */
+.plate .p-sky { -webkit-mask-image: linear-gradient(to bottom, transparent 46%, rgba(0,0,0,.5) 62%, #000 73%, #000 76.6%, transparent 77.6%); mask-image: linear-gradient(to bottom, transparent 46%, rgba(0,0,0,.5) 62%, #000 73%, #000 76.6%, transparent 77.6%); }
+.plate .p-sea { -webkit-mask-image: linear-gradient(to bottom, transparent 41%, rgba(0,0,0,.6) 47%, #000 54%); mask-image: linear-gradient(to bottom, transparent 41%, rgba(0,0,0,.6) 47%, #000 54%); }
 .drop { position: absolute; left: 0; top: 0; pointer-events: none; border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%;
   background: radial-gradient(circle at 34% 30%, #ffffff 0 18%, #d6ebf8 42%, #93c3e4 100%); box-shadow: inset -1px -2px 3px rgba(40,90,130,.25); }
 .critter { position: absolute; left: 0; top: 0; touch-action: none; pointer-events: auto; user-select: none; -webkit-user-select: none;
@@ -2823,22 +2827,32 @@ function poolStep(now) {
   }
 }
 
-/* ── Moby-Dick ── when the answer first names the whale, a plush white whale rises from behind the
-   chat box (clipped at its top edge, so it's behind it), blows a spout of water that rains down onto
-   the box and the pile, and sinks; then its tail comes up at the right and slaps down, knocking
-   everything on the box into the air and splashing again. The drops are bodies in the same world
-   as the creatures — same physics — and dry up after a few seconds. */
+/* ── Moby-Dick ── when the answer first names the whale, a wood engraving lands around the chat box: an 1850s
+   plate (moby/*.webp — the harpooneer on the crest, the white whale's head bursting up beside him, the Pequod
+   far off) cut into five registered layers, ink on the page's own white — no paper, no rectangle. The sky and
+   sea are ink only and dissolve into the page; the whale and the boat are cut-outs. The whole plate is cut
+   around the chat box's rounded shape, so the box sits in the trough between them and the near waves wrap its
+   corners. It lands in pieces — sky, the sea swelling up, the whale breaching, the wave carrying the boat in,
+   the near waves — then settles as one engraving and breathes: the swell, the boat rocking, the whale riding
+   it, the layers parting a little as the phone tilts (the pointer, on a computer). It stays till the next send. */
 const WHALE_RE = /\b(moby|white whale|sperm whale)\b/i;
-let whale = null, whaleSeen = false;
+const PLATE = ['sky', 'sea', 'whale', 'boat', 'front'], DEPTH = { sky: .12, sea: .35, whale: .6, boat: .85, front: 1 };
+let whale = null, whaleSeen = false, plateTilt = { x: 0, y: 0 };
 const drops = [];
+const CLIP_HOLE = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('clip-path', 'path(evenodd, "M0 0H1V1Z")');
 function whaleStart() {
   if (!poolInit() || whale) return;
-  const sea = document.createElement('div'); sea.className = 'sea';
-  sea.innerHTML = `<img class="w" src="plush/whale.webp" alt="" draggable="false"><img class="f" src="plush/flukes.webp" alt="" draggable="false">`;
-  poolEl.prepend(sea);
-  whale = { sea, w: sea.querySelector('.w'), f: sea.querySelector('.f'), t0: performance.now(), spouted: false, slapped: false };
+  const el = document.createElement('div'); el.className = 'plate';
+  el.innerHTML = PLATE.map((k) => `<img class="p-${k}" src="moby/${k}.webp" alt="" draggable="false">`).join('');
+  poolEl.prepend(el);
+  const w = whale = { el, imgs: Object.fromEntries(PLATE.map((k) => [k, el.querySelector('.p-' + k)])), t0: null, clipKey: '' };
+  // it waits for every piece, so nothing lands half-drawn
+  Promise.all([...el.querySelectorAll('img')].map((i) => i.decode().catch(() => {}))).then(() => { if (whale === w) w.t0 = performance.now(); });
 }
-function whaleEnd() { whale?.sea.remove(); whale = null; }
+function whaleEnd() { whale?.el.remove(); whale = null; }
+const outC = (k) => k <= 0 ? 0 : k >= 1 ? 1 : 1 - Math.pow(1 - k, 3);
+const outBack = (k) => { if (k <= 0) return 0; if (k >= 1) return 1; const c = 1.35, x = k - 1; return 1 + (c + 1) * x * x * x + c * x * x; };
+const plateSize = () => Math.min(innerWidth, 560);
 function splash(x, y, n, up) {
   const { Bodies, Body, Composite } = Matter;
   for (let i = 0; i < n; i++) {
@@ -2850,31 +2864,43 @@ function splash(x, y, n, up) {
 }
 const ease = (k) => k <= 0 ? 0 : k >= 1 ? 1 : 1 - Math.pow(1 - k, 3);
 function whaleStep(now) {
-  if (!whale) return;
+  if (!whale || whale.t0 == null) return;
   const g = homeGround(), r = g ? rectOf(g) : null; if (!r || r.width <= 0) return;
-  const t = (now - whale.t0) / 1000, sea = whale.sea;
-  sea.style.height = Math.max(0, r.top) + 'px';
-  // the whale: up behind the box (0–1s), a slow bob, the spout at 1.2s, down again 4.6–5.4s
-  const WW = Math.min(innerWidth * .44, 200), WH = WW * 903 / 520;
-  const up = ease(t / 1) * (1 - ease((t - 4.6) / .8)), bob = Math.sin(t * 2.2) * 3 * up;
-  const shown = WH * .5 * up + bob, wx = r.left + r.width * .42 - WW / 2;
-  whale.w.style.width = WW + 'px';
-  whale.w.style.transform = `translate(${wx.toFixed(1)}px, ${(r.top - shown).toFixed(1)}px) rotate(${(Math.sin(t * 1.3) * 1.5).toFixed(2)}deg)`;
-  if (!whale.spouted && t > 1.2) { whale.spouted = true; splash(wx + WW * .5, r.top - shown - 4, 13, 15); }
-  // the tail: up at the right 6–6.8s, held, then over and down — the slap — at 7.8s
-  const FW = Math.min(innerWidth * .32, 140), FH = FW * 623 / 520;
-  const fup = ease((t - 6) / .8), slap = ease((t - 7.8) / .28), fshown = FH * .8 * fup * (1 - slap);
-  whale.f.style.width = FW + 'px'; whale.f.style.transformOrigin = '50% 100%';
-  whale.f.style.transform = `translate(${(r.right - FW * 1.05).toFixed(1)}px, ${(r.top - fshown).toFixed(1)}px) rotate(${(-slap * 70 + Math.sin(t * 2) * 3 * fup).toFixed(2)}deg)`;
-  if (!whale.slapped && t > 7.95) {
-    whale.slapped = true;
-    const { Body, Sleeping } = Matter;
-    for (const c of critters) { if (tcard && tcard.c === c) continue; Sleeping.set(c.body, false); Body.setVelocity(c.body, { x: (Math.random() - .5) * 6 - 2, y: -9 - Math.random() * 5 }); Body.setAngularVelocity(c.body, (Math.random() - .5) * .3); c.sv += 3; }
-    for (const d of drops) Body.setVelocity(d.body, { x: (Math.random() - .5) * 6, y: -8 - Math.random() * 4 });
-    splash(r.right - FW * .6, r.top - 6, 14, 12);
+  const t = (now - whale.t0) / 1000, W = plateSize(), L = (innerWidth - W) / 2, T = r.top - W * .7;   // 70% of the plate shows above the box
+  // the cut: everything but the chat box (its rounded rectangle), so the box sits in the sea, not under a picture
+  const key = [r.left, r.top, r.width, r.height, innerWidth, innerHeight].map(Math.round).join();
+  if (key !== whale.clipKey) {
+    whale.clipKey = key;
+    if (CLIP_HOLE) {
+      const R = Math.min(26, r.height / 2), x = r.left, y = r.top, w = r.width, h = r.height;
+      const hole = `M${x + R} ${y}H${x + w - R}A${R} ${R} 0 0 1 ${x + w} ${y + R}V${y + h - R}A${R} ${R} 0 0 1 ${x + w - R} ${y + h}H${x + R}A${R} ${R} 0 0 1 ${x} ${y + h - R}V${y + R}A${R} ${R} 0 0 1 ${x + R} ${y}Z`;
+      whale.el.style.clipPath = `path(evenodd, "M0 0H${innerWidth}V${innerHeight}H0Z ${hole}")`;
+    } else { whale.el.style.height = r.top + 'px'; whale.el.style.overflow = 'hidden'; }   // no holes: stop at the box's top edge
   }
-  if (t > 8.6) whaleEnd();
+  // the landing: each piece from its own place, one after another; then the plate settles, once
+  const P = {
+    sky:   { p: outC((t - 0) / 1.2), from: (q) => [0, -14 * (1 - q), 0, 1] },
+    sea:   { p: outC((t - .15) / 1.15), from: (q) => [0, W * .32 * (1 - q), 0, 1] },
+    whale: { p: outBack((t - .6) / 1.3), from: (q) => [W * .06 * (1 - q), W * .55 * (1 - q), -9 * (1 - q), .9 + .1 * q] },
+    boat:  { p: outBack((t - .95) / 1.1), from: (q) => [-W * .45 * (1 - q), W * .22 * (1 - q), -14 * (1 - q), 1] },
+    front: { p: outC((t - 1.25) / .95), from: (q) => [0, W * .2 * (1 - q), 0, 1] },
+  };
+  const settle = 1 + .014 * Math.sin(Math.PI * clamp((t - 2.05) / .45, 0, 1));   // the plate lands
+  const idle = clamp((t - 2) / 1.5, 0, 1), tx = plateTilt.x, ty = plateTilt.y;
+  const live = {   // breathing, after it lands: the swell, the boat rocking on its crest, the whale riding the sea
+    sky: [0, 0, 0], sea: [0, Math.sin(t * .9) * 2.5, 0], whale: [0, Math.sin(t * .7 + 1) * 3, Math.sin(t * .5) * .6],
+    boat: [Math.sin(t * .6) * 2, Math.sin(t * 1.1 + .5) * 4, Math.sin(t * 1.1) * 1.4], front: [Math.sin(t * .8) * 3, Math.sin(t * .9 + 2) * 2, 0],
+  };
+  for (const k of PLATE) {
+    const img = whale.imgs[k], { p, from } = P[k], [fx, fy, fr, fs] = from(p), [lx, ly, lr] = live[k], d = DEPTH[k];
+    const x = L + fx + lx * idle + tx * d * 12, y = T + fy + ly * idle + ty * d * 7 + (k === 'sky' ? -W * .31 : 0);   // the sky's horizon (76%) onto the sea's (45%)
+    img.style.width = W + 'px';
+    img.style.opacity = (clamp(p * 2.5, 0, 1) * (k === 'sky' ? .8 : 1)).toFixed(3);
+    img.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${(fr + lr * idle).toFixed(2)}deg) scale(${(fs * settle).toFixed(4)})`;
+  }
 }
+// the layers part as the phone tilts (the app's motion sensor, peek.tilt) — or, on a computer, with the pointer
+addEventListener('pointermove', (e) => { if (!EMBED && whale) plateTilt = { x: (e.clientX / innerWidth - .5) * 2, y: (e.clientY / innerHeight - .5) * 2 }; });
 
 Object.assign(window.__peek, { poolDrop, poolClear, poolHear, poolStep, critters, setAsk: (t) => { lastAsk = t; } });
 // A debug readout, only for a local copy of the page inside the app (the simulator, pointed here by PEEK_PAGE).
@@ -2904,6 +2930,7 @@ if (EMBED) {
     // than a quarter of a g downward, so turning the phone over doesn't throw everything off the box.
     tilt(x, y) {
       if (!poolEngine) return;
+      plateTilt = { x: clamp(x, -1, 1), y: clamp((y - .6) * 2, -1, 1) };   // the engraving's layers part with it
       const gx = clamp(x, -1, 1) * 1.15, gy = Math.max(.25, Math.min(1, y)) * 1.15, g = poolEngine.gravity;
       if (Math.abs(gx - g.x) + Math.abs(gy - g.y) > .04) for (const c of critters) Matter.Sleeping.set(c.body, false);
       g.x = gx; g.y = gy;
@@ -2972,10 +2999,11 @@ if (EMBED) {
     if (card) { const b = card.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }
     for (const c of critters) { const b = c.el.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }   // the creatures take touches
     if (tcard) rs.push([0, 0, innerWidth, innerHeight]);
-    if ((critters.length > 0) !== motionOn) { motionOn = critters.length > 0; tell({ type: 'motion', on: motionOn }); }   // the app reads the motion sensor only while there's a pile   // the grown timer has the whole screen: a tap outside shrinks it back
+    if ((critters.length > 0 || !!whale) !== motionOn) { motionOn = critters.length > 0 || !!whale; tell({ type: 'motion', on: motionOn }); }   // the app reads the motion sensor only while there's a pile   // the grown timer has the whole screen: a tap outside shrinks it back
     // How tall the pile on the chat box is, so the app can make that much room at the chat's end.
     { const g = homeGround(), top = g ? rectOf(g).top : innerHeight; let pile = 0;
       for (const c of critters) { const p = c.body.position, t = p.y - c.w / 2; if (p.y < top + 4 && p.y > top - c.w * 3) pile = Math.max(pile, top - t); }
+      if (whale) pile = Math.max(pile, plateSize() * .66);   // the engraving: room for it above the box
       const px = pile ? Math.round(pile / 8) * 8 + 12 : 0;
       // Only once the pile has come to rest, and only for a real change: every report makes the app re-pad
       // and scroll the chat, so reporting it while things fall and bounce shook the text.

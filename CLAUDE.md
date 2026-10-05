@@ -463,11 +463,18 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
 The app's demos live in the chat's ⋯ menu, under a line after Delete (`PeekDemos` in ChatPanel.swift; the
 numbered header buttons are gone): Tide pool, Brisket, Moby-Dick, Engine, Pride and Prejudice, Sourdough,
 Lasagna, Dinner party, Coffee spots.
-**Moby-Dick** (2026-10-03): when the answer first names the whale (`WHALE_RE`), a plush white whale
-(`plush/whale.webp`) rises from behind the chat box — clipped at its top edge by `.sea`, eyes just over it —
-blows a spout of water drops that rain onto the box and the pile, sinks, and then its tail
-(`plush/flukes.webp`) comes up at the right and slaps down, throwing everything on the box into the air with
-another splash (`whaleStep()`, a fixed 8.6s script). The drops are bodies in the same world, and dry up.
+**Moby-Dick** (2026-10-05, redone — the plush whale, spout and tail slap are retired): when the answer first names the
+whale (`WHALE_RE`), an 1850s-style wood engraving lands around the chat box — black-line burin hatching, no tone (John:
+period accurate; scrimshaw wouldn't fit). One plate (the harpooneer on the crest, the white whale's head bursting up beside
+him; gpt-image-1) cut into five registered layers by asking the image model to keep one element in place at a time
+(`peek/moby/sky|sea|whale|boat|front.webp`). **It blends with the page, never a picture behind the chat** (John): the
+paper is remapped to the page's white, the sky and sea are ink only (alpha from the line) and dissolve upward by CSS masks
+(the sky's horizon is shifted up 31% to meet the sea's — the layers drifted when cut), the whale and boat are cut-outs, and
+the whole plate is clipped around the chat box's rounded rect (`clip-path: path(evenodd …)`) so the box sits in the sea and
+the near waves wrap under it. It lands in pieces (sky, the sea swelling up, the whale breaching with overshoot, the wave
+carrying the boat in from the left, the near waves, then a settle), breathes after (swell, boat rocking, whale riding), and
+the layers part with the phone's tilt (`plateTilt` from `peek.tilt`; the pointer on a computer). The chat makes room for it
+(the inset), and it stays till the next send. A Meshy 3D whale with an engraving shader was considered and not built.
 **Tap a creature** and it eases up to 2× — body and all (`poolSize()`, `Body.scale`), shoving the
 others aside — and the page tells the app `{type:'highlight', terms}` (each `POOL` entry's `terms`): the
 app marks every mention in the answers with a highlighter yellow (`PeekHighlight`, `MarkdownText.marked`)
