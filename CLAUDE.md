@@ -416,7 +416,7 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   gpt-image-1 *edits* of one base image (`input_fidelity: high`), then each scaled so its brisket matches the base and all
   cropped to one shared square — the model drifts the size by up to 25%, so the normalising step is not optional.
   **Opened, a recipe is one white page that scrolls whole** (`.tui.page`): 24 a side, page to page, two columns — the book
-  (64, centred, 64 under the island; the flying book lands in the head's slot and hands over to the page's copy) over the
+  (64, centred, 48 under the island — the game icon's spot; the flying book lands in the head's slot and hands over to the page's copy) over the
   title Claude gives it (`recipeCore`: what a cookbook would call it, e.g. "Big Green Egg Perfect Brisket", Source Serif 26),
   (no title or rule under it now — just the book, 48 to the steps; John asked for both and then took them out) then the steps, arriving one by one, each picture (56) beside its words, the rule under the words only.
   **Each step is one word** — Trim, Season, Light, Smoke, Wrap, Finish, Rest, Serve (John: "just one word if we can";
