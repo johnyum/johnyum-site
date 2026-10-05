@@ -2036,6 +2036,7 @@ const PAPER = { x: .2264, y: .2238, w: .5471, h: .6819 };   // the clipboard's b
 const CARDTITLE = { x: .2068, y: .035, w: .5864, h: .1003 }, CARDLINES = { x: .1921, y: .1457, w: .6157, h: .8043 };   // the recipe card: above its red rule, and its lines
 const SHOPPAPER = { x: .2496, y: .1465, w: .6378, h: .8252 };   // the legal pad's yellow page, right of its margin line
 const CALBAND = { x: .1354, y: .1186, w: .694, h: .2035 }, CALPAGE = { x: .1384, y: .3631, w: .6867, h: .4905 };
+const BBQ = /\b(brisket|bbq|barbecue|smok\w*|smoker|big green egg|kamado|pulled pork|ribs)\b/i;
 const HOWTO = /\b(how (do|to|can|should|would)|steps?|step[- ]by[- ]step|walk me|guide|set ?up|recipe|show me how|checklist|instructions?|teach me)\b/i;
 const PLACES = /\b(where|near|nearby|spots?|places?|restaurants?|caf[eé]s?|coffee|bars?|hikes?|trails?|parks?|museums?|shops?|stores?|bakery|bakeries|visit|neighbou?rhood|district)\b/i;
 let lastAsk = '';
@@ -2078,16 +2079,21 @@ function toolsHear(text) {
   // a game, asked for after (or about) the tide pool
   if (/\bgames?\b/i.test(lastAsk) && (/tide ?pool|creature/i.test(lastAsk) || recentPool.size) && !poolSeen.has('pail')) { poolSeen.add('pail'); const c = poolDrop('pail', { x: innerWidth / 2 }); if (c) c.game = gameNew(); }
   // the clipboard: only when you asked how to do something, and the answer has 3+ steps
-  const steps = HOWTO.test(lastAsk) ? stepsOf(text) : [];
+  // barbecue always gets the cookbook — the moment the answer starts, steps or not (Claude fills them in
+  // once it's done, recipeCore) — and never the legal pad beside it
+  const bbq = BBQ.test(lastAsk);
+  if (bbq && !poolSeen.has('cookbook')) { poolSeen.add('cookbook'); const c = poolDrop('cookbook'); if (c) recipeTitle(c); }
+  const steps = HOWTO.test(lastAsk) || bbq ? stepsOf(text) : [];
   if (steps.length >= 3) {
     const about = lastAsk + ' ' + text.slice(0, 600);
-    const k = /\b(brisket|bbq|barbecue|smok\w*|smoker|big green egg|kamado|pulled pork|ribs)\b/i.test(about) ? 'cookbook'   // barbecue gets the cookbook
+    const k = bbq || BBQ.test(about) ? 'cookbook'   // barbecue gets the cookbook
       : /\b(recipe|cook\w*|bak\w*|grill\w*|roast\w*|oven|bread|dough|sauce|season\w*|marinat\w*|simmer|boil|fry|fried|°F|egg)\b/i.test(about) ? 'recipe' : 'clipboard';
     let c = critters.find((o) => o.key === k); if (!c && !poolSeen.has(k)) { poolSeen.add(k); c = poolDrop(k); if (c && isRecipe(k)) recipeTitle(c); }
     if (c && isRecipe(k) && c.cored !== 'done') { const st = steps.map(shortStep).map(stageOf); c.meta = st.map((x) => x.meta); listSet(c, st.map((x) => x.act)); }
     else if (c && !isRecipe(k)) listSet(c, steps);
   }
-  const groc = groceriesOf(text);
+  // the legal pad: only when you asked what to buy — a recipe's ingredients belong to the recipe
+  const groc = /\b(buy|shop\w*|grocer\w*|ingredients?|what do i need)\b/i.test(lastAsk) && !bbq && !critters.some((o) => isRecipe(o.key)) ? groceriesOf(text) : [];
   if (groc.length >= 3) { let c = critters.find((o) => o.key === 'groceries'); if (!c && !poolSeen.has('groceries')) { poolSeen.add('groceries'); c = poolDrop('groceries'); } if (c) listSet(c, groc); }
   // the calendar: only a day or time in your own message — it's your plan; an answer's times ("start at
   // 6am") are steps, not an event, and brought up a calendar for today on a brisket
