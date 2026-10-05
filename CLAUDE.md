@@ -429,6 +429,17 @@ and glides the chat to it, its subhead first (MessagesView). Tap again, or anoth
 **The phone's motion moves the pile** (2026-10-04): while there's a pile, the page asks the app for motion
 (`{type:'motion', on}`); the app's CoreMotion gravity comes back as `peek.tilt(x, y)` (sets the world's
 gravity — never under 0.25 g down) and a hard shake as `peek.shake()` (everything jumps).
+**The tide pool game (2026-10-04):** ask for a game after (or about) the tide pool and a sand pail drops in
+(`plush/pail.webp`); tap it and it opens on solid white: a clue a child can follow (`CLUES`, written in the page —
+instant, no network), three creature pictures to pick from, five rounds, the last answer's creatures first
+(`recentPool`), then "You know your tide pool!" and Play again. The menu has a "Tide pool game" follow-up.
+Tapping a creature shows its name above it — only the tapped one — while it's enlarged.
+**The highlight (2026-10-04, John: make it consistent, like a real highlighter pass — snappy):** once an
+answer is done the page asks Haiku for each dropped thing's own sentences (`askSpans()`, `spansFor`), and a tap
+sends them with the terms; the app marks exactly those (`PeekHighlight.ranges`), falling back to the term rules.
+In the app each paragraph is a `PeekPara`: the yellow is drawn behind the text and swept on left to right in
+one 0.34s stroke across all its lines at once, once per tap, only once it's on screen (so a paragraph the chat
+scrolls to still gets it); clearing fades. The old background-colour attribute animated only sometimes.
 **Every body is its picture's outline** (`HULLS`, convex hulls traced from the webps) pushed out 2px
 (`POOL_GAP`), so stacked pieces keep ≥4px apart and never overlap; the picture turns about the body's
 centroid (`c.ox/oy`). **The app has demo buttons 1 2 3** top right of the chat (`PeekDemoButtons` in
