@@ -137,10 +137,21 @@ button, textarea { font: inherit; color: inherit; }
 .tui .tlist { width: min(340px, 86vw); margin: 0 auto; max-height: 58vh; overflow-y: auto; text-align: left; overscroll-behavior: contain; }
 .tui .tpic { flex: 0 0 72px; height: 72px; margin: 0 -2px; }
 .tui .tpic img { width: 100%; height: 100%; object-fit: contain; transition: opacity .2s ease; }
-.tui.page { inset: 0; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; text-align: left; }
-.tui.page .tlist { width: min(340px, calc(100% - 48px)); max-height: none; overflow: visible; margin: 0 auto; padding: 96px 0 120px; }   /* a held page, not edge to edge; the book where the game's icon sits, 48 under the island (48); the end clears the X.
+.tui.page { inset: 0; height: 100%; overflow: hidden; text-align: left; }
+/* the steps scroll; always a hair taller than the screen, so even a short recipe can be pulled and springs back */
+.tui.page .tscroll { position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.tui.page .tscroll > .tlist { min-height: calc(100% + 1px); box-sizing: border-box; }
+/* the scrims: white fading out, with a blur that fades with it — the ChatGPT header's, and the same at the foot */
+.tui.page::before, .tui.page::after { content: ""; position: absolute; left: 0; right: 0; z-index: 2; pointer-events: none;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.tui.page::before { top: 0; height: 132px; background: linear-gradient(#fff 0%, rgba(255,255,255,.92) 45%, rgba(255,255,255,0));
+  -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
+.tui.page::after { bottom: 0; height: 150px; background: linear-gradient(rgba(255,255,255,0), rgba(255,255,255,.92) 55%, #fff);
+  -webkit-mask-image: linear-gradient(transparent, #000 45%); mask-image: linear-gradient(transparent, #000 45%); }
+.tui.page .tlist { width: min(340px, calc(100% - 48px)); max-height: none; overflow: visible; margin: 0 auto; padding: 208px 0 150px; }   /* a held page, not edge to edge; under the book (96 + 64 + 48); the end clears the X.
    Sized so a whole recipe fits on one screen: the point is a glance, without scrolling the chat (or this) */
-.tui.page .thead { display: flex; flex-direction: column; align-items: center; gap: 0; margin-bottom: 41px; padding-bottom: 0; border-bottom: 0; text-align: center; }   /* just the book; 48 to the first step's words */   /* the book centred, its name under it, a grey rule, then the steps */
+.tui.page .thead { position: absolute; top: 96px; left: 0; right: 0; z-index: 3; display: flex; justify-content: center; pointer-events: none; }   /* the book, pinned where the game's icon sits; it shrinks to 32 as the steps scroll up under it */
+.tui.page .thead .tpic { transform-origin: 50% 0; will-change: transform; }
 /* the steps come in one by one under the rule */
 .tui.page .trow { opacity: 0; animation: stepIn .42s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: calc(320ms + var(--i) * 90ms); }
 @keyframes stepIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
@@ -2136,9 +2147,9 @@ const keepTogether = (t) => t.replace(/(\d)\s*([–-])\s*(\d)/g, '$1\u2060$2\u20
 const isRecipe = (k) => k === 'recipe' || k === 'cookbook';
 function recipeHTML(c) {
   const pics = c.items.map((t, i) => bbqPic(c, t, (c.meta || [])[i])), cols = pics.some(Boolean);   // with pictures, two columns: pictures, words
-  return `<div class="tlist${cols ? ' cols' : ''}"><div class="thead"><span class="tpic"><img class="tbook" src="plush/${c.key}.webp" alt="${escR(c.dish || 'Recipe')}"></span></div>`
+  return `<div class="thead"><span class="tpic"><img class="tbook" src="plush/${c.key}.webp" alt="${escR(c.dish || 'Recipe')}"></span></div><div class="tscroll"><div class="tlist${cols ? ' cols' : ''}">`
     + c.items.map((t, i) => { const m = (c.meta || [])[i];
-      return `<div class="trow" style="--i:${i}">${cols ? `<span class="tpic">${pics[i] ? `<img src="bbq/${pics[i]}.webp" alt="">` : ''}</span>` : ''}<span class="ttxt">${escR(t)}${m ? `<small>${keepTogether(escR(m))}</small>` : ''}</span></div>`; }).join('') + '</div>';
+      return `<div class="trow" style="--i:${i}">${cols ? `<span class="tpic">${pics[i] ? `<img src="bbq/${pics[i]}.webp" alt="">` : ''}</span>` : ''}<span class="ttxt">${escR(t)}${m ? `<small>${keepTogether(escR(m))}</small>` : ''}</span></div>`; }).join('') + '</div></div>';
 }
 const escR = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 // Until Claude has boiled it down: each step trimmed to its core (no asides in brackets, nothing after the
@@ -2489,7 +2500,7 @@ const mmss = (s) => { s = Math.ceil(s); return `${Math.floor(s / 60)}:${String(s
    Under it: the countdown, a few presets, pause and reset. Tap outside and it shrinks back down
    and drops into the pile, still counting. */
 let tcard = null, audio = null;   // the grown timer, if any
-const grownSize = () => 64;   // tapped, the timer becomes a small icon over its readout and play button
+const grownSize = () => tcard?.ui.classList.contains('page') ? (tcard.ui.querySelector('.thead .tpic')?.getBoundingClientRect().width || 64) : 64;   // tapped, the timer becomes a small icon over its readout and play button
 function timerCard(c) { tcard ? shrinkTimer() : growTimer(c); }
 function growTimer(c) {
   if (c.timer) audio ||= new (window.AudioContext || window.webkitAudioContext)();   // made on a tap, so it can tick and ring
@@ -2506,7 +2517,13 @@ function growTimer(c) {
   const ui = document.createElement('div'); ui.className = 'tui';
   if (c.places) { ui.innerHTML = placesHTML(c); ui.addEventListener('click', (e) => { const r = e.target.closest('.trow'); if (r) placeOpen(c.places[+r.dataset.p]); }); }
   else if (c.game) { c.game = c.game.round >= c.game.rounds.length ? gameNew() : c.game; ui.innerHTML = gameHTML(c.game); ui.addEventListener('click', (e) => gameClick(c, e)); scrim.classList.add('solid'); }
-  else if (isRecipe(c.key)) { ui.classList.add('page'); ui.innerHTML = listHTML(c); scrim.classList.add('solid'); }   // a recipe: one white page, scrolled whole
+  else if (isRecipe(c.key)) {
+    ui.classList.add('page'); ui.innerHTML = listHTML(c); scrim.classList.add('solid');
+    ui.addEventListener('scroll', (e) => {   // 64 → 32 over the first 72 of scroll, rising 32 toward the island
+      const p = clamp((e.target.scrollTop || 0) / 72, 0, 1), b = ui.querySelector('.thead .tpic');
+      if (b) b.style.transform = p ? `translateY(${(-32 * p).toFixed(1)}px) scale(${(1 - .5 * p).toFixed(3)})` : '';
+    }, true);
+  }   // a recipe: one white page, scrolled whole
   else if (!c.timer) { ui.innerHTML = listHTML(c); ui.addEventListener('click', (e) => { const r = e.target.closest('.trow'); if (r) listToggle(c, +r.dataset.i); }); }
   else ui.innerHTML = `<div class="tread">00:00:00</div><button class="play" data-a="go" aria-label="Start"><svg viewBox="0 0 24 24"><path class="i-play" d="M8 5.5v13l11-6.5z" fill="#fff"/><g class="i-pause" fill="#fff"><rect x="6.5" y="5.5" width="4" height="13" rx="1.2"/><rect x="13.5" y="5.5" width="4" height="13" rx="1.2"/></g></svg></button>`;
   ui.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -2540,7 +2557,7 @@ function shrinkTimer() {
 function startTimer(T) { T.endAt = Date.now() + T.left * 1000; T.running = true; T.rung = false; }
 function closeCard() { if (tcard) { tcard.scrim.remove(); tcard.ui.remove(); tcard.close.remove(); tcard.c.el.classList.remove('grown'); tcard.c.el.style.visibility = ''; tcard = null; } }
 const ISLAND = 48;   // the Dynamic Island's bottom edge, in points from the top
-const grownAt = () => tcard?.ui.classList.contains('page') ? (({ left, top }) => ({ x: left + 32, y: top + 32 }))(tcard.ui.querySelector('.thead .tpic').getBoundingClientRect())   // a recipe: the book at the head of its page
+const grownAt = () => tcard?.ui.classList.contains('page') ? (({ left, top, width, height }) => ({ x: left + width / 2, y: top + height / 2 }))(tcard.ui.querySelector('.thead .tpic').getBoundingClientRect())   // a recipe: the book at the head of its page
   : tcard?.c.game ? { x: innerWidth / 2, y: ISLAND + 48 + grownSize() / 2 }   // the game: its icon up top, 48 under the island
   : { x: innerWidth / 2, y: Math.max(40, innerHeight / 2 - (80 + (tcard?.ui.offsetHeight || 144)) / 2 + 32) };   // the icon's centre: the whole column (icon 64 · 16 · what's under it) centred on the screen
 function paintCard() {

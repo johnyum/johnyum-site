@@ -426,7 +426,11 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   Prepare (plate setter, filling the charcoal) is its own word, before Light.
   Claude writes both (`recipeCore`: a one-word name + detail under 11 words); until then `stepName()` / `stepDetail()` read them off
   the streamed step's whole line (`stepsOf(text, true)`), and the picture comes from the name first, then the detail.
-  A held 340 column (edge to edge read as a screen; the tighter page felt nicer). **It fits on one screen** — John: what's
+  **The steps scroll under a pinned book** (`.tscroll`; the book sits outside it in `.thead`): scrolling shrinks it 64 → 32
+  over the first 72 and lifts it 32 toward the island; white fade-and-blur scrims top and bottom, after ChatGPT's header
+  (`.tui.page::before/::after`). The list is always 1px taller than the screen so even a short recipe can be pulled and
+  springs back (iOS only bounces a box that can scroll).
+  A held 340 column (edge to edge read as a screen; the tighter page felt nicer). **It aims to fit on one screen** — John: what's
   useful is not scrolling the chat up and down to find the recipe again, so the page is a glance, not a scroll. **No
   step-by-step / cook-along mode** — John rejected it: "I don't work that way, I don't think many people do."
 - **Shopping list** — an ingredient list (`groceriesOf()`, bullets under an Ingredients/shopping heading):
