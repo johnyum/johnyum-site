@@ -476,6 +476,12 @@ filigree sea with tiny tail and boat. Ink only, no paper (mapped to nothing *loc
 the box's rounded rect. It develops up out of the box like a print off the block, then holds still till the next send.
 While the keyboard is up (the box has risen) it fades away and the chat stops keeping room for it — that space is for
 reading while you write (John: "taking up too much space where it's valuable").
+**Now in layers (2026-10-05):** John capped every piece at ~60% of the old tail's height above the water, turned the tail
+toward the horizontal (keeping its size and detail rather than shrinking it) and the boat a little left, then asked for a
+slow settle. The engraving is cut into `moby/sea.webp` (the water painted back by a gpt-image-1 masked edit where the tail
+and hull were), `tail.webp`, `boat.webp`, `flyer.webp`; `MOBY` holds each one's rest pose (tail −60° about its base,
+sunk 74; boat group ×.85, −10°). `mobySettle()`: the tail rises into its lean, the boat rocks and eases still, the flyer
+comes down, all slowing over ~7s, then the exact final picture holds. `print.webp` is kept, unused.
 **Spider-Man** (2026-10-05): ask about Spider-Man (`SPIDEY_RE`) and the classic Spider-Man comes into the chat in 3D and
 lives there — a Meshy-rigged model from John's Downloads (`spiderman-moves/`), the rig and twelve moves merged into one
 file (`peek/spidey/spidey.glb`, 3.5MB: Idle, Jump, Hang, Run, Land, Backflip, Kick, WallFlip, Crawl, Climb, Roll, Walk —
@@ -487,9 +493,8 @@ chat box and watches the answer come in (`spToBox()`); when it's done he webs ba
 and dropped — `spToBubble()` is kept, unused). **Push him into a side** — let go against the screen's edge, or fling him
 into it — and he takes it as a wall (`spGrabWall()`): climbs to the top, perches, spins the corner web, and stays. **Ask him things** (`spAsk()`,
 `SP_ASK`): "swing" — across the screen on a web, letting go over the far side (sometimes in a backflip); "climb the
-wall" — runs to an end, leaps onto the screen's own edge (flush, `wallX`) and climbs it side-on, perches and **spins a
-web in that top corner** (an SVG drawn line by line, cut away round the app's ☰/⋯ buttons and status bar so they sit
-over it; kept till the chat changes), then swings; "backflip", "kick", "crawl", "roll", "run", "come down", "hang".
+wall" — runs to an end, leaps onto the screen's own edge (flush, `wallX`) and climbs it facing the wall, his hands on the screen's edge (body 28 off it climbing, 14 perched — measured from his hand bones), perches and **spins a
+web in that top corner** (an SVG drawn line by line, cut away round the app's ☰/⋯ buttons so they sit over it, while the status bar is see-through and the web shows behind it; kept till the chat changes), then swings; "backflip", "kick", "crawl", "roll", "run", "come down", "hang".
 He stays with the chat (talking to him doesn't send him off); switching chats does. **Tap him** for a trick
 (backflip / wall flip / kick on the box; a spin on his web hanging); **press and drag** and he dangles from your finger;
 let go and he drops. **The Hang move is already upside down** (and starts upright, gripping the web — that early part is his swinging grip):

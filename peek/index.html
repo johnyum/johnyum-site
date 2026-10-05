@@ -108,6 +108,9 @@ button, textarea { font: inherit; color: inherit; }
   -webkit-mask-image: linear-gradient(to top, #000 calc(var(--rv, 0) * 130% - 30%), transparent calc(var(--rv, 0) * 130%));
   mask-image: linear-gradient(to top, #000 calc(var(--rv, 0) * 130% - 30%), transparent calc(var(--rv, 0) * 130%)); }
 .print img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; -webkit-user-drag: none; }
+/* the plate in layers, in the plate's own pixels (1100 × 733), scaled to fit: the tail behind the sea, the boat in front */
+.print .stage { position: absolute; left: 0; top: 0; width: 1100px; height: 733px; transform-origin: 0 0; overflow: hidden; }
+.print .stage img, .print .stage .lay { position: absolute; width: auto; height: auto; will-change: transform; }
 .drop { position: absolute; left: 0; top: 0; pointer-events: none; border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%;
   background: radial-gradient(circle at 34% 30%, #ffffff 0 18%, #d6ebf8 42%, #93c3e4 100%); box-shadow: inset -1px -2px 3px rgba(40,90,130,.25); }
 .critter { position: absolute; left: 0; top: 0; touch-action: none; pointer-events: auto; user-select: none; -webkit-user-select: none;
@@ -3298,18 +3301,36 @@ function poolStep(now) {
    like a print coming off the block — a soft edge rising, the ink settling from pale to full, a last small press — and
    then holds still (a split copy for moving water left seams). It stays till the next send. */
 const WHALE_RE = /\b(moby|white whale|sperm whale)\b/i;
-const PRINT = { src: 'moby/print.webp', aspect: 733 / 1100, water: .667, wide: 1.08, left: -.02, under: 4, room: 170 };   // the water's surface in the middle (of the plate's height); 108% of the screen wide, a touch off the left, so the tail runs off the right; the box's top just at the surface; the room the chat keeps above the box
+const PRINT = { src: 'moby/print.webp', aspect: 733 / 1100, water: .667, wide: 1.08, left: -.02, under: 4, room: 120 };
+/* The plate is four layers now (2026-10-05, John: nothing taller than 60% of the old tail; the tail turned toward the
+   horizontal so it keeps its size and detail; the boat turned left so more of it shows; then a slow settle that comes
+   to rest): moby/sea.webp (the sea, with the water painted back where the tail and hull were), tail.webp (the flukes
+   and their spray), boat.webp (hull and crew), flyer.webp (the sailor in the air and the flying oars) — each cut from
+   the one engraving, in its pixels. Where each rests (REST), and how it gets there: the tail rising into its lean,
+   the boat rocking on the swell and easing still, the flyer still falling — all slowing to nothing over ~7s. */
+const MOBY = {
+  tail: { src: 'moby/tail.webp', x: 700, y: 0, ox: 120, oy: 600, rot: -60, dy: 74 },     // leans left over the open sea, a little more horizontal than vertical, sunk so its top is 60% of the old height above the water
+  boat: { x: 46, y: 10, px: 150, py: 560, rot: -10, s: .85 },                                 // the hull and crew (and the flyer with them), about the hull's keel
+  hull: { src: 'moby/boat.webp', x: 4, y: 288 }, flyer: { src: 'moby/flyer.webp', x: 28, y: 141 }, sea: { src: 'moby/sea.webp' },
+};   // the water's surface in the middle (of the plate's height); 108% of the screen wide, a touch off the left, so the tail runs off the right; the box's top just at the surface; the room the chat keeps above the box
 let whale = null, whaleSeen = false;
 const drops = [];
 const CLIP_HOLE = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('clip-path', 'path(evenodd, "M0 0H1V1Z")');
 function whaleStart() {
   if (!poolInit() || whale) return;
   const el = document.createElement('div'); el.className = 'print';
-  el.innerHTML = `<div class="pv"><img src="${PRINT.src}" alt="" draggable="false"></div>`;   // one image, untouched: a split for moving water left seams
+  const M = MOBY, B = M.boat;
+  el.innerHTML = `<div class="pv"><div class="stage">`
+    + `<img class="tail" src="${M.tail.src}" alt="" draggable="false" style="left:${M.tail.x}px;top:${M.tail.y}px;transform-origin:${M.tail.ox}px ${M.tail.oy}px">`
+    + `<img class="sea" src="${M.sea.src}" alt="" draggable="false" style="left:0;top:0">`
+    + `<div class="lay boat" style="left:0;top:0;width:1100px;height:733px;transform-origin:${B.px}px ${B.py}px">`
+    +   `<img src="${M.hull.src}" alt="" draggable="false" style="left:${M.hull.x}px;top:${M.hull.y}px">`
+    +   `<img class="flyer" src="${M.flyer.src}" alt="" draggable="false" style="left:${M.flyer.x}px;top:${M.flyer.y}px;transform-origin:120px 200px">`
+    + `</div></div></div>`;
   poolEl.prepend(el);
-  const w = whale = { el, pv: el.querySelector('.pv'), t0: null, clipKey: '' };
+  const w = whale = { el, pv: el.querySelector('.pv'), st: el.querySelector('.stage'), tail: el.querySelector('.tail'), boat: el.querySelector('.boat'), flyer: el.querySelector('.flyer'), t0: null, clipKey: '' };
   w.pv.style.opacity = '0';
-  el.querySelector('img').decode().catch(() => {}).then(() => { if (whale === w) w.t0 = performance.now(); });   // nothing shows half-loaded
+  Promise.all([...el.querySelectorAll('img')].map((i) => i.decode().catch(() => {}))).then(() => { if (whale === w) w.t0 = performance.now(); });   // nothing shows half-loaded
 }
 function whaleEnd() { whale?.el.remove(); whale = null; }
 const outC = (k) => k <= 0 ? 0 : k >= 1 ? 1 : 1 - Math.pow(1 - k, 3);
@@ -3345,6 +3366,20 @@ function whaleStep(now) {
   pv.style.width = W + 'px'; pv.style.height = H + 'px';
   pv.style.setProperty('--rv', rv.toFixed(4)); pv.style.opacity = (ink * whale.kb).toFixed(3); pv.style.visibility = whale.kb < .01 ? 'hidden' : '';
   pv.style.transform = `translate(${L.toFixed(1)}px, ${top.toFixed(1)}px) scale(${press.toFixed(4)})`;
+  whale.st.style.transform = `scale(${(W / 1100).toFixed(5)})`;
+  mobySettle(t);
+}
+// The slow settle: everything starts a little off where it rests and eases in, slower and slower, then holds.
+function mobySettle(t) {
+  if (whale.rested) return;
+  if (t > 9) { whale.rested = true; t = 1e9; }   // at rest: the final picture exactly, then held
+  const M = MOBY, out5 = (k) => 1 - Math.pow(1 - clamp(k, 0, 1), 5);
+  const kt = out5(t / 6.5);   // the tail: rising out of the water into its lean
+  whale.tail.style.transform = `translateY(${(M.tail.dy + 46 * (1 - kt)).toFixed(2)}px) rotate(${(M.tail.rot + 9 * (1 - kt)).toFixed(3)}deg)`;
+  const B = M.boat, damp = Math.exp(-t / 2.1), rock = 3.2 * damp * Math.sin(t * 2 * Math.PI / 3.4), bob = 7 * damp * Math.sin(t * 2 * Math.PI / 3.4 + 1.2);   // the boat: rocking on the swell, easing still
+  whale.boat.style.transform = `translate(${B.x}px, ${(B.y + bob).toFixed(2)}px) rotate(${(B.rot + rock).toFixed(3)}deg) scale(${B.s})`;
+  const kf = out5(t / 5.5);   // the flyer: still coming down
+  whale.flyer.style.transform = `translateY(${(-30 * (1 - kf)).toFixed(2)}px) rotate(${(5 * (1 - kf)).toFixed(3)}deg)`;
 }
 const plateRise = () => whale && whale.kb < .5 ? 0 : PRINT.room;   // the room the chat keeps: enough to clear the boat's crew; scrolled, the answer passes under the sea, the boat and the tail (their white bodies hide it)
 
