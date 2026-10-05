@@ -114,9 +114,10 @@ button, textarea { font: inherit; color: inherit; }
 .name.tleft { font: 600 24px/1 'Sofia Sans Condensed', 'Schibsted Grotesk', system-ui, sans-serif; font-variant-numeric: tabular-nums; letter-spacing: .02em; padding: 0 16px; transition: opacity .25s ease; }
 .name { position: absolute; left: 0; top: 0; height: 40px; padding: 0 16px; display: inline-flex; align-items: center; border-radius: 20px; color: #1d1d1c; font: 500 15px/1 "Schibsted Grotesk", system-ui, sans-serif;
   white-space: nowrap; pointer-events: none;
-  /* glass, like the app's round glass buttons: a frosted, slightly milky pane with a bright top edge */
-  background: rgba(255,255,255,.58); -webkit-backdrop-filter: blur(14px) saturate(1.8); backdrop-filter: blur(14px) saturate(1.8);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.95), inset 0 0 0 .5px rgba(255,255,255,.6), 0 0 0 .5px rgba(0,0,0,.08), 0 8px 20px -10px rgba(0,0,0,.28); }
+  /* the app's top-nav glass (the ☰ and ⋯ buttons), sampled: near-opaque white glass, and a soft grey halo that
+     starts about 4% dark at the edge and fades out over ~15px all round, a touch heavier below */
+  background: rgba(255,255,255,.94); -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6);
+  box-shadow: 0 0 0 .5px rgba(0,0,0,.035), 0 2px 16px rgba(0,0,0,.07), 0 1px 3px rgba(0,0,0,.03); }
 /* the timer: a live dial over the generated body, and the card it opens */
 .critter .dial { position: absolute; pointer-events: none; }
 .tscrim { position: fixed; inset: 0; z-index: 1; background: rgba(255,255,255,.42); -webkit-backdrop-filter: blur(22px) saturate(1.1); backdrop-filter: blur(22px) saturate(1.1); pointer-events: auto; opacity: 0; transition: opacity .55s cubic-bezier(.45,0,.2,1); }
@@ -140,7 +141,7 @@ button, textarea { font: inherit; color: inherit; }
 .tui .ttxt small { display: block; margin-top: 3px; font-size: 14px; color: #87857f; font-variant-numeric: tabular-nums; }
 .tui .trow.done .ttxt small { text-decoration: none; }
 .tscrim.solid { background: #fff; }
-.gcard { position: absolute; left: 0; top: 0; z-index: 2; width: min(340px, 88vw); padding: 14px 16px 16px; border-radius: 20px; pointer-events: auto; text-align: center;
+.gcard-unused { position: absolute; left: 0; top: 0; z-index: 2; width: min(340px, 88vw); padding: 14px 16px 16px; border-radius: 20px; pointer-events: auto; text-align: center;
   background: rgba(255,255,255,.72); -webkit-backdrop-filter: blur(16px) saturate(1.8); backdrop-filter: blur(16px) saturate(1.8);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 0 0 .5px rgba(0,0,0,.08), 0 12px 30px -16px rgba(0,0,0,.3); transition: opacity .3s ease; }
 .gcard .gclue { margin: 8px 6px 0; min-height: 0; font-size: 19px; }
@@ -1859,7 +1860,7 @@ const POOL = {
   mrsbennet:  { name: 'Mrs. Bennet',      w: 102, re: /\bmrs\.? bennet\b/i, terms: ['/Mrs\\.? Bennet'] },
   wickham:    { name: 'Mr. Wickham',      w: 102, re: /\bwickham\b/i, terms: ['Wickham'] },
   lydia:      { name: 'Lydia Bennet',     w: 98, re: /\blydia\b/i, terms: ['Lydia'] },
-  pail:       { name: 'Tide pool game',   w: 96, re: null, kind: 'game' },
+  pail:       { name: 'Tide pool game',   w: 92, re: null, kind: 'game' },
   recipe:     { name: 'Recipe card',      w: 96, re: null, kind: 'list', title: 'Recipe' },
   clipboard:  { name: 'Checklist',        w: 96, re: null, kind: 'list', title: 'Steps' },
   groceries:  { name: 'Shopping list',    w: 96, re: null, kind: 'list', title: 'Shopping list' },
@@ -1959,7 +1960,6 @@ function poolClear(all = true) {
   }
   poolSeen = new Set(critters.map((c) => c.key));
   whaleEnd(); whaleSeen = false;
-  if (all) pileGameEnd();
   if (poolFocus && !critters.includes(poolFocus)) { poolFocus = null; tell({ type: 'highlight', terms: [] }); }
   for (const d of drops) { Matter.Composite.remove(poolEngine.world, d.body); d.el.remove(); } drops.length = 0;
 }
@@ -2034,7 +2034,7 @@ function parseWhen(s) {
 }
 function toolsHear(text) {
   // a game, asked for after (or about) the tide pool
-  if (/\bgames?\b/i.test(lastAsk) && (/tide ?pool|creature/i.test(lastAsk) || recentPool.size) && !pg && !poolSeen.has('pilegame')) { poolSeen.add('pilegame'); setTimeout(pileGameStart, 600); }
+  if (/\bgames?\b/i.test(lastAsk) && (/tide ?pool|creature/i.test(lastAsk) || recentPool.size) && !poolSeen.has('pail')) { poolSeen.add('pail'); const c = poolDrop('pail'); if (c) c.game = gameNew(); }
   // the clipboard: only when you asked how to do something, and the answer has 3+ steps
   const steps = HOWTO.test(lastAsk) ? stepsOf(text) : [];
   if (steps.length >= 3) {
@@ -2176,7 +2176,6 @@ function pinTap(c) {
   if (q && host) tell({ type: 'open', url: 'https://maps.apple.com/?q=' + encodeURIComponent(q) });
 }
 function poolTap(c) {
-  if (pg && CLUES[c.key] && pg.round < pg.rounds.length) return pileGameAnswer(c);
   const k = POOL[c.key].kind;
   if (k === 'timer' || k === 'list' || k === 'game' || k === 'places') return timerCard(c);
   if (k === 'cal') return calTap(c);
@@ -2208,49 +2207,6 @@ const CLUES = {
 };
 const recentPool = new Set();   // the creatures the last answers brought in — the game starts with them
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-// The game on the pile itself: a clue card floats above the creatures; tap the one it's about, right there.
-let pg = null;   // { rounds, round, right, missed, card }
-function pileGameStart() {
-  const here = critters.filter((c) => CLUES[c.key]).map((c) => c.key);
-  if (here.length < 3) {   // nothing (or too little) in the pool yet: a few drop in first, then the game begins
-    const add = shuffle(Object.keys(CLUES).filter((k) => !here.includes(k))).slice(0, 5 - here.length);
-    add.forEach((k, i) => setTimeout(() => { poolSeen.add(k); poolDrop(k); }, i * 220));
-    return setTimeout(pileGameStart, add.length * 220 + 1400);
-  }
-  const ks = shuffle(critters.filter((c) => CLUES[c.key]).map((c) => c.key)).slice(0, 5);
-  pg?.card.remove();
-  const card = document.createElement('div'); card.className = 'gcard'; poolEl.append(card);
-  card.addEventListener('pointerdown', (e) => e.stopPropagation());
-  card.addEventListener('click', (e) => { if (e.target.closest('.gx')) pileGameEnd(); else if (e.target.closest('.gagain')) pileGameStart(); });
-  pg = { rounds: ks, round: 0, right: 0, missed: false, card };
-  pileGamePaint(); card.animate([{ opacity: 0, transform: card.style.transform + ' translateY(10px)' }, { opacity: 1 }], { duration: 300, easing: 'ease-out' });
-}
-function pileGamePaint(say = '') {
-  const g = pg; if (!g) return;
-  const dots = `<div class="gdots">${g.rounds.map((_, i) => `<span class="${i < g.round ? 'on' : ''}"></span>`).join('')}</div>`, x = '<button class="gx" aria-label="Stop"><svg viewBox="0 0 16 16" width="12" height="12"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="#4b5563" stroke-width="1.8" stroke-linecap="round"/></svg></button>';
-  g.card.innerHTML = g.round >= g.rounds.length
-    ? `${x}${dots}<p class="gclue">You know your tide pool!</p><button class="gagain">Play again</button>`
-    : `${x}${dots}<p class="gclue">${CLUES[g.rounds[g.round]]} <b>Who am I?</b></p><div class="gsay">${say || 'Tap the one it is'}</div>`;
-  pileGamePlace();
-}
-function pileGamePlace() {
-  if (!pg) return;
-  const g = homeGround(), r = g ? rectOf(g) : null;
-  const top = Math.min(...critters.map((c) => c.el.getBoundingClientRect().top), r ? r.top : innerHeight);
-  pg.card.style.transform = `translate(${(innerWidth / 2 - pg.card.offsetWidth / 2).toFixed(0)}px, ${Math.max(70, top - pg.card.offsetHeight - 18).toFixed(0)}px)`;
-}
-function pileGameAnswer(c) {
-  const g = pg, want = g.rounds[g.round], { Body, Sleeping } = Matter; Sleeping.set(c.body, false);
-  if (c.key === want) {
-    if (!g.missed) g.right++; g.missed = false;
-    Body.setVelocity(c.body, { x: 0, y: -9 }); c.sv += 4; c.label = 'Yes! ' + POOL[c.key].name; poolName(c); c.label = null;
-    g.round++; setTimeout(() => pileGamePaint(), 900);
-  } else {
-    g.missed = true; Body.setVelocity(c.body, { x: (Math.random() - .5) * 6, y: -2 }); c.sv -= 3;
-    pileGamePaint('Not quite — try another!');
-  }
-}
-function pileGameEnd() { const card = pg?.card; pg = null; if (card) card.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200 }).onfinish = () => card.remove(); }
 function gameNew() {
   const all = Object.keys(CLUES), first = shuffle([...recentPool].filter((k) => CLUES[k]));
   const answers = [...first, ...shuffle(all.filter((k) => !first.includes(k)))].slice(0, 5);
@@ -2565,7 +2521,7 @@ function tickTimers() {
 
 function poolStep(now) {
   if ((!critters.length && !drops.length && !whale) || !poolEngine) return;
-  tickTimers(); whaleStep(now); if (pg && (poolStep.g = (poolStep.g || 0) + 1) % 4 === 0) pileGamePlace();
+  tickTimers(); whaleStep(now);
   const { Engine, Body, Sleeping } = Matter;
   poolSyncBox();
   Engine.update(poolEngine, 1000 / 120); Engine.update(poolEngine, 1000 / 120);
@@ -2749,7 +2705,6 @@ if (EMBED) {
     if (card) { const b = card.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }
     for (const c of critters) { const b = c.el.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }   // the creatures take touches
     if (tcard) rs.push([0, 0, innerWidth, innerHeight]);
-    if (pg) { const b = pg.card.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }   // the game's clue card takes touches
     if ((critters.length > 0) !== motionOn) { motionOn = critters.length > 0; tell({ type: 'motion', on: motionOn }); }   // the app reads the motion sensor only while there's a pile   // the grown timer has the whole screen: a tap outside shrinks it back
     // How tall the pile on the chat box is, so the app can make that much room at the chat's end.
     { const g = homeGround(), top = g ? rectOf(g).top : innerHeight; let pile = 0;
