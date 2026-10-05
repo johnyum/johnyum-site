@@ -458,8 +458,8 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   (`pinsFor()`) and ONE folded map drops in (`plush/map.webp`; a pin per place was "bad"); tapped, the simple
   list — name, area, an arrow — and a place tapped opens Maps (`{type:'open'}`).
 The app's demos live in the chat's ⋯ menu, under a line after Delete (`PeekDemos` in ChatPanel.swift; the
-numbered header buttons are gone): Tide pool, Brisket, Moby-Dick, Engine, Pride and Prejudice, Sourdough,
-Lasagna, Dinner party, Coffee spots.
+numbered header buttons are gone): Tide pool, Brisket, Moby-Dick, Spider-Man (2026-10-05; Engine, Pride and
+Prejudice, Sourdough, Lasagna, Dinner party, Coffee spots and the separate Tide pool game were removed — "pretty much solved").
 **Moby-Dick** (2026-10-05, redone twice — the plush whale, then a five-layer cut-out plate, both retired; John: the layers
 looked like paper cut-outs rubbing together, and the horizon line was unnecessary): when the answer first names the whale
 (`WHALE_RE`), ONE wood engraving framing the chat box develops around it, filigree-light: the white whale's tail big at
