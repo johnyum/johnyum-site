@@ -438,7 +438,11 @@ sticker outlines were tried and dropped), five rounds (no progress dots); good r
 list rows `text-wrap: pretty`, Play again, the X to close. The pile stays (a game question doesn't clear it).
 John tried and rejected: the game opening on its own, and a clue card on the pile instead of the full screen.
 After the Tide pool demo's answer the app fills the box with the game question, ready to send.
-Tapping a creature shows its name above it — only the tapped one — while it's enlarged.
+Tapping a creature shows its name above it — only the tapped one — while it's enlarged: a 40px pill in black glass
+with white type, no pointer under it. In the open game the icon sits up top, 48 under the Dynamic Island (`ISLAND`).
+**The close X in the app is native** (`PeekCloseButton` in PeekLayer.swift — the same 44pt glass circle and 1pt X as
+the top-left menu button, 48pt from the bottom): the page sends `{type:'close', on}` when a view opens/shuts and the
+app's X calls `peek.closeOpen()`. The page's own `.tclose` is hidden in embed and only serves the web demo.
 **The highlight (2026-10-04, John: make it consistent, like a real highlighter pass — snappy):** once an
 answer is done the page asks Haiku for each dropped thing's own sentences (`askSpans()`, `spansFor`), and a tap
 sends them with the terms; the app marks exactly those (`PeekHighlight.ranges`), falling back to the term rules.
