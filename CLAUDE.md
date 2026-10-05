@@ -441,10 +441,10 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   pusher, black bezel, white dial, 30-minute sub-dial) with live blued hands drawn over it (`watchSVG()`, `WATCH`). The
   cookbook's page has **Start smoke** beside the X (black, 48 tall, the pair centred 8 apart): it closes the book and the
   stopwatch drops into the pile, its bubble counting from 0:00 (`ticking()`); once going the button reads "Smoking ·
-  3:12", ticking with the stopwatch, and opens it. Tapped, it's as simple as the egg timer: the count up (no pause — a cook
-  doesn't pause) and ONE serif line of what to expect now (`cookNow()`): "Fat cap down, lid shut. Check back in 6 hours.";
-  when a check comes due it chimes and shakes and says "Check the bark. Set, and 165° or higher? Wrap it." End the cook is a
-  red button under it.
+  3:12", ticking with the stopwatch, and opens it. Tapped, it's as simple as the egg timer: the count up and ONE 16px serif
+  line of what to expect now (`cookNow()`): "Fat cap down, lid shut. Check back in 6 hours."; when a check comes due it
+  chimes and shakes and says "Check the bark. Set, and 165° or higher? Wrap it." Under it two 14px words, not buttons:
+  Pause (black; Resume when paused) · End the cook (red).
   The checks come from Claude (`recipeCore` → `checks`) or, until then, `cookChecks()` off the steps. The cook lives in
   localStorage (`peek-cook`) and comes back into the pile after a reload or a new chat; "End the cook" (tap twice) ends it.
   A step's own bold label names it ("**Smoke.** Unwrapped…" is Smoke, not Wrap); Smoke's picture is the brisket on the
