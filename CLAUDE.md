@@ -463,22 +463,17 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
 The app's demos live in the chat's ⋯ menu, under a line after Delete (`PeekDemos` in ChatPanel.swift; the
 numbered header buttons are gone): Tide pool, Brisket, Moby-Dick, Engine, Pride and Prejudice, Sourdough,
 Lasagna, Dinner party, Coffee spots.
-**Moby-Dick** (2026-10-05, redone — the plush whale, spout and tail slap are retired): when the answer first names the
-whale (`WHALE_RE`), an 1850s-style wood engraving lands around the chat box — black-line burin hatching, no tone (John:
-period accurate; scrimshaw wouldn't fit). One plate (the harpooneer on the crest, the white whale's head bursting up beside
-him; gpt-image-1) cut into five registered layers by asking the image model to keep one element in place at a time
-(`peek/moby/sky|sea|whale|boat|front.webp`). **It blends with the page, never a picture behind the chat** (John): the
-paper is remapped to the page's white, the sky and sea are ink only (alpha from the line) and dissolve upward by CSS masks
-(the sky's horizon is shifted up 31% to meet the sea's — the layers drifted when cut), the whale and boat are cut-outs, and
-the whole plate is clipped around the chat box's rounded rect (`clip-path: path(evenodd …)`) so the box sits in the sea and
-the near waves wrap under it. **It hugs the box, it doesn't fill the page** (John: "takes up too much"): each layer is
-placed on its own (`plateBase()`) — the wave and boat at the left, the whale's head at the right rising from behind the
-box's right end, a thin band of sea between with its horizon just over the box (and a sliver of sky with the Pequod);
-the highest point, the harpooneer's iron, is ~170 above the box (`plateRise()`, the room the chat makes). It lands in
-pieces (sky, the sea swelling up, the whale breaching in from the right, the wave carrying the boat in from the left, the
-near waves, then a settle), breathes after (swell, boat rocking, whale riding), and
-the layers part with the phone's tilt (`plateTilt` from `peek.tilt`; the pointer on a computer). The chat makes room for it
-(the inset), and it stays till the next send. A Meshy 3D whale with an engraving shader was considered and not built.
+**Moby-Dick** (2026-10-05, redone twice — the plush whale, then a five-layer cut-out plate, both retired; John: the layers
+looked like paper cut-outs rubbing together, and the horizon line was unnecessary): when the answer first names the whale
+(`WHALE_RE`), ONE wood engraving drawn for this space develops around the chat box — the white whale long and low on the
+surface, a whaleboat of six off his flank, refined 1850s black-line hatching (gpt-image-1, its horizon edited away so the
+sea's far edge breaks up into sparse strokes; `peek/moby/print.webp`). Ink only on the page's white: the paper is mapped to
+nothing *locally* (a blurred max of the paper tone, so its uneven tint can't survive as a grey rectangle) and faint alpha
+is dropped. The box sits in the middle of the dense sea (`PRINT.boxAt`), the plate cut around its rounded shape
+(`clip-path: path(evenodd …)`), the whale's crown ~110 above the box (`plateRise()`, the room the chat makes). It develops
+up out of the box like a print off the block (a rising soft mask edge, ink pale → full, one small press), then only the
+water moves: two copies split at the waterline, the lower one through an SVG displacement whose noise slides slowly
+(`#seaShimmer`). It stays till the next send.
 **Tap a creature** and it eases up to 2× — body and all (`poolSize()`, `Body.scale`), shoving the
 others aside — and the page tells the app `{type:'highlight', terms}` (each `POOL` entry's `terms`): the
 app marks every mention in the answers with a highlighter yellow (`PeekHighlight`, `MarkdownText.marked`)
