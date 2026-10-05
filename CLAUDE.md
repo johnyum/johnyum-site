@@ -357,7 +357,8 @@ the squid arrives. Arms stay clear of the + and send buttons.
 `CHARACTER` (on only with `?character` in the URL); everything below is kept, not deleted. What
 the page does now, in the app (embed) and the demo, is **the tide pool**: when Claude's real
 answer names a tide-pool creature (anemone, starfish, crab, nudibranch, urchin, sea cucumber,
-sculpin, octopus — `POOL`, matched as the text streams), its plush (`peek/plush/*.webp`) drops in
+sculpin, octopus, and — so a looser answer still has something to drop — mussels, barnacles, limpet,
+periwinkle snail, chiton, shrimp, kelp/seaweed, sand dollar, sea sponge, jellyfish; `POOL`, matched as the text streams), its plush (`peek/plush/*.webp`) drops in
 and piles onto the chat box with the plush page's physics; fling them, tap for a name; they clear
 on the next send. Their rects are reported to the app so they take touches.
 **The timer** (2026-10-04): ask about the Big Green Egg, barbecue, brisket, smoking or grilling and a
