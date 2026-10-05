@@ -406,7 +406,8 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   name typed above its red rule (Haiku names it, `recipeTitle()`), the steps typed on its lines (Special Elite). Opened, it's the same simple checklist as the others (John
   rejected a cream card with big number tiles): one line of action per stage, and under it that stage's temp and
   time — Haiku boils the finished answer down to that (`recipeCore()`); until then `stageOf()` lifts them out.
-- **The BBQ cookbook and the brisket pictures** (2026-10-04): barbecue (brisket, smoking, the Egg, ribs…) gets a made-up
+- **The BBQ cookbook and the brisket pictures** (2026-10-04): barbecue (brisket, smoking, the Egg, ribs…) gets — only once the
+  answer is done, already filled (John: "don't bring in the cookbook until you can actually fill it") — a made-up
   hardcover, *How to Brisket* (`plush/cookbook.webp`, charcoal bookcloth, cream title, ember grill mark, red ribbon) in place
   of the recipe card; it opens to the same checklist (`isRecipe()`). For a brisket each step has its picture
   (`peek/bbq/*.webp`, matched by `BBQ_PICS`): simple friendly 3D (Airbnb-icon-like, simpler, real but quiet texture, not plush) —

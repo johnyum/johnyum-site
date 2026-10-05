@@ -2113,11 +2113,10 @@ function toolsHear(text) {
   // a game, asked for after (or about) the tide pool
   if (/\bgames?\b/i.test(lastAsk) && (/tide ?pool|creature/i.test(lastAsk) || recentPool.size) && !poolSeen.has('pail')) { poolSeen.add('pail'); const c = poolDrop('pail', { x: innerWidth / 2 }); if (c) c.game = gameNew(); }
   // the clipboard: only when you asked how to do something, and the answer has 3+ steps
-  // barbecue always gets the cookbook — the moment the answer starts, steps or not (Claude fills them in
-  // once it's done, recipeCore) — and never the legal pad beside it
+  // barbecue gets the cookbook only when the answer is done, already filled (see 'replied') — never mid-stream,
+  // and never the legal pad beside it
   const bbq = BBQ.test(lastAsk);
-  if (bbq && !poolSeen.has('cookbook')) { poolSeen.add('cookbook'); const c = poolDrop('cookbook'); if (c) recipeTitle(c); }
-  const steps = HOWTO.test(lastAsk) || bbq ? stepsOf(text) : [];
+  const steps = HOWTO.test(lastAsk) && !bbq ? stepsOf(text) : [];
   if (steps.length >= 3) {
     const about = lastAsk + ' ' + text.slice(0, 600);
     const k = bbq || BBQ.test(about) ? 'cookbook'   // barbecue gets the cookbook
@@ -2954,7 +2953,12 @@ if (EMBED) {
         if (C.el === V('reply') && plat.last) C.el = V('last');
         setTimeout(() => { if (C.el !== V('reply')) delete plat.reply; }, 50);
         workEnd(data);   // how it ended: sure, unsure, asking or failed
-        if (data) { spansFor = {}; poolHear(String(data)); pinsFor(String(data)); setTimeout(() => askSpans(String(data)), 600); const rc = critters.find((o) => isRecipe(o.key)); if (rc) recipeCore(rc, String(data)); }   // the whole answer: anything still to come, and its places
+        if (data) { spansFor = {}; poolHear(String(data)); pinsFor(String(data)); setTimeout(() => askSpans(String(data)), 600); let rc = critters.find((o) => isRecipe(o.key));
+        if (!rc && BBQ.test(lastAsk) && !poolSeen.has('cookbook')) {   // the cookbook: in once the answer's done, with its steps already in it
+          poolSeen.add('cookbook'); rc = poolDrop('cookbook');
+          if (rc) { recipeTitle(rc); const w = stepsOf(String(data), true); if (w.length) { rc.meta = w.map(stepDetail); listSet(rc, tagSteps(w.map(stepName), w)); } }
+        }
+        if (rc) recipeCore(rc, String(data)); }   // the whole answer: anything still to come, and its places
       } else if (name === 'closed') { delete plat.reply; act(leave); poolClear(); recentPool.clear(); }   // left the chat: its creatures go too
     },
   };
