@@ -418,7 +418,10 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   **Opened, a recipe is one white page that scrolls whole** (`.tui.page`): 24 a side, page to page, two columns — the book
   (64, centred, 64 under the island; the flying book lands in the head's slot and hands over to the page's copy) over the
   title Claude gives it (`recipeCore`: what a cookbook would call it, e.g. "Big Green Egg Perfect Brisket", Source Serif 26),
-  then 64 down, each step's picture beside its words, the rule under the words only. No tick circles, no small-caps label; the black X floats over the page.
+  then a grey rule and the steps, arriving one by one, each picture (56) beside its words, the rule under the words only.
+  A held 340 column (edge to edge read as a screen; the tighter page felt nicer). **It fits on one screen** — John: what's
+  useful is not scrolling the chat up and down to find the recipe again, so the page is a glance, not a scroll. **No
+  step-by-step / cook-along mode** — John rejected it: "I don't work that way, I don't think many people do."
 - **Shopping list** — an ingredient list (`groceriesOf()`, bullets under an Ingredients/shopping heading):
   a simple yellow legal pad (`plush/groceries.webp`; was a grocery bag, then a notepad with a pencil), the items written on its page
   (`SHOPPAPER`); tapped, the same checklist.
