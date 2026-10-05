@@ -424,7 +424,8 @@ style: `plush/clipboard|groceries|calendar|pin.webp`; code under "the useful thi
   Each step takes only the temperature that belongs to it: the cooker's (200–350) for Light, the stall's (150–185) for
   Wrap, done (190–215) for Finish; Rest is told by its time — Claude folds steps together ("wrap… back on until 203°F").
   Smoke shows how long to smoke before wrapping ("Smoke · 6 hr" — John: 250° there is wrong, it's the Egg's, on Light).
-  Prepare (plate setter, filling the charcoal) is its own word, before Light.
+  Prepare (plate setter, filling the charcoal) is its own word, before Light. Their pictures: `bbq/prepare.webp` (the Egg
+  open, plate setter and grate in) and `bbq/light.webp` (open, coals lit) — so the Egg is never the same picture twice.
   **Pull down from the top and the book grows with your finger** while the steps sink and fade; past 110 the page dismisses
   (the book flies home from its grown size), short of it springs back (touch events on `.tui.page`, `paintPull()`).
   Claude writes both (`recipeCore`: a one-word name + detail under 11 words); until then `stepName()` / `stepDetail()` read them off
@@ -473,7 +474,7 @@ no pointer under it; on white it's held by a hairline ring and a two-layer soft 
 glass was tried). **The game question flushes the pile** (`poolFlush()`): each creature hops and drops through
 everything into the chat box (a layer clipped at the box's top swallows it), one after another; then the cards
 drop in from the top, straight down to the middle where the pile was. In the open game the icon sits up top, 48 under the Dynamic Island (`ISLAND`).
-**The close X is the page's** (`.tclose`): 48 round, black with a white X, 48 up from the bottom of the screen,
+**The close X is the page's** (`.tclose`): 48 round, black with a white X drawn 20 × 20, 2px line, 48 up from the bottom of the screen,
 in the app too. A native glass one (`PeekCloseButton`, asked for with `{type:'close', on}`) is still in the app but
 the page no longer asks for it. The game's question and choices sit centred on the screen; only the icon is up top.
 **The highlight (2026-10-04, John: make it consistent, like a real highlighter pass — snappy):** once an

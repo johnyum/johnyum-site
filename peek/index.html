@@ -127,8 +127,9 @@ button, textarea { font: inherit; color: inherit; }
   background: #1d1d1c;
   opacity: 0; transform: translateY(8px); transition: opacity .3s ease, transform .35s cubic-bezier(.3,1.3,.5,1); }
 .tclose.on { opacity: 1; transform: none; }
-.tclose svg { width: 24px; height: 24px; }
-.tclose svg path { stroke: #fff; stroke-width: 1.4; }
+.tclose svg { width: 20px; height: 20px; }
+.tclose svg { overflow: visible; }
+.tclose svg path { stroke: #fff; stroke-width: 2; }
 .critter.grown { z-index: 2; cursor: default; }
 .tui { position: fixed; left: 0; top: 0; z-index: 3; width: 100%; text-align: center; pointer-events: auto; font: 15px/1.3 "Schibsted Grotesk", system-ui, sans-serif; color: #1d1d1c;
   opacity: 0; touch-action: manipulation; will-change: transform, opacity; }   /* placed and faded by tickTimers, in step with the icon */
@@ -2137,7 +2138,8 @@ function listSet(c, items) {
 // A brisket's stages, each its own picture (bbq/*.webp): one brisket, the same size and place in every one,
 // with what's happening around it — the knife and trimmings, the rub, the grate and smoke, the paper, the probe,
 // the towel, the slices — and the Egg for setting up. Matched from the stage's words, first rule wins.
-const BBQ_PICS = [[/fat (cap|side) down|flip/i, 'fatdown'], [/^(light|fire)/i, 'egg'], [/\brest|cooler|towel|vent/i, 'rest'], [/slic|serve|carv/i, 'slice'], [/wrap|butcher|paper|foil/i, 'wrap'],
+// Prepare: the Egg open with its plate setter; Light: open with the coals lit
+const BBQ_PICS = [[/fat (cap|side) down|flip/i, 'fatdown'], [/^prepare|plate setter|convegg/i, 'prepare'], [/^(light|fire)/i, 'light'], [/\brest|cooler|towel|vent/i, 'rest'], [/slic|serve|carv/i, 'slice'], [/wrap|butcher|paper|foil/i, 'wrap'],
   [/probe|tender|internal|thermometer|done/i, 'probe'], [/trim|square/i, 'trim'], [/\brub|season|salt|pepper|slather/i, 'rub'],
   [/set ?up|cooker|smoker|\begg\b|kamado|stabili|preheat|lump|oak|wood|charcoal|light/i, 'egg'], [/bark|stall|spritz/i, 'bark'], [/./, 'smoke']];
 const bbqPic = (c, t, d = '') => !/brisket/i.test((c.dish || '') + ' ' + lastAsk) ? null
@@ -2509,7 +2511,7 @@ function growTimer(c) {
   scrim.addEventListener('pointerdown', (e) => { e.stopPropagation(); scrim.y0 = e.clientY; });
   scrim.addEventListener('pointerup', (e) => { e.stopPropagation(); if (scrim.y0 != null && (e.clientY - scrim.y0 > 40 || Math.abs(e.clientY - scrim.y0) < 10)) shrinkTimer(); scrim.y0 = null; });
   const close = document.createElement('button'); close.className = 'tclose'; close.setAttribute('aria-label', 'Close');
-  close.innerHTML = '<svg viewBox="0 0 16 16"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="#4b5563" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  close.innerHTML = '<svg viewBox="0 0 20 20"><path d="M1 1l18 18M19 1L1 19" stroke-width="2" stroke-linecap="round"/></svg>';   // the X itself 20 × 20
   close.addEventListener('pointerdown', (e) => e.stopPropagation());
   close.addEventListener('click', (e) => { e.stopPropagation(); shrinkTimer(); });
   const ui = document.createElement('div'); ui.className = 'tui';
