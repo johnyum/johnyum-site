@@ -497,6 +497,19 @@ hanging, it's begun at 45% and held at 75%, the model offset to hang from his to
 hand (`SP_HAND`). Climb, Crawl and Roll carry him forward in the clip and snap back on the loop, so their travel is
 taken out (`spInPlace()`) and he's moved at the clip's speed (`SP_SPEED`). He takes touches (his box is in the rects).
 The hidden test tab throttles timers to 1s, so tests step him by hand (`__peek.spStep(dt, n)`).
+**The insurance call** (2026-10-05, the first agent demo — "the phone call nobody wants to make"): the ⋯ menu's
+Insurance call sends "Can you dispute this $340 charge with my insurance?…" and **the page writes the whole chat**: a
+`scripted` demo hands its chat to the page (Store `scriptNext`/`pageScripted`; Claude is held back and the page's
+`{type:'reply', text}` streams in as Claude's; 10s with no reply and Claude answers after all), and `{type:'draft'}`
+fills the box. The EOB "you sent" drops into the pile (`plush/eob.webp` with a drawn statement on it, `eobMini()`);
+tapped, both pages of a real-looking Explanation of Benefits (`eobHTML()`). Claude asks two real questions; the box
+holds the answer; sent, a white desk phone drops in and opens like the egg timer: the call's clock, its status, a
+waveform, the transcript as it's said (phone menu, keypad, hold sped up and said so, then Denise), a red hang-up, and
+"Listen in" (ringback, DTMF, hold music, speech voices). Closed, it goes on in the pile with its status above it. Hung
+up, a receipt drops in (`$340` struck, `$40`, the reference number); tapped, one white page: what they agreed and a
+follow-up date whose Add opens the app's Calendar editor. All fictional: Larkspur Health, Mission Bay Dermatology,
+Dr. Okafor, Denise, a 555 number; dates hang off today. The script lives in the page (`insReply`, `insScript`), so it
+changes with a deploy; it names John and avoids pronouns for him. Code under "The call".
 **Everything belongs to its chat** (2026-10-05, John: the tide pool and the timer were "sharing icons" across chats): the
 app sends `event('chat', id)` when the open chat changes; the page clears the pile, the whale and Spider-Man then. A cook
 remembers its chat (`cook.chat`) and its stopwatch only comes back there (`cookHere()`); a cook from before this, with no
