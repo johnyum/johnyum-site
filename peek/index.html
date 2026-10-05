@@ -3170,7 +3170,12 @@ if (EMBED) {
       } else if (name === 'closed') { delete plat.reply; act(leave); poolClear(); recentPool.clear(); spideyEnd(); }   // left the chat: its creatures go too
       else if (name === 'chat') {   // another chat: nothing from the last one comes along — its pile, its whale, its Spider-Man (a cook comes back in its own chat)
         const id = String(data || '');
-        if (id !== chatId) { chatId = id; poolClear(); recentPool.clear(); whaleEnd(); whaleSeen = false; spideyEnd(); restoreCook(); }
+        if (id !== chatId) {
+          // a new chat gets its id as its first message goes: that's the same conversation, not a switch — keep everything
+          // (a cook started in it before the id came takes the id too)
+          if (!chatId) { if (cook && !cook.chat) { cook.chat = id; saveCook(); } chatId = id; }
+          else { chatId = id; poolClear(); recentPool.clear(); whaleEnd(); whaleSeen = false; spideyEnd(); restoreCook(); }
+        }
       }
     },
   };
