@@ -2098,7 +2098,7 @@ function toolsHear(text) {
     const k = bbq || BBQ.test(about) ? 'cookbook'   // barbecue gets the cookbook
       : /\b(recipe|cook\w*|bak\w*|grill\w*|roast\w*|oven|bread|dough|sauce|season\w*|marinat\w*|simmer|boil|fry|fried|°F|egg)\b/i.test(about) ? 'recipe' : 'clipboard';
     let c = critters.find((o) => o.key === k); if (!c && !poolSeen.has(k)) { poolSeen.add(k); c = poolDrop(k); if (c && isRecipe(k)) recipeTitle(c); }
-    if (c && isRecipe(k) && c.cored !== 'done') { const w = stepsOf(text, true); c.meta = w.map(stepDetail); listSet(c, w.map(stepName)); }   // "Trim it", the specifics under it
+    if (c && isRecipe(k) && c.cored !== 'done') { const w = stepsOf(text, true); c.meta = w.map(stepDetail); listSet(c, tagSteps(w.map(stepName), w)); }   // "Trim it", the specifics under it
     else if (c && !isRecipe(k)) listSet(c, steps);
   }
   // the legal pad: only when you asked what to buy — a recipe's ingredients belong to the recipe
@@ -2148,10 +2148,21 @@ const TIME_RE = /(\d+(?:\.\d+)?(?:\s*(?:-|–|to)\s*\d+(?:\.\d+)?)?)\s*(hours?|h
 const STEP_NAMES = [[/fat (cap|side) down|\bplace\b|\bput\b.*\bon\b/i, 'Smoke'], [/\brest|cooler|towel/i, 'Rest'], [/slic|serve|carv/i, 'Serve'],
   [/wrap|butcher|foil/i, 'Wrap'], [/probe|tender|internal|finish|until/i, 'Finish'], [/trim/i, 'Trim'], [/\brub|season|salt|pepper/i, 'Season'],
   [/set ?up|light|fire|preheat|stabili|cooker|\begg\b|charcoal/i, 'Light'], [/smok|cook/i, 'Smoke']];
-const stepName = (step) => withTemp(STEP_NAMES.find(([re]) => re.test(step))?.[1]   // one word: Trim, Season, Light, Smoke, Wrap, Finish, Rest, Serve
-  ?? (step.replace(/^\*\*([^*]+)\*\*.*/, '$1').match(/[A-Za-z]+/) || ['Step'])[0].replace(/^./, (a) => a.toUpperCase()), step);
-// "Finish" carries the number you're cooking to: "Finish · 203°"
-const withTemp = (name, text) => { const t = /^finish$/i.test(name) && String(text || '').match(/\b(1[5-9]\d|20\d|21\d)\s*°/); return t ? `${name} · ${t[1]}°` : name; };
+const stepName = (step) => STEP_NAMES.find(([re]) => re.test(step))?.[1]   // one word: Trim, Season, Light, Smoke, Wrap, Finish, Rest, Serve
+  ?? (step.replace(/^\*\*([^*]+)\*\*.*/, '$1').match(/[A-Za-z]+/) || ['Step'])[0].replace(/^./, (a) => a.toUpperCase());
+// Each name carries its number when the step has one — "Smoke · 250°", "Wrap · 165°", "Finish · 203°", "Rest · 2–4 hr":
+// a temperature first, else a time. Smoke takes the cooker's temperature from the step that set it, if its own
+// line only gives hours.
+function tagSteps(names, texts) {
+  let cooker = null;
+  return names.map((n, i) => {
+    const t = String(texts[i] || ''), deg = t.match(/\b(\d{3})\s*°/), tm = t.match(TIME_RE);
+    if (deg && /^(light|fire|set|heat|preheat)/i.test(n)) cooker = deg[1];
+    const tag = deg ? deg[1] + '°' : /^smoke/i.test(n) && cooker ? cooker + '°'
+      : tm ? tm[1].replace(/\s*(?:-|to)\s*/, '–') + (/^h/i.test(tm[2]) ? ' hr' : ' min') : '';
+    return tag && !n.includes('·') ? `${n} · ${tag}` : n;
+  });
+}
 const stepDetail = (step) => { const d = step.replace(/^(?:\*\*)?[^*]{1,30}?\*\*[.:]?\s*/, '').replace(/\*\*/g, '').trim().replace(/\.$/, ''); return d.length > 110 ? d.slice(0, 108).replace(/\s+\S*$/, '') + '…' : d; };
 function stageOf(step) {
   const meta = [];
@@ -2171,7 +2182,7 @@ async function recipeCore(c, answer) {
   const t = c.el.querySelector('.ctitle text'); if (t) t.textContent = c.dish.length > 18 ? c.dish.slice(0, 17) + '…' : c.dish;   // the little card's title line is short
   const st = r.steps.map((x) => typeof x === 'string' ? { name: stepName(x), detail: stepDetail(x) } : x);
   c.meta = st.map((x) => String(x.detail || [x.temp, x.time].filter(Boolean).join(' · ')));
-  c.cored = 'done'; listSet(c, st.map((x, i) => withTemp(String(x.name || x.do || ''), c.meta[i]))); if (tcard && tcard.c === c) tcard.ui.innerHTML = recipeHTML(c);
+  c.cored = 'done'; listSet(c, tagSteps(st.map((x) => String(x.name || x.do || '').split(/\s+/)[0]), c.meta)); if (tcard && tcard.c === c) tcard.ui.innerHTML = recipeHTML(c);
 }
 // the card's title: Haiku names the dish (through the app); without it, the first words of your question
 async function recipeTitle(c) {
