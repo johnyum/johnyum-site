@@ -4073,6 +4073,7 @@ const SCENES = {
   brisket: [
     { you: 'Give me the best recipe for Texas style brisket on the Big Green Egg.',
       claude: 'Plan on 10 to 12 hours for a 12 to 14 pound packer, plus a rest. The Egg holds 250°F all day once it settles, which is the whole trick.\n\n1. **Trim.** Take the fat cap down to a quarter inch, cut out the hard fat between the point and the flat, and square the edges so nothing burns.\n\n2. **Season.** Coarse salt and coarse black pepper, half and half, heavy on every side. Let it sit while the Egg comes up.\n\n3. **Light.** Fill the firebox with lump charcoal, light one spot, plate setter in legs up, grate on. Bring it to 250°F and let the smoke go thin and blue before the meat goes on. A few chunks of oak or pecan.\n\n4. **Smoke.** Fat cap down, lid shut. Leave it alone for 5 to 6 hours. Spritz with water or cider every hour after the first two if the surface looks dry.\n\n5. **Wrap.** When the bark is set and dark and the internal temperature stalls around 165°F, wrap it tight in butcher paper and put it back on.\n\n6. **Finish.** Cook until a probe slides in like butter, usually 203°F. The number matters less than the feel.\n\n7. **Rest.** Vent the wrap for ten minutes, then rest it in a dry cooler with a towel for 2 to 4 hours. Do not skip this.\n\n8. **Serve.** Slice the flat against the grain, pencil thick. Cube the point for burnt ends if you want them.' },
+    { act: 'book' },
     { act: 'smoke' },
   ],
   // SPIDER-MAN: ask about him and he comes into the chat in 3D and lives there; then he's asked to climb the wall, and to swing.
@@ -4144,12 +4145,14 @@ if (PRESO) {
     }
     turn = i + 1;
     const t = sc[i], claude = t.claude, you = t.fromBox ? (presoDraft || input.value.trim()) : t.you;
-    if (t.act === 'smoke') {   // THE BRISKET'S SECOND TAP (John, 2026-10-06): the cookbook opens, Start smoke is pressed, the stopwatch drops in and opens
+    // THE BRISKET'S NEXT TAPS (John, 2026-10-06): one opens the cookbook and holds it; the next presses Start smoke — the book
+    // goes back, the stopwatch drops in, and once it has landed it opens, counting (one beat for both opened and shut the book in a blink)
+    if (t.act === 'book') { const book = critters.find((c) => c.key === 'cookbook'); if (book && !fast && !(tcard && tcard.c === book)) growTimer(book); playing = false; return true; }
+    if (t.act === 'smoke') {
       const nap = (ms) => new Promise((r) => setTimeout(r, fast ? 0 : ms));
       const book = critters.find((c) => c.key === 'cookbook');
       if (book) {
-        if (!fast) { growTimer(book); await nap(1100); }
-        if (tcard?.go && tcard.c === book) tcard.go.click(); else { shrinkTimer(); setTimeout(() => startCook(book), 420); }
+        if (tcard?.go && tcard.c === book) tcard.go.click(); else { if (tcard) shrinkTimer(); setTimeout(() => startCook(book), 420); }
         await nap(2600);
         const w = critters.find((c) => c.key === 'stopwatch'); if (w && !tcard) growTimer(w);
       }

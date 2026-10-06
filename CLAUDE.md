@@ -691,7 +691,7 @@ IconGlassButton, ThinkingRow, the top-right capsule drawn to John's grab of the 
 `peek/sf/` at the app's sizes). The chat frame runs to the screen's top; the slide draws the status glyphs over it on a clear band.
 
 **Scenes** (`SCENES`, `window.__demo.play(name, turn)`): tidepool (2 turns), insurance (2 — the page writes this chat itself,
-`insReply`; the EOB is a PDF card above the bubble; the drafted answer is typed in), brisket (2: the answer and the cookbook; then the book opens, Start smoke is pressed and the stopwatch drops in and opens), mobydick (1: the engraving), spiderman (1: he comes in and hangs; John moves him with the mouse).
+`insReply`; the EOB is a PDF card above the bubble; the drafted answer is typed in), brisket (3: the answer and the cookbook; the book opens; Start smoke is pressed and the stopwatch drops in and opens), mobydick (1: the engraving), spiderman (1: he comes in and hangs; John moves him with the mouse).
 A scene change taps the new-chat mark and clears to a fresh greeting (not the first). Each turn: the iOS keyboard
 (`peek/sf/keyboard.png`, lifted from the Simulator; every key measured, each presses and pops its letter) rises, the words type
 in, it sends; Thinking… stays until the first words; the answer streams from **Claude for real** through `/api/claude`
