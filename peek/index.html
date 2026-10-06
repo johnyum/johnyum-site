@@ -4303,14 +4303,15 @@ if (EMBED || PRESO) {
         else poolClear(false);   // a new question: last answer's creatures go (a running timer stays)
       } else if (name === 'stream') {
         workStream(data);   // the answer so far: its hands move only as words arrive
+        if (!spidey && SPIDEY_RE.test(lastAsk)) spideyStart();   // Spider-Man comes in as the Thinking ends — with the first words (John, 2026-10-06)
         if (spidey?.mode === 'bubble' || spidey?.mode === 'leap' && spidey.leapTo === 'bubble') spOffBubble();   // the answer's moving: Spider-Man jumps off your bubble onto the box
         poolHear(String(data || ''));   // any tide-pool creature it names drops in
       } else if (name === 'status') {
         if (work.phase) { workPose('pondering'); work.beat++; }   // looking something up: back to its chin
       } else if (name === 'thinking') {
         if (!work.phase) workBegin();
-        if (!spidey && SPIDEY_RE.test(lastAsk)) spideyStart();   // Spider-Man comes in while Claude is thinking about him
       } else if (name === 'replied') {
+        if (!spidey && SPIDEY_RE.test(lastAsk)) spideyStart();   // (an answer that came whole, with no stream)
         spDone();   // Spider-Man: the answer's in, back up his web
         insHearReplied();   // the call: after the questions, the box gets an answer; after "calling now", the phone
         // The streaming text becomes a message row: move onto it before the stand-in goes.

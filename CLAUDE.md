@@ -487,7 +487,7 @@ tail / boats, the water painted back under them) and every cut showed an edge as
 in the `.pv` (`sceneInit` / `sceneWarp`, `SCENE.fields`): soft fields heave the whale on a 9 s swell with a roll, flick the flukes,
 bob and rock each boat on its own shorter swell, and a slow wave runs through the water — the sea round each piece stretches with
 it, so nothing comes apart. The develop mask, the box's cut-out and the keyboard fade still apply (the canvas is inside the `.pv`).
-The layered plate below is kept in the code, off. **Spider-Man comes in on the Thinking, not the send** (John, 2026-10-06).
+The layered plate below is kept in the code, off. **Spider-Man comes in as the Thinking ends — with the answer's first words** (John, 2026-10-06).
 **Before that, in layers (2026-10-05):** John capped every piece at ~60% of the old tail's height above the water, turned the tail
 toward the horizontal (keeping its size and detail rather than shrinking it) and the boat a little left, then asked for a
 slow settle. The engraving is cut into `moby/sea.webp` (the water painted back by a gpt-image-1 masked edit where the tail
