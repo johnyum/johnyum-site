@@ -21,7 +21,11 @@ const SITE = /^https?:\/\/((www\.)?johnyum\.com|localhost(:\d+)?|127\.0\.0\.1(:\
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 
 export default async function handler(req) {
-  if (req.method === 'GET') return json(200, { ready: !!process.env.ANTHROPIC_API_KEY, gated: !!process.env.CLAUDE_PASSCODE });
+  if (req.method === 'GET') {
+    // the shape of what's saved, never its contents: enough to see a paste gone wrong (an "Invalid header value")
+    const shape = (v) => { v = v || ''; return { set: !!v, len: v.length, ws: /\s/.test(v), ascii: /^[\x21-\x7e]*$/.test(v.trim()), looksRight: /^sk-ant-[\w-]+$/.test(v.trim()) }; };
+    return json(200, { ready: !!process.env.ANTHROPIC_API_KEY, gated: !!process.env.CLAUDE_PASSCODE, key: shape(process.env.ANTHROPIC_API_KEY), workspace: { ...shape(process.env.ANTHROPIC_WORKSPACE_ID), looksRight: /^wrkspc_[\w]+$/.test((process.env.ANTHROPIC_WORKSPACE_ID || '').trim()) } });
+  }
   if (req.method !== 'POST') return json(405, { error: 'POST' });
   const key = (process.env.ANTHROPIC_API_KEY || '').trim();   // trimmed: a key pasted with a stray newline is an invalid header, and that threw
   if (!key) return json(503, { error: 'no ANTHROPIC_API_KEY on the server' });
