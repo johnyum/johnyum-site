@@ -4051,14 +4051,15 @@ if (PRESO) {
     const sc = SCENES[name]; if (!sc || !sc[i] || playing) return false;
     playing = true;
     if (scene !== name) {
+      const first = scene === null;   // the first chat is already open: no tap on the mark, nothing to clear (John, 2026-10-06)
       scene = name; window.peek.event('chat', name); said.length = 0;
       const mark = $('.pillnav .newchat');
-      if (mark && !fast) { mark.classList.add('pressing'); await new Promise((r) => setTimeout(r, 130)); mark.classList.remove('pressing'); await new Promise((r) => setTimeout(r, 160)); }
+      if (mark && !fast && !first) { mark.classList.add('pressing'); await new Promise((r) => setTimeout(r, 130)); mark.classList.remove('pressing'); await new Promise((r) => setTimeout(r, 160)); }
       const GREET = ['What shall we think through?', 'What’s on your mind?', 'Where would you like to start?', 'What are we working on?', 'What can I help you with?', 'What’s the question?', 'Where shall we begin?'];   // the app's ChatIntro
       msgs.innerHTML = '<div class="hello" id="hello"><svg viewBox="0 0 100 100" fill="#D97757" aria-hidden="true"><use href="#spark"/></svg><b id="greet">' + GREET[Math.floor(Math.random() * GREET.length)] + '</b></div>';
       if (presoEnd) presoEnd.style.height = '2px';
       log.scrollTop = 0;
-      if (!fast) await new Promise((r) => setTimeout(r, 650));   // the fresh chat seen before the next question starts
+      if (!fast && !first) await new Promise((r) => setTimeout(r, 650));   // the fresh chat seen before the next question starts
     }
     turn = i + 1;
     const t = sc[i], claude = t.claude, you = t.fromBox ? input.value.trim() : t.you;
