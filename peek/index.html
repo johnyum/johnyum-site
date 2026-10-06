@@ -3773,7 +3773,14 @@ const tell = (m) => { if (PRESO) presoHost(m); try { (window.__peekHost || host)
    mid-answer). 'highlight': every mention — the picked sentences if there are any, else the term rules — gets the yellow
    swept behind it in one 0.34s stroke, every line at once, and the chat glides (0.7s) to put the first marked paragraph a
    fifth of the way down; clearing fades. 'draft' fills the box; 'reply' streams in as Claude's (the scripted chats). */
-let presoStreaming = false, presoEnd = null, presoHL = { terms: [], spans: [] };
+let presoStreaming = false, presoEnd = null, presoHL = { terms: [], spans: [] }, presoFirst = null;
+// THE WORDS STAY CLEAR OF THE PILE (John, 2026-10-06): a tapped creature grows and the pile shoves; if any of the marked
+// paragraph is then under them, the chat moves up until the whole paragraph sits 16 above the pile's top.
+function presoClear(p) {
+  if (!p || !p.isConnected || !critters.length) return;
+  const pileTop = Math.min(...critters.map((c) => c.el.getBoundingClientRect().top)), pr = p.getBoundingClientRect();
+  if (pr.bottom > pileTop - 16) log.scrollBy({ top: pr.bottom - (pileTop - 16), behavior: 'smooth' });
+}
 /* LIVE (John, 2026-10-05: "all, including the real Claude"): the deck's chats go to Claude for real, through
    johnyum.com/api/claude (an edge function holding the key), with the app's own system prompt (ClaudeAPI.swift) and its
    model, streamed — so the pacing, the pauses and where the creatures drop are the model's, not a script's. Haiku answers
@@ -3817,8 +3824,9 @@ function presoHost(m) {
     if (!presoEnd) { presoEnd = document.createElement('div'); presoEnd.id = 'end'; msgs.after(presoEnd); }
     const px = 2 + (m.px || 0); if (presoEnd.style.height === px + 'px') return; presoEnd.style.height = px + 'px';
     if (!presoStreaming && !presoHL.terms.length) log.scrollTo({ top: log.scrollHeight, behavior: 'smooth' });
+    else if (presoHL.terms.length) setTimeout(() => presoClear(presoFirst), 300);   // the pile's room changed while a creature is up: keep its words clear
   } else if (m.type === 'highlight') {
-    presoHL = { terms: m.terms || [], spans: m.spans || [] };
+    presoHL = { terms: m.terms || [], spans: m.spans || [] }; if (!presoHL.terms.length) presoFirst = null;
     document.querySelectorAll('.msg.bot .ink').forEach((k) => { k.classList.add('off'); setTimeout(() => k.remove(), 260); });
     if (!presoHL.terms.length) return;
     const re = new RegExp('\\b(' + presoHL.terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')s?\\b', 'gi');
@@ -3865,7 +3873,8 @@ function presoHost(m) {
       }
       if (first) break;
     }
-    if (first) { const r = first.getBoundingClientRect(), L = log.getBoundingClientRect(); log.scrollTo({ top: log.scrollTop + (r.top - L.top) - L.height * 0.22, behavior: 'smooth' }); }
+    presoFirst = first;
+    if (first) { const r = first.getBoundingClientRect(), L = log.getBoundingClientRect(); log.scrollTo({ top: log.scrollTop + (r.top - L.top) - L.height * 0.22, behavior: 'smooth' }); setTimeout(() => presoClear(first), 800); setTimeout(() => presoClear(first), 1500); }
   } else if (m.type === 'ask') {
     (async () => { let t = null; try { if (await liveOk()) t = await claudeOnce(m.system, m.user, m.max); } catch (_) {} window.peek.answer(m.id, t); })();
   } else if (m.type === 'draft') { input.value = m.text || ''; fit(); composer.classList.toggle('has', !!input.value.trim()); }
