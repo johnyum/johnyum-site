@@ -2260,7 +2260,11 @@ function poolClear(all = true) {
 // The answer so far: anything it names that isn't in yet drops in.
 function poolHear(text) {
   restoreCook();
-  for (const [k, P] of Object.entries(POOL)) if (P.re && !poolSeen.has(k) && P.re.test(text) && !(k === 'timer' && BBQ.test(lastAsk))) { poolSeen.add(k); poolDrop(k); }
+  // THE GAME IS THE ONLY THING IN THE PILE (John, 2026-10-06: a stray creature beside the game's cards): once the game's been
+  // asked for, the answer naming the creatures again (its clues do) drops none of them — the pile was poured into the box
+  // for the cards, and only the cards stay
+  const gameOn = /\bgames?\b/i.test(lastAsk) || critters.some((c) => c.key === 'pail');
+  for (const [k, P] of Object.entries(POOL)) if (P.re && !poolSeen.has(k) && P.re.test(text) && !(k === 'timer' && BBQ.test(lastAsk)) && !(gameOn && CLUES[k])) { poolSeen.add(k); poolDrop(k); }
   toolsHear(text);
   if (!whaleSeen && WHALE_RE.test(text)) { whaleSeen = true; whaleStart(); }
   // The timer comes set: the answer's first cooking time — "smoke for 6 hours", "on the grill 45 minutes" —
