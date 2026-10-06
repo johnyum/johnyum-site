@@ -16,6 +16,7 @@ don't introduce bundlers, npm, or a component framework.
 | `explore/` | Explore map drill-in — see below |
 | `multical/` | **Build output — never hand-edit.** The Multi-Host Calendar web app, played live inside the phone on preso slide 13. See below. |
 | `recurrence/` | **Build output — never hand-edit.** The same calendar with the Repeat (recurrence) flow, from its own project. See below. |
+| `api/claude.js` | **The deck's Claude** (2026-10-05): a Vercel Edge function holding `ANTHROPIC_API_KEY`, guarded by shape as the Trip Creator's functions are — see `peek/` below |
 | `plush/` | johnyum.com/plush — ask for a synopsis of *Twenty Thousand Leagues* and a plush giant squid comes up behind the chat box and hugs it as Claude writes. See below |
 | `rig/` | johnyum.com/rig — Rig Studio: reshape a rigged, animated character (proportions + sculpt) and send it to Peek. See below |
 | `peek/` | johnyum.com/peek — a 3D furry character living in a chat UI, built from a Monsters character. See below |
@@ -668,6 +669,29 @@ up tip cards. One `index.html`, three.js; the chat is canned.
   one); the bone-posing layer for rigged critters (`poseRigged()`) is off — it pulled them out of shape.
 - Its frame loop is `frame()`, exposed on `window.__peek` — a hidden tab pauses
   `requestAnimationFrame`, so a test drives frames by hand.
+
+## `peek/?preso=1` — the 3D chat in the deck (2026-10-05/06)
+
+Preso slide `12fg.html` (after the ego card) is `/peek/?preso=1` live inside the drawn phone every build uses (13.html's chrome)
+with an iPhone 17 Pro Max's 440 x 956 inside it. **The phone (embed mode) never takes any of this** — every deck thing is behind
+`PRESO` / `html.preso`. The page is its own host there (`presoHost`: inset, highlight, draft, reply, ask), and the app's native chat
+is ported into it number for number from the Swift (ClaudeClone-peek: rows, composer, EdgeFade built as four blur layers,
+IconGlassButton, ThinkingRow, the top-right capsule drawn to John's grab of the Claude app, SF Symbols rendered off the Mac into
+`peek/sf/` at the app's sizes). The chat frame runs to the screen's top; the slide draws the status glyphs over it on a clear band.
+
+**Scenes** (`SCENES`, `window.__demo.play(name, turn)`): tidepool (2 turns), insurance (2 — the page writes this chat itself,
+`insReply`; the EOB is a PDF card above the bubble; the drafted answer is typed in), brisket (1), spiderman (3: in, climb the wall,
+swing). A scene change taps the new-chat mark and clears to a fresh greeting (not the first). Each turn: the iOS keyboard
+(`peek/sf/keyboard.png`, lifted from the Simulator; every key measured, each presses and pops its letter) rises, the words type
+in, it sends; Thinking… stays until the first words; the answer streams from **Claude for real** through `/api/claude`
+(Opus 5, the app's own system prompt held on the server; Haiku answers the page's six asks). `?live=0`, no function, or a failed
+call → the scene's written answer plays. No map ever in the deck. **Physics is stepped by the clock, not the frame** (it ran 2x on
+a 120 Hz Mac); in the deck gravity is a held phone (.8 g), the pointer over the phone is the tilt, S shakes.
+
+**`api/claude.js`** takes only `{kind:'chat'}` whose first message is one of the deck's openers (`OPENERS`) and `{kind:'ask'}` whose
+system prompt is one of the page's (`ASK`, lifted from the page's source when the file is written — a changed prompt means
+re-lifting it, or a 403). Same site only, token caps. Env: `ANTHROPIC_API_KEY` (and `ANTHROPIC_WORKSPACE_ID` for an org key).
+`GET /api/claude` reports readiness and the key's shape, never its contents. No passcode (John: guarded like Trips, nothing to type).
 
 ## `rig/` — Rig Studio (johnyum.com/rig)
 
