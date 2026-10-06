@@ -53,7 +53,7 @@ html.preso .chips, html.preso .hint, html.preso #director { display: none; }
 html.preso #newChat > svg:not(.menu), html.preso .top .more > svg, html.preso .bar .dot > svg, html.preso .bar .send > svg { display: none; }
 html.preso .top .more[hidden] { display: grid !important; }
 html.preso .top [aria-label="Character"] { display: none !important; }
-html.preso .fade[hidden] { display: block !important; }
+html.preso .fade[hidden], html.preso #kbd[hidden] { display: block !important; }
 /* THE APP'S OWN CHAT, number for number (John, 2026-10-05: "exactly like it does on my phone"), read off ClaudeClone-peek:
    MessagesView (rows 24 apart, 20 in from the sides, the end marker carrying the pile's room), MessageRow (your bubble:
    Schibsted 18, 16/12 padding, a 20 corner, #F0F0EE; the answer's actions 14, 20 apart, 12 under), MarkdownText (paragraphs
@@ -129,7 +129,16 @@ html.preso .composer.has .send .sf.arrowup { display: block; }
 html.preso .bar .send svg { display: none; }
 html.preso .composer.has .send { background: var(--clay); }
 html.preso #end { flex: none; height: 2px; }
-html.preso .foot { padding: 0 12px 48px; z-index: 4; }   /* 12 at the sides; the chat box 48 above the bottom of the phone (John, 2026-10-06) */
+html.preso .foot { padding: 0 12px 48px; z-index: 4; transition: padding-bottom .36s cubic-bezier(.32,.72,0,1); }   /* 12 at the sides; the chat box 48 above the bottom of the phone (John, 2026-10-06) */
+/* THE KEYBOARD (John, 2026-10-06: "the iOS keyboard that types in the prompts"): iOS's own, lifted from the Simulator
+   (peek/sf/keyboard.png, 3x; its prediction words blanked), rising on the system's curve with the chat box riding up on
+   it 8 above, the question typed into the box a character at a time, send turning clay as the first lands. */
+html.preso #kbd { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; transform: translateY(100%); transition: transform .36s cubic-bezier(.32,.72,0,1); pointer-events: none; }
+html.preso #kbd img { display: block; width: 100%; height: auto; }
+html.preso.kbd #kbd { transform: none; }
+html.preso.kbd .foot { padding-bottom: calc(var(--kbd, 0px) + 8px); }
+html.preso.kbd .fade.b { opacity: 0; }
+html.preso .composer textarea { caret-color: #2a7fff; }
 html.preso .composer { border: 0; border-radius: 24px; padding: 16px 8px 8px; background: rgba(255,255,255,.92);
   -webkit-backdrop-filter: blur(18px) saturate(1.2); backdrop-filter: blur(18px) saturate(1.2);
   box-shadow: inset 0 0 0 .5px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.08); }
@@ -460,6 +469,7 @@ button, textarea { font: inherit; color: inherit; }
     <div class="hello" id="hello"><svg viewBox="0 0 100 100" fill="#D97757" aria-hidden="true"><use href="#spark"/></svg><b id="greet">What shall we think through?</b></div>
   </div></div>
   <div class="fade t" hidden><i></i><i></i><i></i><i></i></div><div class="fade b" hidden><i></i><i></i><i></i><i></i></div>
+  <div id="kbd" hidden><img src="sf/keyboard.png" alt="" draggable="false"></div>
 
   <div class="foot">
     <div class="chips" id="chips"><button>Summarize this page</button><button>Make it shorter</button><button>Explain like I'm five</button><button>Give me ideas</button></div>
@@ -3954,6 +3964,21 @@ const SCENES = {
 };
 if (PRESO) {
   let scene = null, turn = 0, playing = false;
+  // the keyboard rises, the question is typed a character at a time (a person's pace, uneven), a beat, the keyboard drops
+  const kbdEl = $('#kbd');
+  const kbdUp = async () => { document.documentElement.style.setProperty('--kbd', kbdEl.getBoundingClientRect().height + 'px'); document.documentElement.classList.add('kbd'); await new Promise((r) => setTimeout(r, 420)); };
+  const kbdDown = async () => { document.documentElement.classList.remove('kbd'); await new Promise((r) => setTimeout(r, 380)); };
+  async function typeIn(text) {
+    input.focus({ preventScroll: true }); await kbdUp();
+    await new Promise((r) => setTimeout(r, 260));
+    let out = '';
+    for (const ch of text) {
+      out += ch; input.value = out; fit(); composer.classList.add('has'); input.scrollTop = input.scrollHeight;
+      await new Promise((r) => setTimeout(r, ch === ' ' ? 60 + Math.random() * 80 : 34 + Math.random() * 56));
+    }
+    await new Promise((r) => setTimeout(r, 520));
+    input.blur(); await kbdDown();
+  }
   // play(name, i): the i-th turn of a scene. A different scene is a new chat: the thread clears, and so does everything
   // the last chat dropped. fast: the answer lands whole (a restore), no streaming.
   async function play(name, i = 0, fast = false) {
@@ -3963,6 +3988,8 @@ if (PRESO) {
     turn = i + 1;
     const { you, claude } = sc[i];
     input.value = ''; fit(); composer.classList.remove('has');
+    if (!fast) await typeIn(you);   // the keyboard up, the question typed, the keyboard down — then it's sent
+    input.value = ''; fit(); composer.classList.remove('has');   // sent: the box empties
     add('user', esc(you)); said.push(['you', you]);
     window.peek.event('send', you);
     if (!fast) await new Promise((r) => setTimeout(r, 380));   // your bubble has risen in before the dots come (John, 2026-10-06)
