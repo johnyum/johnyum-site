@@ -3908,20 +3908,25 @@ if (PRESO) {
     return true;
   }
   document.querySelectorAll('.fade').forEach((f) => { f.hidden = false; });
-  // THE PHONE'S TILT, FROM YOUR HAND ON THE MAC: the pointer over the phone is the tilt (left of centre leans the pile left),
-  // and when it's still the gravity wanders a little, as a held phone's does, so the pile settles and resettles rather
-  // than sleeping — every few seconds the bodies are woken so the drift reaches them.
-  { let px = .5, moved = 0;
+  // THE PHONE'S TILT, FROM YOUR HAND ON THE MAC (John, 2026-10-05, after his recording: "the physics… to feel like this"): the
+  // pointer over the phone is the tilt (left of centre leans the pile left), and when it's still the gravity does what a
+  // held phone's does — a slow wander, and every few seconds a small jolt of handling that eases away over half a second —
+  // so the pile shifts, resettles, never sleeps. A press of S shakes it, as a shake of the phone does.
+  { let px = .5, moved = 0, jolt = 0, joltAt = 0, nextJolt = 3000;
     addEventListener('pointermove', (e) => { px = e.clientX / innerWidth; moved = performance.now(); }, { passive: true });
+    addEventListener('keydown', (e) => { if (e.key === 's' || e.key === 'S') window.peek?.shake(); });
     setInterval(() => {
       if (!window.peek) return;
-      const t = performance.now() / 1000, still = performance.now() - moved > 1500;
-      const x = still ? Math.sin(t * .37) * .07 + Math.sin(t * .91) * .035 : (px - .5) * .9;
-      window.peek.tilt(x, 1);
+      const now = performance.now(), t = now / 1000, still = now - moved > 1500;
+      if (still && now > nextJolt) { jolt = (Math.random() - .5) * .5; joltAt = now; nextJolt = now + 3500 + Math.random() * 5500; }
+      const j = jolt * Math.max(0, 1 - (now - joltAt) / 600);
+      const x = still ? Math.sin(t * .37) * .11 + Math.sin(t * .91) * .05 + j : (px - .5) * .9;
+      window.peek.tilt(x, 1 - Math.abs(j) * .4);
     }, 50);
     setInterval(() => { if (critters.length && !poolDrag && !tcard) for (const c of critters) Matter.Sleeping.set(c.body, false); }, 2600);
   }
   { const more = $('.top .more'); if (more) more.hidden = false; const ch = $('.top [aria-label="Character"]'); if (ch) ch.hidden = true; }
+  { const pill = $('.bar .pill'); if (pill) pill.innerHTML = 'Opus 5 <span>High</span>'; }   // the phone's model (api/claude.js answers with it)
   window.__demo = { play, SCENES, get scene() { return scene; }, get turn() { return turn; }, get playing() { return playing; } };
 }
 if (EMBED || PRESO) {

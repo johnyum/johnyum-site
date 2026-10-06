@@ -5,7 +5,7 @@
 //
 // GUARDED BY SHAPE, as the Trip Creator's functions are (John, 2026-10-05: no passcode): it does two fixed jobs and nothing
 // else, so it can't be used as a general Claude by anyone who finds it.
-//   {kind:'chat', messages, stream}   the app's system prompt (held HERE), Sonnet, ≤2048 tokens — and the conversation must
+//   {kind:'chat', messages, stream}   the app's system prompt (held HERE), Opus 5, ≤2048 tokens — and the conversation must
 //                                     OPEN with one of the deck's own questions (OPENERS), or it's refused
 //   {kind:'ask', system, user, max}   Haiku, ≤2000 tokens — and the system prompt must be one of the page's own (ASK, lifted
 //                                     from peek/index.html's source when this file is written; a page edit means re-running
@@ -63,7 +63,7 @@ export default async function handler(req) {
     }
     const opener = norm(messages[0].content);
     if (!OPENERS.some((o) => norm(o) === opener)) return json(403, { error: 'not one of the deck\'s chats' });
-    payload = { model: 'claude-sonnet-5', max_tokens: 2048, system: SYSTEM, messages, stream: !!body.stream };
+    payload = { model: 'claude-opus-5', max_tokens: 2048, system: SYSTEM, messages, stream: !!body.stream };   // Opus 5: what the phone is set to (the pill in John's recording, 2026-10-05)
   } else if (body.kind === 'ask') {
     const system = String(body.system || ''), user = String(body.user || '');
     const known = ASK.find((p) => system.startsWith(p));
