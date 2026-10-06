@@ -75,6 +75,7 @@
     user-select: none;
   }
   #stage { position: fixed; inset: 0; background: #fff; }
+  #stage .veil { position: absolute; inset: 0; background: #fff; z-index: 50; pointer-events: none; transition: opacity .25s ease; }
   .pane {
     position: absolute; inset: 0;
     background: #fff;
@@ -487,7 +488,16 @@
     stage.appendChild(made.pane);
     settle(i, made);
     if (made.frame) made.ready.then(() => setTimeout(() => shown(made), 200));   // a first paint is on stage too
-    if (state > 0 && made.frame) { const t0 = Date.now(); const poke = () => { let f = null; try { f = made.frame.contentWindow && made.frame.contentWindow.presoRestore; } catch (_) {} if (f) { f(state); syncHash(); } else if (Date.now() - t0 < 8000) setTimeout(poke, 100); }; made.ready.then(poke); }
+    if (state > 0 && made.frame) {
+      // UNDER A VEIL UNTIL IT IS THERE (John, 2026-10-05: "why can't the page just lock to where it was going to animate to?"). A
+      // live slide put back at its step boots and replays to it, and that used to happen in full view. The stage is white until
+      // the slide has taken the step and stood still at it (arrived, as a step back uses), then the veil lifts on a finished slide.
+      const veil = document.createElement('div'); veil.className = 'veil'; stage.appendChild(veil);
+      const lift = () => { veil.style.opacity = '0'; setTimeout(() => veil.remove(), 260); };
+      const t0 = Date.now();
+      const poke = () => { let f = null; try { f = made.frame.contentWindow && made.frame.contentWindow.presoRestore; } catch (_) {} if (f) { f(state); syncHash(); arrived(made, 7000).then(lift); } else if (Date.now() - t0 < 8000) setTimeout(poke, 100); else lift(); };
+      made.ready.then(poke);
+    }
   }
 
   function finishFlight() {               // the landed pane owns the stage
@@ -563,6 +573,12 @@
   // replaying its beats on screen. Now the slide on stage holds until the one coming in has loaded and its state has stood
   // still (or it says it is ready, presoReady), then the same push as ever. Capped, so a slide that never settles still comes.
   // Forward steps, and back steps onto a kept or built-behind slide, never come through here.
+  // any finite CSS animation or transition still running in the slide or the builds framed inside it (the endless ones are ignored)
+  function moving(win) {
+    let n = 0;
+    const walk = w => { try { w.document.getAnimations().forEach(a => { try { if (a.playState === 'running' && a.effect.getComputedTiming().endTime !== Infinity) n++; } catch (_) {} }); for (let k = 0; k < w.frames.length; k++) walk(w.frames[k]); } catch (_) {} };
+    walk(win); return n > 0;
+  }
   function arrived(made, max = 4000) {
     return new Promise(res => {
       const t0 = Date.now(); let last = null, since = 0;
@@ -572,9 +588,10 @@
         if (!made.frame._loaded || !w) return setTimeout(tick, 80);
         if (!w.presoEnd) return res();   // a slide with no end to reach is shown as it always was
         let ok = true; try { if (w.presoReady) ok = !!w.presoReady(); } catch (_) {}
+        if (ok && moving(w)) ok = false;   // the build's own transitions still running (a camera flying, cells settling)
         const st = slideState(made);
         if (st !== last) { last = st; since = Date.now(); }
-        if (ok && Date.now() - since >= 400) return requestAnimationFrame(() => requestAnimationFrame(res));   // stood still, and painted
+        if (ok && Date.now() - since >= 900) return requestAnimationFrame(() => requestAnimationFrame(res));   // stood still (900ms: a slide's last entrance can start on a timer a beat after its state settles), and painted
         setTimeout(tick, 80);
       };
       tick();
@@ -737,12 +754,12 @@
     .then(list => {
       SLIDES = Array.isArray(list) ? list : [];
       if (!SLIDES.length) { empty.classList.add('show'); return; }
-      // A REFRESH STARTS THE SLIDE OVER (John, 2026-09-30: "every time I refresh it should play through one by one again, and not
-      // save the changes from a previous walkthrough"). The hash still names the slide and its step as you go, but a load lands
-      // on the slide's FIRST step — a build put straight back at step 30 shows that step's promotion before it has been walked
-      // to. ?beats=1 restores the exact step, for checking a step without walking to it.
+      // A REFRESH LANDS WHERE YOU WERE (John, 2026-10-05: a reload "tries to reload everything and go through the entire
+      // process"): the hash names the slide and its step, and a load puts both back, under a veil until the slide is there (see
+      // show). Until today a load started the slide over (John, 2026-09-30: "every time I refresh it should play through one by
+      // one again") — ?fresh=1 still does that. (?beats=1, which once restored the step, is now the default and still accepted.)
       const m = /^#?(\d+)(?:\.(\d+))?/.exec(location.hash) || [];
-      const keepStep = /[?&]beats=1\b/.test(location.search);
+      const keepStep = !/[?&]fresh=1\b/.test(location.search);
       const h = parseInt(m[1], 10), st = keepStep ? (parseInt(m[2], 10) || 0) : 0;
       show((h >= 1 && h <= SLIDES.length) ? h - 1 : 0, st);
     });

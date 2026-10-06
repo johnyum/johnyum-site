@@ -315,7 +315,8 @@
   // instant step after the one before, with the wait it needs, so a restore to state 12 lands exactly there.
   let chain = Promise.resolve();
   const closeUpsell = w => { ev(w, "(() => { const o = document.getElementById('lmUpsellOverlay'); if (o) o.classList.remove('visible'); const b = document.getElementById('lmUpsellOn'); if (b) { b.classList.remove('is-thinking'); } })()"); };   // whatever upsell the build has popped, gone
-  const later = (fn, ms) => { chain = chain.then(() => new Promise(r => setTimeout(() => { try { fn(); } catch (e) { console.warn('replay step failed', e); } r(); }, ms))); };
+  let laterPending = 0;   // replay steps still to run (presoReady waits on them)
+  const later = (fn, ms) => { laterPending++; chain = chain.then(() => new Promise(r => setTimeout(() => { try { fn(); } catch (e) { console.warn('replay step failed', e); } laterPending--; r(); }, ms))); };
   // EVERY NIGHT, ONE PRICE (John, 2026-10-02): the data first — every home, every night — so a cell built later, scrolled to
   // or rebuilt, reads the same as the ones on screen
   const setAll = (w, v) => ev(w, `for (let li = 0; li < priceOverride.length; li++) for (let di = 0; di < allDays.length; di++) priceOverride[li][di] = ${v}; refreshCalendarPrices();`);
@@ -1112,7 +1113,7 @@
   window.presoEnd = () => { pendingRestore = BEATS.length; settleRestore(); };   // to the end — once the build stands ready, not into a build still booting (John, 2026-10-03: stepping back onto it)
   window.presoState = () => Math.max(at, pendingRestore);
   window.presoRestore = n => { pendingRestore = n; settleRestore(); };
-  window.presoReady = () => !pendingRestore && app.classList.contains('ready');   // the build is up and every beat asked for has played (the deck holds a step back onto this until then)
+  window.presoReady = () => !pendingRestore && laterPending === 0 && app.classList.contains('ready');   // the build is up and every beat asked for has played (the deck holds a step back onto this until then)
   window.presoSettled = () => chain;   // the deck may wait on this before trusting the state
   app.addEventListener('load', () => { const tick = () => { if (app.classList.contains('ready')) settleRestore(); else setTimeout(tick, 60); }; tick(); });
 })();
