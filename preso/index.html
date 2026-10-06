@@ -208,8 +208,14 @@
   // Stamped per deck load so a slide edited between two runs can never be served
   // from the browser's cache of the old file (iframes are cached hard). Assets
   // inside a slide keep their normal caching; only the slide document is fresh.
-  const STAMP = Date.now().toString(36);
-  const src = i => 'slides/' + encodeURIComponent(SLIDES[i]) + (HTML.test(SLIDES[i]) ? '?v=' + STAMP : '');
+  // ONLY ON THE MAC, NOW (John, 2026-10-05: "lock in this flow… not trying to reload like crazy"). Python's local server sends
+  // no cache headers, so a browser may hold an edited slide; there the stamp stays. johnyum.com sends every file with
+  // max-age=0, must-revalidate and an ETag, so the browser always asks and a file that hasn't changed comes back as a 304 from
+  // its own cache — always the pushed version, never downloaded twice. A stamp per load there threw that away: every
+  // refresh fetched every slide, and the 1.4MB web build, whole. ?dev puts the stamp back anywhere.
+  const LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$|\.(localhost|test)$/.test(location.hostname) || /[?&]dev\b/.test(location.search);
+  const STAMP = LOCAL ? Date.now().toString(36) : '';
+  const src = i => 'slides/' + encodeURIComponent(SLIDES[i]) + (HTML.test(SLIDES[i]) && STAMP ? '?v=' + STAMP : '');
 
   function preload(i) {
     if (i < 0 || i >= SLIDES.length || cache.has(i)) return;
@@ -506,7 +512,10 @@
     if (kept && kept.i === i && !noKeep(kept.made)) { made = kept.made; kept = null; made.pane.style.display = ''; made.pane.style.visibility = ''; discardPrepared(); }   // the slide just left: back to it as it was
     else if (prepared && prepared.i === i && dir > 0) { made = prepared.made; prepared = null; made.pane.style.visibility = ''; made.pane.style.pointerEvents = ''; }   // built ahead: reveal it
     else if (preparedBack && preparedBack.i === i && dir < 0) { made = preparedBack.made; preparedBack = null; made.pane.style.visibility = ''; made.pane.style.pointerEvents = ''; discardPrepared(); }   // built behind, at its end: reveal it
-    else { discardPrepared(); made = makePane(i, dir); stage.appendChild(made.pane); }
+    else {
+      discardPrepared(); made = makePane(i, dir); stage.appendChild(made.pane);
+      if (dir < 0 && made.frame) made.ready = made.ready.then(() => arrived(made));   // built fresh behind: pushed in only once it stands at its end
+    }
     made.pane.style.transform = 'translateX(' + (dir > 0 ? 100 : -100) + '%)';
     void made.pane.offsetWidth;   // the prepared pane sat at 0: its jump to the wing must land before the transition is set
     const token = flight = { out: outgoing, inc: made, fromIdx: idx, toIdx: i, dir, timer: 0 };
@@ -530,6 +539,29 @@
       }
     }));
     token.timer = setTimeout(() => { if (flight === token) finishFlight(); }, DUR + 60);
+  }
+
+  // ARRIVES FINISHED (John, 2026-10-05: "showing weird parts of the build"). A step back onto a live slide that was neither
+  // kept nor built behind makes it fresh, at its end — and the push used to start 400ms in, with the build still booting and
+  // replaying its beats on screen. Now the slide on stage holds until the one coming in has loaded and its state has stood
+  // still (or it says it is ready, presoReady), then the same push as ever. Capped, so a slide that never settles still comes.
+  // Forward steps, and back steps onto a kept or built-behind slide, never come through here.
+  function arrived(made, max = 4000) {
+    return new Promise(res => {
+      const t0 = Date.now(); let last = null, since = 0;
+      const tick = () => {
+        if (Date.now() - t0 > max) return res();
+        let w = null; try { w = made.frame.contentWindow; } catch (_) {}
+        if (!made.frame._loaded || !w) return setTimeout(tick, 80);
+        if (!w.presoEnd) return res();   // a slide with no end to reach is shown as it always was
+        let ok = true; try { if (w.presoReady) ok = !!w.presoReady(); } catch (_) {}
+        const st = slideState(made);
+        if (st !== last) { last = st; since = Date.now(); }
+        if (ok && Date.now() - since >= 400) return requestAnimationFrame(() => requestAnimationFrame(res));   // stood still, and painted
+        setTimeout(tick, 80);
+      };
+      tick();
+    });
   }
 
   function reverseFlight() {              // turn the slides around, mid-air
