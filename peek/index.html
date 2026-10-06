@@ -81,8 +81,27 @@ html.preso .thinkrow { display: flex; align-items: center; gap: 8px; font: 14px/
 html.preso .thinkrow i { width: 4.5px; height: 4.5px; border-radius: 50%; background: var(--clay); display: inline-block; margin-right: 3px; animation: tdot 1.6s ease-in-out infinite; }
 html.preso .thinkrow i:nth-child(2) { animation-delay: .33s; } html.preso .thinkrow i:nth-child(3) { animation-delay: .66s; }
 @keyframes tdot { 0%, 100% { opacity: .28; } 50% { opacity: 1; } }
-html.preso .acts { gap: 20px; margin-top: 12px; }
-html.preso .acts svg { width: 15px; height: 15px; }
+html.preso .acts { gap: 20px; margin-top: 12px; align-items: center; }
+/* THE NATIVE ICONS (John, 2026-10-06: "the correct ones that I have in the native build"): SF Symbols rendered off the Mac's
+   own font at the app's sizes and weights (peek/sf/, 4x, black ink), placed by each symbol's own layout box as SwiftUI
+   places them; the menu glyph is NavButton's MenuGlyph, drawn to its numbers (18 x 12, 1pt rules at 1, 6 and 11, the
+   last a true half). Black everywhere except the send button (white, inverted) and the answer's actions (muted). */
+html.preso .sf { display: block; object-fit: contain; }
+html.preso .acts .sf { opacity: .5; }
+html.preso .acts .sf.copy { width: 17px; height: 20px; }
+html.preso .acts .sf.retry { width: 15px; height: 17px; }
+html.preso .acts .sf.up, html.preso .acts .sf.down { width: 16px; height: 17px; }
+html.preso .round .sf.ellipsis { width: 18px; height: 7px; }
+html.preso .round svg.menu { width: 18px; height: 12px; }
+html.preso .bar .dot .sf.plus { width: 17px; height: 16px; }
+html.preso .bar .dot .sf.mic { width: 14px; height: 17px; }
+html.preso .bar .send .sf { filter: invert(1); }
+html.preso .bar .send .sf.waveform { width: 17px; height: 17px; }
+html.preso .bar .send .sf.arrowup { width: 14px; height: 16px; display: none; }
+html.preso .composer.has .send .sf.waveform { display: none; }
+html.preso .composer.has .send .sf.arrowup { display: block; }
+html.preso .bar .send svg { display: none; }
+html.preso .composer.has .send { background: var(--clay); }
 html.preso #end { flex: none; height: 2px; }
 html.preso .foot { padding: 0 12px 48px; z-index: 4; }   /* 12 at the sides; the chat box 48 above the bottom of the phone (John, 2026-10-06) */
 html.preso .composer { border: 0; border-radius: 24px; padding: 16px 8px 8px; background: rgba(255,255,255,.92);
@@ -1432,6 +1451,7 @@ const DEMO = [
 ];
 let demoAt = 0;
 const ACTS = '<div class="acts"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="6.5" y="6.5" width="9" height="10" rx="1.6"/><path d="M4.5 13.5v-9a1.5 1.5 0 0 1 1.5-1.5h7"/></svg><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M15.5 10a5.5 5.5 0 1 1-1.6-3.9M14.5 3.5v3h-3"/></svg><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M7 9l3-6c1.2 0 2 .8 2 2v3h3.5a1.5 1.5 0 0 1 1.5 1.8l-1 5A1.5 1.5 0 0 1 14.5 16H7zM7 9H4v7h3"/></svg><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M13 11l-3 6c-1.2 0-2-.8-2-2v-3H4.5A1.5 1.5 0 0 1 3 10.2l1-5A1.5 1.5 0 0 1 5.5 4H13zM13 11h3V4h-3"/></svg></div>';
+let ACTS_PRESO = null;   // the deck's actions row (the native symbols), set in deck mode
 let busy = false;
 async function send(text) {
   text = text.trim(); if (!text || busy) return;
@@ -3863,7 +3883,7 @@ async function presoStream(bot, text, fast) {
     if (fast) continue;
     if (n % 5 === 0 || out.length === text.length) { bot.innerHTML = mdPara(out); log.scrollTop = log.scrollHeight; window.peek.event('stream', out); await new Promise((r) => setTimeout(r, 70 + Math.random() * 90)); }   // a few words at a time, as the model's chunks land
   }
-  bot.innerHTML = mdPara(out); bot.insertAdjacentHTML('beforeend', ACTS); log.scrollTop = log.scrollHeight;
+  bot.innerHTML = mdPara(out); bot.insertAdjacentHTML('beforeend', ACTS_PRESO || ACTS); log.scrollTop = log.scrollHeight;
   presoStreaming = false;
   return out;
 }
@@ -3910,7 +3930,7 @@ if (PRESO) {
         presoStreaming = true;
         const history = said.map(([w, t]) => ({ role: w === 'you' ? 'user' : 'assistant', content: t }));
         out = await claudeStream(history, (t) => { bot.innerHTML = mdPara(t); log.scrollTop = log.scrollHeight; window.peek.event('stream', t); });
-        bot.innerHTML = mdPara(out); bot.insertAdjacentHTML('beforeend', ACTS); log.scrollTop = log.scrollHeight;
+        bot.innerHTML = mdPara(out); bot.insertAdjacentHTML('beforeend', ACTS_PRESO || ACTS); log.scrollTop = log.scrollHeight;
       } catch (e) { console.warn('live Claude failed, the script plays', e); out = null; }
       presoStreaming = false;
     }
@@ -3940,6 +3960,16 @@ if (PRESO) {
   }
   { const more = $('.top .more'); if (more) more.hidden = false; const ch = $('.top [aria-label="Character"]'); if (ch) ch.hidden = true; }
   { const pill = $('.bar .pill'); if (pill) pill.innerHTML = 'Opus 5 <span>High</span>'; }   // the phone's model (api/claude.js answers with it)
+  // the native icons (see THE NATIVE ICONS)
+  { const sf = (n, cls) => `<img class="sf ${cls}" src="sf/${n}.png" alt="" draggable="false">`;
+    const menu = '<svg class="menu" viewBox="0 0 18 12" aria-hidden="true" fill="none" stroke="#1d1d1c" stroke-width="1"><path d="M0 1.5H18M0 6.5H18M0 11.5H9"/></svg>';
+    const nc = $('#newChat'); if (nc) nc.innerHTML = menu;
+    const more = $('.top .more'); if (more) more.innerHTML = sf('ellipsis', 'ellipsis');
+    const add = $('.bar .dot[aria-label="Add"]'); if (add) add.innerHTML = sf('plus', 'plus');
+    const mic = $('.bar .dot[aria-label="Voice"]'); if (mic) mic.innerHTML = sf('mic', 'mic');
+    const send = $('.bar .send'); if (send) send.insertAdjacentHTML('beforeend', sf('waveform', 'waveform') + sf('arrow.up', 'arrowup'));
+    ACTS_PRESO = '<div class="acts">' + sf('doc.on.doc', 'copy') + sf('arrow.clockwise', 'retry') + sf('hand.thumbsup', 'up') + sf('hand.thumbsdown', 'down') + '</div>';
+  }
   window.__demo = { play, SCENES, get scene() { return scene; }, get turn() { return turn; }, get playing() { return playing; } };
 }
 if (EMBED || PRESO) {
