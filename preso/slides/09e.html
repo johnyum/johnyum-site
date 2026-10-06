@@ -283,7 +283,10 @@
     if (!document.hidden && armed && shown()) run();
   });
 
-  window.presoNext = () => false;              // no builds
+  // NO TAP THROUGH THE ARRIVAL (John, 2026-10-05: "make sure I can't fat finger next until the animation with the scrim comes
+  // in first"): a Next that lands while the scrim and the card are still coming in is swallowed — not kept, not skipped —
+  // until the card has landed (HOLD + LIFT + LAND after the run began, and a breath).
+  window.presoNext = () => lastRun > 0 && Date.now() - lastRun < HOLD + LIFT + LAND + 200;   // no builds; the arrival only
   window.presoPrev = () => false;
   window.presoState = () => 0;
   window.presoRestore = () => {};
