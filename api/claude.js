@@ -25,6 +25,7 @@ const OPENERS = [
   "My daughter is learning about tide pools and I want you to tell me about creatures that live in them.",
   "Create a little game for her so it’s fun to learn about tide pool creatures.",
   "Create a little game for her so it's fun to learn about tide pool creatures.",
+  "Give me the best recipe for Texas style brisket on the Big Green Egg.",
   "Brisket on the Big Green Egg. Show me how.",
   "Tell me the story of Moby-Dick.",
   "Tell me all you know about Spider-Man.",

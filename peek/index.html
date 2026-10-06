@@ -86,6 +86,8 @@ html.preso .fade.b i:nth-child(4) { -webkit-mask: linear-gradient(transparent 0,
 html.preso .fade.b::after { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(255,255,255,0) 0, rgba(255,255,255,.22) 18%, rgba(255,255,255,.55) 40%, rgba(255,255,255,.86) 65%, #fff 100%); }
 html.preso .log { padding: 0 20px; scroll-behavior: auto; scrollbar-width: none; }   /* no scrollbar: a Mac with a mouse draws one, a phone never does */
 html.preso .log::-webkit-scrollbar { display: none; width: 0; height: 0; }
+html.preso * { scrollbar-width: none; }   /* nor on anything else that scrolls — the call's transcript, a recipe page, a list (John, 2026-10-06) */
+html.preso *::-webkit-scrollbar { display: none; width: 0; height: 0; }
 html.preso .log-inner { gap: 24px; padding-top: 122px; padding-bottom: 16px; }
 html.preso .msg.user, html.preso .thinkrow, html.preso .msg.youwrap { animation: rowIn .32s cubic-bezier(.2,.8,.2,1) both; }
 html.preso .msg.youwrap { align-self: flex-end; max-width: calc(100% - 48px); display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
@@ -2863,7 +2865,11 @@ function growTimer(c) {
     go.style.left = x0 + 'px'; close.style.left = (x0 + gw + 8) + 'px'; close.style.marginLeft = '0';
   }
   c.el.classList.add('grown'); poolEl.append(c.el);   // on top of the scrim
-  const from = { x: c.body.position.x - (c.ox - c.w / 2), y: c.body.position.y - (c.oy - c.w / 2), bx: c.body.position.x, by: c.body.position.y, w: c.w, a: c.body.angle };   // the picture's centre, and the body's
+  // the picture's centre as it's drawn (through the body's turn about its centroid), and the press's squash, so the first frame of the
+  // grow is the frame before it — the stopwatch and the phone used to snap off the pressed shape and a turned centre (John, 2026-10-06)
+  const { x: px, y: py } = c.body.position, ang = c.body.angle, cs = Math.cos(ang), sn = Math.sin(ang), dx = c.w / 2 - c.ox, dy = c.w / 2 - c.oy;
+  const from = { x: px + dx * cs - dy * sn, y: py + dx * sn + dy * cs, bx: px, by: py, w: c.w, a: ang, sq: clamp(c.sq, -.22, .22) };
+  c.sq = 0; c.sv = 0;   // at rest when it comes back
   tcard = { c, scrim, ui, close, go, from, k: 0, kFrom: 0, to: 1, t0: performance.now(), dur: 560, wind: null };
   requestAnimationFrame(() => { scrim.classList.add('on'); ui.classList.add('on'); close.classList.add('on'); go?.classList.add('on'); });
   paintCard();
@@ -2937,8 +2943,8 @@ function ring(c) {
    Wrap it." — come from the recipe (Claude writes them in recipeCore; until then cookChecks() reads them off the
    steps). Kept in localStorage, so a reload, a new chat or the app coming back never loses a cook in progress. */
 const WATCH = { cx: .5417, cy: .635, r: .293, sx: .54, sy: .4833, sr: .0917 };   // the dial and its 30-minute sub-dial on stopwatch.webp
-let cook = (() => { try { return JSON.parse(localStorage.getItem('peek-cook') || 'null'); } catch { return null; } })();
-const saveCook = () => { try { cook ? localStorage.setItem('peek-cook', JSON.stringify(cook)) : localStorage.removeItem('peek-cook'); } catch {} };
+let cook = PRESO ? null : (() => { try { return JSON.parse(localStorage.getItem('peek-cook') || 'null'); } catch { return null; } })();   // the deck never carries a cook over: a Smoking button from a brisket run showed up on the insurance call
+const saveCook = () => { if (PRESO) return; try { cook ? localStorage.setItem('peek-cook', JSON.stringify(cook)) : localStorage.removeItem('peek-cook'); } catch {} };
 const cookMs = () => cook ? cook.acc + (cook.running ? Date.now() - cook.startAt : 0) : 0;
 // the bubble: counting from 0 seconds — m:ss under the hour, then h:mm:ss
 const ticking = (ms) => { const t = Math.floor(ms / 1000), h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, s2 = String(t % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${s2}` : `${m}:${s2}`; };
@@ -2979,7 +2985,7 @@ function watchSVG() {
     <g class="wsec"><line y1="8" y2="-44" stroke="#2c4a8c" stroke-width="1.3" stroke-linecap="round"/><circle r="2.6" fill="#2c4a8c"/><circle r=".9" fill="#c9ced6"/></g></svg>`;
 }
 function tickWatch() {
-  if (tcard?.go && cook && !tcard.go.dataset.fixed) { const t = `Smoking · ${ticking(cookMs())}`; if (tcard.go.textContent !== t) tcard.go.textContent = t; }   // the cookbook's button counts with the stopwatch
+  if (tcard?.go && tcard.c.key === 'cookbook' && cook && !tcard.go.dataset.fixed) { const t = `Smoking · ${ticking(cookMs())}`; if (tcard.go.textContent !== t) tcard.go.textContent = t; }   // the cookbook's button only, counting with the stopwatch: the call's hang-up sits in the same slot and was being written over with "Smoking · 0:52" (John, 2026-10-06)
   const w = critters.find((o) => o.key === 'stopwatch'); if (!w || !cook) return;
   const ms = cookMs(), sec = (ms / 1000) % 60, min = (ms / 60000) % 30;
   const a = w.el.querySelector('.wsec'), b = w.el.querySelector('.wmin');
@@ -3196,12 +3202,13 @@ function cSpeak(call, text, who) {
 async function insCall(c) {
   const call = c.call, D = insDates();
   const gone = () => { if (ins?.call !== call || call.ended) throw 'gone'; };
-  const nap = async (ms) => { const end = performance.now() + ms; while (performance.now() < end) { gone(); await new Promise((r) => setTimeout(r, Math.min(80, ms))); } };
+  // rushed (the deck's next tap mid-call): every wait a 30th, the words a few ms apart, the hold flat out — straight to the hang-up
+  const nap = async (ms) => { if (call.rush) ms = Math.min(ms / 30, 40); const end = performance.now() + ms; while (performance.now() < end) { gone(); await new Promise((r) => setTimeout(r, Math.min(80, ms))); } };
   const line = (who, t, extra = {}) => { const l = { who, t, shown: who === 'sys' ? t : '', ...extra }; call.lines.push(l); callPaint(c); return l; };
   const talk = async (who, t, said) => {
     const l = line(who, t), words = t.split(' '); call.who = who;
     const voice = cSpeak(call, said || t, who), per = who === 'me' ? 92 : who === 'ivr' ? 108 : 100;
-    for (let i = 0; i < words.length; i++) { gone(); l.shown = words.slice(0, i + 1).join(' '); call.beat = performance.now(); call.wl = words[i].replace(/[^a-z0-9]/gi, '').length; callPaint(c); await nap(per + Math.random() * 60); }
+    for (let i = 0; i < words.length; i++) { gone(); l.shown = words.slice(0, i + 1).join(' '); call.beat = performance.now(); call.wl = words[i].replace(/[^a-z0-9]/gi, '').length; callPaint(c); await nap(call.rush ? 8 : per + Math.random() * 60); }
     await voice; gone(); call.who = null;
   };
   try {
@@ -3220,7 +3227,7 @@ async function insCall(c) {
     await talk('ivr', 'All of our representatives are helping other members. Your estimated wait time is nine minutes.');
     call.mode = 'hold'; call.status = 'On hold · about 9 min'; line('sys', 'On hold. I\'ll wait here, so you don\'t have to.', { icon: 'music' }); cHold(call, true);
     const end = call.sec + 8 * 60 + 47; call.rate = 105;
-    while (call.sec < end) { gone(); await nap(60); }
+    while (call.sec < end) { gone(); call.rate = call.rush ? 4000 : 105; await nap(60); }
     call.rate = 5; cHold(call, false); call.mode = 'talk'; call.status = 'Denise · Member Services';
     line('sys', 'Denise picked up', { icon: 'check' }); await nap(600);
     for (const b of insScript()) {
@@ -3393,9 +3400,9 @@ function tickTimers() {
     const t = tcard, c = t.c, p = clamp((performance.now() - t.t0) / t.dur, 0, 1), s5 = p * p * p * (p * (6 * p - 15) + 10);   // smootherstep
     t.k = t.kFrom + (t.to - t.kFrom) * s5;
     const k = t.k, G = grownSize(), at = grownAt();
-    const x = lerp(t.from.x, at.x, k), y = lerp(t.from.y, at.y, k), w = lerp(t.from.w, G, k), a = lerp(t.from.a, 0, k);
+    const x = lerp(t.from.x, at.x, k), y = lerp(t.from.y, at.y, k), w = lerp(t.from.w, G, k), a = lerp(t.from.a, 0, k), sq = t.to === 1 ? (t.from.sq || 0) * (1 - k) : 0;   // the press's squash eases away as it grows
     c.el.style.width = c.el.style.height = w + 'px'; c.el.style.transformOrigin = '50% 50%';
-    c.el.style.transform = `translate(${(x - w / 2).toFixed(1)}px, ${(y - w / 2).toFixed(1)}px) rotate(${a.toFixed(3)}rad)`;
+    c.el.style.transform = `translate(${(x - w / 2).toFixed(1)}px, ${(y - w / 2).toFixed(1)}px) rotate(${a.toFixed(3)}rad) scale(${(1 + sq * .6).toFixed(3)}, ${(1 - sq).toFixed(3)})`;
     const u = clamp((k - .3) / .7, 0, 1), ue = u * u * (3 - 2 * u);
     t.ui.style.opacity = ue.toFixed(3);
     if (t.ui.classList.contains('page')) {   // the page fades in in place; the flying book hands over to the page's own when it lands
@@ -3800,7 +3807,7 @@ function spTrick() {
 addEventListener('pointerdown', (e) => {
   const sp = spidey; if (!sp || sp.loading || sp.mode === 'leave') return;
   const [x, y, w, h] = sp.bbox; if (e.clientX < x || e.clientX > x + w || e.clientY < y || e.clientY > y + h) return;
-  e.stopPropagation(); sp.press = { x: e.clientX, y: e.clientY, t: performance.now() };
+  e.preventDefault(); e.stopPropagation(); sp.press = { x: e.clientX, y: e.clientY, t: performance.now() };   // preventDefault: a drag on him is a drag, not a text selection sweeping the chat under it (John, 2026-10-06)
 }, true);
 addEventListener('pointermove', (e) => {
   const sp = spidey; if (!sp) return;
@@ -3998,7 +4005,7 @@ const SCENES = {
   // THE BRISKET: Claude's answer; once it's done, the cookbook drops in already filled (its steps from Haiku) — tap it for the
   // recipe page, Start smoke for the stopwatch. The written answer is the fallback, with numbered steps so the book can fill.
   brisket: [
-    { you: 'Brisket on the Big Green Egg. Show me how.',
+    { you: 'Give me the best recipe for Texas style brisket on the Big Green Egg.',
       claude: 'Plan on 10 to 12 hours for a 12 to 14 pound packer, plus a rest. The Egg holds 250°F all day once it settles, which is the whole trick.\n\n1. **Trim.** Take the fat cap down to a quarter inch, cut out the hard fat between the point and the flat, and square the edges so nothing burns.\n\n2. **Season.** Coarse salt and coarse black pepper, half and half, heavy on every side. Let it sit while the Egg comes up.\n\n3. **Light.** Fill the firebox with lump charcoal, light one spot, plate setter in legs up, grate on. Bring it to 250°F and let the smoke go thin and blue before the meat goes on. A few chunks of oak or pecan.\n\n4. **Smoke.** Fat cap down, lid shut. Leave it alone for 5 to 6 hours. Spritz with water or cider every hour after the first two if the surface looks dry.\n\n5. **Wrap.** When the bark is set and dark and the internal temperature stalls around 165°F, wrap it tight in butcher paper and put it back on.\n\n6. **Finish.** Cook until a probe slides in like butter, usually 203°F. The number matters less than the feel.\n\n7. **Rest.** Vent the wrap for ten minutes, then rest it in a dry cooler with a towel for 2 to 4 hours. Do not skip this.\n\n8. **Serve.** Slice the flat against the grain, pencil thick. Cube the point for burnt ends if you want them.' },
   ],
   // SPIDER-MAN: ask about him and he comes into the chat in 3D and lives there; then he's asked to climb the wall, and to swing.
@@ -4138,7 +4145,9 @@ if (PRESO) {
     const send = $('.bar .send'); if (send) send.insertAdjacentHTML('beforeend', sf('waveform', 'waveform') + sf('arrow.up', 'arrowup'));
     ACTS_PRESO = '<div class="acts">' + sf('doc.on.doc', 'copy') + sf('arrow.clockwise', 'retry') + sf('hand.thumbsup', 'up') + sf('hand.thumbsdown', 'down') + '</div>';
   }
-  window.__demo = { play, SCENES, get scene() { return scene; }, get turn() { return turn; }, get playing() { return playing; } };
+  // a tap mid-call speeds the rest of it through to the hang-up and the puff (John, 2026-10-06); true if there was a call to rush
+  const rush = () => { const call = ins?.call; if (!call || call.ended || call.rush) return false; call.rush = true; const c = critters.find((o) => o.call === call); if (c && !tcard) growTimer(c); return true; };
+  window.__demo = { play, SCENES, rush, get scene() { return scene; }, get turn() { return turn; }, get playing() { return playing; } };
 }
 if (EMBED || PRESO) {
   let typingTimer = 0;
