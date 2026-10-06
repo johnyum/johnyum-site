@@ -3773,7 +3773,16 @@ function presoHost(m) {
             if (i >= 0) ranges.push([i, i + n]); }
           const lead = plain.search(/[—–:]/), m0 = re.exec(plain); re.lastIndex = 0;
           if (ranges.length && m0 && m0.index < (lead > 0 && lead < 80 ? lead : Math.min(40, plain.length))) ranges.push([0, plain.length]);
-        } else { let mm; while ((mm = re.exec(plain))) ranges.push([mm.index, mm.index + mm[0].length]); }
+        } else {
+          // no picked sentences (no model behind the deck): the sentences that name it, as Claude would have picked — and a
+          // paragraph that leads with it (the app's own rule) whole
+          let mm; const hits = []; while ((mm = re.exec(plain))) hits.push(mm.index);
+          if (hits.length) {
+            const lead = plain.search(/[—–:]/), head = lead > 0 && lead < 80 ? lead : Math.min(40, plain.length);
+            if (hits[0] < head) ranges.push([0, plain.length]);
+            else for (const h of hits) { const a0 = Math.max(0, plain.lastIndexOf('. ', h) + 1, plain.lastIndexOf('! ', h) + 1, plain.lastIndexOf('? ', h) + 1); let z = plain.slice(h).search(/[.!?](\s|$)/); z = z < 0 ? plain.length : h + z + 1; ranges.push([a0 + (plain[a0] === ' ' ? 1 : 0), z]); }
+          }
+        }
         if (!ranges.length) continue;
         ranges.sort((a, b) => a[0] - b[0]);
         let html = '', at = 0;
