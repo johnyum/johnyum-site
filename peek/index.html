@@ -236,6 +236,7 @@ button, textarea { font: inherit; color: inherit; }
   -webkit-mask-image: linear-gradient(to top, #000 calc(var(--rv, 0) * 130% - 30%), transparent calc(var(--rv, 0) * 130%));
   mask-image: linear-gradient(to top, #000 calc(var(--rv, 0) * 130% - 30%), transparent calc(var(--rv, 0) * 130%)); }
 .print img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; -webkit-user-drag: none; }
+.print img.lay { will-change: transform; }
 /* the plate in layers, in the plate's own pixels (1100 × 733), scaled to fit: the tail behind the sea, the boat in front */
 .print .stage { position: absolute; left: 0; top: 0; width: 1100px; height: 733px; transform-origin: 0 0; overflow: hidden; }
 .print .stage img, .print .stage .lay { position: absolute; width: auto; height: auto; will-change: transform; }
@@ -3492,7 +3493,14 @@ const PRINT = { src: 'moby/print.webp', aspect: 733 / 1100, water: .667, wide: 1
    the whole width, flukes up at the left, head and jaw at the right, two whaleboats, the ship small on the horizon, the sea
    to the bottom edge. Its sky is cut away (the ink carries a white body under it, so the answer scrolls under the art),
    and it sits edge to edge with its bottom on the screen's bottom. The layered plate below is kept, unused (showScene off). */
-const SCENE = { src: 'moby/scene.webp', aspect: 960 / 1024, sink: 110, on: true };   // edge to edge; its bottom `sink` below the screen's bottom (only sea is lost — and a little of the right boat behind the box), so the whale rises ~150 above the box (John: more room for the words)
+const SCENE = { src: 'moby/scene.webp', aspect: 960 / 1024, sink: 110, on: true,
+  // IN PIECES (2026-10-06, John: the whale and the boats separate, a gentle motion that keeps going): the plate cut into four
+  // layers — the sea (the water painted back under the pieces by a masked edit, tucked 16 up so it runs under every belly and
+  // keel; the plate's own edge hatching kept under each piece's edge so a shift only ever shows identical lines), the whale,
+  // each boat with its crew. Each piece heaves on its own slow sine: the whale on a 9s swell, the boats bobbing and rocking on
+  // shorter ones, phases apart — small enough that nothing comes unstuck, endless.
+  layers: [['sea', 'moby/scene-sea.webp'], ['whale', 'moby/scene-whale.webp'], ['boatl', 'moby/scene-boat-l.webp'], ['boatr', 'moby/scene-boat-r.webp']],
+  pivot: { whale: [.588, .262], boatl: [.213, .45], boatr: [.807, .485] } };   // edge to edge; its bottom `sink` below the screen's bottom (only sea is lost — and a little of the right boat behind the box), so the whale rises ~150 above the box (John: more room for the words)
 /* The plate is four layers now (2026-10-05, John: nothing taller than 60% of the old tail; the tail turned toward the
    horizontal so it keeps its size and detail; the boat turned left so more of it shows; then a slow settle that comes
    to rest): moby/sea.webp (the sea, with the water painted back where the tail and hull were), tail.webp (the flukes
@@ -3513,7 +3521,7 @@ function whaleStart() {
   if (!poolInit() || whale) return;
   const el = document.createElement('div'); el.className = 'print';
   const M = MOBY, B = M.boat;
-  el.innerHTML = SCENE.on ? `<div class="pv"><img class="scene" src="${SCENE.src}" alt="" draggable="false"></div>` : `<div class="pv"><div class="stage">`
+  el.innerHTML = SCENE.on ? `<div class="pv">${SCENE.layers.map(([k, src]) => `<img class="scene lay ${k}" src="${src}" alt="" draggable="false" style="transform-origin:${(SCENE.pivot[k] || [.5, .5]).map((v) => (v * 100).toFixed(1) + '%').join(' ')}">`).join('')}</div>` : `<div class="pv"><div class="stage">`
     + (M.showTail ? `<img class="tail" src="${M.tail.src}" alt="" draggable="false" style="left:${M.tail.x}px;top:${M.tail.y}px;transform-origin:${M.tail.ox}px ${M.tail.oy}px">` : '')
     + (M.showHead ? `<img class="head" src="${M.head.src}" alt="" draggable="false" style="left:${M.head.x}px;top:${M.head.y}px;transform-origin:${M.head.ox}px ${M.head.oy}px">` : '')
     + `<img class="sea" src="${M.sea.src}" alt="" draggable="false" style="left:0;top:0">`
@@ -3564,6 +3572,16 @@ function whaleStep(now) {
   pv.style.setProperty('--rv', rv.toFixed(4)); pv.style.opacity = (ink * whale.kb).toFixed(3); pv.style.visibility = whale.kb < .01 ? 'hidden' : '';
   pv.style.transform = `translate(${L.toFixed(1)}px, ${top.toFixed(1)}px) scale(${press.toFixed(4)})`;
   if (whale.st) { whale.st.style.transform = `scale(${(W / 1100).toFixed(5)})`; mobySettle(t); }
+  else sceneMove(t);
+}
+// The pieces' motion, endless: the whale heaving on a long swell, the boats bobbing and rocking on shorter ones, out of phase
+function sceneMove(t) {
+  const w = whale, s = (p, ph) => Math.sin(2 * Math.PI * t / p + ph);
+  w.lay ||= Object.fromEntries([...w.pv.querySelectorAll('img.lay')].map((i) => [i.className.split(' ').pop(), i]));
+  const L = w.lay;
+  if (L.whale) L.whale.style.transform = `translate(${(1.4 * s(9, 1.2)).toFixed(2)}px, ${(3.2 * s(9, 0)).toFixed(2)}px) rotate(${(.45 * s(9, .7)).toFixed(3)}deg)`;
+  if (L.boatl) L.boatl.style.transform = `translate(0px, ${(2.6 * s(4.8, .9)).toFixed(2)}px) rotate(${(1.4 * s(4.8, .2)).toFixed(3)}deg)`;
+  if (L.boatr) L.boatr.style.transform = `translate(0px, ${(2.2 * s(5.4, 2.1)).toFixed(2)}px) rotate(${(1.1 * s(5.4, 1.6)).toFixed(3)}deg)`;
 }
 // The slow settle: everything starts a little off where it rests and eases in, slower and slower, then holds.
 function mobySettle(t) {
