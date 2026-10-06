@@ -3763,23 +3763,15 @@ const CLAUDE_SYSTEM = `You are Claude inside John's personal practice app (a clo
 John is a Senior Staff Experience Designer at Airbnb, based in San Francisco.
 Style he expects: answer first, then context. Direct, brief, no hyperbole, no em dashes.
 Push back when he is wrong. Keep responses phone-sized unless he asks for depth.`;
-let liveReady = null, liveGated = false;   // null: not asked yet
+let liveReady = null;   // null: not asked yet
 async function liveOk() {
   if (liveReady !== null) return liveReady;
-  try { const r = await fetch('/api/claude', { cache: 'no-store' }); const j = r.ok ? await r.json() : null; liveReady = !!(j && j.ready); liveGated = !!(j && j.gated); } catch (_) { liveReady = false; }
+  try { const r = await fetch('/api/claude', { cache: 'no-store' }); const j = r.ok ? await r.json() : null; liveReady = !!(j && j.ready); } catch (_) { liveReady = false; }
   return liveReady;
 }
-// THE PASSCODE (John, 2026-10-05: "I want it guarded"): the function wants it on every call (CLAUDE_PASSCODE on Vercel). It
-// is never in this page: typed once on the presenting Mac, kept in the browser's storage for johnyum.com, sent as a header.
-// Asked for on the first live tap if it isn't stored; a refusal (401) forgets it, and that tap plays the written answer.
-const passKey = 'claude-pass';
-let passcode = (() => { try { return localStorage.getItem(passKey) || ''; } catch (_) { return ''; } })();
-function askPass() { if (!liveGated || passcode) return; const p = window.prompt('Passcode for Claude (asked once on this Mac)'); if (p) { passcode = p.trim(); try { localStorage.setItem(passKey, passcode); } catch (_) {} } }
-const passHeaders = () => (passcode ? { 'x-claude-pass': passcode } : {});
-function refused(r) { if (r.status === 401) { passcode = ''; try { localStorage.removeItem(passKey); } catch (_) {} } }
 async function claudeStream(messages, onText) {
-  const r = await fetch('/api/claude', { method: 'POST', headers: { 'content-type': 'application/json', ...passHeaders() }, body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 4096, system: CLAUDE_SYSTEM, messages, stream: true }) });
-  if (!r.ok || !r.body) { refused(r); throw new Error('claude ' + r.status); }
+  const r = await fetch('/api/claude', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 4096, system: CLAUDE_SYSTEM, messages, stream: true }) });
+  if (!r.ok || !r.body) throw new Error('claude ' + r.status);
   const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '', out = '';
   for (;;) {
     const { value, done } = await rd.read(); if (done) break;
@@ -3797,8 +3789,8 @@ async function claudeStream(messages, onText) {
   return out;
 }
 async function claudeOnce(system, user, max) {
-  const r = await fetch('/api/claude', { method: 'POST', headers: { 'content-type': 'application/json', ...passHeaders() }, body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: max || 600, system, messages: [{ role: 'user', content: user }] }) });
-  if (!r.ok) { refused(r); throw new Error('claude ' + r.status); }
+  const r = await fetch('/api/claude', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: max || 600, system, messages: [{ role: 'user', content: user }] }) });
+  if (!r.ok) throw new Error('claude ' + r.status);
   const j = await r.json(); return (j.content || []).map((c) => c.text || '').join('');
 }
 function presoHost(m) {
@@ -3904,7 +3896,6 @@ if (PRESO) {
     const bot = add('bot', '');
     let out = null;
     if (LIVE && !fast && await liveOk()) {
-      askPass();
       try {
         presoStreaming = true;
         const history = said.map(([w, t]) => ({ role: w === 'you' ? 'user' : 'assistant', content: t }));
@@ -3934,7 +3925,7 @@ if (PRESO) {
     setInterval(() => { if (critters.length && !poolDrag && !tcard) for (const c of critters) Matter.Sleeping.set(c.body, false); }, 2600);
   }
   { const more = $('.top .more'); if (more) more.hidden = false; const ch = $('.top [aria-label="Character"]'); if (ch) ch.hidden = true; }
-  window.__demo = { play, SCENES, setPass: (p) => { passcode = String(p || '').trim(); try { passcode ? localStorage.setItem(passKey, passcode) : localStorage.removeItem(passKey); } catch (_) {} }, get scene() { return scene; }, get turn() { return turn; }, get playing() { return playing; } };
+  window.__demo = { play, SCENES, get scene() { return scene; }, get turn() { return turn; }, get playing() { return playing; } };
 }
 if (EMBED || PRESO) {
   let typingTimer = 0;
