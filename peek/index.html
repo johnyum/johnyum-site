@@ -3943,22 +3943,23 @@ if (PRESO) {
     input.value = ''; fit(); composer.classList.remove('has');
     add('user', esc(you)); said.push(['you', you]);
     window.peek.event('send', you);
+    // "Thinking…" stays up until the first words actually arrive, as the app's does (John, 2026-10-06: it went too soon,
+    // then a dead second before the answer); the written answer thinks for a beat and a half
     const think = add('thinkrow', '<i></i><i></i><i></i><span>Thinking…</span>');
-    if (!fast) await new Promise((r) => setTimeout(r, 1300));
     window.peek.event('thinking');
-    think.remove();
-    const bot = add('bot', '');
+    let bot = null; const begin = () => { if (!bot) { think.remove(); bot = add('bot', ''); } return bot; };
     let out = null;
     if (LIVE && !fast && await liveOk()) {
       try {
         presoStreaming = true;
         const history = said.map(([w, t]) => ({ role: w === 'you' ? 'user' : 'assistant', content: t }));
-        out = await claudeStream(history, (t) => { bot.innerHTML = mdPara(t); log.scrollTop = log.scrollHeight; window.peek.event('stream', t); });
+        out = await claudeStream(history, (t) => { begin().innerHTML = mdPara(t); log.scrollTop = log.scrollHeight; window.peek.event('stream', t); });
+        begin();
         bot.innerHTML = mdPara(out); bot.insertAdjacentHTML('beforeend', ACTS_PRESO || ACTS); log.scrollTop = log.scrollHeight;
       } catch (e) { console.warn('live Claude failed, the script plays', e); out = null; }
       presoStreaming = false;
     }
-    if (out == null) out = await presoStream(bot, claude, fast);
+    if (out == null) { if (!fast) await new Promise((r) => setTimeout(r, 1300)); out = await presoStream(begin(), claude, fast); }
     said.push(['claude', out]);
     window.peek.event('replied', out);
     playing = false;
