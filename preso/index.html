@@ -238,16 +238,17 @@
   // slides stay in the deck), and Host calendar no longer jumps past its card into the bland calendar.
   // [name, first slide, (landing slide, step)]: the 3D chat's five scenes are 1–5, each a tap to its scene's start on 12fg (its
   // steps are the beats: tide pool 0, insurance 2, brisket 4, Moby-Dick 5, Spider-Man 6) — John, 2026-10-06; Why Anthropic dropped
+  // a fifth element names a scene: the tap hands it to the slide's presoGo, which starts that scene fresh and plays its first beat
   const SECTIONS = [['Intro', '01.html'], ['Host only fee', '09d00.html'], ['Host calendar', '12.html'], ['Multi calendar', '12c0.html'], ['AI', '12f.html'],
-    ['1', '12fg.html', '12fg.html', 0], ['2', '12fg.html', '12fg.html', 2], ['3', '12fg.html', '12fg.html', 4], ['4', '12fg.html', '12fg.html', 5], ['5', '12fg.html', '12fg.html', 6]];
+    ['1', '12fg.html', '12fg.html', 0, 'tidepool'], ['2', '12fg.html', '12fg.html', 2, 'insurance'], ['3', '12fg.html', '12fg.html', 4, 'brisket'], ['4', '12fg.html', '12fg.html', 5, 'mobydick'], ['5', '12fg.html', '12fg.html', 6, 'spiderman']];
   function sectionStarts() { return SECTIONS.map(([name, file, , step]) => [name, SLIDES.indexOf(file), step || 0]).filter(([, i]) => i >= 0); }
   // where a section's tap lands: its own [slide index, step], or its first slide at its first step
-  function sectionLanding(name) { const s = SECTIONS.find(x => x[0] === name); if (!s) return null; const to = s[2] ? SLIDES.indexOf(s[2]) : SLIDES.indexOf(s[1]); return to >= 0 ? [to, s[3] || 0] : null; }
+  function sectionLanding(name) { const s = SECTIONS.find(x => x[0] === name); if (!s) return null; const to = s[2] ? SLIDES.indexOf(s[2]) : SLIDES.indexOf(s[1]); return to >= 0 ? [to, s[3] || 0, s[4] || null] : null; }
   // put a step back once the slide at `i` is the current one and its frame is up (the page load's way, see show)
-  function landStep(i, step) {
-    if (!(step > 0)) return;
+  function landStep(i, step, go) {
+    if (!(step > 0) && !go) return;
     const t0 = Date.now();
-    const poke = () => { if (idx !== i) return; let f = null; try { f = current && current.frame && current.frame.contentWindow && current.frame.contentWindow.presoRestore; } catch (_) {} if (f) { f(step); syncHash(); } else if (Date.now() - t0 < 8000) setTimeout(poke, 100); };
+    const poke = () => { if (idx !== i) return; let f = null; try { const w = current && current.frame && current.frame.contentWindow; f = w && (go ? w.presoGo : w.presoRestore); } catch (_) {} if (f) { f(go || step); syncHash(); } else if (Date.now() - t0 < 8000) setTimeout(poke, 100); };
     setTimeout(poke, DUR + 60);   // after the push has landed
   }
   function buildCounter() {
@@ -255,7 +256,7 @@
     sectionStarts().forEach(([name, i], k) => {
       if (k) { const d = document.createElement('span'); d.className = 'dot'; d.textContent = '\u00b7'; counter.appendChild(d); }
       const b = document.createElement('button'); b.type = 'button'; b.className = 'sec'; b.dataset.start = i; b.textContent = name;
-      b.addEventListener('click', e => { e.stopPropagation(); b.blur(); discardKept(); const land = sectionLanding(name) || [i, 0]; jumpTo(land[0]); landStep(land[0], land[1]); });
+      b.addEventListener('click', e => { e.stopPropagation(); b.blur(); discardKept(); const land = sectionLanding(name) || [i, 0]; if (land[2] && idx === land[0]) { landStep(land[0], land[1], land[2]); return; } jumpTo(land[0]); landStep(land[0], land[1], land[2]); });   // already on the slide: the scene restarts in place
       counter.appendChild(b);
     });
   }

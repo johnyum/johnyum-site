@@ -104,10 +104,13 @@
 
   // THE BEATS: each a scene and a turn of it (see SCENES in peek/index.html)
   const BEATS = [['tidepool', 0], ['tidepool', 1], ['insurance', 0], ['insurance', 1], ['brisket', 0], ['mobydick', 0], ['spiderman', 0], ['spiderman', 1]];
-  let at = 0, pendingRestore = 0;
+  let at = 0, pendingRestore = 0, pendingGo = null;
+  // THE NAV'S 1–5 (John, 2026-10-06): a number is its scene, fresh — the phone reloads with nothing played before it, and that
+  // scene's first beat plays for real straight away; the next taps carry on through the scene's beats
+  window.presoGo = (scene) => { const k = BEATS.findIndex(([sc]) => sc === scene); if (k < 0) return; pendingRestore = 0; pendingGo = scene; at = k; app.src = '/peek/?preso=1&r=' + Date.now().toString(36); };
   const demo = () => { try { return app.contentWindow.__demo; } catch (_) { return null; } };
   const playing = () => { const d = demo(); return !!(d && d.playing); };
-  const settle = () => { const d = demo(); if (!d) return; if (pendingRestore > at) { const n = pendingRestore; (async () => { for (; at < n; at++) await d.play(BEATS[at][0], BEATS[at][1], true); })(); } pendingRestore = 0; };
+  const settle = () => { const d = demo(); if (!d) return; if (pendingGo) { const [sc, i] = BEATS[at]; at++; pendingGo = null; d.play(sc, i); return; } if (pendingRestore > at) { const n = pendingRestore; (async () => { for (; at < n; at++) await d.play(BEATS[at][0], BEATS[at][1], true); })(); } pendingRestore = 0; };
   app.addEventListener('load', () => { const tick = () => { if (demo()) settle(); else setTimeout(tick, 80); }; tick(); });
   window.presoNext = () => {
     if (playing()) return true;                       // mid-answer: the tap is swallowed, not skipped
@@ -121,7 +124,7 @@
   window.presoState = () => Math.max(at, pendingRestore);
   window.presoRestore = n => { pendingRestore = n; settle(); };
   window.presoEnd = () => { pendingRestore = BEATS.length; settle(); };
-  window.presoReady = () => !playing() && !pendingRestore && !!demo();
+  window.presoReady = () => !playing() && !pendingRestore && !pendingGo && !!demo();
 })();
 </script>
 </body>
