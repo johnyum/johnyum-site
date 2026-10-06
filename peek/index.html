@@ -3350,13 +3350,20 @@ function tickTimers() {
   }
 }
 
+let poolLast = 0;
 function poolStep(now) {
-  if ((!critters.length && !drops.length && !whale && !flushing.length) || !poolEngine) return;
+  if ((!critters.length && !drops.length && !whale && !flushing.length) || !poolEngine) { poolLast = now; return; }
   tickTimers(); whaleStep(now);
   const { Engine, Body, Sleeping } = Matter;
   poolSyncBox();
-  Engine.update(poolEngine, 1000 / 120); Engine.update(poolEngine, 1000 / 120);
-  const dt = 1 / 60;
+  // STEPPED BY THE CLOCK, NOT THE FRAME (2026-10-06): this was two 1/120 steps every animation frame — a fixed 1/60 s a
+  // frame, which is real time on the phone's 60 Hz web view but TWICE real time on a 120 Hz Mac display (the deck): falls
+  // twice as fast, landings twice as hard, none of the phone's float. Now the elapsed time is run in 1/120 steps — the same
+  // two steps a frame at 60 Hz, one at 120 — capped at 50 ms so a stalled tab never spirals.
+  const elapsed = poolLast ? Math.min(50, Math.max(0, now - poolLast)) : 1000 / 60; poolLast = now;
+  const n = Math.max(1, Math.round(elapsed / (1000 / 120)));
+  for (let i = 0; i < n; i++) Engine.update(poolEngine, 1000 / 120);
+  const dt = Math.min(1 / 30, Math.max(1 / 240, elapsed / 1000));
   for (const c of critters) {
     const b = c.body;
     if (tcard && tcard.c === c) continue;   // grown into the interface: it's placed by the grow, not the pile
@@ -3964,7 +3971,7 @@ if (PRESO) {
       if (still && now > nextJolt) { jolt = (Math.random() - .5) * .5; joltAt = now; nextJolt = now + 3500 + Math.random() * 5500; }
       const j = jolt * Math.max(0, 1 - (now - joltAt) / 600);
       const x = still ? Math.sin(t * .37) * .11 + Math.sin(t * .91) * .05 + j : (px - .5) * .9;
-      window.peek.tilt(x, 1 - Math.abs(j) * .4);
+      window.peek.tilt(x, .8 - Math.abs(j) * .3);   // .8 down the screen: a phone held at a reading angle, not flat on a table — the sensor's usual reading, and its float
     }, 50);
     setInterval(() => { if (critters.length && !poolDrag && !tcard) for (const c of critters) Matter.Sleeping.set(c.body, false); }, 2600);
   }
