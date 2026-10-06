@@ -84,6 +84,33 @@ as the three cases: a why, the live thing, a lesson. Candidate lessons, in John'
 just something" / "A glance, not a flow." The trash heap is sincere, not a gag — the retired cast, the thermometer, the digital
 timer detour, the character: most of what you can build with this, you shouldn't. A count, then a beat of silence.
 
+### The 3D chat (12fg) — the five scenes, in the order they play
+
+The phone is live: the real app's chat, Claude answering for real (Opus 5), the keyboard typing each question in. One scene
+per idea; a new chat between them (the new-chat mark is tapped, the greeting comes fresh). What to say over each, roughly:
+
+1. **Tide pool** (2 taps). "My daughter is learning about tide pools…" — as Claude names each creature it drops into the chat
+   as a plush and piles on the box. Tilt the Mac and the pile shifts; tap one and its sentences highlight. Second tap: "Create a
+   little game for her" — the creatures hop into the box, the cards drop in, the game opens. The point: the answer became a
+   thing she can hold, not a wall of text.
+2. **The insurance call** (2 taps, then a third to rush). "The phone call nobody wants to make." The EOB goes in as a PDF;
+   Claude reads it and asks two real questions; the answer is typed in; a red rotary phone drops in and the call runs — the
+   menu, the keypad, the hold (sped up and said so), then Denise. Tap again and the call speeds to its end: it hangs up, the
+   phone goes in a puff of smoke, and the receipt drops in. $340 struck, $40, a reference number. The agent did the work; the
+   chat just shows it.
+3. **Brisket** (1 tap). "Give me the best recipe for Texas style brisket on the Big Green Egg." The answer streams; when it's
+   done a cookbook drops in, already filled — one page, one word a step, a picture each, Start smoke for the stopwatch. "A
+   glance, not a flow": the useful thing is not scrolling the chat up and down looking for step four.
+4. **Moby-Dick** (1 tap). "Tell me the story of Moby-Dick." The moment the whale is named, a wood engraving develops round the
+   chat box — the sea, the tail, the boat and its crew flung into the air — and settles over seven seconds. Nothing to tap. The
+   answer goes under the art. The quiet one: the interface can be a picture of what you're reading.
+5. **Spider-Man** (2 taps). "Tell me all you know about Spider-Man." — he bounds in, webs up, and hangs there till you do
+   something. Drag him, fling him into a side and he climbs it. Second tap: "Climb the wall" — he takes the screen's edge like a
+   building, perches in the top corner and spins his web there. The fun one, last: a character that lives in the interface.
+
+Then the ego card has already landed; this is what it was for. The trash heap, if it's built, sits after this: most of what you
+can build with this, you shouldn't.
+
 ## Why Anthropic?
 
 John's story, to say over the cards. Sincere. Five cards, one line each, the mono, same rag:
