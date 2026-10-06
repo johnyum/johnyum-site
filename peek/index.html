@@ -3649,7 +3649,10 @@ function spCornerWeb(side) {
   // round them (the right-hand web is mirrored, so one mask serves both). The status bar is see-through: the web runs
   // on behind the time and the battery (John: "I should see it")
   const mid = `wm${side < 0 ? 'l' : 'r'}`;
-  el.innerHTML = `<defs><mask id="${mid}" maskUnits="userSpaceOnUse" x="0" y="0" width="${S}" height="${S}"><rect width="${S}" height="${S}" fill="#fff"/><circle cx="34.5" cy="82" r="27" fill="#000"/></mask></defs>`
+  // in the deck the top right is the capsule (new chat + ⋯): the web is cut away round the whole capsule, measured, so it runs behind both marks (John, 2026-10-06)
+  let hole = '<circle cx="34.5" cy="82" r="27" fill="#000"/>';
+  if (PRESO && side > 0) { const r = $('.pillnav')?.getBoundingClientRect(); if (r) hole = `<rect x="${(innerWidth - r.right - 4).toFixed(1)}" y="${(r.top - 4).toFixed(1)}" width="${(r.width + 8).toFixed(1)}" height="${(r.height + 8).toFixed(1)}" rx="${(r.height / 2 + 4).toFixed(1)}" fill="#000"/>`; }
+  el.innerHTML = `<defs><mask id="${mid}" maskUnits="userSpaceOnUse" x="0" y="0" width="${S}" height="${S}"><rect width="${S}" height="${S}" fill="#fff"/>${hole}</mask></defs>`
     + `<path d="${d}" mask="url(#${mid})" fill="none" stroke="#b9b9b9" stroke-width="1" stroke-linecap="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/>`;
   poolEl.append(el); sp.webs.push({ el, side });
   el.querySelector('path').animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: 1600, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
@@ -3801,6 +3804,7 @@ function spideyStep(dt) {
 }
 Object.defineProperty(window.__peek, 'spidey', { get: () => spidey });   // for tests
 window.__peek.spStep = (dt, n = 1) => { for (let i = 0; i < n; i++) spideyStep(dt); renderer.render(spScene, camera); };   // tests: step him by a set time
+window.__peek.spWall = (side) => spGrabWall(side);   // tests: send him up a wall
 // touch him: a quick tap is a trick; a press that moves picks him up — he dangles from your finger on his web
 function spTrick() {
   const sp = spidey;
