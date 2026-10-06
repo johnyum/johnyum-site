@@ -3921,7 +3921,7 @@ let presoStreaming = false, presoEnd = null, presoHL = { terms: [], spans: [] },
 function presoClear(p) {
   if (!p || !p.isConnected) return;
   const L = log.getBoundingClientRect(), pr = p.getBoundingClientRect();
-  const top = L.top + 72, bottom = Math.min(L.bottom - 16, critters.length ? Math.min(...critters.map((c) => c.el.getBoundingClientRect().top)) - 16 : Infinity);
+  const top = L.top + (PRESO ? 124 : 72), bottom = Math.min(L.bottom - 16, critters.length ? Math.min(...critters.map((c) => c.el.getBoundingClientRect().top)) - 16 : Infinity);
   if (pr.bottom > bottom && pr.height <= bottom - top) log.scrollBy({ top: pr.bottom - bottom, behavior: 'smooth' });
   else if (pr.top < top || pr.height > bottom - top) log.scrollBy({ top: pr.top - top, behavior: 'smooth' });
 }
@@ -4196,6 +4196,14 @@ if (PRESO) {
     return true;
   }
   document.querySelectorAll('.fade').forEach((f) => { f.hidden = false; });
+  // EVERYTHING THE SCENES DROP IN IS FETCHED UP FRONT (John, 2026-10-06: "sometimes the images aren't loading" — a thing dropped in
+  // before its picture had come, and sat blank for a beat): the pile's pictures, the plate, the cookbook's steps — warmed into the
+  // cache once the page is up, so a drop never waits on the network
+  setTimeout(() => {
+    const pics = ['phone', 'receipt', 'cookbook', 'stopwatch', 'pail', 'anemone', 'starfish', 'crab', 'nudibranch', 'urchin', 'cucumber', 'sculpin', 'octopus', 'mussel', 'barnacle', 'limpet', 'snail', 'chiton', 'shrimp', 'kelp', 'sanddollar', 'sponge', 'jellyfish'].map((n) => `plush/${n}.webp`)
+      .concat(['bark', 'base', 'charcoal', 'cooler', 'egg', 'fatdown', 'light', 'paper', 'prepare', 'probe', 'rest', 'rub', 'slice', 'smoke', 'thermo', 'trim', 'wrap'].map((n) => `bbq/${n}.webp`), ['moby/scene.webp', 'spidey/spidey.glb']);
+    for (const src of pics) { if (src.endsWith('.glb')) fetch(src).catch(() => {}); else { const i = new Image(); i.src = src; } }
+  }, 1500);
   // THE PHONE'S TILT, FROM YOUR HAND ON THE MAC (John, 2026-10-05, after his recording: "the physics… to feel like this"): the
   // pointer over the phone is the tilt (left of centre leans the pile left), and when it's still the gravity does what a
   // held phone's does — a slow wander, and every few seconds a small jolt of handling that eases away over half a second —
