@@ -3500,10 +3500,10 @@ const SCENE = { src: 'moby/scene.webp', aspect: 960 / 1024, sink: 110, on: true,
   // their own, each boat bobs and rocks on a shorter swell, and a slow wave runs through the water — the sea round each piece
   // stretches with it, as water does, so nothing ever comes apart.
   fields: [
-    { c: [.588, .262], r: [.44, .25], bob: [7, 9, 0], surge: [3, 9, 1.2], roll: [.8, 9, .7] },        // the whale
-    { c: [.15, .17], r: [.17, .21], flick: [3.5, 7, 2], top: true },                                    // the flukes, more at the top
-    { c: [.213, .42], r: [.21, .13], bob: [5.5, 4.8, .9], roll: [2.2, 4.8, .2] },                       // the left boat
-    { c: [.807, .45], r: [.16, .1], bob: [4.8, 5.4, 2.1], roll: [2, 5.4, 1.6] },                        // the right boat
+    { c: [.588, .262], r: [.46, .27], bob: [14, 9, 0], surge: [6, 9, 1.2], roll: [1.6, 9, .7] },      // the whale (doubled, John: not noticeable)
+    { c: [.15, .17], r: [.18, .22], flick: [8, 7, 2], top: true },                                      // the flukes, more at the top
+    { c: [.213, .42], r: [.22, .14], bob: [8, 4.8, .9], roll: [3.2, 4.8, .2] },                         // the left boat
+    { c: [.807, .45], r: [.17, .11], bob: [7, 5.4, 2.1], roll: [3, 5.4, 1.6] },                         // the right boat
   ] };   // edge to edge; its bottom `sink` below the screen's bottom (only sea is lost — and a little of the right boat behind the box), so the whale rises ~150 above the box (John: more room for the words)
 /* The plate is four layers now (2026-10-05, John: nothing taller than 60% of the old tail; the tail turned toward the
    horizontal so it keeps its size and detail; the boat turned left so more of it shows; then a slow settle that comes
@@ -3608,7 +3608,7 @@ function sceneWarp(t, W, H) {
       if (f.top) wgt *= Math.max(0, Math.min(1, (f.c[1] + f.r[1] - y) / (2 * f.r[1])));   // the flukes: most at the tips, nothing at the stem's root
       dy += wgt * (bob + roll * (x - f.c[0]) * W); dx += wgt * (surge + flick - roll * (y - f.c[1]) * H);
     }
-    dy += 1.2 * Math.sin(2 * Math.PI * t / 6 + x * 7) * Math.max(0, Math.min(1, (y - .3) / .2));   // a slow wave running through the water
+    dy += 2.5 * Math.sin(2 * Math.PI * t / 6 + x * 7) * Math.max(0, Math.min(1, (y - .3) / .2));   // a slow wave running through the water
     const edge = Math.min(1, x / .04, (1 - x) / .04, (1 - y) / .04);   // the picture's own edges stay put
     pos[i] = x + dx * edge / W; pos[i + 1] = y + dy * edge / H;
   }
@@ -4073,6 +4073,7 @@ const SCENES = {
   brisket: [
     { you: 'Give me the best recipe for Texas style brisket on the Big Green Egg.',
       claude: 'Plan on 10 to 12 hours for a 12 to 14 pound packer, plus a rest. The Egg holds 250°F all day once it settles, which is the whole trick.\n\n1. **Trim.** Take the fat cap down to a quarter inch, cut out the hard fat between the point and the flat, and square the edges so nothing burns.\n\n2. **Season.** Coarse salt and coarse black pepper, half and half, heavy on every side. Let it sit while the Egg comes up.\n\n3. **Light.** Fill the firebox with lump charcoal, light one spot, plate setter in legs up, grate on. Bring it to 250°F and let the smoke go thin and blue before the meat goes on. A few chunks of oak or pecan.\n\n4. **Smoke.** Fat cap down, lid shut. Leave it alone for 5 to 6 hours. Spritz with water or cider every hour after the first two if the surface looks dry.\n\n5. **Wrap.** When the bark is set and dark and the internal temperature stalls around 165°F, wrap it tight in butcher paper and put it back on.\n\n6. **Finish.** Cook until a probe slides in like butter, usually 203°F. The number matters less than the feel.\n\n7. **Rest.** Vent the wrap for ten minutes, then rest it in a dry cooler with a towel for 2 to 4 hours. Do not skip this.\n\n8. **Serve.** Slice the flat against the grain, pencil thick. Cube the point for burnt ends if you want them.' },
+    { act: 'smoke' },
   ],
   // SPIDER-MAN: ask about him and he comes into the chat in 3D and lives there; then he's asked to climb the wall, and to swing.
   // MOBY-DICK: when the answer first names the whale, the wood engraving develops around the chat box (the sea, the tail, the boat and its crew)
@@ -4143,6 +4144,17 @@ if (PRESO) {
     }
     turn = i + 1;
     const t = sc[i], claude = t.claude, you = t.fromBox ? (presoDraft || input.value.trim()) : t.you;
+    if (t.act === 'smoke') {   // THE BRISKET'S SECOND TAP (John, 2026-10-06): the cookbook opens, Start smoke is pressed, the stopwatch drops in and opens
+      const nap = (ms) => new Promise((r) => setTimeout(r, fast ? 0 : ms));
+      const book = critters.find((c) => c.key === 'cookbook');
+      if (book) {
+        if (!fast) { growTimer(book); await nap(1100); }
+        if (tcard?.go && tcard.c === book) tcard.go.click(); else { shrinkTimer(); setTimeout(() => startCook(book), 420); }
+        await nap(2600);
+        const w = critters.find((c) => c.key === 'stopwatch'); if (w && !tcard) growTimer(w);
+      }
+      playing = false; return true;
+    }
     presoFast = fast; presoDraft = '';
     input.value = ''; fit(); composer.classList.remove('has');
     if (!fast) await typeIn(you);   // the keyboard up, the words typed, the keyboard down — then it's sent (the page's draft is typed the same way)
