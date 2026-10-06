@@ -64,4 +64,43 @@ thread of the case study is trust — clarity and transparency at every step. Th
 
 ## Multi calendar — Now scale it 100x
 
-*(To write.)*
+The bones, from the 2026-10-06 critique John kept. The AI story is threaded through this case, not kept for a chapter of its
+own: the multi calendar's V1 shipped in the same four months John was learning AI.
+
+1. **Before the $0→$200 roll:** "And I did this one differently. I built it with Claude — the live calendar you're looking at
+   is that build." The room watches an AI-built prototype without being told it's a demo of AI.
+2. The $0→$200, the 7, the 3: the same system at 100x. What hosts said (the checks first, then the ✕s): real feedback from
+   last week on a shipped V1.
+3. **The design-system sheet (12d1)** is the proof of the method, not just a library: one system, built fast, and it didn't
+   get sloppy. The host quotes are right behind it for anyone wondering whether fast meant worse.
+4. Only the unassailable claim about the ship: if engineers built V1 from the prototype, say so — "my prototype was the spec;
+   the team shipped V1 in four months." The deck is grounded everywhere else; one overstated line is what gets remembered.
+
+## A.I. — built with Claude
+
+The A.I. card and "built with Claude" are a reveal: not just that the deck was made with Claude, but the product too. Peek is
+"what I did when nobody was asking me to" — the trip app, the monsters, the hundred throwaways. Keep the section the same shape
+as the three cases: a why, the live thing, a lesson. Candidate lessons, in John's own words: "Make it do something useful, not
+just something" / "A glance, not a flow." The trash heap is sincere, not a gag — the retired cast, the thermometer, the digital
+timer detour, the character: most of what you can build with this, you shouldn't. A count, then a beat of silence.
+
+## Why Anthropic?
+
+John's story, to say over the cards. Sincere. Five cards, one line each, the mono, same rag:
+
+1. **Why Anthropic?** — the card.
+2. **"Everything I spent eleven years mastering disappeared overnight."** — I left to have a baby. Sketch, Figma, Adobe,
+   production design, pixel-perfect — the craft of eleven years. I came back to a different future than the one I left. One
+   sentence on the fear, fast, then move: "I came back scared. I didn't know what my skills were for anymore."
+3. **"One session of Claude Code. More power than eleven years."** — I jumped in head first. More power in my fingertips in
+   that first session than in the last eleven years of shaping product. Creativity exploded: building, testing, learning, a
+   hundred things made and thrown away. (The trash heap can sit here.) Once I'd touched this I couldn't un-see how much more
+   there was to make — never "my world at Airbnb got small".
+4. **"For myself, and for her."** — Airbnb taught me how to communicate, how to make, how to ship; I'll always treasure it. Now
+   I want to use those skills properly, on the thing that matters most, responsibly — for myself and for my daughter. (Roma is
+   already on slide 2 and the ego card; don't explain the line.) Cut "the best of the best / the hive mind / the cutting edge":
+   every candidate says it; the deck has already shown why.
+5. **"I did all of this in four months."** — and stop. It does double work: the Airbnb ship and everything after it.
+
+Then Thanks. Consider "High conviction, held loosely." as the last word, after four months — the humility that lets the boast
+land.
