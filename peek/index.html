@@ -2424,6 +2424,7 @@ function calTap(c) {
 }
 // pins: once the answer is done, Haiku picks out the places it recommends; one pin drops for each
 async function pinsFor(answer) {
+  if (PRESO) return;   // never in the deck (John, 2026-10-05: "don't give me the map icon ever")
   if (!PLACES.test(lastAsk + ' ' + answer.slice(0, 400)) || critters.some((c) => c.key === 'map')) return;
   const raw = await ask('List the specific real places (cafés, restaurants, bars, shops, parks, trails, museums, landmarks) this answer recommends, in the order given. Reply with JSON only, like [{"name":"Ritual Coffee Roasters","area":"Mission District, San Francisco"}]. At most 5. If it recommends no specific places, reply [].', answer.slice(0, 5000), 9000);
   let list = []; try { list = JSON.parse((raw || '').match(/\[[\s\S]*\]/)?.[0] || '[]'); } catch {}
@@ -3823,10 +3824,21 @@ function presoHost(m) {
         }
         if (!ranges.length) continue;
         ranges.sort((a, b) => a[0] - b[0]);
-        let html = '', at = 0;
-        for (const [a, z] of ranges) { if (a < at) continue; html += esc(plain.slice(at, a)) + '<mark>' + esc(plain.slice(a, z)) + '</mark>'; at = z; }
-        html += esc(plain.slice(at));
-        const ink = document.createElement('span'); ink.className = 'ink'; ink.innerHTML = html; p.append(ink);
+        // the ink is the paragraph's own markup (its bold, its breaks), with the ranges wrapped in marks — so it wraps
+        // exactly as the words do and the yellow sits on them (a plain-text copy wrapped a word earlier where a line was bold)
+        const ink = p.cloneNode(true); ink.className = 'ink'; ink.removeAttribute('id'); ink.querySelectorAll('.ink').forEach((k) => k.remove());
+        const merged = []; for (const r of ranges) { const l = merged[merged.length - 1]; if (l && r[0] <= l[1]) l[1] = Math.max(l[1], r[1]); else merged.push([r[0], r[1]]); }
+        { const walker = document.createTreeWalker(ink, NodeFilter.SHOW_TEXT); const nodes = []; let n; while ((n = walker.nextNode())) nodes.push(n);
+          let off = 0;
+          for (const t of nodes) {
+            const start = off, text = t.data, end = start + text.length; off = end;
+            const cuts = new Set([0, text.length]); for (const [a, z] of merged) { if (a > start && a < end) cuts.add(a - start); if (z > start && z < end) cuts.add(z - start); }
+            const pts = [...cuts].sort((x, y) => x - y); const frag = document.createDocumentFragment();
+            for (let i = 0; i + 1 < pts.length; i++) { const seg = text.slice(pts[i], pts[i + 1]); const abs = start + pts[i]; const inRange = merged.some(([a, z]) => abs >= a && abs < z);
+              if (inRange) { const m = document.createElement('mark'); m.textContent = seg; frag.append(m); } else frag.append(document.createTextNode(seg)); }
+            t.replaceWith(frag);
+          } }
+        p.append(ink);
         requestAnimationFrame(() => requestAnimationFrame(() => ink.classList.add('on')));
         if (!first) first = p;
       }
