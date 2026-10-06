@@ -372,6 +372,23 @@
     void made.pane.offsetWidth; made.pane.style.transition = '';
     kept = { i, made };
   }
+  // UN-PARKED AS LEFT (John, 2026-10-05: "when I go back from this page it starts to reload a lot of stuff — the up and down
+  // graph animation for Del Mar and three dots"). A parked slide is display:none, and taking that off restarts every CSS
+  // animation inside it — the Del Mar curve drew itself again, the thinking dots pulsed again, rows faded up again. Nothing had
+  // reloaded; its animations had. So the moment it is un-parked, before a frame is drawn, every animation that ends is put at
+  // its end, in the slide and in every build framed inside it; the endless ones (a spinner, a twinkle) are left to loop.
+  function stillAnimations(frame) {
+    const walk = win => {
+      try {
+        const d = win.document; if (!d || !d.getAnimations) return;
+        d.getAnimations().forEach(a => {
+          try { if (a.effect && a.effect.getComputedTiming().endTime !== Infinity) a.finish(); } catch (_) {}
+        });
+        for (let k = 0; k < win.frames.length; k++) walk(win.frames[k]);
+      } catch (_) {}
+    };
+    try { if (frame && frame.contentWindow) walk(frame.contentWindow); } catch (_) {}
+  }
   // A slide may carry its own progress (a build's beat) in the URL: presoState() reports it, presoRestore(n) puts it back.
   function slideState(made) { try { const f = made && made.frame && made.frame.contentWindow && made.frame.contentWindow.presoState; const n = f ? f() : 0; return n > 0 ? n : 0; } catch (_) { return 0; } }
   function writeHash() { const st = slideState(current); history.replaceState(null, '', '#' + (idx + 1) + (st ? '.' + st : '')); }
@@ -509,7 +526,7 @@
   async function transitionTo(i, dir) {   // the push: off one way, land centre
     const outgoing = current;
     let made;
-    if (kept && kept.i === i && !noKeep(kept.made)) { made = kept.made; kept = null; made.pane.style.display = ''; made.pane.style.visibility = ''; discardPrepared(); }   // the slide just left: back to it as it was
+    if (kept && kept.i === i && !noKeep(kept.made)) { made = kept.made; kept = null; made.pane.style.display = ''; made.pane.style.visibility = ''; stillAnimations(made.frame); discardPrepared(); }   // the slide just left: back to it as it was
     else if (prepared && prepared.i === i && dir > 0) { made = prepared.made; prepared = null; made.pane.style.visibility = ''; made.pane.style.pointerEvents = ''; }   // built ahead: reveal it
     else if (preparedBack && preparedBack.i === i && dir < 0) { made = preparedBack.made; preparedBack = null; made.pane.style.visibility = ''; made.pane.style.pointerEvents = ''; discardPrepared(); }   // built behind, at its end: reveal it
     else {
