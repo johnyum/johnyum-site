@@ -4,90 +4,33 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>12gz</title>
-<!-- WHY ANTHROPIC? (John, 2026-10-05) — a section card before Thanks, in the A.I. card's exact treatment (12f):
-     inverse, Anton, the words' measured ink as the viewBox so they fill the stage's width and sit centred. No build. -->
+<!-- WHY ANTHROPIC? (John, 2026-10-06) — a section card before Thanks, set as the one-line cards are: the mono at 40 on white
+     (it was the A.I. card's inverse Anton first; John: "NOT the black fill"). Its stop in the section nav stays.
+
+     Below, 12g's own history, which this card's setting inherits.
+     A LINE (John, 2026-09-22) — after AI, in the voice of the work list.
+
+     The line is set in the SAME type as the work list on slide 07: Special
+     Gothic Condensed One at clamp(16px, 6.1vh, 62px), so the two read as the
+     same voice at the same scale, one clause per line. Named 12a so the sorted
+     manifest drops it between the Host Calendar card (12) and the build (13).
+     No build. -->
 <style>
+  /* IN THE MONO (John, 2026-10-03): set as the one-line slides are (09d01, 09dl, 12a) — IBM Plex Mono at 40, centred — and
+     moved to straight after the A.I. card. Its first setting, in slide 07's Special Gothic Condensed, is in git history. */
   @font-face {
-    font-family: "Anton";
-    src: url("../fonts/Anton.woff2") format("woff2");
-    font-weight: 400;
-    font-display: block;
+    font-family: "IBM Plex Mono";
+    src: url("../fonts/IBMPlexMono-Regular.woff2") format("woff2");
+    font-weight: 400; font-style: normal; font-display: block;
   }
-  html, body {
-    margin: 0; height: 100%;
-    background: #000; color: #fff;   /* INVERSE, like Hello! (John, 2026-10-02); presoDark turns the deck's chrome white */
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    overflow: hidden;
-  }
-  .slide { height: 100%; display: grid; place-items: center; }
-  /* A.I. FILLS THE STAGE, and stops at the deck's chrome. index.html puts
-     #kicker at top:32px and #counter at bottom:32px, both 12px on a
-     line-height of 1, so the chrome owns the first and last 44px. 76px of
-     clearance leaves 32px of air between the word and each of them — enough
-     that they read as separate things rather than a near miss. */
-  h1 {
-    margin: 0;
-    display: block;
-    width: 92vw;
-    height: calc(100vh - 152px);
-  }
-  h1 svg { display: block; width: 100%; height: 100%; }
-  h1 text {
-    font-family: "Anton", "Helvetica Neue", sans-serif;
-    font-weight: 400;
-    letter-spacing: -0.02em;   /* -2% */
-    fill: #fff;
-  }
+  html, body { margin: 0; height: 100%; background: #fff; color: #111; overflow: hidden; }
+  .slide { height: 100%; display: grid; place-items: center; padding: 0 24px; box-sizing: border-box; }
+  .one { margin: 0; white-space: nowrap; font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-weight: 400; font-size: 40px; line-height: 1.3; text-align: center; }
 </style>
 </head>
 <body>
   <div class="slide">
-    <h1><svg id="hello" role="img" aria-label="Why Anthropic?"
-             preserveAspectRatio="xMidYMid meet" viewBox="0 0 100 100">
-      <text x="0" y="0" font-size="100">Why Anthropic?</text>
-    </svg></h1>
+    <p class="one">Why Anthropic?</p>
   </div>
-<script>
-(() => {
-  // THE VIEWBOX IS THE WORD'S INK, MEASURED. A font-size cannot fill a box on
-  // its own: the em box carries ascender and descender room this word does not
-  // use — "A.I." has no descender at all — so type sized to the box always
-  // sits high in it with a band of nothing underneath. Measuring the actual
-  // ink and making THAT the viewBox hands the fitting to preserveAspectRatio,
-  // which lands it exactly, centred, at any stage size, with no magic number
-  // for the cap height and no second guess about the baseline.
-  //
-  // canvas rather than a DOM measurement because it reports the ink box
-  // directly — actualBoundingBox* is the painted extent, not the line box —
-  // and because it works while the deck has the slide PARKED, where a layout
-  // read measures zero and requestAnimationFrame never runs.
-  const svg = document.getElementById('hello');
-  const t = svg.querySelector('text');
-  const WORD = 'Why Anthropic?';
-  window.presoDark = true;   // the deck's kicker and section names go white over this slide
-
-  function fit() {
-    const c = document.createElement('canvas').getContext('2d');
-    c.font = '400 100px Anton, sans-serif';
-    try { c.letterSpacing = '-0.02em'; } catch (_) {}   // match the CSS; ignored where unsupported
-    const m = c.measureText(WORD);
-    const l = m.actualBoundingBoxLeft, r = m.actualBoundingBoxRight;
-    const a = m.actualBoundingBoxAscent, d = m.actualBoundingBoxDescent;
-    const w = l + r, h = a + d;
-    if (!(w > 0 && h > 0)) return false;
-    // the text sits with its baseline on the origin, so the ink runs from
-    // -left to +right across and -ascent to +descent down.
-    svg.setAttribute('viewBox', (-l) + ' ' + (-a) + ' ' + w + ' ' + h);
-    return true;
-  }
-
-  fit();
-  // Anton is font-display: block, so the first read can land on nothing.
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.load('400 100px Anton').catch(() => {}).then(() => fit());
-    document.fonts.ready.then(fit).catch(() => {});
-  }
-})();
-</script>
 </body>
 </html>
