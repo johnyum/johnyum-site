@@ -69,7 +69,7 @@ html.preso .round { width: 44px; height: 44px; border: 0; pointer-events: auto; 
 html.preso .round svg { width: 18px; height: 18px; }
 html.preso .fade { position: absolute; left: 0; right: 0; z-index: 3; pointer-events: none;
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }   /* the recipe page's scrims (ChatGPT's header, John): white fading out, with a blur that fades with it */
-html.preso .fade.t { top: 0; height: 48px; background: linear-gradient(#fff 0%, rgba(255,255,255,.92) 45%, rgba(255,255,255,0));
+html.preso .fade.t { top: 0; height: 32px; background: linear-gradient(#fff 0%, rgba(255,255,255,.92) 45%, rgba(255,255,255,0));
   -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
 html.preso .fade.b { bottom: 0; height: 128px; background: linear-gradient(rgba(255,255,255,0), rgba(255,255,255,.92) 55%, #fff);
   -webkit-mask-image: linear-gradient(transparent, #000 45%); mask-image: linear-gradient(transparent, #000 45%); }
@@ -3789,12 +3789,16 @@ const tell = (m) => { if (PRESO) presoHost(m); try { (window.__peekHost || host)
    swept behind it in one 0.34s stroke, every line at once, and the chat glides (0.7s) to put the first marked paragraph a
    fifth of the way down; clearing fades. 'draft' fills the box; 'reply' streams in as Claude's (the scripted chats). */
 let presoStreaming = false, presoEnd = null, presoHL = { terms: [], spans: [] }, presoFirst = null;
-// THE WORDS STAY CLEAR OF THE PILE (John, 2026-10-06): a tapped creature grows and the pile shoves; if any of the marked
-// paragraph is then under them, the chat moves up until the whole paragraph sits 16 above the pile's top.
+// THE CHAT MOVES ONLY IF IT HAS TO (John, 2026-10-06: "if the content isn't blocked by the little icons, don't force a
+// scroll"): a tapped creature's paragraph is left where it is when it's already in clear view — under the top chrome,
+// above the pile. Hidden under the pile, or off the screen, it's brought in by the least that does it, and checked again
+// once the creature has grown and the pile has shoved.
 function presoClear(p) {
-  if (!p || !p.isConnected || !critters.length) return;
-  const pileTop = Math.min(...critters.map((c) => c.el.getBoundingClientRect().top)), pr = p.getBoundingClientRect();
-  if (pr.bottom > pileTop - 16) log.scrollBy({ top: pr.bottom - (pileTop - 16), behavior: 'smooth' });
+  if (!p || !p.isConnected) return;
+  const L = log.getBoundingClientRect(), pr = p.getBoundingClientRect();
+  const top = L.top + 72, bottom = Math.min(L.bottom - 16, critters.length ? Math.min(...critters.map((c) => c.el.getBoundingClientRect().top)) - 16 : Infinity);
+  if (pr.bottom > bottom && pr.height <= bottom - top) log.scrollBy({ top: pr.bottom - bottom, behavior: 'smooth' });
+  else if (pr.top < top || pr.height > bottom - top) log.scrollBy({ top: pr.top - top, behavior: 'smooth' });
 }
 /* LIVE (John, 2026-10-05: "all, including the real Claude"): the deck's chats go to Claude for real, through
    johnyum.com/api/claude (an edge function holding the key), with the app's own system prompt (ClaudeAPI.swift) and its
@@ -3889,7 +3893,7 @@ function presoHost(m) {
       if (first) break;
     }
     presoFirst = first;
-    if (first) { const r = first.getBoundingClientRect(), L = log.getBoundingClientRect(); log.scrollTo({ top: log.scrollTop + (r.top - L.top) - L.height * 0.22, behavior: 'smooth' }); setTimeout(() => presoClear(first), 800); setTimeout(() => presoClear(first), 1500); }
+    if (first) { presoClear(first); setTimeout(() => presoClear(first), 800); setTimeout(() => presoClear(first), 1500); }
   } else if (m.type === 'ask') {
     (async () => { let t = null; try { if (await liveOk()) t = await claudeOnce(m.system, m.user, m.max); } catch (_) {} window.peek.answer(m.id, t); })();
   } else if (m.type === 'draft') { input.value = m.text || ''; fit(); composer.classList.toggle('has', !!input.value.trim()); }
