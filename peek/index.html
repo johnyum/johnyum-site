@@ -236,7 +236,7 @@ button, textarea { font: inherit; color: inherit; }
   -webkit-mask-image: linear-gradient(to top, #000 calc(var(--rv, 0) * 130% - 30%), transparent calc(var(--rv, 0) * 130%));
   mask-image: linear-gradient(to top, #000 calc(var(--rv, 0) * 130% - 30%), transparent calc(var(--rv, 0) * 130%)); }
 .print img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; -webkit-user-drag: none; }
-.print img.lay { will-change: transform; }
+.print canvas.scene { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
 /* the plate in layers, in the plate's own pixels (1100 × 733), scaled to fit: the tail behind the sea, the boat in front */
 .print .stage { position: absolute; left: 0; top: 0; width: 1100px; height: 733px; transform-origin: 0 0; overflow: hidden; }
 .print .stage img, .print .stage .lay { position: absolute; width: auto; height: auto; will-change: transform; }
@@ -3494,13 +3494,17 @@ const PRINT = { src: 'moby/print.webp', aspect: 733 / 1100, water: .667, wide: 1
    to the bottom edge. Its sky is cut away (the ink carries a white body under it, so the answer scrolls under the art),
    and it sits edge to edge with its bottom on the screen's bottom. The layered plate below is kept, unused (showScene off). */
 const SCENE = { src: 'moby/scene.webp', aspect: 960 / 1024, sink: 110, on: true,
-  // IN PIECES (2026-10-06, John: the whale and the boats separate, a gentle motion that keeps going): the plate cut into four
-  // layers — the sea (the water painted back under the pieces by a masked edit, tucked 16 up so it runs under every belly and
-  // keel; the plate's own edge hatching kept under each piece's edge so a shift only ever shows identical lines), the whale,
-  // each boat with its crew. Each piece heaves on its own slow sine: the whale on a 9s swell, the boats bobbing and rocking on
-  // shorter ones, phases apart — small enough that nothing comes unstuck, endless.
-  layers: [['sea', 'moby/scene-sea.webp'], ['whale', 'moby/scene-whale.webp'], ['boatl', 'moby/scene-boat-l.webp'], ['boatr', 'moby/scene-boat-r.webp']],
-  pivot: { whale: [.588, .262], boatl: [.213, .45], boatr: [.807, .485] } };   // edge to edge; its bottom `sink` below the screen's bottom (only sea is lost — and a little of the right boat behind the box), so the whale rises ~150 above the box (John: more room for the words)
+  // ALIVE (2026-10-06, John: the whale and the boats moving, gently, endlessly — and no seams): not cut-outs (every cut showed
+  // an edge as it moved) but ONE plate on a WebGL mesh (three.js, in the .pv so the develop mask, the box's cut-out and the
+  // keyboard fade still apply), warped by soft fields: the whale heaves on a 9 s swell with a slight roll, its flukes flick on
+  // their own, each boat bobs and rocks on a shorter swell, and a slow wave runs through the water — the sea round each piece
+  // stretches with it, as water does, so nothing ever comes apart.
+  fields: [
+    { c: [.588, .262], r: [.44, .25], bob: [7, 9, 0], surge: [3, 9, 1.2], roll: [.8, 9, .7] },        // the whale
+    { c: [.15, .17], r: [.17, .21], flick: [3.5, 7, 2], top: true },                                    // the flukes, more at the top
+    { c: [.213, .42], r: [.21, .13], bob: [5.5, 4.8, .9], roll: [2.2, 4.8, .2] },                       // the left boat
+    { c: [.807, .45], r: [.16, .1], bob: [4.8, 5.4, 2.1], roll: [2, 5.4, 1.6] },                        // the right boat
+  ] };   // edge to edge; its bottom `sink` below the screen's bottom (only sea is lost — and a little of the right boat behind the box), so the whale rises ~150 above the box (John: more room for the words)
 /* The plate is four layers now (2026-10-05, John: nothing taller than 60% of the old tail; the tail turned toward the
    horizontal so it keeps its size and detail; the boat turned left so more of it shows; then a slow settle that comes
    to rest): moby/sea.webp (the sea, with the water painted back where the tail and hull were), tail.webp (the flukes
@@ -3521,7 +3525,7 @@ function whaleStart() {
   if (!poolInit() || whale) return;
   const el = document.createElement('div'); el.className = 'print';
   const M = MOBY, B = M.boat;
-  el.innerHTML = SCENE.on ? `<div class="pv">${SCENE.layers.map(([k, src]) => `<img class="scene lay ${k}" src="${src}" alt="" draggable="false" style="transform-origin:${(SCENE.pivot[k] || [.5, .5]).map((v) => (v * 100).toFixed(1) + '%').join(' ')}">`).join('')}</div>` : `<div class="pv"><div class="stage">`
+  el.innerHTML = SCENE.on ? `<div class="pv"><canvas class="scene"></canvas></div>` : `<div class="pv"><div class="stage">`
     + (M.showTail ? `<img class="tail" src="${M.tail.src}" alt="" draggable="false" style="left:${M.tail.x}px;top:${M.tail.y}px;transform-origin:${M.tail.ox}px ${M.tail.oy}px">` : '')
     + (M.showHead ? `<img class="head" src="${M.head.src}" alt="" draggable="false" style="left:${M.head.x}px;top:${M.head.y}px;transform-origin:${M.head.ox}px ${M.head.oy}px">` : '')
     + `<img class="sea" src="${M.sea.src}" alt="" draggable="false" style="left:0;top:0">`
@@ -3532,9 +3536,10 @@ function whaleStart() {
   poolEl.prepend(el);
   const w = whale = { el, pv: el.querySelector('.pv'), st: el.querySelector('.stage'), tail: el.querySelector('.tail'), head: el.querySelector('.head'), boat: el.querySelector('.boat'), flyer: el.querySelector('.flyer'), t0: null, clipKey: '' };
   w.pv.style.opacity = '0';
-  Promise.all([...el.querySelectorAll('img')].map((i) => i.decode().catch(() => {}))).then(() => { if (whale === w) w.t0 = performance.now(); });   // nothing shows half-loaded
+  if (SCENE.on) sceneInit(w);
+  else Promise.all([...el.querySelectorAll('img')].map((i) => i.decode().catch(() => {}))).then(() => { if (whale === w) w.t0 = performance.now(); });   // nothing shows half-loaded
 }
-function whaleEnd() { whale?.el.remove(); whale = null; }
+function whaleEnd() { if (whale?.gl) { whale.gl.renderer.dispose(); whale.gl.tex.dispose(); } whale?.el.remove(); whale = null; }
 const outC = (k) => k <= 0 ? 0 : k >= 1 ? 1 : 1 - Math.pow(1 - k, 3);
 function splash(x, y, n, up) {
   const { Bodies, Body, Composite } = Matter;
@@ -3572,17 +3577,43 @@ function whaleStep(now) {
   pv.style.setProperty('--rv', rv.toFixed(4)); pv.style.opacity = (ink * whale.kb).toFixed(3); pv.style.visibility = whale.kb < .01 ? 'hidden' : '';
   pv.style.transform = `translate(${L.toFixed(1)}px, ${top.toFixed(1)}px) scale(${press.toFixed(4)})`;
   if (whale.st) { whale.st.style.transform = `scale(${(W / 1100).toFixed(5)})`; mobySettle(t); }
-  else sceneMove(t);
+  else sceneWarp(t, W, H);
 }
-// The pieces' motion, endless: the whale heaving on a long swell, the boats bobbing and rocking on shorter ones, out of phase
-function sceneMove(t) {
-  const w = whale, s = (p, ph) => Math.sin(2 * Math.PI * t / p + ph);
-  w.lay ||= Object.fromEntries([...w.pv.querySelectorAll('img.lay')].map((i) => [i.className.split(' ').pop(), i]));
-  const L = w.lay;
-  // about twice the first pass (John: too subtle) — still inside the hatching kept under each piece's edge
-  if (L.whale) L.whale.style.transform = `translate(${(3 * s(9, 1.2)).toFixed(2)}px, ${(7 * s(9, 0)).toFixed(2)}px) rotate(${(.8 * s(9, .7)).toFixed(3)}deg)`;
-  if (L.boatl) L.boatl.style.transform = `translate(${(1.5 * s(4.8, 2.4)).toFixed(2)}px, ${(5.5 * s(4.8, .9)).toFixed(2)}px) rotate(${(2.2 * s(4.8, .2)).toFixed(3)}deg)`;
-  if (L.boatr) L.boatr.style.transform = `translate(${(1.2 * s(5.4, .4)).toFixed(2)}px, ${(4.8 * s(5.4, 2.1)).toFixed(2)}px) rotate(${(2 * s(5.4, 1.6)).toFixed(3)}deg)`;
+// The plate on a mesh: a 64 x 48 plane in the picture's own space, the vertices moved each frame by the fields above
+function sceneInit(w) {
+  const canvas = w.pv.querySelector('canvas.scene');
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, premultipliedAlpha: true });
+  renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1)); renderer.setClearColor(0x000000, 0);
+  const camera = new THREE.OrthographicCamera(0, 1, 0, 1, -1, 1);   // x right 0..1, y DOWN 0..1: the picture's own frame
+  const geo = new THREE.PlaneGeometry(1, 1, 64, 48); geo.translate(.5, .5, 0);
+  const base = geo.attributes.position.array.slice();
+  const tex = new THREE.TextureLoader().load(SCENE.src, () => { if (whale === w) w.t0 = performance.now(); });   // shown once the plate's in
+  tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false;   // rows down, as the camera is
+  const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, depthTest: false, depthWrite: false }));   // DoubleSide: the y-down camera turns the winding round
+  const scene3 = new THREE.Scene(); scene3.add(mesh);
+  w.gl = { renderer, camera, scene3, geo, base, tex, size: '' };
+}
+function sceneWarp(t, W, H) {
+  const g = whale.gl; if (!g) return;
+  const size = Math.round(W) + 'x' + Math.round(H); if (g.size !== size) { g.size = size; g.renderer.setSize(W, H, false); }
+  const pos = g.geo.attributes.position.array, b = g.base, s = (p, ph) => Math.sin(2 * Math.PI * t / p + ph), rad = Math.PI / 180;
+  const F = SCENE.fields, k = F.map((f) => ({ f, bob: f.bob ? f.bob[0] * s(f.bob[1], f.bob[2]) : 0, surge: f.surge ? f.surge[0] * s(f.surge[1], f.surge[2]) : 0,
+    roll: f.roll ? Math.sin(f.roll[0] * rad * s(f.roll[1], f.roll[2])) : 0, flick: f.flick ? f.flick[0] * s(f.flick[1], f.flick[2]) : 0 }));
+  for (let i = 0; i < pos.length; i += 3) {
+    const x = b[i], y = b[i + 1]; let dx = 0, dy = 0;
+    for (const { f, bob, surge, roll, flick } of k) {
+      const ex = (x - f.c[0]) / f.r[0], ey = (y - f.c[1]) / f.r[1], r = Math.sqrt(ex * ex + ey * ey);
+      if (r >= 1) continue;
+      let wgt = 1 - (r < .5 ? 0 : (r - .5) / .5); wgt = wgt * wgt * (3 - 2 * wgt);   // full inside, easing off to nothing at the field's edge
+      if (f.top) wgt *= Math.max(0, Math.min(1, (f.c[1] + f.r[1] - y) / (2 * f.r[1])));   // the flukes: most at the tips, nothing at the stem's root
+      dy += wgt * (bob + roll * (x - f.c[0]) * W); dx += wgt * (surge + flick - roll * (y - f.c[1]) * H);
+    }
+    dy += 1.2 * Math.sin(2 * Math.PI * t / 6 + x * 7) * Math.max(0, Math.min(1, (y - .3) / .2));   // a slow wave running through the water
+    const edge = Math.min(1, x / .04, (1 - x) / .04, (1 - y) / .04);   // the picture's own edges stay put
+    pos[i] = x + dx * edge / W; pos[i + 1] = y + dy * edge / H;
+  }
+  g.geo.attributes.position.needsUpdate = true;
+  g.renderer.render(g.scene3, g.camera);
 }
 // The slow settle: everything starts a little off where it rests and eases in, slower and slower, then holds.
 function mobySettle(t) {

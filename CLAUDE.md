@@ -482,10 +482,12 @@ way to the bottom):** `moby/scene.webp` (`SCENE`, `on: true`) — a 19th-century
 the whole width, flukes up at the left, head and jaw at the right, two whaleboats, the ship small on the horizon; the sea outpainted
 downward (a masked edit) so it runs under the box to the screen's bottom. Its sky is cut away by a per-column ink envelope and the ink
 carries a white body (black ink over white, so the answer scrolls under it). Drawn edge to edge, its bottom `sink` 40 below the screen's
-bottom, the whale ~220 above the box; the chat keeps that room (`whale.room`). It still develops up out of the box. **In pieces (later that day):** `scene-sea/whale/boat-l/boat-r.webp` (`SCENE.layers`) — the
-water painted back under the pieces (masked edit, tucked 16 up), the plate's own edge hatching kept under each edge; `sceneMove()`
-heaves the whale on a 9 s swell and bobs and rocks the boats on shorter ones, out of phase, forever. `scene.webp` is the flat plate,
-unused. The layered plate below is kept in the code, off. **Spider-Man comes in on the Thinking, not the send** (John, 2026-10-06).
+bottom, the whale ~220 above the box; the chat keeps that room (`whale.room`). It still develops up out of the box. **Alive (later that day, John: the whale and the boats moving, gently, endlessly — and no seams):** cut-outs were tried (sea / whale /
+tail / boats, the water painted back under them) and every cut showed an edge as it moved; now the ONE plate sits on a three.js mesh
+in the `.pv` (`sceneInit` / `sceneWarp`, `SCENE.fields`): soft fields heave the whale on a 9 s swell with a roll, flick the flukes,
+bob and rock each boat on its own shorter swell, and a slow wave runs through the water — the sea round each piece stretches with
+it, so nothing comes apart. The develop mask, the box's cut-out and the keyboard fade still apply (the canvas is inside the `.pv`).
+The layered plate below is kept in the code, off. **Spider-Man comes in on the Thinking, not the send** (John, 2026-10-06).
 **Before that, in layers (2026-10-05):** John capped every piece at ~60% of the old tail's height above the water, turned the tail
 toward the horizontal (keeping its size and detail rather than shrinking it) and the boat a little left, then asked for a
 slow settle. The engraving is cut into `moby/sea.webp` (the water painted back by a gpt-image-1 masked edit where the tail
