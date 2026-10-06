@@ -237,6 +237,13 @@ button, textarea { font: inherit; color: inherit; }
   mask-image: linear-gradient(to top, #000 calc(var(--rv, 0) * 130% - 30%), transparent calc(var(--rv, 0) * 130%)); }
 .print img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; -webkit-user-drag: none; }
 .print canvas.scene { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+/* THE CAST (2026-10-06): three engraved portraits as avatars, hanging 16 above the chat box, 16 apart — a 1.5 black ring round each;
+   tapped, one grows to 72 with its name above it and its sentences go yellow, as a creature's do */
+.cast { position: absolute; left: 0; right: 0; display: flex; justify-content: center; align-items: flex-end; gap: 16px; pointer-events: none; }
+.cast .face { width: 56px; height: 56px; border-radius: 50%; border: 1.5px solid #1d1d1c; background: #fff; padding: 0; overflow: hidden; pointer-events: auto; cursor: pointer; box-sizing: border-box;
+  transition: width .32s cubic-bezier(.3,1.2,.4,1), height .32s cubic-bezier(.3,1.2,.4,1); -webkit-tap-highlight-color: transparent; }
+.cast .face img { width: 100%; height: 100%; object-fit: cover; display: block; -webkit-user-drag: none; }
+.cast .face.on { width: 72px; height: 72px; }
 /* the plate in layers, in the plate's own pixels (1100 × 733), scaled to fit: the tail behind the sea, the boat in front */
 .print .stage { position: absolute; left: 0; top: 0; width: 1100px; height: 733px; transform-origin: 0 0; overflow: hidden; }
 .print .stage img, .print .stage .lay { position: absolute; width: auto; height: auto; will-change: transform; }
@@ -3425,7 +3432,7 @@ function tickTimers() {
 let poolLast = 0;
 function poolStep(now) {
   if ((!critters.length && !drops.length && !whale && !flushing.length) || !poolEngine) { poolLast = now; return; }
-  tickTimers(); whaleStep(now);
+  tickTimers(); whaleStep(now); castPlace();
   const { Engine, Body, Sleeping } = Matter;
   poolSyncBox();
   // STEPPED BY THE CLOCK, NOT THE FRAME (2026-10-06): this was two 1/120 steps every animation frame — a fixed 1/60 s a
@@ -3581,6 +3588,41 @@ function whaleStep(now) {
   pv.style.transform = `translate(${L.toFixed(1)}px, ${top.toFixed(1)}px) scale(${press.toFixed(4)})`;
   if (whale.st) { whale.st.style.transform = `scale(${(W / 1100).toFixed(5)})`; mobySettle(t); }
   else sceneWarp(t, W, H);
+}
+// THE CAST — Ishmael, Ahab and the white whale (his flukes), engraved like the plate (moby/cast-*.webp, gpt-image-1): shown under
+// the answer to "Who are the main characters?", hanging 16 above the box. A tap grows one to 72, puts its name above it and
+// marks every sentence about it in the answers (the deck's highlighter, by its names) — tap again, or another, and it eases back.
+const CAST = [
+  { k: 'ishmael', name: 'Ishmael', terms: ['Ishmael', 'the narrator'] },
+  { k: 'ahab', name: 'Ahab', terms: ['Ahab', 'Captain Ahab', 'the captain'] },
+  { k: 'mobydick', name: 'Moby Dick', terms: ['Moby Dick', 'Moby-Dick', 'the white whale', 'the whale'] },
+];
+let cast = null;   // { el, on }
+function castShow() {
+  if (cast || !poolInit()) return;
+  const el = document.createElement('div'); el.className = 'cast';
+  el.innerHTML = CAST.map((c) => `<button class="face" data-k="${c.k}" aria-label="${c.name}"><img src="moby/cast-${c.k}.webp" alt="" draggable="false"></button>`).join('');
+  el.style.opacity = '0'; poolEl.append(el); cast = { el, on: null, name: null };
+  el.addEventListener('pointerdown', (e) => e.stopPropagation());
+  el.addEventListener('click', (e) => { const b = e.target.closest('.face'); if (b) castTap(b.dataset.k); });
+  requestAnimationFrame(() => { el.style.transition = 'opacity .5s ease'; el.style.opacity = '1'; });
+  castPlace();
+}
+function castHide() { if (!cast) return; cast.el.remove(); cast.name?.remove(); cast = null; if (presoHL.terms.length) tell({ type: 'highlight', terms: [] }); }
+function castPlace() {   // 16 above the box, following it (the keyboard lifts the box; they ride up with it)
+  if (!cast) return; const g = homeGround(), r = g ? rectOf(g) : null; if (!r) return;
+  const h = cast.on ? 72 : 56; cast.el.style.top = (r.top - 16 - h) + 'px';
+  if (cast.name && cast.on) { const b = cast.el.querySelector(`.face[data-k="${cast.on}"]`), br = b.getBoundingClientRect();
+    cast.name.style.transform = `translate(${(br.left + br.width / 2 - cast.name.offsetWidth / 2).toFixed(1)}px, ${(br.top - cast.name.offsetHeight - 8).toFixed(1)}px)`; }
+}
+function castTap(k) {
+  const c = CAST.find((x) => x.k === k); if (!cast || !c) return;
+  const on = cast.on === k ? null : k; cast.on = on;
+  cast.el.querySelectorAll('.face').forEach((b) => b.classList.toggle('on', b.dataset.k === on));
+  if (cast.name) { const old = cast.name; cast.name = null; old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160 }).onfinish = () => old.remove(); }
+  if (on) { const n = document.createElement('div'); n.className = 'name'; n.textContent = c.name; poolEl.append(n); cast.name = n; n.animate([{ opacity: 0, scale: '.7' }, { opacity: 1, scale: '1' }], { duration: 260, easing: 'cubic-bezier(.3,1.4,.5,1)' }); }
+  tell({ type: 'highlight', terms: on ? c.terms : [], spans: [] });
+  castPlace();
 }
 // The plate on a mesh: a 64 x 48 plane in the picture's own space, the vertices moved each frame by the fields above
 function sceneInit(w) {
@@ -3925,7 +3967,7 @@ let presoStreaming = false, presoEnd = null, presoHL = { terms: [], spans: [] },
 function presoClear(p) {
   if (!p || !p.isConnected) return;
   const L = log.getBoundingClientRect(), pr = p.getBoundingClientRect();
-  const top = L.top + (PRESO ? 124 : 72), bottom = Math.min(L.bottom - 16, critters.length ? Math.min(...critters.map((c) => c.el.getBoundingClientRect().top)) - 16 : Infinity);
+  const top = L.top + (PRESO ? 124 : 72), bottom = Math.min(L.bottom - 16, critters.length ? Math.min(...critters.map((c) => c.el.getBoundingClientRect().top)) - 16 : Infinity, cast ? cast.el.getBoundingClientRect().top - 16 : Infinity);
   if (pr.bottom > bottom && pr.height <= bottom - top) log.scrollBy({ top: pr.bottom - bottom, behavior: 'smooth' });
   else if (pr.top < top || pr.height > bottom - top) log.scrollBy({ top: pr.top - top, behavior: 'smooth' });
 }
@@ -4149,7 +4191,7 @@ if (PRESO) {
       const first = scene === null;   // the first chat is already open: no tap on the mark, nothing to clear (John, 2026-10-06)
       if (tcard) { if (fast) closeCard(); else { shrinkTimer(); await new Promise((r) => setTimeout(r, 620)); } }   // whatever's open (the stopwatch, after the brisket) closes first, then the new chat
       scene = name; presoScene = name; window.peek.event('chat', name); said.length = 0;
-      poolClear(true); if (cook) { cook = null; } ins = null; whaleEnd(); whaleSeen = false; spideyEnd(); presoDraft = '';   // nothing of the last scene comes along — its pile, its cook, its call, its whale, its Spider-Man
+      poolClear(true); if (cook) { cook = null; } ins = null; whaleEnd(); whaleSeen = false; spideyEnd(); castHide(); presoDraft = '';   // nothing of the last scene comes along — its pile, its cook, its call, its whale, its Spider-Man
       const mark = $('.pillnav .newchat');
       if (mark && !fast && !first) { mark.classList.add('pressing'); await new Promise((r) => setTimeout(r, 130)); mark.classList.remove('pressing'); await new Promise((r) => setTimeout(r, 160)); }
       const GREET = ['What shall we think through?', 'What’s on your mind?', 'Where would you like to start?', 'What are we working on?', 'What can I help you with?', 'What’s the question?', 'Where shall we begin?'];   // the app's ChatIntro
@@ -4204,6 +4246,7 @@ if (PRESO) {
     if (out == null) { if (!fast) await new Promise((r) => setTimeout(r, 1300)); out = await presoStream(begin(), claude, fast); }
     said.push(['claude', out]);
     window.peek.event('replied', out);
+    if (name === 'mobydick' && i === 1) setTimeout(castShow, 400);   // the cast hangs under the answer about them
     playing = false;
     return true;
   }
