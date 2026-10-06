@@ -125,6 +125,14 @@ html.preso .acts .sf.copy { width: 17px; height: 20px; }
 html.preso .acts .sf.retry { width: 15px; height: 17px; }
 html.preso .acts .sf.up, html.preso .acts .sf.down { width: 16px; height: 17px; }
 html.preso .round .sf.ellipsis { width: 18px; height: 7px; }
+/* THE TOP-RIGHT CAPSULE (John, 2026-10-06, after the Claude app's): the new-chat mark and the dots in one glass pill, 44 tall.
+   Tapping the mark is how a scene changes chats: the thread clears to a fresh greeting before the next question types in. */
+html.preso .pillnav { height: 44px; padding: 0 16px 0 14px; border-radius: 22px; display: flex; align-items: center; gap: 22px; pointer-events: auto; background: rgba(255,255,255,.92);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2); backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow: inset 0 0 0 .5px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05), 0 10px 24px -14px rgba(0,0,0,.28); }
+html.preso .pillnav .newchat { width: 23px; height: 20px; display: block; transition: transform .12s ease; }   /* plus.message.fill at 19, its own 25 x 22 box scaled to the dots' height */
+html.preso .pillnav .newchat.pressing { transform: scale(.86); }
+html.preso .pillnav .sf.ellipsis { width: 18px; height: 7px; }
 html.preso .round svg.menu { width: 18px; height: 12px; }
 html.preso .bar .dot .sf.plus { width: 17px; height: 16px; }
 html.preso .bar .dot .sf.mic { width: 14px; height: 17px; }
@@ -4042,7 +4050,16 @@ if (PRESO) {
   async function play(name, i = 0, fast = false) {
     const sc = SCENES[name]; if (!sc || !sc[i] || playing) return false;
     playing = true;
-    if (scene !== name) { scene = name; window.peek.event('chat', name); msgs.innerHTML = ''; said.length = 0; }
+    if (scene !== name) {
+      scene = name; window.peek.event('chat', name); said.length = 0;
+      const mark = $('.pillnav .newchat');
+      if (mark && !fast) { mark.classList.add('pressing'); await new Promise((r) => setTimeout(r, 130)); mark.classList.remove('pressing'); await new Promise((r) => setTimeout(r, 160)); }
+      const GREET = ['What shall we think through?', 'What’s on your mind?', 'Where would you like to start?', 'What are we working on?', 'What can I help you with?', 'What’s the question?', 'Where shall we begin?'];   // the app's ChatIntro
+      msgs.innerHTML = '<div class="hello" id="hello"><svg viewBox="0 0 100 100" fill="#D97757" aria-hidden="true"><use href="#spark"/></svg><b id="greet">' + GREET[Math.floor(Math.random() * GREET.length)] + '</b></div>';
+      if (presoEnd) presoEnd.style.height = '2px';
+      log.scrollTop = 0;
+      if (!fast) await new Promise((r) => setTimeout(r, 650));   // the fresh chat seen before the next question starts
+    }
     turn = i + 1;
     const t = sc[i], claude = t.claude, you = t.fromBox ? input.value.trim() : t.you;
     presoFast = fast;
@@ -4106,7 +4123,8 @@ if (PRESO) {
   { const sf = (n, cls) => `<img class="sf ${cls}" src="sf/${n}.png" alt="" draggable="false">`;
     const menu = '<svg class="menu" viewBox="0 0 18 12" aria-hidden="true" fill="none" stroke="#1d1d1c" stroke-width="1"><path d="M0 1.5H18M0 6.5H18M0 11.5H9"/></svg>';
     const nc = $('#newChat'); if (nc) nc.innerHTML = menu;
-    const more = $('.top .more'); if (more) more.innerHTML = sf('ellipsis', 'ellipsis');
+    const right = $('.top .right');
+    if (right) right.innerHTML = '<div class="pillnav">' + sf('plus.message.fill', 'newchat') + sf('ellipsis', 'ellipsis') + '</div>';   // SF Symbols: plus.message.fill, the closest to the app's new-chat mark (John, 2026-10-06)
     const add = $('.bar .dot[aria-label="Add"]'); if (add) add.innerHTML = sf('plus', 'plus');
     const mic = $('.bar .dot[aria-label="Voice"]'); if (mic) mic.innerHTML = sf('mic', 'mic');
     const send = $('.bar .send'); if (send) send.insertAdjacentHTML('beforeend', sf('waveform', 'waveform') + sf('arrow.up', 'arrowup'));
