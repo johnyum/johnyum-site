@@ -23,7 +23,7 @@ const json = (status, body) => new Response(JSON.stringify(body), { status, head
 export default async function handler(req) {
   if (req.method === 'GET') return json(200, { ready: !!process.env.ANTHROPIC_API_KEY, gated: !!process.env.CLAUDE_PASSCODE });
   if (req.method !== 'POST') return json(405, { error: 'POST' });
-  const key = process.env.ANTHROPIC_API_KEY;
+  const key = (process.env.ANTHROPIC_API_KEY || '').trim();   // trimmed: a key pasted with a stray newline is an invalid header, and that threw
   if (!key) return json(503, { error: 'no ANTHROPIC_API_KEY on the server' });
   const from = req.headers.get('origin') || req.headers.get('referer') || '';
   if (!SITE.test(from)) return json(403, { error: 'not from the site' });
@@ -40,7 +40,12 @@ export default async function handler(req) {
   if (typeof body.system === 'string' && body.system) payload.system = body.system;
   if (body.temperature != null) payload.temperature = body.temperature;
   const headers = { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' };
-  if (process.env.ANTHROPIC_WORKSPACE_ID) headers['anthropic-workspace-id'] = process.env.ANTHROPIC_WORKSPACE_ID;
-  const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers, body: JSON.stringify(payload) });
-  return new Response(r.body, { status: r.status, headers: { 'content-type': r.headers.get('content-type') || 'application/json', 'cache-control': 'no-store' } });
+  const ws = (process.env.ANTHROPIC_WORKSPACE_ID || '').trim();
+  if (ws) headers['anthropic-workspace-id'] = ws;
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers, body: JSON.stringify(payload) });
+    return new Response(r.body, { status: r.status, headers: { 'content-type': r.headers.get('content-type') || 'application/json', 'cache-control': 'no-store' } });
+  } catch (e) {
+    return json(502, { error: 'upstream: ' + (e && e.message || String(e)) });   // never a bare 500: the page needs to read why
+  }
 }
