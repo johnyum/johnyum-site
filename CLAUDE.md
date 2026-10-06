@@ -514,7 +514,9 @@ Attachment.swift, `ChatMessage.attachment`) and opened in Quick Look. Nothing dr
 (`plush/eob.webp` and `eobMini()` are kept, unused). Claude asks two real questions; the box holds the answer; sent, a
 **red rotary phone with a white dial** (`plush/phone.webp` — John asked for exactly that; an all-red one and a white
 push-button one came first) drops in with "Calling…" (its dots taking turns) above it, and doesn't open on its own;
-tapped, it opens like the egg timer: "Calling…" then the call's clock, its status, a waveform, the transcript as it's
+tapped, it opens like the egg timer: "Calling…" then the call's clock, a waveform (no status line under the clock — John:
+not needed; the wave is quiet and rides the words: each word said is a beat that swells it and eases away over a slow
+drift, bars eased frame to frame — the fast shimmer was "way too fast"), the transcript as it's
 said (phone menu, keypad, hold sped up and said so, then Denise), filling the screen down to a pair at the bottom — the
 red round hang-up beside the tuck-away chevron (the `go` pairing, 8 apart; the hang-up was in the column and landed on
 the chevron). Closed, it goes on in the pile with its status above it. "Listen in" (ringback, DTMF, hold music, speech

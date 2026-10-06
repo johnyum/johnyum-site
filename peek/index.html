@@ -233,10 +233,8 @@ button, textarea { font: inherit; color: inherit; }
 @keyframes ring { 0%, 100% { rotate: 0deg; } 20% { rotate: -9deg; } 40% { rotate: 8deg; } 60% { rotate: -6deg; } 80% { rotate: 4deg; } }
 /* the call (see "the call" in the script): opened, the egg timer's column — the clock, what's happening, the
    transcript as it's said, a red button to hang up — and the receipt and the EOB as white pages */
-.tui .cstat { display: flex; justify-content: center; align-items: center; gap: 7px; margin: -6px 0 14px; font-size: 14px; color: #87857f; }
-.tui .cstat i { width: 7px; height: 7px; border-radius: 50%; background: #34a853; animation: cblink 1.6s ease-in-out infinite; }
 @keyframes cblink { 50% { opacity: .3; } }
-.tui .cwave { display: flex; justify-content: center; align-items: center; gap: 3px; height: 26px; margin-bottom: 8px; }
+.tui .cwave { display: flex; justify-content: center; align-items: center; gap: 3px; height: 26px; margin: 2px 0 8px; }   /* under the clock; no status line between (John: not needed) */
 .tui .cwave b { width: 3px; height: 3px; border-radius: 2px; background: #d6d4ce; }
 .tui .cwave.rep b { background: #1d1d1c; } .tui .cwave.me b { background: #d97757; } .tui .cwave.ivr b { background: #a5a39d; }
 .tui .ctx { width: min(340px, calc(100vw - 48px)); height: calc(100dvh - 486px); margin: 0 auto; overflow-y: auto; text-align: left; display: flex; flex-direction: column; gap: 12px; padding: 28px 0 6px;
@@ -3063,7 +3061,7 @@ async function insCall(c) {
   const talk = async (who, t, said) => {
     const l = line(who, t), words = t.split(' '); call.who = who;
     const voice = cSpeak(call, said || t, who), per = who === 'me' ? 92 : who === 'ivr' ? 108 : 100;
-    for (let i = 0; i < words.length; i++) { gone(); l.shown = words.slice(0, i + 1).join(' '); callPaint(c); await nap(per + Math.random() * 60); }
+    for (let i = 0; i < words.length; i++) { gone(); l.shown = words.slice(0, i + 1).join(' '); call.beat = performance.now(); call.wl = words[i].replace(/[^a-z0-9]/gi, '').length; callPaint(c); await nap(per + Math.random() * 60); }
     await voice; gone(); call.who = null;
   };
   try {
@@ -3118,14 +3116,12 @@ function insStart() {
 // the call, opened: paint what's changed since the last frame
 const DOTS = '<span class="cdots"><i>.</i><i>.</i><i>.</i></span>';   // "Calling…": its three dots take turns, softly, so you can tell it's working
 function callHTML(c) {
-  return `<div class="tread">00:00:00</div><div class="cstat"></div><div class="cwave">${'<b></b>'.repeat(24)}</div><div class="ctx"></div>`
+  return `<div class="tread">00:00:00</div><div class="cwave">${'<b></b>'.repeat(24)}</div><div class="ctx"></div>`
 ;   // the hang-up sits beside the tuck-away at the bottom, not in the column
 }
 function callPaint(c) {
   if (!tcard || tcard.c !== c) return; const ui = tcard.ui, call = c.call, tx = ui.querySelector('.ctx'); if (!tx) return;
   const rd = ui.querySelector('.tread'), t = call.connected || call.ended ? clockOf(call.sec) : 'calling'; if (rd.dataset.t !== t) { rd.dataset.t = t; rd.innerHTML = t === 'calling' ? `Calling${DOTS}` : t; }   // until they answer, "Calling…"; then the clock
-  const st = ui.querySelector('.cstat'), sh = (call.connected && !call.ended ? '<i></i>' : '') + escR(call.status) + (call.mode === 'hold' && !call.ended ? ' · sped up' : '');
-  if (st.innerHTML !== sh) st.innerHTML = sh;
   if (call.ended && tcard.go) { tcard.go.remove(); tcard.go = null; tcard.close.style.left = ''; tcard.close.style.marginLeft = ''; }   // hung up: the hang-up goes, and the tuck-away takes the middle
   const name = { rep: 'Denise · Larkspur', me: 'Claude', ivr: 'Phone menu' };
   call.lines.forEach((l, i) => {
@@ -3145,11 +3141,15 @@ function tickCall() {
       callPaint(c);
       const bars = tcard.ui.querySelectorAll('.cwave b'), wv = tcard.ui.querySelector('.cwave'), cls = 'cwave' + (call.who ? ' ' + call.who : '');
       if (wv && wv.className !== cls) wv.className = cls;
-      bars.forEach((b, i) => { let h = 3; const p = call.ph;
-        if (call.who) h = 4 + Math.abs(Math.sin(p * 17 + i * 1.7) * Math.sin(p * 5.3 + i * .63) + Math.sin(p * 29 + i * 2.9) * .4) * 20 * (.5 + .5 * Math.sin(i / bars.length * Math.PI));
-        else if (call.mode === 'hold' && !call.ended) h = 3 + (Math.sin(p * 4 + i * .45) * .5 + .5) * 10;
-        else if (c.ringing) h = 3 + ((p % 2.6) < 1.6 ? 5 * Math.sin(i / bars.length * Math.PI) * (.6 + .4 * Math.sin(p * 30)) : 0);
-        b.style.height = h.toFixed(1) + 'px'; });
+      // the wave follows the voice, quietly: each word said is a beat (a longer word a fuller one) that swells the bars and
+      // eases away, over a slow drift — never a fast shimmer (John: too fast; subtle, and in step with what's said)
+      call.h ||= []; const age = (now - (call.beat || 0)) / 1000, beat = call.who ? Math.exp(-age * 4.5) * Math.min(1, ((call.wl || 4) + 2) / 8) : 0;
+      bars.forEach((b, i) => { let h = 3; const p = call.ph, bell = .4 + .6 * Math.sin(i / bars.length * Math.PI);
+        if (call.who) h = 3 + (2 + (.45 + .55 * beat) * (.55 + .45 * Math.sin(p * 2.6 + i * .85)) * 11) * bell;
+        else if (call.mode === 'hold' && !call.ended) h = 3 + (Math.sin(p * 1.6 + i * .4) * .5 + .5) * 6 * bell;
+        else if (c.ringing) h = 3 + ((p % 2.6) < 1.6 ? 4 * bell * (.7 + .3 * Math.sin(p * 9)) : 0);
+        const was = call.h[i] ?? h, eased = was + (h - was) * Math.min(1, dt * 12); call.h[i] = eased;   // and nothing jumps
+        b.style.height = eased.toFixed(1) + 'px'; });
     }
     const show = !(tcard && tcard.c === c);
     if (show && !c.tb) { c.tb = document.createElement('div'); c.tb.className = 'name tleft'; poolEl.append(c.tb); }
