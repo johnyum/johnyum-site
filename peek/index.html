@@ -3842,7 +3842,9 @@ function presoHost(m) {
   else if (m.type === 'reply' && m.text) presoReply(m.text);
 }
 // the answer, as the app draws it: paragraphs 12 apart, **bold** lead-ins
-const mdPara = (t) => String(t).split(/\n\n+/).filter((x) => x.trim()).map((x) => '<p>' + esc(x.trim()).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>') + '</p>').join('');
+// the answer, as the app draws it (MarkdownText.inline): paragraphs 12 apart, **bold**, *italic*, `code`, "- " bullets as •
+const mdInline = (x) => esc(x).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[^*\w])\*(?!\s)([^*\n]+?)\*(?!\w)/g, '$1<i>$2</i>').replace(/`([^`\n]+)`/g, '<code>$1</code>');
+const mdPara = (t) => String(t).replace(/```[\s\S]*?```/g, (m) => m.replace(/```\w*\n?/g, '').trim()).split(/\n\n+/).filter((x) => x.trim()).map((x) => '<p>' + x.trim().split('\n').map((l) => mdInline(l.replace(/^(\s*)[-*•]\s+/, '$1•  ').replace(/^#{1,6}\s+(.*)$/, '**$1**'))).join('<br>') + '</p>').join('');
 async function presoStream(bot, text, fast) {
   presoStreaming = true;
   const words = text.split(/(\s+)/); let out = '', n = 0;
