@@ -759,7 +759,12 @@
       // show). Until today a load started the slide over (John, 2026-09-30: "every time I refresh it should play through one by
       // one again") — ?fresh=1 still does that. (?beats=1, which once restored the step, is now the default and still accepted.)
       const m = /^#?(\d+)(?:\.(\d+))?/.exec(location.hash) || [];
-      const keepStep = !/[?&]fresh=1\b/.test(location.search);
+      // A HARD RELOAD (⇧⌘R) STARTS THE SLIDE OVER (John, 2026-10-06): the browser then refetches this page whole instead of
+      // revalidating it (a 304, a few hundred bytes), and that is how the two are told apart — a plain reload keeps the step.
+      const nav = performance.getEntriesByType('navigation')[0];
+      const hard = !!(nav && nav.type === 'reload' && nav.transferSize > 4000 && nav.transferSize >= nav.encodedBodySize * 0.8);
+      const keepStep = !/[?&]fresh=1\b/.test(location.search) && !hard;
+      if (hard) history.replaceState(null, '', '#' + (m[1] || 1));
       const h = parseInt(m[1], 10), st = keepStep ? (parseInt(m[2], 10) || 0) : 0;
       show((h >= 1 && h <= SLIDES.length) ? h - 1 : 0, st);
     });
