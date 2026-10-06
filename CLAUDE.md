@@ -506,12 +506,19 @@ The hidden test tab throttles timers to 1s, so tests step him by hand (`__peek.s
 Insurance call sends "Can you dispute this $340 charge with my insurance?…" and **the page writes the whole chat**: a
 `scripted` demo hands its chat to the page (Store `scriptNext`/`pageScripted`; Claude is held back and the page's
 `{type:'reply', text}` streams in as Claude's; 10s with no reply and Claude answers after all), and `{type:'draft'}`
-fills the box. The EOB "you sent" drops into the pile (`plush/eob.webp` with a drawn statement on it, `eobMini()`);
-tapped, both pages of a real-looking Explanation of Benefits (`eobHTML()`). Claude asks two real questions; the box
-holds the answer; sent, a white desk phone drops in and opens like the egg timer: the call's clock, its status, a
-waveform, the transcript as it's said (phone menu, keypad, hold sped up and said so, then Denise), a red hang-up, and
-"Listen in" (ringback, DTMF, hold music, speech voices). Closed, it goes on in the pile with its status above it. Hung
-up, a receipt drops in (`$340` struck, `$40`, the reference number); tapped, one white page: what they agreed and a
+fills the box. **The EOB "you sent" is a real PDF attachment in the app** (2026-10-05, John: not a picture that pops down, a normal
+PDF drop-in): the demo's `attach` names `Larkspur_EOB_Sep2026.pdf`, bundled in the app (two US-letter pages, printed with
+headless Chrome from the page's own statement — `eobHTML()`, lifted into a standalone HTML with its `INSF`/`LARK`/dates;
+the first lift cut `INSF` short and every print came out blank), drawn as a card above the bubble (`AttachmentCard` in
+Attachment.swift, `ChatMessage.attachment`) and opened in Quick Look. Nothing drops into the pile for it
+(`plush/eob.webp` and `eobMini()` are kept, unused). Claude asks two real questions; the box holds the answer; sent, a
+**red rotary phone with a white dial** (`plush/phone.webp` — John asked for exactly that; an all-red one and a white
+push-button one came first) drops in with "Calling…" (its dots taking turns) above it, and doesn't open on its own;
+tapped, it opens like the egg timer: "Calling…" then the call's clock, its status, a waveform, the transcript as it's
+said (phone menu, keypad, hold sped up and said so, then Denise), filling the screen down to a pair at the bottom — the
+red round hang-up beside the tuck-away chevron (the `go` pairing, 8 apart; the hang-up was in the column and landed on
+the chevron). Closed, it goes on in the pile with its status above it. "Listen in" (ringback, DTMF, hold music, speech
+voices) is still in the code, its button gone. Hung up, a receipt drops in (`$340` struck, `$40`, the reference number); tapped, one white page: what they agreed and a
 follow-up date whose Add opens the app's Calendar editor. All fictional: Larkspur Health, Mission Bay Dermatology,
 Dr. Okafor, Denise, a 555 number; dates hang off today. The script lives in the page (`insReply`, `insScript`), so it
 changes with a deploy; it names John and avoids pronouns for him. Code under "The call".
