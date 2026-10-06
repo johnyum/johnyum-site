@@ -1616,7 +1616,7 @@ function sense(text, who = 'you') {
 // The considered read: Haiku, through the host app. Null when there's no host, or it's slow.
 const asking = {}; let asks = 0;
 function ask(system, user, ms, max) {
-  if (!host) return Promise.resolve(null);
+  if (!host && !PRESO) return Promise.resolve(null);
   const id = ++asks; tell({ type: 'ask', id, system, user, ...(max ? { max } : {}) });
   return new Promise((done) => { asking[id] = done; setTimeout(() => { if (asking[id]) { delete asking[id]; done(null); } }, ms); });
 }
@@ -3752,6 +3752,47 @@ const tell = (m) => { if (PRESO) presoHost(m); try { (window.__peekHost || host)
    swept behind it in one 0.34s stroke, every line at once, and the chat glides (0.7s) to put the first marked paragraph a
    fifth of the way down; clearing fades. 'draft' fills the box; 'reply' streams in as Claude's (the scripted chats). */
 let presoStreaming = false, presoEnd = null, presoHL = { terms: [], spans: [] };
+/* LIVE (John, 2026-10-05: "all, including the real Claude"): the deck's chats go to Claude for real, through
+   johnyum.com/api/claude (an edge function holding the key), with the app's own system prompt (ClaudeAPI.swift) and its
+   model, streamed — so the pacing, the pauses and where the creatures drop are the model's, not a script's. Haiku answers
+   the page's own asks the same way (the highlight sentences, the map's places, the recipe's steps). If the function
+   isn't there (the Mac's server, or no key yet) or a call fails, the scene's written answer plays instead. ?live=0 keeps
+   to the script. */
+const LIVE = PRESO && !/[&?]live=0\b/.test(location.search);
+const CLAUDE_SYSTEM = `You are Claude inside John's personal practice app (a clone of the Claude iOS app he built).
+John is a Senior Staff Experience Designer at Airbnb, based in San Francisco.
+Style he expects: answer first, then context. Direct, brief, no hyperbole, no em dashes.
+Push back when he is wrong. Keep responses phone-sized unless he asks for depth.`;
+let liveReady = null;   // null: not asked yet
+async function liveOk() {
+  if (liveReady !== null) return liveReady;
+  try { const r = await fetch('/api/claude', { cache: 'no-store' }); const j = r.ok ? await r.json() : null; liveReady = !!(j && j.ready); } catch (_) { liveReady = false; }
+  return liveReady;
+}
+async function claudeStream(messages, onText) {
+  const r = await fetch('/api/claude', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 4096, system: CLAUDE_SYSTEM, messages, stream: true }) });
+  if (!r.ok || !r.body) throw new Error('claude ' + r.status);
+  const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '', out = '';
+  for (;;) {
+    const { value, done } = await rd.read(); if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let i; while ((i = buf.indexOf('\n\n')) >= 0) {
+      const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+      for (const line of chunk.split('\n')) {
+        if (!line.startsWith('data:')) continue;
+        let ev; try { ev = JSON.parse(line.slice(5).trim()); } catch (_) { continue; }
+        if (ev.type === 'content_block_delta' && ev.delta && ev.delta.type === 'text_delta') { out += ev.delta.text; onText(out); }
+        else if (ev.type === 'error') throw new Error(ev.error && ev.error.message || 'stream error');
+      }
+    }
+  }
+  return out;
+}
+async function claudeOnce(system, user, max) {
+  const r = await fetch('/api/claude', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: max || 600, system, messages: [{ role: 'user', content: user }] }) });
+  if (!r.ok) throw new Error('claude ' + r.status);
+  const j = await r.json(); return (j.content || []).map((c) => c.text || '').join('');
+}
 function presoHost(m) {
   if (m.type === 'inset') {
     if (!presoEnd) { presoEnd = document.createElement('div'); presoEnd.id = 'end'; msgs.after(presoEnd); }
@@ -3795,6 +3836,8 @@ function presoHost(m) {
       if (first) break;
     }
     if (first) { const r = first.getBoundingClientRect(), L = log.getBoundingClientRect(); log.scrollTo({ top: log.scrollTop + (r.top - L.top) - L.height * 0.22, behavior: 'smooth' }); }
+  } else if (m.type === 'ask') {
+    (async () => { let t = null; try { if (await liveOk()) t = await claudeOnce(m.system, m.user, m.max); } catch (_) {} window.peek.answer(m.id, t); })();
   } else if (m.type === 'draft') { input.value = m.text || ''; fit(); composer.classList.toggle('has', !!input.value.trim()); }
   else if (m.type === 'reply' && m.text) presoReply(m.text);
 }
@@ -3849,13 +3892,36 @@ if (PRESO) {
     window.peek.event('thinking');
     think.remove();
     const bot = add('bot', '');
-    const out = await presoStream(bot, claude, fast);
+    let out = null;
+    if (LIVE && !fast && await liveOk()) {
+      try {
+        presoStreaming = true;
+        const history = said.map(([w, t]) => ({ role: w === 'you' ? 'user' : 'assistant', content: t }));
+        out = await claudeStream(history, (t) => { bot.innerHTML = mdPara(t); log.scrollTop = log.scrollHeight; window.peek.event('stream', t); });
+        bot.innerHTML = mdPara(out); bot.insertAdjacentHTML('beforeend', ACTS); log.scrollTop = log.scrollHeight;
+      } catch (e) { console.warn('live Claude failed, the script plays', e); out = null; }
+      presoStreaming = false;
+    }
+    if (out == null) out = await presoStream(bot, claude, fast);
     said.push(['claude', out]);
     window.peek.event('replied', out);
     playing = false;
     return true;
   }
   document.querySelectorAll('.fade').forEach((f) => { f.hidden = false; });
+  // THE PHONE'S TILT, FROM YOUR HAND ON THE MAC: the pointer over the phone is the tilt (left of centre leans the pile left),
+  // and when it's still the gravity wanders a little, as a held phone's does, so the pile settles and resettles rather
+  // than sleeping — every few seconds the bodies are woken so the drift reaches them.
+  { let px = .5, moved = 0;
+    addEventListener('pointermove', (e) => { px = e.clientX / innerWidth; moved = performance.now(); }, { passive: true });
+    setInterval(() => {
+      if (!window.peek) return;
+      const t = performance.now() / 1000, still = performance.now() - moved > 1500;
+      const x = still ? Math.sin(t * .37) * .07 + Math.sin(t * .91) * .035 : (px - .5) * .9;
+      window.peek.tilt(x, 1);
+    }, 50);
+    setInterval(() => { if (critters.length && !poolDrag && !tcard) for (const c of critters) Matter.Sleeping.set(c.body, false); }, 2600);
+  }
   { const more = $('.top .more'); if (more) more.hidden = false; const ch = $('.top [aria-label="Character"]'); if (ch) ch.hidden = true; }
   window.__demo = { play, SCENES, get scene() { return scene; }, get turn() { return turn; }, get playing() { return playing; } };
 }
