@@ -101,7 +101,7 @@ per idea; a new chat between them (the new-chat mark is tapped, the greeting com
 3. **Brisket** (1 tap). "Give me the best recipe for Texas style brisket on the Big Green Egg." The answer streams; when it's
    done a cookbook drops in, already filled — one page, one word a step, a picture each, Start smoke for the stopwatch. "A
    glance, not a flow": the useful thing is not scrolling the chat up and down looking for step four.
-4. **Moby-Dick** (1 tap). "Tell me the story of Moby-Dick." The moment the whale is named, a wood engraving develops round the
+4. **Moby-Dick** (1 tap). "Tell me the story of Moby Dick." The moment the whale is named, a wood engraving develops round the
    chat box — the sea, the tail, the boat and its crew flung into the air — and settles over seven seconds. Nothing to tap. The
    answer goes under the art. The quiet one: the interface can be a picture of what you're reading.
 5. **Spider-Man** (1 tap). "Tell me all you know about Spider-Man." — he bounds in, webs up, and hangs there till you do

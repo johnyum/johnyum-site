@@ -27,6 +27,7 @@ const OPENERS = [
   "Create a little game for her so it's fun to learn about tide pool creatures.",
   "Give me the best recipe for Texas style brisket on the Big Green Egg.",
   "Brisket on the Big Green Egg. Show me how.",
+  "Tell me the story of Moby Dick.",
   "Tell me the story of Moby-Dick.",
   "Tell me all you know about Spider-Man.",
   "Can you dispute this $340 charge with my insurance? The dermatologist was supposed to be in-network."
