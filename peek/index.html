@@ -42,7 +42,12 @@
   With no character in the link it is the one last built in Rig Studio (same storage), else
   the Bunny.
 -->
-<script>if (/[?&]embed\b/.test(location.search)) document.documentElement.classList.add('embed');</script>
+<script>if (/[?&]embed\b/.test(location.search)) document.documentElement.classList.add('embed'); if (/[?&]preso\b/.test(location.search)) document.documentElement.classList.add('preso');</script>
+<style>
+/* IN THE DECK (?preso=1, John, 2026-10-05): the demo page inside a drawn phone on a slide, its chats scripted by the deck
+   (window.__demo). The demo's own furniture — the chips, the hint, the Character button — comes off; the rest is the chat. */
+html.preso .chips, html.preso .hint, html.preso .top .right { display: none; }
+</style>
 <style>
 /* The demo chat is drawn like the Claude clone (~/Documents/ClaudeClone): Schibsted Grotesk for
    the interface, Source Serif 4 for Claude's words, round header buttons, the spark over a serif
@@ -396,6 +401,7 @@ import { PARTS, prim, smin, bodyFrameOf, bodyField, anchor, partPose, twinned, u
 
 const $ = (s, r = document) => r.querySelector(s);
 const EMBED = document.documentElement.classList.contains('embed');
+const PRESO = document.documentElement.classList.contains('preso');   // in the deck: the app's event path (window.peek) is kept on, fed by the scripted chats below
 // In embed mode the platforms are the host app's own views: rects it sends, behind stand-ins
 // that answer getBoundingClientRect() like any element, so every pose works unchanged.
 const plat = {}, stand = {};
@@ -3692,7 +3698,50 @@ if (DEBUG) {
 var typing = 0;
 const host = window.webkit?.messageHandlers?.peek;
 const tell = (m) => { try { (window.__peekHost || host)?.postMessage(m); } catch {} };   // __peekHost: a test standing in for the app
-if (EMBED) {
+/* ═══════════════ the deck's chats (?preso=1) ═══════════════
+   The deck steps a slide through scripted chats — what John asks, what Claude answers — and the page plays each turn the
+   way the app does: the question as a bubble, the answer streamed a few words at a time, and the SAME events the app
+   sends (send, thinking, stream, replied) going into window.peek.event, so the tide pool, the cookbook, Spider-Man and
+   the rest happen exactly as they do on the phone. A new scene is a new chat ('chat'): the last one's pile goes. */
+const SCENES = {
+  tidepool: [
+    { you: 'My daughter is learning about tide pools and I want you to tell me about creatures that live in them.',
+      claude: 'Tide pools are little worlds that get left behind when the tide goes out, and the animals in them are tough — they have to survive the sun, the waves and the hungry gulls twice a day.\n\nThe sea anemone looks like a flower, but it’s an animal: those soft green arms are sticky, and they close up around anything that touches them.\n\nThe starfish (a sea star, really — it isn’t a fish) has hundreds of tiny tube feet underneath, and if it loses an arm it can grow a new one.\n\nA hermit crab doesn’t grow its own shell. It borrows an empty snail shell and moves into a bigger one as it grows.\n\nThe nudibranch is a sea slug dressed in the brightest colours in the pool — a warning to anything thinking of eating it.\n\nThe sea urchin is a ball of purple spines that scrapes algae off the rocks with its five little teeth.\n\nA sea cucumber is soft and slow, and when it’s frightened it can push its insides out at whatever scared it — then grow them back.\n\nThe tidepool sculpin is a small fish that changes colour to match the rocks, so you often don’t see it until it darts.\n\nAnd the octopus is the cleverest thing in the pool: it can squeeze through a gap the size of a coin, change colour in a blink, and it’s usually hiding right where you’re not looking.' },
+    { you: 'Create a little game for her so it’s fun to learn about tide pool creatures.',
+      claude: 'Done — a little guessing game. I’ll describe one of the creatures in a clue she can follow, and she picks which one it is from three cards. Five rounds, and each clue gives a different thing away: what it eats, what it’s made of, the trick it does when it’s scared. Tap the cards to start.' },
+  ],
+};
+if (PRESO) {
+  let scene = null, turn = 0, playing = false;
+  // play(name, i): the i-th turn of a scene. A different scene is a new chat: the thread clears, and so does everything
+  // the last chat dropped. fast: the answer lands whole (a restore), no streaming.
+  async function play(name, i = 0, fast = false) {
+    const sc = SCENES[name]; if (!sc || !sc[i] || playing) return false;
+    playing = true;
+    if (scene !== name) { scene = name; window.peek.event('chat', name); msgs.innerHTML = ''; said.length = 0; }
+    turn = i + 1;
+    const { you, claude } = sc[i];
+    add('user', esc(you)); said.push(['you', you]);
+    window.peek.event('send', you);
+    const bot = add('bot thinking', '');
+    const words0 = document.createTextNode(''); bot.append(words0);
+    if (!fast) await new Promise((r) => setTimeout(r, 1300));
+    window.peek.event('thinking');
+    bot.classList.remove('thinking');
+    const words = claude.split(/(\s+)/); let out = '';
+    for (const w of words) {
+      out += w; words0.data = out; log.scrollTop = log.scrollHeight;
+      if (!fast) { window.peek.event('stream', out); await new Promise((r) => setTimeout(r, 28 + Math.random() * 50)); }
+    }
+    bot.insertAdjacentHTML('beforeend', ACTS); log.scrollTop = log.scrollHeight;
+    said.push(['claude', out]);
+    window.peek.event('replied', out);
+    playing = false;
+    return true;
+  }
+  window.__demo = { play, SCENES, get scene() { return scene; }, get turn() { return turn; }, get playing() { return playing; } };
+}
+if (EMBED || PRESO) {
   let typingTimer = 0;
   window.peek = {
     // Where the app's views are: { composer, reply, last } → [x, y, w, h], in points.

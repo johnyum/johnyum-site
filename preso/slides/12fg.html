@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12fg</title>
+<!-- THE 3D CHAT (John, 2026-10-05) — after the ego card: /peek/, the Claude-clone chat with the tide pool and the rest living
+     in it, live inside the drawn phone the host calendar uses (13.html's chrome, number for number), centred. The deck
+     steps it through scripted chats — the page plays each one the way the app does (see "the deck's chats" in
+     peek/index.html, ?preso=1). Four scenes are planned — tide pool, the insurance call, brisket, Spider-Man — taken one at
+     a time; the tide pool is in. The phone is live: John taps the creatures himself (presoInteractive).
+
+       tap 1   the tide pool question; the answer streams and its creatures drop onto the chat box
+       tap 2   "Create a little game for her…": the creatures pour into the box and the game's cards drop in
+       tap 3   out of builds; on. -->
+<style>
+  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
+  .slide { height: 100%; display: grid; place-items: center; }
+  .phone {
+    --phone-h: min(80vh, 1080px);
+    --sx: 5.4444%; --sy: 2.5543%; --sw: 89.1111%; --sh: 94.8913%; --sr: 15.9601%; --sry: 7.3310%;
+    position: relative; height: var(--phone-h); aspect-ratio: 900 / 1840;
+  }
+  .chrome { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; z-index: 2; }
+  .screen { position: absolute; left: var(--sx); top: var(--sy); width: var(--sw); height: var(--sh); border-radius: var(--sr) / var(--sry); overflow: hidden; background: #0b0b0b; z-index: 1; }
+  .ui { position: absolute; top: 0; left: 50%; width: 375px; height: 812px; margin-left: -187.5px; transform: scale(var(--k, 1)); transform-origin: top center; background: #fff; }
+  /* the status band is the slide's, as on 13: 56 tall, the chat under it */
+  .status { position: absolute; left: 0; top: 0; width: 375px; height: 56px; z-index: 1; pointer-events: none; overflow: hidden; background: #fff; }
+  .status .statusbar { position: absolute; left: 0; top: -2.7px; width: 375px; height: auto; display: block; }
+  .app { position: absolute; left: 0; top: 56px; width: 375px; height: 756px; border: 0; display: block; background: #fff; }
+</style>
+</head>
+<body>
+  <div class="slide">
+    <div class="phone">
+      <div class="screen">
+        <div class="ui" id="ui">
+          <div class="status"><img class="statusbar" src="assets/status-bar.svg" alt="" draggable="false"></div>
+          <iframe class="app" id="app" title="Claude — the 3D chat"></iframe>
+        </div>
+      </div>
+      <svg class="chrome" viewBox="0 0 900 1840" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="rail" x1="16" y1="0" x2="884" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0"     stop-color="#8f8f8c"/>
+            <stop offset="0.035" stop-color="#ececea"/>
+            <stop offset="0.10"  stop-color="#bfbfbc"/>
+            <stop offset="0.50"  stop-color="#f2f2f0"/>
+            <stop offset="0.90"  stop-color="#bfbfbc"/>
+            <stop offset="0.965" stop-color="#ececea"/>
+            <stop offset="1"     stop-color="#8f8f8c"/>
+          </linearGradient>
+          <clipPath id="outsideBezel" clipPathUnits="userSpaceOnUse">
+            <path clip-rule="evenodd" d="
+              M-60,-60 H960 V1900 H-60 Z
+              M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/>
+          </clipPath>
+        </defs>
+
+        <!-- vector rail: body minus bezel. the fallback the photo paints over -->
+        <path fill="url(#rail)" fill-rule="evenodd" d="
+          M177,14 H723 A161,161 0 0 1 884,175 V1665 A161,161 0 0 1 723,1826 H177 A161,161 0 0 1 16,1665 V175 A161,161 0 0 1 177,14 Z
+          M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/>
+
+        <!-- the photograph, kept off the screen edge -->
+        <image href="assets/device/iphone-frame.png" x="0" y="0" width="900" height="1840"
+               clip-path="url(#outsideBezel)" preserveAspectRatio="none"/>
+
+        <!-- bezel: overlaps the clip boundary by 1 so no sliver of photo survives -->
+        <path fill="#0b0b0b" fill-rule="evenodd" d="
+          M177,27 H723 A148,148 0 0 1 871,175 V1665 A148,148 0 0 1 723,1813 H177 A148,148 0 0 1 29,1665 V175 A148,148 0 0 1 177,27 Z
+          M177,47 H723 A128,128 0 0 1 851,175 V1665 A128,128 0 0 1 723,1793 H177 A128,128 0 0 1 49,1665 V175 A128,128 0 0 1 177,47 Z"/>
+
+        <!-- Dynamic Island, drawn over the UI -->
+        <rect x="322" y="69" width="256" height="74" rx="37" fill="#000"/>
+        <circle cx="529" cy="106" r="12.7" fill="#0f1420"/>
+        <circle cx="529" cy="106" r="5.3" fill="#243046"/>
+      </svg>
+    </div>
+  </div>
+<script>
+(() => {
+  window.presoInteractive = true;   // the phone is live: the creatures take a tap
+  const v = new URLSearchParams(location.search).get('v');
+  const app = document.getElementById('app');
+  app.src = '/peek/?preso=1' + (v ? '&v=' + v : '');
+  const screen = document.querySelector('.screen');
+  const fit = () => { const k = (screen.clientHeight + 1) / 812; document.getElementById('ui').style.setProperty('--k', k); };
+  new ResizeObserver(fit).observe(screen); fit();
+
+  // THE BEATS: each a scene and a turn of it (see SCENES in peek/index.html)
+  const BEATS = [['tidepool', 0], ['tidepool', 1]];
+  let at = 0, pendingRestore = 0;
+  const demo = () => { try { return app.contentWindow.__demo; } catch (_) { return null; } };
+  const playing = () => { const d = demo(); return !!(d && d.playing); };
+  const settle = () => { const d = demo(); if (!d) return; if (pendingRestore > at) { const n = pendingRestore; (async () => { for (; at < n; at++) await d.play(BEATS[at][0], BEATS[at][1], true); })(); } pendingRestore = 0; };
+  app.addEventListener('load', () => { const tick = () => { if (demo()) settle(); else setTimeout(tick, 80); }; tick(); });
+  window.presoNext = () => {
+    if (playing()) return true;                       // mid-answer: the tap is swallowed, not skipped
+    if (at >= BEATS.length) return false;             // out of builds: on
+    const d = demo(); if (!d) return true;            // not up yet: swallow
+    const [sc, i] = BEATS[at]; at++; d.play(sc, i); return true;
+  };
+  // Back reloads the phone fresh and replays to the step before (a chat can't be stepped back)
+  window.presoPrev = () => { if (at === 0) return false; const n = at - 1; at = 0; pendingRestore = n; app.src = '/peek/?preso=1&r=' + Date.now().toString(36); return true; };
+  window.presoState = () => Math.max(at, pendingRestore);
+  window.presoRestore = n => { pendingRestore = n; settle(); };
+  window.presoEnd = () => { pendingRestore = BEATS.length; settle(); };
+  window.presoReady = () => !playing() && !pendingRestore && !!demo();
+})();
+</script>
+</body>
+</html>
