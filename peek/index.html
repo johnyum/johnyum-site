@@ -3095,9 +3095,9 @@ async function insCall(c) {
   const byYou = call.byYou; call.ended = true; call.who = null; c.ringing = false; cHold(call, false); speechSynthesis?.cancel();
   line('sys', byYou ? 'You hung up' : 'Call ended', { icon: 'phone' });
   call.status = byYou ? 'You ended the call' : 'Call ended'; callPaint(c);
-  await new Promise((r) => setTimeout(r, 1500));
+  await new Promise((r) => setTimeout(r, 1100));
   if (ins?.call !== call) return;
-  if (tcard && tcard.c === c) shrinkTimer();
+  if (tcard && tcard.c === c) shrinkTimer();   // done: it collapses back into the small phone in the pile
   ins.stage = 3;
   if (byYou) { tell({ type: 'reply', text: insReply('hungup') }); return; }
   setTimeout(() => {
@@ -3151,7 +3151,7 @@ function tickCall() {
         const was = call.h[i] ?? h, eased = was + (h - was) * Math.min(1, dt * 12); call.h[i] = eased;   // and nothing jumps
         b.style.height = eased.toFixed(1) + 'px'; });
     }
-    const show = !(tcard && tcard.c === c);
+    const show = !(tcard && tcard.c === c) && !call.ended;   // ended, the phone sits in the pile with nothing over it (John: no time bubble once it's done)
     if (show && !c.tb) { c.tb = document.createElement('div'); c.tb.className = 'name tleft'; poolEl.append(c.tb); }
     if (!show && c.tb) { c.tb.remove(); c.tb = null; }
     if (c.tb) {
