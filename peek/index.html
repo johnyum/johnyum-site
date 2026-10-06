@@ -87,7 +87,14 @@ html.preso .fade.b::after { content: ""; position: absolute; inset: 0; backgroun
 html.preso .log { padding: 0 20px; scroll-behavior: auto; scrollbar-width: none; }   /* no scrollbar: a Mac with a mouse draws one, a phone never does */
 html.preso .log::-webkit-scrollbar { display: none; width: 0; height: 0; }
 html.preso .log-inner { gap: 24px; padding-top: 122px; padding-bottom: 16px; }
-html.preso .msg.user, html.preso .thinkrow { animation: rowIn .32s cubic-bezier(.2,.8,.2,1) both; }   /* the app's row insertion: a short rise and fade */
+html.preso .msg.user, html.preso .thinkrow, html.preso .msg.youwrap { animation: rowIn .32s cubic-bezier(.2,.8,.2,1) both; }
+html.preso .msg.youwrap { align-self: flex-end; max-width: calc(100% - 48px); display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+html.preso .msg.youwrap .msg.user { max-width: 100%; animation: none; }
+html.preso .acard { display: flex; align-items: center; gap: 12px; max-width: 280px; padding: 10px 16px 10px 10px; border-radius: 16px; background: #F0F0EE; font-family: "Schibsted Grotesk", system-ui, sans-serif; }
+html.preso .acard .page { position: relative; flex: none; width: 34px; height: 44px; border-radius: 6px; background: #fff; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.12); overflow: hidden; }
+html.preso .acard .page b { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 0; text-align: center; font-size: 9px; font-weight: 700; line-height: 1; color: #fff; background: rgb(219,51,46); }
+html.preso .acard .n { font-size: 15px; line-height: 1.25; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+html.preso .acard .k { font-size: 13px; line-height: 1.25; color: var(--muted); margin-top: 2px; }   /* the app's row insertion: a short rise and fade */
 @keyframes rowIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 html.preso .msg.user { max-width: calc(100% - 48px); font: 18px/1.45 "Schibsted Grotesk", system-ui, sans-serif; padding: 12px 16px; border-radius: 20px; background: #F0F0EE; }
 html.preso .msg.bot { font: 18px/1.6 "Source Serif 4", Georgia, serif; white-space: normal; }
@@ -3948,11 +3955,14 @@ async function presoStream(bot, text, fast) {
   presoStreaming = false;
   return out;
 }
+let presoFast = false, scriptedDone = null;
 async function presoReply(text) {   // a reply the page wrote (the insurance call): streamed in as Claude's
-  if (!PRESO) return;
-  const bot = add('bot', ''); window.peek.event('thinking');
-  const out = await presoStream(bot, text, false);
+  if (!PRESO || !text) { if (!text && scriptedDone) { const d = scriptedDone; scriptedDone = null; d(); } return; }
+  document.querySelectorAll('.thinkrow').forEach((t) => t.remove());
+  const bot = add('bot', '');
+  const out = await presoStream(bot, text, presoFast);
   said.push(['claude', out]); window.peek.event('replied', out);
+  if (scriptedDone) { const d = scriptedDone; scriptedDone = null; d(); }
 }
 /* ═══════════════ the deck's chats (?preso=1) ═══════════════
    The deck steps a slide through scripted chats — what John asks, what Claude answers — and the page plays each turn the
@@ -3965,6 +3975,26 @@ const SCENES = {
       claude: 'Tide pools are little worlds that get left behind when the tide goes out, and the animals in them are tough — they have to survive the sun, the waves and the hungry gulls twice a day.\n\nThe sea anemone looks like a flower, but it’s an animal: those soft green arms are sticky, and they close up around anything that touches them.\n\nThe starfish (a sea star, really — it isn’t a fish) has hundreds of tiny tube feet underneath, and if it loses an arm it can grow a new one.\n\nA hermit crab doesn’t grow its own shell. It borrows an empty snail shell and moves into a bigger one as it grows.\n\nThe nudibranch is a sea slug dressed in the brightest colours in the pool — a warning to anything thinking of eating it.\n\nThe sea urchin is a ball of purple spines that scrapes algae off the rocks with its five little teeth.\n\nA sea cucumber is soft and slow, and when it’s frightened it can push its insides out at whatever scared it — then grow them back.\n\nThe tidepool sculpin is a small fish that changes colour to match the rocks, so you often don’t see it until it darts.\n\nAnd the octopus is the cleverest thing in the pool: it can squeeze through a gap the size of a coin, change colour in a blink, and it’s usually hiding right where you’re not looking.' },
     { you: 'Create a little game for her so it’s fun to learn about tide pool creatures.',
       claude: 'Done — a little guessing game. I’ll describe one of the creatures in a clue she can follow, and she picks which one it is from three cards. Five rounds, and each clue gives a different thing away: what it eats, what it’s made of, the trick it does when it’s scared. Tap the cards to start.' },
+  ],
+  // THE INSURANCE CALL: the page writes this chat itself (insReply, insScript) — Claude is never asked. The ask goes with the
+  // EOB as the app's PDF attachment; the page's first question comes back; the page fills the box with John's answer and the
+  // next tap sends what's in the box; the second question comes back; then the phone drops in and the call plays.
+  insurance: [
+    { you: 'Can you dispute this $340 charge with my insurance? The dermatologist was supposed to be in-network.', attach: 'Larkspur_EOB_Sep2026.pdf' },
+    { fromBox: true },
+  ],
+  // THE BRISKET: Claude's answer; once it's done, the cookbook drops in already filled (its steps from Haiku) — tap it for the
+  // recipe page, Start smoke for the stopwatch. The written answer is the fallback, with numbered steps so the book can fill.
+  brisket: [
+    { you: 'Brisket on the Big Green Egg. Show me how.',
+      claude: 'Plan on 10 to 12 hours for a 12 to 14 pound packer, plus a rest. The Egg holds 250°F all day once it settles, which is the whole trick.\n\n1. **Trim.** Take the fat cap down to a quarter inch, cut out the hard fat between the point and the flat, and square the edges so nothing burns.\n\n2. **Season.** Coarse salt and coarse black pepper, half and half, heavy on every side. Let it sit while the Egg comes up.\n\n3. **Light.** Fill the firebox with lump charcoal, light one spot, plate setter in legs up, grate on. Bring it to 250°F and let the smoke go thin and blue before the meat goes on. A few chunks of oak or pecan.\n\n4. **Smoke.** Fat cap down, lid shut. Leave it alone for 5 to 6 hours. Spritz with water or cider every hour after the first two if the surface looks dry.\n\n5. **Wrap.** When the bark is set and dark and the internal temperature stalls around 165°F, wrap it tight in butcher paper and put it back on.\n\n6. **Finish.** Cook until a probe slides in like butter, usually 203°F. The number matters less than the feel.\n\n7. **Rest.** Vent the wrap for ten minutes, then rest it in a dry cooler with a towel for 2 to 4 hours. Do not skip this.\n\n8. **Serve.** Slice the flat against the grain, pencil thick. Cube the point for burnt ends if you want them.' },
+  ],
+  // SPIDER-MAN: ask about him and he comes into the chat in 3D and lives there; then he's asked to climb the wall, and to swing.
+  spiderman: [
+    { you: 'Tell me all you know about Spider-Man.',
+      claude: 'Peter Parker, a Queens teenager bitten by a radioactive spider in 1962, in Amazing Fantasy #15, by Stan Lee and Steve Ditko. The bite gave him strength, speed, wall-crawling and the spider-sense; the web-shooters he built himself.\n\nThe line that defines him is Uncle Ben\u2019s: with great power there must also come great responsibility. He let a burglar go, and the burglar killed Ben. Everything after is him paying that back.\n\nHe is the first superhero whose problems were ordinary ones: rent, Aunt May\u2019s health, J. Jonah Jameson calling him a menace in the Daily Bugle, the girl he could not keep. Gwen Stacy died in 1973 and comics changed.\n\nThe suit is red and blue with black webbing, white eyes, and it has barely changed in sixty years because it did not need to. Three film Spider-Men: Tobey Maguire, Andrew Garfield, Tom Holland, and all three in No Way Home. Miles Morales took the name in 2011 and got the best film of the lot.' },
+    { you: 'Climb the wall', claude: 'On it.' },
+    { you: 'Swing', claude: 'Going.' },
   ],
 };
 if (PRESO) {
@@ -4014,12 +4044,21 @@ if (PRESO) {
     playing = true;
     if (scene !== name) { scene = name; window.peek.event('chat', name); msgs.innerHTML = ''; said.length = 0; }
     turn = i + 1;
-    const { you, claude } = sc[i];
-    input.value = ''; fit(); composer.classList.remove('has');
-    if (!fast) await typeIn(you);   // the keyboard up, the question typed, the keyboard down — then it's sent
+    const t = sc[i], claude = t.claude, you = t.fromBox ? input.value.trim() : t.you;
+    presoFast = fast;
+    if (!t.fromBox) { input.value = ''; fit(); composer.classList.remove('has'); if (!fast) await typeIn(you); }   // the keyboard up, the question typed, the keyboard down — then it's sent (a turn from the box is sent as it stands)
+    else if (!fast) await new Promise((r) => setTimeout(r, 600));   // the box already holds the answer: a beat, then send
     input.value = ''; fit(); composer.classList.remove('has');   // sent: the box empties
-    add('user', esc(you)); said.push(['you', you]);
+    if (t.attach) add('youwrap', `<div class="acard"><span class="page"><b>PDF</b></span><span><div class="n">${esc(t.attach)}</div><div class="k">PDF · 2 pages</div></span></div><div class="msg user">${esc(you)}</div>`);
+    else add('user', esc(you));
+    said.push(['you', you]);
     window.peek.event('send', you);
+    if (ins) {   // the page is writing this chat: its reply comes through presoReply; the dots wait for it
+      if (!fast) await new Promise((r) => setTimeout(r, 380));
+      const think = add('thinkrow', '<b><i></i><i></i><i></i></b><span>Thinking…</span>'); window.peek.event('thinking');
+      await new Promise((r) => { scriptedDone = r; setTimeout(r, 30000); });
+      think.remove(); playing = false; return true;
+    }
     if (!fast) await new Promise((r) => setTimeout(r, 380));   // your bubble has risen in before the dots come (John, 2026-10-06)
     // "Thinking…" stays up until the first words actually arrive, as the app's does (John, 2026-10-06: it went too soon,
     // then a dead second before the answer); the written answer thinks for a beat and a half
