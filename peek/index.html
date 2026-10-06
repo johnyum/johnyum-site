@@ -2200,7 +2200,7 @@ function poolSyncBox() {
   for (const c of critters) Sleeping.set(c.body, false);
 }
 function poolDrop(key, extra) {
-  if (!poolInit()) return;
+  if (!poolInit() || !presoAllows(key)) return;
   const { Bodies, Body, Composite } = Matter, P = POOL[key], w = P.w * (innerWidth < 600 ? .82 : 1), x = extra?.x ?? 50 + Math.random() * (innerWidth - 100);
   // One physics for everything in the pile — the creatures and the timer bounce, slide and weigh the same;
   // only the outline differs (the timer is boxy, so it doesn't roll like a ball).
@@ -4045,6 +4045,12 @@ async function presoStream(bot, text, fast) {
   return out;
 }
 let presoFast = false, scriptedDone = null, presoDraft = '';
+// EACH SCENE'S OWN THINGS ONLY (John, 2026-10-06: the stopwatch turned up in Spider-Man; nothing crosses over): what a scene may
+// drop into its pile — anything else that would drop (a creature a live answer happens to name, a cook left running) is refused
+let presoScene = null;
+const PRESO_OWN = { tidepool: null /* the tide pool's creatures and the game's cards: anything but the others' */, insurance: ['phone', 'receipt', 'eob'], brisket: ['cookbook', 'stopwatch', 'recipe', 'clipboard', 'groceries'], mobydick: [], spiderman: [] };
+const NOT_POOL = ['phone', 'receipt', 'eob', 'cookbook', 'stopwatch', 'recipe', 'clipboard', 'groceries', 'calendar', 'map', 'timer', 'thermo', 'piston', 'sparkplug', 'crankshaft', 'valve', 'camshaft', 'injector'];
+const presoAllows = (key) => { if (!PRESO || !presoScene) return true; const own = PRESO_OWN[presoScene]; return own === null ? !NOT_POOL.includes(key) : own.includes(key); };
 async function presoReply(text) {   // a reply the page wrote (the insurance call): streamed in as Claude's
   if (!PRESO || !text) { if (!text && scriptedDone) { const d = scriptedDone; scriptedDone = null; d(); } return; }
   document.querySelectorAll('.thinkrow').forEach((t) => t.remove());
@@ -4140,7 +4146,8 @@ if (PRESO) {
     if (scene !== name) {
       const first = scene === null;   // the first chat is already open: no tap on the mark, nothing to clear (John, 2026-10-06)
       if (tcard) { if (fast) closeCard(); else { shrinkTimer(); await new Promise((r) => setTimeout(r, 620)); } }   // whatever's open (the stopwatch, after the brisket) closes first, then the new chat
-      scene = name; window.peek.event('chat', name); said.length = 0;
+      scene = name; presoScene = name; window.peek.event('chat', name); said.length = 0;
+      poolClear(true); if (cook) { cook = null; } ins = null; whaleEnd(); whaleSeen = false; spideyEnd(); presoDraft = '';   // nothing of the last scene comes along — its pile, its cook, its call, its whale, its Spider-Man
       const mark = $('.pillnav .newchat');
       if (mark && !fast && !first) { mark.classList.add('pressing'); await new Promise((r) => setTimeout(r, 130)); mark.classList.remove('pressing'); await new Promise((r) => setTimeout(r, 160)); }
       const GREET = ['What shall we think through?', 'What’s on your mind?', 'Where would you like to start?', 'What are we working on?', 'What can I help you with?', 'What’s the question?', 'Where shall we begin?'];   // the app's ChatIntro
