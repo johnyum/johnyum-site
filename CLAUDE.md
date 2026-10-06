@@ -479,8 +479,8 @@ reading while you write (John: "taking up too much space where it's valuable").
 **Now in layers (2026-10-05):** John capped every piece at ~60% of the old tail's height above the water, turned the tail
 toward the horizontal (keeping its size and detail rather than shrinking it) and the boat a little left, then asked for a
 slow settle. The engraving is cut into `moby/sea.webp` (the water painted back by a gpt-image-1 masked edit where the tail
-and hull were), `tail.webp`, `boat.webp`, `flyer.webp`; `MOBY` holds each one's rest pose (tail −60° about its base,
-sunk 74; boat group ×.85, −10°). `mobySettle()`: the tail rises into its lean, the boat rocks and eases still, the flyer
+and hull were), `tail.webp`, `boat.webp`, `flyer.webp`, and `head.webp` (off: `showHead` — Moby Dick's head just breaking the surface beside the boat, facing it, eye up — John's sketch; generated with the tail as the style reference, the gaps between its lines filled white; a white sketchy whale was rejected: "destroyed the wood relief style"); `MOBY` holds each one's rest pose (tail −60° about its base and mirrored, so it leans right with the flukes opening right —
+John turned it back from a left lean; a plain right turn laid the stem flat on the water — moved 150 left — far right, its flukes cut off by the screen's edge (John) — sunk 74; its spray fades out before the layer's edges so no splash is cut; boat group ×.85, −10°). `mobySettle()`: the tail rises into its lean, the boat rocks and eases still, the flyer
 comes down, all slowing over ~7s, then the exact final picture holds. `print.webp` is kept, unused.
 **Spider-Man** (2026-10-05): ask about Spider-Man (`SPIDEY_RE`) and the classic Spider-Man comes into the chat in 3D and
 lives there — a Meshy-rigged model from John's Downloads (`spiderman-moves/`), the rig and twelve moves merged into one
