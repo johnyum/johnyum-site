@@ -3486,7 +3486,13 @@ function poolStep(now) {
    like a print coming off the block — a soft edge rising, the ink settling from pale to full, a last small press — and
    then holds still (a split copy for moving water left seams). It stays till the next send. */
 const WHALE_RE = /\b(moby|white whale|sperm whale)\b/i;
-const PRINT = { src: 'moby/print.webp', aspect: 733 / 1100, water: .667, wide: 1.08, left: -.02, under: 4, room: 120 };
+const PRINT = { src: 'moby/print.webp', aspect: 733 / 1100, water: .667, wide: 1.08, left: -.02, under: 4, room: 120 };   // the first plate (kept, unused)
+/* ONE SCENE NOW (2026-10-06, John: "a scene that's from left to right above the chat box", no empty hole in the middle, the
+   sea all the way to the bottom): moby/scene.webp — a 19th-century whaling plate (gpt-image-1): the whale surging across
+   the whole width, flukes up at the left, head and jaw at the right, two whaleboats, the ship small on the horizon, the sea
+   to the bottom edge. Its sky is cut away (the ink carries a white body under it, so the answer scrolls under the art),
+   and it sits edge to edge with its bottom on the screen's bottom. The layered plate below is kept, unused (showScene off). */
+const SCENE = { src: 'moby/scene.webp', aspect: 960 / 1024, sink: 40, on: true };   // edge to edge; its bottom `sink` below the screen's bottom (only sea is lost), so the whale rises ~220 above the box
 /* The plate is four layers now (2026-10-05, John: nothing taller than 60% of the old tail; the tail turned toward the
    horizontal so it keeps its size and detail; the boat turned left so more of it shows; then a slow settle that comes
    to rest): moby/sea.webp (the sea, with the water painted back where the tail and hull were), tail.webp (the flukes
@@ -3507,7 +3513,7 @@ function whaleStart() {
   if (!poolInit() || whale) return;
   const el = document.createElement('div'); el.className = 'print';
   const M = MOBY, B = M.boat;
-  el.innerHTML = `<div class="pv"><div class="stage">`
+  el.innerHTML = SCENE.on ? `<div class="pv"><img class="scene" src="${SCENE.src}" alt="" draggable="false"></div>` : `<div class="pv"><div class="stage">`
     + (M.showTail ? `<img class="tail" src="${M.tail.src}" alt="" draggable="false" style="left:${M.tail.x}px;top:${M.tail.y}px;transform-origin:${M.tail.ox}px ${M.tail.oy}px">` : '')
     + (M.showHead ? `<img class="head" src="${M.head.src}" alt="" draggable="false" style="left:${M.head.x}px;top:${M.head.y}px;transform-origin:${M.head.ox}px ${M.head.oy}px">` : '')
     + `<img class="sea" src="${M.sea.src}" alt="" draggable="false" style="left:0;top:0">`
@@ -3535,7 +3541,9 @@ const ease = (k) => k <= 0 ? 0 : k >= 1 ? 1 : 1 - Math.pow(1 - k, 3);
 function whaleStep(now) {
   if (!whale || whale.t0 == null) return;
   const g = homeGround(), r = g ? rectOf(g) : null; if (!r || r.width <= 0) return;
-  const t = (now - whale.t0) / 1000, W = innerWidth * PRINT.wide, H = W * PRINT.aspect, top = r.top - H * PRINT.water - PRINT.under, L = W * PRINT.left;
+  const t = (now - whale.t0) / 1000;
+  const W = SCENE.on ? innerWidth : innerWidth * PRINT.wide, H = W * (SCENE.on ? SCENE.aspect : PRINT.aspect), top = SCENE.on ? innerHeight - H + SCENE.sink : r.top - H * PRINT.water - PRINT.under, L = SCENE.on ? 0 : W * PRINT.left;
+  whale.room = Math.max(0, Math.round(r.top - top));   // the scene rises this far above the box: the chat keeps that much room, so the last line clears the whale
   // the cut: everything but the chat box (its rounded rectangle), so the box sits in the sea
   const key = [r.left, r.top, r.width, r.height, innerWidth, innerHeight].map(Math.round).join();
   if (key !== whale.clipKey) {
@@ -3554,8 +3562,7 @@ function whaleStep(now) {
   pv.style.width = W + 'px'; pv.style.height = H + 'px';
   pv.style.setProperty('--rv', rv.toFixed(4)); pv.style.opacity = (ink * whale.kb).toFixed(3); pv.style.visibility = whale.kb < .01 ? 'hidden' : '';
   pv.style.transform = `translate(${L.toFixed(1)}px, ${top.toFixed(1)}px) scale(${press.toFixed(4)})`;
-  whale.st.style.transform = `scale(${(W / 1100).toFixed(5)})`;
-  mobySettle(t);
+  if (whale.st) { whale.st.style.transform = `scale(${(W / 1100).toFixed(5)})`; mobySettle(t); }
 }
 // The slow settle: everything starts a little off where it rests and eases in, slower and slower, then holds.
 function mobySettle(t) {
@@ -3570,7 +3577,7 @@ function mobySettle(t) {
   const kf = out5(t / 5.5);   // the flyer: still coming down
   whale.flyer.style.transform = `translateY(${(-30 * (1 - kf)).toFixed(2)}px) rotate(${(5 * (1 - kf)).toFixed(3)}deg)`;
 }
-const plateRise = () => whale && whale.kb < .5 ? 0 : PRINT.room;   // the room the chat keeps: enough to clear the boat's crew; scrolled, the answer passes under the sea, the boat and the tail (their white bodies hide it)
+const plateRise = () => !whale || whale.kb < .5 ? 0 : SCENE.on ? (whale.room || 0) : PRINT.room;   // the room the chat keeps: enough to clear the boat's crew; scrolled, the answer passes under the sea, the boat and the tail (their white bodies hide it)
 
 /* ── Spider-Man ── ask about Spider-Man and the classic Spider-Man (a Meshy-rigged model, spidey/spidey.glb: the rig
    and twelve moves merged into one file — Idle, Jump, Hang, Run, Land, Backflip, Kick, WallFlip, Crawl, Climb, Roll,
@@ -4207,7 +4214,7 @@ if (EMBED || PRESO) {
         workBegin();   // to work: chin on its hand till the first words come
         lastAsk = String(data || '');
         insHearSend(lastAsk);   // the insurance call: the ask (and its EOB), then your answers
-        if (spidey) spAsk(lastAsk); else if (SPIDEY_RE.test(lastAsk)) spideyStart();   // Spider-Man: comes with his question, stays with the chat, and does what you ask
+        if (spidey) spAsk(lastAsk);   // Spider-Man: stays with the chat, and does what you ask (he comes in on the Thinking, below — John, 2026-10-06: not the instant you ask)
         if (/\bgames?\b/i.test(lastAsk) && critters.some((c) => CLUES[c.key])) poolFlush();   // the game question: the creatures pour down into the box, and the cards come in where they were
         else poolClear(false);   // a new question: last answer's creatures go (a running timer stays)
       } else if (name === 'stream') {
@@ -4218,6 +4225,7 @@ if (EMBED || PRESO) {
         if (work.phase) { workPose('pondering'); work.beat++; }   // looking something up: back to its chin
       } else if (name === 'thinking') {
         if (!work.phase) workBegin();
+        if (!spidey && SPIDEY_RE.test(lastAsk)) spideyStart();   // Spider-Man comes in while Claude is thinking about him
       } else if (name === 'replied') {
         spDone();   // Spider-Man: the answer's in, back up his web
         insHearReplied();   // the call: after the questions, the box gets an answer; after "calling now", the phone

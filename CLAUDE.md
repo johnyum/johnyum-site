@@ -477,7 +477,14 @@ filigree sea with tiny tail and boat. Ink only, no paper (mapped to nothing *loc
 the box's rounded rect. It develops up out of the box like a print off the block, then holds still till the next send.
 While the keyboard is up (the box has risen) it fades away and the chat stops keeping room for it — that space is for
 reading while you write (John: "taking up too much space where it's valuable").
-**Now in layers (2026-10-05):** John capped every piece at ~60% of the old tail's height above the water, turned the tail
+**One scene now (2026-10-06, John: "a scene from left to right above the chat box", no empty hole in the middle, the sea all the
+way to the bottom):** `moby/scene.webp` (`SCENE`, `on: true`) — a 19th-century whaling plate made with gpt-image-1: the whale surging across
+the whole width, flukes up at the left, head and jaw at the right, two whaleboats, the ship small on the horizon; the sea outpainted
+downward (a masked edit) so it runs under the box to the screen's bottom. Its sky is cut away by a per-column ink envelope and the ink
+carries a white body (black ink over white, so the answer scrolls under it). Drawn edge to edge, its bottom `sink` 40 below the screen's
+bottom, the whale ~220 above the box; the chat keeps that room (`whale.room`). It still develops up out of the box. The layered plate
+below is kept in the code, off. **Spider-Man comes in on the Thinking, not the send** (John, 2026-10-06).
+**Before that, in layers (2026-10-05):** John capped every piece at ~60% of the old tail's height above the water, turned the tail
 toward the horizontal (keeping its size and detail rather than shrinking it) and the boat a little left, then asked for a
 slow settle. The engraving is cut into `moby/sea.webp` (the water painted back by a gpt-image-1 masked edit where the tail
 and hull were), `tail.webp`, `boat.webp`, `flyer.webp`, and `head.webp` (off: `showHead` — Moby Dick's head just breaking the surface beside the boat, facing it, eye up — John's sketch; generated with the tail as the style reference, the gaps between its lines filled white; a white sketchy whale was rejected: "destroyed the wood relief style"); `MOBY` holds each one's rest pose (tail −60° about its base and mirrored, so it leans right with the flukes opening right —
