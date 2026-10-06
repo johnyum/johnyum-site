@@ -104,9 +104,9 @@ per idea; a new chat between them (the new-chat mark is tapped, the greeting com
 4. **Moby-Dick** (1 tap). "Tell me the story of Moby-Dick." The moment the whale is named, a wood engraving develops round the
    chat box — the sea, the tail, the boat and its crew flung into the air — and settles over seven seconds. Nothing to tap. The
    answer goes under the art. The quiet one: the interface can be a picture of what you're reading.
-5. **Spider-Man** (2 taps). "Tell me all you know about Spider-Man." — he bounds in, webs up, and hangs there till you do
-   something. Drag him, fling him into a side and he climbs it. Second tap: "Climb the wall" — he takes the screen's edge like a
-   building, perches in the top corner and spins his web there. The fun one, last: a character that lives in the interface.
+5. **Spider-Man** (1 tap). "Tell me all you know about Spider-Man." — he bounds in, webs up, and hangs there till you do
+   something. Then it's the mouse: drag him and he dangles; fling him into a side and he takes it as a wall, climbs to the top
+   corner and spins his web there; tap him for a trick. The fun one, last: a character that lives in the interface.
 
 Then the ego card has already landed; this is what it was for. The trash heap, if it's built, sits after this: most of what you
 can build with this, you shouldn't.
