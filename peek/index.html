@@ -3948,7 +3948,7 @@ function presoHost(m) {
     if (first) { presoClear(first); setTimeout(() => presoClear(first), 800); setTimeout(() => presoClear(first), 1500); }
   } else if (m.type === 'ask') {
     (async () => { let t = null; try { if (await liveOk()) t = await claudeOnce(m.system, m.user, m.max); } catch (_) {} window.peek.answer(m.id, t); })();
-  } else if (m.type === 'draft') { input.value = m.text || ''; fit(); composer.classList.toggle('has', !!input.value.trim()); }
+  } else if (m.type === 'draft') presoDraft = m.text || '';   // the page's draft (the insurance answer) is held, and typed in on the next tap, as any question is (John, 2026-10-06)
   else if (m.type === 'reply' && m.text) presoReply(m.text);
 }
 // the answer, as the app draws it: paragraphs 12 apart, **bold** lead-ins
@@ -3967,7 +3967,7 @@ async function presoStream(bot, text, fast) {
   presoStreaming = false;
   return out;
 }
-let presoFast = false, scriptedDone = null;
+let presoFast = false, scriptedDone = null, presoDraft = '';
 async function presoReply(text) {   // a reply the page wrote (the insurance call): streamed in as Claude's
   if (!PRESO || !text) { if (!text && scriptedDone) { const d = scriptedDone; scriptedDone = null; d(); } return; }
   document.querySelectorAll('.thinkrow').forEach((t) => t.remove());
@@ -4066,10 +4066,10 @@ if (PRESO) {
       if (!fast && !first) await new Promise((r) => setTimeout(r, 650));   // the fresh chat seen before the next question starts
     }
     turn = i + 1;
-    const t = sc[i], claude = t.claude, you = t.fromBox ? input.value.trim() : t.you;
-    presoFast = fast;
-    if (!t.fromBox) { input.value = ''; fit(); composer.classList.remove('has'); if (!fast) await typeIn(you); }   // the keyboard up, the question typed, the keyboard down — then it's sent (a turn from the box is sent as it stands)
-    else if (!fast) await new Promise((r) => setTimeout(r, 600));   // the box already holds the answer: a beat, then send
+    const t = sc[i], claude = t.claude, you = t.fromBox ? (presoDraft || input.value.trim()) : t.you;
+    presoFast = fast; presoDraft = '';
+    input.value = ''; fit(); composer.classList.remove('has');
+    if (!fast) await typeIn(you);   // the keyboard up, the words typed, the keyboard down — then it's sent (the page's draft is typed the same way)
     input.value = ''; fit(); composer.classList.remove('has');   // sent: the box empties
     if (t.attach) add('youwrap', `<div class="acard"><span class="page"><b>PDF</b></span><span><div class="n">${esc(t.attach)}</div><div class="k">PDF · 2 pages</div></span></div><div class="msg user">${esc(you)}</div>`);
     else add('user', esc(you));
