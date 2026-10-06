@@ -3503,8 +3503,10 @@ const SCENE = { src: 'moby/scene.webp', aspect: 960 / 1024, sink: 110, on: true,
   fields: [
     { c: [.588, .262], r: [.46, .27], bob: [14, 9, 0], surge: [6, 9, 1.2], roll: [1.6, 9, .7] },      // the whale (doubled, John: not noticeable)
     { c: [.15, .17], r: [.18, .22], flick: [8, 7, 2], top: true },                                      // the flukes, more at the top
-    { c: [.213, .42], r: [.22, .14], bob: [8, 4.8, .9], roll: [3.2, 4.8, .2] },                         // the left boat
-    { c: [.807, .45], r: [.17, .11], bob: [7, 5.4, 2.1], roll: [3, 5.4, 1.6] },                         // the right boat
+    // the boats and their crews are PINNED (John, 2026-10-06: only the whale and the water move): inside each, nothing moves at all,
+    // and the hold eases off round its edge so the water between them and the whale takes up the difference
+    { c: [.213, .40], r: [.25, .17], pin: true },                                                       // the left boat, the harpooner and the oars
+    { c: [.807, .44], r: [.19, .13], pin: true },                                                       // the right boat
   ] };   // edge to edge; its bottom `sink` below the screen's bottom (only sea is lost — and a little of the right boat behind the box), so the whale rises ~150 above the box (John: more room for the words)
 /* The plate is four layers now (2026-10-05, John: nothing taller than 60% of the old tail; the tail turned toward the
    horizontal so it keeps its size and detail; the boat turned left so more of it shows; then a slow settle that comes
@@ -3601,16 +3603,17 @@ function sceneWarp(t, W, H) {
   const F = SCENE.fields, k = F.map((f) => ({ f, bob: f.bob ? f.bob[0] * s(f.bob[1], f.bob[2]) : 0, surge: f.surge ? f.surge[0] * s(f.surge[1], f.surge[2]) : 0,
     roll: f.roll ? Math.sin(f.roll[0] * rad * s(f.roll[1], f.roll[2])) : 0, flick: f.flick ? f.flick[0] * s(f.flick[1], f.flick[2]) : 0 }));
   for (let i = 0; i < pos.length; i += 3) {
-    const x = b[i], y = b[i + 1]; let dx = 0, dy = 0;
+    const x = b[i], y = b[i + 1]; let dx = 0, dy = 0, hold = 0;
     for (const { f, bob, surge, roll, flick } of k) {
       const ex = (x - f.c[0]) / f.r[0], ey = (y - f.c[1]) / f.r[1], r = Math.sqrt(ex * ex + ey * ey);
       if (r >= 1) continue;
+      if (f.pin) { let h = r < .72 ? 1 : 1 - (r - .72) / .28; h = h * h * (3 - 2 * h); hold = Math.max(hold, h); continue; }
       let wgt = 1 - (r < .5 ? 0 : (r - .5) / .5); wgt = wgt * wgt * (3 - 2 * wgt);   // full inside, easing off to nothing at the field's edge
       if (f.top) wgt *= Math.max(0, Math.min(1, (f.c[1] + f.r[1] - y) / (2 * f.r[1])));   // the flukes: most at the tips, nothing at the stem's root
       dy += wgt * (bob + roll * (x - f.c[0]) * W); dx += wgt * (surge + flick - roll * (y - f.c[1]) * H);
     }
     dy += 2.5 * Math.sin(2 * Math.PI * t / 6 + x * 7) * Math.max(0, Math.min(1, (y - .3) / .2));   // a slow wave running through the water
-    const edge = Math.min(1, x / .04, (1 - x) / .04, (1 - y) / .04);   // the picture's own edges stay put
+    const edge = Math.min(1, x / .04, (1 - x) / .04, (1 - y) / .04) * (1 - hold);   // the picture's own edges stay put, and so do the pinned pieces
     pos[i] = x + dx * edge / W; pos[i + 1] = y + dy * edge / H;
   }
   g.geo.attributes.position.needsUpdate = true;
@@ -4076,6 +4079,7 @@ const SCENES = {
       claude: 'Plan on 10 to 12 hours for a 12 to 14 pound packer, plus a rest. The Egg holds 250°F all day once it settles, which is the whole trick.\n\n1. **Trim.** Take the fat cap down to a quarter inch, cut out the hard fat between the point and the flat, and square the edges so nothing burns.\n\n2. **Season.** Coarse salt and coarse black pepper, half and half, heavy on every side. Let it sit while the Egg comes up.\n\n3. **Light.** Fill the firebox with lump charcoal, light one spot, plate setter in legs up, grate on. Bring it to 250°F and let the smoke go thin and blue before the meat goes on. A few chunks of oak or pecan.\n\n4. **Smoke.** Fat cap down, lid shut. Leave it alone for 5 to 6 hours. Spritz with water or cider every hour after the first two if the surface looks dry.\n\n5. **Wrap.** When the bark is set and dark and the internal temperature stalls around 165°F, wrap it tight in butcher paper and put it back on.\n\n6. **Finish.** Cook until a probe slides in like butter, usually 203°F. The number matters less than the feel.\n\n7. **Rest.** Vent the wrap for ten minutes, then rest it in a dry cooler with a towel for 2 to 4 hours. Do not skip this.\n\n8. **Serve.** Slice the flat against the grain, pencil thick. Cube the point for burnt ends if you want them.' },
     { act: 'book' },
     { act: 'smoke' },
+    { act: 'watch' },
   ],
   // SPIDER-MAN: ask about him and he comes into the chat in 3D and lives there; then he's asked to climb the wall, and to swing.
   // MOBY-DICK: when the answer first names the whale, the wood engraving develops around the chat box (the sea, the tail, the boat and its crew)
@@ -4135,6 +4139,7 @@ if (PRESO) {
     playing = true;
     if (scene !== name) {
       const first = scene === null;   // the first chat is already open: no tap on the mark, nothing to clear (John, 2026-10-06)
+      if (tcard) { if (fast) closeCard(); else { shrinkTimer(); await new Promise((r) => setTimeout(r, 620)); } }   // whatever's open (the stopwatch, after the brisket) closes first, then the new chat
       scene = name; window.peek.event('chat', name); said.length = 0;
       const mark = $('.pillnav .newchat');
       if (mark && !fast && !first) { mark.classList.add('pressing'); await new Promise((r) => setTimeout(r, 130)); mark.classList.remove('pressing'); await new Promise((r) => setTimeout(r, 160)); }
@@ -4149,16 +4154,13 @@ if (PRESO) {
     // THE BRISKET'S NEXT TAPS (John, 2026-10-06): one opens the cookbook and holds it; the next presses Start smoke — the book
     // goes back, the stopwatch drops in, and once it has landed it opens, counting (one beat for both opened and shut the book in a blink)
     if (t.act === 'book') { const book = critters.find((c) => c.key === 'cookbook'); if (book && !fast && !(tcard && tcard.c === book)) growTimer(book); playing = false; return true; }
-    if (t.act === 'smoke') {
+    if (t.act === 'smoke') {   // Start smoke: the book goes back and the stopwatch drops in; it stays in the pile (the next tap opens it)
       const nap = (ms) => new Promise((r) => setTimeout(r, fast ? 0 : ms));
       const book = critters.find((c) => c.key === 'cookbook');
-      if (book) {
-        if (tcard?.go && tcard.c === book) tcard.go.click(); else { if (tcard) shrinkTimer(); setTimeout(() => startCook(book), 420); }
-        await nap(2600);
-        const w = critters.find((c) => c.key === 'stopwatch'); if (w && !tcard) growTimer(w);
-      }
+      if (book) { if (tcard?.go && tcard.c === book) tcard.go.click(); else { if (tcard) shrinkTimer(); setTimeout(() => startCook(book), 420); } await nap(2400); }
       playing = false; return true;
     }
+    if (t.act === 'watch') { const w = critters.find((c) => c.key === 'stopwatch'); if (w && !fast && !tcard) growTimer(w); playing = false; return true; }   // the stopwatch opens; the tap after closes it and moves on
     presoFast = fast; presoDraft = '';
     input.value = ''; fit(); composer.classList.remove('has');
     if (!fast) await typeIn(you);   // the keyboard up, the words typed, the keyboard down — then it's sent (the page's draft is typed the same way)
