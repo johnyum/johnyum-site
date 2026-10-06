@@ -247,6 +247,10 @@ button, textarea { font: inherit; color: inherit; }
 .tui .cl.sys { font: 13px/1.35 "Schibsted Grotesk", system-ui, sans-serif; color: #a5a39d; display: flex; align-items: center; gap: 8px; }
 .tui .cl.sys svg { width: 14px; height: 14px; flex: none; }
 .tui .cl.sys kbd { font: 500 12px/18px "Sofia Sans Condensed", system-ui, sans-serif; min-width: 16px; padding: 0 4px; border-radius: 4px; background: #f0f0ee; color: #1d1d1c; text-align: center; letter-spacing: .04em; }
+.puff { position: absolute; left: 0; top: 0; z-index: 46; pointer-events: none; }   /* a puff of smoke where the phone was */
+.puff i { position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius: 50%;
+  background: radial-gradient(circle at 42% 38%, rgba(244,243,240,.96), rgba(208,206,200,.88) 52%, rgba(208,206,200,0) 72%); animation: puff .95s cubic-bezier(.15,.7,.3,1) both; }
+@keyframes puff { 0% { transform: translate(0, 0) scale(.25); opacity: 0; } 14% { opacity: .95; } 100% { transform: translate(var(--dx), var(--dy)) scale(1.4); opacity: 0; } }
 .tgo.chang { width: 48px; padding: 0; border-radius: 50%; background: #e5483a; display: grid; place-items: center; }   /* the hang-up: red, round, beside the tuck-away */
 .tgo.chang svg { width: 22px; height: 22px; transform: rotate(135deg); }
 .cdots i { font-style: normal; animation: cdot 1.4s ease-in-out infinite; }
@@ -3100,11 +3104,31 @@ async function insCall(c) {
   if (tcard && tcard.c === c) shrinkTimer();   // done: it collapses back into the small phone in the pile
   ins.stage = 3;
   if (byYou) { tell({ type: 'reply', text: insReply('hungup') }); return; }
-  setTimeout(() => {
+  setTimeout(() => {   // landed in the pile: a puff of smoke and the phone is gone; then the receipt drops in (John)
     if (ins?.call !== call) return;
-    poolSeen.add('receipt'); const r = poolDrop('receipt', { keep: true, result: { sec: call.sec, paid: ins.paid, at: new Date() } });
-    setTimeout(() => { if (ins?.call === call) tell({ type: 'reply', text: insReply(3) }); }, 900);
-  }, 650);
+    poolPuff(c);
+    setTimeout(() => {
+      if (ins?.call !== call) return;
+      poolSeen.add('receipt'); const r = poolDrop('receipt', { keep: true, result: { sec: call.sec, paid: ins.paid, at: new Date() } });
+      setTimeout(() => { if (ins?.call === call) tell({ type: 'reply', text: insReply(3) }); }, 900);
+    }, 560);
+  }, 700);
+}
+// a puff of smoke, and the thing is gone: nine soft grey clouds swell out from where it sat and thin away while it shrinks into them
+function poolPuff(c) {
+  if (!critters.includes(c)) return;
+  const r = c.el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, R = Math.max(r.width, r.height);
+  const puff = document.createElement('div'); puff.className = 'puff'; puff.style.transform = `translate(${cx.toFixed(1)}px, ${cy.toFixed(1)}px)`;
+  for (let i = 0; i < 9; i++) {
+    const b = document.createElement('i'), a = i / 9 * Math.PI * 2 + Math.random() * .6, d = R * (.2 + Math.random() * .32), sz = R * (.42 + Math.random() * .36);
+    b.style.setProperty('--dx', (Math.cos(a) * d).toFixed(1) + 'px'); b.style.setProperty('--dy', (Math.sin(a) * d - R * .18).toFixed(1) + 'px'); b.style.setProperty('--s', sz.toFixed(1) + 'px');
+    b.style.animationDelay = Math.round(Math.random() * 100) + 'ms'; puff.append(b);
+  }
+  poolEl.append(puff); setTimeout(() => puff.remove(), 1200);
+  Matter.Composite.remove(poolEngine.world, c.body); critters.splice(critters.indexOf(c), 1); c.tb?.remove(); c.bubble?.remove();   // out of the pile now, so nothing places it again
+  if (poolFocus === c) { poolFocus = null; tell({ type: 'highlight', terms: [] }); }
+  requestAnimationFrame(() => { c.el.style.transition = 'transform .24s ease-in, opacity .2s ease-in'; c.el.style.transform += ' scale(.5)'; c.el.style.opacity = '0'; });
+  setTimeout(() => c.el.remove(), 340);
 }
 function insStart() {
   poolSeen.add('phone');
@@ -3653,7 +3677,7 @@ addEventListener('pointerup', () => {
   spSet('fall'); sp.hold = null; sp.anchor = null; spPlay('Jump', true); spFace(0);
 });
 
-Object.assign(window.__peek, { poolDrop, poolClear, poolHear, poolStep, critters, setAsk: (t) => { lastAsk = t; } });
+Object.assign(window.__peek, { poolDrop, poolClear, poolHear, poolStep, poolPuff, critters, setAsk: (t) => { lastAsk = t; } });
 // A debug readout, only for a local copy of the page inside the app (the simulator, pointed here by PEEK_PAGE).
 const DEBUG = EMBED && /^(localhost|127\.|192\.168\.|10\.)/.test(location.hostname);
 const dbg = { ev: [], err: [] };

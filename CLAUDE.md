@@ -520,7 +520,9 @@ drift, bars eased frame to frame — the fast shimmer was "way too fast"), the t
 said (phone menu, keypad, hold sped up and said so, then Denise), filling the screen down to a pair at the bottom — the
 red round hang-up beside the tuck-away chevron (the `go` pairing, 8 apart; the hang-up was in the column and landed on
 the chevron). Closed, it goes on in the pile with its status above it. "Listen in" (ringback, DTMF, hold music, speech
-voices) is still in the code, its button gone. Hung up, a receipt drops in (`$340` struck, `$40`, the reference number); tapped, one white page: what they agreed and a
+voices) is still in the code, its button gone. **Done, the call collapses into the small phone, a puff of smoke
+(`poolPuff()`: nine soft grey clouds swelling out and thinning while the phone shrinks into them) takes the phone away,
+and THEN the receipt drops in** (John, 2026-10-05); an ended phone never carries a time bubble. Hung up by you, no receipt. Hung up, a receipt drops in (`$340` struck, `$40`, the reference number); tapped, one white page: what they agreed and a
 follow-up date whose Add opens the app's Calendar editor. All fictional: Larkspur Health, Mission Bay Dermatology,
 Dr. Okafor, Denise, a 555 number; dates hang off today. The script lives in the page (`insReply`, `insScript`), so it
 changes with a deploy; it names John and avoids pronouns for him. Code under "The call".
