@@ -1170,7 +1170,7 @@ $('#backToSculpt').onclick = () => !running && setView('sculpt');
 $('#toPeek').addEventListener('click', () => {
   const r = shown;
   $('#toPeek').href = mode === 'blobs' ? '/peek/#c=' + pack(shapes)
-                    : '/peek/#m=' + pack({ glb: r.glb, rigged: r.rigged || null, clips: r.clips || {} });
+                    : '/peek/#m=' + pack(r.kept ? { file: r.kept } : { glb: r.glb, rigged: r.rigged || null, clips: r.clips || {} });
 });
 
 /* ═══════════════ status, steps, shelf ═══════════════ */
@@ -1274,7 +1274,7 @@ async function run(src) {
       step('rig', 'fail', 0, 'No skeleton — it isn\'t shaped like a person');
       step('animate', 'skip', 0, 'Breathing and reacting instead');
       note('This one can\'t take a skeleton, so it moves without one: it breathes, follows you, and squashes when you tap it.');
-      status(''); return;
+      status(''); await keepIt(rec); return;
     }
     rec.rigged = rig.result.rigged_character_glb_url; rec.rigTask = rig.id;
     step('rig', 'done'); save(rec);
@@ -1302,6 +1302,7 @@ async function run(src) {
     const n = Object.keys(clips).length;
     step('animate', n ? 'done' : 'fail', 100, n ? `${n} moves ready` : 'No moves came back');
     status('');
+    await keepIt(rec);
   } catch (e) {
     const s = document.querySelector('.step.run')?.dataset.step || 'render';
     if (e.stopped || stopper.signal.aborted) {
@@ -1325,8 +1326,23 @@ $('#go').onclick = () => (running ? stop() : needsPass() ? askPass()
 function showDownload(url) { const a = $('#download'); a.href = asset(url); a.hidden = false; peekReady(); }
 // Into Peek, from either mode, by one button. Blobs sends the kit character itself (#c=);
 // Draw sends the finished model's Meshy files (#m=) — the rigged one and its moves — so
-// it's live once there's a model. (Meshy's links expire after a few days; so does that link.)
+// it's live once there's a model. Meshy deletes its files after 3 days, so on the Mac the finished
+// build is kept first (serve.py p=keep → monsters/keep.py): one small GLB in peek/monsters/ with every
+// move merged in, and the link points at that instead — it never expires, and ships once committed.
+// Hosted there's nowhere to write it; `python3 monsters/keep.py <rig task id>` rescues one within 3 days.
 let shown = null;
+async function keepIt(rec) {
+  if (env.hosted || rec.kept || !(rec.rigged || rec.glb)) return;
+  status('Keeping it for Peek…');
+  try {
+    const r = await fetch(`${API}?p=keep`, { method: 'POST', headers: headers(),
+      body: JSON.stringify({ name: `${rec.desc || 'monster'}-${rec.id}`, model: rec.rigged || rec.glb, clips: rec.clips || {} }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.message || r.status);
+    rec.kept = j.file; save(rec); if (shown === rec) peekReady();
+    status('Kept — Peek will always find it'); setTimeout(() => status(''), 2500);
+  } catch (e) { status('Couldn\'t keep it: ' + e.message); setTimeout(() => status(''), 4000); }
+}
 function peekReady() {
   const b = $('#toPeek'), ready = mode === 'blobs' || !!shown?.glb;
   b.classList.toggle('off', !ready);
@@ -1364,6 +1380,7 @@ async function open(rec) {
         step('animate', 'skip', 0, 'Breathing and reacting instead');
       }
     }
+    keepIt(rec);   // from the cache, so even an old one whose links have expired
   } catch (e) { status('Couldn\'t open that one: ' + e.message); setTimeout(() => status(''), 4000); }
 }
 

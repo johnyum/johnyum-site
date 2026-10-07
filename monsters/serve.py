@@ -19,6 +19,9 @@ What only the local one does:
   - every Meshy file it fetches is kept in monsters/.cache/ (gitignored).
     Meshy's links expire after a few days; the cache means a saved monster
     still opens next month. (The hosted page has no such cache.)
+  - p=keep: a finished build merged into one small GLB in peek/monsters/
+    (keep.py) — the Peek link points at that, so it never expires and ships
+    with the site once committed.
 """
 import hashlib
 import json
@@ -36,6 +39,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, "api"))
 from monsters import API, allowed, forward, meshy_asset  # noqa: E402  (api/monsters.py)
+import keep as keeper  # noqa: E402  (monsters/keep.py)
 
 CACHE = os.path.join(HERE, ".cache")
 PORT = int(os.environ.get("PORT") or os.environ.get("MONSTERS_PORT") or "5320")
@@ -160,6 +164,8 @@ class Handler(SimpleHTTPRequestHandler):
                        "&".join("%s=%s" % (k, urllib.parse.quote(v[0])) for k, v in q.items() if k not in ("p", "path")))
         elif p == "asset":
             self.asset(q.get("url", [""])[0])
+        elif p == "keep" and method == "POST":
+            self.keep(json.loads(body or b"{}"))
         else:
             self.send_json(404, {"message": "Not found"})
         return True
@@ -197,19 +203,31 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(*mock_get(kind, tid))
         self.send_bytes(*forward(method, path, query, body, KEY))
 
+    def keep(self, body):
+        """Merge a finished build into peek/monsters/<name>.glb (keep.py), from the cache."""
+        model, clips = body.get("model", ""), body.get("clips") or {}
+        if not all(proxied(u) for u in [model, *clips.values()] if u) or not model:
+            return self.send_json(403, {"message": "Only Meshy files can be kept"})
+
+        def fetch(src):
+            path, err = cached(src)
+            if err:
+                raise RuntimeError("couldn't fetch %s (%s)" % (src[:60], err))
+            with open(path, "rb") as f:
+                return f.read()
+        try:
+            out = keeper.keep(model, clips, body.get("name") or "monster", fetch)
+        except Exception as e:
+            return self.send_json(502, {"message": str(e)})
+        sys.stderr.write("kept %s — %.1f MB, %s\n" % (out["file"], out["bytes"] / 1e6, ", ".join(out["clips"]) or "no moves"))
+        return self.send_json(200, out)
+
     def asset(self, src):
         """The whole file in one go (no 4.5MB ceiling here), from the cache when it can."""
-        host = urllib.parse.urlparse(src).hostname or ""
-        if not (meshy_asset(src) or (MOCK and host == "threejs.org")):
+        if not proxied(src):
             return self.send_json(403, {"message": "Only Meshy assets are proxied"})
-        # Meshy signs its URLs; the path alone names the file.
-        name = hashlib.sha1(urllib.parse.urlparse(src).path.encode()).hexdigest()
-        ext = os.path.splitext(urllib.parse.urlparse(src).path)[1] or ".bin"
-        path = os.path.join(CACHE, name + ext)
-        with LOCKS_GUARD:
-            lock = LOCKS.setdefault(name, threading.Lock())
-        with lock:
-            err = None if os.path.exists(path) else self.fetch(src, path)
+        path, err = cached(src)
+        ext = os.path.splitext(path)[1]
         if err:
             return self.send_json(502, {"message": "Asset fetch failed: %s" % err})
         types = {".glb": "model/gltf-binary", ".png": "image/png", ".jpg": "image/jpeg",
@@ -227,19 +245,39 @@ class Handler(SimpleHTTPRequestHandler):
                     break
                 self.wfile.write(chunk)
 
-    def fetch(self, src, path):
-        os.makedirs(CACHE, exist_ok=True)
-        try:
-            with urllib.request.urlopen(src, timeout=120) as r, open(path + ".part", "wb") as f:
-                while True:
-                    chunk = r.read(1 << 16)
-                    if not chunk:
-                        break
-                    f.write(chunk)
-            os.replace(path + ".part", path)
-        except Exception as e:
-            return e
-        return None
+
+
+def proxied(src):
+    host = urllib.parse.urlparse(src).hostname or ""
+    return meshy_asset(src) or (MOCK and host == "threejs.org")
+
+
+def cached(src):
+    """(path in monsters/.cache/, error or None) — fetched once, however many ask at once."""
+    # Meshy signs its URLs; the path alone names the file.
+    name = hashlib.sha1(urllib.parse.urlparse(src).path.encode()).hexdigest()
+    ext = os.path.splitext(urllib.parse.urlparse(src).path)[1] or ".bin"
+    path = os.path.join(CACHE, name + ext)
+    with LOCKS_GUARD:
+        lock = LOCKS.setdefault(name, threading.Lock())
+    with lock:
+        err = None if os.path.exists(path) else fetch(src, path)
+    return path, err
+
+
+def fetch(src, path):
+    os.makedirs(CACHE, exist_ok=True)
+    try:
+        with urllib.request.urlopen(src, timeout=120) as r, open(path + ".part", "wb") as f:
+            while True:
+                chunk = r.read(1 << 16)
+                if not chunk:
+                    break
+                f.write(chunk)
+        os.replace(path + ".part", path)
+    except Exception as e:
+        return e
+    return None
 
 
 if __name__ == "__main__":

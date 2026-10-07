@@ -393,8 +393,16 @@ The page only ever talks to **`/api/monsters?p=…`**, and two things answer it:
   a model comes through `p=asset` in 4MB `Range` slices, fetched in parallel and stitched
   back in the page (`bytes()`); images and the download link use Meshy's URL directly,
   which needs no CORS. Locally `serve.py` hands over the whole file from `monsters/.cache/`.
-- **Meshy's links expire after a few days.** Locally the cache keeps a shelf monster
-  opening for good; hosted there's no cache, so an old shelf entry stops loading.
+- **Meshy's links expire after a few days** (its files are deleted after 3). Locally the cache
+  keeps a shelf monster opening for good; hosted there's no cache, so an old shelf entry stops loading.
+- **A finished build is KEPT for Peek (2026-10-07)** — `monsters/keep.py`: the rigged model with every
+  move's animation merged in by bone name (each Meshy move is the whole 32MB model again, so only the
+  animation data is taken), textures shrunk to 1024 with `sips`, tangents dropped, skin weights to 16-bit:
+  one ~10MB GLB in `peek/monsters/`. Locally serve.py's `p=keep` does it the moment a build ends (and when
+  a shelf entry is opened), and "Bring it into Peek" links `#m={file}` — it never expires, and ships with
+  the site once committed. Hosted there's nowhere to write; rescue a johnyum.com build within 3 days with
+  `python3 monsters/keep.py <rig task id> [name]` (it finds the moves started just after that rig).
+  Peek shows the character whenever a `#m=` / `#c=` link brings one, without `?character`.
 - **Test on `monsters-mock` (port 5321), never 5320.** With a key saved, 5320 is live and
   every test spends real credits. `MONSTERS_MOCK=1` forces mock and refuses the key box;
   `MONSTERS_MOCK_RIGFAIL=1` fakes a rig failure.
