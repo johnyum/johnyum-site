@@ -50,6 +50,10 @@
   /* the marks are faces now (John, 2026-10-02): 😡 for the naysayers, 🤗 for the ones who got it (🤔 at first) — the emoji fills
      its 28 box, set 3.75% low to sit on its row as the icons did */
   .mark { display: grid; place-items: center; font: 28px/1 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; padding-top: 1px; box-sizing: border-box; }
+  /* A THIRD TAP (John, 2026-10-07): the angry faces turn to 🤔 — each pops as it changes, in a quick ripple down the thread */
+  .mark.hmm { animation: hmm .5s cubic-bezier(.34,1.56,.64,1) both; animation-delay: var(--d, 0ms); }
+  @keyframes hmm { 0% { transform: translate(calc(-10px * var(--inv, 1)), -50%) scale(calc(var(--inv, 1) * .6)); } 100% { transform: translate(calc(-10px * var(--inv, 1)), -50%) scale(var(--inv, 1)); } }
+  body.snap .mark { animation: none !important; }
 </style>
 </head>
 <body>
@@ -65,7 +69,7 @@
     <span class="mark ok" style="top:93.759%" role="img" aria-label="understood" title="Future_Different: a global increase, thirty seconds">&#x1F642;</span>
   </div></div>
 <script>
-  // 0: zoomed in on the top · 1: the whole thread, scaled to fill the band between the chrome
+  // 0: zoomed in on the top · 1: the whole thread, scaled to fill the band between the chrome · 2: the angry faces turn to 🤔
   const wrap = document.getElementById('wrap'), view = document.querySelector('.view'), H = 7114, W = 1476;
   let at = 0;
   function place() {
@@ -76,15 +80,16 @@
     wrap.style.top = (at ? PAD : 0) + 'px';
     wrap.style.setProperty('--s', s.toFixed(5));
     document.body.style.setProperty('--inv', (1 / s).toFixed(5));
-    document.body.classList.toggle('whole', at === 1);
+    document.body.classList.toggle('whole', at >= 1);
+    document.querySelectorAll('.mark.no').forEach((m, i) => { m.textContent = at === 2 ? '\u{1F914}' : '\u{1F621}'; m.style.setProperty('--d', (i * 90) + 'ms'); m.classList.toggle('hmm', at === 2); });
   }
   place();
   addEventListener('resize', place);
-  window.presoNext = () => { if (at) return false; at = 1; place(); return true; };
-  window.presoPrev = () => { if (!at) return false; at = 0; place(); return true; };
+  window.presoNext = () => { if (at >= 2) return false; at++; place(); return true; };
+  window.presoPrev = () => { if (!at) return false; at--; place(); return true; };
   window.presoState = () => at;
   window.presoRestore = n => {
-    document.body.classList.add('snap'); at = n > 0 ? 1 : 0; place();
+    document.body.classList.add('snap'); at = Math.max(0, Math.min(2, n | 0)); place();
     void wrap.offsetWidth; requestAnimationFrame(() => document.body.classList.remove('snap'));
     setTimeout(() => document.body.classList.remove('snap'), 60);
   };
