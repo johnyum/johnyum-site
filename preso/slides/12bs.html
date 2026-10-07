@@ -308,9 +308,13 @@
   // phone instead of stepping; at BIG_END (Minimum nights at 5, after 50%, 10% and 20%) the first tap shrinks it. Back undoes each in turn.
   // the big phone bleeds off the top and bottom, so the deck's kicker and nav take their white blurred pills over it (presoBleed)
   window.presoBleed = () => document.body.classList.contains('big');
-  const BIG_AT = 22, BIG_END = 26;   // big through 50%, 10%, 20% AND the Minimum nights page (John, 2026-10-07: 'still be zoomed in for this page'); the tap after that shrinks it, the one after closes the quick actions
+  const BIG_AT = 21, BIG_END = 26;   // 21 is the February 20% (22 the 50%, 23 the 10%, 24 the 20% again, 25–26 Minimum nights) — measured off the model, 2026-10-07   // big through 50%, 10%, 20% AND the Minimum nights page (John, 2026-10-07: 'still be zoomed in for this page'); the tap after that shrinks it, the one after closes the quick actions
   let grew = false, shrunk = false;
-  const bigSync = () => { const a = inner('presoAt'); if (a < BIG_AT) grew = false; if (a < BIG_END) shrunk = false; document.body.classList.toggle('big', grew && !shrunk && a >= BIG_AT && a <= BIG_END); };   // the flags only let go on the way back down, so Back through the end re-grows
+  const bigSync = () => { const a = inner('presoAt');
+    if (restoreTo >= 0 && a !== restoreTo) return;   // a landing mid-sequence: 13 is still replaying up to it — don't read the flags off the beats on the way
+    if (a < BIG_AT) grew = false; if (a < BIG_END) shrunk = false;
+    const was = document.body.classList.contains('big'), now = grew && !shrunk && a >= BIG_AT && a <= BIG_END;
+    if (was !== now) { document.body.classList.toggle('big', now); try { if (window.parent.syncBleed) window.parent.syncBleed(); } catch (_) {} } };   // the flags only let go on the way back down, so Back through the end re-grows; the deck's pills follow
   window.presoNext = () => {
     if (grown()) {
       if (landed) {
@@ -344,7 +348,10 @@
     sheet.style.transition = 'none'; live.style.transition = 'none';
     document.body.classList.add('shift', 'grown'); place(); void live.offsetWidth;
     sheet.style.transition = ''; live.style.transition = '';
-    const go = () => { let f = null; try { f = live.contentWindow && live.contentWindow.presoGo; } catch (_) {} if (f) f(n - 1); else setTimeout(go, 100); };
+    // landing mid-sequence (a reload, the nav): the big phone is part of the state — 50%, 10%, 20% and Minimum nights arrive big,
+    // the 20% before them small with the grow tap still to come (John, 2026-10-07: "it's not going to 50% yet, keep it at the 20% when it grows")
+    grew = (n - 1) > BIG_AT && (n - 1) <= BIG_END; shrunk = false;
+    const go = () => { let f = null; try { f = live.contentWindow && live.contentWindow.presoGo; } catch (_) {} if (f) { f(n - 1); bigSync(); } else setTimeout(go, 100); };
     go();
   };
   // THE TWO-UP. Which beat 13 is on decides it, so it follows every way of getting there — a tap, a step back, a
@@ -389,6 +396,7 @@
   }
   function syncSide() {
     let at = -1; try { const f = live.contentWindow.presoAt; at = f ? f() : -1; } catch (_) {}
+    bigSync();
     if (restoreTo >= 0) { if (at !== restoreTo) return; restoreTo = -1; }   // a jump: wait for 13 to arrive, then land there
     // THE COLLAPSE FIRST (John, 2026-09-30). Arriving live from the promotion, the Cancel is pressed (340ms) and the
     // quick actions then fold back (the card's 550ms transitions): the phone and the list wait for that to finish, so
