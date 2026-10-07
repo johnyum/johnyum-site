@@ -125,9 +125,17 @@ What John said it's for (2026-10-06): how he used to design, and how he designs 
    the pace, the parameters, the foundation — and then we come together and work the solutions out as a team.*
 
 The beat to land: the board is not a gallery, it's the evidence of the method — the number of iterations is what "fork it and
-run with it" produces. Keep "kill our egos" in; it pairs with the ego card later.
+run with it" produces. "Kill our egos" stands on its own now — the ego card became "Where to?" (2026-10-07, below).
 
 ## A.I. — built with Claude
+
+**Where to? (12fe, 2026-10-07):** the ego card became a question. With the process cards carrying the AI story, "The complete
+and utter deconstruction of my ego." had nothing left to do, and its loss beat is 12gb's. The back half now runs on three
+questions, each answered by a build: What changed? (how I work now) → Where to? (what I did with it when nobody was asking —
+the bots, then Peek) → Why Anthropic? A travel word, on purpose. The tap is kept: Roma and the Claude tile spring in under it,
+and with this line they read as the answer, not a punchline — for her, with this. 12eb is in the past tense now ("Everything
+you've seen was built with Claude.") because the process section already made the reveal at the live calendar; after it the
+line is the reveal of the whole deck.
 
 The A.I. card and "built with Claude" are a reveal: not just that the deck was made with Claude, but the product too. Peek is
 "what I did when nobody was asking me to" — the trip app, the monsters, the hundred throwaways. Keep the section the same shape
@@ -161,7 +169,7 @@ per idea; a new chat between them (the new-chat mark is tapped, the greeting com
    something. Then it's the mouse: drag him and he dangles; fling him into a side and he takes it as a wall, climbs to the top
    corner and spins his web there; tap him for a trick. The fun one, last: a character that lives in the interface.
 
-Then the ego card has already landed; this is what it was for. The trash heap, if it's built, sits after this: most of what you
+Then "Where to?" has already been asked; this is the answer. The trash heap, if it's built, sits after this: most of what you
 can build with this, you shouldn't.
 
 ## The team — the Principal proof (John, 2026-10-06)

@@ -2,6 +2,8 @@
 
 ## Host-only fee flow (09d*) — John, 2026-10-07, for whoever is in those files
 
+All done, 2026-10-07 (the last two in the evening: the tag is the film from the start, no PNG, and the title 32 under it).
+
 - The "2 of 7" header stays fixed; only the content below it changes.
 - Content changes are opacity out, opacity in. No vertical movement.
 - The "Let's adjust your prices" screen is missing its status bar and header.

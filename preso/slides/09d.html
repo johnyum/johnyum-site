@@ -221,11 +221,13 @@
   #sAdj .body { background: linear-gradient(transparent 115px, #fff 115px); }   /* white only under the nav line, so the explainer's status bar and nav show through (they were covered, John, 2026-10-07) */
   #sGraph.six .dg .s5 { opacity: 0; transition: opacity .22s ease; }
   #sGraph.six .dg .s6 { opacity: 1; transition: opacity .3s ease .28s; }
-  #sAdj .tag { position: absolute; left: 153.4px; top: 175.5px; width: 86.3px; height: 91.5px; opacity: 0; }   /* the tag 64 under the nav (y 179), the title 24 under it (John, 2026-10-07) */
-  #sAdj .tag.played { opacity: 1; }   /* the film shows only once it has played: before that, and arriving backwards, the still tag */
-  #sAdj .tagpng { position: absolute; left: 164.5px; top: 179px; width: 64px; height: 64px; }
-  #sAdj h2 { position: absolute; left: 52px; width: 289px; top: 267px; margin: 0; text-align: center; font-size: 26px; line-height: 30px; font-weight: 600; letter-spacing: -.52px; }
-  #sAdj .pts { position: absolute; left: 46.5px; top: 337px; width: 300px; }
+  /* THE TAG IS THE FILM, FROM THE START (John, 2026-10-07: a still badge came in first and turned into the animated one — "only the
+     animated one, in its proper place, from the start"): no PNG. The film's still tag is its first frame (the poster) and its last,
+     so the film stands in for the still before it plays and after. Its frame is 1000 square with the tag on 181–809 x 173–832, so
+     at 97.1 the tag is the Figma frame's 64 tall, its top on y 179 (64 under the nav), centred on x 196.5 as the PNG was. */
+  #sAdj .tag { position: absolute; left: 148.4px; top: 162.2px; width: 97.1px; height: 97.1px; }
+  #sAdj h2 { position: absolute; left: 52px; width: 289px; top: 275px; margin: 0; text-align: center; font-size: 26px; line-height: 30px; font-weight: 600; letter-spacing: -.52px; }   /* 32 under the tag: 24, then 8 more (John, 2026-10-07) */
+  #sAdj .pts { position: absolute; left: 46.5px; top: 345px; width: 300px; }
   #sAdj .pt { display: flex; gap: 20px; align-items: flex-start; font-size: 14px; line-height: 20px; color: #6a6a6a; }
   #sAdj .pt img { width: 8px; height: 8px; margin-top: 7px; flex: none; }
   #sAdj .pt u { text-decoration: underline; text-underline-position: from-font; }
@@ -405,7 +407,6 @@
 
           <div class="scn right" id="sAdj">
             <div class="body right">
-            <img class="tagpng" src="assets/fee/tag.png" alt="">
             <video class="tag" id="adjTag" muted playsinline preload="auto" poster="assets/price-tag.webp" src="assets/price-modal.mp4" aria-hidden="true"></video>
             <h2>Let&rsquo;s adjust your prices</h2>
             <div class="pts">
@@ -463,9 +464,9 @@
   // ── THE TAG: the film plays once the 6 of 7 screen is in — never before, never by itself on arrival
   const tag = (() => {
     const v = document.getElementById('adjTag'); let t = 0;
-    const play = () => { try { v.currentTime = 0; const p = v.play(); if (p && p.then) p.then(() => v.classList.add('played')); if (p && p.catch) p.catch(() => {}); } catch (_) {} };
+    const play = () => { try { v.currentTime = 0; const p = v.play(); if (p && p.catch) p.catch(() => {}); } catch (_) {} };
     return { after: ms => { clearTimeout(t); t = setTimeout(play, ms); },
-             reset: () => { clearTimeout(t); v.classList.remove('played'); try { v.pause(); v.currentTime = 0; } catch (_) {} },
+             reset: () => { clearTimeout(t); try { v.pause(); v.currentTime = 0; } catch (_) {} },
              end: () => { clearTimeout(t); try { v.pause(); } catch (_) {} } };
   })();
 
