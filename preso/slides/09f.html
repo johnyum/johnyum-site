@@ -8,10 +8,12 @@
      (John, 2026-10-01). No lead-in, no five-then-five, no pull back to the full
      row: the five phones are the slide, and the deck pushes them in as one.
 
-     2026-10-06 (John): the first phone is the ESTIMATOR itself (09ef, standing at its
-     end — the slider at 16), so the tap from the slider screen brings the four setup
-     screens in beside it; and the answers play ON ARRIVAL, not on a tap — the next tap
-     moves on. The splash (the film) is out of the row.
+     2026-10-06 (John): ONE SLIDE WITH THE ESTIMATOR. It opens on the estimator alone,
+     big (09ef in the first cell, the row scaled up so that phone stands at 80vh); tap 1
+     drags the slider 7 → 16; tap 2 and the four setup screens ANIMATE IN beside it —
+     the row eases down to five-up size as the four fade in from the right, and the
+     answers play as they land; the next tap moves on. 09ef is out of the running order
+     (it lives here). The splash (the film) is out of the row.
 
        1  the estimator   09ef at its end — "Your home could make $5,936"
        2  place type      What kind of place will you host?
@@ -57,7 +59,12 @@
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .slide { position: relative; height: 100%; display: grid; place-items: center; }
 
-  .row { display: flex; align-items: center; gap: var(--gap, 24px); }
+  .row { display: flex; align-items: center; gap: var(--gap, 24px); transform-origin: 50% 50%; transition: transform 950ms cubic-bezier(.22,1,.36,1); }
+  /* solo: the row scaled up and shifted so the estimator stands centred at 80vh; the four are off and faint, to its right */
+  .row.solo { transform: translateX(var(--tx, 0px)) scale(var(--S, 1)); }
+  .row.solo .cell:not(:first-child) { opacity: 0; transform: translateX(48px); }
+  .cell:not(:first-child) { transition: opacity 600ms ease, transform 800ms cubic-bezier(.22,1,.36,1); transition-delay: calc(var(--i, 0) * 90ms); }
+  .row.still, .row.still .cell { transition: none; }
   /* ALL FIVE OR NONE (John, 2026-10-01: "without jittery or animation"): the row stays hidden until every phone has
      loaded and stood on its screen, then shows at once — never phone by phone. With the deck's paint-ahead it is long
      since shown and drawn before the slide arrives; this is for a cold landing (a jump, a refresh). */
@@ -106,9 +113,10 @@
 
   let loaded = 0;
   window.presoPaintAhead = true;            // the deck stands this slide, drawn, behind the one before it
-  const cells = SCREENS.map(([cls, beat]) => {
+  let cells = null;
+  cells = SCREENS.map(([cls, beat]) => {
     const cell = document.createElement('div');
-    cell.className = 'cell';
+    cell.className = 'cell'; cell.style.setProperty('--i', cells ? cells.length : 0);
     cell._beat = beat;
     const f = document.createElement('iframe');
     f.title = 'Host setup — ' + (cls || 'step1');
@@ -119,7 +127,6 @@
     f.src = cls === 'estimator' ? '09ef.html?cell=1' + (v ? '&v=' + v : '') : '11.html?' + (cls === MAP_STEP ? '' : 'nomap=1&') + 'park=' + beat + (v ? '&v=' + v : '');
     f.addEventListener('load', () => {
       cell._w = f.contentWindow;
-      if (cls === 'estimator') { try { f.contentWindow.presoRestore(1); } catch (_) {} }   // standing where the slide before left it: 16 nights
       if (cls === FILM_STEP) unloop(f);
       // shown once every cell is in, and slide 11's ?park= has had its 400ms with transitions off
       if (++loaded === SCREENS.length) setTimeout(() => row.classList.add('ready'), 450);
@@ -151,8 +158,10 @@
     const start = () => { try { film.currentTime = 0; } catch (_) {} film.play().catch(() => {}); };
     if (film.readyState >= 2) start(); else film.addEventListener('loadeddata', start, { once: true });
   }
-  // THE ANSWERS PLAY AS THE SLIDE ARRIVES (John, 2026-10-06) — once; a return to the slide finds them answered
-  addEventListener('presoshown', () => { if (step === 0) { step = 1; answer(); } });
+  // the four come in: the row eases down to five-up, the four fade in from the right, and the answers play as they land
+  let formT = null;
+  const form = (instant) => { clearTimeout(formT); if (instant) { row.classList.add('still'); void row.offsetWidth; } row.classList.remove('solo'); if (instant) { answer(); requestAnimationFrame(() => row.classList.remove('still')); } else formT = setTimeout(answer, 700); };
+  const unform = () => { clearTimeout(formT); row.classList.add('solo'); cells.slice(1).forEach(park); };
 
   // AS TALL AS THE HOST-ONLY-FEE FOUR-UP (09d), to the pixel (John, 2026-10-01). 09d's
   // image is min(80vh, 1080px, (76vw - 144px) / 1.958) tall, and its phone's ink is
@@ -165,26 +174,39 @@
     const k = Math.min((w * 0.94 / (n + GAPC * (n - 1))) / VW, HOF(w, h) / PH);
     slide.style.setProperty('--k', k);
     slide.style.setProperty('--gap', VW * k * GAPC + 'px');
+    // solo: the estimator's phone at the size 09ef gave it alone — min(80vh, 1080) tall — centred
+    const S = Math.min(0.8 * h, 1080) / (PH * k), cw = VW * k, rw = n * cw + (n - 1) * cw * GAPC;
+    row.style.setProperty('--S', S); row.style.setProperty('--tx', ((rw - cw) / 2 * S) + 'px');
   };
+  row.classList.add('solo');
   new ResizeObserver(([e]) => fit(e.contentRect.width, e.contentRect.height)).observe(slide);
   const r0 = slide.getBoundingClientRect(); fit(r0.width, r0.height);
 
-  let step = 0;                             // 0 four questions, 1 four answered (on arrival)
+  let step = 0;                             // 0 the estimator alone at 7 · 1 dragged to 16 · 2 the four in, answered
   const answer = () => cells.slice(1).forEach(act);          // the estimator has no answer
+  const est = (fn, ...a) => { try { return cells[0]._w[fn](...a); } catch (_) { return false; } };
 
-  window.presoNext = () => false;           // nothing to tap through: the deck moves on
-  window.presoPrev = () => false;           // back a slide, to the estimator alone
+  window.presoNext = () => {
+    if (step === 0) { step = 1; est('presoNext'); return true; }
+    if (step === 1) { step = 2; form(false); return true; }
+    return false;                           // the deck moves on
+  };
+  window.presoPrev = () => {
+    if (step === 2) { step = 1; unform(); return true; }
+    if (step === 1) { step = 0; est('presoPrev'); return true; }
+    return false;
+  };
   window.presoState = () => step;
   // Landing on the beat from the hash: the frames may still be loading, so retry.
   // Once, when every frame is up — answering twice re-runs the fill-ins.
-  window.presoEnd = () => window.presoRestore(1);
+  window.presoEnd = () => window.presoRestore(2);
   window.presoRestore = n => {
     if (!(n > 0)) return;
-    step = 1;
+    step = n > 1 ? 2 : 1;
     const t0 = Date.now();
     (function when() {
-      if (step !== 1) return;
-      if (cells.every(c => c._w && c._w.presoAct)) { answer(); return; }
+      if (step < 1) return;
+      if (cells.every(c => c._w && (c === cells[0] ? c._w.presoRestore : c._w.presoAct))) { est('presoRestore', 1); if (step === 2) form(true); return; }
       if (Date.now() - t0 < 8000) setTimeout(when, 100);
     })();
   };
