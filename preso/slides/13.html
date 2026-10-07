@@ -943,8 +943,15 @@ if (SIMPLE) {
 if (SIMPLE) {
   const at = beatAfter('cascade(m, mw[0], mw[1], 90)');
   BEATS.splice(at, 0,
-    // the price sheet, straight onto the custom keypad, with Try $745 and Done side by side (John, 2026-09-30: "no extra tap") — THE SPLIT
-    m => { const d = appDoc(); if (d) { d.documentElement.classList.add('preso-custom-kb', 'preso-pills-on'); const c = d.defaultView.__presoCentre; if (c) c(); } m.setPriceSheet(true); },
+    // the price sheet, straight onto the custom keypad; once it is at rest, Try $745 comes in beside Done (THE SPLIT) and the
+    // price is centred over them — one tap (John, 2026-10-07), the iOS pad never in it
+    (m, instant) => {
+      const d = appDoc(); if (d) d.documentElement.classList.add('preso-custom-kb');
+      m.setPriceSheet(true);
+      const split = () => { const d2 = appDoc(); if (!d2) return; d2.documentElement.classList.add('preso-pills-on'); const c = d2.defaultView.__presoCentre; if (c) c(); };
+      if (instant) { split(); return; }
+      const g = ++gen; setTimeout(() => { if (g === gen) split(); }, 1000);
+    },
     // ...and the tap after that: "Try $745", visibly tapped, and the price ODOMETERS up to it — every digit rolling to
     // its new figure — and the nights take $745 and keep it (John, 2026-09-30)
     (m, instant) => {
@@ -1571,6 +1578,7 @@ function typeKeys(keys, instant) {
       const KEYS = [['1',''],['2','ABC'],['3','DEF'],['4','GHI'],['5','JKL'],['6','MNO'],['7','PQRS'],['8','TUV'],['9','WXYZ'],[null],['0',''],['⌫']];
       const kb = w.document.createElement('div');
       kb.className = 'preso-kb';
+      w.document.documentElement.classList.add('preso-custom-kb');   // THE CUSTOM KEYPAD IS THE KEYPAD (John, 2026-10-07): on from the start, so the iOS pad never shows and no beat has to set it
       kb.innerHTML = '<div class="preso-save">Save</div><div class="preso-pad">' + KEYS.map(([k, l]) =>
         k === null ? '<span class="preso-key blank"></span>'
         : k === '⌫' ? '<span class="preso-key del" data-k="⌫"><svg width="' + (26 * K) + '" height="' + (20 * K) + '" viewBox="0 0 26 20" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M8.5 1.5h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2h-14L1.5 10z"/><path d="M12.5 6.5l7 7M19.5 6.5l-7 7"/></svg></span>'
@@ -1610,7 +1618,11 @@ function typeKeys(keys, instant) {
       // THE HEADER RULE (John, 2026-09-30): whenever the quick actions are open the header is collapsed — whatever got them there.
       // (A run of picks keeps them held down until it lands, so the collapse still comes with them, not before.)
       setInterval(() => { const m = w.__model; if (m && !m.headerLock && w.document.querySelector('.sqa')) m.setHeaderLock(true); }, 120);
-      const sync = () => { kb.classList.toggle('up', !!w.document.querySelector('.sqa-price.open')); centre(); };
+      // AT REST FIRST (2026-10-07): with the custom keypad on from the start, the sheet opens straight onto it — so the measuring
+      // waits for the sheet's own opening to finish (it reads live positions; mid-animation they threw the price off-screen).
+      // A close centres at once (that only puts the shift back to 0).
+      let restT = 0;
+      const sync = () => { const open = !!w.document.querySelector('.sqa-price.open'); kb.classList.toggle('up', open); clearTimeout(restT); if (open) restT = setTimeout(centre, 950); else centre(); };
       // childList too: a jump straight to the open sheet MOUNTS it with .open already on, which is not a class change
       new w.MutationObserver(sync).observe(w.document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
       sync();
@@ -1701,7 +1713,7 @@ function typeKeys(keys, instant) {
     }
     pendingRun = null; pendingTail = null;     // BACK or a jump: reset everything, replay to the target instantly
     setMulti(false, false); { const m2 = model2(); if (m2) { m2.setViewsMenu(false); if (m2.calendarMode !== 'list') m2.setCalendarMode('list'); } for (const doc of [app2Doc(), app3Doc()]) { const v = doc && doc.querySelector('.vscroll'); if (v) v.scrollTo({ top: +v.dataset.todayTop || 0, behavior: 'auto' }); } }   // the second phone back on its list, on today, its menu closed; the third on top
-    if (SIMPLE) { marksFlag(null); tipsFlag(false); tipsModeFlag(false); appliedFlag(false); const d = appDoc(); if (d) { d.documentElement.classList.remove('preso-custom-kb', 'preso-pills-on', 'preso-grey-done', 'preso-full'); const c = d.defaultView.__presoCentre; if (c) c(); } }
+    if (SIMPLE) { marksFlag(null); tipsFlag(false); tipsModeFlag(false); appliedFlag(false); const d = appDoc(); if (d) { d.documentElement.classList.remove('preso-pills-on', 'preso-grey-done', 'preso-full'); const c = d.defaultView.__presoCentre; if (c) c(); } }
     m.setHeaderLock(false, false); m.hidePuck(); m.openBriefTip(null); m.setOrigSel(false); m.setStaySheet(null); m.setLayers({ stays: false, ask: false, entries: false, gaps: false }); m.undoTips(); m.clearTips(); m.setTipSheet(false); m.setUndoTile(false); m.setWandSheet(false); m.setWandLeaving(false); m.setWandTile(false); m.setShownMarks(null); m.setLayers({ marks: false }); m.revealOffset = 0; m.setPriceSheet(false); m.setMinSheet(false); m.setMinSheetNights(7); m.setPromoSheet(false); m.setPromoDrag(false); m.setPromoPct(0); m.setSettingsSheet(false); m.setCellPad(0); m.clearFlip(); m.clearWave();
     m.clearAll();
     m.set({ showSettings: false, openThread: null });

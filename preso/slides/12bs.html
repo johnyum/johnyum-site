@@ -96,6 +96,9 @@
      the left one of a pair, and where the right one would stand is the verdict on this version: two ✓ and three ⨉, in
      the mono at 18, left-aligned, the block centred on that missing phone. JS sets --side (how far left) and places #notes. */
   body.grown.side .live { transform: translateX(var(--side, 0px)) !important; }
+  /* THE BIG PHONE (John, 2026-10-07): at the February 20% a tap grows the phone — 1.6×, centred, bleeding off the top and bottom —
+     so the date cells and their micro-animations read from the room; 50%, 10%, 20% play big, and the tap after shrinks it back */
+  body.grown.side.big .live { transform: translateX(var(--side, 0px)) scale(1.6) !important; }
   body.grown .live { transition: transform 720ms cubic-bezier(0.16, 1, 0.3, 1); }
   body.grown.into4 .live { transition-duration: 900ms; }   /* the four-up's own duration and curve, so the two moves are one */
   body.snap .live, body.snap #notes, body.snap #notes li { transition: none !important; }
@@ -301,8 +304,21 @@
   // used to be swallowed — the deck looked frozen for two seconds. They queue, and fire into the build the moment it lands.
   let queued = 0;
   function grow() { state = 2; landed = false; document.body.classList.add('grown'); place(); setTimeout(() => { landed = true; while (queued > 0) { queued--; inner('presoNext'); } try { window.top.dispatchEvent(new Event('presostate')); } catch (_) {} }, GROW_MS); }   // and the deck's URL catches up with the beats that fired on landing
+  // THE BIG PHONE's two taps of its own (John, 2026-10-07): at BIG_AT (the February promotion on 20%) the first tap grows the
+  // phone instead of stepping; at BIG_END (back on 20% after 50% and 10%) the first tap shrinks it. Back undoes each in turn.
+  const BIG_AT = 22, BIG_END = 25;
+  let grew = false, shrunk = false;
+  const bigSync = () => { const a = inner('presoAt'); if (a < BIG_AT) grew = false; if (a < BIG_END) shrunk = false; document.body.classList.toggle('big', grew && !shrunk && a >= BIG_AT && a <= BIG_END); };   // the flags only let go on the way back down, so Back through the end re-grows
   window.presoNext = () => {
-    if (grown()) { if (landed) return inner('presoNext'); queued++; return true; }   // during the grow-in: kept for the landing
+    if (grown()) {
+      if (landed) {
+        const a = inner('presoAt');
+        if (a === BIG_AT && !grew) { grew = true; bigSync(); return true; }
+        if (a === BIG_END && grew && !shrunk) { shrunk = true; bigSync(); return true; }
+        const r = inner('presoNext'); setTimeout(bigSync, 0); return r;
+      }
+      queued++; return true;   // during the grow-in: kept for the landing
+    }
     if (state === 1) { queued++; return true; }   // still sliding: movement 2 is already scheduled; the tap waits for it
     state = 1; document.body.classList.add('shift'); place();
     timer = setTimeout(grow, SHIFT_MS + 40);
@@ -428,7 +444,12 @@
     if (state === 0) return false;
     if (queued > 0) { queued--; return true; }   // a queued forward tap is simply taken back
     if (grown() && !landed) return true;     // same during the grow-in
-    if (grown() && inner('presoPrev')) return true;   // 13 stepped back a beat
+    if (grown()) {
+      const a = inner('presoAt');
+      if (a === BIG_END && shrunk) { shrunk = false; bigSync(); return true; }   // back to big
+      if (a === BIG_AT && grew) { grew = false; bigSync(); return true; }         // back to the normal size
+      if (inner('presoPrev')) { setTimeout(bigSync, 0); return true; }   // 13 stepped back a beat
+    }
     clearTimeout(timer);                     // 13 is at its start (or we never got there): back into the sheet
     state = 0; document.body.classList.remove('grown', 'shift'); place();
     return true;
