@@ -1,0 +1,9 @@
+# Preso backlog
+
+## Host-only fee flow (09d*) — John, 2026-10-07, for whoever is in those files
+
+- The "2 of 7" header stays fixed; only the content below it changes.
+- Content changes are opacity out, opacity in. No vertical movement.
+- The "Let's adjust your prices" screen is missing its status bar and header.
+- The badge page: a non-animated badge comes in first and then turns into the animated one. Only the animated one, in its
+  proper place, from the start.
