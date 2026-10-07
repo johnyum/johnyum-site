@@ -15,7 +15,7 @@
 <style>
   html, body { margin: 0; background: #fff; }
   html { overflow-x: hidden; }
-  #board { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  #board { position: absolute; left: 0; top: 0; transform-origin: 0 0; transition: transform .8s cubic-bezier(.22,1,.36,1); }
   #lane { position: absolute; left: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
   #lane::-webkit-scrollbar { display: none; }
   #strip { position: relative; transform-origin: 0 0; }
@@ -65,8 +65,10 @@
     { id: 'cellsys', src: '03-cell-system.html', w: 880, css: `
         html, body { background: #fff !important; }   /* its own grey body, whitened like the graph's */
         body { padding: 8px 0 0 !important; zoom: .72; }
-        h1 { font-size: 33.3px !important; font-weight: 600 !important; }` },
-    { id: 'graph', src: '02-graph-studies.html', w: 840, css: `
+        h1 { font-size: 33.3px !important; font-weight: 600 !important; }`,
+      // the Modal lifecycle (the quick-action pill through a session) first (John, 2026-10-07: "move up the modal lifecycle to the top")
+      shape: (d) => { const h = [...d.querySelectorAll('h2, h3, .sec-h')].find((x) => /modal lifecycle/i.test(x.textContent)); if (!h) return; const sec = h.closest('.section, section') || h.parentElement; const first = [...d.querySelectorAll('.section, section')].find((x) => x !== sec && !x.contains(sec)); if (sec && first && first.parentElement === sec.parentElement) sec.parentElement.insertBefore(sec, first); } },
+    { id: 'graph', src: '02-graph-studies.html', w: 880, css: `
         html, body { background: #fff !important; }   /* the page's own grey-100 was the scrim behind the header (John) */
         body { zoom: .86; }
         .page { max-width: none !important; padding: 8px 0 0 !important; }
@@ -82,15 +84,21 @@
       // five seconds, eased, each step dispatched as the page's own input event so every graph follows; it stays at the end
       play: (d, w) => { const r = d.getElementById('rngAmp'); if (!r) return; const lo = +r.min, hi = +r.max, t0 = performance.now(), T = 5000; r.value = lo; r.dispatchEvent(new w.Event('input', { bubbles: true }));
         const step = (t) => { const k = Math.min(1, (t - t0) / T), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; r.value = Math.round(lo + (hi - lo) * e); r.dispatchEvent(new w.Event('input', { bubbles: true })); if (k < 1) w.requestAnimationFrame(step); }; setTimeout(() => w.requestAnimationFrame(step), 1200); } },
-    { id: 'repeat', src: '07-repeat-settings-mock.html', w: 908, css: `
+    { id: 'repeat', src: '07-repeat-settings-mock.html', w: 880, css: `
         body { padding: 8px 0 0 !important; background: #fff !important; }
         h1 { font-size: 24px !important; font-weight: 600 !important; margin-bottom: 14px !important; }
         .row { gap: 24px !important; padding: 0 !important; overflow: visible !important; }
         .row { gap: 12px !important; }
-        figure { width: 172px; }
+        figure { width: 166px; }
         figcaption { font-size: 12px !important; margin-bottom: 8px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         iframe { width: 390px !important; height: 844px !important; transform: scale(.42); transform-origin: 0 0; margin-bottom: calc(-844px * .58); margin-right: calc(-390px * .58); border-radius: 36px !important; box-shadow: 0 4px 16px rgba(0,0,0,.08) !important; }` },
-    { id: 'events', src: 'proto/event_gallery.html', w: 908, css: `
+    // THE SIXTH (John, 2026-10-07: "choose one of the studies that's most interesting that's not one of these"): the chat-to-dates
+    // motion — seven now-vs-proposed motion pairs, the one of the seven pages that moves
+    { id: 'motion', src: '05-chat-to-dates-motion.html', w: 880, css: `
+        html, body { background: #fff !important; }
+        body { padding: 8px 0 0 !important; zoom: .9; }
+        h1 { font-size: 26.7px !important; font-weight: 600 !important; }` },
+    { id: 'events', src: 'proto/event_gallery.html', w: 880, css: `
         body { padding: 8px 0 0 !important; background: #fff !important; zoom: .8; }
         h1 { font-size: 30px !important; font-weight: 600 !important; }
         h2 { margin: 14px 0 8px !important; }
@@ -101,7 +109,10 @@
         .sec { width: 22px !important; height: 22px !important; }
         .nm { font-size: 13px !important; } .dt { font-size: 11.5px !important; }` },
   ];
-  const COLS = [['cells', 'cellsys'], ['graph'], ['repeat', 'events']];   // the cells over the cell & opportunity system (the quick actions); the graph studies; the Repeat screens over the event cards
+  // SIX-UP, THREE IN VIEW (John, 2026-10-07: "each in its own row, six across; I can only see three, and when I tap next the first
+  // three animate left and the next three animate in — a single unit of six"): one strip of six panels, each a page in its own
+  // column of 880; the stage shows three; a step slides the strip by three, eased
+  const ORDER = ['cells', 'graph', 'cellsys', 'repeat', 'motion', 'events'], PW = 880, VIEW = 3;
   // THE BUILDS (John, 2026-10-07: "more builds — the zig zag line build, the quick actions row build — and whatever more calendar
   // prototype versions I made"): rows of the whole builds, live, nothing injected but a line that hides the prototype's welcome
   // card and dev bar — the first calendar rebuilt from Figma (June, its quick-actions sheet); thirteen versions of /multi from its
@@ -155,20 +166,24 @@
     });
     return b;
   });
-  // three columns, each stacked top-down, TOP-ALIGNED, the board as wide as the columns and fitted to the viewport's WIDTH — its
-  // bottom runs as long as the design is (John) and the page scrolls; beneath it (when shown) the builds in ONE row (John: "each in a row, showing the
-  // breadth"), a strip that scrolls sideways under the wheel and, left alone, pans slowly along on its own
+  // the six in one row, top-aligned; the board scaled so three panels fill the viewport's width; its height the tallest panel's
+  // (the page scrolls); the step slides the whole strip
+  let step = 0;
   const layout = () => {
-    const cols = COLS.map((ids) => ids.map((id) => frames.find((f) => f.id === id)));
     let x = 0, H = 0;
-    for (const col of cols) { let y = 0; const w = Math.max(...col.map((b) => b.w)); for (const b of col) { b.el.style.left = x + 'px'; b.el.style.top = y + 'px'; y += b.h + GAP; } H = Math.max(H, y - GAP); x += w + GAP; }
-    const W = x - GAP, s = innerWidth / W;
-    board.style.width = W + 'px'; board.style.height = H + 'px'; board.style.transform = `scale(${s.toFixed(4)})`;
+    for (const id of ORDER) { const b = frames.find((f) => f.id === id); b.el.style.left = x + 'px'; b.el.style.top = '0px'; x += b.w + GAP; H = Math.max(H, b.h); }
+    const W = x - GAP, VW = VIEW * PW + (VIEW - 1) * GAP, s = innerWidth / VW, dx = step * VIEW * (PW + GAP);
+    board.style.width = W + 'px'; board.style.height = H + 'px'; board.style.transform = `scale(${s.toFixed(4)}) translateX(${-dx}px)`;
     let bx = 0, bh = 0; for (const b of builds) { b.el.style.left = bx + 'px'; b.el.style.top = '0px'; bx += b.w + GAP; bh = Math.max(bh, b.h); }
     strip.style.width = (bx - GAP) + 'px'; strip.style.height = bh + 'px'; strip.style.transform = `scale(${s.toFixed(4)})`;
     lane.style.display = builds.length ? '' : 'none';
     lane.style.top = Math.ceil(H * s + GAP * s) + 'px'; lane.style.height = Math.ceil(bh * s) + 'px'; lane.style.width = Math.ceil((bx - GAP) * s) + 'px';
     document.body.style.height = Math.ceil((H + (builds.length ? GAP + bh : 0)) * s) + 'px';
+  };
+  const STEPS = Math.ceil(ORDER.length / VIEW);
+  window.__collage = {
+    steps: STEPS, state: () => step,
+    go: (n, instant) => { const to = Math.max(0, Math.min(STEPS - 1, n | 0)); if (to === step && !instant) return false; step = to; if (instant) { board.style.transition = 'none'; layout(); requestAnimationFrame(() => board.style.transition = ''); } else layout(); return true; },
   };
   // the pan: the strip drifts left at a walking pace, back to the start when it reaches the end; a hand on it stops it
   let hold = false; lane.addEventListener('pointerenter', () => hold = true); lane.addEventListener('pointerleave', () => hold = false);

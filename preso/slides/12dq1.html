@@ -8,7 +8,7 @@
      (assets/studies/collage.html): the calendar cell animations big on the left, replaying on a loop; to their right the fluid
      graph studies, the Repeat settings screens and the demand-driving event icons — the pieces themselves, pulled close, each page
      given a compact stylesheet on load. The slide is that board fitted to the stage within the deck's clearances — no border round it.
-     Interactive (window.presoInteractive): the deck's taps keep to its 32px rails. No steps. Earlier takes the same two days, all
+     Interactive (window.presoInteractive): the deck's taps keep to its 32px rails. Six studies in one strip, three in view, one tap to the next three. Earlier takes the same two days, all
      rejected: a masonry wall of thumbnails ("not masonry — I wanna see that work"), the seven calendar studies one to a tap, then
      every side thing in rows by section (assets/studies/all.html, kept) — "a single page like a collage". -->
 <style>
@@ -32,6 +32,14 @@
   const fit = () => { const b = band(), w = innerWidth - 64; win.style.width = w + 'px'; win.style.height = (innerHeight - b.top) + 'px'; win.style.left = '32px'; win.style.top = Math.round(b.top) + 'px'; };
   fit(); addEventListener('resize', fit); new ResizeObserver(fit).observe(document.documentElement);   // the deck sizes its frames after they load, and not always with a resize event
   window.presoInteractive = true;   // the studies are worked with the pointer: the deck's taps keep to its rails
+  // THE STEP (John, 2026-10-07): six studies in one strip, three in view; a tap slides the strip by three. The page keeps the
+  // strip (window.__collage in the frame); the deck's next / prev / restore go through to it
+  const page = () => { try { return win.querySelector('iframe').contentWindow.__collage; } catch (_) { return null; } };
+  window.presoNext = () => { const c = page(); return !!(c && c.go(c.state() + 1)); };
+  window.presoPrev = () => { const c = page(); return !!(c && c.go(c.state() - 1)); };
+  window.presoState = () => { const c = page(); return c ? c.state() : 0; };
+  window.presoRestore = (n) => { const c = page(); if (c) c.go(n, true); else setTimeout(() => window.presoRestore(n), 150); };
+  window.presoEnd = () => window.presoRestore(1);
   window.presoBleed = true;   // the board runs under the nav: it takes its pill
 })();
 </script>

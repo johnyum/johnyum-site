@@ -114,13 +114,10 @@ What John said it's for (2026-10-06): how he used to design, and how he designs 
 1. **What changed?** (12dp) — the card (it read "Process" until 2026-10-07). One line, then the two pictures.
 2. **The Figma** (12dq) — the Yum page of the Multi Calendar file, a grid of frames. *This is how I used to work: flats in
    Figma, a clicking prototype on top, one screen at a time.*
-   **The experiments** (12dq1) — one board, a collage of the side studies, live: the cell animations big on the left, replaying;
-   to their right the fluid graph studies, the Repeat settings screens, the demand-driving event icons. Top-aligned, fitted to the width, the bottom running on; it scrolls.
-   (The row of whole builds — June's first calendar, thirteen versions of the multi calendar, the wavy line, the wide pill — is
-   held in the code for now.)
-   *And all the way through
-   I'm building side experiments — different models, graphs, the deck, iterations of the quick actions — to look at a question
-   rather than argue it, and pick.*
+   **The experiments** (12dq1) — six studies in one strip, three on screen: the cell animations (replaying), the graph studies (the
+   slider plays itself), the cell & opportunity system with its quick-action pill; a tap, and the next three slide in: the Repeat
+   screens, the chat-to-dates motion, the event icons. *And all the way through I'm building side experiments — different models,
+   graphs, the deck, iterations of the quick actions — to look at a question rather than argue it, and pick.*
 3. **The web calendar, then the board** (12dr) — the live build, then one tap and every iteration tiles round it. *Now I design
    the whole flow, end to end, as a working thing. Then I hand it to the whole team and ask them to fork it and run with it.*
    Over the board: *The work is enormous. There are so many edge cases that all of us had to kill our egos. I run ahead — I set

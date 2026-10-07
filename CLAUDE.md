@@ -800,23 +800,20 @@ pulls the spacing closer and sizes the big rigs to their column (the graph page 
 at .82; the five Repeat phones at .48), and the frame is sized to the page, re-measured as fonts and pictures land, so nothing scrolls
 inside. The cells page's nine headings-over-a-row are wrapped into sections that flow side by side (`shape`), and its Replay buttons
 are clicked on an 8s loop so the left is never still. Three columns: the cells (820); the graph studies (760); the Repeat screens over
-the event cards (1000). **Where it stands (2026-10-07, evening):** three columns, TOP-ALIGNED, fitted to the stage's width — the cells (880, the page
-zoomed .735, its eleven demos on ONE four-column grid edge to edge — each SECTION spans as many columns as it has demos and the
-grid packs dense, so the one-demo sections slot in beside the three-demo one (John: "put more on each row — 3, then 2 to the right")
-and the shimmer sweep, the long one, keeps a row to itself ("the long one can just have its own"); dense packing pulls 7 · Select up
-beside 5 · Apply, before 6 · Scan — John: "make the width of the cells consistent, the 4-up edge to edge with the date cell in it, the
-rest on a proper grid") over
-the cell & opportunity system (880, zoomed .72 — the QUICK ACTIONS: its Modal lifecycle is the floating pill through a session, idle
-→ scanning → results → applying → applied, and the result pills; the ZIGZAG PILLS are the graph page's study 01, straight line +
-pills — both found in calendar-mocks.zip when John asked), the graph studies (840, zoomed .86, the rigs .58), the Repeat screens
-(phones at .42, all five across) over the event cards (four to a row, zoomed .8). Sizes went 1.3 → .98 → .735 on the cells and
-1.14 → .86 on the graph through "still too big, reduce by 25%" twice. The bottom runs as long as the design is and scrolls, under the
-deck's nav (the slide's window runs to the screen's bottom and declares `presoBleed`, so the nav takes its pill). The graph's waviness
-slider plays start to finish over five seconds and lands at the end (`play`); the cells replay every 3.2s, staggered — "continuously
-animating" — so something is always moving.
-**One header size** (John): every page's h1 at 24 board-px — its font-size is 24 over the page's zoom (32.7 / 33.3 / 27.9 / 24 / 30),
-weight 600; and the graph page's grey-100 body and the controls bar's white panel and hairline are gone (white page, bare controls) —
-"get rid of the grey scrim behind the header content".
+the event cards (1000). **Where it stands (2026-10-07, night): SIX-UP, THREE IN VIEW.** (John: "each in its own row, six across; I can only see three, and
+when I tap next the first three animate left and the next three animate in — a single unit of six".) One strip of six panels, each a
+page in its own 880 column, top-aligned, in this order: the cell animations (zoomed .735, its eleven demos on ONE four-column grid
+edge to edge — each SECTION spans as many columns as it has demos and the grid packs dense, so one-demo sections slot in beside the
+three-demo one, and the shimmer sweep keeps a row to itself; replayed every 3.2s, staggered, so it's always moving), the graph studies
+(.86, the rigs .58; the waviness slider plays start to finish over five seconds and lands; the page white, the controls bare — the
+ZIGZAG PILLS are its study 01), the cell & opportunity system (.72, its Modal lifecycle — the QUICK-ACTION pill through a session —
+moved to the top, `shape`), the Repeat screens (five phones at .42), the chat-to-dates motion (.9 — the sixth, picked as the most
+interesting of the pages not yet on the board: seven now-vs-proposed motion pairs), the event cards (.8, four to a row). The board is
+scaled so three panels fill the stage's width; the tallest panel sets the height and the page scrolls under the deck's nav
+(`presoBleed`). The step slides the whole strip by three, eased .8s (`window.__collage.go(n)` in collage.html; the slide's
+presoNext / presoPrev / presoState / presoRestore / presoEnd go through to it; the hash carries the step, `#n.1`). Every page's h1
+lands at 24 board-px, weight 600, white pages throughout. Sizes went 1.3 → .98 → .735 on the cells and 1.14 → .86 on the graph
+through "still too big, reduce by 25%" twice; before the strip it was three top-aligned columns.
 **The builds are HELD** (John: "hold on the calendars for now — just the studies"): `SHOW_BUILDS = false` in collage.html keeps the
 whole row in the code — `/calendar.html` (June 12, the first calendar with its quick-actions sheet), thirteen versions of `/multi`
 from its git history July 2 → October 3 (`proto/builds/multi-<date>.html`, each `git show <commit>:multi/index.html` with its
