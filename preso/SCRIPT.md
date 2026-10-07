@@ -135,7 +135,8 @@ questions, each answered by a build: What changed? (how I work now) → Where to
 the bots, then Peek) → Why Anthropic? A travel word, on purpose. The tap is kept: Roma and the Claude tile spring in under it,
 and with this line they read as the answer, not a punchline — for her, with this. 12eb is in the past tense now ("Everything
 you've seen was built with Claude.") because the process section already made the reveal at the live calendar; after it the
-line is the reveal of the whole deck.
+line is the reveal of the whole deck. It sits straight after the A.I. card (12f), before What changed? — it had been left
+second in the running order, after Hello!, where "you've seen" was true of nothing (moved 2026-10-07).
 
 The A.I. card and "built with Claude" are a reveal: not just that the deck was made with Claude, but the product too. Peek is
 "what I did when nobody was asking me to" — the trip app, the monsters, the hundred throwaways. Keep the section the same shape
