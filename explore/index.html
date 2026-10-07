@@ -1330,7 +1330,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   var psSets = {}; Object.keys(PS_VIBES).forEach(function (k) { psSets[k] = PS_VIBES[k].map(function (h) { return withH(makeHood(h), 0); }).concat(PS_AIRPORTS.map(makeAir)); });
   var psHoodSets = {}; Object.keys(PS_HOODS).forEach(function (k) { psHoodSets[k] = PS_HOODS[k].prices.map(makePrice); });
   var foSets = {}; Object.keys(FO_VIBES).forEach(function (k) { foSets[k] = FO_VIBES[k].map(function (h) { return withH(makeHood(h), 0); }).concat(FO_AIRPORTS.map(makeAir)); });
-  var foHoodSets = {}; Object.keys(FO_HOODS).forEach(function (k) { foHoodSets[k] = FO_HOODS[k].prices.map(makePrice); });
+  var foHoodSets = {}; Object.keys(FO_HOODS).forEach(function (k) { foHoodSets[k] = FO_HOODS[k].prices.slice(0, 12).map(makePrice); });   // a Faroese village is 12 homes, not 22 (John, 2026-10-07)
   // THE TWO CITIES (2026-10-07): the city beat and the neighbourhood beat are one pair of beats dressed for whichever city is
   // entered — `enterCity` swaps the card's words, vibes and rows, the beat's camera and set, then goes; `enterHood` the same
   // for a neighbourhood, with its outline into the mask and its homes into the grid
@@ -1364,8 +1364,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     var seed = 0; for (var i = 0; i < h.n.length; i++) seed = (seed * 31 + h.n.charCodeAt(i)) >>> 0;
     var rnd = function () { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
     var prices = [], kmx = 111.32 * Math.cos(h.ll[1] * Math.PI / 180), tries = 0;
-    while (prices.length < 22 && tries++ < 4000) {
-      var a = rnd() * Math.PI * 2, r = 0.45 * Math.sqrt(rnd()), x = h.ll[0] + r / kmx * Math.cos(a), y = h.ll[1] + r / 111.32 * Math.sin(a);
+    var want = cityKey === 'fo' ? 12 : 22, rad = cityKey === 'fo' ? 0.3 : 0.45;   // a Faroese village: 12 homes within 300 m (John, 2026-10-07: "shouldn't have this many")
+    while (prices.length < want && tries++ < 4000) {
+      var a = rnd() * Math.PI * 2, r = rad * Math.sqrt(rnd()), x = h.ll[0] + r / kmx * Math.cos(a), y = h.ll[1] + r / 111.32 * Math.sin(a);
       if (prices.some(function (q) { return Math.hypot((q[1] - x) * kmx, (q[2] - y) * 111.32) < 0.05; })) continue;
       var pr = Math.round(h.p * (0.6 + rnd() * 0.9) / 5) * 5; prices.push([pr, +x.toFixed(5), +y.toFixed(5)]);
     }
@@ -1652,8 +1653,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // UNIFORM AND QUICK (John, 2026-10-06: the pins were leaving and arriving one at a time): a set comes in together, one beat
   // after it's added so the transition has something to run from, and leaves together — no stagger anywhere
   function show(set, stagger) {
-    set.forEach(function (o) { if (within(o)) o.marker.addTo(map); });   // past the travel-time slider: left off
-    setTimeout(function () { set.forEach(function (o) { if (within(o)) o.el.classList.add('in'); }); declutterSoon(); roadsAhead(); }, 40);
+    set.forEach(function (o) { if (within(o) && !o.wet) o.marker.addTo(map); });   // past the travel-time slider, or on the water: left off
+    setTimeout(function () { set.forEach(function (o) { if (within(o) && !o.wet) o.el.classList.add('in'); }); declutterSoon(); roadsAhead(); }, 40);
   }
   function roadsAhead() {
     if (state === 'drive') prefetchRoads(BEATS.drive.set, 'driving-traffic');
@@ -1902,7 +1903,36 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     if (busy) return;
     var h = HOODZ[key]; hoodKey = key;
     BEATS.hood.cam = h.cam; BEATS.hood.set = h.set; dressHood(key); setHoodMask(h.poly);
-    go('hood');
+    go('hood'); dryLand(h.set, h.cam.center, cityKey === 'fo' ? 0.3 : 0.45);
+  }
+  // NO HOMES ON THE WATER (John, 2026-10-07): each priced pin asks Mapbox's Tilequery whether its point is water (the streets
+  // tileset's water layer, radius 0) and a wet one is taken out — removed, and marked so a later show() leaves it out too.
+  // Answers are kept for the session; the public token answers from the page (it's URL-restricted, so not from anywhere else)
+  // A wet pin is MOVED onto land nearby first — a fresh spot within the village's radius, asked about the same way, up to five
+  // tries — and only taken out if none is dry (Trøllanes lost 8 of 12 to the sea and kept 4 homes; now it keeps its 12)
+  var wetCache = {};
+  function isWet(lng, lat) {
+    var key = lng.toFixed(5) + ',' + lat.toFixed(5);
+    if (key in wetCache) return Promise.resolve(wetCache[key]);
+    return fetch('https://api.mapbox.com/v4/mapbox.mapbox-streets-v8/tilequery/' + lng + ',' + lat + '.json?layers=water&radius=0&limit=1&access_token=' + mapboxgl.accessToken)
+      .then(function (r) { return r.json(); }).then(function (j) { var wet = !!(j && j.features && j.features.length); wetCache[key] = wet; return wet; }).catch(function () { return false; });
+  }
+  function dryLand(set, centre, radKm) {
+    var kmx = 111.32 * Math.cos(centre[1] * Math.PI / 180);
+    set.forEach(function (o) {
+      var ll = o.marker.getLngLat();
+      var settle = function (tries) {
+        isWet(ll.lng, ll.lat).then(function (wet) {
+          if (!wet) { o.wet = false; return; }
+          if (tries <= 0) { o.wet = true; if (o.marker._map) { o.el.classList.remove('in'); setTimeout(function () { o.marker.remove(); }, 300); } return; }
+          var a = Math.random() * Math.PI * 2, r = radKm * Math.sqrt(Math.random());
+          ll = { lng: centre[0] + r / kmx * Math.cos(a), lat: centre[1] + r / 111.32 * Math.sin(a) };
+          o.marker.setLngLat([ll.lng, ll.lat]);   // moved onto the next candidate, which is asked about in turn
+          settle(tries - 1);
+        });
+      };
+      settle(5);
+    });
   }
   // a city's vibe re-pins the city (Palm Springs); New York's three are a ring only, as they were
   function setCityVibe(k) {
