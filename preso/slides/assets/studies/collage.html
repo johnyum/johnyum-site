@@ -46,16 +46,19 @@
         /* A PROPER GRID (John, 2026-10-07: "make the width of the cells consistent — the 4-up edge to edge with the date cell in it,
            the rest on a proper grid structure"): one four-column grid across the page; each heading a full-width row; every demo one
            cell of it, its stage the cell's full width; the wide one (the shimmer sweep, six dates) across the whole row */
-        .flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px 14px; margin-top: 8px; align-items: start; }
-        .flow section, .row { display: contents !important; }
-        .flow h2 { grid-column: 1 / -1; margin-top: 14px !important; }
-        .flow section:first-child h2 { margin-top: 0 !important; }
+        .flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-flow: dense; gap: 22px 14px; margin-top: 8px; align-items: start; }
+        /* SECTIONS PACK (John, 2026-10-07: "put more on each row — 3, then 2 to the right"): a section spans as many of the four
+           columns as it has demos (the wide one all four) and sits in the same grid, dense, so a one-demo section slots in beside a
+           three-demo one; its heading sits over its own demos */
+        .flow section { display: grid; grid-template-columns: repeat(var(--n, 1), minmax(0, 1fr)); grid-column: span var(--n, 1); gap: 10px 14px; min-width: 0; }
+        .flow section h2 { grid-column: 1 / -1; margin: 0 !important; }
+        .row { display: contents !important; }
         .demo { width: auto !important; min-width: 0; }
         .demo .stage { width: 100% !important; }
         .demo.wide { grid-column: 1 / -1; } .demo.wide .stage { width: 100% !important; }`,
       loop: 3200,   // continuously animating (John): every demo replayed as soon as its last run is done, staggered, so something is always moving
       // the page is nine headings each over a row: wrapped into sections that flow side by side (John: closer together)
-      shape: (d) => { const flow = d.createElement('div'); flow.className = 'flow'; const hs = [...d.querySelectorAll('h2')]; if (!hs.length) return; hs[0].parentNode.insertBefore(flow, hs[0]); for (const h of hs) { const sec = d.createElement('section'); const row = h.nextElementSibling; sec.append(h); if (row && row.classList.contains('row')) sec.append(row); flow.append(sec); } } },
+      shape: (d) => { const flow = d.createElement('div'); flow.className = 'flow'; const hs = [...d.querySelectorAll('h2')]; if (!hs.length) return; hs[0].parentNode.insertBefore(flow, hs[0]); for (const h of hs) { const sec = d.createElement('section'); const row = h.nextElementSibling; sec.append(h); if (row && row.classList.contains('row')) sec.append(row); const n = row ? Math.min(4, [...row.querySelectorAll('.demo')].reduce((a, x) => a + (x.classList.contains('wide') ? 4 : 1), 0)) || 1 : 1; sec.style.setProperty('--n', n); flow.append(sec); } } },
     // THE QUICK ACTIONS (John, 2026-10-07: "find the studies for the zig zag pills and quick actions" — the zigzag pills are the
     // graph page's study 01, straight line + pills; the quick actions are this page's Modal lifecycle: the floating pill through a
     // whole session, idle → scanning → results → applying → applied, and the result pills). Under the cells, where the column has room

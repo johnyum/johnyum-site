@@ -801,8 +801,11 @@ at .82; the five Repeat phones at .48), and the frame is sized to the page, re-m
 inside. The cells page's nine headings-over-a-row are wrapped into sections that flow side by side (`shape`), and its Replay buttons
 are clicked on an 8s loop so the left is never still. Three columns: the cells (820); the graph studies (760); the Repeat screens over
 the event cards (1000). **Where it stands (2026-10-07, evening):** three columns, TOP-ALIGNED, fitted to the stage's width — the cells (880, the page
-zoomed .735, its eleven demos on ONE four-column grid edge to edge, each heading a full-width row, the shimmer sweep across the whole
-row — John: "make the width of the cells consistent, the 4-up edge to edge with the date cell in it, the rest on a proper grid") over
+zoomed .735, its eleven demos on ONE four-column grid edge to edge — each SECTION spans as many columns as it has demos and the
+grid packs dense, so the one-demo sections slot in beside the three-demo one (John: "put more on each row — 3, then 2 to the right")
+and the shimmer sweep, the long one, keeps a row to itself ("the long one can just have its own"); dense packing pulls 7 · Select up
+beside 5 · Apply, before 6 · Scan — John: "make the width of the cells consistent, the 4-up edge to edge with the date cell in it, the
+rest on a proper grid") over
 the cell & opportunity system (880, zoomed .72 — the QUICK ACTIONS: its Modal lifecycle is the floating pill through a session, idle
 → scanning → results → applying → applied, and the result pills; the ZIGZAG PILLS are the graph page's study 01, straight line +
 pills — both found in calendar-mocks.zip when John asked), the graph studies (840, zoomed .86, the rigs .58), the Repeat screens
