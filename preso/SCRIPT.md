@@ -202,11 +202,12 @@ frame). The line: "and then I turned around and brought the team with me."
 
 ## Why Anthropic?
 
-**Two cards after Why Anthropic? (2026-10-07, John: "combine the next two"), in his words, one line each (12ga, 12gc):** "Four
-months ago I had my first session with Claude Code. Then I understood." → "It's been the most joyous time of my career." The
-card stops at "understood" (John, later on 2026-10-07: "finish at I understood, remove everything after"); what he understood —
-everything he'd spent years mastering had disappeared overnight — is said over it. Tap through them at the pace they're said;
-the second is the turn, loss then joy. Then Thanks. (Built 2026-10-06 as three — "I picked up Claude Code four months ago." / "One session, and everything
+**Two cards after Why Anthropic? (2026-10-07), in his words, one line each (12ga, 12g):** "Four months ago I had my first
+session with Claude Code. Then I understood." → "High conviction, held loosely." The first stops at "understood" (John: "finish
+at I understood, remove everything after"); what he understood — everything he'd spent years mastering had disappeared overnight
+— is said over it, and so is the joy ("the most joyous time of my career" was the second card, 12gc, until John swapped it for
+High conviction, later the same night: "give me the high conviction, held loosely there"). Tap through them at the pace they're
+said; the second is the last word, the humility that lets the four months land. Then Thanks. (Built 2026-10-06 as three — "I picked up Claude Code four months ago." / "One session, and everything
 I'd spent years mastering disappeared overnight." — the first two were one breath said aloud, so they're one card; 12gb is in _parked.) The
 earlier plan below is kept for what to say; "For myself, and for her" is cut as a card (too private to read cold — say it, with
 Roma's name, if at all), and "Then I brought the team with me" / "I did all of this in four months" can follow as cards if wanted.
