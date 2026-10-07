@@ -800,24 +800,22 @@ pulls the spacing closer and sizes the big rigs to their column (the graph page 
 at .82; the five Repeat phones at .48), and the frame is sized to the page, re-measured as fonts and pictures land, so nothing scrolls
 inside. The cells page's nine headings-over-a-row are wrapped into sections that flow side by side (`shape`), and its Replay buttons
 are clicked on an 8s loop so the left is never still. Three columns: the cells (820); the graph studies (760); the Repeat screens over
-the event cards (1000). **The builds** (John, later: "more builds — the zig zag line build, the quick actions row build — and whatever more calendar
-prototype versions I made"; and "I want things to be more legible"): the board is now fitted to the stage's WIDTH only (1620 wide,
-so it reads at about full size) and SCROLLS — rows: the cells beside the graph studies, then the Repeat screens (phones at .76),
-then the event cards five to a row, then rows of the whole builds at half size (two desktop builds to a row), live, nothing injected
-but a line that hides the prototype's welcome card and dev bar: `/calendar.html` (June 12, the first calendar rebuilt from Figma, its
-quick-actions sheet); THIRTEEN versions of `/multi` from its git history, July 2 → October 3 (`proto/builds/multi-<date>.html`, each
-`git show <commit>:multi/index.html` with its `Font_Cereal/`, `img/`, `event_icons/`, `holidays/` paths pointed at `/multi/`, which
-holds all of them — 12MB of HTML, text); the squiggly-line states — the July 29 build with the dev bar's Wavy, Animated and Filled
-indicator styles clicked on after load (`style()`); `/multi2/` (the collaborative build); today's build with a cell tapped after load
-so the wide quick-action pill is up (`tapCell()`); and `/recurrence/?preso=1` (the web app with the quick-actions row and Repeat).
-**The play** (John: "all the bells and whistles that can be playing, play it — for the grid play the first slider start to finish
-slowly, like 5 seconds, and land there"): the graph page's waviness slider (`#rngAmp`) is swept from its minimum to its maximum over
-five seconds, eased, each step dispatched as the page's own input event so every graph follows, and left at the end (`play`); the
-cells replay on their loop; the styled builds press Show tips after booting (`tips()`), so the scan plays and the board is in its
-opportunities mode — the only place the Wavy / Animated / Default indicators show. The later builds open on their Today tab, so
-`calm()` presses Get started, then Calendar, before anything else.
-The build frames are `loading="lazy"`, so a version loads as it scrolls into view. No build is named "zig zag" anywhere on disk or
-in git: the squiggly lines are the Wavy indicator, and the current product's price line is study 01 in the graph column.
+the event cards (1000). **Where it stands (2026-10-07, evening):** three columns, TOP-ALIGNED, fitted to the stage's width — the cells (880, the page
+zoomed 1.3), the graph studies (840, zoomed 1.14, the rigs .58), the Repeat screens (phones at .64) over the event cards (three to
+a row, zoomed 1.07) — "each piece ~30% bigger" than the first fitted board; the bottom runs as long as the design is and scrolls,
+under the deck's nav (the slide's window runs to the screen's bottom and declares `presoBleed`, so the nav takes its pill). The
+graph's waviness slider plays start to finish over five seconds and lands at the end (`play`); the cells replay on an 8s loop.
+**The builds are HELD** (John: "hold on the calendars for now — just the studies"): `SHOW_BUILDS = false` in collage.html keeps the
+whole row in the code — `/calendar.html` (June 12, the first calendar with its quick-actions sheet), thirteen versions of `/multi`
+from its git history July 2 → October 3 (`proto/builds/multi-<date>.html`, each `git show <commit>:multi/index.html` with its
+`Font_Cereal/`, `img/`, `event_icons/`, `holidays/` paths pointed at `/multi/`; 12MB of text), the July 29 build with the dev
+bar's Wavy / Animated / Default indicators switched on after boot (`style()` — they show only in opportunities mode, so Show tips
+is pressed first, `tips()`), `/multi2/`, today's build with a cell tapped so the wide quick-action pill is up (`tapCell()`), and
+`/recurrence/?preso=1`. The later builds open on their Today tab: `calm()` presses Get started, then Calendar. Shown, they sit in one
+row beneath the board (`#lane`), scrolling sideways under the wheel and panning slowly on their own. A full-size scrolling version
+with the builds in rows was built in between and came out the same evening ("too big — I still like seeing each in a row, showing
+the breadth"). No build is named "zig zag" anywhere: the squiggly lines are the Wavy indicator; the current product's price line is
+study 01 in the graph column.
 Then the A.I. card. **The chrome's pills** (2026-10-06): the kicker and the nav each sit in a fully rounded white pill, 12 above and below,
 20 to the sides, the page blurred behind, shown only over a slide that declares `window.presoBleed` (a value or a function of its step —
 12dr's board once built); elsewhere the pill is transparent and the type sits exactly where it always did.
