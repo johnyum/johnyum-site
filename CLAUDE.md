@@ -814,7 +814,8 @@ column of 880 holding one or more pages, top-aligned, in this order:
    study 01 is the ZIGZAG PILLS).
 4. **The Quick Action System** (swapped with the clay icons — John: "switch quick actions with the clay icons") — the cell & opportunity system page, retitled in the studies copy (John, 2026-10-07: "don't call it cell and opps system, call it Quick Action system") (.72): Modal lifecycle (the QUICK-ACTION pill through a session) moved to the top (`shape`);
    the squiggly cell-states column of every opportunity block hidden (`.opp .cells-col`) — they live in panel 1 now; the modal, chip
-   and decisions stay.
+   and decisions stay. Every quick-action pill one width — flex, full width up to 760, the body stretching so the buttons line up
+   (John: "all the quick actions wider and equal size"); the scanning circle's wand at 30 so it sits inside the circle ("not crazy big").
 2. **The demand-driving event cards** (.8, four to a row) — second now, the first of the three in view ends the first screen (it was fourth: "demand should be 4th with the icons", then swapped with the quick actions).
 5. **The Repeat screens** (five phones at .42) plus a second row, **Tweaks and options**, four screens written 2026-10-07 at John's
    ask ("another row of 4 with tweaks and options — whatever you think would be good for me to know"): `Overlap.html` (the collision
