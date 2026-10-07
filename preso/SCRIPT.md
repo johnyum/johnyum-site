@@ -5,7 +5,7 @@ here so nothing is lost. Rough, and growing.
 
 ## The bridge — from the montage to the cases (09fz)
 
-The card: "That was the work. These are the decisions." Over it: "Everything you just saw is me making things. What I want to
+The card: "Case study", big, black, in Anton (the A.I. card's setting). Over it: "Everything you just saw is me making things. What I want to
 show you now is three times the problem was harder than the making. A fee change nobody wanted. The most complex screen in the
 app. And then scaling it a hundred times." Then Case Study 1.
 
