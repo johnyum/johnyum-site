@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cell Animation Gallery</title>
+<style>
+@font-face { font-family: 'Cereal'; src: url(/multi/Font_Cereal/AirbnbCerealVF_Wght.ttf) format('truetype'); font-weight: 100 900; font-style: normal; }
+:root {
+  --grey-0:#FFFFFF; --grey-100:#F7F7F7; --grey-200:#F2F2F2; --grey-300:#DDDDDD; --grey-400:#C2C2C2; --grey-500:#B0B0B0;
+  --grey-600:#8C8C8C; --grey-700:#717171; --grey-1000:#222222; --green-700:#117C35; --brand-rausch:#F0315C;
+  --g:#038026; --o:#BE4900;
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 40px 48px 120px; background: #fff; color: #222; font: 400 14px/1.4 'Cereal', -apple-system, sans-serif; }
+h1 { font: 600 28px/1.2 'Cereal', sans-serif; margin: 0 0 6px; }
+.lede { color: var(--grey-700); margin: 0 0 28px; max-width: 760px; }
+.toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 36px; }
+.btn { border: 1px solid #222; background: #222; color: #fff; border-radius: 999px; height: 40px; padding: 0 18px; font: 500 14px 'Cereal', sans-serif; cursor: pointer; }
+.btn.ghost { background: #fff; color: #222; }
+h2 { font: 600 18px 'Cereal', sans-serif; margin: 44px 0 4px; padding-top: 24px; border-top: 1px solid var(--grey-300); }
+h2 small { display: block; font: 400 13px 'Cereal', sans-serif; color: var(--grey-700); margin-top: 4px; }
+.row { display: flex; flex-wrap: wrap; gap: 20px 16px; align-items: flex-start; margin-top: 20px; }
+.demo { width: 176px; display: flex; flex-direction: column; gap: 8px; }
+.demo .stage { width: 176px; height: 96px; display: flex; align-items: center; justify-content: center; background: var(--grey-100); border-radius: 16px; }
+.demo .num { font: 600 11px 'Cereal', sans-serif; color: var(--grey-600); letter-spacing: .04em; }
+.demo .name { font: 600 13px/1.25 'Cereal', sans-serif; color: #222; }
+.demo .desc { font: 400 11.5px/1.4 'Cereal', sans-serif; color: var(--grey-700); }
+.demo code:empty { display: none; }
+.demo code { font: 500 10.5px/1.5 ui-monospace, Menlo, monospace; color: var(--grey-600); background: var(--grey-100); border-radius: 4px; padding: 0 4px; word-break: break-all; }
+.demo .replay { align-self: flex-start; border: 1px solid var(--grey-300); background: #fff; color: #222; border-radius: 999px; height: 28px; padding: 0 12px; font: 500 12px 'Cereal', sans-serif; cursor: pointer; }
+.demo .replay:hover { border-color: #222; }
+.demo.wide, .demo.wide .stage { width: 368px; }
+
+/* ═══ THE CELL — lifted from index.html .price-card ═══ */
+.cellwrap { width: 88px; height: 64px; }
+.price-card { width: 100%; height: 100%; border: 1px solid #DDDDDD; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  font-size: 14px; color: #222; cursor: pointer; transition: border-color .1s, background .1s; background: #fff; user-select: none; position: relative; }
+.price-card .price-val { text-align: center; white-space: nowrap; height: 16px; line-height: 16px; position: relative; z-index: 1; }
+.price-card .min-badge { font-size: 14px; line-height: 16px; color: #6C6C6C; white-space: nowrap; }
+.price-card .min-badge s { margin-right: 4px; }
+.price-card.selected { border: 2px solid #222; background: var(--grey-100); color: var(--grey-1000); }
+.price-card.selected .min-badge { color: var(--grey-700); }
+.price-card.unavailable { background: #F2F2F2; border-color: #E8E8E8; color: #6C6C6C; cursor: not-allowed; }
+.price-card.unavailable .price-val::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: calc(100% + 14px); height: 1.5px; background: currentColor; border-radius: 1px; }
+
+/* ── tokens: role × state (single source of truth in index.html) ── */
+.price-card.opt-flag { --c-ring: var(--grey-400); --c-price: #222; --c-wash: transparent; --dur-roll: 1.4s; position: relative; z-index: 3; border-color: transparent; }
+.price-card.opt-flag.opt-focus { --c-ring: var(--g); --c-price: var(--g); }
+.price-card.opt-flag.opt-focus.opt-lower { --c-ring: var(--o); --c-price: var(--o); } /* the orange "lower" variant (token history) */
+.price-card.opt-flag.opt-focus.opt-applied { --c-ring: var(--green-700); --c-price: #222; }
+.price-card.opt-flag.has-odo .price-val { opacity: 0 !important; }
+.price-card.opt-flag .price-val, .price-card.opt-flag .min-badge { position: relative; z-index: 1; }
+
+/* ── wavy ring ── */
+.price-card.opt-flag .wring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: visible; }
+.price-card.opt-flag .wring .wpath { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke: var(--c-ring); transition: stroke .35s ease; }
+.price-card.opt-flag.opt-focus .wring .wpath { stroke-width: 1.5; }
+.price-card.opt-flag .wring .wfill { stroke: none; fill: var(--c-wash); transition: fill .35s ease; }
+.price-card.opt-flag.opt-focus .wring .wfill { fill: color-mix(in srgb, var(--c-ring) 10%, #fff); } /* boot default = Default ring + Filled wash */
+
+/* ── scan shimmer ── */
+.price-card.scanning { animation: strokeSweep 2.2s ease-in-out infinite; animation-delay: var(--swd, 0s); }
+.price-card.scanning .price-val { color: var(--grey-400); }
+@keyframes strokeSweep { 0%, 34%, 100% { background-color: #fff; border-color: #fff; } 10%, 22% { background-color: var(--grey-100); border-color: var(--grey-100); } 16% { background-color: var(--grey-200); border-color: var(--grey-200); } }
+.scanrow { display: flex; gap: 4px; }
+.scanrow .cellwrap { width: 56px; height: 48px; }
+
+/* ═══ plain-cell variants (section 1): normal white cell, grey border, no ring ═══ */
+.price-card.plain { border-color: #DDDDDD !important; }
+.price-card .odo1 { display: flex; justify-content: center; white-space: nowrap; height: 16px; line-height: 16px; font: 400 14px 'Cereal', sans-serif; color: #222; }
+.odo1 .dg { display: inline-block; height: 16px; overflow: hidden; vertical-align: top; }
+.odo1 .dgreel { display: block; will-change: transform; }
+.odo1 .dg i { display: block; height: 16px; line-height: 16px; font-style: normal; }
+.demo .btns { display: flex; gap: 6px; }
+/* ═══ split odometer (.pstack) ═══ */
+.price-card.opt-flag .pstack { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.price-card.opt-flag .pstack .prec, .price-card.opt-flag .pstack .pold { position: absolute; left: 0; right: 0; text-align: center; white-space: nowrap; height: 16px; line-height: 16px; font: 400 14px 'Cereal', sans-serif; will-change: transform; backface-visibility: hidden; transform: translateZ(0); }
+.price-card.opt-flag .pstack .prow { white-space: nowrap; }
+.price-card.opt-flag .pstack .prec { top: calc(50% - 17px); display: flex; justify-content: center; color: #222; animation: odoRec var(--dur-roll) ease-in-out 1 forwards; }
+.price-card.opt-flag .pstack .pold { top: calc(50% + 1px); color: #717171; text-decoration: line-through; text-decoration-color: transparent; animation: odoOld var(--dur-roll) ease-in-out 1 forwards; font-weight: 400; }
+@keyframes odoRec { 0%,14% { transform: translateY(9px); opacity: 1; color: #222; } 34% { transform: translateY(0); color: #222; } 58%,100% { transform: translateY(0); opacity: 1; color: var(--c-price); } }
+@keyframes odoOld { 0%,14% { transform: translateY(-9px); opacity: 0; color: #717171; text-decoration-color: transparent; } 34% { transform: translateY(0); opacity: 0; color: #717171; text-decoration-color: #717171; } 46%,100% { transform: translateY(0); opacity: 1; color: #717171; text-decoration-color: #717171; } }
+.price-card.opt-flag .pstack .dg { display: inline-block; height: 16px; overflow: hidden; vertical-align: top; }
+.price-card.opt-flag .pstack .dgreel { display: block; will-change: transform; }
+.price-card.opt-flag .pstack .dg i { display: block; height: 16px; line-height: 16px; font-style: normal; }
+/* static end-states */
+.price-card.opt-flag .pstack.odo-static .prec { animation: none; transform: none; color: var(--c-price); }
+.price-card.opt-flag .pstack.odo-static .pold { animation: none; transform: none; opacity: 1; text-decoration-color: #717171; }
+.price-card.opt-flag .pstack.is-frozen .prec { animation: none; transform: none; }
+.price-card.opt-flag .pstack.is-frozen .pold { animation: none; opacity: 0; }
+
+/* legacy count-down reel (CSS still shipped; JS routes every drop through the per-digit roll now) */
+.price-card.opt-flag .pstack.pstack-count .prec { animation: none; color: var(--c-price); }
+.pstack-count .lmreel { display: inline-block; height: 16px; line-height: 16px; overflow: hidden; vertical-align: bottom; }
+.pstack-count .cdstack { display: block; transform: translateY(var(--cdpy, 0)); animation: cdRoll 1s cubic-bezier(.16,1,.3,1) .3s both; }
+.pstack-count .cdstack i { display: block; height: 16px; line-height: 16px; font-style: normal; text-align: center; }
+@keyframes cdRoll { from { transform: translateY(var(--cdpy, 0)); } to { transform: translateY(0); } }
+
+/* ── sub-reveal (promo / discount %) ── */
+.price-card.opt-flag.has-sub .price-val { font-weight: 400; transition: transform .3s cubic-bezier(.4,0,.2,1); transform: translateY(-9px); }
+.price-card.opt-flag .subreveal { position: absolute; left: 0; right: 0; top: calc(50% + 1px); text-align: center; font: 400 14px 'Cereal', sans-serif; color: var(--grey-700); white-space: nowrap; pointer-events: none; z-index: 2; height: 16px; line-height: 16px; opacity: 0; animation: subIn .62s cubic-bezier(.4,0,.2,1) 1 forwards; }
+@keyframes subIn { 0% { opacity: 0; transform: translateY(14px); } 100% { opacity: 1; transform: translateY(0); } }
+.price-card.opt-flag .subreveal.is-static { animation: none; opacity: 1; transform: none; }
+
+/* ── last-minute two-reel stack ── */
+.price-card.opt-flag .pstack.pstack-lm .prec.lmprice { top: calc(50% - 17px); color: #222; font-weight: 400; animation: lmGreen .5s ease .8s both, revealRise .42s cubic-bezier(.4,0,.2,1) both; }
+@keyframes revealRise { 0% { transform: translateY(9px); } 100% { transform: translateY(0); } }
+.price-card.opt-flag .pstack.pstack-lm .lmpct { position: absolute; left: 0; right: 0; top: calc(50% + 1px); text-align: center; white-space: nowrap; height: 16px; line-height: 16px; font: 400 14px 'Cereal', sans-serif; color: #717171; opacity: 0; animation: lmFadeIn .4s cubic-bezier(.22,1,.36,1) .1s both; }
+.pstack-lm .lmreel { display: inline-block; height: 16px; line-height: 16px; overflow: hidden; vertical-align: bottom; }
+.pstack-lm .lmreel i { display: block; height: 16px; line-height: 16px; font-style: normal; font-weight: 400; text-align: center; }
+.pstack-lm .lmcstack { display: block; animation: lmRollC .5s cubic-bezier(.16,1,.3,1) .2s both; }
+.pstack-lm .lmpstack { display: block; transform: translateY(var(--lmpy, 0)); animation: lmRollP .7s cubic-bezier(.16,1,.3,1) .7s both; }
+@keyframes lmGreen  { from { color: #222; } to { color: var(--c-price); } }
+@keyframes lmFadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes lmRollC  { from { transform: translateY(0); } to { transform: translateY(var(--lmcy, 0)); } }
+@keyframes lmRollP  { from { transform: translateY(var(--lmpy, 0)); } to { transform: translateY(0); } }
+.price-card.opt-flag .pstack.pstack-lm.lm-static .prec.lmprice { animation: none; transform: none; color: var(--c-price); }
+.price-card.opt-flag .pstack.pstack-lm.lm-static .lmpct { animation: none; opacity: 1; }
+.price-card.opt-flag .pstack.pstack-lm.lm-static .lmpstack, .price-card.opt-flag .pstack.pstack-lm.lm-static .lmcstack { animation: none; }
+
+/* ── APPLY: blink + check ── */
+.price-card.opt-flag .apcheck { position: absolute; left: 0; right: 0; top: calc(50% + 1px); height: 16px; display: flex; align-items: center; justify-content: center; z-index: 3; opacity: 0; transform: translateY(-9px); pointer-events: none; color: var(--green-700); }
+.price-card.opt-flag .apcheck svg { width: 14px; height: 14px; display: block; }
+.price-card.opt-flag.opt-applied .apcheck { opacity: 1; transform: translateY(0); transition: opacity .22s ease .34s, transform .34s cubic-bezier(.34,1.56,.64,1) .34s; }
+.price-card.opt-flag.opt-applied .pstack .pold { opacity: 0; transition: opacity .4s ease; }
+.price-card.opt-flag.opt-applied .pstack .prec { animation: none; transform: translateY(0); color: var(--c-price); transition: transform .6s cubic-bezier(.4,0,.2,1) .08s, color .5s ease .08s; }
+.price-card.opt-flag.opt-applied .pstack:not(.is-frozen) .prec { animation: apBlinkDip .66s cubic-bezier(.5,0,.3,1) both !important; }
+.price-card.opt-flag.opt-applied .pstack:not(.is-frozen) .pold, .price-card.opt-flag.opt-applied .pstack:not(.is-frozen) .lmpct { animation: apBlinkHide .66s ease both !important; }
+@keyframes apBlinkDip  { 0% { transform: translateY(0); } 46% { transform: translateY(9px); } 100% { transform: translateY(0); } }
+@keyframes apBlinkHide { 0% { transform: translateY(0); opacity: 1; } 16% { transform: translateY(-4px); opacity: 0; } 100% { transform: translateY(-9px); opacity: 0; } }
+.price-card.opt-flag.opt-applied .subreveal { animation: none; opacity: 0; transition: opacity .4s ease; }
+.price-card.opt-flag.opt-applied.has-sub .price-val { color: var(--c-price); transform: translateY(-9px); transition: transform .6s cubic-bezier(.4,0,.2,1) .08s, color .5s ease .08s; }
+.price-card.opt-flag.opt-applied .pstack.pstack-lm .prec.lmprice { transform: translateY(0); color: var(--c-price); animation: none; transition: transform .55s cubic-bezier(.22,1,.36,1) .05s, color .4s ease .05s; }
+.price-card.opt-flag.opt-applied .pstack.pstack-lm .lmpct { transform: translateY(-9px); opacity: 0; animation: none !important; transition: transform .5s cubic-bezier(.22,1,.36,1), opacity .32s ease; }
+
+/* ═══ default-mode (non-tips) cell animations ═══ */
+.price-card.qa .min-badge, .price-card.qa .disc-badge { position: absolute; left: 0; right: 0; text-align: center; top: calc(50% + 1px); font-size: 14px; height: 16px; line-height: 16px; opacity: 0; pointer-events: none; }
+.price-card.qa .price-val { transition: transform .3s cubic-bezier(.4,0,.2,1); }
+.price-card.qa.selected .price-val { transform: translateY(-9px); }
+.price-card.qa.selected .min-badge { animation: selMinIn .3s cubic-bezier(.4,0,.2,1) both; }
+.price-card.qa.sel-out .min-badge { animation: selMinOut .25s ease both; }
+@keyframes selMinIn { from { opacity: 0; transform: translateY(-9px); } to { opacity: 1; transform: none; } }
+@keyframes selMinOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-9px); } }
+.price-card.qa .disc-badge { color: #038026; }
+.price-card.qa.promo-swap .disc-badge { animation: selMinIn .3s cubic-bezier(.4,0,.2,1) both; }
+.price-card.qa.promo-swap .min-badge { animation: selMinOut .25s ease both; }
+.price-card.hoverdemo .disc-badge { font-size: 14px; line-height: 1; color: #038026; white-space: nowrap; margin-top: 2px; position: absolute; left: 0; right: 0; text-align: center; top: calc(50% + 12px); opacity: 0; transition: opacity .18s ease; }
+.price-card.hoverdemo:hover .disc-badge, .price-card.hoverdemo.force-hover .disc-badge { opacity: 1; }
+.price-card .disc-badge.inline { font-size: 14px; line-height: 16px; color: #038026; white-space: nowrap; margin-top: 2px; overflow: hidden; max-height: 16px; }
+.price-card.away .disc-badge.inline { animation: discAway .35s ease forwards; }
+@keyframes discAway { from { opacity: 1; max-height: 16px; margin-top: 2px; } to { opacity: 0; max-height: 0; margin-top: 0; } }
+.price-card.minreveal .min-badge { animation: minReveal .5s ease .5s backwards; }
+@keyframes minReveal { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.rowenter { animation: morph-fadein .35s ease both; }
+@keyframes morph-fadein { from { opacity: 0 } to { opacity: 1 } }
+
+/* ═══ Pricing-mode sub-cell roll ═══ */
+.settings-sub-cell { width: 88px; height: 64px; border: 1px solid #DDDDDD; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: #fff; overflow: hidden; }
+.settings-sub-cell .lbl { font-size: 11px; color: var(--grey-600); }
+.settings-sub-cell .val { font: 400 14px/16px 'Cereal', sans-serif; color: #038026; }
+.settings-sub-cell .val.roll-down { animation: odoDown .52s cubic-bezier(.22,1,.36,1); }
+.settings-sub-cell .val.roll-up   { animation: odoUp   .52s cubic-bezier(.22,1,.36,1); }
+@keyframes odoDown { from { transform: translateY(-7px); opacity: .3; } to { transform: none; opacity: 1; } }
+@keyframes odoUp   { from { transform: translateY(7px);  opacity: .3; } to { transform: none; opacity: 1; } }
+
+/* ═══ non-cell check marks (the other "check" animations) ═══ */
+.mopp-applied { display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: #30D158; background: rgba(48,209,88,.14); border: 1.5px solid #30D158; border-radius: 999px; height: 48px; min-width: 112px; padding: 0; font: 500 14px 'Cereal', sans-serif; }
+.mopp-applied .apck { width: 24px; height: 24px; display: block; animation: apCkIn .45s cubic-bezier(.34,1.4,.5,1) both; }
+@keyframes apCkIn { 0% { opacity: 0; transform: scale(.4); } 100% { opacity: 1; transform: scale(1); } }
+.upsell-done { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; animation: lmUpsellCheckIn .5s cubic-bezier(.2,.9,.3,1.35) .2s both; color: #038026; }
+.upsell-done svg { width: 64px; height: 64px; }
+@keyframes lmUpsellCheckIn { 0% { opacity: 0; transform: scale(.4); } 60% { opacity: 1; } 100% { opacity: 1; transform: scale(1); } }
+.stage.dark { background: #000; }
+
+/* ═══ the requested ON / OFF check-radio control ═══ */
+.ckrow { display: flex; gap: 40px; align-items: flex-start; margin-top: 20px; }
+.ckdemo { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.ckradio { width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid var(--grey-400); background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: border-color .2s ease, background .2s ease; }
+.ckradio svg { width: 18px; height: 18px; display: block; opacity: 0; transform: scale(.4) translateY(0); color: #fff; }
+.ckradio.on { border-color: #222; background: #222; }
+.ckradio.on svg { animation: apCkIn .45s cubic-bezier(.34,1.4,.5,1) both; opacity: 1; transform: scale(1); }
+.ckradio.off svg { animation: ckOut .2s ease both; }
+@keyframes ckOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(.4); } }
+.ckdemo .lab { font: 500 13px 'Cereal', sans-serif; }
+.ckdemo .sub { font: 400 12px 'Cereal', sans-serif; color: var(--grey-700); }
+</style>
+</head>
+<body>
+
+<h1>Calendar cell animations</h1>
+
+<!-- ═══════════════════════════════ SECTION 1 ═══════════════════════════════ -->
+<h2>1 · Foundation cell animations</h2>
+<div class="row" id="s1"></div>
+
+<h2>2 · Price roll, Tips cell</h2>
+<div class="row" id="s2"></div>
+
+<h2>3 · Last-minute discount</h2>
+<div class="row" id="s3"></div>
+
+<h2>4 · Discount line</h2>
+<div class="row" id="s4"></div>
+
+<h2>5 · Apply</h2>
+<div class="row" id="s5"></div>
+
+<h2>6 · Scan</h2>
+<div class="row" id="s6"></div>
+
+<h2>7 · Select</h2>
+<div class="row" id="s7"></div>
+
+<h2>8 · Min nights line</h2>
+<div class="row" id="s8"></div>
+
+<h2>9 · Pricing value roll</h2>
+<div class="row" id="s9"></div>
+
+<script>
+/* ═══ odometer keyframes (per-distance, 16px step) — verbatim from index.html ═══ */
+(function(){ let kf = ''; const EASE = 'cubic-bezier(.2,.7,.2,1)';
+  for (let n = 1; n <= 9; n++) { const dur = (0.5 + n * 0.075).toFixed(3);
+    kf += '@keyframes odoRollUp' + n + ' { from { transform: translateY(0); } to { transform: translateY(' + (-n*16) + 'px); } }\n'
+        + '@keyframes odoRollDn' + n + ' { from { transform: translateY(' + (-n*16) + 'px); } to { transform: translateY(0); } }\n'
+        + '.price-card.opt-flag .pstack .dgreel.r-up.n' + n + ' { animation: odoRollUp' + n + ' ' + dur + 's ' + EASE + ' both; }\n'
+        + '.price-card.opt-flag .pstack .dgreel.r-dn.n' + n + ' { animation: odoRollDn' + n + ' ' + dur + 's ' + EASE + ' both; }\n'
+        + '.odo1 .dgreel.r-up.n' + n + ' { animation: odoRollUp' + n + ' ' + dur + 's ' + EASE + ' both; }\n'
+        + '.odo1 .dgreel.r-dn.n' + n + ' { animation: odoRollDn' + n + ' ' + dur + 's ' + EASE + ' both; }\n'; }
+  document.head.insertAdjacentHTML('beforeend', '<style>' + kf + '</style>'); })();
+
+const CHECK = '<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M17.5002 3.54297L19.268 5.31074L7.50019 17.0785L0.732422 10.3107L2.50019 8.54297L7.50019 13.5426L17.5002 3.54297Z" fill="currentColor"/></svg>';
+const PILLCHECK = '<svg class="apck" viewBox="0 -960 960 960" fill="currentColor"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>';
+
+function _odoStaticHtml(s) { let out = ''; for (const c of s) out += '<span class="dg"><span class="dgreel"><i>' + (c === ' ' ? '&nbsp;' : c) + '</i></span></span>'; return out; }
+function _odoRollHtml(oldS, newS, dir, prefix, base) {
+  const ch = c => c === ' ' ? '&nbsp;' : c;
+  const oD = oldS.replace(/[^\d]/g, ''), nD = newS.replace(/[^\d]/g, '');
+  let out = '<span class="dg"><span class="dgreel"><i>' + (prefix || '$').replace(/ /g, '&nbsp;') + '</i></span></span>';
+  let changed = 0;
+  for (let i = 0; i < nD.length; i++) {
+    const nc = nD[i], oi = oD.length - nD.length + i, oc = oi >= 0 ? oD[oi] : '';
+    if (oc === nc) { out += '<span class="dg"><span class="dgreel"><i>' + ch(nc) + '</i></span></span>'; continue; }
+    let seq;
+    if (/\d/.test(oc) && /\d/.test(nc)) { seq = [oc]; let d = +oc; while (d !== +nc) { d = (d + (dir === 'up' ? 1 : 9)) % 10; seq.push(String(d)); } }
+    else seq = [nc];
+    if (dir === 'dn') seq = seq.slice().reverse();
+    const delay = (base == null ? 440 : base) + (changed++) * 60;
+    out += '<span class="dg"><span class="dgreel r-' + dir + ' n' + (seq.length - 1) + '" style="animation-delay:' + delay + 'ms">' + seq.map(c => '<i>' + ch(c) + '</i>').join('') + '</span></span>';
+  }
+  return out;
+}
+
+/* ═══ ring — the live Default style: a flat rounded-rect stroke drawn once (amplitude 0), + 10% wash on focus ═══ */
+const _WNS = 'http://www.w3.org/2000/svg';
+function ringPath(w, h) { const rc = 11; return 'M' + rc + ' 0H' + (w-rc) + 'A' + rc + ' ' + rc + ' 0 0 1 ' + w + ' ' + rc + 'V' + (h-rc) + 'A' + rc + ' ' + rc + ' 0 0 1 ' + (w-rc) + ' ' + h + 'H' + rc + 'A' + rc + ' ' + rc + ' 0 0 1 0 ' + (h-rc) + 'V' + rc + 'A' + rc + ' ' + rc + ' 0 0 1 ' + rc + ' 0Z'; }
+function makeWring(card) {
+  const svg = document.createElementNS(_WNS, 'svg'); svg.setAttribute('class', 'wring'); svg.setAttribute('viewBox', '0 0 88 64');
+  const d = ringPath(88, 64);
+  const fill = document.createElementNS(_WNS, 'path'); fill.setAttribute('class', 'wfill'); fill.setAttribute('d', d);
+  const path = document.createElementNS(_WNS, 'path'); path.setAttribute('class', 'wpath'); path.setAttribute('stroke-width', '1'); path.setAttribute('d', d);
+  svg.appendChild(fill); svg.appendChild(path); card.insertBefore(svg, card.firstChild); return svg;
+}
+
+/* ═══ gallery scaffolding ═══ */
+const replayers = [];
+function demo(sectionId, num, name, desc, code, build, opts = {}) {
+  const el = document.createElement('div'); el.className = 'demo' + (opts.wide ? ' wide' : '');
+  const btns = opts.buttons ? Object.keys(opts.buttons).map(k => '<button class="replay" data-k="' + k + '">' + k + '</button>').join('') : '<button class="replay">Replay</button>';
+  el.innerHTML = '<div class="stage' + (opts.dark ? ' dark' : '') + '"></div><div class="num">' + num + '</div><div class="name">' + name + '</div><div class="desc">' + desc + '</div>' + '' + '<div class="btns">' + btns + '</div>';
+  document.getElementById(sectionId).appendChild(el);
+  const stage = el.querySelector('.stage');
+  if (opts.buttons) { el.querySelectorAll('.replay').forEach(b => b.addEventListener('click', () => { stage.innerHTML = ''; opts.buttons[b.dataset.k](stage); })); stage.innerHTML = ''; build(stage); return; }
+  const run = () => { stage.innerHTML = ''; build(stage); };
+  el.querySelector('.replay').addEventListener('click', run); replayers.push(run); run();
+  el.addEventListener('mouseenter', run); // hover any card → it replays
+}
+/* ── section 1 builders: plain white cell, grey border, no ring ── */
+function plainOdo(stage, oldS, newS, dir, prefix) {
+  const c = cell(stage, 'plain', '');
+  const d = document.createElement('div'); d.className = 'odo1'; d.innerHTML = _odoRollHtml(oldS, newS, dir, prefix || '$', 0); c.appendChild(d); return c;
+}
+function plainSplit(stage, oldS, newS, dir, prefix, extra) {
+  const c = cell(stage, 'opt-flag opt-focus has-odo plain ' + (extra || ''), '<div class="price-val">' + oldS + '</div>');
+  const ps = document.createElement('div'); ps.className = 'pstack';
+  ps.innerHTML = '<div class="prec"><span class="prow">' + _odoRollHtml(oldS, newS, dir, prefix) + '</span></div><div class="pold">' + oldS + '</div>';
+  c.appendChild(ps); return c;
+}
+function cell(stage, cls, inner) { const w = document.createElement('div'); w.className = 'cellwrap'; const c = document.createElement('div'); c.className = 'price-card ' + (cls || ''); c.innerHTML = inner || ''; w.appendChild(c); stage.appendChild(w); return c; }
+function odoCell(stage, oldS, newS, dir, prefix, extraCls, staticCls) {
+  const c = cell(stage, 'opt-flag opt-focus has-odo plain ' + (extraCls || ''), '<div class="price-val">' + oldS + '</div>');
+  const ps = document.createElement('div'); ps.className = 'pstack' + (staticCls ? ' ' + staticCls : '');
+  ps.innerHTML = '<div class="prec"><span class="prow">' + (staticCls ? _odoStaticHtml(newS) : _odoRollHtml(oldS, newS, dir, prefix)) + '</span></div><div class="pold">' + oldS + '</div>';
+  c.appendChild(ps);
+  const ap = document.createElement('div'); ap.className = 'apcheck'; ap.innerHTML = CHECK; c.appendChild(ap);
+  return c;
+}
+function lmCell(stage, cur, pct, staticNow, extraCls) {
+  const neu = Math.round(cur * (1 - pct/100));
+  const c = cell(stage, 'opt-flag opt-focus has-odo plain ' + (extraCls || ''), '<div class="price-val">$' + cur + '</div>');
+  let pit = ''; for (let v = neu; v <= cur; v++) pit += '<i>' + v + '</i>';
+  let cit = ''; for (let n = 0; n <= pct; n++) cit += '<i>' + n + '</i>';
+  const ps = document.createElement('div'); ps.className = 'pstack pstack-lm' + (staticNow ? ' lm-static' : '');
+  ps.style.setProperty('--lmpy', (-(cur - neu)*16) + 'px'); ps.style.setProperty('--lmcy', (-pct*16) + 'px');
+  ps.innerHTML = '<div class="prec lmprice">$<span class="lmreel"><span class="lmpstack"' + (staticNow ? ' style="transform:translateY(0px)"' : '') + '>' + pit + '</span></span></div>'
+    + '<div class="lmpct">−<span class="lmreel"><span class="lmcstack"' + (staticNow ? ' style="transform:translateY(' + (-pct*16) + 'px)"' : '') + '>' + cit + '</span></span>%</div>';
+  c.appendChild(ps);
+  const ap = document.createElement('div'); ap.className = 'apcheck'; ap.innerHTML = CHECK; c.appendChild(ap);
+  return c;
+}
+function subCell(stage, price, disc, staticNow) {
+  const c = cell(stage, 'opt-flag opt-focus has-sub plain', '<div class="price-val">$' + price + '</div>');
+  const s = document.createElement('div'); s.className = 'subreveal' + (staticNow ? ' is-static' : ''); s.textContent = disc; c.appendChild(s);
+  const ap = document.createElement('div'); ap.className = 'apcheck'; ap.innerHTML = CHECK; c.appendChild(ap);
+  return c;
+}
+
+/* ── 1 · plain-cell rolls ── */
+demo('s1', '1.1', 'Odometer', 'One number on a normal cell. Only the digit places that change roll; up rolls up, down rolls down.', 'odoRollUp/Dn N', st => plainOdo(st, '$276', '$318', 'up'),
+  { buttons: { 'Price up': st => plainOdo(st, '$276', '$318', 'up'), 'Price down': st => plainOdo(st, '$318', '$276', 'dn') } });
+demo('s1', '1.2', 'Discount (split)', 'The price splits: the new value lifts to the top slot and rolls, the old value sinks below, struck.', 'odoRec · odoOld · odoRollUp/Dn', st => plainSplit(st, '$276', '$248', 'dn'),
+  { buttons: { 'Price up': st => plainSplit(st, '$276', '$318', 'up'), 'Price down': st => plainSplit(st, '$276', '$248', 'dn') } });
+demo('s1', '1.3', 'Minimum nights', 'Same split with the "Min" prefix.', 'makeMinStack · odoRollUp/Dn', st => plainSplit(st, 'Min 7', 'Min 5', 'dn', 'Min ', 'opt-min'),
+  { buttons: { 'Min up': st => plainSplit(st, 'Min 2', 'Min 3', 'up', 'Min ', 'opt-min'), 'Min down': st => plainSplit(st, 'Min 7', 'Min 5', 'dn', 'Min ', 'opt-min') } });
+
+/* ── one demo per distinct animation; desc = where it's used ── */
+function applyAfter(c, ms) { setTimeout(() => c.classList.add('opt-applied'), ms); }
+demo('s2', '2.1', 'Price roll', 'Tips mode · focused price raise, price lower and minimum-nights opportunities.', '', st => odoCell(st, '$276', '$318', 'up'));
+demo('s3', '3.1', 'Two-reel discount', 'Tips mode · last-minute discount opportunities.', '', st => lmCell(st, 276, 12));
+demo('s4', '4.1', 'Line slides in under price', 'Tips mode · promotion and early-bird discount opportunities.', '', st => subCell(st, 276, '−10%'));
+demo('s5', '5.1', 'Apply blink + check', 'Tips mode · every focused opportunity cell when Apply is tapped (price, min nights, last-minute, promo).', '', st => applyAfter(odoCell(st, '$276', '$318', 'up'), 1900));
+demo('s6', '6.1', 'Shimmer sweep', 'Tips scan (left → right by column) and Automate-groups scan (top → bottom by row).', '', st => { const r = document.createElement('div'); r.className = 'scanrow'; st.appendChild(r); for (let i = 0; i < 6; i++) { const c = cell(r, 'scanning', '<div class="price-val">$2' + (60 + i*3) + '</div>'); c.style.setProperty('--swd', (i*0.12) + 's'); } }, { wide: true });
+demo('s7', '7.1', 'Select', 'Calendar · tapping any open cell.', '', st => { const c = cell(st, '', '<div class="price-val">$276</div>'); setTimeout(() => c.classList.add('selected'), 400); });
+demo('s8', '8.1', 'Line in, line out', 'Calendar · selected cells while the Min-nights menu is open, and the Promotions menu swap (−N% replaces min N).', '', st => { const c = cell(st, 'qa', '<div class="price-val">$276</div><div class="min-badge">min 3</div>'); setTimeout(() => c.classList.add('selected'), 400); setTimeout(() => { c.classList.remove('selected'); c.classList.add('sel-out'); }, 1900); });
+demo('s9', '9.1', 'Value roll', 'Pricing mode · any % or $ sub-cell when its value changes (down enters from above, up from below).', '', st => { const d = document.createElement('div'); d.className = 'settings-sub-cell'; d.innerHTML = '<div class="lbl">Low</div><div class="val">0%</div>'; st.appendChild(d); const v = d.querySelector('.val'); setTimeout(() => { v.textContent = '−15%'; v.style.color = '#222'; v.classList.add('roll-down'); }, 500); setTimeout(() => { v.classList.remove('roll-down'); v.textContent = '+10%'; v.style.color = ''; v.classList.add('roll-up'); }, 1700); });
+
+</script>
+</body>
+</html>

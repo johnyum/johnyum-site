@@ -4,83 +4,71 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>12dq1</title>
-<!-- THE SIDE TOOLS (John, 2026-10-06) — after the Figma, before the board: a wall of the things built on the side to work a problem
-     out — option pages, review galleries, contact sheets, motion studies, the little HTML helpers Claude threw up so a decision
-     could be looked at rather than argued. assets/sidework/: 38 grabs, captured headless from the pages themselves (the calendar
-     mocks, the July prototype's review pages, the iOS walkthrough, the Moby Dick layer tests, the fee email) and the option sheets
-     from the research folder and the session scratchpads. Masonry on a 14-column sheet (121 + 16), each at its own proportion, no
-     crops — a page 2 across, a phone 1, a strip 3 — packed skyline-style in a fixed-seed shuffle, so the mix is the same every
-     time. The wall is a little larger than the screen (it bleeds, so the chrome takes its pills) and arrives on entry one piece
-     after another, left to right down the sheet, like windows opening — no tap. -->
+<!-- THE SIDE STUDIES (John, 2026-10-06) — after the Figma, before the board: the studies built on the side of the calendar to work
+     a question out — "different models, the deck, graph charts, iterations of quick actions". Not pictures of them: THE PAGES
+     THEMSELVES, live, one to a tap, each in a window fitted to the stage (16 corners, the deck's clearances), scrolled with the
+     wheel and worked with the pointer. Seven, in the order they were made (assets/studies/, from calendar-mocks.zip):
+       1 cell animations — every way a cell can move: odometer, discount split, min nights, last-minute reel, apply, scan, select
+       2 graph studies — the opportunities graph five ways, with live controls (fluid tube, straight line + pills, area, ridge, bars)
+       3 cell & opportunity system — every cell state and every opportunity modal
+       4 tip cards — six ways the chat can serve a tip (a card, a mini month, inline settings, a daily brief, a conversation, a rule)
+       5 chat to dates motion — seven now-vs-proposed motion pairs
+       6 repeat settings review — the overlap write-up
+       7 repeat settings mock — five phone screens
+     Cereal comes from /multi/Font_Cereal/, the copy the site already serves — no second copy of the font ships with these.
+     Interactive (window.presoInteractive): the deck's taps keep to its 32px rails, the keys still step. presoNext/Prev walk the
+     studies; presoRestore(n) lands on one; presoEnd on the last. -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
-  .sheet { position: relative; flex: none; transform: scale(var(--s, 1)); transform-origin: center; }
-  .tile { position: absolute; border-radius: 10px; overflow: hidden; border: 1px solid #e5e7eb; background: #fff; opacity: 0; transform: translateY(10px) scale(.97); transition: opacity .45s ease, transform .55s cubic-bezier(.22,1,.36,1); transition-delay: var(--d, 0s); }
-  .tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
-  .built .tile { opacity: 1; transform: none; }
+  .win { position: absolute; flex: none; border-radius: 16px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,.08), 0 24px 60px -24px rgba(0,0,0,.18); background: #fff; opacity: 0; transform: translateY(12px) scale(.985); transition: opacity .42s ease, transform .5s cubic-bezier(.22,1,.36,1); pointer-events: none; }
+  .win.on { opacity: 1; transform: none; pointer-events: auto; }
+  .win iframe { display: block; border: 0; width: 100%; height: 100%; background: #fff; }
+  .tag { position: fixed; left: 50%; transform: translateX(-50%); font: 12px/1 "IBM Plex Mono", ui-monospace, monospace; color: #6b7280; letter-spacing: .02em; white-space: nowrap; opacity: 0; transition: opacity .3s ease; }
+  .tag.on { opacity: 1; }
 </style>
 </head>
 <body>
-  <div class="stage"><div class="sheet" id="sheet"></div></div>
+  <div class="stage" id="stage"></div>
+  <div class="tag" id="tag"></div>
 <script>
 (() => {
-  const sheet = document.getElementById('sheet'), A = 'assets/sidework/';
-  const COLS = 14, C = 121, G = 16, SW = COLS * C + (COLS - 1) * G;
-  // [name, natural w, natural h, columns across] — the height follows from the proportion, so nothing is cropped
-  const P = (n) => [n, 1200, 750, 2], PH = (n) => [n, 555, 1200, 1];
-  const items = [
-    P('mock-graph-studies'), P('mock-cell-system'), P('mock-chat-to-dates'), P('mock-tip-cards'), P('mock-repeat-review'), P('mock-cell-animations'),
-    PH('mock-repeat-Main'), PH('mock-repeat-Night'), PH('mock-repeat-Save'), PH('mock-repeat-Settings'),
-    P('proto-event_gallery'), P('proto-icons_matrix'), P('proto-icons_review'), P('proto-master_icons'), P('proto-opps_modal_gallery'), P('proto-pshot_preview'), P('proto-xmas_anim_preview'),
-    P('ios-walkthrough'), P('est-v'), P('moby-head'), P('moby-tail'), P('fee-email'), P('spidey-meshy'), P('claude-icons-compare'),
-    ['proto-event-contact-sheet', 840, 700, 2], ['proto-holiday-contact-sheet', 1200, 1037, 2], ['proto-holiday-pairs', 460, 848, 1],
-    ['research-moby-options', 1200, 400, 3], ['research-egg-options', 1200, 528, 2], ['research-cook-clock-options', 1200, 660, 2], ['research-brisket-set', 1200, 400, 3],
-    ['sheet-iterations-0', 936, 1200, 1], ['sheet-holidays', 1200, 1200, 2], ['sheet-bots', 1200, 392, 3], ['sheet-insurance', 1023, 341, 3], ['tools-all', 1200, 400, 3],
-    ['tidepool-cards', 1024, 1024, 1], ['fee-complete', 587, 1200, 1],
+  const A = 'assets/studies/';
+  const STUDIES = [
+    ['01-cell-animations.html', 'cell animations · every way a cell can move', 1200],
+    ['02-graph-studies.html', 'opportunities graph · five models, live controls', 1200],
+    ['03-cell-system.html', 'cell & opportunity system · every state, every modal', 1240],
+    ['04-tip-cards.html', 'tip cards · six ways the chat can serve a tip', 1200],
+    ['05-chat-to-dates-motion.html', 'chat to dates · seven motion pairs, now vs proposed', 1200],
+    ['06-repeat-settings-review.html', 'repeat settings · the overlap review', 1100],
+    ['07-repeat-settings-mock.html', 'repeat settings · five screens', 1300],
   ];
-  // skyline masonry, gap-filling: find the lowest run of level columns on the sheet, put there the widest remaining piece that fits
-  // it (the first in the shuffle among those), left-aligned; a run nothing fits is lifted to its lower neighbour and given up —
-  // so the sheet fills bottom-up from its lowest point and the white pockets a plain lowest-column rule leaves don't open
-  const pack = (seed) => {
-    const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-    const left = items.slice(); for (let i = left.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [left[i], left[j]] = [left[j], left[i]]; }
-    const top = new Array(COLS).fill(0), tiles = []; let hole = 0;
-    while (left.length) {
-      let c0 = 0; for (let c = 1; c < COLS; c++) if (top[c] < top[c0]) c0 = c;
-      let c1 = c0; while (c1 + 1 < COLS && top[c1 + 1] === top[c0]) c1++;
-      const run = c1 - c0 + 1, fits = left.filter((it) => it[3] <= run);
-      if (!fits.length) { const l = c0 > 0 ? top[c0 - 1] : Infinity, r = c1 + 1 < COLS ? top[c1 + 1] : Infinity, to = Math.min(l, r); hole += (to - top[c0]) * run; for (let c = c0; c <= c1; c++) top[c] = to; continue; }
-      const pick = fits.reduce((a, b) => (b[3] > a[3] ? b : a)); left.splice(left.indexOf(pick), 1);
-      const [n, w, h, span] = pick, tw = span * C + (span - 1) * G, th = Math.round(tw * h / w), y = top[c0];
-      for (let c = c0; c < c0 + span; c++) top[c] = y + th + G;
-      tiles.push({ src: A + n + '.webp', x: c0 * (C + G), y, w: tw, h: th });
-    }
-    const SH = Math.max(...top) - G, rag = top.reduce((a, v) => a + (SH + G - v), 0);   // the holes given up, and the raggedness of the bottom edge
-    return { tiles, SH, cost: hole + rag };
+  const stage = document.getElementById('stage'), tag = document.getElementById('tag');
+  // every study is loaded once, up front, in its own window; only the current one is shown — a step back is instant and keeps
+  // where you had scrolled to
+  const wins = STUDIES.map(([f]) => { const w = document.createElement('div'); w.className = 'win'; w.innerHTML = `<iframe src="${A + f}" title="${f}" loading="eager"></iframe>`; stage.append(w); return w; });
+  let step = 0;
+  const band = () => {
+    let top = 0, bottom = innerHeight;
+    try { const pd = window.parent.document, k = pd.getElementById('kicker'), c = pd.getElementById('counter');
+          if (k) top = k.getBoundingClientRect().bottom + 40; if (c) bottom = c.getBoundingClientRect().top - 40; } catch (_) {}
+    return { top, bottom, h: Math.max(200, bottom - top) };
   };
-  // the same wall every time: of two hundred shuffles the one with the least white — given-up holes and a ragged bottom — is the one drawn
-  let best = null; for (let s = 1; s <= 200; s++) { const p = pack(s); if (!best || p.cost < best.cost) best = p; }
-  const { tiles, SH } = best;
-  sheet.style.width = SW + 'px'; sheet.style.height = SH + 'px';
-  // drawn in the order they were laid — a cascade of windows opening, 55ms apart
-  tiles.forEach((t, i) => {
-    const el = document.createElement('div'); el.className = 'tile';
-    el.style.left = t.x + 'px'; el.style.top = t.y + 'px'; el.style.width = t.w + 'px'; el.style.height = t.h + 'px';
-    el.style.setProperty('--d', (0.15 + i * 0.055).toFixed(3) + 's');
-    el.innerHTML = `<img src="${t.src}" alt="" draggable="false" loading="eager">`;
-    sheet.append(el);
-  });
-  // THE FIT: the wall a little larger than the screen, centred — it bleeds off every edge, as the board after it does
-  const fit = () => { sheet.style.setProperty('--s', (Math.max(innerWidth / SW, innerHeight / SH) * 1.04).toFixed(4)); };
-  fit(); addEventListener('resize', fit);
-  // built when the slide comes ON STAGE (the deck says 'presoshown' then), not when it's preloaded in the wings — or the cascade
-  // would have played unseen and the wall arrive already built; opened on its own, outside the deck, it builds on load
-  let built = false; const build = () => { if (built) return; built = true; requestAnimationFrame(() => requestAnimationFrame(() => sheet.classList.add('built'))); };
-  addEventListener('presoshown', build); if (window.parent === window) build();
-  window.presoBleed = true;   // the wall runs under the deck's chrome: the kicker and nav take their pills
-  window.presoRestore = () => { sheet.querySelectorAll('.tile').forEach((t) => t.style.transition = 'none'); sheet.classList.add('built'); requestAnimationFrame(() => sheet.querySelectorAll('.tile').forEach((t) => t.style.transition = '')); };
-  window.presoEnd = () => window.presoRestore();
+  // THE WINDOW: as wide as the study was drawn for (so nothing reflows), as tall as the band — the page scrolls inside it; on a
+  // stage too narrow for that, the window is the stage less the margins and the page reflows as it would in a narrower browser
+  const fit = () => {
+    const b = band();
+    wins.forEach((w, i) => { const wd = Math.min(STUDIES[i][2], innerWidth - 64); w.style.width = wd + 'px'; w.style.height = b.h + 'px'; w.style.left = Math.round((innerWidth - wd) / 2) + 'px'; w.style.top = Math.round(b.top) + 'px'; });
+    tag.style.top = Math.round(b.bottom + 14) + 'px';
+  };
+  const show = () => { wins.forEach((w, i) => w.classList.toggle('on', i === step)); tag.textContent = (step + 1) + ' / ' + STUDIES.length + '   ' + STUDIES[step][1]; tag.classList.add('on'); };
+  fit(); show(); addEventListener('resize', fit); new ResizeObserver(fit).observe(document.documentElement);   // the deck sizes its frames after they load, and not always with a resize event
+  window.presoInteractive = true;   // the studies are worked with the pointer: the deck's taps keep to its rails
+  window.presoNext = () => { if (step >= STUDIES.length - 1) return false; step++; show(); return true; };
+  window.presoPrev = () => { if (step <= 0) return false; step--; show(); return true; };
+  window.presoState = () => step;
+  window.presoRestore = (n) => { step = Math.max(0, Math.min(STUDIES.length - 1, n | 0)); wins.forEach((w) => w.style.transition = 'none'); show(); requestAnimationFrame(() => wins.forEach((w) => w.style.transition = '')); };
+  window.presoEnd = () => window.presoRestore(STUDIES.length - 1);
 })();
 </script>
 </body>

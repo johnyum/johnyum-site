@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cell &amp; Opportunity System — Multi-Host Calendar</title>
+<style>
+@font-face { font-family:'Cereal'; src:url(/multi/Font_Cereal/AirbnbCerealVF_Wght.ttf) format('truetype'); font-weight:100 900; font-style:normal; }
+:root{
+  --grey-100:#F7F7F7; --grey-200:#EBEBEB; --grey-300:#DDDDDD; --grey-400:#C2C2C2; --grey-500:#B0B0B0;
+  --grey-600:#8C8C8C; --grey-700:#717171; --ink:#222;
+  --green:#038026; --green-700:#117C35; --green-wash:rgba(48,209,88,0.12); --green-chk:#30D158;
+  --orange:#BE4900; --orange-wash:rgba(235,97,0,0.12); --orange-chk:#EB6100;
+}
+*{box-sizing:border-box;}
+body{ margin:0; font-family:'Cereal',sans-serif; color:var(--ink); background:#F4F4F5; -webkit-font-smoothing:antialiased; }
+.wrap{ max-width:1200px; margin:0 auto; padding:44px 36px 160px; }
+h1{ font-size:32px; font-weight:600; margin:0 0 6px; letter-spacing:-.01em; }
+.sub{ font-size:15px; color:var(--grey-700); line-height:1.55; margin:0; max-width:820px; }
+
+/* ── top: core spec + colour legend, sticky so it's always readable ── */
+.core{ position:sticky; top:0; z-index:20; margin:22px -36px 0; padding:16px 36px; background:rgba(244,244,245,.9);
+  backdrop-filter:blur(8px); border-bottom:1px solid var(--grey-300); display:flex; flex-wrap:wrap; gap:10px 26px; align-items:center; }
+.core .grp{ display:flex; align-items:center; gap:9px; font-size:13px; }
+.core .lbl{ font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--grey-600); margin-right:2px; }
+.core .dot{ width:15px; height:15px; border-radius:5px; display:inline-block; flex-shrink:0; }
+.core .ring-dot{ width:16px; height:16px; border:2px solid var(--grey-400); border-radius:5px; display:inline-block; }
+.core b{ font-weight:600; }
+.core .rule{ width:100%; font-size:12.5px; color:var(--grey-700); }
+.core .rule b{ color:var(--ink); }
+
+/* ── sections ── */
+.section{ margin-top:44px; }
+.sec-h{ display:flex; align-items:baseline; gap:12px; margin:0 0 4px; }
+.sec-h h2{ font-size:19px; font-weight:600; margin:0; }
+.sec-h .num{ font-size:13px; font-weight:700; color:var(--grey-500); }
+.sec-note{ font-size:13.5px; color:var(--grey-700); margin:0 0 18px; max-width:840px; line-height:1.5; }
+
+/* ── opportunity block: modal on the left, all cell states on the right ── */
+.opp{ background:#fff; border:1px solid var(--grey-300); border-radius:20px; padding:22px 24px; margin-bottom:20px; }
+.opp-top{ display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+.opp-top .name{ font-size:16px; font-weight:600; }
+.chip{ font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:3px 9px; border-radius:999px; }
+.chip.green{ background:#E6F2E9; color:var(--green); } .chip.orange{ background:#FBEADD; color:var(--orange); }
+.chip.grey{ background:var(--grey-200); color:var(--grey-700); }
+.opp-top .playrow{ margin-left:auto; }
+.opp-body{ display:grid; grid-template-columns:340px 1fr; gap:26px; align-items:start; }
+@media(max-width:960px){ .opp-body{ grid-template-columns:1fr; } }
+.modal-col .col-lbl, .cells-col .col-lbl{ font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--grey-600); margin:0 0 12px; }
+.cells{ display:flex; flex-wrap:wrap; gap:20px; }
+
+/* ── a cell tile: the cell on a stage + play button + caption ── */
+.tile{ width:132px; cursor:pointer; }
+.stage{ position:relative; height:118px; display:flex; align-items:center; justify-content:center;
+  background:var(--grey-100); border-radius:16px; transition:outline .1s ease, background .1s ease; outline:2px solid transparent; outline-offset:2px; }
+.tile:hover .stage{ outline-color:var(--grey-400); }
+.tile:active .stage{ background:var(--grey-200); }
+.tile.copied .stage{ outline-color:var(--green); }
+.pill.copyable{ cursor:pointer; }
+.pill.copied{ outline:2px solid var(--green-chk); outline-offset:3px; }
+#_toast{ position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(10px); background:var(--ink); color:#fff;
+  font-size:13px; font-weight:500; padding:10px 16px; border-radius:999px; opacity:0; pointer-events:none; z-index:100;
+  transition:opacity .18s ease, transform .18s ease; box-shadow:0 6px 24px rgba(0,0,0,.25); }
+#_toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+.tcap{ font-size:13px; font-weight:600; margin:10px 0 2px; }
+.tspec{ font-size:12px; color:var(--grey-700); line-height:1.4; }
+.tspec .k{ color:var(--ink); font-weight:500; }
+.playall{ font-size:12px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--grey-300);
+  border-radius:999px; padding:7px 14px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+.playall:hover{ background:var(--grey-100); }
+
+/* ── decision callout ── */
+.decide{ margin:16px 0 0; padding:12px 16px; background:#FFF8E6; border:1px solid #F3E2B0; border-radius:12px;
+  font-size:13px; color:#6B5307; line-height:1.5; }
+.decide b{ color:#4A390A; }
+
+/* ═══ THE CELL — 104×96, 12px radius, 14px type, 2px between lines (the CORE) ═══ */
+.cell{ position:relative; width:104px; height:96px; border:1px solid var(--grey-300); border-radius:12px; background:#fff;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
+.cell .pv{ font-size:14px; line-height:18px; color:var(--ink); }
+.cell .sub2{ font-size:14px; line-height:18px; color:var(--grey-700); height:18px; }
+.cell .sub2 s{ color:var(--ink); margin-right:4px; }
+.cell .sub2 .nw{ color:var(--green); }
+.cell .date{ position:absolute; bottom:8px; left:9px; font-size:12px; color:var(--grey-500); }
+/* default variants */
+.cell.past .pv{ color:var(--grey-400); }
+.cell.blocked{ background:var(--grey-100); border-color:var(--grey-200); }
+.cell.blocked .pv{ text-decoration:line-through; text-decoration-color:var(--ink); }
+.cell.closedwin,.cell.minclosed{ background:#F2F2F2; border-color:#E8E8E8; }
+.cell.closedwin .pv,.cell.minclosed .pv{ text-decoration:line-through; text-decoration-color:var(--grey-600); color:var(--grey-600); }
+.cell .tip{ position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
+  font-size:12px; white-space:nowrap; padding:6px 10px; border-radius:8px; opacity:0; transition:opacity .15s; pointer-events:none; }
+.cell:hover .tip{ opacity:1; }
+.cell.xmark::before,.cell.xmark::after{ content:''; position:absolute; top:50%; left:50%; width:13px; height:1.5px; border-radius:2px; background:var(--grey-600); }
+.cell.xmark::before{ transform:translate(-50%,-50%) rotate(45deg); } .cell.xmark::after{ transform:translate(-50%,-50%) rotate(-45deg); }
+.cell.disc-green .pv,.cell.disc-green .sub2{ color:var(--green); }
+.cell.disc-orange .pv,.cell.disc-orange .sub2{ color:var(--orange); }
+/* booked pill */
+.bk{ width:118px; height:56px; border-radius:16px; background:var(--ink); display:flex; align-items:center; gap:8px; padding:0 12px 0 5px; }
+.bk .av{ width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,#666,#333); flex-shrink:0; }
+.bk .nm{ color:#fff; font-size:14px; }
+
+/* ── wavy ring ── */
+.ring{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; overflow:visible; }
+.ring path{ fill:none; stroke-width:1; stroke-linecap:round; stroke-linejoin:round; }
+.ring .wfill{ stroke:none; }
+
+/* ── the rolling price reel (odometer) ── */
+.reel{ height:18px; line-height:18px; overflow:hidden; display:inline-block; vertical-align:bottom; }
+.reel .strip{ display:block; }
+.reel i{ display:block; height:18px; font-size:14px; font-style:normal; }
+.reel .old{ color:var(--ink); } .reel .new.g{ color:var(--green); } .reel .new.o{ color:var(--orange); }
+.strip.up{ transform:translateY(-18px); }   /* rest shows NEW (bottom child) */
+.strip.down{ transform:translateY(0); }      /* rest shows NEW (top child) */
+.cell.anim .strip.up{ animation:rollUp .85s cubic-bezier(.16,1,.3,1) both; }
+.cell.anim .strip.down{ animation:rollDown 1s cubic-bezier(.16,1,.3,1) 1.25s both; }
+@keyframes rollUp{ from{transform:translateY(0);} to{transform:translateY(-18px);} }
+@keyframes rollDown{ from{transform:translateY(-18px);} to{transform:translateY(0);} }
+/* the "-N%" line counts in first, before the price drops (lower plays) */
+.cell .pct{ font-size:14px; line-height:18px; height:18px; color:var(--grey-700); }
+.cell.anim .pct{ animation:fadeUp .5s cubic-bezier(.22,1,.36,1) .15s both; }
+/* struck-old line + min line reveal */
+.cell.anim .revsub{ animation:fadeUp .45s ease .45s both; }
+@keyframes fadeUp{ from{opacity:0; transform:translateY(-3px);} to{opacity:1; transform:translateY(0);} }
+/* APPLIED commit — wash fades in, ring settles, price recenters */
+.cell.applied .ring .wfill{ opacity:1; }
+.cell.applied.anim .ring .wfill{ animation:washIn .5s ease both; }
+.cell.applied.anim .ring .wpath{ animation:strokePulse .5s ease both; }
+@keyframes washIn{ from{opacity:0;} to{opacity:1;} }
+@keyframes strokePulse{ 0%{opacity:.4;} 100%{opacity:1;} }
+/* untapped: gentle ring breathe on play */
+.cell.untapped.anim .ring{ animation:breathe .9s ease both; }
+@keyframes breathe{ 0%{opacity:.25;} 60%{opacity:1;} 100%{opacity:1;} }
+
+/* ═══ THE PILL / MODAL ═══ */
+.pill{ display:inline-flex; align-items:center; gap:14px; background:#0F0F0F; border-radius:999px; padding:10px 12px; color:#fff; }
+.pill .nav{ width:48px; height:48px; border-radius:50%; background:#333; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0; }
+.pill .nav svg{ width:22px; height:22px; }
+.pill .body{ min-width:190px; padding:0 2px; }
+.pill .hd{ font-size:15px; font-weight:600; }
+.pill .mg{ font-size:12px; color:var(--grey-500); margin-top:3px; }
+.pill .mg .hl{ color:var(--green-chk); } .pill .mg .hl.lo{ color:#F3A86A; }
+.pill .cta{ display:inline-flex; align-items:center; gap:8px; height:48px; padding:0 22px; border-radius:999px; background:transparent; border:1px solid var(--grey-700); color:#fff; font-size:15px; font-weight:500; flex-shrink:0; cursor:pointer; } /* outlined ghost — matches the real Apply */
+.pill .cta-solid{ background:#fff; color:#0F0F0F; border:0; font-weight:600; } /* white pill — idle Opportunities / Automate groups */
+.pill .cta .wand{ width:20px; height:20px; }
+.pill .check{ min-width:112px; height:48px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+.pill .check.g{ border:1.5px solid var(--green-chk); color:var(--green-chk); background:rgba(48,209,88,.14); }
+.pill .check.o{ border:1.5px solid var(--orange-chk); color:var(--orange-chk); background:rgba(235,97,0,.14); }
+.pill .check svg{ width:24px; height:24px; }
+.pill .done{ min-width:96px; height:48px; border-radius:24px; background:#fff; color:#0F0F0F; font-size:15px; font-weight:600; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+.pill .x{ width:32px; height:32px; border-radius:50%; background:#333; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.pill.circle{ width:72px; height:72px; border-radius:50%; padding:0; justify-content:center; }
+.pill .dots{ display:inline-flex; gap:6px; } .pill .dots i{ width:7px; height:7px; border-radius:50%; background:#fff; display:block; animation:dotp 1s ease infinite; }
+.pill .dots i:nth-child(2){ animation-delay:.15s; } .pill .dots i:nth-child(3){ animation-delay:.3s; }
+@keyframes dotp{ 0%,100%{opacity:.3;} 50%{opacity:1;} }
+.pill-lbl{ font-size:12px; font-weight:600; color:var(--grey-700); margin:0 0 8px; }
+.pill-stack{ display:flex; flex-direction:column; gap:18px; }
+.pill-item .cap{ font-size:12.5px; color:var(--grey-700); margin:8px 0 0; max-width:520px; line-height:1.45; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Cell &amp; Opportunity System</h1>
+  <p class="sub">The eagle-eye reference. Default cells first, then one block per opportunity type — its <b>modal</b> beside <b>every cell state</b> it produces. <b>Tap any cell (or modal) to copy its name</b> so you can tell me exactly which one you mean. The layout &amp; core (14px type · 2px between lines · wavy ring) are locked; use this to lock the <b>colour</b> &amp; <b>content</b> decisions, then we re-implement cleanly against it. <em>(Animations live in the real app — not shown here.)</em></p>
+
+  <!-- CORE SPEC + LEGEND (sticky) -->
+  <div class="core">
+    <span class="grp"><span class="lbl">Ring</span><span class="ring-dot" style="border-color:var(--grey-400)"></span> <b>untapped</b> grey-400</span>
+    <span class="grp"><span class="dot" style="background:var(--green)"></span> <b>GREEN</b> = raise / earn more</span>
+    <span class="grp"><span class="dot" style="background:var(--orange)"></span> <b>ORANGE</b> = lower / discount</span>
+    <span class="grp"><span class="dot" style="background:var(--ink)"></span> <b>black</b> = base &amp; struck-old</span>
+    <span class="grp"><span class="dot" style="background:var(--grey-600)"></span> <b>grey</b> = closed / blocked</span>
+    <span class="rule"><b>Core (locked):</b> cell 104×96, 12px radius · top &amp; bottom lines both <b>14px</b>, <b>2px</b> between · wavy ring 1px · secondary labels 12px. &nbsp; <b>One colour per cell, never mixed.</b></span>
+  </div>
+
+  <!-- DEFAULT CELLS -->
+  <div class="section">
+    <div class="sec-h"><span class="num">00</span><h2>Default cells</h2></div>
+    <p class="sec-note">Everything you see on the normal calendar, no opportunity focused. These are the resting states the opportunity treatments sit on top of.</p>
+    <div class="opp"><div class="cells" id="secDefault"></div></div>
+  </div>
+
+  <!-- OPPORTUNITY SECTIONS -->
+  <div class="section">
+    <div class="sec-h"><span class="num">01</span><h2>Opportunity types</h2></div>
+    <p class="sec-note">Each block: the <b>modal</b> for that opp on the left, its <b>cell lifecycle</b> on the right — <b>Untapped → Selected → Applied → Subdued</b> (applied but you've navigated to another card). Tap ▶ to play.</p>
+    <div id="secOpps"></div>
+  </div>
+
+  <!-- PILL LIFECYCLE -->
+  <div class="section">
+    <div class="sec-h"><span class="num">02</span><h2>Modal lifecycle</h2></div>
+    <p class="sec-note">The floating pill across a full session, independent of card type.</p>
+    <div class="opp"><div class="pill-stack" id="secPill"></div></div>
+  </div>
+</div>
+
+<script>
+/* ── wavy ring (real sineRingPath from the app) ─────────────────────────────── */
+function sineRingPath(w,h,amp,phase,N){const inset=2,rc=11,W=w-2*inset,H=h-2*inset;const sh=W-2*rc,sv=H-2*rc,qa=Math.PI*rc/2,P=2*sh+2*sv+4*qa;const k=N*2*Math.PI/P;const pt=s=>{if(s<sh)return[inset+rc+s,inset,0,-1];s-=sh;if(s<qa){const a=-Math.PI/2+s/rc,cx=w-inset-rc,cy=inset+rc;return[cx+rc*Math.cos(a),cy+rc*Math.sin(a),Math.cos(a),Math.sin(a)];}s-=qa;if(s<sv)return[w-inset,inset+rc+s,1,0];s-=sv;if(s<qa){const a=s/rc,cx=w-inset-rc,cy=h-inset-rc;return[cx+rc*Math.cos(a),cy+rc*Math.sin(a),Math.cos(a),Math.sin(a)];}s-=qa;if(s<sh)return[w-inset-rc-s,h-inset,0,1];s-=sh;if(s<qa){const a=Math.PI/2+s/rc,cx=inset+rc,cy=h-inset-rc;return[cx+rc*Math.cos(a),cy+rc*Math.sin(a),Math.cos(a),Math.sin(a)];}s-=qa;if(s<sv)return[inset,h-inset-rc-s,-1,0];s-=sv;const a=Math.PI+s/rc,cx=inset+rc,cy=inset+rc;return[cx+rc*Math.cos(a),cy+rc*Math.sin(a),Math.cos(a),Math.sin(a)];};let d='';const step=2,n=Math.ceil(P/step);for(let i=0;i<=n;i++){const s=Math.min(i*step,P-.01);const[x,y,nx,ny]=pt(s);const o=amp*Math.sin(k*s+phase);d+=(i?'L':'M')+(x+nx*o).toFixed(1)+' '+(y+ny*o).toFixed(1);}return d+'Z';}
+function ringSVG(stroke,fill){const w=104,h=96,ns='http://www.w3.org/2000/svg';const svg=document.createElementNS(ns,'svg');svg.setAttribute('class','ring');svg.setAttribute('viewBox','0 0 '+w+' '+h);const d=sineRingPath(w,h,2,0,Math.max(6,Math.round((2*(w-26)+2*(h-26))/12)));const f=document.createElementNS(ns,'path');f.setAttribute('class','wfill');f.setAttribute('d',d);f.setAttribute('fill',fill||'transparent');svg.appendChild(f);const p=document.createElementNS(ns,'path');p.setAttribute('class','wpath');p.setAttribute('d',d);p.setAttribute('stroke',stroke);svg.appendChild(p);return svg;}
+
+const PLAYICON='<svg viewBox="0 0 12 12" fill="currentColor"><path d="M2 1.5v9l8-4.5z"/></svg>';
+const WAND='<svg class="wand" viewBox="0 0 16 16" fill="none"><path fill="#fff" d="M12.2 2.86l.94.93c.39.39.39 1.02 0 1.41L3.2 15.14a1 1 0 01-1.41 0l-.93-.93a1 1 0 010-1.42L10.79 2.86a1 1 0 011.42 0zM8.5 6.85L1.85 13.5l.65.65 6.65-6.65-.65-.65z"/><path fill="#30D158" d="M14 7l.5 1 1 .5-1 .5-.5 1-.5-1-1-.5 1-.5.5-1z"/></svg>';
+const WAND_DARK=WAND.replace('fill="#fff"','fill="#0F0F0F"'); /* dark-body wand for white (solid) buttons */
+const CHECK='<svg viewBox="0 -960 960 960" fill="currentColor"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>';
+const CHEV_L='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 6 9 12 15 18"/></svg>';
+const CHEV_R='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 6 15 12 9 18"/></svg>';
+
+/* tap anything → copy its name (so the user can point at an exact state) */
+function toast(msg){ let t=document.getElementById('_toast'); if(!t){ t=document.createElement('div'); t.id='_toast'; document.body.appendChild(t); } t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),1500); }
+function copyName(name,el){ let ok=false;
+  try{ const ta=document.createElement('textarea'); ta.value=name; ta.style.cssText='position:fixed;opacity:0;top:0'; document.body.appendChild(ta); ta.select(); ok=document.execCommand('copy'); ta.remove(); }catch(e){}
+  if(!ok && navigator.clipboard){ try{ navigator.clipboard.writeText(name); ok=true; }catch(e){} }
+  toast((ok?'Copied: ':'Name: ')+'“'+name+'”');
+  if(el){ el.classList.add('copied'); setTimeout(()=>el.classList.remove('copied'),650); } }
+function tile(parent,cap,spec,cell,name){ const t=document.createElement('div'); t.className='tile'; t.dataset.name=name||cap;
+  const st=document.createElement('div'); st.className='stage'; st.appendChild(cell); t.appendChild(st);
+  const c=document.createElement('div'); c.className='tcap'; c.textContent=cap; t.appendChild(c);
+  const s=document.createElement('div'); s.className='tspec'; s.innerHTML=spec; t.appendChild(s);
+  t.addEventListener('click',()=>copyName(t.dataset.name,t)); parent.appendChild(t); return cell; }
+
+/* ── generic cell builders ── */
+function baseCell(cls,inner,ring){ const c=document.createElement('div'); c.className='cell '+(cls||''); if(ring) c.appendChild(ring); c.insertAdjacentHTML('beforeend',inner); return c; }
+function reel(dir,oldV,newV,newCls){ return '<span class="reel"><span class="strip '+dir+'">'+
+  (dir==='up' ? '<i class="old">'+oldV+'</i><i class="new '+newCls+'">'+newV+'</i>' : '<i class="new '+newCls+'">'+newV+'</i><i class="old">'+oldV+'</i>')+'</span></span>'; }
+
+/* ═══ DEFAULT CELLS ═══ */
+const D=document.getElementById('secDefault');
+tile(D,'Open','Available night. <span class="k">Black</span> price, grey-300 border.',baseCell('','<span class="pv">$331</span><span class="date">14</span>'));
+tile(D,'Open · min badge','Price + <span class="k">min N</span> below, 2px gap, both 14px.',baseCell('','<span class="pv">$331</span><span class="sub2">min 3</span><span class="date">14</span>'));
+tile(D,'Booked','Guest stay: dark pill + avatar + name.',(()=>{const w=document.createElement('div');w.className='bk';w.innerHTML='<span class="av"></span><span class="nm">Henry</span>';return w;})());
+tile(D,'Host-blocked','Struck price, <span class="k">black</span> strike.',baseCell('blocked','<span class="pv">$331</span><span class="date">14</span>'));
+tile(D,'Min-closed','Gap &lt; minimum. Grey, struck; hover → “Min N nights”.',baseCell('minclosed','<span class="pv">$205</span><span class="tip">Min 5 nights</span><span class="date">14</span>'));
+tile(D,'Beyond window','Not open yet: grey, struck grey.',baseCell('closedwin','<span class="pv">$429</span><span class="date">14</span>'));
+tile(D,'Adv notice / prep','Rule-blocked: centered ✕; hover names the rule.',baseCell('xmark','<span class="tip">Adv notice</span>'));
+tile(D,'Past','Faded grey, non-interactive.',baseCell('past','<span class="pv">$331</span><span class="date">14</span>'));
+tile(D,'Applied last-minute','Committed discount → <span class="k">orange</span> $. Hover → “10% discount”.',baseCell('disc-orange','<span class="pv">$248</span><span class="tip">10% discount</span><span class="date">14</span>'));
+tile(D,'Applied promotion','Try-promotions → orange $ + persistent orange “−N%”.',baseCell('disc-orange','<span class="pv">$248</span><span class="sub2">−15%</span><span class="date">14</span>'));
+tile(D,'Gap-exception open','3+ night stranded gap re-opened: <span class="k">min 7̶ 3</span> (old struck black, new green).',baseCell('','<span class="pv">$276</span><span class="sub2">min <s>7</s><span class="nw">3</span></span><span class="date">14</span>'));
+
+/* ═══ OPPORTUNITY BLOCKS ═══ */
+const OPPS=document.getElementById('secOpps');
+
+/* pill builders */
+function resultPill(hd,mg,ctaLabel,lo){ const p=document.createElement('div'); p.className='pill';
+  p.innerHTML='<span class="nav">'+CHEV_L+'</span><div class="body"><div class="hd">'+hd+'</div>'+(mg?'<div class="mg">'+mg+'</div>':'')+
+  '</div><span class="cta">'+WAND+(ctaLabel||'Apply')+'</span><span class="nav">'+CHEV_R+'</span><span class="x">✕</span>'; return p; }
+
+function oppBlock({name,short,chip,chipCls,pill,cells,decide}){
+  const b=document.createElement('div'); b.className='opp';
+  const top=document.createElement('div'); top.className='opp-top';
+  top.innerHTML='<span class="name">'+name+'</span><span class="chip '+chipCls+'">'+chip+'</span>';
+  b.appendChild(top);
+  const body=document.createElement('div'); body.className='opp-body';
+  const mc=document.createElement('div'); mc.className='modal-col'; mc.innerHTML='<div class="col-lbl">Modal</div>';
+  pill.classList.add('copyable'); pill.addEventListener('click',()=>copyName(short+' · Modal',pill)); mc.appendChild(pill); body.appendChild(mc);
+  const cc=document.createElement('div'); cc.className='cells-col'; cc.innerHTML='<div class="col-lbl">Cell states</div>';
+  const grid=document.createElement('div'); grid.className='cells'; cc.appendChild(grid); body.appendChild(cc); b.appendChild(body);
+  cells.forEach(c=> tile(grid,c.cap,c.spec,c.cell, short+' · '+c.cap) );
+  if(decide){ const d=document.createElement('div'); d.className='decide'; d.innerHTML=decide; b.appendChild(d); }
+  OPPS.appendChild(b);
+}
+
+/* A · RAISE — event / holiday (GREEN) */
+oppBlock({ name:'A · Raise — Event & Holiday', short:'Raise', chip:'GREEN · earn more', chipCls:'green',
+  pill:resultPill('Price tip: Comic-Con','San Diego · Jul 21–27 · <span class="hl">+23% premium</span>','Apply'),
+  cells:[
+    {cap:'Untapped', spec:'Quiet <span class="k">grey-400</span> ring · <span class="k">green</span> price · no split.',
+      cell:baseCell('untapped disc-green','<span class="pv">$648</span><span class="date">21</span>',ringSVG('var(--grey-400)'))},
+    {cap:'Selected', spec:'<span class="k">Green</span> ring · price odometers <b>up</b> $527→$648 · struck old below.',
+      cell:baseCell('','<span class="pv" style="color:var(--green)">'+reel('up','$527','$648','g')+'</span><span class="sub2 revsub"><s>$527</s></span><span class="date">21</span>',ringSVG('var(--green)'))},
+    {cap:'Applied', spec:'Solid <span class="k">green-700</span> ring · <span class="k">green wash</span> · committed green price, centered.',
+      cell:baseCell('applied disc-green','<span class="pv">$648</span><span class="date">21</span>',ringSVG('var(--green-700)','var(--green-wash)'))},
+    {cap:'Subdued', spec:'Applied, then you moved to another card: <span class="k">black</span> ring, grey-100 wash, black price.',
+      cell:baseCell('','<span class="pv">$648</span><span class="date">21</span>',ringSVG('#222','var(--grey-100)'))},
+  ],
+  decide:'<b>Decisions open:</b> odometer speed/easing (currently ~0.85s easeOut, only changed digits roll) · does Subdued need to go fully black, or stay a quiet green?' });
+
+/* B · LAST-MINUTE / near discount (ORANGE) */
+oppBlock({ name:'B · Last-minute discount (this week)', short:'Last-minute', chip:'ORANGE · lower', chipCls:'orange',
+  pill:resultPill('Set a last-minute discount','59 nights open this week · <span class="hl lo">10% off</span>','Apply'),
+  cells:[
+    {cap:'Untapped', spec:'<span class="k">grey-400</span> ring · <span class="k">orange</span> price.',
+      cell:baseCell('untapped disc-orange','<span class="pv">$276</span><span class="date">10</span>',ringSVG('var(--grey-400)'))},
+    {cap:'Selected', spec:'<span class="k">Orange</span> ring · “−0→−10%” counts in, then price rolls <b>down</b> to $248.',
+      cell:baseCell('','<span class="pv">'+reel('down','$276','$248','o')+'</span><span class="pct">−10%</span><span class="date">10</span>',ringSVG('var(--orange)'))},
+    {cap:'Applied', spec:'Solid <span class="k">orange</span> ring · <span class="k">orange wash</span> · committed orange price (the −10% glides away).',
+      cell:baseCell('applied disc-orange','<span class="pv">$248</span><span class="date">10</span>',ringSVG('var(--orange)','var(--orange-wash)'))},
+    {cap:'Subdued', spec:'Applied, navigated away — <b>stays orange</b> (doesn’t darken, so the discount reads as committed).',
+      cell:baseCell('disc-orange','<span class="pv">$248</span><span class="date">10</span>',ringSVG('var(--orange)','var(--orange-wash)'))},
+  ],
+  decide:'<b>Decisions open:</b> should the price stay put while only the “−10%” shows, or roll down to the net price (shown)? · Subdued: keep orange, or dim it?' });
+
+/* C · SOFT WEEKNIGHTS (ORANGE) */
+oppBlock({ name:'C · Soft weeknights (Mon–Thu, weeks 2–9)', short:'Soft weeknights', chip:'ORANGE · lower', chipCls:'orange',
+  pill:resultPill('Price tip: Soft weeknights','87 midweek nights · <span class="hl lo">12% off</span>','Apply'),
+  cells:[
+    {cap:'Untapped', spec:'Same treatment as last-minute: <span class="k">grey-400</span> ring · <span class="k">orange</span> price.',
+      cell:baseCell('untapped disc-orange','<span class="pv">$281</span><span class="date">21</span>',ringSVG('var(--grey-400)'))},
+    {cap:'Selected', spec:'<span class="k">Orange</span> ring · price rolls <b>down</b> $281→$247 · “−12%” below.',
+      cell:baseCell('','<span class="pv">'+reel('down','$281','$247','o')+'</span><span class="pct">−12%</span><span class="date">21</span>',ringSVG('var(--orange)'))},
+    {cap:'Applied', spec:'Solid <span class="k">orange</span> ring · orange wash · committed orange $247.',
+      cell:baseCell('applied disc-orange','<span class="pv">$247</span><span class="date">21</span>',ringSVG('var(--orange)','var(--orange-wash)'))},
+    {cap:'Subdued', spec:'Stays orange when navigated away.',
+      cell:baseCell('disc-orange','<span class="pv">$247</span><span class="date">21</span>',ringSVG('var(--orange)','var(--orange-wash)'))},
+  ],
+  decide:'<b>Decisions open:</b> weeknights currently look identical to last-minute — do you want a way to tell them apart on the board, or is one shared “discount” look right?' });
+
+/* D · UNLOCK STRANDED NIGHTS — min-night (GREEN, no price move) */
+oppBlock({ name:'D · Unlock stranded nights (min-night)', short:'Min-night', chip:'GREEN · fill', chipCls:'green',
+  pill:resultPill('Free up stranded nights','3 listings · lower the minimum','Apply'),
+  cells:[
+    {cap:'Untapped', spec:'<span class="k">grey-400</span> ring · plain <span class="k">black</span> price (no price change — it’s a min move).',
+      cell:baseCell('untapped','<span class="pv">$603</span><span class="date">18</span>',ringSVG('var(--grey-400)'))},
+    {cap:'Selected', spec:'<span class="k">Green</span> ring · <span class="k">min 7̶ 3</span> reveals (old struck black, new green).',
+      cell:baseCell('','<span class="pv">$603</span><span class="sub2 revsub">min <s>7</s><span class="nw">3</span></span><span class="date">18</span>',ringSVG('var(--green)'))},
+    {cap:'Applied', spec:'Green ring + wash · min committed to <span class="k">3</span>.',
+      cell:baseCell('applied','<span class="pv">$603</span><span class="sub2">min 3</span><span class="date">18</span>',ringSVG('var(--green-700)','var(--green-wash)'))},
+    {cap:'Subdued', spec:'Applied, navigated away.',
+      cell:baseCell('','<span class="pv">$603</span><span class="sub2">min 3</span><span class="date">18</span>',ringSVG('#222','var(--grey-100)'))},
+  ],
+  decide:'<b>Decision open — the big one:</b> min-night is a “fill” play but changes <b>no price</b>, so it’s currently <b>green</b>, not orange. Keep green (fill=green, lower-price=orange)? Or should every “fill” play be orange? This is the one genuine fork.' });
+
+/* E · GROUPING (pill only) */
+(function(){
+  const b=document.createElement('div'); b.className='opp';
+  b.innerHTML='<div class="opp-top"><span class="name">E · Automate groups</span><span class="chip grey">structural</span></div>';
+  const body=document.createElement('div'); body.className='opp-body';
+  const mc=document.createElement('div'); mc.className='modal-col'; mc.innerHTML='<div class="col-lbl">Modal</div>';
+  const p=document.createElement('div'); p.className='pill'; p.style.cssText='padding:0;background:transparent';
+  p.innerHTML='<span class="cta cta-solid" style="height:48px">'+'<svg class="wand" viewBox="0 0 16 16" fill="none"><path d="M15 9.75L8 15L1 9.75M8 1L1.5 6L8 11L14.5 6L8 1Z" stroke="#0F0F0F" stroke-width="1.2" stroke-linejoin="round"/></svg>'+'Automate groups</span>';
+  mc.appendChild(p); body.appendChild(mc);
+  const cc=document.createElement('div'); cc.className='cells-col'; cc.innerHTML='<div class="col-lbl">Cells</div><div class="tspec" style="padding-top:8px">No cell states — it reorders rows into city groups (an animation on the board, not a per-cell treatment). Shown here for completeness.</div>';
+  body.appendChild(cc); b.appendChild(body); OPPS.appendChild(b);
+})();
+
+/* ═══ PILL LIFECYCLE ═══ */
+const P=document.getElementById('secPill');
+function pillItem(lbl,cap,el){ const it=document.createElement('div'); it.className='pill-item';
+  it.innerHTML='<div class="pill-lbl">'+lbl+'</div>'; el.classList.add('copyable');
+  const nm='Modal · '+lbl.replace(/^\d+\s*·\s*/,''); el.addEventListener('click',()=>copyName(nm,el)); it.appendChild(el);
+  const c=document.createElement('div'); c.className='cap'; c.innerHTML=cap; it.appendChild(c); P.appendChild(it); }
+pillItem('1 · Idle',
+  'Collapsed entry on the calendar — one name in every mode.',
+  (()=>{const p=document.createElement('div');p.className='pill';p.style.cssText='padding:0;background:transparent';p.innerHTML='<span class="cta cta-solid" style="height:48px">'+WAND_DARK+'Opportunities</span>';return p;})());
+pillItem('2 · Scanning',
+  'Morphs to a 72px circle; the wand glides to center and its stars flash (~4s sweep).',
+  (()=>{const p=document.createElement('div');p.className='pill circle';p.innerHTML=WAND;return p;})());
+pillItem('3 · Results — raise (green)',
+  'Head “Price tip: &lt;name&gt;”, sub = city · dates · <b>green</b> premium. Wand lives in Apply.',
+  resultPill('Price tip: Comic-Con','San Diego · Jul 21–27 · <span class="hl">+23% premium</span>','Apply'));
+pillItem('4 · Results — lower (orange)',
+  'Discount play: the % reads <b>orange-ish</b> in the sub line to match the cells.',
+  resultPill('Set a last-minute discount','59 nights open this week · <span class="hl lo">10% off</span>','Apply'));
+pillItem('5 · Applying',
+  'Apply → three thinking dots while the cells light up left→right (piano sweep).',
+  (()=>{const p=resultPill('Price tip: Comic-Con','San Diego · Jul 21–27 · <span class="hl">+23% premium</span>','Apply');p.querySelector('.cta').outerHTML='<span class="cta" style="min-width:112px;justify-content:center"><span class="dots"><i></i><i></i><i></i></span></span>';return p;})());
+pillItem('6 · Applied — raise (= Undo)',
+  'Lands on a <b>green</b> check; tap = undo.',
+  (()=>{const p=resultPill('Price tip: Comic-Con','San Diego · Jul 21–27 · <span class="hl">+23% premium</span>','Apply');p.querySelector('.cta').outerHTML='<span class="check g">'+CHECK+'</span>';return p;})());
+pillItem('7 · Applied — lower (= Undo)',
+  'A discount lands on an <b>orange</b> check.',
+  (()=>{const p=resultPill('Set a last-minute discount','59 nights open this week · <span class="hl lo">10% off</span>','Apply');p.querySelector('.cta').outerHTML='<span class="check o">'+CHECK+'</span>';return p;})());
+pillItem('8 · Last card — Done',
+  'On the final card the right ‹›-arrow morphs into a white <b>Done</b> pill → tap returns to Today with all changes shown.',
+  (()=>{const p=resultPill('Price tip: New Year’s Day','3 cities · Dec 31–Jan 3 · <span class="hl">+18% premium</span>','Apply');p.querySelectorAll('.nav')[1].outerHTML='<span class="done">Done</span>';return p;})());
+</script>
+</body>
+</html>
