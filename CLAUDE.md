@@ -463,6 +463,12 @@ the squid arrives. Arms stay clear of the + and send buttons.
 
 ## `peek/` — a character that lives in the interface (johnyum.com/peek)
 
+**On the demo page it lives ON the chat box (2026-10-07, John: "don't make it hide on the bottom right — it can just hang
+out and walk around above the chat box"):** `ROAM` (demo only, never embed or the deck). `leave()` now means *where a move
+ends* — on the demo, `toBox()`: hop down onto the box's top from wherever it is; `vanish()` is the real exit the primitives use.
+`roam()` wanders it when it's free (`strollTo()` plays the Walk clip, a sit, a look round, a hop); a reply, typing and a nap all
+happen on the box; left somewhere in view it hops back after 6s. Your messages get their reaction there (`sense()` → `perform()`,
+wired into the demo's `send()`). The **Things to try** panel down the left (the paw button) lists everything it does.
 **Status (2026-10-04): the character is retired — John: "the dead end design".** It's hidden behind
 `CHARACTER` (on only with `?character` in the URL); everything below is kept, not deleted. What
 the page does now, in the app (embed) and the demo, is **the tide pool**: when Claude's real

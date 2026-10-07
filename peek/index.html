@@ -582,6 +582,9 @@ const lerp = (a, b, k) => a + (b - a) * k;
 // runs here is the tide pool (plush creatures that drop in when the answer names them).
 // A character sent from Monsters (#m= a built model, #c= a kit one) is asked for, so it shows too.
 const CHARACTER = /[?&]character\b/.test(location.search) || /^#[mc]=/.test(location.hash);
+// On the demo page it lives out in the open, on top of the chat box, wandering along it — never
+// tucked behind the box (John, 2026-10-07). The app (embed) and the deck keep their own homes.
+const ROAM = !EMBED && !PRESO;
 const S = /[?&]big\b/.test(location.search) ? 260 : 86;   // px per character unit — it stands about 100px tall (?big: three times that, to look at it closely)
 
 /* ═══════════════ the world: one pixel, one unit ═══════════════ */
@@ -1012,7 +1015,7 @@ function animateModel(dt, running) {
     rigged.fur.drag.value.copy(DRAG.value);
   }
   if (oneShot > 0) return;
-  if (running) playClip('Run') || playClip('Walk') || playClip('Idle');
+  if (running) (C.stroll ? playClip('Walk') || playClip('Run') : playClip('Run') || playClip('Walk')) || playClip('Idle');
   else if (C.mode === 'air') playClip('Jump') || playClip('Idle');
   else playClip('Idle');
 }
@@ -1233,7 +1236,7 @@ async function popIn(x, y) {
   Object.assign(C, { x, y, pvx: x, pvy: y, vx: 0, vy: 0 }); C.shown = 0;
   await tween(420, (k) => { C.shown = k; }, easeBack);
 }
-async function leave() {
+async function vanish() {
   unsay(); dropCard(); occlude(null); for (const g of grips) g.visible = false;
   C.look = null; C.lean = 0; C.arms = 'rest'; C.home = false; C.held = null; C.perched = null; C.yOff = 0; C.anchor = null; guarding = false; asleep = null;
   if (C.mode === 'off') return;
@@ -1242,10 +1245,27 @@ async function leave() {
   Object.assign(C, { mode: 'off', el: null, exit: null, shown: 0 });
 }
 
+// Where a move ends. In the app: off, and home() puts it back behind the box. On the demo page:
+// back onto the top of the chat box, hopping down from wherever it is, to wander there.
+function leave() { return ROAM ? toBox() : vanish(); }
+const onBox = () => C.el === composer && (C.mode === 'stand' || C.mode === 'run' || C.mode === 'sit');
+let roamX = 0;
+async function toBox() {
+  const r = rectOf(composer); if (r.width <= 0) return vanish();
+  unsay(); dropCard(); occlude(null); for (const g of grips) g.visible = false;
+  Object.assign(C, { look: null, lean: 0, arms: 'rest', home: false, held: null, perched: null, yOff: 0, anchor: null, exit: null, size: 1 });
+  guarding = false;
+  const x = clamp(C.mode !== 'off' && C.mode !== 'peek' ? C.x : roamX || r.right - 110, r.left + 40, r.right - 40);
+  if (onBox()) { if (C.mode === 'run') C.mode = 'stand'; }
+  else if (C.mode === 'stand' || C.mode === 'sit') await jumpTo(composer, x);   // from a message: down onto the box
+  else { await vanish(); Object.assign(C, { mode: 'stand', el: composer, facing: 0 }); await popIn(x, r.top); }
+  if (heart.sulking) { C.mode = 'sit'; mood('sad'); } else if (moodNow !== 'love') mood('happy');
+}
+
 // Stands on an element's top edge at x — popping in, or jumping over if it's already out.
 async function standOn(el, x) {
   if (C.mode === 'stand' || C.mode === 'run' || C.mode === 'sit') return jumpTo(el, x);
-  await leave(); mood('happy');
+  await vanish(); mood('happy');
   Object.assign(C, { mode: 'stand', el, facing: 0 }); await popIn(x, rectOf(el).top);
 }
 // Runs along the edge it's on.
@@ -1257,6 +1277,37 @@ async function runTo(el, x2) {
   await tween(Math.max(450, d / .34), (k) => { C.x = lerp(x1, x2, k); }, easeInOut);
   C.mode = 'stand'; C.facing = 0;
 }
+// A stroll: the same, at walking pace, playing the walk clip.
+async function strollTo(x2, pace = .11) {
+  if (!onBox()) await toBox();
+  const x1 = C.x, d = Math.abs(x2 - x1); if (d < 4) return;
+  Object.assign(C, { mode: 'run', facing: x2 > x1 ? 1.15 : -1.15, stroll: true });
+  try { await tween(Math.max(700, d / pace), (k) => { C.x = lerp(x1, x2, k); }, easeInOut); }
+  finally { C.stroll = false; if (C.mode === 'run') { C.mode = 'stand'; C.facing = 0; } }
+}
+// Wandering (the demo page): out on the box with nothing to do, it ambles about — a stroll to
+// somewhere else along the box, a sit, a look round, now and then a hop. Never while it's busy,
+// held, guarding Send, sulking, or while you're typing or a reply is coming in.
+let roamTimer = 0;
+function roam() {
+  clearTimeout(roamTimer);
+  roamTimer = setTimeout(() => {
+    const free = !acting && !C.grabbed && !guarding && !asleep && onBox() && !busy && !heart.sulking && !input.value.trim();
+    if (free) act(async () => {
+      const r = rectOf(composer), roll = Math.random(), up = async () => { if (C.mode === 'sit') { C.mode = 'stand'; C.sqv -= 5; await wait(260); } };
+      if (roll < .55) {
+        const to = r.left + 50 + Math.random() * Math.max(0, r.width - 100);
+        if (Math.abs(to - C.x) > 90) { await up(); await strollTo(to); }
+      } else if (roll < .72) { C.mode = 'sit'; C.sqv -= 4; }
+      else if (roll < .86) { await up(); C.look = { x: Math.random() < .5 ? 0 : innerWidth, y: innerHeight * .35 }; await wait(1500); C.look = null; }
+      else if (roll < .94) { await up(); await hop(1, 20); }
+      else { await up(); mood('curious'); C.look = { x: innerWidth / 2, y: 140 }; await wait(1700); C.look = null; mood('happy'); }
+      roamX = C.x;
+    });
+    roam();
+  }, 2600 + Math.random() * 3800);
+}
+if (ROAM) modelReady.then(() => setTimeout(roam, 3500));
 // A real ballistic arc onto an element: gravity, apex, a squash on landing.
 async function jumpTo(el, x2) {
   if (C.mode === 'off' || C.mode === 'peek') return standOn(el, x2);
@@ -1272,12 +1323,12 @@ async function jumpTo(el, x2) {
 }
 // Perches on the edge, feet over the front.
 async function sitOn(el, x, m = 'thinking') {
-  if (C.mode === 'stand' || C.mode === 'run' || C.mode === 'sit') await jumpTo(el, x); else { await leave(); Object.assign(C, { el, facing: 0 }); await popIn(x, rectOf(el).top); }
+  if (C.mode === 'stand' || C.mode === 'run' || C.mode === 'sit') await jumpTo(el, x); else { await vanish(); Object.assign(C, { el, facing: 0 }); await popIn(x, rectOf(el).top); }
   Object.assign(C, { mode: 'sit', el }); mood(m); C.sqv -= 4;
 }
 // Rises from behind an element: the element hides its body, mittens grip the edge.
 async function peekOver(el, x, m = 'curious', show = .62) {
-  await leave(); mood(m);
+  await vanish(); mood(m);
   const top = () => rectOf(el).top, hidden = H * S * 1.15, shown = H * S * show;
   Object.assign(C, { mode: 'peek', el: null, facing: 0, shown: 1, x, y: top() + hidden }); C.pvx = x; C.pvy = C.y;
   occlude(el);
@@ -1289,11 +1340,21 @@ async function peekOver(el, x, m = 'curious', show = .62) {
    goes — a reaction, the answer, a tip — it comes back here once nothing else is queued. It leans
    up a little while you type (rise()), and sinks lower while it sulks. */
 const HOME = .6, HOME_SULK = .4, HOME_POP = 1.12;
+let backT = 0;
 const homeGround = () => {
   const g = EMBED ? (plat.composer ? V('composer') : null) : composer; if (!g) return null;
   const r = rectOf(g); return r.width > 0 && r.left < innerWidth - 40 && r.right > 40 ? g : null;   // not a box still sliding in off the edge
 };
 function homeward() {
+  if (ROAM) {
+    // Gone or ducked behind something: straight back onto the box. Left somewhere in view (sitting
+    // with you on your message, say): a few seconds there first, then it hops back down.
+    clearTimeout(backT);
+    if (!CHARACTER || acting || C.grabbed || guarding || onBox()) return;
+    if (C.mode === 'off' || C.mode === 'peek') return void act(toBox);
+    backT = setTimeout(() => { if (!acting && !C.grabbed && !guarding && !onBox()) act(toBox); }, 6000);
+    return;
+  }
   if (!CHARACTER || INLINE || acting || C.mode !== 'off') return;
   const g = homeGround(); if (!g || rectOf(g).width <= 0) return;
   if (Date.now() < heart.shyUntil) return void setTimeout(homeward, heart.shyUntil - Date.now() + 100);
@@ -1327,7 +1388,7 @@ modelReady.then(() => setTimeout(homeward, 700));   // in it comes, to its spot
 
 // Leans in from the edge of the window.
 async function peekSide(side, at, m = 'curious') {
-  await leave(); mood(m);
+  await vanish(); mood(m);
   const vw = innerWidth, vh = innerHeight;
   Object.assign(C, { mode: 'peek', el: null, shown: 1 });
   if (side === 'bottom') {
@@ -1343,7 +1404,7 @@ async function peekSide(side, at, m = 'curious') {
 }
 // Hangs from an element's bottom edge by both hands, and swings like a pendulum.
 async function hang(el, x, m = 'happy') {
-  await leave(); mood(m);
+  await vanish(); mood(m);
   const r = rectOf(el);
   Object.assign(C, { mode: 'hang', el, hx: x, swing: -.9, swingV: 0, facing: 0, arms: 'up', shown: 0 });
   C.x = x; C.y = r.bottom + REACH * S; C.pvx = C.x; C.pvy = C.y;
@@ -1465,6 +1526,7 @@ function drop(x, y) {
     // Landed: a squash, a beat standing on top of the box.
     Object.assign(C, { mode: 'stand', el: g, size: 1, anchor: null, perched: null }); C.sqv -= 14; mood('happy');
     await wait(420);
+    if (ROAM) return;   // the box's top is where it lives on the demo page
     // Along the top of the box to its spot on the right…
     await runTo(g, r().right - 58);
     await wait(160);
@@ -1553,20 +1615,24 @@ async function send(text) {
   text = text.trim(); if (!text || busy) return;
   busy = true; input.value = ''; fit(); composer.classList.remove('has'); draftFeel = ''; draftLen = 0;
   $('.acts')?.remove();
-  add('user', esc(text));
+  const mine = add('user', esc(text));
   said.push(['you', text]);
   workBegin();
+  // Out on the box (the demo page) it hears you too: the instant read, and its reaction — a wave
+  // for hello, a jump for news, sitting with you for something sad, a sulk after the third insult.
+  if (ROAM && CHARACTER) { const f = sense(text); act(() => perform(f, composer, mine || composer)); }
   // It moves into the reply's place — the strip under where the words will go — and thinks there.
   $('.msg.bot.here')?.classList.remove('here');
   const bot = add('bot thinking here', '');
   const words0 = document.createTextNode(''), caret = document.createElement('span'); caret.className = 'caret';
   bot.append(words0, caret);
   const inReply = (x) => () => { const b = bot.getBoundingClientRect(); return { x: clamp(x(b), b.left + 22, b.right - 22), y: b.bottom - 4 }; };
-  act(() => standAt(inReply((b) => b.left + 22)));
+  if (!ROAM) act(() => standAt(inReply((b) => b.left + 22)));
+  else C.look = { x: innerWidth / 2, y: rectOf(bot).top };   // on the box, looking up at where the answer will come
   await new Promise((r) => setTimeout(r, 1400 + Math.random() * 900));
   bot.classList.remove('thinking');
   // Writing: it follows the end of the words along the line, as they land.
-  C.anchor = inReply(() => caret.getBoundingClientRect().right + 14);
+  if (!ROAM) C.anchor = inReply(() => caret.getBoundingClientRect().right + 14);
   const reply = DEMO[demoAt++ % DEMO.length], words = reply.split(/(\s+)/);
   let out = '';
   for (const w of words) {
@@ -1595,17 +1661,17 @@ input.addEventListener('input', () => {
   if (!input.value.trim()) { clearTimeout(typingTimer); typingTimer = setTimeout(() => { if (C.home) { rise(restShow()); mood(heart.sulking ? 'sad' : 'happy'); } else if (C.mode === 'peek' && occludeEl === composer) act(leave); }, 900); return; }
   const show = mayWatch(input.value);
   if (C.home) rise(show || restShow());
-  else if (show && occludeEl !== composer && !C.perched && !C.grabbed && !C.anchor) act(async () => { if (occludeEl !== composer && input.value.trim()) { draftFeel = ''; await peekOver(composer, r.right - 120, 'curious', show); watching(input.value); } });
+  else if (!ROAM && show && occludeEl !== composer && !C.perched && !C.grabbed && !C.anchor) act(async () => { if (occludeEl !== composer && input.value.trim()) { draftFeel = ''; await peekOver(composer, r.right - 120, 'curious', show); watching(input.value); } });
   else watching(input.value);
   C.look = { x: r.left + 30 + Math.min(r.width - 170, input.value.length * 7.2), y: r.top + 30 };
 });
 input.addEventListener('blur', () => { setTimeout(() => { if (C.home && !input.value.trim()) rise(restShow()); }, 400); });
 { const lines = ['What shall we think through?', 'What’s on your mind?', 'Where would you like to start?', 'What are we working on?', 'What can I help you with?', 'What’s the question?', 'Where shall we begin?']; const g = $('#greet'); if (g) g.textContent = lines[Math.floor(Math.random() * lines.length)]; }
 $('#chips').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) send(b.textContent); });
-$('#newChat').onclick = () => { if (busy) return; msgs.innerHTML = '<div class="hello" id="hello"><svg viewBox="0 0 100 100" fill="#D97757"><use href="#spark"/></svg><b id="greet">What’s on your mind?</b></div>'; work.phase = null; mood('happy'); act(() => standAt(byGreeting)); };
+$('#newChat').onclick = () => { if (busy) return; msgs.innerHTML = '<div class="hello" id="hello"><svg viewBox="0 0 100 100" fill="#D97757"><use href="#spark"/></svg><b id="greet">What’s on your mind?</b></div>'; work.phase = null; mood('happy'); act(() => ROAM ? toBox() : standAt(byGreeting)); };
 // On an empty chat it stands beside the greeting, on its line.
 const byGreeting = () => { const g = $('#greet'); if (!g) return null; const r = g.getBoundingClientRect(); return { x: r.right + 44, y: r.bottom - 4 }; };
-if (!EMBED) { requestAnimationFrame(clipToLog); modelReady.then(() => act(() => standAt(byGreeting))); }
+if (!EMBED) { requestAnimationFrame(clipToLog); modelReady.then(() => act(() => ROAM ? toBox() : standAt(byGreeting))); }
 
 // Idle: after a while it does something on its own — a tip, a swing from a pill, a wander.
 let idleTimer = 0, idleTurn = 0;
@@ -1681,8 +1747,9 @@ if (CHARACTER && !EMBED && !PRESO) {
       ['Sit on the last message', () => act(async () => { const el = lastMsg(), r = rectOf(el); await sitOn(el, r.left + Math.min(r.width - 40, 80), 'happy'); say('comfy', 1600); })],
       ['Hold up a tip', () => act(async () => { const [t, w] = TIPS[tipAt++ % TIPS.length]; await holdTip(t, w); })],
       ['Lean in from the side', () => act(async () => { await peekSide('right', innerHeight * .46, 'curious'); say('psst', 1800); await wait(2000); await leave(); })],
-      ['Pop up', () => { if (C.home && C.held) popUp(); else act(leave); }],
-      ['Go home', () => act(leave)],
+      ['Hop', () => act(async () => { await toBox(); mood('love'); await hop(2, 30); say('hi!', 1000); mood('happy'); })],
+      ['Stroll along the box', () => act(async () => { await toBox(); const r = rectOf(composer); await strollTo(C.x < r.left + r.width / 2 ? r.right - 50 : r.left + 50); })],
+      ['Sit on the box', () => act(async () => { await toBox(); C.mode = 'sit'; mood('happy'); say('comfy', 1400); })],
     ]],
     ['Feelings', [
       ['Hello', () => feel('hello')], ['Excited', () => feel('excited', .9)], ['Love', () => feel('love')], ['Funny', () => feel('funny')],
@@ -1721,7 +1788,7 @@ if (CHARACTER && !EMBED && !PRESO) {
   const sayRow = document.createElement('div'); sayRow.className = 'row say';
   for (const [text, sub] of SAY) sayRow.append(btn(`“${text}”`, () => { if (!busy) send(text); }, sub));
   const hands = document.createElement('ul'); hands.className = 'hands';
-  hands.innerHTML = '<li>Drag it — it dangles from the pointer; let go and it falls home</li><li>Tap it at home — it pops up and waves</li><li>Type a swear and it guards the send button</li><li>Sweep the pointer past it while it hangs</li>';
+  hands.innerHTML = '<li>Drag it — it dangles from the pointer; let go and it lands on the box</li><li>Tap it — a giggle and a wave</li><li>Leave it be — it wanders the box on its own</li><li>Type a swear and it guards the send button</li><li>Sweep the pointer past it while it hangs</li>';
   panel.append(head('Say to it'), sayRow, head('With your hands'), hands);
   document.body.append(panel);
   const show = (on) => { panel.hidden = !on; paw?.classList.toggle('on', on); };
@@ -1866,6 +1933,7 @@ const clip = (label) => { if (model && playClip(label, true)) { oneShot = clipsF
 
 // Up out of its spot behind the box, all the way (or `show` of it), to have its moment there.
 async function emerge(m, show = 1.05) {
+  if (ROAM) { await toBox(); if (C.mode === 'sit') C.mode = 'stand'; mood(m); C.sqv -= 8; return; }   // out in the open already: up on its feet for it
   const g = homeGround(); if (!g) return;
   if (!(C.held && C.held.el === g)) await peekOver(g, rectOf(g).right - 58, m, HOME);
   C.home = true; mood(m);
@@ -1873,6 +1941,7 @@ async function emerge(m, show = 1.05) {
 }
 // …and back down to just its head over the edge.
 async function rehome() {
+  if (ROAM) { unsay(); mood(heart.sulking ? 'sad' : 'happy'); return; }
   if (!(C.held && C.held.el === homeGround())) return leave();
   const from = C.held.show, to = restShow(); unsay(); mood(heart.sulking ? 'sad' : 'happy');
   await tween(300, (k) => { if (C.held) C.held.show = lerp(from, to, k); }, easeOut); C.home = true;
@@ -1965,6 +2034,7 @@ async function inPlace(f) {
 async function obey(cmd, ground, line) {
   C.perched = null; const g = rectOf(ground);
   if (cmd === 'away') { heart.shyUntil = Date.now() + 25000; await emerge('sad', HOME); say(line('okay…'), 1200); await wait(1300); return leave(); }   // down behind the box, for a while
+  if (cmd === 'sleep' && ROAM) { await toBox(); C.mode = 'sit'; mood('sleepy'); say(line('z z z'), 4200); await wait(6000); mood('happy'); return; }   // a nap right there on the box
   if (cmd === 'sleep') { await peekSide('left', innerHeight * .6, 'sleepy'); say(line('z z z'), 2600); await wait(2800); return leave(); }
   if (cmd === 'wave') { await emerge('happy'); clip('Wave') || await hop(1, 18); say(line('hiii'), 1600); await wait(1800); return rehome(); }
   await standOn(ground, g.left + 50);
@@ -1985,7 +2055,7 @@ function watching(text) {
   if (angry && !guarding && !C.grabbed) act(guardSend);
   else if (!angry && guarding) unguard();
   if (!t.trim()) { draftFeel = ''; return; }
-  if (!C.perched && !C.anchor && (C.mode !== 'peek' || !occludeEl)) return;   // watching over the box, from its perch, or from the thread
+  if (!C.perched && !C.anchor && !(ROAM && onBox()) && (C.mode !== 'peek' || !occludeEl)) return;   // watching over the box, from its perch, or from the thread
   const f = sense(t), feel = was - t.length > 20 ? 'erased' : f.feel;
   if (feel === draftFeel) return;
   draftFeel = feel;
@@ -2084,7 +2154,7 @@ function thinkingHard() { clearTimeout(hardT); hardT = setTimeout(() => { if (!s
 // ── 3 · on your side: a draft written in anger gets a paw on the send button ──
 async function guardSend() {
   const g = homeGround(); if (!g || guarding) return;
-  await leave(); guarding = true; mood('ugh');
+  await vanish(); guarding = true; mood('ugh');
   const r = rectOf(g);
   Object.assign(C, { mode: 'stand', el: g, facing: 0, yOff: r.height - 6 });   // in front of the box, on its button corner
   await popIn(r.right - 32, r.bottom - 6);
@@ -2147,7 +2217,7 @@ Object.assign(window.__peek, { performStream, guardSend, unguard, carry, deliver
    size, it stands in the reply's place while Claude thinks, at the end of the words as they're
    written, and stays at the end of the answer once it's done — scrolling with it, and clipped to
    the chat like everything else in it, so it slides under the header and the box. */
-var INLINE = !EMBED;
+var INLINE = !EMBED && !ROAM;
 const IN_SIZE = .64;   // about two lines of the answer's type tall
 function clipToLog() {
   if (!INLINE) return;
@@ -2160,7 +2230,7 @@ async function standAt(anchor) {
   const a = anchor(); if (!a) return;
   // Near where it already is: it just shifts over. Anywhere else: out, and in again there.
   if (C.anchor && (C.mode === 'stand' || C.mode === 'sit') && Math.hypot(a.x - C.x, a.y - C.y) < 70) { C.anchor = anchor; C.sqv -= 5; return; }
-  await leave();
+  await vanish();
   Object.assign(C, { size: IN_SIZE, anchor, mode: 'stand', el: null, facing: 0 }); clipToLog();
   await popIn(a.x, a.y);
 }
