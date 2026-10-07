@@ -76,6 +76,21 @@ own: the multi calendar's V1 shipped in the same four months John was learning A
 4. Only the unassailable claim about the ship: if engineers built V1 from the prototype, say so — "my prototype was the spec;
    the team shipped V1 in four months." The deck is grounded everywhere else; one overstated line is what gets remembered.
 
+## Process — three cards, after the multi calendar's lesson
+
+What John said it's for (2026-10-06): how he used to design, and how he designs now.
+
+1. **Process** (12dp) — the card. One word, then the two pictures.
+2. **The Figma** (12dq) — the Yum page of the Multi Calendar file, a grid of frames. *This is how I used to work: flats in
+   Figma, a clicking prototype on top, one screen at a time.*
+3. **The web calendar, then the board** (12dr) — the live build, then one tap and every iteration tiles round it. *Now I design
+   the whole flow, end to end, as a working thing. Then I hand it to the whole team and ask them to fork it and run with it.*
+   Over the board: *The work is enormous. There are so many edge cases that all of us had to kill our egos. I run ahead — I set
+   the pace, the parameters, the foundation — and then we come together and work the solutions out as a team.*
+
+The beat to land: the board is not a gallery, it's the evidence of the method — the number of iterations is what "fork it and
+run with it" produces. Keep "kill our egos" in; it pairs with the ego card later.
+
 ## A.I. — built with Claude
 
 The A.I. card and "built with Claude" are a reveal: not just that the deck was made with Claude, but the product too. Peek is
