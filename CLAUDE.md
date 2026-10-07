@@ -692,7 +692,9 @@ difference), a phone 1 x 2, a web build 3 x 2, the straight-line graph 5 x 2 pin
 in a fixed-seed shuffle, each dropped at random beside something already placed. EVERY PICTURE ONCE AND WHOLE — no crops, no repeats
 (John, 2026-10-06), and NO icon grids (one was tried twice, then "get rid of it"): a stray single cell gets a small holiday icon
 (`assets/iterations/icons/`), nothing more. More PNGs are the lever for a fuller board; each fades up in turn from the middle outward while the calendar settles to the centre; built, the board is a little larger than the
-screen so it bleeds off every edge). Then the A.I. card.
+screen so it bleeds off every edge). Then the A.I. card. **The chrome's pills** (2026-10-06): the kicker and the nav each sit in a fully rounded white pill, 12 above and below,
+20 to the sides, the page blurred behind, shown only over a slide that declares `window.presoBleed` (a value or a function of its step —
+12dr's board once built); elsewhere the pill is transparent and the type sits exactly where it always did.
 
 ## `peek/?preso=1` — the 3D chat in the deck (2026-10-05/06)
 

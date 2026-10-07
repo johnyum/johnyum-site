@@ -108,7 +108,7 @@
   /* deck chrome — holds still while slides flow underneath */
   #kicker {
     position: fixed;
-    top: 32px; left: 0; right: 0;
+    top: 20px; left: 50%; transform: translateX(-50%);
     text-align: center;
     font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
     font-size: 12px;
@@ -121,7 +121,7 @@
      in black; each is a tap to the start of its section. Sits above the tap rails. */
   #counter {
     position: fixed;
-    bottom: 32px; left: 0; right: 0;
+    bottom: 20px; left: 50%; transform: translateX(-50%); white-space: nowrap;
     text-align: center;
     font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
     font-size: 12px;
@@ -140,6 +140,12 @@
   /* A DARK SLIDE (John, 2026-10-01: Hello! inverted) declares window.presoDark = true and the chrome turns white over
      it: the kicker and the section names, the one you are in full white, the rest a step back as they are on white. */
   #kicker, #counter, #counter .sec { transition: color 300ms ease; }
+  /* THE PILLS (John, 2026-10-06): the kicker and the nav each sit in a fully rounded white pill — 12 above and below, 20 to the
+     sides, the page blurred behind it — that shows only over a slide whose content bleeds to the edges (it declares
+     window.presoBleed, read with the kicker); everywhere else the pill is invisible, so nothing changes on the plain slides.
+     The padding is always there (top/bottom 20 + 12 = the old 32), so the type never moves — only the pill fades in. */
+  #kicker, #counter { padding: 12px 20px; border-radius: 999px; background: rgba(255, 255, 255, 0); backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px); transition: color 300ms ease, background-color 350ms ease, backdrop-filter 350ms ease; }
+  body.bleed #kicker, body.bleed #counter { background: rgba(255, 255, 255, 0.72); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
   body.dark #kicker, body.dark #counter, body.dark #counter .sec { color: rgba(255, 255, 255, 0.6); }
   body.dark #counter .sec:hover, body.dark #counter .sec.on { color: #fff; }
 
@@ -329,6 +335,13 @@
     let dark = false;
     try { dark = !!(made && made.frame && made.frame.contentWindow && made.frame.contentWindow.presoDark); } catch (_) {}
     document.body.classList.toggle('dark', dark);
+    syncBleed();
+  }
+  // a slide whose content runs under the chrome says so (window.presoBleed — a value or a function of its step): the pills come up
+  function syncBleed() {
+    let bleed = false;
+    try { const w = current && current.frame && current.frame.contentWindow, b = w && w.presoBleed; bleed = typeof b === 'function' ? !!b() : !!b; } catch (_) {}
+    document.body.classList.toggle('bleed', bleed);
   }
 
   // THE NEXT SLIDE IS BUILT AHEAD (John, 2026-09-22). A heavy HTML slide — the web build is 1.4MB and renders 32 rows several
@@ -396,7 +409,7 @@
   }
   // A slide may carry its own progress (a build's beat) in the URL: presoState() reports it, presoRestore(n) puts it back.
   function slideState(made) { try { const f = made && made.frame && made.frame.contentWindow && made.frame.contentWindow.presoState; const n = f ? f() : 0; return n > 0 ? n : 0; } catch (_) { return 0; } }
-  function writeHash() { const st = slideState(current); history.replaceState(null, '', '#' + (idx + 1) + (st ? '.' + st : '')); flashCounter(); }   // the nav follows the step too (the 3D chat's 1–5)
+  function writeHash() { const st = slideState(current); history.replaceState(null, '', '#' + (idx + 1) + (st ? '.' + st : '')); flashCounter(); syncBleed(); }   // the nav follows the step too (the 3D chat's 1–5)
   // after a restore or a GO the slide reaches its state asynchronously (its app has to be up): the URL follows it for a while
   addEventListener('presostate', () => writeHash());   // a slide whose state moved on its own (queued taps landing) asks the URL to catch up
   function syncHash(ms = 4000) { const t0 = Date.now(); let last = null; const tick = () => { const st = slideState(current); if (st !== last) { last = st; writeHash(); } if (Date.now() - t0 < ms) setTimeout(tick, 150); }; tick(); }
