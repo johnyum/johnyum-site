@@ -823,7 +823,7 @@ column of 880 holding one or more pages, top-aligned, in this order:
    marked on the calendar as a split cell, a card naming the winner, Keep / Swap), `Priority.html` (Settings as a drag-ranked list —
    "the list is the rule"), `Choose.html` (Save asks which wins: the new, the old, or both stacked), `Stack.html` (a night's price
    built up rule by rule, a switch per rule for that night only). Plain HTML in the mock's own language, no support.js.
-6. **The tip cards** (.72) — six phone takes on how the chat serves a tip; the chat-to-dates motion was the sixth for an hour
+6. **The tip cards** (.72) — retitled "AI chat embedded card" in the studies copy (John, 2026-10-07; it read "Six ways the chat can serve a tip"); six phone takes on how the chat serves a tip; the chat-to-dates motion was the sixth for an hour
    ("sucks").
 ONE SPACE (John: "the same spacing between as the padding on the edges"): `GAP = 56` board-px is both the board's side padding and
 the gap between panels, scaled together — the slide's window runs the full width, no margins of its own. ONE TYPE SCALE for the second screen's three pages (John: "all the content perfectly top aligned and consistent typography"):
@@ -832,8 +832,9 @@ the gap between panels, scaled together — the slide's window runs the full wid
 Action System's Default cells section is removed on load (`shape`) — "remove the default cells". The board is scaled so
 three panels and four spaces fill the stage's width; the tallest panel sets the height and the page scrolls under the deck's
 nav (`presoBleed`). The step slides the whole strip by three, eased .8s (`window.__collage.go(n)`; the slide's presoNext / presoPrev
-/ presoState / presoRestore / presoEnd go through to it; the hash carries the step). Every page's h1 lands at 24 board-px, weight 600,
-white pages throughout.
+/ presoState / presoRestore / presoEnd go through to it; the hash carries the step). Every page's h1 is ONE rule — Cereal 600, 24 board-px, line-height 1.15 — (John: "make all the headers same type and weight");
+white pages throughout. The study frames are fetched with `?v=<V>` (a constant in collage.html — bump it when a study page
+changes), after a retitled page kept coming back from the browser's cache.
 **The builds are HELD** (John: "hold on the calendars for now — just the studies"): `SHOW_BUILDS = false` in collage.html keeps the
 whole row in the code — `/calendar.html` (June 12, the first calendar with its quick-actions sheet), thirteen versions of `/multi`
 from its git history July 2 → October 3 (`proto/builds/multi-<date>.html`, each `git show <commit>:multi/index.html` with its
