@@ -67,8 +67,8 @@ thread of the case study is trust — clarity and transparency at every step. Th
 The bones, from the 2026-10-06 critique John kept. The AI story is threaded through this case, not kept for a chapter of its
 own: the multi calendar's V1 shipped in the same four months John was learning AI.
 
-1. **Before the $0→$200 roll, THE NUMBER (John, 2026-10-06):** "The single calendar took us a year of iteration to get to
-   hosts. This one took four months." Said once, exactly like that. Then: "And I did this one differently. I built it with Claude —
+1. **THE NUMBER is its own card now (12ds, after the board of forked builds): "Single Cal took a year to ship. Multi Cal took
+   3.5 months."** Say it once, as written, and let it sit. Before the $0→$200 roll it needn't be said again. Then: "And I did this one differently. I built it with Claude —
    the live calendar you're looking at is that build." The room watches an AI-built prototype without being told it's a demo of AI.
    If asked about the year: it's where the system came from — the multi calendar was fast because the single one had settled the
    hard questions. Be exact about the four months: prototype to shipped V1, the prototype as the spec, the team building from it.
