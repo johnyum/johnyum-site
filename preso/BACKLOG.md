@@ -7,3 +7,5 @@
 - The "Let's adjust your prices" screen is missing its status bar and header.
 - The badge page: a non-animated badge comes in first and then turns into the animated one. Only the animated one, in its
   proper place, from the start.
+- The adjusted-prices calendar (Aug 9–15 picked, $200 struck to $231): the 10th through the 15th should NOT wear the "today"
+  circle round their numbers — white type straight on the black cell. Only the 9th is today.
