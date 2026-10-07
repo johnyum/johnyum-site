@@ -340,6 +340,20 @@ of a city past its camera by 1.5 (from a neighbourhood too) it's the beat you ca
 city's scale with a droppable city in view (a pin whose `hero` names a `CITY`) it's that city — the map staying where you put it
 every time (`zoomSetsHours`). The red pulsing ring is gone everywhere.
 
+**The Faroe Islands (2026-10-07, John: "a place to fly to that is unique in Europe"; Palm Springs "might not be the right
+choice" — it stays in the page):** the third city, on the flights' Unique vibe (`hero: 'fo'`). Three vibes of its own, each thumb
+in a style of its own (John: "a completely different illustration style for each vibe" — gouache folk-art Villages, indigo linocut
+Cliffs, watercolour Harbour; Palm Springs' Modernist is a Case Study House line rendering and Queer a 70s pop silkscreen for the same
+reason): **Villages** (Gjógv the way down), **Cliffs** (Gásadalur), **Harbour** (Tórshavn, no outline so no mask). The villages'
+outlines are OpenStreetMap's administrative boundaries via Nominatim (`FO_HOODS`) — a Faroese village's boundary is its whole
+valley, so the pills sit within half a kilometre of the houses. Listing photos are real (`fo-home-1…9.png`, CC BY / BY-SA, credited
+in `explore/assets/img/CREDITS.md`; Palm Springs' are public-domain Highsmith). **Each flight vibe has its own dots** (`VIBE_DOTS`,
+`WORLD_VIBE_DOTS`): Unique's are Nanaimo, Elko, Sitka, Tromsø… never Vancouver or Salt Lake City showing through. **Walking starts
+at an hour on foot** if the knob is above it (John: "zoom me way into the city, like an hour walking") — the one exception to
+the knob staying put. **Slide 09c has no scripted taps** (John: "I'll drive here"): Next and Back leave the slide; the four-tap
+machine is kept, unused. The deck's nav has **Transportation** (09az) before Host only fee. Mapbox's attribution is off, its
+wordmark faint in the left corner.
+
 `?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
 it without faking clicks.
