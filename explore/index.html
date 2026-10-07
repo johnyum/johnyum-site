@@ -279,7 +279,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .mi {
   position: absolute; inset: 0;
   opacity: 0; transform: translateY(8px) scale(.9); transform-origin: 50% 100%;
-  transition: opacity 320ms var(--ease), transform 420ms var(--ease);
+  transition: opacity 220ms var(--ease), transform 300ms var(--ease);
 }
 .mk.in .mi { opacity: 1; transform: none; }
 
@@ -340,6 +340,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .mk-city.sm .pill, .mk-city.sm .pin { opacity: 0; transform: scale(.3); pointer-events: none; }
 .mk-city .pin-sm { left: 9px; bottom: 0; opacity: 0; transform: scale(2); transform-origin: 5px 15px; transition: opacity 200ms var(--ease), transform 380ms var(--ease); pointer-events: none; }
 .mk-city.sm .pin-sm { opacity: 1; transform: none; pointer-events: auto; }
+/* a dot stands under every pill (John, 2026-10-06: small dots were landing on top of the big ones), and a dot whose head would
+   sit on a pill is not drawn at all — the pill has that spot */
+.mk-city.sm { z-index: 1; }
+.mk-city.sm.under .pin-sm { opacity: 0; pointer-events: none; }
+.mk-city.sm.under:hover .pin-sm { opacity: 0; }
 .mk-city.sm:hover .pill, .mk-city.sm:hover .pin { opacity: 1; transform: none; pointer-events: auto; }
 .mk-city.sm:hover .pin-sm { opacity: 0; transform: scale(2); }
 
@@ -615,9 +620,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     { n: 'Miami',          t: '3d 2hrs', ll: [ -80.19, 25.76], via: [Z, 'Floridian'] }
   ];
   var RAIL_DOTS = [
-    { n: 'Sacramento',    t: '2hrs',     ll: [-121.49, 38.58], via: [Z] },                      { n: 'Winnemucca',  t: '9hrs',     ll: [-117.70, 40.78], via: [Z] },
+    { n: 'Sacramento',    t: '2hrs',     ll: [-121.49, 38.58], via: [Z] },                      { n: 'Davis',       t: '1.5hrs',   ll: [-121.74, 38.54], via: [Z] },
+    { n: 'Martinez',      t: '45min',    ll: [-122.13, 38.02], via: [Z] },                      { n: 'San Jose',    t: '1hr',      ll: [-121.89, 37.34], via: [CS] },
+    { n: 'Salinas',       t: '2.5hrs',   ll: [-121.66, 36.68], via: [CS] },                     { n: 'Paso Robles', t: '4.5hrs',   ll: [-120.69, 35.63], via: [CS] },
+    { n: 'Colfax',        t: '3.5hrs',   ll: [-120.95, 39.10], via: [Z] },                      { n: 'Chico',       t: '5hrs',     ll: [-121.84, 39.73], via: [CS] },
+    { n: 'Redding',       t: '7hrs',     ll: [-122.39, 40.59], via: [CS] },                      { n: 'Winnemucca',  t: '9hrs',     ll: [-117.70, 40.78], via: [Z] },
     { n: 'Grand Junction',t: '20hrs',    ll: [-108.55, 39.06], via: [Z] },                      { n: 'McCook',      t: '1d 1hr',   ll: [-102.00, 40.60], via: [Z] },
-    { n: 'Kansas City',   t: '1d 10hrs', ll: [ -94.58, 39.10], via: [CS, 'Southwest Chief'] },  { n: 'Memphis',     t: '2d',       ll: [ -90.05, 35.15], via: [Z, 'City of New Orleans'] },
+    { n: 'Kansas City',   t: '1d 10hrs', ll: [ -94.58, 39.10], via: [CS, 'Southwest Chief'] },  { n: 'Memphis',     t: '2d',       ll: [ -90.05, 35.15], via: [Z, 'City Of New Orleans'] },
     { n: 'Atlanta',       t: '2d 10hrs', ll: [ -84.39, 33.75], via: [Z, 'Crescent'] },           { n: 'Pittsburgh',  t: '2d',       ll: [ -79.99, 40.44], via: [Z, 'Capitol Limited'] },
     { n: 'Cleveland',     t: '1d 20hrs', ll: [ -81.69, 41.50], via: [Z, 'Lake Shore Limited'] }, { n: 'El Paso',     t: '1d 14hrs', ll: [-106.49, 31.76], via: [CS, 'Sunset Limited'] },
     { n: 'San Antonio',   t: '1d 22hrs', ll: [ -98.49, 29.42], via: [CS, 'Sunset Limited'] },   { n: 'Minneapolis', t: '1d 16hrs', ll: [ -93.27, 44.98], via: [Z, 'Empire Builder'] }
@@ -1315,10 +1324,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   function showDrives(from, to, profile) {
     profile = profile || 'driving-traffic';
     var gen = ++hoverGen;
+    // THE ROAD AT ONCE (John, 2026-10-06: it drew a parabola first, then the road): a leg from the traveller is the road or
+    // nothing — no bezier stand-in — and `prefetchRoads` has usually fetched it already. The airports' legs (which carry a
+    // typical-traffic label as their fallback) keep the stand-in, since those three draw at once and the label is the point.
     var legs = from.map(function (o) {
-      return { line: arc(o.ll, to, 0.14), label: o.fallback };
+      return o.fallback === null ? null : { line: arc(o.ll, to, 0.14), label: o.fallback };
     });
-    paint(legs);
+    if (legs.some(function (l) { return l; })) paint(legs.filter(function (l) { return l; }));
 
     from.forEach(function (o, i) {
       var key = profile + ':' + o.ll.join(',') + ';' + to.join(',');
@@ -1326,7 +1338,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
         if (gen !== hoverGen || !r) return;
         // A leg that asked for no chip keeps none when its road lands.
         legs[i] = { line: r.line, label: o.fallback === null ? null : mins(r.dur) };
-        paint(legs);
+        paint(legs.filter(function (l) { return l; }));
       };
       if (driveCache[key]) { done(driveCache[key]); return; }
       var url = 'https://api.mapbox.com/directions/v5/mapbox/' + profile + '/' +
@@ -1341,6 +1353,24 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
         // no network, or the Directions endpoint said no — the bezier stand-in
         // and its typical-traffic label are already on screen, so nothing to do.
       });
+    });
+  }
+
+  // the roads for a set, fetched ahead into the cache so a hover is the road at once (one every 120ms, only the pins on the map)
+  var prefetchT = [];
+  function prefetchRoads(set, profile) {
+    prefetchT.forEach(clearTimeout); prefetchT = [];
+    var todo = set.filter(function (o) { return o.d && o.marker._map && !driveCache[profile + ':' + ME.join(',') + ';' + o.d.ll.join(',')]; });
+    todo.forEach(function (o, i) {
+      prefetchT.push(setTimeout(function () {
+        var key = profile + ':' + ME.join(',') + ';' + o.d.ll.join(',');
+        if (driveCache[key] || !o.marker._map) return;
+        var url = 'https://api.mapbox.com/directions/v5/mapbox/' + profile + '/' + ME.join(',') + ';' + o.d.ll.join(',') +
+          '?geometries=geojson&overview=full&access_token=' + mapboxgl.accessToken;
+        fetch(url).then(function (res) { return res.json(); }).then(function (j) {
+          var rt = j && j.routes && j.routes[0]; if (rt) driveCache[key] = { line: rt.geometry.coordinates, dur: rt.duration };
+        }).catch(function () {});
+      }, 200 + i * 120));
     });
   }
 
@@ -1412,12 +1442,16 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
   // Adding a marker and revealing it are two beats: add it invisible, then let
   // a frame pass so the transition actually has something to run from.
+  // UNIFORM AND QUICK (John, 2026-10-06: the pins were leaving and arriving one at a time): a set comes in together, one beat
+  // after it's added so the transition has something to run from, and leaves together — no stagger anywhere
   function show(set, stagger) {
-    set.forEach(function (o, i) {
-      if (!within(o)) return;   // past the travel-time slider: left off
-      o.marker.addTo(map);
-      setTimeout(function () { o.el.classList.add('in'); declutterSoon(); }, 40 + i * (stagger || 40));
-    });
+    set.forEach(function (o) { if (within(o)) o.marker.addTo(map); });   // past the travel-time slider: left off
+    setTimeout(function () { set.forEach(function (o) { if (within(o)) o.el.classList.add('in'); }); declutterSoon(); roadsAhead(); }, 40);
+  }
+  function roadsAhead() {
+    if (state === 'drive') prefetchRoads(BEATS.drive.set, 'driving-traffic');
+    else if (state === 'walk') prefetchRoads(BEATS.walk.set, 'walking');
+    else { prefetchT.forEach(clearTimeout); prefetchT = []; }
   }
   // THE TRAVEL TIME (John, 2026-10-06): the slider is a real filter — a pin whose hours are past it is off the map. Each mode has
   // its own range: a car 1–12 hours, a flight 1–12, a train 4 hours to 3 days ('Any duration' at the end), a walk 15 min to 4 hours.
@@ -1432,7 +1466,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     var set = BEATS[state] && BEATS[state].set; if (!set) return;
     set.forEach(function (o, i) {
       var want = within(o), on = !!o.marker._map;
-      if (want && !on) { o.marker.addTo(map); setTimeout(function () { o.el.classList.add('in'); declutterSoon(); }, 30 + i * 12); }
+      if (want && !on) { o.marker.addTo(map); setTimeout(function () { o.el.classList.add('in'); declutterSoon(); roadsAhead(); }, 30); }
       else if (!want && on) { o.el.classList.remove('in'); setTimeout(function () { if (!within(o)) o.marker.remove(); declutterSoon(); }, 420); }
     });
     fitVisible();
@@ -1480,21 +1514,26 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       if (!o.pw) { var pl = o.el.querySelector('.pill'); o.pw = (pl && pl.offsetWidth) || 120; }
       var r = { l: p.x - 14, t: p.y - 36, r: p.x - 14 + o.pw, b: p.y - 8 };
       var hits = kept.some(function (k) { return r.l < k.r + DECL_GAP && r.r > k.l - DECL_GAP && r.t < k.b + DECL_GAP && r.b > k.t - DECL_GAP; });
-      if (!hits || o.el.matches(':hover')) { kept.push(r); o.el.classList.remove('sm'); }
-      else o.el.classList.add('sm');
+      if (!hits || o.el.matches(':hover')) { kept.push(r); o.el.classList.remove('sm', 'under'); }
+      else { o.el.classList.add('sm'); o.px = p; }
+    });
+    // then every dot's own head against ALL the standing pills (a dot grown later in the order can cover an earlier one):
+    // if a pill covers it, the dot isn't drawn — the pill has that spot
+    cands.forEach(function (o) {
+      if (!o.el.classList.contains('sm') || !o.px) return;
+      var h = { l: o.px.x - 6, t: o.px.y - 16, r: o.px.x + 6, b: o.px.y };
+      o.el.classList.toggle('under', kept.some(function (k) { return h.l < k.r && h.r > k.l && h.t < k.b && h.b > k.t; }));
     });
   }
   function declutterSoon() { if (!declRaf) declRaf = requestAnimationFrame(declutter); }
   map.on('move', declutterSoon); map.on('moveend', declutterSoon);
 
   function hide(set, stagger, done) {
-    set.forEach(function (o, i) {
-      setTimeout(function () { o.el.classList.remove('in'); }, i * (stagger || 24));
-    });
+    set.forEach(function (o) { o.el.classList.remove('in'); });
     setTimeout(function () {
       set.forEach(function (o) { o.marker.remove(); });
       if (done) done();
-    }, set.length * (stagger || 24) + 420);
+    }, 260);
   }
 
   // ── The drill-in ────────────────────────────────────────────────────────
@@ -1531,15 +1570,15 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     // Going deeper, the marker you aimed at holds its ground while the field
     // around it clears — it is the thing the camera is travelling toward, so
     // it is the last to let go. Coming back out, everything leaves together.
-    from.set.forEach(function (o, i) {
+    from.set.forEach(function (o) {
       if (deeper && o.el.classList.contains('hero')) return;
-      setTimeout(function () { o.el.classList.remove('in'); }, i * (deeper ? 18 : 20));
+      o.el.classList.remove('in');
     });
 
     // THE CAMERA ON A MODE CHANGE (2026-10-06): the knob keeps its place across modes, so the new mode's hours may let far pins
     // in (or few) — then the flight goes straight to the frame that holds them, not the mode's stock camera and a second move
-    var dest = cam(to.cam), stock = to.dur && durPos != null && Math.abs(durPos - parseFloat(to.dur[0]) / 100) < 0.005;
-    if (to.depth === 0 && to.dur && durPos != null && (!stock || vibe !== 'popular')) { applyPos(durPos, true); var fc = fitCam(to.set, next); if (fc) dest = fc; }
+    var dest = cam(to.cam);
+    if (to.depth === 0 && to.dur && durPos != null) { applyPos(durPos, true); var fc = fitCam(to.set, next); if (fc) dest = fc; }   // always — the stock camera lost two train pins in a continent
     map.flyTo({
       center: dest.center, zoom: dest.zoom, padding: PAD(),
       duration: deeper ? 1500 : 1250, curve: 1.5, speed: 0.9, essential: true
@@ -1569,7 +1608,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       show(to.set, deeper ? 55 : 32);
       if (to.depth === 0 && from.depth > 0) meOn(true);
       busy = false;
-    }, deeper ? 1650 : 1400);
+    }, deeper ? 1650 : (from.depth === 0 && to.depth === 0 ? 700 : 1400));   // a mode change: the next set lands in the flight's second half, not after it (John: quick)
     if (deeper && from.depth === 0) meOn(false);
 
     if (!deeper && prev === 'hood') paintHoodMask(false);
@@ -1618,7 +1657,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     });
   });
   // THE VIBE'S PINS: the field clears and the vibe's own cities come in, New York (the hero) among them each time
-  var vibe = 'popular', FIT_MAX = { drive: 7.2, usa: 4.6, rail: 4.6, walk: 13.4 };
+  var vibe = 'popular', FIT_MAX = { drive: 7.2, usa: 4.6, rail: 7.2, walk: 13.4 };
   function setVibe(k) {
     var sets = vibeSets[state]; if (!sets || !sets[k] || k === vibe) return;
     var was = BEATS[state].set; vibe = k;

@@ -122,12 +122,14 @@
 (() => {
   const screen = document.getElementById('screen');
   const page = document.getElementById('page');
-  const fit = w => { if (w > 0) screen.style.setProperty('--k', w / 1512); };
+  // the scale comes from the width; the page's height is then the screen's own height at that scale, so it fills the screen
+  // exactly — 1512 x 977 scaled by the width alone came up a fraction of a pixel short and showed a white line along the bottom
+  const fit = (w, h) => { if (w > 0) { const k = w / 1512; screen.style.setProperty('--k', k); if (h > 0) page.style.height = Math.ceil(h / k) + 'px'; } };
   // ResizeObserver, not rAF and not a load-time read: it fires when the element
   // first gets a box, which is exactly when the deck un-parks this slide. A
   // measurement taken while parked reads zero and would stick.
-  new ResizeObserver(([e]) => fit(e.contentRect.width)).observe(screen);
-  fit(screen.getBoundingClientRect().width);   // if it is already on stage
+  new ResizeObserver(([e]) => fit(e.contentRect.width, e.contentRect.height)).observe(screen);
+  const r0 = screen.getBoundingClientRect(); fit(r0.width, r0.height);   // if it is already on stage
 
   // ── the flow-through ──────────────────────────────────────────────────
   const LAND_PAUSE = 900;    // the slide lands, holds, then hovers Eureka

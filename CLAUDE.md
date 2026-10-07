@@ -294,6 +294,14 @@ dot (`.sm:hover`) and the pill grows out of its point, draws its leg and rises o
 The element takes no pointer, only the pin and the pill. **The slider is ONE scale for every mode** (`DUR = [0.25, 84]`, pos²):
 3 hours is 3 hours on a flight, a train or a walk — John: the hours must not change when the transport does.
 
+**Later the same day:** dots stand under pills (`z-index` 1) and a dot a standing pill covers isn't drawn (`under`). Sets leave
+and arrive TOGETHER — no stagger anywhere (John: "uniform and quick"); on a mode change the next set lands in the flight's second
+half. The camera ALWAYS fits the allowed pins on a mode change (the stock camera lost two train pins in a continent); the trains
+have near stops (Martinez, Davis, San Jose, Salinas, Colfax…) so a short duration still shows some. A drive or walk hover is the
+road at once: no bezier stand-in from the traveller (the airports' three legs keep theirs, for the label), and `prefetchRoads`
+fetches every shown pin's road into the cache, one every 120ms. Slide 09c sizes the page's height to the screen (`fit(w, h)`), or
+1512 x 977 scaled by the width alone came up a fraction short and showed a white line along the bottom.
+
 `?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
 it without faking clicks.
