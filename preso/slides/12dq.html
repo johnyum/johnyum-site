@@ -13,19 +13,19 @@
   .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
   .shot { flex: none; position: relative; border-radius: 16px; box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
   .shot img { display: block; width: 100%; height: 100%; border-radius: 16px; }
-  .shot .x { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-  .shot .x line { stroke: #ff385c; stroke-width: 8px; stroke-linecap: butt; stroke-dasharray: var(--len) var(--len); stroke-dashoffset: var(--len); }
-  .shot.on .x line { stroke-dashoffset: 0; transition: stroke-dashoffset .35s cubic-bezier(.4,0,.2,1); }
-  .snap .shot .x line { transition: none !important; }
-  /* "I'll miss you." (John, 2026-10-07) — the joke under the strike: the deck's mono, the eyebrow's 18px grey, centred 24 under the
-     grab, fading in a beat after the line has landed */
-  .shot .line { position: absolute; left: 0; right: 0; top: 100%; margin: 24px 0 0; text-align: center; font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 18px; line-height: 1.5; color: #6A6A6A; opacity: 0; }
-  .shot.on .line { opacity: 1; transition: opacity .3s ease .4s; }
-  .snap .shot .line { transition: none !important; }
+  /* THE STRIKE AS A BAR, NOT AN SVG DASH (John, 2026-10-07: the dash animation was glitchy): an 8px red bar laid from the top-right
+     corner (16 past it) down the diagonal, scaled open along its length on a transform — composited, so it draws smooth */
+  .shot .bar { position: absolute; height: 8px; background: #ff385c; transform-origin: 0 50%; transform: rotate(var(--ang)) scaleX(0); will-change: transform; pointer-events: none; z-index: 2; }
+  .shot.on .bar { transform: rotate(var(--ang)) scaleX(1); transition: transform .35s cubic-bezier(.4,0,.2,1); }
+  /* "I'll miss you." (John, 2026-10-07): 40px mono in the strike's red, centred on the grab, UNDER the bar — struck through as it
+     comes in, fading up with the line */
+  .shot .line { position: absolute; left: 0; right: 0; top: 50%; margin: 0; transform: translateY(-50%); text-align: center; font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 40px; line-height: 1.5; color: #ff385c; opacity: 0; z-index: 1; }
+  .shot.on .line { opacity: 1; transition: opacity .35s ease; }
+  .snap .shot .bar, .snap .shot .line { transition: none !important; }
 </style>
 </head>
 <body>
-  <div class="stage"><div class="shot" id="shot"><img src="assets/process-figma.webp" alt="The Multi Calendar file in Figma"><svg class="x" aria-hidden="true"><line id="xl"/></svg><p class="line">I’ll miss you.</p></div></div>
+  <div class="stage"><div class="shot" id="shot"><img src="assets/process-figma.webp" alt="The Multi Calendar file in Figma"><div class="bar" id="bar"></div><p class="line">I’ll miss you.</p></div></div>
 <script>
 (() => {
   const W = 2000, H = 1255, shot = document.getElementById('shot');
@@ -35,13 +35,14 @@
           if (k) top = k.getBoundingClientRect().bottom + 40; if (c) bottom = c.getBoundingClientRect().top - 40; } catch (_) {}
     return Math.max(200, bottom - top);
   };
-  // the strike: top-right corner to bottom-left, 48px past each (16 first; John, 2026-10-07: "poke out more by 32"), its length set so the dash can draw it from the top-right down
-  const ln = document.getElementById('xl'), OVER = 48;
-  const strike = (w, h) => { const d = Math.hypot(w, h), ux = w / d, uy = h / d;
-    ln.setAttribute('x1', w + ux * OVER); ln.setAttribute('y1', -uy * OVER); ln.setAttribute('x2', -ux * OVER); ln.setAttribute('y2', h + uy * OVER);
-    ln.style.setProperty('--len', d + 2 * OVER); };
+  // the strike: from 16px past the top-right corner, down the diagonal to 16px past the bottom-left — the bar's length and angle
+  const bar = document.getElementById('bar'), OVER = 16;
+  const strike = (w, h) => { const d = Math.hypot(w, h), ux = w / d, uy = h / d, ang = Math.atan2(h, -w) * 180 / Math.PI;
+    bar.style.left = (w + ux * OVER) + 'px'; bar.style.top = (-uy * OVER - 4) + 'px'; bar.style.width = (d + 2 * OVER) + 'px'; bar.style.setProperty('--ang', ang + 'deg'); };
   const fit = () => { const s = Math.min((innerWidth - 64) / W, band() / H) * .8, w = Math.round(W * s), h = Math.round(H * s); shot.style.width = w + 'px'; shot.style.height = h + 'px'; strike(w, h); };
   fit(); addEventListener('resize', fit);
+  // the grab decoded ahead of the strike (John, 2026-10-07: "maybe it's a loading thing") — a 2000-wide webp painting mid-stroke would stutter it
+  const img = shot.querySelector('img'); if (img.decode) img.decode().catch(() => {});
   let step = 0;
   const show = (n, instant) => { step = n; if (instant) document.body.classList.add('snap'); shot.classList.toggle('on', n > 0); if (instant) requestAnimationFrame(() => document.body.classList.remove('snap')); };
   window.presoNext = () => { if (step >= 1) return false; show(1); return true; };
