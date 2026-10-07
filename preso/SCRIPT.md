@@ -79,7 +79,14 @@ The slide is one sentence: **Calendar is where Airbnb hosts run their business, 
 > Testing told us two things. Hosts found it easy to use — but it was missing what they need every day. So here's how I
 > answered each one.
 
-Then one short line as each ⨉ is crossed out. *(To write: a line per ⨉.)*
+Then one short line as each ⨉ is crossed out — John's, 2026-10-07, smoothed only for saying:
+
+- **Too dark** — We listened, and made it lighter. We'd accidentally made an optical illusion: a bunch of black squares together,
+  and you see ghost dots in between.
+- **No price help** — Price tips: the optimal price without guessing, and easy to adopt.
+- **No popular dates** — Event and holiday icons, so hosts know when their more lucrative nights are.
+- **Lacked context** — An odometer animation and motion in the cells, so hosts don't miss a thing.
+- **No recurrence** — A whole recurrence input to repeat nights.
 
 ### What it taught (12dl — the lesson, after the library of components)
 
