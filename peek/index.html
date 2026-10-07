@@ -562,7 +562,8 @@ const lerp = (a, b, k) => a + (b - a) * k;
 // The character itself is retired (2026-10-04, John's call — "the dead end design"): it's never shown,
 // never takes a touch, never goes home. Everything it did is kept, behind this one flag. What still
 // runs here is the tide pool (plush creatures that drop in when the answer names them).
-const CHARACTER = /[?&]character\b/.test(location.search);
+// A character sent from Monsters (#m= a built model, #c= a kit one) is asked for, so it shows too.
+const CHARACTER = /[?&]character\b/.test(location.search) || /^#[mc]=/.test(location.hash);
 const S = /[?&]big\b/.test(location.search) ? 260 : 86;   // px per character unit — it stands about 100px tall (?big: three times that, to look at it closely)
 
 /* ═══════════════ the world: one pixel, one unit ═══════════════ */
@@ -805,7 +806,8 @@ if (lend) for (const m of [1, -1]) {
 }
 
 /* ═══════════════ or: a finished Meshy model (from Monsters' Draw mode) ═══════════════
-   #m=… carries the model's Meshy files: the rigged GLB and its moves when it has them.
+   #m=… carries the model's Meshy files: the rigged GLB and its moves when it has them —
+   or, once kept, { file }: one GLB in peek/monsters/ with them all merged in (see loadModel).
    They come through /api/monsters — Meshy's files carry no CORS header — whole when
    it's monsters/serve.py, in 4MB slices with the passcode on johnyum.com, as Monsters
    itself loads them. With moves, the rig plays them: Idle standing, Run (or Walk) running,
@@ -837,6 +839,12 @@ function claim(animations) {
   }
 }
 async function loadModel(m) {
+  // Kept (monsters/keep.py): one file in peek/monsters/ with every move in it — never expires.
+  if (m.file) {
+    const r = await fetch(m.file); if (!r.ok) throw new Error('no kept monster at ' + m.file);
+    const gltf = await loader.parseAsync(await r.arrayBuffer(), '');
+    return place(gltf.scene, gltf.animations, true);
+  }
   const gltf = await loader.parseAsync(await modelBytes(m.rigged || m.glb), '');
   // Each Meshy move is its own file; its clip plays on this rig — same skeleton, same bone names.
   for (const [label, url] of Object.entries(m.clips || {})) {
@@ -997,7 +1005,7 @@ function animateModel(dt, running) {
   else if (C.mode === 'air') playClip('Jump') || playClip('Idle');
   else playClip('Idle');
 }
-if (linkedModel?.glb) loadModel(linkedModel).catch((e) => setTimeout(() => say('couldn\'t load that one: ' + e.message, 4000), 1200));
+if (linkedModel?.glb || linkedModel?.file) loadModel(linkedModel).catch((e) => setTimeout(() => say('couldn\'t load that one: ' + e.message, 4000), 1200));
 // No character in the link: the one last built in Rig Studio (it saves to this same origin's
 // storage), else the Bunny. A #c=… kit character or #m=… Meshy model keeps its own path.
 const savedRig = () => { try { return JSON.parse(localStorage.getItem('rig.state')); } catch { return null; } };
@@ -2285,8 +2293,14 @@ function poolHear(text) {
   // asked for, the answer naming the creatures again (its clues do) drops none of them — the pile was poured into the box
   // for the cards, and only the cards stay
   const gameOn = /\bgames?\b/i.test(lastAsk) || critters.some((c) => c.key === 'pail');
-  for (const [k, P] of Object.entries(POOL)) if (P.re && !poolSeen.has(k) && P.re.test(text) && !(k === 'timer' && BBQ.test(lastAsk)) && !(gameOn && CLUES[k])) { poolSeen.add(k); poolDrop(k); }
-  toolsHear(text);
+  // A STORY CHAT KEEPS TO ITS STORY (John, 2026-10-07: "keep the icon actions in their own chats" — an egg timer turned up under
+  // the Moby-Dick cast): with the whale, the cast or Spider-Man in the chat, or asked for, the answer drops no creature or tool —
+  // the deck's rule (each scene its own things), on the phone
+  const story = whaleSeen || whaleOff || !!cast || !!spidey || WHALE_RE.test(lastAsk) || SPIDEY_RE.test(lastAsk);
+  if (!story) {
+    for (const [k, P] of Object.entries(POOL)) if (P.re && !poolSeen.has(k) && P.re.test(text) && (k !== 'timer' || (COOK_ASK.test(lastAsk) && !BBQ.test(lastAsk))) && !(gameOn && CLUES[k])) { poolSeen.add(k); poolDrop(k); }
+    toolsHear(text);
+  }
   if (!whaleSeen && !whaleOff && WHALE_RE.test(text)) { whaleSeen = true; whaleStart(); }
   // The timer comes set: the answer's first cooking time — "smoke for 6 hours", "on the grill 45 minutes" —
   // or failing that its first time of any kind. Until you wind it yourself, it follows the answer.
@@ -2315,6 +2329,7 @@ const CARDTITLE = { x: .2068, y: .035, w: .5864, h: .1003 }, CARDLINES = { x: .1
 const SHOPPAPER = { x: .2496, y: .1465, w: .6378, h: .8252 };   // the legal pad's yellow page, right of its margin line
 const CALBAND = { x: .1354, y: .1186, w: .694, h: .2035 }, CALPAGE = { x: .1384, y: .3631, w: .6867, h: .4905 };
 const BBQ = /\b(brisket|bbq|barbecue|smok\w*|smoker|big green egg|kamado|pulled pork|ribs)\b/i;
+const COOK_ASK = /\b(cook\w*|bak\w*|roast\w*|boil\w*|grill\w*|oven|recipe|timer|simmer\w*|steam\w*|fry\w*|saut\w*|poach\w*|brew\w*|steep\w*|eggs?|pasta|rice|steak|chicken|bread|dough|tea|coffee)\b/i;   // the egg timer needs a cooking question from you — the answer's own words ("always smoking a pipe") brought it into Moby-Dick
 const HOWTO = /\b(how (do|to|can|should|would)|steps?|step[- ]by[- ]step|walk me|guide|set ?up|recipe|show me how|checklist|instructions?|teach me)\b/i;
 const PLACES = /\b(where|near|nearby|spots?|places?|restaurants?|caf[eé]s?|coffee|bars?|hikes?|trails?|parks?|museums?|shops?|stores?|bakery|bakeries|visit|neighbou?rhood|district)\b/i;
 let lastAsk = '';
