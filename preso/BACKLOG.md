@@ -9,3 +9,5 @@
   proper place, from the start.
 - The adjusted-prices calendar (Aug 9–15 picked, $200 struck to $231): the 10th through the 15th should NOT wear the "today"
   circle round their numbers — white type straight on the black cell. Only the 9th is today.
+- "Let's adjust your prices" (6 of 7): REGRESSION — the non-animated badge still shows; only the animated one, in place, from
+  the start. And 8px more between the badge and the title/content below it.
