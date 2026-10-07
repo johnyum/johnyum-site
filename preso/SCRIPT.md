@@ -159,7 +159,11 @@ the retired cast, the thermometer, the digital timer detour, the character — a
 
 ### The 3D chat (12fg) — the five scenes, in the order they play
 
-The phone is live: the real app's chat, Claude answering for real (Opus 5), the keyboard typing each question in. One scene
+The phone is live: the real app's chat, Claude answering for real (Opus 5), the keyboard typing each question in.
+**REAL, AND SAID SO (John, 2026-10-07: "I'd rather have real AI than faked. I want the room to know.")** A live build can't be
+guaranteed, and that's accepted: if Claude is slow, say it's thinking; if the call fails, the page plays the written answer, and
+John says that's what happened. The fallback (`?live=0`) is for a dead network, never a quieter show. Tell the room it's live
+before the first question types. One scene
 per idea; a new chat between them (the new-chat mark is tapped, the greeting comes fresh). What to say over each, roughly:
 
 1. **Tide pool** (2 taps). "My daughter is learning about tide pools…" — as Claude names each creature it drops into the chat
