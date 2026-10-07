@@ -32,17 +32,17 @@
   // the calendar takes 6 x 4 dead centre (cols 6–11, rows 3–6), a phone 1 x 2, a web build 3 x 2, a graph strip 3 or 4 x 1 — packed
   // round the centre first-fit, top to bottom; then every cell still free gets one of the calendar's holiday icons, all at one size,
   // so there are no empty areas (John: the icons as fillers, all the same size)
-  const COLS = 18, ROWS = 10, C = 86, G = 16, SW = COLS * C + (COLS - 1) * G, SH = ROWS * C + (ROWS - 1) * G, X0 = 0, Y0 = 0;   // the sheet IS the grid (1820 x 1004): no margin round it, so the bleed is the same on every edge
+  const COLS = 16, ROWS = 9, C = 86, G = 16, SW = COLS * C + (COLS - 1) * G, SH = ROWS * C + (ROWS - 1) * G, X0 = 0, Y0 = 0;   // the sheet IS the grid (1820 x 1004): no margin round it, so the bleed is the same on every edge
   sheet.style.width = SW + 'px'; sheet.style.height = SH + 'px';
   const cell = (c, r, w, h) => ({ x: X0 + c * (C + G), y: Y0 + r * (C + G), w: w * C + (w - 1) * G, h: h * C + (h - 1) * G });
   const used = Array.from({ length: ROWS }, () => new Array(COLS).fill(false));
   const take = (c, r, w, h) => { for (let j = r; j < r + h; j++) for (let i = c; i < c + w; i++) used[j][i] = true; };
   const free = (c, r, w, h) => { if (c + w > COLS || r + h > ROWS) return false; for (let j = r; j < r + h; j++) for (let i = c; i < c + w; i++) if (used[j][i]) return false; return true; };
   const tiles = [];
-  { const c = 6, r = 3; take(c, r, 6, 4); const b = cell(c, r, 6, 4), h = Math.round(b.w / 1.6), y = b.y + Math.round((b.h - h) / 2);   // the calendar keeps its own proportion (2000 x 1250) inside its 6 x 4 block, so nothing is cut off its sides
+  { const c = 5, r = 2; take(c, r, 6, 4); const b = cell(c, r, 6, 4), h = Math.round(b.w / 1.6), y = b.y + Math.round((b.h - h) / 2);   // the calendar keeps its own proportion (2000 x 1250) inside its 6 x 4 block, so nothing is cut off its sides
     tiles.push({ src: 'assets/process-multical.webp', x: b.x, y, w: b.w, h, centre: true }); }
-  { take(6, 1, 5, 2); tiles.push({ src: A + 'graph-01-current-straight-line-pills.webp', ...cell(6, 1, 5, 2) }); }   // the straight-line graph right above the calendar (John, 2026-10-06)
-  const CC = cell(6, 3, 6, 4), OFF = SH / 2 - (CC.y + CC.h / 2);   // the calendar sits half a row above the sheet's middle: the sheet is shifted down by that, so the calendar is centred on the screen and the board (which bleeds anyway) carries the difference
+  { take(5, 0, 5, 2); tiles.push({ src: A + 'graph-01-current-straight-line-pills.webp', ...cell(5, 0, 5, 2) }); }   // the straight-line graph right above the calendar (John, 2026-10-06)
+  const CC = cell(5, 2, 6, 4), OFF = SH / 2 - (CC.y + CC.h / 2);   // the calendar sits half a row above the sheet's middle: the sheet is shifted down by that, so the calendar is centred on the screen and the board (which bleeds anyway) carries the difference
   const W = (n) => [n, 3, 2], P = (n) => [n, 1, 2];
   const ICONS = ['season-la-awards', 'carousel-horse', 'comic-pow', 'cowboy-hat', 'chili-pepper', 'clapperboard', 'electric-guitar', 'flamingo-float', 'french-horn', 'gramophone', 'jockey-silks', 'maracas', 'microphone', 'new-years', 'presidents-day', 'pride-rainbow', 'rose', 'running-shoe', 'santa-hat', 'thanksgiving',
     'bicycle', 'pride-heart', 'sec-popcorn', 'sec-pretzel', 'sec-bell', 'sec-cactus', 'sec-candycanes', 'sec-flipflop', 'sec-beachball', 'sec-umbrella', 'sec-sun', 'sec-medal', 'sec-horseshoe', 'sec-ticket', 'sec-film-reel', 'sec-sparkle', 'sec-daisy', 'sec-palm', 'sec-flame', 'sec-book', 'sec-raindrop', 'superhero-mask', 'tennis-racquet', 'memorial-day', 'labor-day', 'mlk-jr-day', 'season-tahoe-winter', 'season-aspen-winter', 'season-bigbear-winter', 'season-malibu-high', 'season-la-summer', 'season-tahoe-summer', 'season-aspen-summer', 'sec-july-4th', 'sec-veterans-day', 'jockey-helmet', 'sec-comic-bolt', 'sec-rainbow-heart', 'sec-pride-balloon'];
@@ -74,8 +74,8 @@
     if (!best) { console.warn('no room for', n); continue; }
     take(best[0], best[1], w, h); tiles.push({ src: A + n + '.webp', ...cell(best[0], best[1], w, h) });
   }
-  // one small icon to a free cell, and a two-by-two of four every fourth cell (John: four small ones read as variety; all of them that way was too many)
-  { let k = 0, m = 0; for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (!used[r][c]) { take(c, r, 1, 1); const n = m++ % 4 === 1 ? 4 : 1; tiles.push({ icons: Array.from({ length: n }, () => A + 'icons/' + ICONS[k++ % ICONS.length] + '.webp'), icon: true, quad: n === 4, ...cell(c, r, 1, 1) }); } }
+  // one small icon to each free cell (John: far fewer icons — the board is 16 x 9 so few cells are left)
+  { let k = 0, m = 0; for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (!used[r][c]) { take(c, r, 1, 1); const n = 1; tiles.push({ icons: Array.from({ length: n }, () => A + 'icons/' + ICONS[k++ % ICONS.length] + '.webp'), icon: true, quad: n === 4, ...cell(c, r, 1, 1) }); } }
   // drawn; each one's delay grows with its distance from the middle, so they arrive from the centre outward
   for (const t of tiles) {
     const el = document.createElement('div'); el.className = 'tile' + (t.centre ? ' centre' : '');
