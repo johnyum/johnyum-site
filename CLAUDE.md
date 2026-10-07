@@ -302,6 +302,10 @@ road at once: no bezier stand-in from the traveller (the airports' three legs ke
 fetches every shown pin's road into the cache, one every 120ms. Slide 09c sizes the page's height to the screen (`fit(w, h)`), or
 1512 x 977 scaled by the width alone came up a fraction short and showed a white line along the bottom.
 
+**Enough to see (2026-10-06):** a mode or vibe change that would leave fewer than five pins moves the knob UP to the lowest hours
+that show five (`enough()`, `MIN_PINS`) — the one time the duration changes on its own, and the knob is seen to move. Eight or fewer
+on the map and every one stands as a pill (`FEW_PINS` in `declutter`): no dots when there's room for all.
+
 `?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
 it without faking clicks.

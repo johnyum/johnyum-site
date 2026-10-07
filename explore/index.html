@@ -1487,6 +1487,17 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     var c = map.cameraForBounds(b, { padding: { top: 90, bottom: 70, left: PAD().left + 80, right: 100 }, maxZoom: FIT_MAX[beat || state] || 4.6 });
     return c ? { center: c.center, zoom: c.zoom } : null;
   }
+  // ENOUGH TO SEE (John, 2026-10-06, the trains at 7.5 hours were two pins): if the knob's hours would leave fewer than a handful
+  // of pins, the knob moves up — to the lowest hours that show that handful, and no further. The one time the duration changes
+  // on its own; the knob is seen to move, and the label says the new hours
+  var MIN_PINS = 5;
+  function enough(set, beat) {
+    var hs = set.filter(function (o) { return o.h != null; }).map(function (o) { return o.h; }).sort(function (a, b) { return a - b; });
+    if (hs.length < MIN_PINS) return;
+    var need = hs[MIN_PINS - 1]; if (within({ h: need }, beat)) return;
+    var pos = Math.min(1, Math.sqrt((need * 1.08 - DUR[0]) / (DUR[1] - DUR[0])));
+    durPos = pos; applyPos(pos, true);
+  }
   function fitVisible() {
     clearTimeout(fitT);
     fitT = setTimeout(function () {
@@ -1500,21 +1511,21 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // then the dots — each keeps its pill if its rect (the pill plus 10 of air) clears everything already standing, the traveller
   // included; otherwise it settles to its dot. So a sparse map fills itself with the dots' pills and a crowded one thins to dots,
   // and the same order every pass keeps the picture steady as the camera moves. A hovered marker is never set down under the pointer.
-  var declRaf = 0, DECL_GAP = 10;
+  var declRaf = 0, DECL_GAP = 10, FEW_PINS = 8;
   function declutter() {
     declRaf = 0;
     var set = BEATS[state] && BEATS[state].set; if (!set) return;
     var cands = set.filter(function (o) { return o.d && o.marker._map && o.el.classList.contains('in'); });
     var rank = function (o) { return o.d.hero ? 0 : o.dot ? 2 : 1; };
     cands.sort(function (a, b) { return rank(a) - rank(b); });
-    var kept = [];
+    var kept = [], few = cands.length <= FEW_PINS;   // only a few on the map: every one of them stands as a pill (John)
     if (meMk && meMk.marker._map) { var m = map.project(meMk.marker.getLngLat()); kept.push({ l: m.x - 20, t: m.y - 48, r: m.x + 20, b: m.y }); }
     cands.forEach(function (o) {
       var p = map.project(o.marker.getLngLat());
       if (!o.pw) { var pl = o.el.querySelector('.pill'); o.pw = (pl && pl.offsetWidth) || 120; }
       var r = { l: p.x - 14, t: p.y - 36, r: p.x - 14 + o.pw, b: p.y - 8 };
       var hits = kept.some(function (k) { return r.l < k.r + DECL_GAP && r.r > k.l - DECL_GAP && r.t < k.b + DECL_GAP && r.b > k.t - DECL_GAP; });
-      if (!hits || o.el.matches(':hover')) { kept.push(r); o.el.classList.remove('sm', 'under'); }
+      if (few || !hits || o.el.matches(':hover')) { kept.push(r); o.el.classList.remove('sm', 'under'); }
       else { o.el.classList.add('sm'); o.px = p; }
     });
     // then every dot's own head against ALL the standing pills (a dot grown later in the order can cover an earlier one):
@@ -1578,7 +1589,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     // THE CAMERA ON A MODE CHANGE (2026-10-06): the knob keeps its place across modes, so the new mode's hours may let far pins
     // in (or few) — then the flight goes straight to the frame that holds them, not the mode's stock camera and a second move
     var dest = cam(to.cam);
-    if (to.depth === 0 && to.dur && durPos != null) { applyPos(durPos, true); var fc = fitCam(to.set, next); if (fc) dest = fc; }   // always — the stock camera lost two train pins in a continent
+    if (to.depth === 0 && to.dur && durPos != null) { applyPos(durPos, true); enough(to.set, next); var fc = fitCam(to.set, next); if (fc) dest = fc; }   // always — the stock camera lost two train pins in a continent
     map.flyTo({
       center: dest.center, zoom: dest.zoom, padding: PAD(),
       duration: deeper ? 1500 : 1250, curve: 1.5, speed: 0.9, essential: true
@@ -1615,7 +1626,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   }
 
   document.getElementById('back').addEventListener('click', function () { go('usa'); });
-  if (window.__explore) window.__explore.vibe = setVibe;
+  if (window.__explore) { window.__explore.vibe = setVibe; window.__explore.dbg = function () { return { fitCam: fitCam, enough: enough, BEATS: BEATS, maxH: maxH, declutter: declutter, within: within, state: state }; }; }   // for a test, nothing else
   document.getElementById('backHood').addEventListener('click', function () { go('nyc'); });
   document.getElementById('toHomes').addEventListener('click', function () { go('hood'); });
   document.getElementById('zin').addEventListener('click', function () { map.zoomIn({ duration: 400 }); });
@@ -1662,6 +1673,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     var sets = vibeSets[state]; if (!sets || !sets[k] || k === vibe) return;
     var was = BEATS[state].set; vibe = k;
     var next = sets[k]; Object.keys(vibeSets).forEach(function (m) { if (vibeSets[m][k]) BEATS[m].set = vibeSets[m][k]; });   // the vibe holds across modes
+    enough(next);
     busy = true; hideRoute();
     // the camera fits the vibe's pins (John, 2026-10-06: zoom to fit if necessary) — Popular goes back to the mode's own camera
     hide(was, 18, function () { show(next, 32); busy = false; fitVisible(); });   // then the camera fits the pins the hours allow
