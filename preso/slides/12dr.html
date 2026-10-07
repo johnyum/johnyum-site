@@ -4,29 +4,75 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>12dr</title>
-<!-- THE WEB CALENDAR (John, 2026-10-06) — after the Figma: his grab of the multi calendar web build, two weeks of October with the guests across the rows, shown
-     whole with 16 rounded corners, fitted to the stage with the deck's own clearances (40 under the kicker, 40 above the nav).
-     assets/process-multical.webp. No build. -->
+<!-- THE WEB CALENDAR, AND THE ITERATIONS ROUND IT (John, 2026-10-06) — after the Figma: his grab of the multi calendar web build
+     (two weeks of October, the guests across the rows), centred with a grey-200 stroke and 16 corners. One tap, and the 26 iterations
+     from Hello.zip (assets/iterations/: the phone builds, the web builds, the pricing graphs) tile round it on a 1920 x 1080 sheet —
+     phones to either side, the wide ones above and below — each fading up in turn from the middle outward, while the calendar
+     settles into its place at the centre. Scaled to fit the stage with the deck's clearances. -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
-  .shot { flex: none; border-radius: 16px; overflow: hidden; border: 1px solid #e5e7eb; }
-  .shot img { display: block; width: 100%; height: 100%; }
+  .sheet { position: relative; flex: none; width: 1920px; height: 1080px; transform: scale(var(--s, 1)); transform-origin: center; transition: transform .9s cubic-bezier(.22,1,.36,1); }
+  .tile { position: absolute; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; background: #fff; opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .7s cubic-bezier(.22,1,.36,1); transition-delay: var(--d, 0s); }
+  .tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .tile.centre { border-radius: 16px; opacity: 1; transform: none; }
+  .built .tile { opacity: 1; transform: none; }
 </style>
 </head>
 <body>
-  <div class="stage"><div class="shot" id="shot"><img src="assets/process-multical.webp" alt="The multi calendar, two weeks of October"></div></div>
+  <div class="stage"><div class="sheet" id="sheet"></div></div>
 <script>
 (() => {
-  const W = 2000, H = 1250, shot = document.getElementById('shot');
+  const sheet = document.getElementById('sheet'), A = 'assets/iterations/';
+  const CW = 720, CH = 450, CX = 600, CY = 315;   // the calendar at the centre of the 1920 x 1080 sheet
+  const tiles = [{ src: 'assets/process-multical.webp', x: CX, y: CY, w: CW, h: CH, centre: true }];
+  const row = (items, y, h, gap = 20) => {   // a row of wide ones, centred on the sheet; an item with no picture is a column of the three graph strips
+    const ws = items.map(([, r]) => Math.round(h * r)), total = ws.reduce((a, b) => a + b, 0) + gap * (items.length - 1);
+    let x = Math.round((1920 - total) / 2);
+    items.forEach(([src, r], i) => {
+      if (src) tiles.push({ src: A + src + '.webp', x, y, w: ws[i], h });
+      else { const w = ws[i], hs = [Math.round(w / 2.664), Math.round(w / 4.056), Math.round(w / 8.314)], g = Math.round((h - hs[0] - hs[1] - hs[2]) / 2); let yy = y;
+        [['graph-01-current-straight-line-pills', hs[0]], ['graph-03-fluid-ridge-behind-prices', hs[1]], ['graph-controls-season-waviness-peak-window', hs[2]]].forEach(([n, hh]) => { tiles.push({ src: A + n + '.webp', x, y: yy, w, h: hh }); yy += hh + g; }); }
+      x += ws[i] + gap;
+    });
+  };
+  const P = 1206 / 2622, ph = 235, pw = Math.round(ph * P);   // the phones
+  const phones = (names, x0, y0, cols) => names.forEach((n, i) => { const c = i % cols, r = Math.floor(i / cols), left = x0 + c * (pw + 20); tiles.push({ src: A + n + '.webp', x: left, y: y0 + r * (ph + 20), w: pw, h: ph }); });
+  // the top: the web builds through the summer; the bottom: the wild ones, the two big web grids, the pricing graphs
+  row([['03-jul29-airbnb-header-show-tips', 1600 / 1100], ['04-jul30-today-deck', 1600 / 1100], ['07-oct06-tips-1-0-review', 1600 / 1100], ['08-oct06-tips-2-0-ai-gap-pills', 1600 / 1100], ['13-wild-pricing-board-seasonal-demand', 1600 / 1100], ['sheet-2x', 1400 / 905]], 40, 200);
+  row([['15-wild-groups-modal', 1600 / 1100], ['web-2026-06-30-week-grid-x-cells-min-badges', 2880 / 1800], ['web-2026-07-09-price-variance-groups-toggles', 2880 / 1800], ['graph-00-fluid-personalized-prices-target', 2328 / 1688], [null, 265 / 215]], 815, 215);   // the last is the column of three graph strips
+  // the phones: seven to the left (four over three), six to the right (three over three), in the order they were made
+  const left = ['067-2026-09-28-2047', '100-2026-09-28-2204', '121-2026-09-29-1207', '133-2026-09-29-1212', '154-2026-09-29-1546', '166-2026-09-30-0842', '206-2026-09-30-1751'];
+  const right = ['212-2026-09-30-1806', '213-2026-09-30-1810', '228-2026-10-01-0928', '234-2026-10-05-1009', '240-2026-10-05-1012', '242-2026-10-05-1016'];
+  phones(left.slice(0, 4), 40, 285, 4); phones(left.slice(4), 40 + Math.round((pw + 20) / 2), 540, 3);
+  { const x0 = 1360 + Math.round((520 - (3 * pw + 40)) / 2); phones(right.slice(0, 3), x0, 285, 3); phones(right.slice(3), x0, 540, 3); }
+  // drawn; each one's delay grows with its distance from the middle, so they arrive from the centre outward
+  for (const t of tiles) {
+    const el = document.createElement('div'); el.className = 'tile' + (t.centre ? ' centre' : '');
+    el.style.left = t.x + 'px'; el.style.top = t.y + 'px'; el.style.width = t.w + 'px'; el.style.height = t.h + 'px';
+    const d = Math.hypot(t.x + t.w / 2 - 960, t.y + t.h / 2 - 540) / 900; el.style.setProperty('--d', (0.25 + d * 0.55).toFixed(2) + 's');
+    el.innerHTML = `<img src="${t.src}" alt="" draggable="false" loading="eager">`; sheet.append(el);
+  }
+  // THE FIT: step 0 shows the calendar alone at the size the slide before gives its own (80% of the fit); step 1 fits the whole sheet
   const band = () => {
     let top = 0, bottom = innerHeight;
     try { const pd = window.parent.document, k = pd.getElementById('kicker'), c = pd.getElementById('counter');
           if (k) top = k.getBoundingClientRect().bottom + 40; if (c) bottom = c.getBoundingClientRect().top - 40; } catch (_) {}
     return Math.max(200, bottom - top);
   };
-  const fit = () => { const s = Math.min((innerWidth - 64) / W, band() / H) * .8; shot.style.width = Math.round(W * s) + 'px'; shot.style.height = Math.round(H * s) + 'px'; };
+  let step = 0;
+  const fit = () => {
+    const alone = Math.min((innerWidth - 64) / 2000, band() / 1250) * .8 * 2000 / CW;   // the calendar at the slide before's size
+    const whole = Math.min((innerWidth - 64) / 1920, band() / 1080);
+    sheet.style.setProperty('--s', (step ? whole : alone).toFixed(4));
+    sheet.classList.toggle('built', step > 0);
+  };
   fit(); addEventListener('resize', fit);
+  window.presoNext = () => { if (step >= 1) return false; step = 1; fit(); return true; };
+  window.presoPrev = () => { if (step <= 0) return false; step = 0; fit(); return true; };
+  window.presoState = () => step;
+  window.presoRestore = (n) => { step = n > 0 ? 1 : 0; sheet.style.transition = 'none'; sheet.querySelectorAll('.tile').forEach((t) => t.style.transition = 'none'); fit(); requestAnimationFrame(() => { sheet.style.transition = ''; sheet.querySelectorAll('.tile').forEach((t) => t.style.transition = ''); }); };
+  window.presoEnd = () => window.presoRestore(1);
 })();
 </script>
 </body>

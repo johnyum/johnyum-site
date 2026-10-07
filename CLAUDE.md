@@ -681,6 +681,14 @@ up tip cards. One `index.html`, three.js; the chat is canned.
 - Its frame loop is `frame()`, exposed on `window.__peek` — a hidden tab pauses
   `requestAnimationFrame`, so a test drives frames by hand.
 
+## The process cards (2026-10-06)
+
+After the multi calendar's lesson (12dl): **Process** (12dp, the mono card), **the Figma** (12dq — John's grab of the Multi Calendar
+file's grid of frames, 16 corners, 80% of the fit) and **the web calendar with the iterations round it** (12dr — his grab of the
+web build centred with a grey-200 stroke; one tap and the 26 iterations from Hello.zip, in `preso/slides/assets/iterations/` as webp,
+tile round it on a 1920 x 1080 sheet: phones to either side, the web builds above, the wild ones and the pricing graphs below, each
+fading up in turn from the middle outward while the calendar settles to the centre). Then the A.I. card.
+
 ## `peek/?preso=1` — the 3D chat in the deck (2026-10-05/06)
 
 Preso slide `12fg.html` (after the ego card) is `/peek/?preso=1` live inside the drawn phone every build uses (13.html's chrome)
