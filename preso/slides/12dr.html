@@ -16,6 +16,8 @@
   .tile { position: absolute; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; background: #fff; opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .7s cubic-bezier(.22,1,.36,1); transition-delay: var(--d, 0s); }
   .tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
   .tile.centre { border-radius: 16px; opacity: 1; transform: none; }
+  .tile .icons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 22px; height: 100%; box-sizing: border-box; align-items: center; }
+  .tile .icons img { width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; }
   .built .tile { opacity: 1; transform: none; }
 </style>
 </head>
@@ -24,34 +26,38 @@
 <script>
 (() => {
   const sheet = document.getElementById('sheet'), A = 'assets/iterations/';
-  const CW = 720, CH = 450, CX = 600, CY = 315;   // the calendar at the centre of the 1920 x 1080 sheet
-  const tiles = [{ src: 'assets/process-multical.webp', x: CX, y: CY, w: CW, h: CH, centre: true }];
-  const row = (items, y, h, gap = 20) => {   // a row of wide ones, centred on the sheet; an item with no picture is a column of the three graph strips
-    const ws = items.map(([, r]) => Math.round(h * r)), total = ws.reduce((a, b) => a + b, 0) + gap * (items.length - 1);
-    let x = Math.round((1920 - total) / 2);
-    items.forEach(([src, r], i) => {
-      if (src) tiles.push({ src: A + src + '.webp', x, y, w: ws[i], h });
-      else { const w = ws[i], hs = [Math.round(w / 2.664), Math.round(w / 4.056), Math.round(w / 8.314)], g = Math.round((h - hs[0] - hs[1] - hs[2]) / 2); let yy = y;
-        [['graph-01-current-straight-line-pills', hs[0]], ['graph-03-fluid-ridge-behind-prices', hs[1]], ['graph-controls-season-waviness-peak-window', hs[2]]].forEach(([n, hh]) => { tiles.push({ src: A + n + '.webp', x, y: yy, w, h: hh }); yy += hh + g; }); }
-      x += ws[i] + gap;
-    });
-  };
-  const P = 1206 / 2622, ph = 235, pw = Math.round(ph * P);   // the phones
-  const phones = (names, x0, y0, cols) => names.forEach((n, i) => { const c = i % cols, r = Math.floor(i / cols), left = x0 + c * (pw + 20); tiles.push({ src: A + n + '.webp', x: left, y: y0 + r * (ph + 20), w: pw, h: ph }); });
-  // the top: the web builds through the summer; the bottom: the wild ones, the two big web grids, the pricing graphs
-  row([['03-jul29-airbnb-header-show-tips', 1600 / 1100], ['04-jul30-today-deck', 1600 / 1100], ['07-oct06-tips-1-0-review', 1600 / 1100], ['08-oct06-tips-2-0-ai-gap-pills', 1600 / 1100], ['13-wild-pricing-board-seasonal-demand', 1600 / 1100], ['sheet-2x', 1400 / 905]], 40, 200);
-  row([['15-wild-groups-modal', 1600 / 1100], ['web-2026-06-30-week-grid-x-cells-min-badges', 2880 / 1800], ['web-2026-07-09-price-variance-groups-toggles', 2880 / 1800], ['graph-00-fluid-personalized-prices-target', 2328 / 1688], [null, 265 / 215]], 815, 215);   // the last is the column of three graph strips
-  // the phones: seven to the left (four over three), six to the right (three over three), in the order they were made
-  const left = ['067-2026-09-28-2047', '100-2026-09-28-2204', '121-2026-09-29-1207', '133-2026-09-29-1212', '154-2026-09-29-1546', '166-2026-09-30-0842', '206-2026-09-30-1751'];
-  const right = ['212-2026-09-30-1806', '213-2026-09-30-1810', '228-2026-10-01-0928', '234-2026-10-05-1009', '240-2026-10-05-1012', '242-2026-10-05-1016'];
-  phones(left.slice(0, 4), 40, 285, 4); phones(left.slice(4), 40 + Math.round((pw + 20) / 2), 540, 3);
-  { const x0 = 1360 + Math.round((520 - (3 * pw + 40)) / 2); phones(right.slice(0, 3), x0, 285, 3); phones(right.slice(3), x0, 540, 3); }
+  // A TETRIS BOARD (John, 2026-10-06): one cell, one gutter everywhere. 16 x 9 cells of 97 with 16 between on the 1920 x 1080 sheet
+  // (64 in from the sides, 40 top and bottom); the calendar takes 6 x 4 in the middle, a phone 1 x 2, a web build 3 x 2, a graph
+  // strip 3 or 4 x 1 — every tile sits on the cells, packed round the centre first-fit, top to bottom
+  const COLS = 16, ROWS = 9, C = 97, G = 16, X0 = Math.round((1920 - (COLS * C + (COLS - 1) * G)) / 2), Y0 = Math.round((1080 - (ROWS * C + (ROWS - 1) * G)) / 2);
+  const cell = (c, r, w, h) => ({ x: X0 + c * (C + G), y: Y0 + r * (C + G), w: w * C + (w - 1) * G, h: h * C + (h - 1) * G });
+  const used = Array.from({ length: ROWS }, () => new Array(COLS).fill(false));
+  const take = (c, r, w, h) => { for (let j = r; j < r + h; j++) for (let i = c; i < c + w; i++) used[j][i] = true; };
+  const free = (c, r, w, h) => { if (c + w > COLS || r + h > ROWS) return false; for (let j = r; j < r + h; j++) for (let i = c; i < c + w; i++) if (used[j][i]) return false; return true; };
+  const tiles = [];
+  { const c = 5, r = 2; take(c, r, 6, 4); tiles.push({ src: 'assets/process-multical.webp', ...cell(c, r, 6, 4), centre: true }); }   // the calendar, cols 5–10, rows 2–5
+  const W = (n) => [n, 3, 2], P = (n) => [n, 1, 2];
+  // THE ICONS (John, 2026-10-06): twenty of the holiday and season icons drawn for the calendar, five by four on a white tile of
+  // their own, 4 x 3 cells, bordered like the rest (assets/iterations/icons/)
+  const ICONS = ['season-la-awards', 'carousel-horse', 'comic-pow', 'cowboy-hat', 'chili-pepper', 'clapperboard', 'electric-guitar', 'flamingo-float', 'french-horn', 'gramophone', 'jockey-silks', 'maracas', 'microphone', 'new-years', 'presidents-day', 'pride-rainbow', 'rose', 'running-shoe', 'santa-hat', 'thanksgiving'];
+  // in the order they're laid in — a wide one, two phones, a wide one… so the board mixes as it fills
+  const items = [
+    W('03-jul29-airbnb-header-show-tips'), P('067-2026-09-28-2047'), P('100-2026-09-28-2204'), ['@icons', 4, 3], W('04-jul30-today-deck'), P('121-2026-09-29-1207'), P('133-2026-09-29-1212'), W('07-oct06-tips-1-0-review'), P('154-2026-09-29-1546'), P('166-2026-09-30-0842'),
+    W('08-oct06-tips-2-0-ai-gap-pills'), P('206-2026-09-30-1751'), P('212-2026-09-30-1806'), W('13-wild-pricing-board-seasonal-demand'), P('213-2026-09-30-1810'), P('228-2026-10-01-0928'),
+    W('15-wild-groups-modal'), P('234-2026-10-05-1009'), P('240-2026-10-05-1012'), W('web-2026-06-30-week-grid-x-cells-min-badges'), P('242-2026-10-05-1016'), W('web-2026-07-09-price-variance-groups-toggles'),
+    W('sheet-2x'), W('graph-00-fluid-personalized-prices-target'), ['graph-01-current-straight-line-pills', 3, 1], ['graph-03-fluid-ridge-behind-prices', 4, 1], ['graph-controls-season-waviness-peak-window', 4, 1],
+  ];
+  for (const [n, w, h] of items) {
+    let put = false;
+    for (let r = 0; r < ROWS && !put; r++) for (let c = 0; c < COLS && !put; c++) if (free(c, r, w, h)) { take(c, r, w, h); tiles.push({ src: n === '@icons' ? null : A + n + '.webp', icons: n === '@icons', ...cell(c, r, w, h) }); put = true; }
+    if (!put) console.warn('no room for', n);
+  }
   // drawn; each one's delay grows with its distance from the middle, so they arrive from the centre outward
   for (const t of tiles) {
     const el = document.createElement('div'); el.className = 'tile' + (t.centre ? ' centre' : '');
     el.style.left = t.x + 'px'; el.style.top = t.y + 'px'; el.style.width = t.w + 'px'; el.style.height = t.h + 'px';
     const d = Math.hypot(t.x + t.w / 2 - 960, t.y + t.h / 2 - 540) / 900; el.style.setProperty('--d', (0.25 + d * 0.55).toFixed(2) + 's');
-    el.innerHTML = `<img src="${t.src}" alt="" draggable="false" loading="eager">`; sheet.append(el);
+    el.innerHTML = t.icons ? `<div class="icons">${ICONS.map((n) => `<img src="${A}icons/${n}.webp" alt="" draggable="false">`).join('')}</div>` : `<img src="${t.src}" alt="" draggable="false" loading="eager">`; sheet.append(el);
   }
   // THE FIT: step 0 shows the calendar alone at the size the slide before gives its own (80% of the fit); step 1 fits the whole sheet
   const band = () => {
@@ -62,8 +68,8 @@
   };
   let step = 0;
   const fit = () => {
-    const alone = Math.min((innerWidth - 64) / 2000, band() / 1250) * .8 * 2000 / CW;   // the calendar at the slide before's size
-    const whole = Math.min((innerWidth - 64) / 1920, band() / 1080);
+    const CW = 6 * 97 + 5 * 16, alone = Math.min((innerWidth - 64) / 2000, band() / 1250) * .8 * 2000 / CW;   // the calendar at the slide before's size
+    const whole = Math.max(innerWidth / 1920, innerHeight / 1080) * 1.12;   // built, the board runs off every edge (John: bleed) — a little larger than the screen, centred
     sheet.style.setProperty('--s', (step ? whole : alone).toFixed(4));
     sheet.classList.toggle('built', step > 0);
   };
