@@ -115,8 +115,9 @@ What John said it's for (2026-10-06): how he used to design, and how he designs 
 2. **The Figma** (12dq) — the Yum page of the Multi Calendar file, a grid of frames. *This is how I used to work: flats in
    Figma, a clicking prototype on top, one screen at a time.*
    **The experiments** (12dq1) — one board, a collage of the side studies, live: the cell animations big on the left, replaying;
-   to their right the fluid graph studies, the Repeat settings screens, the demand-driving event icons; under them a row of the whole
-   builds — June's first calendar, two stages of the July prototype, the collaborative build, the web app with its quick-actions row.
+   to their right the fluid graph studies, the Repeat settings screens, the demand-driving event icons; under them rows of the whole
+   builds — June's first calendar, thirteen versions of the multi calendar from July to October, the wavy line, the wide quick-action
+   pill, the web app with its quick-actions row. It scrolls; it reads at full size.
    *And all the way through
    I'm building side experiments — different models, graphs, the deck, iterations of the quick actions — to look at a question
    rather than argue it, and pick.*
