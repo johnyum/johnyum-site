@@ -44,7 +44,14 @@
        does. 0.4895 is this export's aspect; 1.958 is 4 x that. */
     gap: 48px;
     --phone-h: min(80vh, 1080px, calc((76vw - 144px) / 1.958));
+    /* ONE PHONE AT A TIME (John, 2026-10-06): the row is laid out for four and shown in part — the ones not yet in are
+       invisible, and the row is shifted so the visible ones sit centred; alone, the first stands at the deck's 1-up size
+       (min(80vh, 1080px)) by scaling the row up, and eases down as the second comes in */
+    transform-origin: 50% 50%; transition: transform 950ms cubic-bezier(.22,1,.36,1);
   }
+  .row > * { transition: opacity 600ms ease, visibility 0s linear 0s; }
+  .row > .out { opacity: 0; visibility: hidden; transition: opacity 600ms ease, visibility 0s linear 600ms; }   /* faded, then truly gone — no sliver at the row's edge */
+  .row.still, .row.still > * { transition: none !important; }
   @font-face { font-family: 'Cereal'; src: url('../../multi/Font_Cereal/AirbnbCerealVF_Wght.ttf') format('truetype'); font-weight: 100 900; }
   /* THE FEE, ANIMATED — THE WHOLE STORY (John, 2026-10-03, after Airbnb's own "Simplifying service fees" film, 0:07–0:45): the
      second phone's graph is live, not two frames crossfaded. Three taps:
@@ -261,7 +268,7 @@
     </defs>
   </svg>
   <div class="slide">
-    <div class="row">
+    <div class="row" id="row">
       <div class="hof" aria-label="Required actions: action required by January 17 (in red, with a warning) — we're simplifying service fees">
         <div class="scr"><img src="assets/fee-required-warn.webp" alt="" draggable="false"></div>
         <svg class="chrome" viewBox="0 0 900 1840" fill="none" aria-hidden="true"><path fill="url(#rail)" fill-rule="evenodd" d="M177,14 H723 A161,161 0 0 1 884,175 V1665 A161,161 0 0 1 723,1826 H177 A161,161 0 0 1 16,1665 V175 A161,161 0 0 1 177,14 Z M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/><image href="assets/device/iphone-frame.png" x="0" y="0" width="900" height="1840" clip-path="url(#outsideBezel)" preserveAspectRatio="none"/><path fill="#0b0b0b" fill-rule="evenodd" d="M177,27 H723 A148,148 0 0 1 871,175 V1665 A148,148 0 0 1 723,1813 H177 A148,148 0 0 1 29,1665 V175 A148,148 0 0 1 177,27 Z M177,47 H723 A128,128 0 0 1 851,175 V1665 A128,128 0 0 1 723,1793 H177 A128,128 0 0 1 49,1665 V175 A128,128 0 0 1 177,47 Z"/><rect x="322" y="69" width="256" height="74" rx="37" fill="#000"/><circle cx="529" cy="106" r="12.7" fill="#0f1420"/><circle cx="529" cy="106" r="5.3" fill="#243046"/></svg>
@@ -418,6 +425,21 @@
     const cst = document.getElementById('cal'), cscr = cst.parentElement;
     const GRAPH = 3, LAST = 6;
     let s = 0;
+    // HOW MANY PHONES ARE IN (John, 2026-10-06): 1 on arrival, then one more a tap — the row shifted so the ones in are centred,
+    // and scaled up to the 1-up size while the first stands alone
+    const row = document.getElementById('row'), phones = [...row.children];
+    let vis = 1;
+    const view = (n, instant) => {
+      vis = n;
+      if (instant) { row.classList.add('still'); void row.offsetWidth; }
+      phones.forEach((p, i) => p.classList.toggle('out', i >= n));
+      const pw = phones[0].getBoundingClientRect().width / (parseFloat(row.style.getPropertyValue('--sc') || 1)), gap = 48;
+      const tx = (4 - n) * (pw + gap) / 2, S = n === 1 ? Math.min(innerHeight * 0.8, 1080) / phones[0].offsetHeight : 1;
+      row.style.setProperty('--sc', S);
+      row.style.transform = `translateX(${(tx * S).toFixed(1)}px) scale(${S.toFixed(4)})`;
+      if (instant) requestAnimationFrame(() => row.classList.remove('still'));
+    };
+    view(1, true); addEventListener('resize', () => view(vis, true));
     const fit = () => { const w = scr.clientWidth, ht = scr.clientHeight, k = Math.max(w / 393, ht / 852);
       st.style.transform = `translate(${(w - 393 * k) / 2}px, 0) scale(${k})`; };
     const cfit = () => { const w = cscr.clientWidth, ht = cscr.clientHeight, k = Math.max(w / 393, ht / 852);
@@ -435,34 +457,27 @@
     // the first step plays by itself as the slide lands (John, 2026-10-03: "so it's not just sitting blank") — the deck says so
     // with presoshown; opened on its own, it plays once the page is up
     cal.details(true);
-    const auto = () => { if (s === 0) set(1); };
-    addEventListener('presoshown', () => { fit(); cfit(); });
-    addEventListener('presoshown', auto);
-    if (window.top === window) addEventListener('load', () => setTimeout(auto, 400));
-    let chain = 0;
-    const finish = () => { clearTimeout(chain); set(GRAPH); };
-    window.presoNext = () => {
-      if (s >= LAST) return false;
-      if (s === 0) { set(1); return true; }
-      if (s === 1) { set(2); return true; }   // ...and it HOLDS on "You earn $97" (John, 2026-10-04: "don't go forward until I tap next")
-      if (s === 2) { finish(); return true; }
-      if (s === 3) { set(4); tag.play(); return true; }
-      if (s === 4) { set(5); return true; }
-      set(6); return true;   // Confirm, tapped: the adjustment complete (John, 2026-10-04)
+    addEventListener('presoshown', () => { fit(); cfit(); view(vis, true); });
+    // THE TAPS (John, 2026-10-06): the first phone alone on arrival; 1 the second comes in and its graph plays through by itself
+    // (the bars, "You earn $97", the single fee); 2 the third comes in and the tag plays; 3 the fourth comes in, standing on the
+    // details; 4 the Confirm page; 5 Confirm pressed, "Price adjustment complete". Back snaps a step back.
+    let chain = 0, chain2 = 0, step = 0;
+    const finish = () => { clearTimeout(chain); clearTimeout(chain2); set(GRAPH); };
+    const graph = () => { set(1); chain = setTimeout(() => set(2), 1700); chain2 = setTimeout(() => set(GRAPH), 4300); };
+    const go = (n, instant) => {
+      step = n;
+      if (n === 0) { finish(); set(0, true); tag.reset(); view(1, instant); return; }
+      if (n === 1) { view(2, instant); if (instant) finish(); else graph(); return; }
+      finish(); view(Math.min(4, n + 1), instant);
+      if (n === 2) { set(4, true); if (instant) tag.end(); else tag.play(); return; }
+      tag.end();
+      if (n === 3) set(4, instant); else if (n === 4) set(5, instant); else set(6, instant);
     };
-    window.presoPrev = () => {
-      if (s <= 1) return false;
-      clearTimeout(chain);
-      if (s === 6) set(5, true);
-      else if (s === 5) set(4, true);
-      else if (s === 4) { tag.reset(); set(3, true); }
-      else if (s === 3) set(2, true);
-      else set(1, true);
-      return true;
-    };
-    window.presoEnd = () => { clearTimeout(chain); set(LAST, true); tag.end(); };
-    window.presoState = () => s;
-    window.presoRestore = n => { clearTimeout(chain); set(Math.max(0, Math.min(LAST, n | 0)), true); if (s >= 4) tag.end(); else tag.reset(); };
+    window.presoNext = () => { if (step >= 5) return false; go(step + 1, false); return true; };
+    window.presoPrev = () => { if (step <= 0) return false; go(step - 1, true); return true; };
+    window.presoEnd = () => go(5, true);
+    window.presoState = () => step;
+    window.presoRestore = n => go(Math.max(0, Math.min(5, n | 0)), true);
     // NOT KEPT (John, 2026-10-03: "when I leave that page by pressing back then come back to it, replay the animation"): the deck
     // keeps the slide just left exactly as it was; this one asks to be built fresh instead, so coming back to it plays it again.
     window.presoNoKeep = true;
