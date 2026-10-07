@@ -45,13 +45,14 @@
        on arrival   a pause, then Eureka hovers by itself, drawing the road up
                     from San Francisco. The page opens on cars, so this is the
                     question a car asks: how far, in hours.
-       tap 1        flights (John, 2026-10-05: "skip trains… two taps instead of
-                    four"). New York hovers, drawing the flight leg, and it stops there.
-       tap 2        New York is clicked, and it goes straight on: it flies, lands,
-                    Brooklyn hovers a beat and is clicked — down to Williamsburg and
-                    its homes in one move (John: "go to New York then straight to
-                    Williamsburg"). (Cut and put back the same day, 2026-10-06.)
-       tap 3        out of builds; the deck moves on.
+       tap 1        trains: the rail leg to New York hovers and stops there.
+       tap 2        flights: New York hovers, drawing the flight leg, and stops.
+       tap 3        New York is clicked: it flies, lands, and Brooklyn hovers as
+                    the way down — and STOPS in the city (John, 2026-10-06: "stop at
+                    New York and then let me tap to Williamsburg").
+       tap 4        Brooklyn is clicked — down to Williamsburg and its homes.
+       tap 5        out of builds; the deck moves on.
+     (Two-tap and three-tap versions came and went on 2026-10-05/06.)
 
      (Trains — the rail leg to New York as its own tap, then flights as the
      next — came out 2026-10-05; toTrains and toFlights stay, called in turn
@@ -253,16 +254,16 @@
   // the next one starts. This one ends the way the others do — on the marker
   // that is the way down, hovered — so the room can see where the next tap
   // goes before it goes there.
-  async function intoNewYork() {          // tap 2 — New York, and straight on into Brooklyn
+  async function intoNewYork() {          // tap 3 — New York, and stop (the city looked at; Brooklyn hovered as the way down)
     busy = true;
     const ny = await find('.mk-city.hero');
     if (ny) { tap(ny); await sleep(FLY + SETTLE); }
     const bk = await find('.mk-hood.hero');
     if (bk) hover(bk);
-    await intoBrooklyn();                  // no stop in the city (John, 2026-10-05)
+    busy = false;
   }
 
-  async function intoBrooklyn() {         // the second half of tap 2
+  async function intoBrooklyn() {         // tap 4 — down to Williamsburg
     busy = true;
     const bk = await find('.mk-hood.hero');
     if (bk) { hover(bk); await sleep(TOUCH); tap(bk); }
@@ -310,8 +311,10 @@
 
   window.presoNext = () => {
     if (busy) return true;                 // mid-move: swallow rather than skip a beat
-    if (step === 0) { step = 1; toFlights();    return true; }
-    if (step === 1) { step = 2; intoNewYork();  return true; }
+    if (step === 0) { step = 1; toTrains();     return true; }   // FOUR TAPS AGAIN (John, 2026-10-06): trains, flights, New York and stop, Williamsburg
+    if (step === 1) { step = 2; toFlights();    return true; }
+    if (step === 2) { step = 3; intoNewYork();  return true; }
+    if (step === 3) { step = 4; intoBrooklyn(); return true; }
     return false;                          // out of builds — on to Host setup
   };
   window.presoPrev = () => {
@@ -324,8 +327,10 @@
     if (!(n > 0)) return;
     arrived = true;                        // do not also run the arrival hover
     (async () => {
-      step = 1; await toFlights();
-      if (n > 1) { step = 2; await intoNewYork(); }
+      step = 1; await toTrains();
+      if (n > 1) { step = 2; await toFlights(); }
+      if (n > 2) { step = 3; await intoNewYork(); }
+      if (n > 3) { step = 4; await intoBrooklyn(); }
     })();
   };
 })();
