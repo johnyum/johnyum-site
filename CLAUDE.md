@@ -802,18 +802,31 @@ inside. The cells page's nine headings-over-a-row are wrapped into sections that
 are clicked on an 8s loop so the left is never still. Three columns: the cells (820); the graph studies (760); the Repeat screens over
 the event cards (1000). **Where it stands (2026-10-07, night): SIX-UP, THREE IN VIEW.** (John: "each in its own row, six across; I can only see three, and
 when I tap next the first three animate left and the next three animate in — a single unit of six".) One strip of six panels, each a
-page in its own 880 column, top-aligned, in this order: the cell animations (zoomed .735, its eleven demos on ONE four-column grid
-edge to edge — each SECTION spans as many columns as it has demos and the grid packs dense, so one-demo sections slot in beside the
-three-demo one, and the shimmer sweep keeps a row to itself; replayed every 3.2s, staggered, so it's always moving), the graph studies
-(.86, the rigs .58; the waviness slider plays start to finish over five seconds and lands; the page white, the controls bare — the
-ZIGZAG PILLS are its study 01), the cell & opportunity system (.72, its Modal lifecycle — the QUICK-ACTION pill through a session —
-moved to the top, `shape`), the Repeat screens (five phones at .42), the chat-to-dates motion (.9 — the sixth, picked as the most
-interesting of the pages not yet on the board: seven now-vs-proposed motion pairs), the event cards (.8, four to a row). The board is
-scaled so three panels fill the stage's width; the tallest panel sets the height and the page scrolls under the deck's nav
-(`presoBleed`). The step slides the whole strip by three, eased .8s (`window.__collage.go(n)` in collage.html; the slide's
-presoNext / presoPrev / presoState / presoRestore / presoEnd go through to it; the hash carries the step, `#n.1`). Every page's h1
-lands at 24 board-px, weight 600, white pages throughout. Sizes went 1.3 → .98 → .735 on the cells and 1.14 → .86 on the graph
-through "still too big, reduce by 25%" twice; before the strip it was three top-aligned columns.
+column of 880 holding one or more pages, top-aligned, in this order:
+1. **The squiggly dates over the cell animations.** `00-squiggly-dates.html` is the cell-system page with its body swapped: the
+   opportunity cells alone (A Raise, B Last-minute, C Soft weeknights, D Stranded nights — four states across each: untapped,
+   selected, applied, subdued), its own CSS and JS so every wavy ring and price reel keeps its keyframes, replayed by cloning each
+   cell every 3.2s (John: "take all the squiggly date studies and move them into calendar cell animation — the same grid, all their
+   animations first"); it carries the "Calendar cell animations" h1. Under it `01-cell-animations.html` with its h1 and lede hidden,
+   its eleven demos on ONE four-column grid edge to edge — each section spans as many columns as it has demos, dense, the shimmer
+   sweep on a row of its own — replayed every 3.2s. Both zoomed .735.
+2. **The graph studies** (.86, rigs .58; the waviness slider plays start to finish over five seconds; white page, bare controls; its
+   study 01 is the ZIGZAG PILLS).
+3. **The cell & opportunity system** (.72): Modal lifecycle (the QUICK-ACTION pill through a session) moved to the top (`shape`);
+   the squiggly cell-states column of every opportunity block hidden (`.opp .cells-col`) — they live in panel 1 now; the modal, chip
+   and decisions stay.
+4. **The demand-driving event cards** (.8, four to a row) — "demand should be 4th with the icons".
+5. **The Repeat screens** (five phones at .42) plus a second row, **Tweaks and options**, four screens written 2026-10-07 at John's
+   ask ("another row of 4 with tweaks and options — whatever you think would be good for me to know"): `Overlap.html` (the collision
+   marked on the calendar as a split cell, a card naming the winner, Keep / Swap), `Priority.html` (Settings as a drag-ranked list —
+   "the list is the rule"), `Choose.html` (Save asks which wins: the new, the old, or both stacked), `Stack.html` (a night's price
+   built up rule by rule, a switch per rule for that night only). Plain HTML in the mock's own language, no support.js.
+6. **The tip cards** (.72) — six phone takes on how the chat serves a tip; the chat-to-dates motion was the sixth for an hour
+   ("sucks").
+The board is scaled so three panels fill the stage's width; the tallest panel sets the height and the page scrolls under the deck's
+nav (`presoBleed`). The step slides the whole strip by three, eased .8s (`window.__collage.go(n)`; the slide's presoNext / presoPrev
+/ presoState / presoRestore / presoEnd go through to it; the hash carries the step). Every page's h1 lands at 24 board-px, weight 600,
+white pages throughout.
 **The builds are HELD** (John: "hold on the calendars for now — just the studies"): `SHOW_BUILDS = false` in collage.html keeps the
 whole row in the code — `/calendar.html` (June 12, the first calendar with its quick-actions sheet), thirteen versions of `/multi`
 from its git history July 2 → October 3 (`proto/builds/multi-<date>.html`, each `git show <commit>:multi/index.html` with its
