@@ -818,7 +818,7 @@ column of 880 holding one or more pages, top-aligned, in this order:
    and decisions stay. Every quick-action pill one width — flex, full width up to 760, the body stretching so the buttons line up
    (John: "all the quick actions wider and equal size"); the scanning circle's wand at 30 so it sits inside the circle ("not crazy big").
 3. **The demand-driving event cards** (.8, four to a row) — third, the first of the three in view ends the first screen (it was fourth: "demand should be 4th with the icons", then swapped with the quick actions).
-4. **The Repeat screens** (fourth, the first of the second screen; five phones at .42) plus a second row, **Tweaks and options**, four screens written 2026-10-07 at John's
+4. **The Recurrence settings** — the Repeat page retitled "Recurrence settings: the more specific repeat wins" in the studies copy (John, 2026-10-07) — (fourth, the first of the second screen; five phones at .42) plus a second row, **Tweaks and options**, four screens written 2026-10-07 at John's
    ask ("another row of 4 with tweaks and options — whatever you think would be good for me to know"): `Overlap.html` (the collision
    marked on the calendar as a split cell, a card naming the winner, Keep / Swap), `Priority.html` (Settings as a drag-ranked list —
    "the list is the rule"), `Choose.html` (Save asks which wins: the new, the old, or both stacked), `Stack.html` (a night's price
