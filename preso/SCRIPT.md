@@ -143,8 +143,7 @@ frame). The line: "and then I turned around and brought the team with me."
 ## Why Anthropic?
 
 **Built 2026-10-06 — three cards after Why Anthropic?, in John's words, one line each (12ga, 12gb, 12gc):** "I picked up Claude
-Code four months ago." → "In one session, everything I'd spent years mastering disappeared overnight." → "I was more excited than
-I've ever been in my career." Tap through them at the pace they're said; the third is the turn, loss then joy. Then Thanks. The
+Code four months ago." → "One session. Years of craft, gone overnight." → "I've never been more excited." (made punchier, 2026-10-06) Tap through them at the pace they're said; the third is the turn, loss then joy. Then Thanks. The
 earlier plan below is kept for what to say; "For myself, and for her" is cut as a card (too private to read cold — say it, with
 Roma's name, if at all), and "Then I brought the team with me" / "I did all of this in four months" can follow as cards if wanted.
 
