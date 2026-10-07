@@ -686,10 +686,11 @@ up tip cards. One `index.html`, three.js; the chat is canned.
 After the multi calendar's lesson (12dl): **Process** (12dp, the mono card), **the Figma** (12dq — John's grab of the Multi Calendar
 file's grid of frames, 16 corners, 80% of the fit) and **the web calendar with the iterations round it** (12dr — his grab of the
 web build centred with a grey-200 stroke; one tap and the 26 iterations from Hello.zip, in `preso/slides/assets/iterations/` as webp,
-tile round it on one cell grid — a Tetris board: 16 x 9 cells of 97 with 16 between, the calendar 6 x 4 in the middle, a phone 1 x 2,
-a web build 3 x 2, a graph strip 3 or 4 x 1, and twenty of the calendar's holiday icons (`assets/iterations/icons/`) five by four on a
-bordered 4 x 3 tile of their own — packed first-fit round the centre, each fading up in turn from the middle outward while the calendar
-settles to the centre; built, the board is a little larger than the screen so it bleeds off every edge). Then the A.I. card.
+tile round it on one cell grid — a Tetris board: 18 x 10 cells of 86 with 16 between, the calendar 6 x 4 dead centre, a phone 1 x 2,
+a web build 3 x 2, a graph strip 3 or 4 x 1 — the items in a fixed-seed shuffle, each put in the free spot nearest the middle, and every
+cell still free given one of the calendar's holiday icons (`assets/iterations/icons/`, 59 of them, all one size) so nothing is empty;
+each fades up in turn from the middle outward while the calendar settles to the centre; built, the board is a little larger than the
+screen so it bleeds off every edge). Then the A.I. card.
 
 ## `peek/?preso=1` — the 3D chat in the deck (2026-10-05/06)
 
