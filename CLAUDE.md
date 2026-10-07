@@ -801,8 +801,8 @@ at .82; the five Repeat phones at .48), and the frame is sized to the page, re-m
 inside. The cells page's nine headings-over-a-row are wrapped into sections that flow side by side (`shape`), and its Replay buttons
 are clicked on an 8s loop so the left is never still. Three columns: the cells (820); the graph studies (760); the Repeat screens over
 the event cards (1000). **Where it stands (2026-10-07, evening):** three columns, TOP-ALIGNED, fitted to the stage's width — the cells (880, the page
-zoomed 1.3), the graph studies (840, zoomed 1.14, the rigs .58), the Repeat screens (phones at .64) over the event cards (three to
-a row, zoomed 1.07) — "each piece ~30% bigger" than the first fitted board; the bottom runs as long as the design is and scrolls,
+zoomed .98), the graph studies (840, zoomed .86, the rigs .58), the Repeat screens (phones at .42, all five across) over the event
+cards (four to a row, zoomed .8) — "each piece ~30% bigger" than the first fitted board, then "still too big, reduce size by 25%"; the bottom runs as long as the design is and scrolls,
 under the deck's nav (the slide's window runs to the screen's bottom and declares `presoBleed`, so the nav takes its pill). The
 graph's waviness slider plays start to finish over five seconds and lands at the end (`play`); the cells replay on an 8s loop.
 **The builds are HELD** (John: "hold on the calendars for now — just the studies"): `SHOW_BUILDS = false` in collage.html keeps the
