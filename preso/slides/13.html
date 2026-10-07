@@ -1613,11 +1613,13 @@ function typeKeys(keys, instant) {
         mount();
         if (!card || !custom) { root.style.setProperty('--preso-shift', '0px'); return; }
         const big = card.querySelector('.sqa-big'), head = card.querySelector('.ps-head'), pad = card.querySelector('.ps-pad');
-        const now = parseFloat((w.getComputedStyle(big).translate || '0 0').split(' ')[1]) || 0;     // the shift already on it
-        const cr = card.getBoundingClientRect(), padY = layoutTop(pad, card);
-        if (padY === null) return;
-        const top = head.getBoundingClientRect().bottom, floor = cr.top + card.clientTop + padY - (root.classList.contains('preso-pills-on') ? PAD_LIFT : 0);   // the lift is a translate: layout does not see it
-        const bigT = big.getBoundingClientRect().top - now, foot = per.getBoundingClientRect().bottom - now;
+        // ALL FROM LAYOUT (John, 2026-10-07: "the 500 comes in then moves up — don't add that extra animation"): every term is an
+        // offset inside the card, so the sheet's own opening motion (a transform) and the shift already on the price don't
+        // enter into it — the shift is right the moment the sheet mounts, and the price rides up already in place
+        const headY = layoutTop(head, card), bigY = layoutTop(big, card), perY = layoutTop(per, card), padY = layoutTop(pad, card);
+        if (headY === null || bigY === null || perY === null || padY === null) return;
+        const top = headY + head.offsetHeight, floor = padY - (root.classList.contains('preso-pills-on') ? PAD_LIFT : 0);   // the lift is a translate: layout does not see it
+        const bigT = bigY, foot = perY + per.offsetHeight;
         const shift = Math.round(((top + floor) / 2 - (bigT + foot) / 2) * 10) / 10;
         root.style.setProperty('--preso-shift', shift + 'px');
       };
@@ -1629,7 +1631,7 @@ function typeKeys(keys, instant) {
       // waits for the sheet's own opening to finish (it reads live positions; mid-animation they threw the price off-screen).
       // A close centres at once (that only puts the shift back to 0).
       let restT = 0;
-      const sync = () => { const open = !!w.document.querySelector('.sqa-price.open'); kb.classList.toggle('up', open); mount(); clearTimeout(restT); if (open) restT = setTimeout(centre, 950); else centre(); };
+      const sync = () => { const open = !!w.document.querySelector('.sqa-price.open'); kb.classList.toggle('up', open); mount(); centre(); clearTimeout(restT); if (open) restT = setTimeout(centre, 950); };   // at mount, from layout; once more at rest (the same number)
       // childList too: a jump straight to the open sheet MOUNTS it with .open already on, which is not a class change
       new w.MutationObserver(sync).observe(w.document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
       sync();
