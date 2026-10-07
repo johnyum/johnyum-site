@@ -3616,10 +3616,11 @@ function castShow() {
   el.innerHTML = CAST.map((c) => `<span class="slot"><button class="face" data-k="${c.k}" aria-label="${c.name}"><img src="moby/cast-${c.k}.webp" alt="" draggable="false"></button></span>`).join('');
   el.style.opacity = '0'; poolEl.append(el); cast = { el, on: null, name: null, sel: 1, target: 1, drag: null };   // sel: which face sits in the middle (a float while sliding); opens on the second so the first three are full size and more shows to the right
   el.addEventListener('pointerdown', (e) => { e.stopPropagation(); cast.drag = { x: e.clientX, sel: cast.sel, moved: false, face: e.target.closest('.face') }; try { el.setPointerCapture(e.pointerId); } catch {} });   // the face under the finger is noted here: once the row has captured the pointer, the up lands on the row, not the face
-  el.addEventListener('pointermove', (e) => { const d = cast?.drag; if (!d) return; const dx = e.clientX - d.x; if (Math.abs(dx) > 6) d.moved = true; if (d.moved) { cast.sel = Math.max(0, Math.min(CAST.length - 1, d.sel - dx / 72)); cast.target = cast.sel; } });
+  el.addEventListener('pointermove', (e) => { const d = cast?.drag; if (!d) return; const dx = e.clientX - d.x; if (Math.abs(dx) > 6 && !d.moved) { d.moved = true; castRelease(); } if (d.moved) { cast.sel = Math.max(0, Math.min(CAST.length - 1, d.sel - dx / 72)); cast.target = cast.sel; } });
   const drop = (e) => { const d = cast?.drag; if (!d) return; cast.drag = null; cast.target = Math.round(cast.sel); if (!d.moved && d.face && e.type === 'pointerup') castTap(d.face.dataset.k); };
   el.addEventListener('pointerup', drop); el.addEventListener('pointercancel', drop);
-  el.addEventListener('wheel', (e) => { if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return; e.preventDefault(); cast.sel = Math.max(0, Math.min(CAST.length - 1, cast.sel + e.deltaX / 90)); cast.target = Math.round(cast.sel); }, { passive: false });
+  // a sideways scroll slides freely while the fingers move and snaps to a face only once they've stopped (snapping on every tick made it sticky)
+  el.addEventListener('wheel', (e) => { if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return; e.preventDefault(); castRelease(); cast.sel = Math.max(0, Math.min(CAST.length - 1, cast.sel + e.deltaX / 90)); cast.target = cast.sel; clearTimeout(cast.snapT); cast.snapT = setTimeout(() => { if (cast) cast.target = Math.round(cast.sel); }, 140); }, { passive: false });
   requestAnimationFrame(() => { el.style.transition = 'opacity .5s ease'; el.style.opacity = '1'; });
   castPlace();
 }
@@ -3642,6 +3643,12 @@ function castPlace() {   // 16 above the box, following it (the keyboard lifts t
   slots.forEach((sl, i) => { const w = sz[i]; sl.style.width = sl.style.height = w + 'px'; sl.style.left = (x[i] - w / 2).toFixed(1) + 'px'; sl.style.opacity = alpha(i - cast.sel).toFixed(3); sl.style.visibility = w < 1 ? 'hidden' : ''; });
   if (cast.name && cast.on) { const b = cast.el.querySelector(`.face[data-k="${cast.on}"]`), br = b.getBoundingClientRect();
     cast.name.style.transform = `translate(${(br.left + br.width / 2 - cast.name.offsetWidth / 2).toFixed(1)}px, ${(br.top - cast.name.offsetHeight - 8).toFixed(1)}px)`; }
+}
+function castRelease() {   // scrolling lets go of a tapped face: it eases back, its name goes, the yellow fades
+  if (!cast || !cast.on) return;
+  cast.on = null; cast.el.querySelectorAll('.face.on').forEach((b) => b.classList.remove('on'));
+  if (cast.name) { const old = cast.name; cast.name = null; old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160 }).onfinish = () => old.remove(); }
+  tell({ type: 'highlight', terms: [] });
 }
 function castTap(k) {
   const c = CAST.find((x) => x.k === k); if (!cast || !c) return;
