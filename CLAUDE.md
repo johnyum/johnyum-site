@@ -688,9 +688,9 @@ file's grid of frames, 16 corners, 80% of the fit) and **the web calendar with t
 web build centred with a grey-200 stroke; one tap and the 26 iterations from Hello.zip, in `preso/slides/assets/iterations/` as webp,
 tile round it on one cell grid — a Tetris board: 16 x 9 cells of 97 with 16 between, the calendar 6 x 4 at cols 5–10, rows 2–5 (the
 sheet shifted half a row so the calendar is centred on the screen — the board bleeds, so it carries the difference), a phone 1 x 2, a web
-build 3 x 2, the straight-line graph 5 x 2, the other strips 4 x 1 — three near-duplicate web grids left out (John: too many similar);
+build 3 x 2, the straight-line graph 5 x 2, the other strips 4 x 1 — two near-duplicate web builds left out (John: too many similar; the June grid stays);
 the items in a fixed-seed shuffle, each put in the free spot nearest the middle, and every cell still free given one of the calendar's
-holiday icons (`assets/iterations/icons/`, all one size, ~34 of them) so nothing is empty;
+holiday icons (`assets/iterations/icons/`), four to a cell two by two, all one size, so nothing is empty and there is a ton of variety;
 each fades up in turn from the middle outward while the calendar settles to the centre; built, the board is a little larger than the
 screen so it bleeds off every edge). Then the A.I. card.
 
