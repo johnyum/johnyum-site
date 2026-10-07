@@ -526,18 +526,18 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // ── Data ────────────────────────────────────────────────────────────────
   // Priced cities on the continent. `hero` is the one the drill-in is built
   // for; the rest are the field it has to read against.
-  var CITIES = [
-    { n: 'Winnipeg',    p: 497, ll: [ -97.14, 49.90] },
-    { n: 'Portland',    p: 176, ll: [-122.68, 45.52] },
-    { n: 'Montreal',    p: 587, ll: [ -73.57, 45.50] },
-    { n: 'Chicago',     p: 488, ll: [ -87.63, 41.88] },
-    { n: 'New York',    p: 678, ll: [ -74.01, 40.71], hero: true },
-    { n: 'Denver',      p: 201, ll: [-104.99, 39.74] },
-    { n: 'Charlotte',   p: 527, ll: [ -80.84, 35.23] },
-    { n: 'Los Angeles', p: 126, ll: [-118.24, 34.05] },
-    { n: 'Austin',      p: 285, ll: [ -97.74, 30.27] },
-    { n: 'Miami',       p: 634, ll: [ -80.19, 25.76] },
-    { n: 'Mexico City', p: 798, ll: [ -99.13, 19.43] }
+  var CITIES = [   // fares from SF, round trip, about what they cost (John, 2026-10-06: realistic)
+    { n: 'Winnipeg',    p: 510, ll: [ -97.14, 49.90] },
+    { n: 'Portland',    p: 130, ll: [-122.68, 45.52] },
+    { n: 'Montreal',    p: 420, ll: [ -73.57, 45.50] },
+    { n: 'Chicago',     p: 240, ll: [ -87.63, 41.88] },
+    { n: 'New York',    p: 320, ll: [ -74.01, 40.71], hero: true },
+    { n: 'Denver',      p: 140, ll: [-104.99, 39.74] },
+    { n: 'Charlotte',   p: 350, ll: [ -80.84, 35.23] },
+    { n: 'Los Angeles', p: 110, ll: [-118.24, 34.05] },
+    { n: 'Austin',      p: 220, ll: [ -97.74, 30.27] },
+    { n: 'Miami',       p: 310, ll: [ -80.19, 25.76] },
+    { n: 'Mexico City', p: 380, ll: [ -99.13, 19.43] }
   ];
 
   // The unpriced pins — the map has more in it than the eleven it names.
@@ -757,7 +757,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     // continent, and a curved limb behind the pins is a different drawing.
     projection: 'mercator',
     center: cam(USA_CAM).center, zoom: cam(USA_CAM).zoom,
-    pitch: 0, bearing: 0, minZoom: 2.4, maxZoom: 16,
+    pitch: 0, bearing: 0, minZoom: 0.9, maxZoom: 16,   // 0.9, not 2.4: at Any duration the flights fit the whole world, Pacific-centred (2026-10-06)
     dragRotate: false, pitchWithRotate: false, attributionControl: true
   });
 
@@ -814,14 +814,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       '<div class="pill"><b>' + c.n + ' ·</b><span>$' + c.p + '</span></div>' + PIN,
       'bottom-left', [-14, 0]);
     o.marker.setLngLat(c.ll);
-    if (c.hero) {
-      // Hovering the city you can fly to draws the leg you would fly.
-      o.el.addEventListener('click', function () { go('nyc'); });
-      o.el.addEventListener('mouseenter', function () { showFlight(ME, c.ll, '5h 30m', 0.24); });
-      o.el.addEventListener('mouseleave', hideRoute);
-    } else {
-      o.el.style.cursor = 'default';
-    }
+    // Hovering any city you can fly to draws the leg you would fly, with the hours on it (John, 2026-10-06); the hero is the way down
+    o.el.addEventListener('mouseenter', function () { var h = flightHours(c.ll); showFlight(ME, c.ll, mins(h * 3600), 0.24); });
+    o.el.addEventListener('mouseleave', hideRoute);
+    if (c.hero) o.el.addEventListener('click', function () { go('nyc'); });
+    else o.el.style.cursor = 'default';
     return o;
   }
   function makeDot(ll, cls) {
@@ -888,7 +885,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       // The line you would actually ride, on its real alignment — not a curve
       // drawn from SF to the dot, which is the one thing a rail map cannot be.
       o.el.style.cursor = 'pointer';
-      o.el.addEventListener('mouseenter', function () { showRail(d.via || []); });
+      o.el.addEventListener('mouseenter', function () { showRail(d.via || [], d.ll); });
       o.el.addEventListener('mouseleave', hideRail);
     }
     return o;
@@ -903,50 +900,32 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // THE VIBES (John, 2026-10-06): Unique, Relax and Adventure each re-pin the continent with their own priced cities. Popular is
   // the eleven above, with New York as the hero — the way down into the city belongs to Popular alone (John: New York needn't be
   // there all the time).
-  var VIBES = {
+  var VIBES = {   // fares, round trip from SF
     unique: [   // off the beaten path, and worth the trip (John, 2026-10-06)
-      { n: 'Marfa',          p: 268, ll: [-104.02, 30.31] },   // minimalist art in the West Texas desert, the mystery lights
-      { n: 'Churchill',      p: 455, ll: [ -94.17, 58.77] },   // polar bears on Hudson Bay
-      { n: 'Slab City',      p: 88,  ll: [-115.46, 33.26] },   // the last free place, Salvation Mountain
-      { n: 'Fogo Island',    p: 612, ll: [ -54.18, 49.66] },   // the inn on the rocks, icebergs off Newfoundland
-      { n: 'Terlingua',      p: 143, ll: [-103.62, 29.32] },   // a ghost town with a chili cook-off, Big Bend's door
-      { n: 'Real de Catorce',p: 96,  ll: [-100.89, 23.69] },   // a silver town reached through a one-lane tunnel
-      { n: 'Isle Royale',    p: 201, ll: [ -88.90, 47.98] },   // wolves and moose, no roads, Lake Superior
-      { n: 'Whittier',       p: 177, ll: [-148.68, 60.77] },   // the Alaska town that lives in one building
-      { n: 'Cumberland Island', p: 389, ll: [ -81.45, 30.83] },   // wild horses and a ruined mansion, Georgia
-      { n: 'Hueco Tanks',    p: 132, ll: [-105.95, 31.92] },   // ancient pictographs, a bouldering mecca
-      { n: 'Lunenburg',      p: 244, ll: [ -64.31, 44.38] },   // a painted fishing town, Nova Scotia
-      { n: 'Xilitla',        p: 118, ll: [ -98.99, 21.39] }    // a surrealist's concrete garden in the jungle
+      { n: 'Marfa',          p: 260, ll: [-104.02, 30.31] }, { n: 'Churchill',      p: 900, ll: [ -94.17, 58.77] },
+      { n: 'Slab City',      p: 120, ll: [-115.46, 33.26] }, { n: 'Fogo Island',    p: 780, ll: [ -54.18, 49.66] },
+      { n: 'Terlingua',      p: 260, ll: [-103.62, 29.32] }, { n: 'Real de Catorce',p: 420, ll: [-100.89, 23.69] },
+      { n: 'Isle Royale',    p: 380, ll: [ -88.90, 47.98] }, { n: 'Whittier',       p: 410, ll: [-148.68, 60.77] },
+      { n: 'Cumberland Island', p: 350, ll: [ -81.45, 30.83] }, { n: 'Hueco Tanks', p: 230, ll: [-105.95, 31.92] },
+      { n: 'Lunenburg',      p: 560, ll: [ -64.31, 44.38] }, { n: 'Xilitla',        p: 450, ll: [ -98.99, 21.39] }
     ],
-    relax: [   // mountains, desert, both coasts, the Caribbean, the far north
-      { n: 'Tahoe',        p: 455, ll: [-120.04, 39.09] },
-      { n: 'Aspen',        p: 612, ll: [-106.82, 39.19] },
-      { n: 'Whistler',     p: 478, ll: [-122.96, 50.12] },
-      { n: 'Napa',         p: 598, ll: [-122.29, 38.30] },
-      { n: 'Palm Springs', p: 344, ll: [-116.55, 33.83] },
-      { n: 'Cabo',         p: 398, ll: [-109.92, 22.89] },
-      { n: 'Tulum',        p: 367, ll: [ -87.47, 20.21] },
-      { n: 'Key West',     p: 521, ll: [ -81.78, 24.56] },
-      { n: 'Outer Banks',  p: 302, ll: [ -75.70, 35.56] },
-      { n: 'Cape Cod',     p: 489, ll: [ -70.00, 41.69] },
-      { n: 'Muskoka',      p: 371, ll: [ -79.56, 45.04] },
-      { n: 'Hot Springs',  p: 198, ll: [ -93.05, 34.50] },
-      { n: 'Door County',  p: 243, ll: [ -87.35, 45.06] }
+    relax: [
+      { n: 'Tahoe',        p: 140, ll: [-120.04, 39.09] }, { n: 'Aspen',        p: 320, ll: [-106.82, 39.19] },
+      { n: 'Whistler',     p: 260, ll: [-122.96, 50.12] }, { n: 'Santa Barbara',p: 150, ll: [-119.70, 34.42] },
+      { n: 'Palm Springs', p: 140, ll: [-116.55, 33.83] }, { n: 'Cabo',         p: 320, ll: [-109.92, 22.89] },
+      { n: 'Tulum',        p: 420, ll: [ -87.47, 20.21] }, { n: 'Key West',     p: 390, ll: [ -81.78, 24.56] },
+      { n: 'Outer Banks',  p: 380, ll: [ -75.70, 35.56] }, { n: 'Cape Cod',     p: 410, ll: [ -70.00, 41.69] },
+      { n: 'Muskoka',      p: 400, ll: [ -79.56, 45.04] }, { n: 'Hot Springs',  p: 330, ll: [ -93.05, 34.50] },
+      { n: 'Door County',  p: 340, ll: [ -87.35, 45.06] }
     ],
-    adventure: [   // surf towns on both coasts and in Mexico, the Rockies, the desert, the north
-      { n: 'Moab',             p: 276, ll: [-109.55, 38.57] },
-      { n: 'Jackson Hole',     p: 489, ll: [-110.76, 43.48] },
-      { n: 'Yosemite',         p: 351, ll: [-119.59, 37.75] },
-      { n: 'Tofino',           p: 312, ll: [-125.90, 49.15] },
-      { n: 'Santa Cruz',       p: 287, ll: [-122.03, 36.97] },
-      { n: 'Sayulita',         p: 198, ll: [-105.44, 20.87] },
-      { n: 'Puerto Escondido', p: 176, ll: [ -97.07, 15.86] },
-      { n: 'Big Bend',         p: 221, ll: [-103.25, 29.25] },
-      { n: 'Boundary Waters',  p: 207, ll: [ -91.50, 47.95] },
-      { n: 'Smoky Mountains',  p: 232, ll: [ -83.51, 35.65] },
-      { n: 'Acadia',           p: 318, ll: [ -68.27, 44.34] },
-      { n: 'Juneau',           p: 346, ll: [-134.42, 58.30] },
-      { n: 'Cozumel',          p: 254, ll: [ -86.95, 20.42] }
+    adventure: [
+      { n: 'Moab',             p: 280, ll: [-109.55, 38.57] }, { n: 'Jackson Hole',     p: 350, ll: [-110.76, 43.48] },
+      { n: 'Yosemite',         p: 160, ll: [-119.59, 37.75] }, { n: 'Tofino',           p: 420, ll: [-125.90, 49.15] },
+      { n: 'Bend',             p: 240, ll: [-121.32, 44.06] }, { n: 'Sayulita',         p: 380, ll: [-105.44, 20.87] },
+      { n: 'Puerto Escondido', p: 450, ll: [ -97.07, 15.86] }, { n: 'Big Bend',         p: 300, ll: [-103.25, 29.25] },
+      { n: 'Boundary Waters',  p: 320, ll: [ -91.50, 47.95] }, { n: 'Smoky Mountains',  p: 310, ll: [ -83.51, 35.65] },
+      { n: 'Acadia',           p: 420, ll: [ -68.27, 44.34] }, { n: 'Juneau',           p: 390, ll: [-134.42, 58.30] },
+      { n: 'Cozumel',          p: 480, ll: [ -86.95, 20.42] }
     ]
   };
 
@@ -965,6 +944,69 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     { n: 'Bernal Heights',     t: '1 hr',    ll: [-122.414, 37.743] },
     { n: 'Baker Beach',        t: '1.5 hrs', ll: [-122.484, 37.793] }
   ];
+  // THE CAR'S FAR END (John, 2026-10-06: at Any duration a car goes anywhere drivable, days out): by vibe, hours from SF
+  var DRIVE_FAR = {
+    popular: [
+      { n: 'Portland',       t: '10 hrs',    ll: [-122.68, 45.52] }, { n: 'Seattle',        t: '13 hrs',    ll: [-122.33, 47.61] },
+      { n: 'Vancouver',      t: '15 hrs',    ll: [-123.12, 49.28] }, { n: 'Salt Lake City', t: '11 hrs',    ll: [-111.89, 40.76] },
+      { n: 'Phoenix',        t: '11.5 hrs',  ll: [-112.07, 33.45] }, { n: 'Denver',         t: '19 hrs',    ll: [-104.99, 39.74] },
+      { n: 'Santa Fe',       t: '17 hrs',    ll: [-105.94, 35.69] }, { n: 'Austin',         t: '1d 2hrs',   ll: [ -97.74, 30.27] },
+      { n: 'Chicago',        t: '1d 7hrs',   ll: [ -87.63, 41.88] }, { n: 'New Orleans',    t: '1d 10hrs',  ll: [ -90.07, 29.95] },
+      { n: 'Toronto',        t: '1d 15hrs',  ll: [ -79.38, 43.65] }, { n: 'New York',       t: '1d 19hrs',  ll: [ -74.01, 40.71] },
+      { n: 'Miami',          t: '2d 2hrs',   ll: [ -80.19, 25.76] }, { n: 'Mexico City',    t: '1d 18hrs',  ll: [ -99.13, 19.43] },
+      { n: 'Cabo',           t: '1d 2hrs',   ll: [-109.92, 22.89] }, { n: 'Banff',          t: '1d 1hr',    ll: [-115.57, 51.18] },
+      { n: 'Anchorage',      t: '3d 10hrs',  ll: [-149.90, 61.22] }
+    ],
+    unique: [
+      { n: 'Slab City',      t: '10 hrs',    ll: [-115.46, 33.26] }, { n: 'Tombstone',      t: '14 hrs',    ll: [-110.07, 31.71] },
+      { n: 'Hueco Tanks',    t: '17 hrs',    ll: [-105.95, 31.92] }, { n: 'Roswell',        t: '19 hrs',    ll: [-104.52, 33.39] },
+      { n: 'Marfa',          t: '1d 1hr',    ll: [-104.02, 30.31] }, { n: 'Terlingua',      t: '1d 1hr',    ll: [-103.62, 29.32] },
+      { n: 'Cadillac Ranch', t: '1 day',     ll: [-101.99, 35.19] }, { n: 'Carhenge',       t: '1d 2hrs',   ll: [-102.86, 42.14] },
+      { n: 'Wall Drug',      t: '1d 2hrs',   ll: [-102.24, 43.99] }, { n: 'Real de Catorce',t: '1d 14hrs',  ll: [-100.89, 23.69] },
+      { n: 'Dawson City',    t: '2d 20hrs',  ll: [-139.43, 64.06] }, { n: 'Whittier',       t: '3d 12hrs',  ll: [-148.68, 60.77] }
+    ],
+    relax: [
+      { n: 'Santa Barbara',  t: '5.5 hrs',   ll: [-119.70, 34.42] }, { n: 'Palm Springs',   t: '8 hrs',     ll: [-116.55, 33.83] },
+      { n: 'Sun Valley',     t: '11 hrs',    ll: [-114.35, 43.70] }, { n: 'Sedona',         t: '11.5 hrs',  ll: [-111.76, 34.87] },
+      { n: 'Scottsdale',     t: '12 hrs',    ll: [-111.93, 33.49] }, { n: 'Jackson Hole',   t: '14 hrs',    ll: [-110.76, 43.48] },
+      { n: 'Whistler',       t: '16 hrs',    ll: [-122.96, 50.12] }, { n: 'Banff',          t: '1d 1hr',    ll: [-115.57, 51.18] },
+      { n: 'Cabo',           t: '1d 2hrs',   ll: [-109.92, 22.89] }, { n: 'Hot Springs',    t: '1d 6hrs',   ll: [ -93.05, 34.50] },
+      { n: 'Puerto Vallarta',t: '1d 10hrs',  ll: [-105.23, 20.65] }, { n: 'Door County',    t: '1d 10hrs',  ll: [ -87.35, 45.06] }
+    ],
+    adventure: [
+      { n: 'Crater Lake',    t: '7 hrs',     ll: [-122.11, 42.94] }, { n: 'Joshua Tree',    t: '8.5 hrs',   ll: [-116.31, 34.13] },
+      { n: 'Zion',           t: '11 hrs',    ll: [-112.95, 37.30] }, { n: 'Grand Canyon',   t: '12 hrs',    ll: [-112.14, 36.06] },
+      { n: 'Moab',           t: '15 hrs',    ll: [-109.55, 38.57] }, { n: 'Yellowstone',    t: '15 hrs',    ll: [-110.59, 44.43] },
+      { n: 'Guerrero Negro', t: '16 hrs',    ll: [-114.06, 27.97] }, { n: 'Glacier',        t: '18 hrs',    ll: [-113.72, 48.70] },
+      { n: 'Banff',          t: '1d 1hr',    ll: [-115.57, 51.18] }, { n: 'Big Bend',       t: '1d 2hrs',   ll: [-103.25, 29.25] },
+      { n: 'Boundary Waters',t: '1d 10hrs',  ll: [ -91.50, 47.95] }, { n: 'Denali',         t: '3d 8hrs',   ll: [-150.07, 63.33] }
+    ]
+  };
+  var WALK_FAR = {
+    popular: [
+      { n: 'Sausalito',        t: '3 hrs',   ll: [-122.485, 37.859] }, { n: 'Mount Tam',       t: '7 hrs',   ll: [-122.596, 37.924] },
+      { n: 'Muir Woods',       t: '6 hrs',   ll: [-122.581, 37.896] }, { n: 'Tiburon',         t: '5 hrs',   ll: [-122.457, 37.873] },
+      { n: 'Pacifica',         t: '4.5 hrs', ll: [-122.486, 37.614] }, { n: 'Daly City',       t: '3 hrs',   ll: [-122.470, 37.688] },
+      { n: 'Treasure Island',  t: '2 hrs',   ll: [-122.371, 37.824] }, { n: 'Oakland',         t: '4 hrs',   ll: [-122.272, 37.804] },
+      { n: 'Berkeley',         t: '5 hrs',   ll: [-122.273, 37.872] }, { n: 'Half Moon Bay',   t: '8 hrs',   ll: [-122.429, 37.464] }
+    ],
+    unique: [
+      { n: 'Angel Island',     t: '5 hrs',   ll: [-122.430, 37.861] }, { n: 'Albany Bulb',     t: '6 hrs',   ll: [-122.321, 37.891] },
+      { n: 'Point Bonita',     t: '4.5 hrs', ll: [-122.529, 37.816] }, { n: 'Devil\'s Slide',  t: '5.5 hrs', ll: [-122.516, 37.575] },
+      { n: 'Nike Missile Site',t: '4 hrs',   ll: [-122.528, 37.830] }, { n: 'Mare Island',     t: '9 hrs',   ll: [-122.280, 38.090] }
+    ],
+    relax: [
+      { n: 'Stinson Beach',    t: '8 hrs',   ll: [-122.643, 37.900] }, { n: 'Rodeo Beach',     t: '4 hrs',   ll: [-122.537, 37.830] },
+      { n: 'Sharp Park Beach', t: '4.5 hrs', ll: [-122.494, 37.636] }, { n: 'Lake Merritt',    t: '4.5 hrs', ll: [-122.258, 37.805] },
+      { n: 'Tilden Park',      t: '6.5 hrs', ll: [-122.245, 37.900] }, { n: 'Montara Beach',   t: '6 hrs',   ll: [-122.513, 37.545] }
+    ],
+    adventure: [
+      { n: 'Mount Tam',        t: '7 hrs',   ll: [-122.596, 37.924] }, { n: 'Dipsea Trail',    t: '7.5 hrs', ll: [-122.600, 37.905] },
+      { n: 'Montara Mountain', t: '6 hrs',   ll: [-122.470, 37.575] }, { n: 'Sweeney Ridge',   t: '5 hrs',   ll: [-122.455, 37.615] },
+      { n: 'Grizzly Peak',     t: '6.5 hrs', ll: [-122.244, 37.887] }, { n: 'Tennessee Valley',t: '4.5 hrs', ll: [-122.537, 37.855] },
+      { n: 'Coyote Hills',     t: '9 hrs',   ll: [-122.090, 37.552] }
+    ]
+  };
   var WALK_DOTS = [[-122.418, 37.787], [-122.436, 37.770], [-122.463, 37.782], [-122.398, 37.771], [-122.470, 37.746], [-122.431, 37.796]];
   // THE VIBES FOR EVERY MODE (John, 2026-10-06): a car, a train and a walk each have their own Unique / Relax / Adventure
   var MODE_VIBES = {
@@ -1048,57 +1090,63 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
   // THE WORLD (John, 2026-10-06: slide the travel time out to Any duration and the map opens to Europe, Asia and the rest):
   // the flights' far pins, by vibe — their hours come from the distance, so they only appear once the slider lets them
-  var WORLD = {
+  var WORLD = {   // every continent (John, 2026-10-06), fares round trip from SF
     popular: [
-      { n: 'London',    p: 412, ll: [  -0.13, 51.51] }, { n: 'Paris',     p: 388, ll: [   2.35, 48.86] }, { n: 'Tokyo',      p: 296, ll: [ 139.69, 35.69] },
-      { n: 'Rome',      p: 341, ll: [  12.50, 41.90] }, { n: 'Barcelona', p: 302, ll: [   2.17, 41.39] }, { n: 'Lisbon',     p: 254, ll: [  -9.14, 38.72] },
-      { n: 'Bali',      p: 168, ll: [ 115.19, -8.41] }, { n: 'Sydney',    p: 359, ll: [ 151.21,-33.87] }, { n: 'Bangkok',    p: 142, ll: [ 100.50, 13.76] },
-      { n: 'Seoul',     p: 231, ll: [ 126.98, 37.57] }, { n: 'Dubai',     p: 377, ll: [  55.27, 25.20] }, { n: 'Cape Town',  p: 219, ll: [  18.42,-33.92] },
-      { n: 'Buenos Aires', p: 187, ll: [ -58.38,-34.60] }, { n: 'Reykjavik', p: 398, ll: [ -21.94, 64.15] }
+      { n: 'London',    p: 750,  ll: [  -0.13, 51.51] }, { n: 'Paris',     p: 820,  ll: [   2.35, 48.86] }, { n: 'Tokyo',      p: 890,  ll: [ 139.69, 35.69] },
+      { n: 'Rome',      p: 920,  ll: [  12.50, 41.90] }, { n: 'Barcelona', p: 780,  ll: [   2.17, 41.39] }, { n: 'Lisbon',     p: 690,  ll: [  -9.14, 38.72] },
+      { n: 'Bali',      p: 1050, ll: [ 115.19, -8.41] }, { n: 'Sydney',    p: 1150, ll: [ 151.21,-33.87] }, { n: 'Bangkok',    p: 880,  ll: [ 100.50, 13.76] },
+      { n: 'Seoul',     p: 820,  ll: [ 126.98, 37.57] }, { n: 'Dubai',     p: 1100, ll: [  55.27, 25.20] }, { n: 'Cape Town',  p: 1450, ll: [  18.42,-33.92] },
+      { n: 'Buenos Aires', p: 1100, ll: [ -58.38,-34.60] }, { n: 'Rio de Janeiro', p: 980, ll: [ -43.17,-22.91] }, { n: 'Marrakech', p: 950, ll: [ -7.98, 31.63] },
+      { n: 'Reykjavik', p: 620,  ll: [ -21.94, 64.15] }, { n: 'Nairobi',   p: 1350, ll: [  36.82, -1.29] }
     ],
     unique: [
-      { n: 'Faroe Islands', p: 356, ll: [  -6.79, 62.01] }, { n: 'Svalbard',  p: 489, ll: [  15.63, 78.22] }, { n: 'Socotra',    p: 164, ll: [  53.87, 12.46] },
-      { n: 'Tbilisi',       p: 121, ll: [  44.79, 41.72] }, { n: 'Paro',      p: 612, ll: [  89.42, 27.43] }, { n: 'Uyuni',      p: 98,  ll: [ -66.83,-20.46] },
-      { n: 'Lalibela',      p: 143, ll: [  39.04, 12.03] }, { n: 'Lofoten',   p: 377, ll: [  14.56, 68.21] }, { n: 'Muscat',     p: 233, ll: [  58.41, 23.59] },
-      { n: 'Matera',        p: 198, ll: [  16.61, 40.67] }, { n: 'Leh',       p: 112, ll: [  77.58, 34.15] }, { n: 'Ulaanbaatar',p: 134, ll: [ 106.92, 47.92] },
-      { n: 'Tristan da Cunha', p: 71, ll: [ -12.28,-37.11] }
+      { n: 'Faroe Islands', p: 980,  ll: [  -6.79, 62.01] }, { n: 'Svalbard',  p: 1250, ll: [  15.63, 78.22] }, { n: 'Socotra',    p: 2100, ll: [  53.87, 12.46] },
+      { n: 'Tbilisi',       p: 1150, ll: [  44.79, 41.72] }, { n: 'Paro',      p: 1900, ll: [  89.42, 27.43] }, { n: 'Uyuni',      p: 1050, ll: [ -66.83,-20.46] },
+      { n: 'Lalibela',      p: 1500, ll: [  39.04, 12.03] }, { n: 'Lofoten',   p: 950,  ll: [  14.56, 68.21] }, { n: 'Muscat',     p: 1200, ll: [  58.41, 23.59] },
+      { n: 'Matera',        p: 930,  ll: [  16.61, 40.67] }, { n: 'Leh',       p: 1300, ll: [  77.58, 34.15] }, { n: 'Ulaanbaatar',p: 1400, ll: [ 106.92, 47.92] },
+      { n: 'Siwa Oasis',    p: 1150, ll: [  25.52, 29.20] }, { n: 'Easter Island', p: 1600, ll: [-109.35,-27.11] }, { n: 'Lord Howe Island', p: 1750, ll: [ 159.08,-31.55] },
+      { n: 'Tristan da Cunha', p: 4500, ll: [ -12.28,-37.11] }
     ],
     relax: [
-      { n: 'Maldives',   p: 892, ll: [  73.22,   3.20] }, { n: 'Santorini', p: 498, ll: [  25.43, 36.39] }, { n: 'Amalfi',     p: 611, ll: [  14.60, 40.63] },
-      { n: 'Lake Como',  p: 723, ll: [   9.26, 45.99] }, { n: 'Phuket',    p: 176, ll: [  98.39,  7.88] }, { n: 'Seychelles', p: 814, ll: [  55.49, -4.68] },
-      { n: 'Algarve',    p: 287, ll: [  -8.25, 37.02] }, { n: 'Zanzibar',  p: 243, ll: [  39.19, -6.16] }, { n: 'Fiji',       p: 455, ll: [ 178.07,-17.71] },
-      { n: 'Bora Bora',  p: 967, ll: [-151.74,-16.50] }, { n: 'Bali',      p: 168, ll: [ 115.19, -8.41] }, { n: 'Maui',       p: 521, ll: [-156.33, 20.80] },
-      { n: 'Ibiza',      p: 534, ll: [   1.43, 38.91] }
+      { n: 'Maldives',   p: 1350, ll: [  73.22,   3.20] }, { n: 'Santorini', p: 980,  ll: [  25.43, 36.39] }, { n: 'Amalfi',     p: 930,  ll: [  14.60, 40.63] },
+      { n: 'Lake Como',  p: 900,  ll: [   9.26, 45.99] }, { n: 'Phuket',    p: 950,  ll: [  98.39,  7.88] }, { n: 'Seychelles', p: 1600, ll: [  55.49, -4.68] },
+      { n: 'Algarve',    p: 720,  ll: [  -8.25, 37.02] }, { n: 'Zanzibar',  p: 1500, ll: [  39.19, -6.16] }, { n: 'Fiji',       p: 1100, ll: [ 178.07,-17.71] },
+      { n: 'Bora Bora',  p: 1300, ll: [-151.74,-16.50] }, { n: 'Bali',      p: 1050, ll: [ 115.19, -8.41] }, { n: 'Maui',       p: 380,  ll: [-156.33, 20.80] },
+      { n: 'Ibiza',      p: 850,  ll: [   1.43, 38.91] }, { n: 'Cartagena', p: 650,  ll: [ -75.51, 10.39] }, { n: 'Byron Bay',  p: 1200, ll: [ 153.62,-28.64] }
     ],
     adventure: [
-      { n: 'El Chaltén',   p: 154, ll: [ -72.89,-49.33] }, { n: 'Queenstown',  p: 312, ll: [ 168.66,-45.03] }, { n: 'Chamonix',   p: 389, ll: [   6.87, 45.92] },
-      { n: 'Kathmandu',    p: 87,  ll: [  85.32, 27.72] }, { n: 'Puerto Natales', p: 176, ll: [ -72.51,-51.73] }, { n: 'Moshi',      p: 132, ll: [  37.34, -3.35] },
-      { n: 'Niseko',       p: 298, ll: [ 140.69, 42.80] }, { n: 'Nosara',      p: 221, ll: [ -85.65,  9.98] }, { n: 'Taghazout',  p: 98,  ll: [  -9.71, 30.54] },
-      { n: 'Cape Town',    p: 219, ll: [  18.42,-33.92] }, { n: 'Interlaken',  p: 356, ll: [   7.86, 46.69] }, { n: 'Hokkaido',   p: 243, ll: [ 142.86, 43.06] },
-      { n: 'Reykjavik',    p: 398, ll: [ -21.94, 64.15] }
+      { n: 'El Chaltén',   p: 1250, ll: [ -72.89,-49.33] }, { n: 'Queenstown',  p: 1300, ll: [ 168.66,-45.03] }, { n: 'Chamonix',   p: 880,  ll: [   6.87, 45.92] },
+      { n: 'Kathmandu',    p: 1200, ll: [  85.32, 27.72] }, { n: 'Cusco',       p: 780,  ll: [ -71.97,-13.53] }, { n: 'Arusha',     p: 1500, ll: [  36.68, -3.37] },
+      { n: 'Niseko',       p: 950,  ll: [ 140.69, 42.80] }, { n: 'Nosara',      p: 420,  ll: [ -85.65,  9.98] }, { n: 'Taghazout',  p: 900,  ll: [  -9.71, 30.54] },
+      { n: 'Cape Town',    p: 1450, ll: [  18.42,-33.92] }, { n: 'Interlaken',  p: 880,  ll: [   7.86, 46.69] }, { n: 'Tasmania',   p: 1350, ll: [ 147.33,-42.88] },
+      { n: 'Reykjavik',    p: 620,  ll: [ -21.94, 64.15] }, { n: 'Antarctica',  p: 9800, ll: [ -64.00,-64.80] }
     ]
   };
   var WORLD_DOTS = [[-157.86, 21.31], [-149.90, 61.22], [-77.04, -12.05], [-70.67, -33.45], [-3.70, 40.42], [13.40, 52.52], [28.98, 41.01], [31.24, 30.04], [36.82, -1.29], [72.88, 19.08], [103.82, 1.35], [114.17, 22.32], [174.76, -36.85], [-43.17, -22.91]];
 
   // Build all three sets up front. Only one is ever on the map.
+  // ONE TRAVELLER'S PIN (John, 2026-10-06: it kept going and coming back): made once, on the map for good on the continent's beats,
+  // never part of a set — a vibe or a mode swaps the places round it and it stays put; it steps aside only for the city and the neighbourhood
+  var meMk = makeMe();
+  function meOn(on) { if (on) { if (!meMk.marker._map) meMk.marker.addTo(map); requestAnimationFrame(function () { meMk.el.classList.add('in'); }); } else { meMk.el.classList.remove('in'); setTimeout(function () { if (!meMk.el.classList.contains('in')) meMk.marker.remove(); }, 420); } }
   var flightCity = function (c) { return withH(makeCity(c), flightHours(c.ll)); };
-  var usaSet  = CITIES.concat(WORLD.popular).map(flightCity).concat(DOTS.map(makeDot), WORLD_DOTS.map(makeDot), [makeMe()]);
+  var usaSet  = CITIES.concat(WORLD.popular).map(flightCity).concat(DOTS.map(makeDot), WORLD_DOTS.map(makeDot));
   // every mode's sets, by vibe: { drive: { popular, unique, relax, adventure }, usa: {…}, rail: {…}, walk: {…} }
   var vibeSets = { usa: { popular: usaSet } };
-  Object.keys(VIBES).forEach(function (k) { vibeSets.usa[k] = VIBES[k].concat(WORLD[k] || []).map(flightCity).concat(DOTS.map(makeDot), WORLD_DOTS.map(makeDot), [makeMe()]); });
+  Object.keys(VIBES).forEach(function (k) { vibeSets.usa[k] = VIBES[k].concat(WORLD[k] || []).map(flightCity).concat(DOTS.map(makeDot), WORLD_DOTS.map(makeDot)); });
   var citySet = HOODS.map(makeHood).concat(AIRPORTS.map(makeAir), NYC_DOTS.map(makeDot));
   var hoodSet = PRICES.map(makePrice);
   var timed = function (cls, glyph, hover) { return function (d) { return withH(makeTimed(cls, glyph, d, hover), hoursOf(d.t)); }; };
-  var driveSet = DRIVES.map(timed('mk-drive', 'pin-car.svg', 'drive'))
-    .concat(DRIVE_DOTS.map(function (ll) { return makeDot(ll, 'mk-drive'); }), [makeMe()]);
+  var driveSet = DRIVES.concat(DRIVE_FAR.popular).map(timed('mk-drive', 'pin-car.svg', 'drive'))
+    .concat(DRIVE_DOTS.map(function (ll) { return makeDot(ll, 'mk-drive'); }));
   var railSet = RAILS.map(timed('mk-rail', 'pin-train.svg', 'rail'))
-    .concat(RAIL_DOTS.map(function (ll) { return makeDot(ll, 'mk-rail'); }), [makeMe()]);
-  var walkSet = WALKS.map(timed('mk-walk', 'pin-walk.svg', 'walk'))
-    .concat(WALK_DOTS.map(function (ll) { return makeDot(ll, 'mk-walk'); }), [makeMe()]);
+    .concat(RAIL_DOTS.map(function (ll) { return makeDot(ll, 'mk-rail'); }));
+  var walkSet = WALKS.concat(WALK_FAR.popular).map(timed('mk-walk', 'pin-walk.svg', 'walk'))
+    .concat(WALK_DOTS.map(function (ll) { return makeDot(ll, 'mk-walk'); }));
   vibeSets.drive = { popular: driveSet }; vibeSets.rail = { popular: railSet }; vibeSets.walk = { popular: walkSet };
-  Object.keys(MODE_VIBES.drive).forEach(function (k) { vibeSets.drive[k] = MODE_VIBES.drive[k].map(timed('mk-drive', 'pin-car.svg', 'drive')).concat(DRIVE_DOTS.map(function (ll) { return makeDot(ll, 'mk-drive'); }), [makeMe()]); });
-  Object.keys(MODE_VIBES.rail).forEach(function (k) { vibeSets.rail[k] = MODE_VIBES.rail[k].map(timed('mk-rail', 'pin-train.svg', 'rail')).concat(RAIL_DOTS.map(function (ll) { return makeDot(ll, 'mk-rail'); }), [makeMe()]); });
-  Object.keys(MODE_VIBES.walk).forEach(function (k) { vibeSets.walk[k] = MODE_VIBES.walk[k].map(timed('mk-walk', 'pin-walk.svg', 'walk')).concat(WALK_DOTS.map(function (ll) { return makeDot(ll, 'mk-walk'); }), [makeMe()]); });
+  Object.keys(MODE_VIBES.drive).forEach(function (k) { vibeSets.drive[k] = MODE_VIBES.drive[k].concat(DRIVE_FAR[k] || []).map(timed('mk-drive', 'pin-car.svg', 'drive')).concat(DRIVE_DOTS.map(function (ll) { return makeDot(ll, 'mk-drive'); })); });
+  Object.keys(MODE_VIBES.rail).forEach(function (k) { vibeSets.rail[k] = MODE_VIBES.rail[k].map(timed('mk-rail', 'pin-train.svg', 'rail')).concat(RAIL_DOTS.map(function (ll) { return makeDot(ll, 'mk-rail'); })); });
+  Object.keys(MODE_VIBES.walk).forEach(function (k) { vibeSets.walk[k] = MODE_VIBES.walk[k].concat(WALK_FAR[k] || []).map(timed('mk-walk', 'pin-walk.svg', 'walk')).concat(WALK_DOTS.map(function (ll) { return makeDot(ll, 'mk-walk'); })); });
 
   // ── The neighbourhood mask ──────────────────────────────────────────────
   // A world-sized polygon with Williamsburg punched out of it dims everything
@@ -1142,7 +1190,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // also gives the duration the chip shows — a real number under real traffic,
   // not one typed in here.
   function arc(a, b, k) {
+    // the short way round: a flight to Asia crosses the Pacific, not the Atlantic — past 180° of longitude the far end is
+    // unwrapped (Tokyo at 139 becomes −221), which Mapbox draws across the seam; the chip's marker wraps itself
+    if (b[0] - a[0] > 180) b = [b[0] - 360, b[1]]; else if (b[0] - a[0] < -180) b = [b[0] + 360, b[1]];
     var dx = b[0] - a[0], dy = b[1] - a[1];
+    if (dx * k < 0) k = -k;   // the bow always climbs north, flying west as well as east — a leg over the Pacific sagging toward the equator read as wrong
     var len = Math.sqrt(dx * dx + dy * dy) || 1e-6;
     var cx = (a[0] + b[0]) / 2 + (-dy / len) * len * k;
     var cy = (a[1] + b[1]) / 2 + ( dx / len) * len * k;
@@ -1264,10 +1316,43 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // real Amtrak long-distance network; driving draws nothing until you hover.
   // The named routes a destination is reached by, drawn on the beat's own layer
   // so a hover here never fights a hovered drive leg on the other one.
-  function showRail(names) {
+  // THE LEG ENDS WHERE YOU'RE POINTING (John, 2026-10-06): a rail line is clipped to the stretch you'd ride — from the vertex
+  // nearest where you board (SF, or the junction with the line before) to the vertex nearest where you get off (the station, or
+  // the junction with the line after). A line's segments are joined into one run first, nearest ends together.
+  function joinSegs(segs) {
+    if (!segs.length) return [];
+    var run = segs[0].slice(), rest = segs.slice(1);
+    var d2 = function (a, b) { var dx = a[0] - b[0], dy = a[1] - b[1]; return dx * dx + dy * dy; };
+    while (rest.length) {
+      var best = -1, bd = Infinity, flip = false, atEnd = true;
+      rest.forEach(function (sg, i) {
+        var h = run[0], t = run[run.length - 1];
+        var c = [[d2(t, sg[0]), i, false, true], [d2(t, sg[sg.length - 1]), i, true, true], [d2(h, sg[sg.length - 1]), i, false, false], [d2(h, sg[0]), i, true, false]];
+        c.forEach(function (x) { if (x[0] < bd) { bd = x[0]; best = x[1]; flip = x[2]; atEnd = x[3]; } });
+      });
+      var sg = rest.splice(best, 1)[0].slice(); if (flip) sg.reverse();
+      run = atEnd ? run.concat(sg) : sg.concat(run);
+    }
+    return run;
+  }
+  function nearestIdx(run, pt) { var bi = 0, bd = Infinity; run.forEach(function (q, i) { var dx = q[0] - pt[0], dy = q[1] - pt[1], d = dx * dx + dy * dy; if (d < bd) { bd = d; bi = i; } }); return bi; }
+  function clipRail(names, to) {
+    var lines = (window.RAIL_LINES || {}), runs = names.map(function (n) { return joinSegs(lines[n] || []); }).filter(function (r) { return r.length; });
+    var out = [], from = ME;
+    runs.forEach(function (run, i) {
+      var exit = to;
+      if (i < runs.length - 1) {   // the junction with the next line: the closest pair of vertices
+        var nx = runs[i + 1], bd = Infinity; run.forEach(function (q) { nx.forEach(function (r) { var dx = q[0] - r[0], dy = q[1] - r[1], d = dx * dx + dy * dy; if (d < bd) { bd = d; exit = q; } }); });
+      }
+      var a = nearestIdx(run, from), b = nearestIdx(run, exit), lo = Math.min(a, b), hi = Math.max(a, b);
+      out.push(run.slice(lo, hi + 1)); from = exit;
+    });
+    return out;
+  }
+  function showRail(names, to) {
     if (!map.getLayer('mode-route-line')) return;
     var lines = (window.RAIL_LINES || {});
-    var segs = names.reduce(function (a, n) { return a.concat(lines[n] || []); }, []);
+    var segs = to ? clipRail(names, to) : names.reduce(function (a, n) { return a.concat(lines[n] || []); }, []);
     map.getSource('mode-route').setData({
       type: 'Feature', geometry: { type: 'MultiLineString', coordinates: segs } });
     map.setPaintProperty('mode-route-line', 'line-opacity', 0.9);
@@ -1303,10 +1388,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   }
   // THE TRAVEL TIME (John, 2026-10-06): the slider is a real filter — a pin whose hours are past it is off the map. Each mode has
   // its own range: a car 1–12 hours, a flight 1–12, a train 4 hours to 3 days ('Any duration' at the end), a walk 15 min to 4 hours.
-  var DUR = { drive: [1, 12], usa: [1, 20], rail: [4, 80], walk: [0.25, 4] };   // a flight's slider runs to Any duration — the world
+  var DUR = { drive: [1, 84], usa: [1, 20], rail: [4, 80], walk: [0.25, 10] };   // a walk's end is a long day on foot — the Bay   // hours = lo + (hi − lo) · pos²: the near end has room, and the far end still reaches days (a car to Anchorage); the end is Any duration
   var maxH = { drive: 8, usa: 8, rail: Infinity, walk: 2 };
-  function within(o) { var m = maxH[state]; return o.h == null || m == null || o.h <= m; }
-  function durLabel(h, pos) { if (pos >= 0.995) return 'Any duration'; if (h < 1) return 'Under ' + Math.round(h * 60) + ' min'; var r = Math.round(h * 2) / 2; return 'Under ' + (r === 1 ? '1 hour' : r + ' hours'); }
+  function within(o, beat) { var m = maxH[beat || state]; return o.h == null || m == null || o.h <= m; }
+  function durLabel(h, pos) { if (pos >= 0.995) return 'Any duration'; if (h < 1) return 'Under ' + Math.round(h * 60) + ' min'; if (h >= 24) { var d = Math.round(h / 12) / 2; return 'Under ' + (d === 1 ? '1 day' : d + ' days'); } var r = Math.round(h * 2) / 2; return 'Under ' + (r === 1 ? '1 hour' : r + ' hours'); }
   function applyDur() {
     var set = BEATS[state] && BEATS[state].set; if (!set) return;
     set.forEach(function (o, i) {
@@ -1318,17 +1403,26 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   }
   // THE MAP CHANGES SCALE WITH THE SLIDER (John, 2026-10-06): the camera fits whatever pins the hours allow — a short walk is
   // downtown, a long one the whole city; a flight out to Any duration is the world
-  var fitT = 0, WORLD_CAM = { center: [20, 22], zoom: 1.05 };
+  var fitT = 0;
+  // the camera that holds a set's allowed pins: the world when they span it, else the bounds (null with nothing to fit)
+  function fitCam(set, beat) {
+    var pts = []; set.forEach(function (o) { if (o.h != null && within(o, beat)) pts.push(o.marker.getLngLat()); });
+    if (pts.length < 2) return null;
+    // the world is fitted like anything else — every pin, SF to Sydney, in one frame (the stock world camera cut off Asia
+    // and the Americas). Spanning more than half the globe, it's Pacific-centred: Asia and Oceania unwrap to the west of
+    // SF (Sydney at 151 → −209), so the frame runs Sydney · the Americas · Europe and Africa, with nothing lost at a seam
+    var lngs = pts.map(function (q) { return q.lng; }), span = Math.max.apply(null, lngs) - Math.min.apply(null, lngs);
+    if (span > 200) pts = pts.map(function (q) { return q.lng > 60 ? new mapboxgl.LngLat(q.lng - 360, q.lat) : q; });
+    var b = new mapboxgl.LngLatBounds(); pts.forEach(function (q) { b.extend(q); }); b.extend(ME);
+    var c = map.cameraForBounds(b, { padding: { top: 90, bottom: 70, left: PAD().left + 80, right: 100 }, maxZoom: FIT_MAX[beat || state] || 4.6 });
+    return c ? { center: c.center, zoom: c.zoom } : null;
+  }
   function fitVisible() {
     clearTimeout(fitT);
     fitT = setTimeout(function () {
       var set = BEATS[state] && BEATS[state].set; if (!set || busy) return;
-      var pts = []; set.forEach(function (o) { if (o.h != null && within(o)) pts.push(o.marker.getLngLat()); });
-      if (pts.length < 2) return;
-      var lngs = pts.map(function (q) { return q.lng; }), span = Math.max.apply(null, lngs) - Math.min.apply(null, lngs);
-      if (span > 200) { map.easeTo({ center: WORLD_CAM.center, zoom: WORLD_CAM.zoom, padding: PAD(), duration: 700, essential: true }); return; }
-      var b = new mapboxgl.LngLatBounds(); pts.forEach(function (q) { b.extend(q); }); b.extend(ME);
-      map.fitBounds(b, { padding: { top: 90, bottom: 70, left: PAD().left + 80, right: 100 }, maxZoom: FIT_MAX[state] || 4.6, duration: 700, essential: true });
+      var c = fitCam(set); if (!c) return;
+      map.easeTo({ center: c.center, zoom: c.zoom, padding: c.padding || PAD(), duration: 700, essential: true });
     }, 140);
   }
   function hide(set, stagger, done) {
@@ -1352,10 +1446,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // says which way a move is going. Same depth means a sideways move: the whole
   // field leaves together and the new one arrives, no marker held back.
   var BEATS = {
-    drive: { cam: DRIVE_CAM, set: driveSet, layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 0, dur: ['62%', 'Under 8 hours'] },
-    usa:   { cam: USA_CAM,   set: usaSet,   layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 1, dur: ['37%', 'Under 8 hours'] },
+    drive: { cam: DRIVE_CAM, set: driveSet, layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 0, dur: ['29%', 'Under 8 hours'] },
+    usa:   { cam: USA_CAM,   set: usaSet,   layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 1, dur: ['61%', 'Under 8 hours'] },
     rail:  { cam: RAIL_CAM,  set: railSet,  layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 2, dur: ['100%', 'Any duration'] },
-    walk:  { cam: WALK_CAM,  set: walkSet,  layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 3, dur: ['44%', 'Under 2 hours'] },
+    walk:  { cam: WALK_CAM,  set: walkSet,  layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 3, dur: ['42%', 'Under 2 hours'] },
     nyc:   { cam: NYC_CAM,   set: citySet,  layer: 'layerCity', cls: 'is-city', tab: 0, depth: 1 },
     hood:  { cam: HOOD_CAM,  set: hoodSet,  layer: 'layerHood', cls: 'is-hood', tab: 1, depth: 2 }
   };
@@ -1380,8 +1474,12 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       setTimeout(function () { o.el.classList.remove('in'); }, i * (deeper ? 18 : 20));
     });
 
+    // THE CAMERA ON A MODE CHANGE (2026-10-06): the knob keeps its place across modes, so the new mode's hours may let far pins
+    // in (or few) — then the flight goes straight to the frame that holds them, not the mode's stock camera and a second move
+    var dest = cam(to.cam), stock = to.dur && durPos != null && Math.abs(durPos - parseFloat(to.dur[0]) / 100) < 0.005;
+    if (to.depth === 0 && to.dur && durPos != null && (!stock || vibe !== 'popular')) { applyPos(durPos, true); var fc = fitCam(to.set, next); if (fc) dest = fc; }
     map.flyTo({
-      center: cam(to.cam).center, zoom: cam(to.cam).zoom, padding: PAD(),
+      center: dest.center, zoom: dest.zoom, padding: PAD(),
       duration: deeper ? 1500 : 1250, curve: 1.5, speed: 0.9, essential: true
     });
 
@@ -1407,8 +1505,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       paintHoodMask(next === 'hood');
       showModeRoute(next);
       show(to.set, deeper ? 55 : 32);
+      if (to.depth === 0 && from.depth > 0) meOn(true);
       busy = false;
     }, deeper ? 1650 : 1400);
+    if (deeper && from.depth === 0) meOn(false);
 
     if (!deeper && prev === 'hood') paintHoodMask(false);
   }
@@ -1442,13 +1542,17 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   });
 
   // Vibe cards are a one-of-four ring, per layer.
+  // A TAP WAITS ITS TURN (John, 2026-10-06: the train button lit over the flights' pins — the tap had landed while the map was
+  // busy and been dropped): a mode or a vibe chosen mid-move runs as soon as the move is done, so what's lit is what's shown
+  function whenFree(fn) { if (!busy) fn(); else setTimeout(function () { whenFree(fn); }, 80); }
   document.querySelectorAll('.vibes').forEach(function (row) {
     row.addEventListener('click', function (e) {
       var v = e.target.closest('.vibe'); if (!v) return;
-      row.querySelectorAll('.vibe').forEach(function (x) { x.classList.remove('is-on'); });
-      v.classList.add('is-on');
-      // a vibe re-pins the map for whichever mode is on — car, plane, train or on foot
-      var lbl = v.querySelector('.lbl'); if (row.closest('#layerUsa') && lbl) setVibe(lbl.textContent.trim().toLowerCase());
+      whenFree(function () {
+        row.querySelectorAll('.vibe').forEach(function (x) { x.classList.remove('is-on'); });
+        v.classList.add('is-on');
+        var lbl = v.querySelector('.lbl'); if (row.closest('#layerUsa') && lbl) setVibe(lbl.textContent.trim().toLowerCase());
+      });
     });
   });
   // THE VIBE'S PINS: the field clears and the vibe's own cities come in, New York (the hero) among them each time
@@ -1457,13 +1561,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     var sets = vibeSets[state]; if (!sets || !sets[k] || k === vibe) return;
     var was = BEATS[state].set; vibe = k;
     var next = sets[k]; Object.keys(vibeSets).forEach(function (m) { if (vibeSets[m][k]) BEATS[m].set = vibeSets[m][k]; });   // the vibe holds across modes
-    if (busy) return;
     busy = true; hideRoute();
     // the camera fits the vibe's pins (John, 2026-10-06: zoom to fit if necessary) — Popular goes back to the mode's own camera
-    if (k === 'popular') { var c = cam(BEATS[state].cam); map.easeTo({ center: c.center, zoom: c.zoom, padding: PAD(), duration: 1100, essential: true }); }
-    else { var b = new mapboxgl.LngLatBounds(); next.forEach(function (o) { if (o.h != null) b.extend(o.marker.getLngLat()); });
-      map.fitBounds(b, { padding: { top: 90, bottom: 70, left: PAD().left + 80, right: 100 }, maxZoom: FIT_MAX[state] || 4.6, duration: 1100, essential: true }); }
-    hide(was, 18, function () { show(next, 32); busy = false; });
+    hide(was, 18, function () { show(next, 32); busy = false; fitVisible(); });   // then the camera fits the pins the hours allow
   }
   // The picker is four beats now: walking got its own map on 2026-10-06 — the city on foot.
   var modeBtns = document.querySelectorAll('.modes .mode');
@@ -1473,18 +1573,22 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     if (beat.mode === undefined) return;
     modeBtns.forEach(function (x, i) { x.classList.toggle('is-on', i === beat.mode); });
     // Two days on a train is not "under 8 hours" — the filter has to say so.
-    if (beat.dur) { durTrack.style.setProperty('--pos', beat.dur[0]); durValue.textContent = beat.dur[1]; }
+    // the knob stays where you left it across modes (John, 2026-10-06); the hours follow the mode's own range
+    if (durPos == null) durPos = parseFloat(beat.dur ? beat.dur[0] : '29') / 100;
+    applyPos(durPos, true);
+  }
+  var durPos = null;
+  function applyPos(pos, quiet) {
+    var rng = DUR[state] || DUR.drive, h = rng[0] + (rng[1] - rng[0]) * pos * pos;
+    maxH[state] = pos >= 0.995 ? Infinity : h;
+    durTrack.style.setProperty('--pos', (pos * 100).toFixed(1) + '%'); durValue.textContent = durLabel(h, pos);
+    if (!quiet) applyDur();
   }
   // the slider: drag the knob (or tap the track) — the fill follows the finger, the label says the hours, the pins come and go
   (function () {
     var drag = false;
     var at = function (e) { var r = durTrack.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); };
-    var setPos = function (pos) {
-      var rng = DUR[state] || DUR.drive, h = rng[0] + (rng[1] - rng[0]) * pos;
-      maxH[state] = pos >= 0.995 ? Infinity : h;
-      durTrack.style.setProperty('--pos', (pos * 100).toFixed(1) + '%'); durValue.textContent = durLabel(h, pos);
-      applyDur();
-    };
+    var setPos = function (pos) { durPos = pos; applyPos(pos, false); };
     durTrack.addEventListener('pointerdown', function (e) { if (!DUR[state]) return; drag = true; durTrack.classList.add('dragging'); durTrack.setPointerCapture(e.pointerId); setPos(at(e)); e.preventDefault(); });
     durTrack.addEventListener('pointermove', function (e) { if (drag) setPos(at(e)); });
     var up = function () { drag = false; durTrack.classList.remove('dragging'); };
@@ -1492,9 +1596,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   })();
   document.querySelector('.modes').addEventListener('click', function (e) {
     var m = e.target.closest('.mode'); if (!m) return;
-    modeBtns.forEach(function (x) { x.classList.remove('is-on'); });
-    m.classList.add('is-on');
-    if (m.dataset.beat) go(m.dataset.beat);
+    whenFree(function () {
+      modeBtns.forEach(function (x) { x.classList.remove('is-on'); });
+      m.classList.add('is-on');
+      if (m.dataset.beat) go(m.dataset.beat);
+    });
   });
 
   // Deep link for a deck: ?state=nyc / ?state=hood opens straight on that
@@ -1519,7 +1625,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // them off `load` (the first full tile set) or `style.load` means that on a
   // slow style — or one whose imports never settle — the card sits there over
   // an empty map forever. They come up now; the tiles arrive under them.
-  show(BEATS[state].set, 45);
+  show(BEATS[state].set, 45); meOn(BEATS[state].depth === 0);
 
   // The mask is the one thing that genuinely needs the style, because it adds
   // a source and two layers. Rather than trust an event, try until it takes.

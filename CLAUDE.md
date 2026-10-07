@@ -275,6 +275,15 @@ walking route). **The travel-time slider is real** (`DUR`, `maxH`, `within()`, `
 says the hours, and a pin past it leaves the map; each mode has its own range (car and flight 1–12 h, train 4 h to 3 days then Any,
 walk 15 min to 4 h). Every pin carries `o.h` (a flight's from its distance, the others from their pill). The car and the train keep their own pins. `__explore.vibe(name)` drives it.
 
+**The slider, the modes and the world (2026-10-06):** the travel-time knob is one position shared by every mode (`durPos`), each mode
+reading its own hours off it (`DUR`, `h = lo + (hi − lo)·pos²`) — switching modes never moves it. A mode or vibe tapped while the
+map is busy waits its turn (`whenFree`) so what's lit is always what's shown. At Any duration a car reaches anywhere drivable
+(`DRIVE_FAR`, days out: Anchorage, Miami), a walk the Bay in a long day (`WALK_FAR`), and the flights the world (`WORLD`, every
+continent, realistic fares): the camera fits the allowed pins (`fitCam`) on a slider move, a vibe, AND a mode change (the stock
+camera only when the knob is at the mode's default on Popular), the world Pacific-centred with Asia unwrapped west of SF so nothing
+sits at a seam (`minZoom` 0.9). Every flight pin hovers its own leg, drawn the short way round (`arc()` unwraps past 180° and
+always bows north); a rail hover clips the lines to end at the hovered stop (`clipRail`). One traveller pin (`meMk`), never rebuilt.
+
 `?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
 it without faking clicks.
