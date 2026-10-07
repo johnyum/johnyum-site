@@ -243,7 +243,10 @@ button, textarea { font: inherit; color: inherit; }
 .cast .slot { position: absolute; bottom: 24px; width: 64px; height: 64px; transform-origin: 50% 100%; }
 .cast .face { width: 100%; height: 100%; border-radius: 50%; border: 3px solid #fff; background: #fff; padding: 0; overflow: hidden; cursor: pointer; box-sizing: border-box;
   box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 5px 14px rgba(0,0,0,.18); transform-origin: 50% 100%; transition: transform .5s cubic-bezier(.22,1,.36,1); -webkit-tap-highlight-color: transparent; }
+.cast .face { position: relative; }
 .cast .face img { width: 100%; height: 100%; object-fit: cover; display: block; -webkit-user-drag: none; pointer-events: none; }
+.cast .face img.c { position: absolute; inset: 0; opacity: 0; transition: opacity .45s ease; }   /* black and white at rest; the hand-tinted print comes up when tapped */
+.cast .face.on img.c { opacity: 1; }
 .cast .face.on { transform: scale(1.125); }   /* 64 → 72 */
 .cast .face:focus, .cast .face:focus-visible { outline: none; }   /* no blue ring after a tap */
 /* the plate in layers, in the plate's own pixels (1100 × 733), scaled to fit: the tail behind the sea, the boat in front */
@@ -3599,22 +3602,23 @@ function whaleStep(now) {
 // THE CAST — Ishmael, Ahab and the white whale (his flukes), engraved like the plate (moby/cast-*.webp, gpt-image-1): shown under
 // the answer to "Who are the main characters?", hanging 16 above the box. A tap grows one to 72, puts its name above it and
 // marks every sentence about it in the answers (the deck's highlighter, by its names) — tap again, or another, and it eases back.
-const CAST = [   // all the main characters (John, 2026-10-06), in a row that scrolls
+const CAST = [   // all the main characters (John, 2026-10-06), Ahab in the middle with the rest to either side; the row opens on him
+  { k: 'stubb', name: 'Stubb', terms: ['Stubb', 'the second mate'] },
+  { k: 'starbuck', name: 'Starbuck', terms: ['Starbuck', 'the first mate'] },
   { k: 'ishmael', name: 'Ishmael', terms: ['Ishmael', 'the narrator'] },
   { k: 'ahab', name: 'Ahab', terms: ['Ahab', 'Captain Ahab', 'the captain'] },
   { k: 'mobydick', name: 'Moby Dick', terms: ['Moby Dick', 'Moby-Dick', 'the white whale', 'the whale'] },
   { k: 'queequeg', name: 'Queequeg', terms: ['Queequeg'] },
-  { k: 'starbuck', name: 'Starbuck', terms: ['Starbuck', 'the first mate'] },
-  { k: 'stubb', name: 'Stubb', terms: ['Stubb', 'the second mate'] },
-  { k: 'flask', name: 'Flask', terms: ['Flask', 'the third mate'] },
   { k: 'fedallah', name: 'Fedallah', terms: ['Fedallah', 'the Parsee'] },
+  { k: 'flask', name: 'Flask', terms: ['Flask', 'the third mate'] },
 ];
+const CAST_OPEN = 3;   // Ahab
 let cast = null;   // { el, on }
 function castShow() {
   if (cast || !poolInit()) return;
   const el = document.createElement('div'); el.className = 'cast';
-  el.innerHTML = CAST.map((c) => `<span class="slot"><button class="face" data-k="${c.k}" aria-label="${c.name}"><img src="moby/cast-${c.k}.webp" alt="" draggable="false"></button></span>`).join('');
-  el.style.opacity = '0'; poolEl.append(el); cast = { el, on: null, name: null, sel: 1, target: 1, drag: null };   // sel: which face sits in the middle (a float while sliding); opens on the second so the first three are full size and more shows to the right
+  el.innerHTML = CAST.map((c) => `<span class="slot"><button class="face" data-k="${c.k}" aria-label="${c.name}"><img src="moby/cast-${c.k}.webp" alt="" draggable="false"><img class="c" src="moby/cast-${c.k}-c.webp" alt="" draggable="false"></button></span>`).join('');   // the engraving, and its hand-tinted print over it — shown when tapped
+  el.style.opacity = '0'; poolEl.append(el); cast = { el, on: null, name: null, sel: CAST_OPEN, target: CAST_OPEN, drag: null };   // sel: which face sits in the middle (a float while sliding); opens on Ahab, the rest stepping down to either side
   el.addEventListener('pointerdown', (e) => { e.stopPropagation(); cast.drag = { x: e.clientX, sel: cast.sel, moved: false, face: e.target.closest('.face') }; try { el.setPointerCapture(e.pointerId); } catch {} });   // the face under the finger is noted here: once the row has captured the pointer, the up lands on the row, not the face
   el.addEventListener('pointermove', (e) => { const d = cast?.drag; if (!d) return; const dx = e.clientX - d.x; if (Math.abs(dx) > 6 && !d.moved) { d.moved = true; castRelease(); } if (d.moved) { cast.sel = Math.max(0, Math.min(CAST.length - 1, d.sel - dx / 72)); cast.target = cast.sel; } });
   const drop = (e) => { const d = cast?.drag; if (!d) return; cast.drag = null; cast.target = Math.round(cast.sel); if (!d.moved && d.face && e.type === 'pointerup') castTap(d.face.dataset.k); };
