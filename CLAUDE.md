@@ -335,6 +335,11 @@ camera fit includes the traveller on the continent only (inside a city it pulled
 Slide 09c drills into PALM SPRINGS: trains (LA hovered), flights (Palm Springs hovered — it's on the flights' Popular as a hero
 for this), Palm Springs, Vista Las Palmas. New York stays in the page; the slide no longer goes there.
 
+**Zoom walks the levels (2026-10-07):** by hand, zoomed out of a neighbourhood past its camera by 1.2 it's the city again; out
+of a city past its camera by 1.5 (from a neighbourhood too) it's the beat you came in from; zoomed in at the top level to a
+city's scale with a droppable city in view (a pin whose `hero` names a `CITY`) it's that city — the map staying where you put it
+every time (`zoomSetsHours`). The red pulsing ring is gone everywhere.
+
 `?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
 it without faking clicks.

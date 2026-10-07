@@ -1049,7 +1049,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       { n: 'Phoenix',        t: '11.5 hrs',  ll: [-112.07, 33.45] }, { n: 'Denver',         t: '19 hrs',    ll: [-104.99, 39.74] },
       { n: 'Santa Fe',       t: '17 hrs',    ll: [-105.94, 35.69] }, { n: 'Austin',         t: '1d 2hrs',   ll: [ -97.74, 30.27] },
       { n: 'Chicago',        t: '1d 7hrs',   ll: [ -87.63, 41.88] }, { n: 'New Orleans',    t: '1d 10hrs',  ll: [ -90.07, 29.95] },
-      { n: 'Toronto',        t: '1d 15hrs',  ll: [ -79.38, 43.65] }, { n: 'New York',       t: '1d 19hrs',  ll: [ -74.01, 40.71] },
+      { n: 'Toronto',        t: '1d 15hrs',  ll: [ -79.38, 43.65] }, { n: 'New York',       t: '1d 19hrs',  ll: [ -74.01, 40.71], hero: 'nyc' },
       { n: 'Miami',          t: '2d 2hrs',   ll: [ -80.19, 25.76] }, { n: 'Mexico City',    t: '1d 18hrs',  ll: [ -99.13, 19.43] },
       { n: 'Cabo',           t: '1d 2hrs',   ll: [-109.92, 22.89] }, { n: 'Banff',          t: '1d 1hr',    ll: [-115.57, 51.18] },
       { n: 'Anchorage',      t: '3d 10hrs',  ll: [-149.90, 61.22] }, { n: 'Palm Springs',   t: '8 hrs',     ll: [-116.55, 33.83], hero: 'ps' }
@@ -1634,7 +1634,23 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   var byHand = false, SWITCH = { toFlights: 4.2, toCar: 6.6 };
   function zoomSetsHours(e) {
     var hand = (e && e.originalEvent) || byHand; byHand = false;
-    if (!hand || !BEATS[state] || BEATS[state].depth !== 0 || durPos == null || busy) return;
+    if (!hand || !BEATS[state] || busy) return;
+    // ZOOM OUT, STEP BACK UP (John, 2026-10-07): out of a neighbourhood and it's the city again; out of the city and it's where you
+    // came in from — the map stays where you put it, only the pins and the card change
+    var zz = map.getZoom(), depth = BEATS[state].depth;
+    if (depth > 0 && zz < cam(BEATS.nyc.cam).zoom - 1.5) { go(cityFrom || 'usa', { stay: true }); return; }   // way out: straight back to the top, from a neighbourhood too
+    if (state === 'hood' && zz < cam(BEATS.hood.cam).zoom - 1.2) { go('nyc', { stay: true }); return; }
+    if (BEATS[state].depth !== 0 || durPos == null) return;
+    // ZOOM IN, STEP DOWN (John, 2026-10-07): zoomed in to a city's own scale with a city you can drop into in view, it's the city
+    if (zz >= cam(CITY[cityKey].cam).zoom - 1.5) {
+      var b0 = map.getContainer().getBoundingClientRect(), p0 = PAD(), hit = null;
+      BEATS[state].set.forEach(function (o) {
+        if (hit || !o.d || !CITY[o.d.hero] || !o.marker._map) return;
+        var q0 = map.project(o.marker.getLngLat());
+        if (q0.x >= p0.left && q0.x <= b0.width - p0.right && q0.y >= p0.top && q0.y <= b0.height - p0.bottom) hit = o.d.hero;
+      });
+      if (hit) { enterCity(hit, { stay: true }); return; }
+    }
     // CAR ↔ FLIGHTS WHEN IT MAKES SENSE (John, 2026-10-07): zoomed out past a car's reach the pins become the flights', and
     // zoomed in to a car's reach the flights' become the car's — the map stays exactly where you put it, only the set changes
     var z = map.getZoom();
@@ -1764,11 +1780,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     L.querySelector('.search-mid .t').textContent = 'Homes in ' + h.name;
     document.getElementById('homeGrid').innerHTML = h.homes.map(function (m, i) { return homeCard(m, 'assets/img/' + h.photo + (i + 1) + (h.photo === 'home-' ? '.jpg' : '.png')); }).join('');
   }
-  function enterCity(key) {
+  function enterCity(key, opts) {
     if (busy) return;
     var c = CITY[key]; cityKey = key; cityVibe = c.first; cityFrom = BEATS[state].depth === 0 ? state : cityFrom;
     BEATS.nyc.cam = c.cam; BEATS.nyc.set = c.sets[c.first]; dressCity(key);
-    go('nyc');
+    go('nyc', opts);
   }
   function enterHood(key) {
     if (busy) return;
