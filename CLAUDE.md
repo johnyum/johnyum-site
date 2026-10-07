@@ -692,7 +692,16 @@ difference), a phone 1 x 2, a web build 3 x 2, the straight-line graph 5 x 2 pin
 in a fixed-seed shuffle, each dropped at random beside something already placed. EVERY PICTURE ONCE AND WHOLE — no crops, no repeats
 (John, 2026-10-06), and NO icon grids (one was tried twice, then "get rid of it"): a stray single cell gets a small holiday icon
 (`assets/iterations/icons/`), nothing more. More PNGs are the lever for a fuller board; each fades up in turn from the middle outward while the calendar settles to the centre; built, the board is a little larger than the
-screen so it bleeds off every edge). Then the A.I. card. **The chrome's pills** (2026-10-06): the kicker and the nav each sit in a fully rounded white pill, 12 above and below,
+screen so it bleeds off every edge). Between the Figma and the board sits **the side tools** (12dq1, 2026-10-06, John: "a screen where I'm building these side tools, trying
+different things"): a wall of 38 grabs in `preso/slides/assets/sidework/` — the calendar mocks (Desktop `calendar-mocks.zip`: cell
+animations, graph studies, cell system, tip cards, chat-to-dates motion, the Repeat settings review and its five screens), the July
+prototype's review pages and contact sheets (`~/Documents/Multi_Cal_Protototype`), the iOS walkthrough, the Moby Dick layer tests, the
+fee email, and the option sheets from `research/` and the session scratchpads. Pages were captured headless (a quicker copy of
+`preso/tools/capture-page.mjs`, 3s wait, `--allow-file-access-from-files`) and every image resized to 1200 on the long edge, webp 80.
+Masonry on 14 columns of 121 + 16, each piece at its own proportion (a page 2 across, a phone 1, a strip 3), skyline-packed in a
+fixed-seed shuffle choosing the spot that leaves the least hole; it bleeds (×1.04 of cover) and arrives on entry one piece after
+another, 55ms apart — no tap. Everything behind it is zipped by theme in `~/Desktop/side-work/` (twelve zips + INDEX.md).
+Then the A.I. card. **The chrome's pills** (2026-10-06): the kicker and the nav each sit in a fully rounded white pill, 12 above and below,
 20 to the sides, the page blurred behind, shown only over a slide that declares `window.presoBleed` (a value or a function of its step —
 12dr's board once built); elsewhere the pill is transparent and the type sits exactly where it always did.
 
