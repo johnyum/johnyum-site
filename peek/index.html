@@ -3660,7 +3660,11 @@ function castTap(k) {
   if (on) cast.target = CAST.findIndex((x) => x.k === k);   // and it comes to the middle
   cast.el.querySelectorAll('.face').forEach((b) => b.classList.toggle('on', b.dataset.k === on));
   if (cast.name) { const old = cast.name; cast.name = null; old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160 }).onfinish = () => old.remove(); }
-  if (on) { const n = document.createElement('div'); n.className = 'name'; n.textContent = c.name; poolEl.append(n); cast.name = n; n.animate([{ opacity: 0, scale: '.7' }, { opacity: 1, scale: '1' }], { duration: 260, easing: 'cubic-bezier(.3,1.4,.5,1)' }); }
+  if (on) {   // its name, grown up out of the face: placed over it before its first paint, scaling from its own bottom edge
+    const n = document.createElement('div'); n.className = 'name'; n.textContent = c.name; n.style.transition = 'none'; n.style.transformOrigin = '50% 100%'; n.style.visibility = 'hidden'; poolEl.append(n); cast.name = n;
+    castPlace(); n.style.visibility = '';
+    n.animate([{ opacity: 0, scale: '.6', translate: '0 10px' }, { opacity: 1, scale: '1', translate: '0 0' }], { duration: 300, easing: 'cubic-bezier(.3,1.3,.5,1)' });
+  }
   tell({ type: 'highlight', terms: on ? c.terms : [], spans: [] });
   castPlace();
 }
