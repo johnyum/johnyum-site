@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peek</title>
+<link rel="icon" href="/peek/icons/favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<!--
+  The character demo in a phone (John, 2026-10-07: "when the monster peeks from the left or right it comes from the edge of
+  the phone, not from the browser side"). A desktop visit to /peek/?character comes here; the page itself runs in the iframe
+  at an iPhone 17 Pro Max's 440 wide, so every edge it measures off the window is the phone's. The frame is the deck's
+  (preso/slides/12fg.html: the same photo, bezel and island). Things to try is built by the page in the phone and stands
+  out here, on the left (index.html puts it in this document when it runs with ?inphone).
+-->
+<style>
+  :root { --bg: #ffffff; --ink: #1d1d1c; --muted: #87857f; --faint: #b2b0ab; --line: #e7e7e5; --field: #f0f0ee; }
+  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
+  body { font-family: "Schibsted Grotesk", system-ui, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+  .stage { height: 100%; display: grid; place-items: center; }
+  .phone {
+    --phone-h: min(calc(100vh - 48px), 1080px);
+    --sx: 5.4444%; --sy: 2.5543%; --sw: 89.1111%; --sh: 94.8913%; --sr: 15.9601%; --sry: 7.3310%;
+    position: relative; height: var(--phone-h); aspect-ratio: 900 / 1840;
+  }
+  .chrome { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; z-index: 2; }
+  .screen { position: absolute; left: var(--sx); top: var(--sy); width: var(--sw); height: var(--sh); border-radius: var(--sr) / var(--sry); overflow: hidden; background: #fff; z-index: 1; }
+  .ui { position: absolute; top: 0; left: 50%; width: 440px; height: 956px; margin-left: -220px; transform: scale(var(--k, 1)); transform-origin: top center; background: #fff; }
+  /* The status band: the island and the time, a Pro Max's 50 down. The page runs under it, so nothing of its own hides
+     behind the island. */
+  .status { position: absolute; left: 0; top: 0; width: 440px; height: 50px; overflow: hidden; background: #fff; }
+  .status img { position: absolute; left: 0; top: -4.9px; width: 440px; height: auto; display: block; }
+  .app { position: absolute; left: 0; top: 50px; width: 440px; height: 906px; border: 0; display: block; background: #fff; }
+  .home { position: absolute; left: 50%; bottom: 8px; width: 140px; height: 5px; margin-left: -70px; border-radius: 3px; background: #111; z-index: 3; pointer-events: none; }
+
+  /* Things to try, as the page draws it, here beside the phone. */
+  .try { position: fixed; left: 24px; top: 24px; bottom: 24px; width: 236px; z-index: 30; overflow-y: auto; padding: 16px 14px 20px;
+    background: #fff; border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 28px rgba(0,0,0,.06);
+    scrollbar-width: thin; transition: opacity .2s, transform .2s; }
+  .try[hidden] { display: block; opacity: 0; transform: translateX(-12px); pointer-events: none; }
+  .try h2 { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
+  .try > p { font-size: 12.5px; line-height: 1.4; color: var(--muted); margin: 0 0 6px; text-wrap: pretty; }
+  .try h3 { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin: 16px 0 7px; }
+  .try .row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .try button { font: inherit; font-size: 13px; line-height: 1; padding: 8px 11px; border-radius: 999px; border: 1px solid var(--line); background: #fff;
+    color: var(--ink); cursor: pointer; white-space: nowrap; transition: background .12s, border-color .12s; }
+  .try button:hover { background: var(--field); border-color: #d8d7d3; }
+  .try button:active { transform: scale(.97); }
+  .try .say button { white-space: normal; text-align: left; border-radius: 12px; line-height: 1.3; padding: 8px 11px; width: 100%; }
+  .try .say button i { display: block; font-style: normal; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .try .hands { font-size: 12.5px; line-height: 1.5; color: var(--muted); margin: 0; padding-left: 16px; }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="phone">
+      <div class="screen" id="screen">
+        <div class="ui" id="ui">
+          <div class="status"><img src="/preso/slides/assets/status-bar.svg" alt="" draggable="false"></div>
+          <iframe class="app" id="app" title="Peek" allow="autoplay"></iframe>
+          <div class="home"></div>
+        </div>
+      </div>
+      <svg class="chrome" viewBox="0 0 900 1840" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="rail" x1="16" y1="0" x2="884" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0"     stop-color="#8f8f8c"/>
+            <stop offset="0.035" stop-color="#ececea"/>
+            <stop offset="0.10"  stop-color="#bfbfbc"/>
+            <stop offset="0.50"  stop-color="#f2f2f0"/>
+            <stop offset="0.90"  stop-color="#bfbfbc"/>
+            <stop offset="0.965" stop-color="#ececea"/>
+            <stop offset="1"     stop-color="#8f8f8c"/>
+          </linearGradient>
+          <clipPath id="outsideBezel" clipPathUnits="userSpaceOnUse">
+            <path clip-rule="evenodd" d="
+              M-60,-60 H960 V1900 H-60 Z
+              M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/>
+          </clipPath>
+        </defs>
+        <path fill="url(#rail)" fill-rule="evenodd" d="
+          M177,14 H723 A161,161 0 0 1 884,175 V1665 A161,161 0 0 1 723,1826 H177 A161,161 0 0 1 16,1665 V175 A161,161 0 0 1 177,14 Z
+          M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/>
+        <image href="/preso/slides/assets/device/iphone-frame.png" x="0" y="0" width="900" height="1840"
+               clip-path="url(#outsideBezel)" preserveAspectRatio="none"/>
+        <path fill="#0b0b0b" fill-rule="evenodd" d="
+          M177,27 H723 A148,148 0 0 1 871,175 V1665 A148,148 0 0 1 723,1813 H177 A148,148 0 0 1 29,1665 V175 A148,148 0 0 1 177,27 Z
+          M177,47 H723 A128,128 0 0 1 851,175 V1665 A128,128 0 0 1 723,1793 H177 A128,128 0 0 1 49,1665 V175 A128,128 0 0 1 177,47 Z"/>
+        <rect x="322" y="69" width="256" height="74" rx="37" fill="#000"/>
+        <circle cx="529" cy="106" r="12.7" fill="#0f1420"/>
+        <circle cx="529" cy="106" r="5.3" fill="#243046"/>
+      </svg>
+    </div>
+  </div>
+<script>
+  // The page in the phone, with the same link (the character, its moves) plus ?inphone.
+  const q = location.search ? location.search + '&inphone' : '?inphone';
+  document.getElementById('app').src = '/peek/index.html' + q + location.hash;
+  // The 440 x 956 screen scaled to the drawn phone's.
+  const screen = document.getElementById('screen');
+  const fit = () => document.getElementById('ui').style.setProperty('--k', (screen.clientHeight + 1) / 956);
+  new ResizeObserver(fit).observe(screen); fit();
+</script>
+</body>
+</html>

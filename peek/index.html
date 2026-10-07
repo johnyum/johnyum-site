@@ -43,6 +43,18 @@
   the Bunny.
 -->
 <script>if (/[?&]embed\b/.test(location.search)) document.documentElement.classList.add('embed'); if (/[?&]preso\b/.test(location.search)) document.documentElement.classList.add('preso');</script>
+<script>
+/* IN A PHONE (John, 2026-10-07: "when the monster peeks from the left or right it comes from the edge of the phone, not from
+   the browser side"): on a desktop browser the character demo opens inside a drawn phone (phone.html), the page running in
+   an iframe the size of an iPhone 17 Pro Max's screen. Every edge the character uses — the side peeks, Spider-Man's walls,
+   the pile's walls — is measured off the window, so in there they are the phone's own edges. The page in the phone carries
+   ?inphone; the deck (?preso) and the app (?embed) have their own frames and never come here. */
+if (/[?&]inphone\b/.test(location.search)) document.documentElement.classList.add('inphone');
+else if (window.top === window && !/[?&](embed|preso)\b/.test(location.search)
+         && (/[?&]character\b/.test(location.search) || /^#[mc]=/.test(location.hash))
+         && matchMedia('(min-width: 700px) and (pointer: fine)').matches)
+  location.replace('/peek/phone.html' + location.search + location.hash);
+</script>
 <style>
 /* IN THE DECK (?preso=1, John, 2026-10-05): the demo page inside a drawn phone on a slide, its chats scripted by the deck
    (window.__demo). The demo's own furniture — the chips, the hint, the Character button — comes off; the rest is the chat. */
@@ -1790,11 +1802,13 @@ if (CHARACTER && !EMBED && !PRESO) {
   const hands = document.createElement('ul'); hands.className = 'hands';
   hands.innerHTML = '<li>Drag it — it dangles from the pointer; let go and it lands on the box</li><li>Tap it — a giggle and a wave</li><li>Leave it be — it wanders the box on its own</li><li>Type a swear and it guards the send button</li><li>Sweep the pointer past it while it hangs</li>';
   panel.append(head('Say to it'), sayRow, head('With your hands'), hands);
-  document.body.append(panel);
+  // In the phone (phone.html) the panel stands beside it, on the page around the phone.
+  const INPHONE = document.documentElement.classList.contains('inphone') && parent !== window;
+  (INPHONE ? parent.document.body : document.body).append(panel);
   const show = (on) => { panel.hidden = !on; paw?.classList.toggle('on', on); };
   // Open from the start only where it clears the chat column; a narrowing window closes it,
   // unless the paw opened it — then covering the chat is what was asked for.
-  const roomy = () => rectOf(composer).left >= 276;
+  const roomy = () => INPHONE || rectOf(composer).left >= 276;
   let byPaw = false;
   show(roomy());
   paw?.addEventListener('click', () => { byPaw = panel.hidden; show(panel.hidden); });
