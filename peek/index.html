@@ -4116,7 +4116,7 @@ function presoHost(m) {
 }
 // the answer, as the app draws it: paragraphs 12 apart, **bold** lead-ins
 // the answer, as the app draws it (MarkdownText.inline): paragraphs 12 apart, **bold**, *italic*, `code`, "- " bullets as •
-const mdInline = (x) => esc(x).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[^*\w])\*(?!\s)([^*\n]+?)\*(?!\w)/g, '$1<i>$2</i>').replace(/`([^`\n]+)`/g, '<code>$1</code>');
+const mdInline = (x) => esc(x).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*\*([^*]+)$/, '<b>$1</b>').replace(/(^|[^*\w])\*(?!\s)([^*\n]+?)\*(?!\w)/g, '$1<i>$2</i>').replace(/`([^`\n]+)`/g, '<code>$1</code>');
 const mdPara = (t) => String(t).replace(/```[\s\S]*?```/g, (m) => m.replace(/```\w*\n?/g, '').trim()).split(/\n\n+/).filter((x) => x.trim()).map((x) => '<p>' + x.trim().split('\n').map((l) => mdInline(l.replace(/^(\s*)[-*•]\s+/, '$1•  ').replace(/^#{1,6}\s+(.*)$/, '**$1**'))).join('<br>') + '</p>').join('');
 async function presoStream(bot, text, fast) {
   presoStreaming = true;
@@ -4291,7 +4291,7 @@ if (PRESO) {
     if (out == null) { if (!fast) await new Promise((r) => setTimeout(r, 1300)); out = await presoStream(begin(), claude, fast); }
     said.push(['claude', out]);
     window.peek.event('replied', out);
-    if (name === 'mobydick' && i === 1) setTimeout(castShow, 400);   // the cast hangs under the answer about them
+    if (name === 'mobydick' && i === 1) setTimeout(() => { if (scene === 'mobydick') castShow(); }, 400);   // the cast hangs under the answer about them — unless the next scene has already begun (it turned up in Spider-Man)
     playing = false;
     return true;
   }
