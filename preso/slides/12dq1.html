@@ -4,71 +4,35 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>12dq1</title>
-<!-- THE SIDE STUDIES (John, 2026-10-06) — after the Figma, before the board: the studies built on the side of the calendar to work
-     a question out — "different models, the deck, graph charts, iterations of quick actions". Not pictures of them: THE PAGES
-     THEMSELVES, live, one to a tap, each in a window fitted to the stage (16 corners, the deck's clearances), scrolled with the
-     wheel and worked with the pointer. Seven, in the order they were made (assets/studies/, from calendar-mocks.zip):
-       1 cell animations — every way a cell can move: odometer, discount split, min nights, last-minute reel, apply, scan, select
-       2 graph studies — the opportunities graph five ways, with live controls (fluid tube, straight line + pills, area, ridge, bars)
-       3 cell & opportunity system — every cell state and every opportunity modal
-       4 tip cards — six ways the chat can serve a tip (a card, a mini month, inline settings, a daily brief, a conversation, a rule)
-       5 chat to dates motion — seven now-vs-proposed motion pairs
-       6 repeat settings review — the overlap write-up
-       7 repeat settings mock — five phone screens
-     Cereal comes from /multi/Font_Cereal/, the copy the site already serves — no second copy of the font ships with these.
-     Interactive (window.presoInteractive): the deck's taps keep to its 32px rails, the keys still step. presoNext/Prev walk the
-     studies; presoRestore(n) lands on one; presoEnd on the last. -->
+<!-- THE SIDE STUDIES (John, 2026-10-06/07) — after the Figma, before the board: everything built on the side to work a question
+     out — "different models, the deck, graph charts, iterations of quick actions" — on ONE page (assets/studies/all.html), rows
+     and rows of the live pages, neatly by section: the calendar studies, the Repeat mock's five screens, the July prototype's
+     review pages, the iOS walkthrough, the estimator tries, the Moby Dick layer tests, the EOB and the fee email, the Claude icons
+     compare, and the option sheets. Every study is the page itself, scaled into its window and live. The slide is that one page in
+     a window fitted to the stage (16 corners, the deck's clearances), scrolled with the wheel. Interactive (window.presoInteractive):
+     the deck's taps keep to its 32px rails. No steps. Two earlier takes the same evening: a masonry wall of thumbnails (John: "not
+     masonry — I wanna see that work"), then the seven calendar studies one to a tap (John: "put ALL the side things into one huge
+     HTML file"). -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
-  .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
-  .win { position: absolute; flex: none; border-radius: 16px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,.08), 0 24px 60px -24px rgba(0,0,0,.18); background: #fff; opacity: 0; transform: translateY(12px) scale(.985); transition: opacity .42s ease, transform .5s cubic-bezier(.22,1,.36,1); pointer-events: none; }
-  .win.on { opacity: 1; transform: none; pointer-events: auto; }
+  .win { position: absolute; border-radius: 16px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,.08), 0 24px 60px -24px rgba(0,0,0,.18); background: #fff; }
   .win iframe { display: block; border: 0; width: 100%; height: 100%; background: #fff; }
-  .tag { position: fixed; left: 50%; transform: translateX(-50%); font: 12px/1 "IBM Plex Mono", ui-monospace, monospace; color: #6b7280; letter-spacing: .02em; white-space: nowrap; opacity: 0; transition: opacity .3s ease; }
-  .tag.on { opacity: 1; }
 </style>
 </head>
 <body>
-  <div class="stage" id="stage"></div>
-  <div class="tag" id="tag"></div>
+  <div class="win" id="win"><iframe src="assets/studies/all.html" title="The side studies" loading="eager"></iframe></div>
 <script>
 (() => {
-  const A = 'assets/studies/';
-  const STUDIES = [
-    ['01-cell-animations.html', 'cell animations · every way a cell can move', 1200],
-    ['02-graph-studies.html', 'opportunities graph · five models, live controls', 1200],
-    ['03-cell-system.html', 'cell & opportunity system · every state, every modal', 1240],
-    ['04-tip-cards.html', 'tip cards · six ways the chat can serve a tip', 1200],
-    ['05-chat-to-dates-motion.html', 'chat to dates · seven motion pairs, now vs proposed', 1200],
-    ['06-repeat-settings-review.html', 'repeat settings · the overlap review', 1100],
-    ['07-repeat-settings-mock.html', 'repeat settings · five screens', 1300],
-  ];
-  const stage = document.getElementById('stage'), tag = document.getElementById('tag');
-  // every study is loaded once, up front, in its own window; only the current one is shown — a step back is instant and keeps
-  // where you had scrolled to
-  const wins = STUDIES.map(([f]) => { const w = document.createElement('div'); w.className = 'win'; w.innerHTML = `<iframe src="${A + f}" title="${f}" loading="eager"></iframe>`; stage.append(w); return w; });
-  let step = 0;
+  const win = document.getElementById('win');
   const band = () => {
     let top = 0, bottom = innerHeight;
     try { const pd = window.parent.document, k = pd.getElementById('kicker'), c = pd.getElementById('counter');
           if (k) top = k.getBoundingClientRect().bottom + 40; if (c) bottom = c.getBoundingClientRect().top - 40; } catch (_) {}
-    return { top, bottom, h: Math.max(200, bottom - top) };
+    return { top, h: Math.max(200, bottom - top) };
   };
-  // THE WINDOW: as wide as the study was drawn for (so nothing reflows), as tall as the band — the page scrolls inside it; on a
-  // stage too narrow for that, the window is the stage less the margins and the page reflows as it would in a narrower browser
-  const fit = () => {
-    const b = band();
-    wins.forEach((w, i) => { const wd = Math.min(STUDIES[i][2], innerWidth - 64); w.style.width = wd + 'px'; w.style.height = b.h + 'px'; w.style.left = Math.round((innerWidth - wd) / 2) + 'px'; w.style.top = Math.round(b.top) + 'px'; });
-    tag.style.top = Math.round(b.bottom + 14) + 'px';
-  };
-  const show = () => { wins.forEach((w, i) => w.classList.toggle('on', i === step)); tag.textContent = (step + 1) + ' / ' + STUDIES.length + '   ' + STUDIES[step][1]; tag.classList.add('on'); };
-  fit(); show(); addEventListener('resize', fit); new ResizeObserver(fit).observe(document.documentElement);   // the deck sizes its frames after they load, and not always with a resize event
+  const fit = () => { const b = band(), w = innerWidth - 64; win.style.width = w + 'px'; win.style.height = b.h + 'px'; win.style.left = '32px'; win.style.top = Math.round(b.top) + 'px'; };
+  fit(); addEventListener('resize', fit); new ResizeObserver(fit).observe(document.documentElement);   // the deck sizes its frames after they load, and not always with a resize event
   window.presoInteractive = true;   // the studies are worked with the pointer: the deck's taps keep to its rails
-  window.presoNext = () => { if (step >= STUDIES.length - 1) return false; step++; show(); return true; };
-  window.presoPrev = () => { if (step <= 0) return false; step--; show(); return true; };
-  window.presoState = () => step;
-  window.presoRestore = (n) => { step = Math.max(0, Math.min(STUDIES.length - 1, n | 0)); wins.forEach((w) => w.style.transition = 'none'); show(); requestAnimationFrame(() => wins.forEach((w) => w.style.transition = '')); };
-  window.presoEnd = () => window.presoRestore(STUDIES.length - 1);
 })();
 </script>
 </body>

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Multi-Host Calendar</title>
+<style>
+  :root{
+    --ink:#141413;
+    --bg:#f6f5f2;
+    --muted:#77756f;
+    --line:#e2e0d9;
+    --rausch:#ff385c;
+    --shell:#1c1c1a;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#f3f2ee; --bg:#141413; --muted:#9a978f; --line:#2c2b28; --shell:#000;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#f3f2ee; --bg:#141413; --muted:#9a978f; --line:#2c2b28; --shell:#000;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    display:flex;flex-direction:column;
+    overflow:hidden;
+  }
+
+  header{
+    display:flex;align-items:baseline;gap:12px;
+    padding:20px 16px 0;flex:none;
+  }
+  h1{font-size:15px;font-weight:600;letter-spacing:-.01em}
+  header .sub{font-size:13px;color:var(--muted)}
+
+  main{
+    flex:1;min-height:0;
+    display:flex;align-items:center;justify-content:center;
+    padding:16px;
+    position:relative;
+  }
+
+  .phone{
+    height:100%;
+    aspect-ratio:1206/2622;
+    max-width:100%;
+    background:var(--shell);
+    border-radius:min(6vh,54px);
+    padding:4px;
+    box-shadow:0 24px 60px -20px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.06);
+    position:relative;
+  }
+  .phone img{
+    width:100%;height:100%;display:block;
+    border-radius:min(5.4vh,50px);
+    object-fit:cover;
+  }
+  /* preloaded, stacked; only .on is visible */
+  .phone img{position:absolute;inset:4px;width:auto;height:auto;
+    left:4px;right:4px;top:4px;bottom:4px;opacity:0;transition:opacity .18s ease}
+  .phone img.on{opacity:1}
+
+  /* click zones */
+  .zone{position:absolute;top:0;bottom:0;width:38%;cursor:pointer;z-index:5;
+    border:0;background:transparent;-webkit-tap-highlight-color:transparent}
+  .zone.prev{left:0}
+  .zone.next{right:0}
+
+  .caption{
+    flex:none;padding:0 16px 8px;
+    min-height:56px;
+    display:flex;flex-direction:column;justify-content:flex-start;gap:3px;
+    text-align:center;align-items:center;
+  }
+  .caption .t{font-size:15px;font-weight:600}
+  .caption .d{font-size:13px;color:var(--muted);max-width:52ch}
+
+  footer{
+    flex:none;display:flex;align-items:center;justify-content:center;gap:14px;
+    padding:0 16px 18px;
+  }
+  .nav{
+    appearance:none;border:1px solid var(--line);background:transparent;
+    color:var(--ink);width:38px;height:38px;border-radius:50%;
+    font-size:15px;cursor:pointer;display:grid;place-items:center;
+    transition:background .15s ease;
+  }
+  .nav:hover{background:var(--line)}
+  .nav:disabled{opacity:.3;cursor:default}
+  .nav:disabled:hover{background:transparent}
+
+  .dots{display:flex;gap:7px;align-items:center}
+  .dot{
+    width:7px;height:7px;border-radius:50%;padding:0;border:0;cursor:pointer;
+    background:var(--line);transition:background .15s ease,transform .15s ease;
+  }
+  .dot.on{background:var(--rausch);transform:scale(1.35)}
+
+  .count{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:38px}
+
+  @media (max-width:560px){
+    .caption .d{display:none}
+    header{padding-top:14px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Multi-Host Calendar</h1>
+  <span class="sub">SwiftUI prototype &middot; iOS 26</span>
+</header>
+
+<main>
+  <div class="phone" id="phone">
+    <button class="zone prev" id="zprev" aria-label="Previous"></button>
+    <button class="zone next" id="znext" aria-label="Next"></button>
+  </div>
+</main>
+
+<div class="caption">
+  <div class="t" id="capT"></div>
+  <div class="d" id="capD"></div>
+</div>
+
+<footer>
+  <button class="nav" id="prev" aria-label="Previous">&larr;</button>
+  <div class="dots" id="dots"></div>
+  <button class="nav" id="next" aria-label="Next">&rarr;</button>
+  <span class="count" id="count"></span>
+</footer>
+
+<script>
+const STEPS = [
+  { src:"img/01-calendar.png",
+    t:"Single calendar",
+    d:"One listing, months stacked as 7-column grids. Today is a filled circle; open nights carry their price." },
+  { src:"img/02-stay-focused-sheet.png",
+    t:"A stay in focus",
+    d:"The multi-host board: rows are listings, columns are nights. Tapping a stay steps everything else back and raises its quick actions." },
+  { src:"img/03-inbox.png",
+    t:"Inbox",
+    d:"The same three guests as the board — the reservation with a dot on the calendar is the thread with a dot here." },
+  { src:"img/04-thread-kofi.png",
+    t:"Thread",
+    d:"Opening clears the unread dot. The calendar's answered dot clears only when the host actually replies." },
+  { src:"img/07-ask.png",
+    t:"Ask",
+    d:"The advisor streams real tokens and answers with action rows, not JSON." },
+  { src:"img/06-listings.png",
+    t:"Listings",
+    d:"Placeholder surface — the board is the built thing." },
+  { src:"img/05-today.png",
+    t:"Today",
+    d:"Placeholder surface. The web build's fanned card wheel hasn't been ported." },
+];
+
+const phone = document.getElementById('phone');
+const dots  = document.getElementById('dots');
+const capT  = document.getElementById('capT');
+const capD  = document.getElementById('capD');
+const count = document.getElementById('count');
+const bPrev = document.getElementById('prev');
+const bNext = document.getElementById('next');
+
+let i = 0;
+
+// preload every frame up front so stepping never flashes
+const imgs = STEPS.map((s, n) => {
+  const el = document.createElement('img');
+  el.src = s.src;
+  el.alt = s.t;
+  el.draggable = false;
+  phone.appendChild(el);
+  return el;
+});
+
+function show(n){
+  i = Math.max(0, Math.min(STEPS.length - 1, n));
+  imgs.forEach((el, k) => el.classList.toggle('on', k === i));
+  [...dots.children].forEach((d, k) => d.classList.toggle('on', k === i));
+  capT.textContent = STEPS[i].t;
+  capD.textContent = STEPS[i].d;
+  count.textContent = (i + 1) + " / " + STEPS.length;
+  bPrev.disabled = i === 0;
+  bNext.disabled = i === STEPS.length - 1;
+  history.replaceState(null, "", "#" + (i + 1));
+}
+
+STEPS.forEach((s, n) => {
+  const d = document.createElement('button');
+  d.className = 'dot';
+  d.setAttribute('aria-label', s.t);
+  d.onclick = () => show(n);
+  dots.appendChild(d);
+});
+
+const back = () => show(i - 1);
+const fwd  = () => show(i + 1);
+
+bPrev.onclick = back;
+bNext.onclick = fwd;
+document.getElementById('zprev').onclick = back;
+document.getElementById('znext').onclick = fwd;
+
+addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown'){ e.preventDefault(); fwd(); }
+  if (e.key === 'ArrowLeft'  || e.key === 'PageUp'){ e.preventDefault(); back(); }
+  if (e.key === 'Home') show(0);
+  if (e.key === 'End')  show(STEPS.length - 1);
+});
+
+// swipe
+let x0 = null;
+addEventListener('touchstart', e => { x0 = e.changedTouches[0].clientX; }, {passive:true});
+addEventListener('touchend', e => {
+  if (x0 === null) return;
+  const dx = e.changedTouches[0].clientX - x0;
+  if (Math.abs(dx) > 40) (dx < 0 ? fwd : back)();
+  x0 = null;
+}, {passive:true});
+
+show(Math.max(0, (parseInt(location.hash.slice(1), 10) || 1) - 1));
+</script>
+</body>
+</html>
