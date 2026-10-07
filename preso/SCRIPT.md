@@ -5,8 +5,23 @@ here so nothing is lost. Rough, and growing.
 
 ## Case Study 1 — Transportation
 The card: "Case Study 1 · Transportation: Designing the dream Airbnb cancelled." (was "having a dream and getting it crushed") Then the Forbes piece, the spoiler card ("Spoiler alert. The “experiment” was selling plane tickets." — the headline's own word), the flight search, the
-trip creator (trains, flights, New York, Williamsburg). Airbnb was publicly building transportation in 2019; the bet was real, and it
-was cancelled — say what the dream was and what crushed it.
+other-thing card ("Secretly, I built what my vision was for transportation:"), then the trip creator (trains, flights, New York, Williamsburg). Airbnb was publicly building transportation in 2019; the bet
+was real, and it was cancelled — then the closing card ("It went all the way to Brian. He loved it. / Then COVID.").
+
+### The other thing (09bz — before the trip creator)
+
+The beats behind the card, to say (John, 2026-10-06):
+
+1. I wasn't satisfied learning how to sell plane tickets. I did it anyway — learnt the flight APIs, made the designs.
+2. But I had something else in mind. In my free time I started building a way to make transportation fit Airbnb's ethos:
+   travel anywhere, to unique places, to adventurous places.
+3. Transportation as a gateway to cool and interesting places — walking, riding, or a train. That's the trip creator.
+4. I built a prototype in Principle, painstakingly, and grassrooted it — because I thought it was such a huge miss that we
+   were just selling tickets. The prototype proved the concept.
+5. Eventually I got leadership involved, and it went all the way to Brian Chesky. He was super excited. We finally had
+   something that was viable, and actually unique in this space.
+6. This was 2019 — the Forbes piece is February 2019. Then COVID killed all of it. (The what-crushed-it beat; the card
+   after the trip creator, 09cz, says it.)
 
 ## Case Study 2 — Host only fee
 
