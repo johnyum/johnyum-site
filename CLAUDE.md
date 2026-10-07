@@ -796,9 +796,10 @@ ALL the side things into one huge HTML file — rows and rows of these studies n
 cell animations, the graph five ways, the cell system, tip cards, chat-to-dates motion, the Repeat review), the Repeat mock's five
 screens, the July prototype's review pages (`~/Documents/Multi_Cal_Protototype`: event gallery, icon review and matrix, master icons,
 opportunity modals, price-shot and Christmas previews — their icons come from `/multi/event_icons/` and `/multi/holidays/`, identical
-files; `_candidates/` copied; four candidates deleted after the review stay blank), the iOS walkthrough, the Moby Dick layer tests
-(tail, head), the insurance EOB (the static lift the PDF was printed from) and the fee email, the Claude icons compare, and the option
-sheets as pictures. Cereal comes from `/multi/Font_Cereal/` and the mono from `/preso/fonts/` — nothing is vendored twice. The slide
+files; `_candidates/` copied; four candidates deleted after the review stay blank), the iOS walkthrough, and the icon sheets as
+pictures. **Calendar only** (John, 2026-10-07: "remove anything not calendar related" — the Peek tests, the EOB, the fee email, the
+Claude icons compare and their option sheets were in and came out). Cereal comes from `/multi/Font_Cereal/` and the mono from
+`/preso/fonts/` — nothing is vendored twice. The slide
 is that page in a window fitted to the stage, scrolled with the wheel, `presoInteractive`, no steps. Two takes before it the same
 evening: a masonry wall of thumbnails, then the seven calendar studies one to a tap — both rejected. The estimator pages in the
 scratchpad are frame-grab harnesses, not studies: left out. Everything behind the studies is zipped by theme in `~/Desktop/side-work/`.
