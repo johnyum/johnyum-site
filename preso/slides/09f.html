@@ -4,11 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>09f</title>
-<!-- HOST SETUP, FIVE UP — one screen, straight after the transportation screens
+<!-- HOST SETUP, FIVE UP — one screen, straight after the earnings estimator
      (John, 2026-10-01). No lead-in, no five-then-five, no pull back to the full
      row: the five phones are the slide, and the deck pushes them in as one.
 
-       1  the splash      "Become a Host in 10 easy steps" — the film and the header
+     2026-10-06 (John): the first phone is the ESTIMATOR itself (09ef, standing at its
+     end — the slider at 16), so the tap from the slider screen brings the four setup
+     screens in beside it; and the answers play ON ARRIVAL, not on a tap — the next tap
+     moves on. The splash (the film) is out of the row.
+
+       1  the estimator   09ef at its end — "Your home could make $5,936"
        2  place type      What kind of place will you host?
        3  address         Where's your place located?
        4  amenities       Let guests know what your place has to offer
@@ -16,8 +21,8 @@
 
      The price was the sixth and came out the same day — five up.
 
-     ONE BUILD. The five land as questions; one tap answers the four that have
-     an answer — House is chosen, the address types and the map flies to it,
+     NO TAP TO BUILD. The four land as questions and answer themselves as the slide
+     arrives (the deck's `presoshown`) — House is chosen, the address types and the map flies to it,
      the amenities pick themselves (the short form: four cards and a stop), and the
      name types — all together, never left to right: a
      stagger is a wave the eye follows and reads as a queue. The next tap moves
@@ -83,7 +88,7 @@
   // ARRIVED and not yet answered]. Read off the BEATS table in 11.html; if a
   // beat is inserted there, these move.
   const SCREENS = [
-    ['step0',  0],                          // the splash: film + header
+    ['estimator', 0],                       // the earnings estimator, at its end
     ['',       1],                          // place type (step 1 has no class)
     ['step3',  7],                          // address — the one live map
     ['step5', 10],                          // amenities
@@ -111,9 +116,10 @@
     // LOCKED TO ITS SCREEN FROM THE FIRST PAINT (John, 2026-10-01): ?park= opens slide 11 standing on the beat,
     // transitions off. It used to load on the splash and be parked afterwards — at load and three more times — so
     // every arrival was five phones visibly re-animating into place. Nothing re-parks it now.
-    f.src = '11.html?' + (cls === MAP_STEP ? '' : 'nomap=1&') + 'park=' + beat + (v ? '&v=' + v : '');
+    f.src = cls === 'estimator' ? '09ef.html' + (v ? '?v=' + v : '') : '11.html?' + (cls === MAP_STEP ? '' : 'nomap=1&') + 'park=' + beat + (v ? '&v=' + v : '');
     f.addEventListener('load', () => {
       cell._w = f.contentWindow;
+      if (cls === 'estimator') { try { f.contentWindow.presoRestore(1); } catch (_) {} }   // standing where the slide before left it: 16 nights
       if (cls === FILM_STEP) unloop(f);
       // shown once every cell is in, and slide 11's ?park= has had its 400ms with transitions off
       if (++loaded === SCREENS.length) setTimeout(() => row.classList.add('ready'), 450);
@@ -145,8 +151,8 @@
     const start = () => { try { film.currentTime = 0; } catch (_) {} film.play().catch(() => {}); };
     if (film.readyState >= 2) start(); else film.addEventListener('loadeddata', start, { once: true });
   }
-  addEventListener('presoshown', replay);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) replay(); });
+  // THE ANSWERS PLAY AS THE SLIDE ARRIVES (John, 2026-10-06) — once; a return to the slide finds them answered
+  addEventListener('presoshown', () => { if (step === 0) { step = 1; answer(); } });
 
   // AS TALL AS THE HOST-ONLY-FEE FOUR-UP (09d), to the pixel (John, 2026-10-01). 09d's
   // image is min(80vh, 1080px, (76vw - 144px) / 1.958) tall, and its phone's ink is
@@ -163,20 +169,15 @@
   new ResizeObserver(([e]) => fit(e.contentRect.width, e.contentRect.height)).observe(slide);
   const r0 = slide.getBoundingClientRect(); fit(r0.width, r0.height);
 
-  let step = 0;                             // 0 five questions, 1 four answered
-  const answer = () => cells.slice(1).forEach(act);          // the splash has no answer
+  let step = 0;                             // 0 four questions, 1 four answered (on arrival)
+  const answer = () => cells.slice(1).forEach(act);          // the estimator has no answer
 
-  window.presoNext = () => {
-    if (step >= 1) return false;            // out of builds — the deck moves on
-    step = 1; answer(); return true;
-  };
-  window.presoPrev = () => {
-    if (step === 0) return false;
-    step = 0; cells.slice(1).forEach(park); return true;
-  };
+  window.presoNext = () => false;           // nothing to tap through: the deck moves on
+  window.presoPrev = () => false;           // back a slide, to the estimator alone
   window.presoState = () => step;
   // Landing on the beat from the hash: the frames may still be loading, so retry.
   // Once, when every frame is up — answering twice re-runs the fill-ins.
+  window.presoEnd = () => window.presoRestore(1);
   window.presoRestore = n => {
     if (!(n > 0)) return;
     step = 1;
