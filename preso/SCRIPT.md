@@ -4,7 +4,7 @@ What John says over the deck — the voiceover, kept beside the slides rather th
 here so nothing is lost. Rough, and growing.
 
 ## Case Study 1 — Transportation
-The card: "Case Study 1 · Transportation: having a dream and getting it crushed." Then the Forbes piece, the flight search, the
+The card: "Case Study 1 · Transportation: Designing the dream Airbnb cancelled." (was "having a dream and getting it crushed") Then the Forbes piece, the flight search, the
 trip creator (trains, flights, New York, Williamsburg). Airbnb was publicly building transportation in 2019; the bet was real, and it
 was cancelled — say what the dream was and what crushed it.
 
