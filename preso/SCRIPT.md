@@ -10,6 +10,9 @@ was real, and it was cancelled — then the closing card ("It went to the CEO, g
 live, in the same device the 2019 build was in — the dream back, as the thing it never got to be. John drives it by hand.
 THE LINE FOR THIS SLIDE (John, 2026-10-07: "remember the going somewhere you've never been for this slide"): **Plane tickets get
 you to an airport. Airbnb gets you somewhere you've never been.** Say it over the globe — the AI build is that sentence made real.
+THE POV, FOR THE CARD AFTER IT (John, 2026-10-07): it's sad. Transportation had a chance to fundamentally change how we search
+for where to go — before AI was a thing. Given the chance we'd have kept pushing, and with AI we'd have built something
+truly inventive. The AI build is what it could have become; the card after it says that, not a lesson.
 
 ### The other thing (09bz — before the trip creator)
 
