@@ -18,10 +18,11 @@ The beats behind the card, to say (John, 2026-10-06):
 3. Transportation as a gateway to cool and interesting places — walking, riding, or a train. That's the trip creator.
 4. I built a prototype in Principle, painstakingly, and grassrooted it — because I thought it was such a huge miss that we
    were just selling tickets. The prototype proved the concept.
-5. Eventually I got leadership involved, and it went all the way to Brian Chesky. He was super excited. We finally had
+5. I proposed it to Fred and leadership and got them on board. Then we went to the CEO — Brian — and got approval. We finally had
    something that was viable, and actually unique in this space.
-6. This was 2019 — the Forbes piece is February 2019. Then COVID killed all of it. (The what-crushed-it beat; the card
-   after the trip creator, 09cz, says it.)
+6. A month later the team was shut down, and 25% of Airbnb was let go — COVID, May 2020. (The what-crushed-it beat; the card
+   after the trip creator, 09cz, says it: the build dissolves to white under the words, and the white is held — it's the six
+   years before the AI build brings the same frame back.)
 
 ## Case Study 2 — Host only fee
 
