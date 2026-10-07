@@ -32,7 +32,7 @@
 <div id="lane"><div id="strip"></div></div>
 <script>
 (() => {
-  const V = '2026-10-07n';   // bump when a study page changes: the frames are fetched with it, so the browser can't hand back an old copy
+  const V = '2026-10-07o';   // bump when a study page changes: the frames are fetched with it, so the browser can't hand back an old copy
   const GAP = 56, BW = 2700;   // ONE SPACE (John, 2026-10-07: "the same spacing between as the padding on the edges"): the board's side padding and the gaps between panels are the same value, scaled together   // three columns across (John, 2026-10-07: back to the board that fitted the stage, each piece ~30% bigger — so the top runs a little past one screen and scrolls; the builds a single row beneath, panning)
   // THE ORIGINAL UI STAYS (John, 2026-10-07: "make it look more like the original HTML you built for me"): each page keeps its
   // titles, section heads, descriptions, controls and buttons — the stylesheet dropped in only pulls the spacing closer and
@@ -110,11 +110,13 @@
         .study-desc { font-size: 12px !important; }
         .stage { overflow: hidden !important; zoom: .58; }
         .hero-wrap svg { max-height: 340px; }`,
-      // THE PLAY (John, 2026-10-07: "all the bells and whistles that can be playing, play it — for the grid play the first slider
-      // start to finish slowly, like 5 seconds, and land there"): the waviness slider run from its minimum to its maximum over
-      // five seconds, eased, each step dispatched as the page's own input event so every graph follows; it stays at the end
-      play: (d, w) => { const r = d.getElementById('rngAmp'); if (!r) return; const lo = +r.min, hi = +r.max, t0 = performance.now(), T = 5000; r.value = lo; r.dispatchEvent(new w.Event('input', { bubbles: true }));
-        const step = (t) => { const k = Math.min(1, (t - t0) / T), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; r.value = Math.round(lo + (hi - lo) * e); r.dispatchEvent(new w.Event('input', { bubbles: true })); if (k < 1) w.requestAnimationFrame(step); }; setTimeout(() => w.requestAnimationFrame(step), 1200); } },
+      // THE PLAY (John, 2026-10-07, second cut: "3 seconds to go from zero to full, then back full to zero in 3 seconds, and keep
+      // animating back and forth"): the waviness slider swept from its minimum to its maximum and back, three seconds each way,
+      // eased at both ends, forever; each step dispatched as the page's own input event so every graph follows. (The first cut ran
+      // it once over five seconds and landed at the top.)
+      play: (d, w) => { const r = d.getElementById('rngAmp'); if (!r) return; const lo = +r.min, hi = +r.max, T = 3000; let t0 = 0;
+        const set = v => { r.value = Math.round(v); r.dispatchEvent(new w.Event('input', { bubbles: true })); }; set(lo);
+        const step = (t) => { if (!t0) t0 = t; const u = ((t - t0) / T) % 2, k = u < 1 ? u : 2 - u, e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; set(lo + (hi - lo) * e); w.requestAnimationFrame(step); }; setTimeout(() => w.requestAnimationFrame(step), 1200); } },
     { id: 'repeat', src: '07-repeat-settings-mock.html', w: 880, css: TYPE(1) + `
         body { background: #fff !important; }
         .row { gap: 12px !important; padding: 0 !important; overflow: visible !important; }
