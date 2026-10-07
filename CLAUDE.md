@@ -686,12 +686,12 @@ up tip cards. One `index.html`, three.js; the chat is canned.
 After the multi calendar's lesson (12dl): **Process** (12dp, the mono card), **the Figma** (12dq — John's grab of the Multi Calendar
 file's grid of frames, 16 corners, 80% of the fit) and **the web calendar with the iterations round it** (12dr — his grab of the
 web build centred with a grey-200 stroke; one tap and the 26 iterations from Hello.zip, in `preso/slides/assets/iterations/` as webp,
-tile round it on one cell grid — a Tetris board: 21 x 12 cells of 86 with 16 between, the calendar 7 x 5 at its own proportion
-(cols 7–13, rows 3–7; the sheet shifted so it's centred on the screen — the board bleeds, so it carries the difference), a phone 1 x 2, a
-web build 3 x 2, the straight-line graph 5 x 2 pinned above the calendar, the other strips 4 x 1; the items in a fixed-seed shuffle, each
-dropped at random beside something already placed; then 2 x 2 close crops of the web builds and the phones' tops, then 1 x 1 crops for the
-last cells — with only every fifth of those a small holiday icon (`assets/iterations/icons/`). NO icon grids (John, 2026-10-06: one was
-tried twice, then "get rid of it"; icons only to fill a tiny space, never overused); each fades up in turn from the middle outward while the calendar settles to the centre; built, the board is a little larger than the
+tile round it on one cell grid — a Tetris board: 17 x 10 cells of 86 with 16 between, sized so the work nearly fills it; the calendar
+7 x 5 at its own proportion (cols 5–11, rows 2–6; the sheet shifted so it's centred on the screen — the board bleeds, so it carries the
+difference), a phone 1 x 2, a web build 3 x 2, the straight-line graph 5 x 2 pinned above the calendar, the other strips 4 x 1; the items
+in a fixed-seed shuffle, each dropped at random beside something already placed. EVERY PICTURE ONCE AND WHOLE — no crops, no repeats
+(John, 2026-10-06), and NO icon grids (one was tried twice, then "get rid of it"): a stray single cell gets a small holiday icon
+(`assets/iterations/icons/`), nothing more. More PNGs are the lever for a fuller board; each fades up in turn from the middle outward while the calendar settles to the centre; built, the board is a little larger than the
 screen so it bleeds off every edge). Then the A.I. card.
 
 ## `peek/?preso=1` — the 3D chat in the deck (2026-10-05/06)
