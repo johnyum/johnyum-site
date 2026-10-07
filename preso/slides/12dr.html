@@ -46,11 +46,12 @@
   const take = (c, r, w, h) => { for (let j = r; j < r + h; j++) for (let i = c; i < c + w; i++) used[j][i] = true; };
   const free = (c, r, w, h) => { if (c + w > COLS || r + h > ROWS) return false; for (let j = r; j < r + h; j++) for (let i = c; i < c + w; i++) if (used[j][i]) return false; return true; };
   const tiles = [];
+  let centreTile = null, growRaf = 0;   // the live calendar's tile, for the grow on build (declared before the loop that sets it)
   const touches = (c, r, w, h) => { for (let j = r - 1; j <= r + h; j++) for (let i = c - 1; i <= c + w; i++) { if (i < 0 || j < 0 || i >= COLS || j >= ROWS) continue; if ((i < c || i >= c + w || j < r || j >= r + h) && used[j][i]) return true; } return false; };
   const spot = (w, h) => { const all = [], adj = []; for (let r = 0; r <= ROWS - h; r++) for (let c = 0; c <= COLS - w; c++) if (free(c, r, w, h)) { all.push([c, r]); if (touches(c, r, w, h)) adj.push([c, r]); } const pool = adj.length ? adj : all; return pool.length ? pool[Math.floor(rnd() * pool.length)] : null; };
   // the calendar 7 x 5 on a 20 x 11 board: the pieces round it smaller by a third, the calendar itself ~15% smaller (John, 2026-10-06)
   { const c = 5, r = 2; take(c, r, 7, 5); const b = cell(c, r, 7, 5), h = Math.round(b.w / 1.6), y = b.y + Math.round((b.h - h) / 2);   // the calendar keeps its own proportion (2000 x 1250) inside its 6 x 4 block, so nothing is cut off its sides
-    tiles.push({ live: 'assets/studies/proto/builds/multi-2026-07-02.html', x: b.x, y, w: b.w, h, centre: true }); }   // the real web calendar, not the grab (assets/process-multical.webp is kept)
+    tiles.push({ live: 'assets/studies/proto/builds/multi-2026-07-02.html', x: b.x, y, w: b.w, h, centre: true, block: b }); }   // the real web calendar, not the grab (assets/process-multical.webp is kept)
   { take(5, 0, 5, 2); tiles.push({ src: A + 'graph-01-current-straight-line-pills.webp', ...cell(5, 0, 5, 2) }); }   // the straight-line graph right above the calendar (John, 2026-10-06)
   const CC = cell(5, 2, 7, 5), OFF = SH / 2 - (CC.y + CC.h / 2), OFFX = SW / 2 - (CC.x + CC.w / 2);   // and half a column, the same way   // the calendar sits half a row above the sheet's middle: the sheet is shifted down by that, so the calendar is centred on the screen and the board (which bleeds anyway) carries the difference
   const W = (n) => [n, 3, 2], P = (n) => [n, 1, 2];
@@ -92,7 +93,8 @@
     const d = Math.hypot(t.x + t.w / 2 - SW / 2, t.y + t.h / 2 - SH / 2) / 900; el.style.setProperty('--d', (0.25 + d * 0.55).toFixed(2) + 's');
     if (t.icon) { el.classList.add('icon'); if (t.quad) el.classList.add('quad'); }
     if (t.live) { try { localStorage.removeItem('mhc_groups'); } catch (_) {}   // the build restores saved groups; the grab is ungrouped (the live /multi/ clears this on every refresh anyway)
-      el.innerHTML = `<iframe src="${t.live}" title="The multi calendar, live" style="transform:scale(${(t.w / 1500).toFixed(5)})"></iframe>`; }
+      el.innerHTML = `<iframe src="${t.live}" title="The multi calendar, live" style="transform:scale(${(t.w / 1500).toFixed(5)})"></iframe>`;
+      centreTile = { el, t }; }
     else if (t.sheet) { el.classList.add('iconsheet'); el.style.gridTemplateColumns = `repeat(${t.cols}, 24px)`; el.innerHTML = t.sheet.map((n) => `<img src="${A}icons/${n}.webp" alt="" draggable="false">`).join(''); }
     else el.innerHTML = t.icon ? t.icons.map((src) => `<img src="${src}" alt="" draggable="false">`).join('') : `<img src="${t.src}" alt="" draggable="false" loading="eager"${t.fit ? ' style="object-fit:contain"' : ''}>`;
     sheet.append(el);
@@ -105,6 +107,21 @@
     return Math.max(200, bottom - top);
   };
   let step = 0;
+  // THE CALENDAR FILLS ITS BLOCK WHEN THE BOARD BUILDS (John, 2026-10-07): alone, it keeps the grab's proportion; built, it grows to
+  // the full height of its 7 x 5 block — top edge on the cowboy hat's, bottom on the gramophone's — and the page inside is laid
+  // out taller to match (more listing rows, the dev bar still at its foot). Tile and page grow together, frame by frame, on the
+  // sheet's own curve and duration, so nothing pops
+  const growCal = (built) => {
+    if (!centreTile) return;
+    const { el, t } = centreTile, f = el.querySelector('iframe'), k = t.w / 1500;
+    const y0 = parseFloat(el.style.top), h0 = parseFloat(el.style.height), y1 = built ? t.block.y : t.y, h1 = built ? t.block.h : t.h;
+    cancelAnimationFrame(growRaf);
+    const T0 = performance.now(), D = 900, ease = x => 1 - Math.pow(1 - x, 3);
+    const tick = (now) => { const p = Math.min(1, (now - T0) / D), e = ease(p), y = y0 + (y1 - y0) * e, h = h0 + (h1 - h0) * e;
+      el.style.top = y.toFixed(2) + 'px'; el.style.height = h.toFixed(2) + 'px'; f.style.height = (h / k).toFixed(1) + 'px';
+      if (p < 1) growRaf = requestAnimationFrame(tick); };
+    growRaf = requestAnimationFrame(tick);
+  };
   const fit = () => {
     const CW = 7 * 86 + 6 * 16, alone = Math.min((innerWidth - 64) / 2000, band() / 1250) * .8 * 2000 / CW;   // the calendar at the slide before's size
     const whole = Math.max(innerWidth / SW, innerHeight / SH) * 1.08;   // built, the board runs off every edge (John: bleed) — a little larger than the screen, centred
@@ -113,11 +130,11 @@
   };
   fit(); addEventListener('resize', fit);
   window.presoInteractive = true;   // the calendar takes the mouse (the deck's rails shrink to the edges; the keys still step)
-  window.presoNext = () => { if (step >= 1) return false; step = 1; fit(); return true; };
-  window.presoPrev = () => { if (step <= 0) return false; step = 0; fit(); return true; };
+  window.presoNext = () => { if (step >= 1) return false; step = 1; fit(); growCal(true); return true; };
+  window.presoPrev = () => { if (step <= 0) return false; step = 0; fit(); growCal(false); return true; };
   window.presoState = () => step;
   window.presoBleed = () => step > 0;   // built, the board runs under the deck's chrome: the kicker and nav take their pills
-  window.presoRestore = (n) => { step = n > 0 ? 1 : 0; sheet.style.transition = 'none'; sheet.querySelectorAll('.tile').forEach((t) => t.style.transition = 'none'); fit(); requestAnimationFrame(() => { sheet.style.transition = ''; sheet.querySelectorAll('.tile').forEach((t) => t.style.transition = ''); }); };
+  window.presoRestore = (n) => { step = n > 0 ? 1 : 0; sheet.style.transition = 'none'; sheet.querySelectorAll('.tile').forEach((t) => t.style.transition = 'none'); fit(); if (centreTile) { const { el, t } = centreTile, f = el.querySelector('iframe'), b = step ? t.block : t; el.style.top = (step ? b.y : t.y) + 'px'; el.style.height = (step ? b.h : t.h) + 'px'; f.style.height = ((step ? b.h : t.h) / (t.w / 1500)).toFixed(1) + 'px'; } requestAnimationFrame(() => { sheet.style.transition = ''; sheet.querySelectorAll('.tile').forEach((t) => t.style.transition = ''); }); };
   window.presoEnd = () => window.presoRestore(1);
 })();
 </script>
