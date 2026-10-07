@@ -805,7 +805,8 @@ when I tap next the first three animate left and the next three animate in — a
 column of 880 holding one or more pages, top-aligned, in this order:
 1. **The cell animations over the squiggly dates** (the squigglies at the bottom — John, later: "at the bottom, not the top"; the cells page carries the h1, the squiggly page its "10 · Squiggly dates" heading). `00-squiggly-dates.html` is the cell-system page with its body swapped: the
    opportunity cells alone (A Raise, B Last-minute, C Soft weeknights, D Stranded nights — four states across each: untapped,
-   selected, applied, subdued), its own CSS and JS so every wavy ring and price reel keeps its keyframes, replayed by cloning each
+   selected, applied, subdued), its own CSS and JS so every wavy ring and price reel keeps its keyframes, only the first two rows shown (A Raise, B
+   Last-minute — John: "remove the last two rows of squiggly, just keep the first 2"; C and D hidden by CSS, still in the page), replayed by cloning each
    cell every 3.2s (John: "take all the squiggly date studies and move them into calendar cell animation — the same grid, all their
    animations first"); it carries the "Calendar cell animations" h1. Under it `01-cell-animations.html` with its h1 and lede hidden,
    its eleven demos on ONE four-column grid edge to edge — each section spans as many columns as it has demos, dense, the shimmer
