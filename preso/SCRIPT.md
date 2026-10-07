@@ -3,12 +3,6 @@
 What John says over the deck — the voiceover, kept beside the slides rather than on them. Lines that come off a slide land
 here so nothing is lost. Rough, and growing.
 
-## The bridge — from the montage to the cases (09fz)
-
-The card: "Case study", big, black, in Anton (the A.I. card's setting). Over it: "Everything you just saw is me making things. What I want to
-show you now is three times the problem was harder than the making. A fee change nobody wanted. The most complex screen in the
-app. And then scaling it a hundred times." Then Case Study 1.
-
 ## Case Study 1 — Host only fee
 
 ### Why the host-only fee (09d01)
