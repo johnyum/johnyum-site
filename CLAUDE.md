@@ -266,6 +266,10 @@ list — a road route is densely sampled through turns and sparsely down a
 straight. A beat change clears everything: a leg belongs to the beat that drew
 it.
 
+**The vibes (2026-10-06):** on the continent, Unique / Relax / Adventure each re-pin the map with their own priced cities
+(`VIBES`, `vibeSets`, `setVibe()`; Popular is the original eleven) — New York stays in every set as the hero, so the way down into the
+city is always there. The car and the train keep their own pins. `__explore.vibe(name)` drives it.
+
 `?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
 it without faking clicks.

@@ -897,8 +897,57 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     return o;
   }
 
+  // THE VIBES (John, 2026-10-06): Unique, Relax and Adventure each re-pin the continent with their own priced cities — New York
+  // stays in every one as the hero, so the way down is always there. Popular is the eleven above.
+  var VIBES = {
+    unique: [
+      { n: 'Santa Fe',     p: 342, ll: [-105.94, 35.69] },
+      { n: 'Marfa',        p: 268, ll: [-104.02, 30.31] },
+      { n: 'Sedona',       p: 389, ll: [-111.76, 34.87] },
+      { n: 'New Orleans',  p: 376, ll: [ -90.07, 29.95] },
+      { n: 'Savannah',     p: 298, ll: [ -81.10, 32.08] },
+      { n: 'Asheville',    p: 254, ll: [ -82.55, 35.60] },
+      { n: 'Quebec City',  p: 412, ll: [ -71.21, 46.81] },
+      { n: 'Oaxaca',       p: 221, ll: [ -96.73, 17.07] },
+      { n: 'Joshua Tree',  p: 303, ll: [-116.31, 34.13] },
+      { n: 'Nashville',    p: 287, ll: [ -86.78, 36.16] },
+      { n: 'New York',     p: 678, ll: [ -74.01, 40.71], hero: true }
+    ],
+    relax: [
+      { n: 'Tahoe',        p: 455, ll: [-120.04, 39.09] },
+      { n: 'Aspen',        p: 612, ll: [-106.82, 39.19] },
+      { n: 'Whistler',     p: 478, ll: [-122.96, 50.12] },
+      { n: 'Banff',        p: 433, ll: [-115.57, 51.18] },
+      { n: 'Napa',         p: 598, ll: [-122.29, 38.30] },
+      { n: 'Palm Springs', p: 344, ll: [-116.55, 33.83] },
+      { n: 'Cabo',         p: 398, ll: [-109.92, 22.89] },
+      { n: 'Tulum',        p: 367, ll: [ -87.47, 20.21] },
+      { n: 'Key West',     p: 521, ll: [ -81.78, 24.56] },
+      { n: 'Hilton Head',  p: 336, ll: [ -80.75, 32.22] },
+      { n: 'Outer Banks',  p: 302, ll: [ -75.70, 35.56] },
+      { n: 'New York',     p: 678, ll: [ -74.01, 40.71], hero: true }
+    ],
+    adventure: [
+      { n: 'Moab',             p: 276, ll: [-109.55, 38.57] },
+      { n: 'Jackson Hole',     p: 489, ll: [-110.76, 43.48] },
+      { n: 'Yosemite',         p: 351, ll: [-119.59, 37.75] },
+      { n: 'Bozeman',          p: 298, ll: [-111.04, 45.68] },
+      { n: 'Boulder',          p: 241, ll: [-105.27, 40.01] },
+      { n: 'Grand Canyon',     p: 264, ll: [-112.14, 36.06] },
+      { n: 'Zion',             p: 319, ll: [-112.99, 37.19] },
+      { n: 'Bend',             p: 233, ll: [-121.32, 44.06] },
+      { n: 'Tofino',           p: 312, ll: [-125.90, 49.15] },
+      { n: 'Santa Cruz',       p: 287, ll: [-122.03, 36.97] },
+      { n: 'Sayulita',         p: 198, ll: [-105.44, 20.87] },
+      { n: 'Puerto Escondido', p: 176, ll: [ -97.07, 15.86] },
+      { n: 'New York',         p: 678, ll: [ -74.01, 40.71], hero: true }
+    ]
+  };
+
   // Build all three sets up front. Only one is ever on the map.
   var usaSet  = CITIES.map(makeCity).concat(DOTS.map(makeDot), [makeMe()]);
+  var vibeSets = { popular: usaSet };
+  Object.keys(VIBES).forEach(function (k) { vibeSets[k] = VIBES[k].map(makeCity).concat(DOTS.map(makeDot), [makeMe()]); });
   var citySet = HOODS.map(makeHood).concat(AIRPORTS.map(makeAir), NYC_DOTS.map(makeDot));
   var hoodSet = PRICES.map(makePrice);
   var driveSet = DRIVES.map(function (d) { return makeTimed('mk-drive', 'pin-car.svg', d, 'drive'); })
@@ -1187,6 +1236,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   }
 
   document.getElementById('back').addEventListener('click', function () { go('usa'); });
+  if (window.__explore) window.__explore.vibe = setVibe;
   document.getElementById('backHood').addEventListener('click', function () { go('nyc'); });
   document.getElementById('toHomes').addEventListener('click', function () { go('hood'); });
   document.getElementById('zin').addEventListener('click', function () { map.zoomIn({ duration: 400 }); });
@@ -1219,8 +1269,20 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       var v = e.target.closest('.vibe'); if (!v) return;
       row.querySelectorAll('.vibe').forEach(function (x) { x.classList.remove('is-on'); });
       v.classList.add('is-on');
+      // on the continent, a vibe re-pins the map (the flights beat; the car and the train keep their own pins)
+      var lbl = v.querySelector('.lbl'); if (row.closest('#layerUsa') && lbl) setVibe(lbl.textContent.trim().toLowerCase());
     });
   });
+  // THE VIBE'S PINS: the field clears and the vibe's own cities come in, New York (the hero) among them each time
+  var vibe = 'popular';
+  function setVibe(k) {
+    if (!vibeSets[k] || k === vibe) return;
+    var was = vibeSets[vibe]; vibe = k;
+    var next = vibeSets[k]; BEATS.usa.set = next;
+    if (state !== 'usa' || busy) return;   // not on the flights beat: the set is swapped for when it is
+    busy = true; hideRoute();
+    hide(was, 18, function () { show(next, 32); busy = false; });
+  }
   // The picker is three beats and a fourth chip. Walking has no map of its own
   // in the frames, so it highlights and stops there rather than inventing one.
   var modeBtns = document.querySelectorAll('.modes .mode');
