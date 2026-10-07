@@ -810,13 +810,13 @@ column of 880 holding one or more pages, top-aligned, in this order:
    animations first"); it carries the "Calendar cell animations" h1. Under it `01-cell-animations.html` with its h1 and lede hidden,
    its eleven demos on ONE four-column grid edge to edge — each section spans as many columns as it has demos, dense, the shimmer
    sweep on a row of its own — replayed every 3.2s. Both zoomed .735.
-3. **The graph studies** (swapped with the icons — "switch seasonality graph and icons") — titled "Seasonality graph — fluid studies" (John, 2026-10-07: "don't call it opportunities graph, call it Seasonality graph"; the page's h1 and title changed in the studies copy) (.86, rigs .58; the waviness slider plays start to finish over five seconds; white page, bare controls; its
+2. **The graph studies** (the middle of the first three — swapped with the icons and back: "switch seasonality graph and icons", then "put clay icon back and bring seasonality back to middle") — titled "Seasonality graph — fluid studies" (John, 2026-10-07: "don't call it opportunities graph, call it Seasonality graph"; the page's h1 and title changed in the studies copy) (.86, rigs .58; the waviness slider plays start to finish over five seconds; white page, bare controls; its
    study 01 is the ZIGZAG PILLS).
 4. **The Quick Action System** (swapped with the clay icons — John: "switch quick actions with the clay icons") — the cell & opportunity system page, retitled in the studies copy (John, 2026-10-07: "don't call it cell and opps system, call it Quick Action system") (.72): Modal lifecycle (the QUICK-ACTION pill through a session) moved to the top (`shape`);
    the squiggly cell-states column of every opportunity block hidden (`.opp .cells-col`) — they live in panel 1 now; the modal, chip
    and decisions stay. Every quick-action pill one width — flex, full width up to 760, the body stretching so the buttons line up
    (John: "all the quick actions wider and equal size"); the scanning circle's wand at 30 so it sits inside the circle ("not crazy big").
-2. **The demand-driving event cards** (.8, four to a row) — second now, the first of the three in view ends the first screen (it was fourth: "demand should be 4th with the icons", then swapped with the quick actions).
+3. **The demand-driving event cards** (.8, four to a row) — third, the first of the three in view ends the first screen (it was fourth: "demand should be 4th with the icons", then swapped with the quick actions).
 5. **The Repeat screens** (five phones at .42) plus a second row, **Tweaks and options**, four screens written 2026-10-07 at John's
    ask ("another row of 4 with tweaks and options — whatever you think would be good for me to know"): `Overlap.html` (the collision
    marked on the calendar as a split cell, a card naming the winner, Keep / Swap), `Priority.html` (Settings as a drag-ranked list —
