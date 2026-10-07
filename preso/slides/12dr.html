@@ -30,7 +30,8 @@
   // the calendar takes 6 x 4 dead centre (cols 6–11, rows 3–6), a phone 1 x 2, a web build 3 x 2, a graph strip 3 or 4 x 1 — packed
   // round the centre first-fit, top to bottom; then every cell still free gets one of the calendar's holiday icons, all at one size,
   // so there are no empty areas (John: the icons as fillers, all the same size)
-  const COLS = 18, ROWS = 10, C = 86, G = 16, X0 = Math.round((1920 - (COLS * C + (COLS - 1) * G)) / 2), Y0 = Math.round((1080 - (ROWS * C + (ROWS - 1) * G)) / 2);
+  const COLS = 18, ROWS = 10, C = 86, G = 16, SW = COLS * C + (COLS - 1) * G, SH = ROWS * C + (ROWS - 1) * G, X0 = 0, Y0 = 0;   // the sheet IS the grid (1820 x 1004): no margin round it, so the bleed is the same on every edge
+  sheet.style.width = SW + 'px'; sheet.style.height = SH + 'px';
   const cell = (c, r, w, h) => ({ x: X0 + c * (C + G), y: Y0 + r * (C + G), w: w * C + (w - 1) * G, h: h * C + (h - 1) * G });
   const used = Array.from({ length: ROWS }, () => new Array(COLS).fill(false));
   const take = (c, r, w, h) => { for (let j = r; j < r + h; j++) for (let i = c; i < c + w; i++) used[j][i] = true; };
@@ -38,7 +39,7 @@
   const tiles = [];
   { const c = 6, r = 3; take(c, r, 6, 4); const b = cell(c, r, 6, 4), h = Math.round(b.w / 1.6), y = b.y + Math.round((b.h - h) / 2);   // the calendar keeps its own proportion (2000 x 1250) inside its 6 x 4 block, so nothing is cut off its sides
     tiles.push({ src: 'assets/process-multical.webp', x: b.x, y, w: b.w, h, centre: true }); }
-  const CC = cell(6, 3, 6, 4), OFF = 540 - (CC.y + CC.h / 2);   // the calendar sits half a row above the sheet's middle: the sheet is shifted down by that, so the calendar is centred on the screen and the board (which bleeds anyway) carries the difference
+  const CC = cell(6, 3, 6, 4), OFF = SH / 2 - (CC.y + CC.h / 2);   // the calendar sits half a row above the sheet's middle: the sheet is shifted down by that, so the calendar is centred on the screen and the board (which bleeds anyway) carries the difference
   const W = (n) => [n, 3, 2], P = (n) => [n, 1, 2];
   const ICONS = ['season-la-awards', 'carousel-horse', 'comic-pow', 'cowboy-hat', 'chili-pepper', 'clapperboard', 'electric-guitar', 'flamingo-float', 'french-horn', 'gramophone', 'jockey-silks', 'maracas', 'microphone', 'new-years', 'presidents-day', 'pride-rainbow', 'rose', 'running-shoe', 'santa-hat', 'thanksgiving',
     'bicycle', 'pride-heart', 'sec-popcorn', 'sec-pretzel', 'sec-bell', 'sec-cactus', 'sec-candycanes', 'sec-flipflop', 'sec-beachball', 'sec-umbrella', 'sec-sun', 'sec-medal', 'sec-horseshoe', 'sec-ticket', 'sec-film-reel', 'sec-sparkle', 'sec-daisy', 'sec-palm', 'sec-flame', 'sec-book', 'sec-raindrop', 'superhero-mask', 'tennis-racquet', 'memorial-day', 'labor-day', 'mlk-jr-day', 'season-tahoe-winter', 'season-aspen-winter', 'season-bigbear-winter', 'season-malibu-high', 'season-la-summer', 'season-tahoe-summer', 'season-aspen-summer', 'sec-july-4th', 'sec-veterans-day', 'jockey-helmet', 'sec-comic-bolt', 'sec-rainbow-heart', 'sec-pride-balloon'];
@@ -75,7 +76,7 @@
   for (const t of tiles) {
     const el = document.createElement('div'); el.className = 'tile' + (t.centre ? ' centre' : '');
     el.style.left = t.x + 'px'; el.style.top = t.y + 'px'; el.style.width = t.w + 'px'; el.style.height = t.h + 'px';
-    const d = Math.hypot(t.x + t.w / 2 - 960, t.y + t.h / 2 - 540) / 900; el.style.setProperty('--d', (0.25 + d * 0.55).toFixed(2) + 's');
+    const d = Math.hypot(t.x + t.w / 2 - SW / 2, t.y + t.h / 2 - SH / 2) / 900; el.style.setProperty('--d', (0.25 + d * 0.55).toFixed(2) + 's');
     if (t.icon) el.classList.add('icon');
     el.innerHTML = t.icon ? t.icons.map((src) => `<img src="${src}" alt="" draggable="false">`).join('') : `<img src="${t.src}" alt="" draggable="false" loading="eager">`; sheet.append(el);
   }
@@ -89,7 +90,7 @@
   let step = 0;
   const fit = () => {
     const CW = 6 * 86 + 5 * 16, alone = Math.min((innerWidth - 64) / 2000, band() / 1250) * .8 * 2000 / CW;   // the calendar at the slide before's size
-    const whole = Math.max(innerWidth / 1920, innerHeight / 1080) * 1.12;   // built, the board runs off every edge (John: bleed) — a little larger than the screen, centred
+    const whole = Math.max(innerWidth / SW, innerHeight / SH) * 1.16;   // built, the board runs off every edge (John: bleed) — a little larger than the screen, centred
     sheet.style.setProperty('--s', (step ? whole : alone).toFixed(4)); sheet.style.setProperty('--off', OFF.toFixed(1) + 'px');
     sheet.classList.toggle('built', step > 0);
   };
