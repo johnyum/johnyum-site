@@ -6,7 +6,8 @@ here so nothing is lost. Rough, and growing.
 ## Case Study 1 — Transportation
 The card: "Case Study 1 · Transportation: What to do when the brief is wrong." (before it: "having a dream and getting it crushed", "Designing the dream Airbnb cancelled") Then the Forbes piece, the spoiler card ("Spoiler alert. The “experiment” was selling plane tickets." — the headline's own word), the flight search, the
 other-thing card ("Secretly, I had something more “experimental” in mind." — the headline's word again, claimed this time), then the trip creator (trains, flights, New York, Williamsburg). Airbnb was publicly building transportation in 2019; the bet
-was real, and it was cancelled — then the closing card ("It went to the CEO, got approved. / COVID killed travel, and us with it.").
+was real, and it was cancelled — then the closing card ("It went to the CEO, got approved. / COVID killed travel, and us with it."). Then THE AI BUILD (09cz1): Trips,
+live, in the same device the 2019 build was in — the dream back, as the thing it never got to be. John drives it by hand.
 
 ### The other thing (09bz — before the trip creator)
 

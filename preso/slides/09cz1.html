@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>09cz1</title>
+<!-- TRIPS — THE AI BUILD, LIVE (John, 2026-10-07: "bring back the AI build but in the same exact frame as the OG trip build, put
+     Trips inside of it and let me be able to drive it"). Straight after the COVID card (09cz), before the fee case's card: the
+     transportation dream comes back in the very device it went away in — the frame is 09c's to the number (the trip-creator
+     export's device: 3106/2031, the 32px stroke, the 112px radius, the 1512 x 977 screen scaled to fit) — and inside it is
+     /trips/, the Trip Creator built with Claude, the future state the 2019 build never got to be.
+
+     THE PAGE IS /trips/, WHICH THIS REPO ONLY PROXIES (vercel.json rewrites it to its own deployment), so on johnyum.com the
+     iframe is same-site and plain; served from localhost there is no proxy, so the src points at the live site instead
+     (www.johnyum.com — the apex 308s to it; the page sends no X-Frame-Options, checked 2026-10-07).
+
+     JOHN DRIVES IT: presoInteractive, no scripted taps, no entrance of its own — the deck pushes it in from the right and the
+     keys still step the deck off it. Nothing is restored on a back-step; the app is where he left it. -->
+<style>
+  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
+  .slide { height: 100%; display: grid; place-items: center; }
+
+  .device {
+    /* the export's own canvas width, so the device matches its height exactly — 09c's numbers, untouched */
+    --canvas: min(92vw, calc(82vh * 1.59046));
+    box-sizing: border-box;
+    width: calc(var(--canvas) * 0.91901);     /* 3106/3200 of the canvas, x 0.94687 */
+    aspect-ratio: 3106 / 2031;
+    border: calc(var(--canvas) * 0.009468) solid #000;   /* the 32px stroke */
+    border-radius: calc(var(--canvas) * 0.035);          /* the 112px radius */
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.02),
+      0 4px 8px rgba(0, 0, 0, 0.08),
+      0 12px 30px rgba(0, 0, 0, 0.18);
+  }
+  .screen { position: relative; width: 100%; height: 100%; overflow: hidden; background: #fff; }
+  .page {
+    position: absolute; left: 0; top: 0;
+    width: 1512px; height: 977px;            /* 1512 : 977 is the screen's 3041 : 1965 */
+    border: 0; display: block;
+    transform: scale(var(--k, 1));
+    transform-origin: top left;
+  }
+</style>
+</head>
+<body>
+  <div class="slide">
+    <div class="device">
+      <div class="screen" id="screen">
+        <iframe class="page" id="page" title="Trips — the AI build" allow="clipboard-write; geolocation"></iframe>
+      </div>
+    </div>
+  </div>
+<script>
+(() => {
+  const screen = document.getElementById('screen');
+  const page = document.getElementById('page');
+  // same-site on johnyum.com (the proxy); the live site when the deck is served from localhost, where there is no proxy
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || location.protocol === 'file:';
+  page.src = local ? 'https://www.johnyum.com/trips/' : '/trips/';
+  // the scale comes from the width; the page's height is then the screen's own height at that scale, so it fills the screen
+  // exactly (09c: scaled by the width alone it came up a fraction short and showed a white line along the bottom)
+  const fit = (w, h) => { if (w > 0) { const k = w / 1512; screen.style.setProperty('--k', k); if (h > 0) page.style.height = Math.ceil(h / k) + 'px'; } };
+  new ResizeObserver(([e]) => fit(e.contentRect.width, e.contentRect.height)).observe(screen);
+  const r0 = screen.getBoundingClientRect(); fit(r0.width, r0.height);
+
+  window.presoNext = () => false;
+  window.presoPrev = () => false;
+  window.presoState = () => 0;
+  window.presoInteractive = true;   // the app takes the mouse; the deck's rails shrink to the 32px edges and the keys still step it
+  window.presoRestore = () => {};
+})();
+</script>
+</body>
+</html>
