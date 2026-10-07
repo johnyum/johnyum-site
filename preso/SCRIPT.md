@@ -8,6 +8,8 @@ The card: "Case Study 1 · Transportation: What to do when the brief is wrong." 
 other-thing card ("Secretly, I had something more “experimental” in mind." — the headline's word again, claimed this time), then the trip creator (trains, flights, New York, Williamsburg). Airbnb was publicly building transportation in 2019; the bet
 was real, and it was cancelled — then the closing card ("It went to the CEO, got approved. / COVID killed travel, and us with it."). Then THE AI BUILD (09cz1): Trips,
 live, in the same device the 2019 build was in — the dream back, as the thing it never got to be. John drives it by hand.
+THE LINE FOR THIS SLIDE (John, 2026-10-07: "remember the going somewhere you've never been for this slide"): **Plane tickets get
+you to an airport. Airbnb gets you somewhere you've never been.** Say it over the globe — the AI build is that sentence made real.
 
 ### The other thing (09bz — before the trip creator)
 
