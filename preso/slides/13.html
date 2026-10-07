@@ -946,11 +946,11 @@ if (SIMPLE) {
     // the price sheet, straight onto the custom keypad; once it is at rest, Try $745 comes in beside Done (THE SPLIT) and the
     // price is centred over them — one tap (John, 2026-10-07), the iOS pad never in it
     (m, instant) => {
-      const d = appDoc(); if (d) d.documentElement.classList.add('preso-custom-kb');
+      // both classes BEFORE the sheet opens: the keypad, Done (already at its half width) and Try $745 then come in together,
+      // on the pad's own animation; the price is centred once the sheet is at rest (sync)
+      const d = appDoc(); if (d) d.documentElement.classList.add('preso-custom-kb', 'preso-pills-on');
       m.setPriceSheet(true);
-      const split = () => { const d2 = appDoc(); if (!d2) return; d2.documentElement.classList.add('preso-pills-on'); const c = d2.defaultView.__presoCentre; if (c) c(); };
-      if (instant) { split(); return; }
-      const g = ++gen; setTimeout(() => { if (g === gen) split(); }, 1000);
+      if (instant) { const c = d && d.defaultView.__presoCentre; if (c) c(); }
     },
     // ...and the tap after that: "Try $745", visibly tapped, and the price ODOMETERS up to it — every digit rolling to
     // its new figure — and the nights take $745 and keep it (John, 2026-09-30)
@@ -1597,12 +1597,20 @@ function typeKeys(keys, instant) {
       tryBtn.className = 'preso-try';
       tryBtn.textContent = 'Try $745';
       const layoutTop = (el, card) => { let y = 0; while (el && el !== card) { y += el.offsetTop; el = el.offsetParent; } return el === card ? y : null; };
+      // the Try button is mounted the moment the sheet exists (so it can come in WITH the keypad and Done — John, 2026-10-07:
+      // "everything comes in together"); the measuring is a separate pass, run once the sheet is at rest
+      const mount = () => {
+        const root = w.document.documentElement, card = w.document.querySelector('.sqa-price.open');
+        const split = !!card && root.classList.contains('preso-custom-kb') && root.classList.contains('preso-pills-on');
+        if (card && tryBtn.parentNode !== card) card.appendChild(tryBtn);
+        tryBtn.classList.toggle('on', split);
+      };
+      w.__presoMount = mount;
       const centre = () => {
         const root = w.document.documentElement, card = w.document.querySelector('.sqa-price.open');
         const custom = root.classList.contains('preso-custom-kb'), split = !!card && custom && root.classList.contains('preso-pills-on');
         const per = card && card.querySelector('.ps-per');
-        if (card && tryBtn.parentNode !== card) card.appendChild(tryBtn);
-        tryBtn.classList.toggle('on', split);
+        mount();
         if (!card || !custom) { root.style.setProperty('--preso-shift', '0px'); return; }
         const big = card.querySelector('.sqa-big'), head = card.querySelector('.ps-head'), pad = card.querySelector('.ps-pad');
         const now = parseFloat((w.getComputedStyle(big).translate || '0 0').split(' ')[1]) || 0;     // the shift already on it
@@ -1621,7 +1629,7 @@ function typeKeys(keys, instant) {
       // waits for the sheet's own opening to finish (it reads live positions; mid-animation they threw the price off-screen).
       // A close centres at once (that only puts the shift back to 0).
       let restT = 0;
-      const sync = () => { const open = !!w.document.querySelector('.sqa-price.open'); kb.classList.toggle('up', open); clearTimeout(restT); if (open) restT = setTimeout(centre, 950); else centre(); };
+      const sync = () => { const open = !!w.document.querySelector('.sqa-price.open'); kb.classList.toggle('up', open); mount(); clearTimeout(restT); if (open) restT = setTimeout(centre, 950); else centre(); };
       // childList too: a jump straight to the open sheet MOUNTS it with .open already on, which is not a class change
       new w.MutationObserver(sync).observe(w.document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
       sync();
