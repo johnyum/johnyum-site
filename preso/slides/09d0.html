@@ -41,8 +41,10 @@
                 opacity: 0; transform: scale(.3); transition: opacity .2s ease, transform .45s cubic-bezier(.34, 1.56, .64, 1); }
   body.mad .wall .face { opacity: 1; transform: none; transition-delay: var(--d, 0ms); }
   body.snap .wall .face { transition: none !important; }
-  /* 4 BIGGER, AND ONLY WHOLE (John, 2026-10-03): the faces are 54 now (the offsets below scale with them), and a face whose
-     avatar would be cut by the stage's edge — or sit under the deck's section names along the foot — is not drawn at all */
+  /* 4 BIGGER (John, 2026-10-03): the faces are 54 now (the offsets below scale with them). EVERY FACE (John, 2026-10-07: "the
+     angry faces down here and on all the cards that are bleeding out on the edges"): a face is drawn on every avatar, the ones cut
+     by the stage's edge and the ones under the deck's section names along the foot too — the wall is angry to its edges. (From
+     2026-10-03 to then only a whole avatar got its face; that trim is kept below, off.) */
   .wall .face.cut { display: none; }
   .wall img { position: absolute; display: block; user-select: none; -webkit-user-drag: none; }
   /* ONE, THEN ALL (John, 2026-10-03): the slide opens on aaron's tweet alone, in the middle; a tap brings the rest of the wall
@@ -144,9 +146,11 @@
     up.items.forEach(([t, y]) => put(t, xm, -y - t[1]));                        // ...and up from his head
     wall.innerHTML = html.join('');
   }
-  // a face is drawn only where its avatar is whole on the stage, clear of the deck's section names along the foot (56px)
+  // EVERY AVATAR GETS ITS FACE (John, 2026-10-07) — trim() is a no-op; trimWhole() below is the 2026-10-03 rule (a face only where
+  // its avatar is whole on the stage, clear of the deck's section names along the foot, 56px), kept in case it's wanted back
+  const trim = () => { wall.querySelectorAll('.face.cut').forEach(f => f.classList.remove('cut')); };
   const FOOT = 56;
-  const trim = () => { const W = innerWidth, H = innerHeight;
+  const trimWhole = () => { const W = innerWidth, H = innerHeight;
     wall.querySelectorAll('img').forEach(im => { const f = im.nextElementSibling; if (!f || !f.classList.contains('face')) return;
       const k = parseFloat(wall.style.getPropertyValue('--s')) || 1, sr = slide.getBoundingClientRect();   // from the layout's own numbers, not the drawn box (the
       const ox = sr.left + sr.width / 2, oy = sr.top + sr.height / 2;                                       // cards still waiting to come in sit nudged and shrunk)
