@@ -306,6 +306,24 @@ fetches every shown pin's road into the cache, one every 120ms. Slide 09c sizes 
 that show five (`enough()`, `MIN_PINS`) — the one time the duration changes on its own, and the knob is seen to move. Eight or fewer
 on the map and every one stands as a pill (`FEW_PINS` in `declutter`): no dots when there's room for all.
 
+**Palm Springs (2026-10-07):** a second city to drop into, built on the New York pair of beats — the city beat (`nyc`) and the
+neighbourhood beat (`hood`) are now generic, dressed for whichever city is entered (`CITY`, `enterCity(key)`: the card's title,
+vibes, rows, the beat's camera and set; `HOODZ`, `enterHood(key)`: the outline into the mask, the pills, the homes into the grid;
+`__explore.enterCity / enterHood / cityVibe`). A hero names its destination (`hero: 'ps' | 'nyc' | 'vlp' | 'warm' | 'jt' | 'wburg'`).
+Palm Springs has THREE VIBES OF ITS OWN that re-pin the city (`PS_VIBES`, `setCityVibe`; New York's three stay a ring only):
+**Modernist** (Vista Las Palmas the way down), **Queer** (Warm Sands), **Escape** (out of the city — Indian Canyons, the Mesa,
+Snow Creek, Pioneertown, Joshua Tree the way down, with no outline so no mask). **The neighbourhoods are real**: outlines from the
+city's own ONE-PS GIS layer (66 polygons, via stilesdata.com/palm-springs, simplified to 4e-5°), the price pills scattered inside
+them (`PS_HOODS`). Thumbs `ps-modernist/queer/escape.png` and listing photos `ps-home-1…9.png` are gpt-image-1, in the New York
+thumbs' flat mid-century style. Back from a city returns to the beat it was entered from (`cityFrom`). Palm Springs is the hero
+on the car's Popular and Relax (8 hrs, so the filter's edge takes 8.05) and the flights' Relax.
+**Zoom by hand (2026-10-07):** a wheel, a pinch or the + / − buttons at the top level set the knob to the farthest pin left in
+view (`zoomSetsHours`, only with an `originalEvent` or `byHand` — the page's own flights never move it); zoomed out past a car's
+reach (`SWITCH.toFlights` 4.2) the car becomes the flights, zoomed in past 6.6 the flights become the car, the map staying put
+(`go(next, { stay: true })`). The car has near places for that (`DRIVE_NEAR`: Sausalito, Berkeley, Half Moon Bay…) so zooming
+in on SF shows short drives with the car's own icon, never the walk's. NOTE for tests: the desktop app's browser pane pauses
+animation frames while hidden — the map then neither flies nor loads its mask; drive `requestAnimationFrame` with a timer.
+
 `?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
 it without faking clicks.
