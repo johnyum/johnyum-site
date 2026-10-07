@@ -556,6 +556,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // for; the rest are the field it has to read against.
   var CITIES = [   // fares from SF, round trip, about what they cost (John, 2026-10-06: realistic)
     { n: 'Palm Springs',p: 140, ll: [-116.55, 33.83], hero: 'ps' },   // the deck's way down (John, 2026-10-07)
+    { n: 'Faroe Islands',p: 980, ll: [  -6.79, 62.01], hero: 'fo' },   // and the European one — on Popular as well as Unique, so it's there to find
     { n: 'Winnipeg',    p: 510, ll: [ -97.14, 49.90] },
     { n: 'Portland',    p: 130, ll: [-122.68, 45.52] },
     { n: 'Montreal',    p: 420, ll: [ -73.57, 45.50] },
@@ -1648,7 +1649,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // so the near end has room for a walk and the far end still reaches the days a car or a train takes
   var DUR = [0.25, 84];
   var maxH = { drive: 8, usa: 8, rail: Infinity, walk: 2 };
-  function within(o, beat) { var m = maxH[beat || state]; return o.h == null || m == null || o.h <= m + 0.05; }   // 8 hrs is in at 'Under 8 hours'
+  function within(o, beat) {
+    if ((beat || state) === 'usa' && o.d && CITY[o.d.hero]) return true;   // on the flights, a city you can drop into is always there to find (John, 2026-10-07: "make sure it shows on the flights")
+    var m = maxH[beat || state]; return o.h == null || m == null || o.h <= m + 0.05;   // 8 hrs is in at 'Under 8 hours'
+  }
   function durLabel(h, pos) { if (pos >= 0.995) return 'Any duration'; if (h < 1) return 'Under ' + Math.round(h * 60) + ' min'; if (h >= 24) { var d = Math.round(h / 12) / 2; return 'Under ' + (d === 1 ? '1 day' : d + ' days'); } var r = Math.round(h * 2) / 2; return 'Under ' + (r === 1 ? '1 hour' : r + ' hours'); }
   function applyDur(noFit) {
     var set = BEATS[state] && BEATS[state].set; if (!set) return;
@@ -1673,7 +1677,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     if (span > 200) pts = pts.map(function (q) { return q.lng > 60 ? new mapboxgl.LngLat(q.lng - 360, q.lat) : q; });
     var b = new mapboxgl.LngLatBounds(); pts.forEach(function (q) { b.extend(q); });
     if ((BEATS[beat || state] || {}).depth === 0) b.extend(ME);   // the traveller is in the frame on the continent, not inside a city (Escape fit all of California)
-    var c = map.cameraForBounds(b, { padding: { top: 90, bottom: 70, left: PAD().left + 80, right: 100 }, maxZoom: FIT_MAX[beat || state] || 4.6 });
+    var c = map.cameraForBounds(b, { padding: { top: 90, bottom: 70, left: PAD().left + 80, right: 170 }, maxZoom: FIT_MAX[beat || state] || 4.6 });   // 170 on the right: a pill's label runs 142 past its pin
     return c ? { center: c.center, zoom: c.zoom } : null;
   }
   function fitVisible() {

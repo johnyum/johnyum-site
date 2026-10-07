@@ -354,6 +354,10 @@ the knob staying put. **Slide 09c has no scripted taps** (John: "I'll drive here
 machine is kept, unused. The deck's nav has **Transportation** (09az) before Host only fee. Mapbox's attribution is off, its
 wordmark faint in the left corner.
 
+**On the flights, a city you can drop into is always there** (2026-10-07, John: "I can't find Faroe Islands", "make sure it shows
+on the flights"): `within()` lets a flight pin whose `hero` names a `CITY` through whatever the knob says, and the Faroes sit on the
+flights' Popular as well as Unique. The fit's right padding is 170, a pill's label past its pin.
+
 `?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
 it without faking clicks.
