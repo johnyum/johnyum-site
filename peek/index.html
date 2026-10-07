@@ -239,15 +239,12 @@ button, textarea { font: inherit; color: inherit; }
 .print canvas.scene { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
 /* THE CAST (2026-10-06): three engraved portraits as avatars, hanging 16 above the chat box, 16 apart — a 1.5 black ring round each;
    tapped, one grows to 72 with its name above it and its sentences go yellow, as a creature's do */
-.cast { position: absolute; left: 0; right: 0; height: 88px; display: flex; justify-content: flex-start; align-items: flex-end; gap: 12px; padding: 0 24px 24px; box-sizing: border-box;
-  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch; pointer-events: auto; }   /* the whole cast, scrolling left to right (24 under the faces so their shadows aren't cut); a 3px white ring on a shadow; a tap scales one up, smoothly, from its base; at the row's edges a face shrinks and fades instead of being cut */
-.cast::-webkit-scrollbar { display: none; }
-.cast::after { content: ""; flex: 0 0 8px; }
-.cast .slot { flex: 0 0 64px; width: 64px; height: 64px; transform-origin: 50% 100%; }   /* the edge's shrink and fade, set per frame — kept off the face so its own grow can ease */
-.cast .face { width: 64px; height: 64px; border-radius: 50%; border: 3px solid #fff; background: #fff; padding: 0; overflow: hidden; cursor: pointer; box-sizing: border-box;
+.cast { position: absolute; left: 0; right: 0; height: 88px; pointer-events: auto; touch-action: pan-y; cursor: grab; overflow: hidden; }   /* THE CAST, a carousel (John, 2026-10-06): the faces nearest the middle at 64, the next out at 48, then 32 and faint, laid out from the centre with the gaps shrinking with them; drag or scroll sideways and they slide through, snapping to a face; 3px white rings on a shadow, 24 of room under them for it; a tap scales one up from its base */
+.cast .slot { position: absolute; bottom: 24px; width: 64px; height: 64px; transform-origin: 50% 100%; }
+.cast .face { width: 100%; height: 100%; border-radius: 50%; border: 3px solid #fff; background: #fff; padding: 0; overflow: hidden; cursor: pointer; box-sizing: border-box;
   box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 5px 14px rgba(0,0,0,.18); transform-origin: 50% 100%; transition: transform .5s cubic-bezier(.22,1,.36,1); -webkit-tap-highlight-color: transparent; }
-.cast .face img { width: 100%; height: 100%; object-fit: cover; display: block; -webkit-user-drag: none; }
-.cast .face.on { transform: scale(1.125); }   /* 64 → 72 (John: 64 by default, 12 apart) */
+.cast .face img { width: 100%; height: 100%; object-fit: cover; display: block; -webkit-user-drag: none; pointer-events: none; }
+.cast .face.on { transform: scale(1.125); }   /* 64 → 72 */
 /* the plate in layers, in the plate's own pixels (1100 × 733), scaled to fit: the tail behind the sea, the boat in front */
 .print .stage { position: absolute; left: 0; top: 0; width: 1100px; height: 733px; transform-origin: 0 0; overflow: hidden; }
 .print .stage img, .print .stage .lay { position: absolute; width: auto; height: auto; will-change: transform; }
@@ -3616,9 +3613,12 @@ function castShow() {
   if (cast || !poolInit()) return;
   const el = document.createElement('div'); el.className = 'cast';
   el.innerHTML = CAST.map((c) => `<span class="slot"><button class="face" data-k="${c.k}" aria-label="${c.name}"><img src="moby/cast-${c.k}.webp" alt="" draggable="false"></button></span>`).join('');
-  el.style.opacity = '0'; poolEl.append(el); cast = { el, on: null, name: null };
-  el.addEventListener('pointerdown', (e) => e.stopPropagation());
-  el.addEventListener('click', (e) => { const b = e.target.closest('.face'); if (b) castTap(b.dataset.k); });
+  el.style.opacity = '0'; poolEl.append(el); cast = { el, on: null, name: null, sel: 1, target: 1, drag: null };   // sel: which face sits in the middle (a float while sliding); opens on the second so the first three are full size and more shows to the right
+  el.addEventListener('pointerdown', (e) => { e.stopPropagation(); cast.drag = { x: e.clientX, sel: cast.sel, moved: false }; try { el.setPointerCapture(e.pointerId); } catch {} });
+  el.addEventListener('pointermove', (e) => { const d = cast?.drag; if (!d) return; const dx = e.clientX - d.x; if (Math.abs(dx) > 6) d.moved = true; if (d.moved) { cast.sel = Math.max(0, Math.min(CAST.length - 1, d.sel - dx / 72)); cast.target = cast.sel; } });
+  const drop = (e) => { const d = cast?.drag; if (!d) return; cast.drag = null; cast.target = Math.round(cast.sel); if (!d.moved) { const b = e.target.closest('.face'); if (b) castTap(b.dataset.k); } };
+  el.addEventListener('pointerup', drop); el.addEventListener('pointercancel', drop);
+  el.addEventListener('wheel', (e) => { if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return; e.preventDefault(); cast.sel = Math.max(0, Math.min(CAST.length - 1, cast.sel + e.deltaX / 90)); cast.target = Math.round(cast.sel); }, { passive: false });
   requestAnimationFrame(() => { el.style.transition = 'opacity .5s ease'; el.style.opacity = '1'; });
   castPlace();
 }
@@ -3626,18 +3626,26 @@ function castHide() { if (!cast) return; cast.el.remove(); cast.name?.remove(); 
 function castPlace() {   // 16 above the box, following it (the keyboard lifts the box; they ride up with it)
   if (!cast) return; const g = homeGround(), r = g ? rectOf(g) : null; if (!r) return;
   cast.el.style.top = (r.top - 16 - 88 + 24) + 'px';   // the faces' base sits 16 above the box (the row carries 24 under them for their shadows); a grown one scales up from there
-  // at the row's edges a face shrinks and fades away rather than being cut off by the screen's edge
-  const L = cast.el.getBoundingClientRect();
-  for (const sl of cast.el.querySelectorAll('.slot')) {
-    const b = sl.getBoundingClientRect(), cx = b.left + b.width / 2, inset = Math.min(cx - L.left, L.right - cx), k = Math.max(0, Math.min(1, (inset - 6) / 54));
-    const e = k * k * (3 - 2 * k); sl.style.transform = `scale(${(.2 + .8 * e).toFixed(3)})`; sl.style.opacity = e.toFixed(3);
-  }
+  // sliding toward the chosen face, slower and slower
+  if (!cast.drag) cast.sel += (cast.target - cast.sel) * .16;
+  // sizes by distance from the middle: 64 within one place, 48 at two, 32 at three, gone at four — and the gaps shrink with them
+  const size = (d) => { d = Math.abs(d); return d <= 1 ? 64 : d <= 2 ? 64 - 16 * (d - 1) : d <= 3 ? 48 - 16 * (d - 2) : Math.max(0, 32 - 32 * (d - 3)); };
+  const alpha = (d) => { d = Math.abs(d); return d <= 1.5 ? 1 : d <= 2.5 ? 1 - .3 * (d - 1.5) : d <= 3 ? .7 - .4 * (d - 2.5) : Math.max(0, .3 - .3 * (d - 3)); };
+  const slots = [...cast.el.querySelectorAll('.slot')], n = slots.length, sz = slots.map((_, i) => size(i - cast.sel));
+  const gap = (a, b) => Math.min(a, b) * .19;   // 12 between two at 64, less between smaller ones
+  // lay them out from the middle one outward, so the chosen face's centre is the screen's centre
+  const x = new Array(n), c = Math.round(Math.max(0, Math.min(n - 1, cast.sel)));
+  x[c] = innerWidth / 2 + (c - cast.sel) * (sz[c] + 12);   // a fraction of a place off while sliding
+  for (let i = c + 1; i < n; i++) x[i] = x[i - 1] + sz[i - 1] / 2 + gap(sz[i - 1], sz[i]) + sz[i] / 2;
+  for (let i = c - 1; i >= 0; i--) x[i] = x[i + 1] - sz[i + 1] / 2 - gap(sz[i + 1], sz[i]) - sz[i] / 2;
+  slots.forEach((sl, i) => { const w = sz[i]; sl.style.width = sl.style.height = w + 'px'; sl.style.left = (x[i] - w / 2).toFixed(1) + 'px'; sl.style.opacity = alpha(i - cast.sel).toFixed(3); sl.style.visibility = w < 1 ? 'hidden' : ''; });
   if (cast.name && cast.on) { const b = cast.el.querySelector(`.face[data-k="${cast.on}"]`), br = b.getBoundingClientRect();
     cast.name.style.transform = `translate(${(br.left + br.width / 2 - cast.name.offsetWidth / 2).toFixed(1)}px, ${(br.top - cast.name.offsetHeight - 8).toFixed(1)}px)`; }
 }
 function castTap(k) {
   const c = CAST.find((x) => x.k === k); if (!cast || !c) return;
   const on = cast.on === k ? null : k; cast.on = on;
+  if (on) cast.target = CAST.findIndex((x) => x.k === k);   // and it comes to the middle
   cast.el.querySelectorAll('.face').forEach((b) => b.classList.toggle('on', b.dataset.k === on));
   if (cast.name) { const old = cast.name; cast.name = null; old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160 }).onfinish = () => old.remove(); }
   if (on) { const n = document.createElement('div'); n.className = 'name'; n.textContent = c.name; poolEl.append(n); cast.name = n; n.animate([{ opacity: 0, scale: '.7' }, { opacity: 1, scale: '1' }], { duration: 260, easing: 'cubic-bezier(.3,1.4,.5,1)' }); }
