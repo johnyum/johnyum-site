@@ -2282,7 +2282,7 @@ function poolHear(text) {
   const gameOn = /\bgames?\b/i.test(lastAsk) || critters.some((c) => c.key === 'pail');
   for (const [k, P] of Object.entries(POOL)) if (P.re && !poolSeen.has(k) && P.re.test(text) && !(k === 'timer' && BBQ.test(lastAsk)) && !(gameOn && CLUES[k])) { poolSeen.add(k); poolDrop(k); }
   toolsHear(text);
-  if (!whaleSeen && WHALE_RE.test(text)) { whaleSeen = true; whaleStart(); }
+  if (!whaleSeen && !whaleOff && WHALE_RE.test(text)) { whaleSeen = true; whaleStart(); }
   // The timer comes set: the answer's first cooking time — "smoke for 6 hours", "on the grill 45 minutes" —
   // or failing that its first time of any kind. Until you wind it yourself, it follows the answer.
   const th = critters.find((c) => c.key === 'thermo'); if (th) thermoRead(th, text);
@@ -3240,7 +3240,7 @@ async function insCall(c) {
     await talk('ivr', 'All of our representatives are helping other members. Your estimated wait time is nine minutes.');
     call.mode = 'hold'; call.status = 'On hold · about 9 min'; line('sys', 'On hold. I\'ll wait here, so you don\'t have to.', { icon: 'music' }); cHold(call, true);
     const end = call.sec + 8 * 60 + 47; call.rate = 105;
-    while (call.sec < end) { gone(); call.rate = call.rush ? 4000 : 105; await nap(60); }
+    while (call.sec < end) { gone(); call.rate = call.rush ? 380 : 105; await nap(60); }   // rushed, the hold still runs through on the clock (~1.4 s for the nine minutes), not a jump (John, 2026-10-06)
     call.rate = 5; cHold(call, false); call.mode = 'talk'; call.status = 'Denise · Member Services';
     line('sys', 'Denise picked up', { icon: 'check' }); await nap(600);
     for (const b of insScript()) {
@@ -3430,8 +3430,9 @@ function tickTimers() {
 
 let poolLast = 0;
 function poolStep(now) {
+  castPlace();   // the cast follows the box whether or not there's a pile
   if ((!critters.length && !drops.length && !whale && !flushing.length) || !poolEngine) { poolLast = now; return; }
-  tickTimers(); whaleStep(now); castPlace();
+  tickTimers(); whaleStep(now);
   const { Engine, Body, Sleeping } = Matter;
   poolSyncBox();
   // STEPPED BY THE CLOCK, NOT THE FRAME (2026-10-06): this was two 1/120 steps every animation frame — a fixed 1/60 s a
@@ -3527,7 +3528,7 @@ const MOBY = {
   showTail: true, showHead: false,   // the head (John: "it's not working") is off; the tail alone, further right, cut off by the edge
   hull: { src: 'moby/boat.webp', x: 4, y: 288 }, flyer: { src: 'moby/flyer.webp', x: 28, y: 141 }, sea: { src: 'moby/sea.webp' },
 };   // the water's surface in the middle (of the plate's height); 108% of the screen wide, a touch off the left, so the tail runs off the right; the box's top just at the surface; the room the chat keeps above the box
-let whale = null, whaleSeen = false;
+let whale = null, whaleSeen = false, whaleOff = false;   // whaleOff: the deck's characters question sends the plate away for the rest of the scene
 const drops = [];
 const CLIP_HOLE = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('clip-path', 'path(evenodd, "M0 0H1V1Z")');
 function whaleStart() {
@@ -3549,6 +3550,11 @@ function whaleStart() {
   else Promise.all([...el.querySelectorAll('img')].map((i) => i.decode().catch(() => {}))).then(() => { if (whale === w) w.t0 = performance.now(); });   // nothing shows half-loaded
 }
 function whaleEnd() { if (whale?.gl) { whale.gl.renderer.dispose(); whale.gl.tex.dispose(); } whale?.el.remove(); whale = null; }
+function whaleFade(ms = 700) {   // the plate eases away for good (the deck's characters question: the picture goes, the cast comes — John, 2026-10-06)
+  const w = whale; if (!w) return Promise.resolve();
+  w.pv.style.transition = `opacity ${ms}ms ease`; w.pv.style.opacity = '0'; w.fading = true;
+  return new Promise((r) => setTimeout(() => { if (whale === w) whaleEnd(); r(); }, ms + 30));
+}
 const outC = (k) => k <= 0 ? 0 : k >= 1 ? 1 : 1 - Math.pow(1 - k, 3);
 function splash(x, y, n, up) {
   const { Bodies, Body, Composite } = Matter;
@@ -3583,7 +3589,7 @@ function whaleStep(now) {
   whale.kb = lerp(whale.kb ?? 1, r.bottom < innerHeight - 120 ? 0 : 1, .12);
   const pv = whale.pv;
   pv.style.width = W + 'px'; pv.style.height = H + 'px';
-  pv.style.setProperty('--rv', rv.toFixed(4)); pv.style.opacity = (ink * whale.kb).toFixed(3); pv.style.visibility = whale.kb < .01 ? 'hidden' : '';
+  pv.style.setProperty('--rv', rv.toFixed(4)); if (!whale.fading) pv.style.opacity = (ink * whale.kb).toFixed(3); pv.style.visibility = whale.kb < .01 ? 'hidden' : '';
   pv.style.transform = `translate(${L.toFixed(1)}px, ${top.toFixed(1)}px) scale(${press.toFixed(4)})`;
   if (whale.st) { whale.st.style.transform = `scale(${(W / 1100).toFixed(5)})`; mobySettle(t); }
   else sceneWarp(t, W, H);
@@ -4190,7 +4196,7 @@ if (PRESO) {
       const first = scene === null;   // the first chat is already open: no tap on the mark, nothing to clear (John, 2026-10-06)
       if (tcard) { if (fast) closeCard(); else { shrinkTimer(); await new Promise((r) => setTimeout(r, 620)); } }   // whatever's open (the stopwatch, after the brisket) closes first, then the new chat
       scene = name; presoScene = name; window.peek.event('chat', name); said.length = 0;
-      poolClear(true); if (cook) { cook = null; } ins = null; whaleEnd(); whaleSeen = false; spideyEnd(); castHide(); presoDraft = '';   // nothing of the last scene comes along — its pile, its cook, its call, its whale, its Spider-Man
+      poolClear(true); if (cook) { cook = null; } ins = null; whaleEnd(); whaleSeen = false; whaleOff = false; spideyEnd(); castHide(); presoDraft = '';   // nothing of the last scene comes along — its pile, its cook, its call, its whale, its Spider-Man
       const mark = $('.pillnav .newchat');
       if (mark && !fast && !first) { mark.classList.add('pressing'); await new Promise((r) => setTimeout(r, 130)); mark.classList.remove('pressing'); await new Promise((r) => setTimeout(r, 160)); }
       const GREET = ['What shall we think through?', 'What’s on your mind?', 'Where would you like to start?', 'What are we working on?', 'What can I help you with?', 'What’s the question?', 'Where shall we begin?'];   // the app's ChatIntro
@@ -4212,6 +4218,7 @@ if (PRESO) {
     }
     if (t.act === 'watch') { const w = critters.find((c) => c.key === 'stopwatch'); if (w && !fast && !tcard) growTimer(w); playing = false; return true; }   // the stopwatch opens; the tap after closes it and moves on
     presoFast = fast; presoDraft = '';
+    if (name === 'mobydick' && i === 1) { whaleOff = true; if (whale) { if (fast) whaleEnd(); else await whaleFade(); } }   // the whale goes, and doesn't come back: the cast takes its place under the answer
     input.value = ''; fit(); composer.classList.remove('has');
     if (!fast) await typeIn(you);   // the keyboard up, the words typed, the keyboard down — then it's sent (the page's draft is typed the same way)
     input.value = ''; fit(); composer.classList.remove('has');   // sent: the box empties
@@ -4398,6 +4405,7 @@ if (EMBED || PRESO) {
     { const g = homeGround(), top = g ? rectOf(g).top : innerHeight; let pile = 0;
       for (const c of critters) { const p = c.body.position, t = p.y - c.w / 2; if (p.y < top + 4 && p.y > top - c.w * 3) pile = Math.max(pile, top - t); }
       if (whale) pile = Math.max(pile, plateRise());   // the engraving: room for it above the box
+      if (cast) pile = Math.max(pile, 16 + 72 + 16);   // the cast: room for the portraits (grown) and their 16 above and below
       const px = pile ? Math.round(pile / 8) * 8 + 12 : 0;
       // Only once the pile has come to rest, and only for a real change: every report makes the app re-pad
       // and scroll the chat, so reporting it while things fall and bounce shook the text.
