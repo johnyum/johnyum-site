@@ -823,7 +823,9 @@ column of 880 holding one or more pages, top-aligned, in this order:
    built up rule by rule, a switch per rule for that night only). Plain HTML in the mock's own language, no support.js.
 6. **The tip cards** (.72) — six phone takes on how the chat serves a tip; the chat-to-dates motion was the sixth for an hour
    ("sucks").
-The board is scaled so three panels fill the stage's width; the tallest panel sets the height and the page scrolls under the deck's
+ONE SPACE (John: "the same spacing between as the padding on the edges"): `GAP = 56` board-px is both the board's side padding and
+the gap between panels, scaled together — the slide's window runs the full width, no margins of its own. The board is scaled so
+three panels and four spaces fill the stage's width; the tallest panel sets the height and the page scrolls under the deck's
 nav (`presoBleed`). The step slides the whole strip by three, eased .8s (`window.__collage.go(n)`; the slide's presoNext / presoPrev
 / presoState / presoRestore / presoEnd go through to it; the hash carries the step). Every page's h1 lands at 24 board-px, weight 600,
 white pages throughout.
