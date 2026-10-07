@@ -803,7 +803,7 @@ are clicked on an 8s loop so the left is never still. Three columns: the cells (
 the event cards (1000). **Where it stands (2026-10-07, night): SIX-UP, THREE IN VIEW.** (John: "each in its own row, six across; I can only see three, and
 when I tap next the first three animate left and the next three animate in — a single unit of six".) One strip of six panels, each a
 column of 880 holding one or more pages, top-aligned, in this order:
-1. **The squiggly dates over the cell animations.** `00-squiggly-dates.html` is the cell-system page with its body swapped: the
+1. **The cell animations over the squiggly dates** (the squigglies at the bottom — John, later: "at the bottom, not the top"; the cells page carries the h1, the squiggly page its "10 · Squiggly dates" heading). `00-squiggly-dates.html` is the cell-system page with its body swapped: the
    opportunity cells alone (A Raise, B Last-minute, C Soft weeknights, D Stranded nights — four states across each: untapped,
    selected, applied, subdued), its own CSS and JS so every wavy ring and price reel keeps its keyframes, replayed by cloning each
    cell every 3.2s (John: "take all the squiggly date studies and move them into calendar cell animation — the same grid, all their
