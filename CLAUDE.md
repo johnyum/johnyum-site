@@ -686,12 +686,12 @@ up tip cards. One `index.html`, three.js; the chat is canned.
 After the multi calendar's lesson (12dl): **Process** (12dp, the mono card), **the Figma** (12dq — John's grab of the Multi Calendar
 file's grid of frames, 16 corners, 80% of the fit) and **the web calendar with the iterations round it** (12dr — his grab of the
 web build centred with a grey-200 stroke; one tap and the 26 iterations from Hello.zip, in `preso/slides/assets/iterations/` as webp,
-tile round it on one cell grid — a Tetris board: 16 x 9 cells of 86 with 16 between (the sheet shifted half a row so the calendar is centred on the screen), the calendar dead centre at its own proportion
-inside a 6 x 4 block, a phone 1 x 2, a web build 3 x 2, the straight-line graph 5 x 2, the other strips 4 x 1 — the green tips build left
-out (John: the black-lines one, not that one); the items in a fixed-seed shuffle, the big ones first, each landing in one of its free spots
-at random so the builds scatter across the whole board, and every cell still free given the calendar's
-holiday icons (`assets/iterations/icons/`), one small one to a cell (only ~14 cells are left), so nothing is empty;
-each fades up in turn from the middle outward while the calendar settles to the centre; built, the board is a little larger than the
+tile round it on one cell grid — a Tetris board: 24 x 13 cells of 86 with 16 between, the calendar 7 x 5 at its own proportion
+(cols 8–14, rows 4–8; the sheet shifted so it's centred on the screen — the board bleeds, so it carries the difference), a phone 1 x 2, a
+web build 3 x 2, the straight-line graph 5 x 2 pinned above the calendar, the other strips 4 x 1; the items in a fixed-seed shuffle, each
+dropped at random beside something already placed (so the free room stays in blocks); then a 2 x 2 close crop of each web build; then
+what's left goes to colour — icon sheets of the calendar's holiday icons at 24 (`assets/iterations/icons/`: forty on a 3 x 2, sixteen on
+a 2 x 2, eight on a 2 x 1, four on a 1 x 2), one small icon to any straggling cell, every sheet a different run; each fades up in turn from the middle outward while the calendar settles to the centre; built, the board is a little larger than the
 screen so it bleeds off every edge). Then the A.I. card.
 
 ## `peek/?preso=1` — the 3D chat in the deck (2026-10-05/06)
