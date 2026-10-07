@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The experiments</title>
+<!-- THE COLLAGE (John, 2026-10-07: "one page, like a collage of these experiments — the calendar cell animations put closer
+     together, then right of it the fluid graph studies, the repeat settings studies and the demand-driving event studies").
+     Not pages in windows: the PIECES, live, pulled close. Each study is still its own page in an iframe (same origin), but on load
+     a compact stylesheet is dropped into it — the prose, the headings, the buttons and the padding go, the cells / graphs / phones /
+     icons stay — and the frame is sized to what's left, so nothing scrolls inside. The cell animations are replayed on a loop so
+     the left side is never still. Laid out as one board: the cells down the left, the three others stacked to their right; the
+     board is scaled to fit whatever shows it. -->
+<style>
+  html, body { margin: 0; background: #fff; overflow: hidden; height: 100%; }
+  #board { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .blk { position: absolute; }
+  .blk iframe { display: block; border: 0; background: #fff; }
+  .lbl { position: absolute; left: 0; top: -22px; font: 11px/1 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: .04em; text-transform: uppercase; color: #9ca3af; white-space: nowrap; }
+  @font-face { font-family: 'IBM Plex Mono'; src: url(/preso/fonts/IBMPlexMono-Regular.woff2) format('woff2'); }
+</style>
+</head>
+<body>
+<div id="board"></div>
+<script>
+(() => {
+  const GAP = 36, LEFT_W = 600, RIGHT_W = 1400;
+  // each block: the page, the width it's laid out at, and the stylesheet dropped into it to pull its pieces close
+  const BLOCKS = [
+    { id: 'cells', label: 'calendar cell animations', src: '01-cell-animations.html', w: LEFT_W, col: 'left', css: `
+        body { padding: 0 !important; display: flex; flex-wrap: wrap; gap: 14px 10px; align-items: flex-start; }
+        h1, h2, .lede, .toolbar, .demo .desc, .demo .num, .demo code, .demo .replay { display: none !important; }
+        .row { display: contents !important; }
+        .demo { gap: 6px !important; width: 282px !important; }
+        .demo .stage { width: 282px !important; height: 166px !important; border-radius: 18px !important; zoom: 1.75; width: 161px !important; height: 95px !important; }
+        .demo.wide { width: 580px !important; } .demo.wide .stage { width: 331px !important; }
+        .demo .name { font-size: 12px !important; color: #717171 !important; font-weight: 500 !important; }`,
+      loop: 7000 },
+    { id: 'graph', label: 'the fluid graph studies', src: '02-graph-studies.html', w: RIGHT_W, col: 'right', css: `
+        .page { max-width: none !important; padding: 0 !important; }
+        .page > div { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+        .study:not(.hero) .stage { zoom: .52; }
+        .page > h1, .page > .sub, .controls, .study-desc, .hero-foot, .note { display: none !important; }
+        .study { margin: 0 !important; padding: 14px 16px 12px !important; border-radius: 16px !important; }
+        .study.hero { grid-column: 1 / -1; }
+        .study { min-width: 0; overflow: hidden; }
+        .hero-wrap svg { max-height: 300px; }
+        .study-head { margin-bottom: 6px !important; }
+        .study-title { font-size: 14px !important; }
+        .stage { overflow: hidden !important; }` },
+    { id: 'repeat', label: 'the repeat settings studies', src: '07-repeat-settings-mock.html', w: RIGHT_W, col: 'right', css: `
+        body { padding: 0 !important; background: #fff !important; }
+        h1 { display: none !important; }
+        .row { gap: 18px !important; padding: 0 !important; overflow: visible !important; }
+        figure { width: 195px; }
+        figcaption { font-size: 11px !important; color: #717171 !important; font-weight: 500 !important; margin-bottom: 6px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        iframe { width: 390px !important; height: 844px !important; transform: scale(.5); transform-origin: 0 0; margin-bottom: calc(-844px * .5); margin-right: calc(-390px * .5); border-radius: 36px !important; box-shadow: 0 4px 16px rgba(0,0,0,.08) !important; }` },
+    { id: 'events', label: 'the demand-driving event studies', src: 'proto/event_gallery.html', w: RIGHT_W, col: 'right', css: `
+        body { padding: 0 !important; background: #fff !important; }
+        h1, .lead, .legend, .meta, h2 { display: none !important; }
+        body { display: flex; flex-wrap: wrap; gap: 6px; }
+        .grid { display: contents !important; }
+        .card { padding: 6px !important; border: none !important; background: #f7f7f7 !important; border-radius: 12px !important; }
+        .card:hover { transform: none !important; box-shadow: none !important; }
+        .icons, .ic { width: 52px !important; height: 52px !important; flex-basis: 52px !important; }
+        .sec { width: 22px !important; height: 22px !important; }` },
+  ];
+  const board = document.getElementById('board');
+  const frames = BLOCKS.map((b) => {
+    const el = document.createElement('div'); el.className = 'blk'; el.id = 'blk-' + b.id;
+    el.innerHTML = `<div class="lbl">${b.label}</div><iframe src="${b.src}" title="${b.label}" scrolling="no" style="width:${b.w}px;height:200px"></iframe>`;
+    board.append(el); b.el = el; b.frame = el.querySelector('iframe'); b.h = 200;
+    b.frame.addEventListener('load', () => {
+      const d = b.frame.contentDocument; const st = d.createElement('style'); st.textContent = b.css; d.head.append(st);
+      d.documentElement.style.overflow = 'hidden'; d.body.style.overflow = 'hidden';
+      // the page's own height, re-read a few times while its fonts and pictures land
+      const measure = () => { const h = Math.ceil(d.documentElement.scrollHeight); if (h !== b.h) { b.h = h; b.frame.style.height = h + 'px'; layout(); } };
+      [50, 300, 800, 1600, 3000].forEach((t) => setTimeout(measure, t));
+      if (b.loop) { const replay = () => { const bs = [...d.querySelectorAll('.demo .replay')]; bs.forEach((x, i) => setTimeout(() => x.click(), i * 90)); }; setTimeout(replay, 1200); setInterval(replay, b.loop); }
+    });
+    return b;
+  });
+  // the cells down the left; the three others stacked to the right; the board sized to the taller side and fitted to the viewport
+  const layout = () => {
+    let y = 0; const left = frames.filter((b) => b.col === 'left'), right = frames.filter((b) => b.col === 'right');
+    for (const b of left) { b.el.style.left = '0px'; b.el.style.top = (y + 22) + 'px'; y += 22 + b.h + GAP; }
+    const leftH = y - GAP; y = 0;
+    for (const b of right) { b.el.style.left = (LEFT_W + GAP) + 'px'; b.el.style.top = (y + 22) + 'px'; y += 22 + b.h + GAP; }
+    const W = LEFT_W + GAP + RIGHT_W, H = Math.max(leftH, y - GAP);
+    board.style.width = W + 'px'; board.style.height = H + 'px';
+    const s = Math.min(innerWidth / W, innerHeight / H);
+    board.style.transform = `translate(${Math.round((innerWidth - W * s) / 2)}px, ${Math.round((innerHeight - H * s) / 2)}px) scale(${s.toFixed(4)})`;
+  };
+  layout(); addEventListener('resize', layout);
+})();
+</script>
+</body>
+</html>

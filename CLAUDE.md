@@ -788,22 +788,22 @@ difference), a phone 1 x 2, a web build 3 x 2, the straight-line graph 5 x 2 pin
 in a fixed-seed shuffle, each dropped at random beside something already placed. EVERY PICTURE ONCE AND WHOLE — no crops, no repeats
 (John, 2026-10-06), and NO icon grids (one was tried twice, then "get rid of it"): a stray single cell gets a small holiday icon
 (`assets/iterations/icons/`), nothing more. More PNGs are the lever for a fuller board; each fades up in turn from the middle outward while the calendar settles to the centre; built, the board is a little larger than the
-screen so it bleeds off every edge). Between the Figma and the board sits **the side studies** (12dq1, 2026-10-06/07, John: "I've asked you to do side studies for the
-calendar — building different models, deck, graph charts, different iterations of quick actions — I wanna see that work", then "put
-ALL the side things into one huge HTML file — rows and rows of these studies next to each other, neatly placed by section"): ONE page,
-`preso/slides/assets/studies/all.html`, every study THE PAGE ITSELF, live, scaled into a window (a desktop page at 560 wide, a phone at
-215, a printed page at 378) and laid in rows under a section header — the calendar studies (from the Desktop's `calendar-mocks.zip`:
-cell animations, the graph five ways, the cell system, tip cards, chat-to-dates motion, the Repeat review), the Repeat mock's five
-screens, the July prototype's review pages (`~/Documents/Multi_Cal_Protototype`: event gallery, opportunity modals, price-shot and
-Christmas previews — their icons come from `/multi/event_icons/` and `/multi/holidays/`, identical files; `_candidates/` copied), and
-the holiday-pairs sheet as a picture. **Calendar only, and then pruned by eye** (John, 2026-10-07: "remove anything not calendar
-related", then a screenshot of what to take out — the icon review, icon matrix and master icons pages, the iOS walkthrough, the
-iterations / holidays / event / holiday contact sheets; before that the Peek tests, the EOB, the fee email and the Claude icons compare
-were in and came out). Cereal comes from `/multi/Font_Cereal/` and the mono from
-`/preso/fonts/` — nothing is vendored twice. The slide
-is that page in a window fitted to the stage, scrolled with the wheel, `presoInteractive`, no steps. Two takes before it the same
-evening: a masonry wall of thumbnails, then the seven calendar studies one to a tap — both rejected. The estimator pages in the
-scratchpad are frame-grab harnesses, not studies: left out. Everything behind the studies is zipped by theme in `~/Desktop/side-work/`.
+screen so it bleeds off every edge). Between the Figma and the board sits **the experiments** (12dq1, 2026-10-06/07, John: "I've asked you to do side studies for the
+calendar — building different models, deck, graph charts, different iterations of quick actions — I wanna see that work"; then "a
+single page like a collage of these experiments: the calendar cell animations put closer together, then right of it the fluid graph
+studies, the repeat settings studies and the demand-driving event studies"): `preso/slides/assets/studies/collage.html`, ONE board,
+the PIECES live and pulled close. Each study is still its own page in a same-origin iframe (`01-cell-animations.html`,
+`02-graph-studies.html`, `07-repeat-settings-mock.html` + `repeat-settings-mock/`, `proto/event_gallery.html`), but on load a compact
+stylesheet is dropped into it — prose, headings, buttons and padding go; the cells / graphs / phones / icons stay — and the frame is
+sized to what's left, re-measured as fonts and pictures land, so nothing scrolls inside. The eleven cell demos are the big left
+column, two to a row (`.stage` zoomed 1.75), their Replay buttons clicked on a 7s loop so the left is never still; to the right the
+graph studies on a 2-column grid (the hero across, the rigs zoomed .52), the five Repeat phones at .5, the 41 event icons as one
+strip. The board is scaled to fit whatever shows it; the slide shows it in a window fitted to the stage, `presoInteractive`, no steps.
+Cereal from `/multi/Font_Cereal/`, the icons from `/multi/event_icons/` — nothing vendored twice. `all.html` beside it is the earlier
+long form (the same studies in rows by section), kept. Earlier takes, all rejected: a masonry wall of thumbnails; the seven calendar
+studies one to a tap; the long form with every side thing (Peek, the EOB, the fee email, the Claude icons) — "remove anything not
+calendar related" — then pruned by eye (the icon review pages, the walkthrough, the contact sheets). The zips behind all of it are in
+`~/Desktop/side-work/`.
 Then the A.I. card. **The chrome's pills** (2026-10-06): the kicker and the nav each sit in a fully rounded white pill, 12 above and below,
 20 to the sides, the page blurred behind, shown only over a slide that declares `window.presoBleed` (a value or a function of its step —
 12dr's board once built); elsewhere the pill is transparent and the type sits exactly where it always did.
