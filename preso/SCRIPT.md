@@ -12,7 +12,8 @@ THE LINE FOR THIS SLIDE (John, 2026-10-07: "remember the going somewhere you've 
 you to an airport. Airbnb gets you somewhere you've never been.** Say it over the globe — the AI build is that sentence made real.
 THE POV, FOR THE CARD AFTER IT (John, 2026-10-07): it's sad. Transportation had a chance to fundamentally change how we search
 for where to go — before AI was a thing. Given the chance we'd have kept pushing, and with AI we'd have built something
-truly inventive. The AI build is what it could have become; the card after it says that, not a lesson.
+truly inventive. The AI build is what it could have become; the card after it (09cz2) says that, not a lesson: "We had a shot at changing how
+we find where to go. / Before AI. / I still think about what it could have been." Then Case Study 2's card.
 
 ### The other thing (09bz — before the trip creator)
 
