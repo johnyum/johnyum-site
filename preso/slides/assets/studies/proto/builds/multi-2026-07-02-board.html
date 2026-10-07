@@ -2492,12 +2492,17 @@ const gapVals        = [2, 1, 3, 2, 1, 2, 3, 1, 2, 3, 1, 2]; // gap-night except
 // (any gap shorter than the override min stays closed/unavailable) and the min badge shows the plain value.
 const customMinListings = new Set();
 // Seed minimums — rule sets revert a listing's min to this when cleared ("None").
+// THE BOARD COPY HAS 16 LISTINGS, THE JULY BUILD'S PER-LISTING ARRAYS 12 (2026-10-07: the four Los Angeles rows read "min undefined" —
+// John: "make sure there's a min range here"). Every per-listing array is padded to the listing count by cycling its own values.
+const padToListings = (...arrs) => arrs.forEach(a => { const n = a.length; if (!n) return; while (a.length < LISTINGS.length) a.push(a[a.length % n]); });
+padToListings(weekendVals, highSeasonVals, lowSeasonVals, earlyBirdVals, lastMinuteVals, tripWeekly, tripMonthly, cleaningFees, extraGuestFees, minNightsVals, bookingWinVals, advNoticeVals, prepTimeVals, gapVals);
 const DEFAULT_MIN = minNightsVals.slice();
 // More availability rules — edited via the modal (max nights & restrictions are display-only).
 const maxNightsVals          = [14, 30, 21, 14, 28, 30, 21, 14, 30, 21, 28, 14];
 const restrictedCheckinVals  = ['None','Mon','Sat, Sun','None','Fri','None','Mon, Tue','None','Sun','Wed','None','Sat'];
 const restrictedCheckoutVals = ['None','Sun','None','Mon','None','Sat, Sun','None','Fri','None','None','Tue','Sun'];
 const reqExceptionVals       = [false,false,false,false,false,false,false,false,false,false,false,false]; // "Request to book exception" On/Off per listing
+padToListings(maxNightsVals, restrictedCheckinVals, restrictedCheckoutVals, reqExceptionVals);
 
 // Generate mock bookings across the whole calendar, valid against the availability rules:
 // each stay length >= the listing's minimum nights, within its booking window, no overlaps.
