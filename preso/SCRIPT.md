@@ -3,7 +3,12 @@
 What John says over the deck — the voiceover, kept beside the slides rather than on them. Lines that come off a slide land
 here so nothing is lost. Rough, and growing.
 
-## Case Study 1 — Host only fee
+## Case Study 1 — Transportation
+The card: "Case Study 1 · Transportation: having a dream and getting it crushed." Then the Forbes piece, the flight search, the
+trip creator (trains, flights, New York, Williamsburg). Airbnb was publicly building transportation in 2019; the bet was real, and it
+was cancelled — say what the dream was and what crushed it.
+
+## Case Study 2 — Host only fee
 
 ### Why the host-only fee (09d01)
 
@@ -32,7 +37,7 @@ The slide is one line now — **"Be honest and own it because your users can sme
    Tone and delivery only go so far. Giving hosts a tool to raise their prices and keep their earnings, in one tap, is what
    let them act on it.
 
-## Case Study 2 — Host calendar
+## Case Study 3 — Host calendar
 
 ### Why the calendar (12a)
 
