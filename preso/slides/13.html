@@ -1529,7 +1529,8 @@ function typeKeys(keys, instant) {
       +   'transform:translateY(calc(100% + ' + (56 * K) + 'px));transition:transform .42s cubic-bezier(.2,.9,.25,1);'
       +   'font-family:-apple-system,"SF Pro Text","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased}'
       + '.preso-kb.up{transform:none}'
-      + '.sqa-price.open .sqa-big,.sqa-price.open .ps-per{translate:0 var(--preso-shift,0px);transition:translate .5s cubic-bezier(.2,.9,.25,1)}'
+      + '.sqa-price .sqa-big,.sqa-price .ps-per{translate:0 var(--preso-shift,0px);transition:translate .5s cubic-bezier(.2,.9,.25,1)}'   // not only .open: the shift stays on through the close, so the $745 rides down with the sheet (John, 2026-10-07)
+      + 'html.preso-shift-snap .sqa-price .sqa-big,html.preso-shift-snap .sqa-price .ps-per{transition:none!important}'   // at mount the shift lands at once — the $500 was sliding up on top of the sheet's own rise (John, 2026-10-07)
       // THE SPLIT: Done's left edge moves to the middle (+4), and Try $745 takes the left half (to the middle -4) — the same
       // 48 tall, 24 off the sides and 48 off the foot as Done, in its grey; Try fades in as Done gives way
       + 'html.preso-pills-on .sqa-price.open .ps-done{left:calc(50% + 4px)!important;transition:left .4s cubic-bezier(.2,.9,.25,1)!important}'
@@ -1538,13 +1539,13 @@ function typeKeys(keys, instant) {
       // Try grows in with the keypad and Done — the same animation, the same moment
       + '.preso-try{position:absolute;left:24px;right:calc(50% + 4px);bottom:48px;height:48px;border-radius:24px;background:rgba(140,140,140,.2);color:#fff;'
       +   'display:none;align-items:center;justify-content:center;font-size:16px;font-weight:500;pointer-events:none}'
-      + '.preso-try.on{display:flex;animation:preso-kb-in .46s cubic-bezier(.2,.9,.25,1) .7s both}'
+      + '.preso-try.on{display:flex;animation:preso-kb-in .46s cubic-bezier(.2,.9,.25,1) 0s both}'
       // THE SWAP (John, 2026-09-30): from the Modernism Week price on, html.preso-custom-kb sends the iOS pad and its Save back
       // down and brings the build's own keypad and Done up in their place — and keeps them for the rest of the run
       // — the iOS pad and Save draw INWARD and fade (300ms), a beat (400ms), then the build's keypad and Done grow OUTWARD
       //   into place (John, 2026-09-30); the Done is the build's own grey, not the fork's white
       + 'html.preso-custom-kb .preso-kb.up{transform:scale(.86);opacity:0;transition:transform .3s cubic-bezier(.4,0,.6,1),opacity .3s ease}'
-      + 'html.preso-custom-kb .sqa-price.open .ps-pad,html.preso-custom-kb .sqa-price.open .ps-done{visibility:visible!important;animation:preso-kb-in .46s cubic-bezier(.2,.9,.25,1) .7s both}'   // .open: shown in the open sheet only — on the closed card the Done was left standing (John's regression, 2026-09-30)
+      + 'html.preso-custom-kb .sqa-price.open .ps-pad,html.preso-custom-kb .sqa-price.open .ps-done{visibility:visible!important;animation:preso-kb-in .46s cubic-bezier(.2,.9,.25,1) 0s both}'   // .open: shown in the open sheet only — on the closed card the Done was left standing (John's regression, 2026-09-30)
       + '@keyframes preso-kb-in{from{scale:.86;opacity:0}to{scale:1;opacity:1}}'
       + 'html.preso-custom-kb .sqa-price .ps-done{background:rgba(140,140,140,.2)!important;color:#fff!important;border-radius:24px!important;font-weight:500!important}'
       // ...and from the run home on (John, 2026-09-30: "from here on out"), every Done in the sheets is the build's grey again
@@ -1631,7 +1632,13 @@ function typeKeys(keys, instant) {
       // waits for the sheet's own opening to finish (it reads live positions; mid-animation they threw the price off-screen).
       // A close centres at once (that only puts the shift back to 0).
       let restT = 0;
-      const sync = () => { const open = !!w.document.querySelector('.sqa-price.open'); kb.classList.toggle('up', open); mount(); centre(); clearTimeout(restT); if (open) restT = setTimeout(centre, 950); };   // at mount, from layout; once more at rest (the same number)
+      const snap = () => { const root = w.document.documentElement; root.classList.add('preso-shift-snap'); centre(); requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('preso-shift-snap'))); };   // the shift lands with no transition
+      const sync = () => {
+        const open = !!w.document.querySelector('.sqa-price.open'); kb.classList.toggle('up', open); mount();
+        clearTimeout(restT);
+        if (open) { snap(); restT = setTimeout(centre, 950); }   // at mount, at once; once more at rest (the same number, from layout)
+        else restT = setTimeout(snap, 700);                        // closing: the shift stays on while the sheet runs back into its card, and only then goes to 0
+      };
       // childList too: a jump straight to the open sheet MOUNTS it with .open already on, which is not a class change
       new w.MutationObserver(sync).observe(w.document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
       sync();
