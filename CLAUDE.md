@@ -266,10 +266,14 @@ list — a road route is densely sampled through turns and sparsely down a
 straight. A beat change clears everything: a leg belongs to the beat that drew
 it.
 
-**The vibes (2026-10-06):** on the continent, Unique / Relax / Adventure each re-pin the map with their own priced cities
-(`VIBES`, `vibeSets`, `setVibe()`; Popular is the original eleven, and only Popular has New York — the way down into the city). Each
-vibe is spread across the whole continent (Juneau to Cozumel, Tofino to Acadia) and the camera fits its pins (`fitBounds`, max zoom 4.6);
-Popular eases back to the continent's own camera. The car and the train keep their own pins. `__explore.vibe(name)` drives it.
+**The vibes (2026-10-06):** Unique / Relax / Adventure re-pin the map for whichever mode is on — the flights (`VIBES`, spread
+Juneau to Cozumel), and the car, the train and the walk each with their own (`MODE_VIBES`, hours instead of prices); `vibeSets[mode][vibe]`,
+`setVibe()`. Popular is each mode's original set, and only the flights' Popular has New York — the way down into the city. The camera
+fits the vibe's pins (`fitBounds`, a max zoom per mode, `FIT_MAX`); Popular eases back to the mode's own camera.
+**Walking is a beat now** (`walk`, `WALKS`, `WALK_CAM` over the city, `mk-walk` pins with the walk glyph; hover draws the Directions
+walking route). **The travel-time slider is real** (`DUR`, `maxH`, `within()`, `applyDur()`): drag the knob or tap the track, the label
+says the hours, and a pin past it leaves the map; each mode has its own range (car and flight 1–12 h, train 4 h to 3 days then Any,
+walk 15 min to 4 h). Every pin carries `o.h` (a flight's from its distance, the others from their pill). The car and the train keep their own pins. `__explore.vibe(name)` drives it.
 
 `?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
