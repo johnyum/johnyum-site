@@ -284,6 +284,16 @@ camera only when the knob is at the mode's default on Popular), the world Pacifi
 sits at a seam (`minZoom` 0.9). Every flight pin hovers its own leg, drawn the short way round (`arc()` unwraps past 180° and
 always bows north); a rail hover clips the lines to end at the hovered stop (`clipRail`). One traveller pin (`meMk`), never rebuilt.
 
+**One marker, two forms, and the collision pass (2026-10-06):** every dot on the map is a named place (`DOTS`, `DRIVE_DOTS`,
+`RAIL_DOTS`, `WALK_DOTS`, `NYC_DOTS`, `WORLD_DOTS` all carry a name and a fare or hours). `makePill()` builds each marker with the
+pill and its 20 pin AND the small 10 pin on one element, their points on one spot; `sm` shows the small one. The `declutter()`
+pass (every map move, rAF-throttled, and as pins arrive) ranks the hero, then the named places in their written order, then the
+dots, and keeps a pill wherever its rect plus 10px of air clears everything already standing (the traveller included); the rest
+settle to dots. So a sparse map fills with the dots' pills and a crowded one thins — John: "a good mix of small and big". Hover a
+dot (`.sm:hover`) and the pill grows out of its point, draws its leg and rises over its neighbours; the pointer gone, it settles.
+The element takes no pointer, only the pin and the pill. **The slider is ONE scale for every mode** (`DUR = [0.25, 84]`, pos²):
+3 hours is 3 hours on a flight, a train or a walk — John: the hours must not change when the transport does.
+
 `?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
 it without faking clicks.

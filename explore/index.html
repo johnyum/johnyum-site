@@ -327,6 +327,22 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .mk-city .pin .stem { height: 20px; }
 .mk-city:hover .pill, .mk-hood.hero:hover .pill { box-shadow: 0 0 0 1px rgba(0,0,0,.02), 0 4px 10px rgba(0,0,0,.08), 0 10px 20px rgba(0,0,0,.14); }
 
+/* TWO FORMS ON ONE MARKER (John, 2026-10-06): the pill and its 20 pin, and the small 10 pin, share one element with their points
+   on one spot. `sm` is the place at rest — a dot. Hover a dot and the pill grows out of its point (the big pin inflating from the
+   small one's head) and the dot gives way; let go and it settles back. Only the pin and the pill take the pointer: the 142-wide
+   box is air, so a marker over the sea never hides the one beside it. A hovered marker rises over its neighbours. */
+.mk-city { pointer-events: none; }
+.mk-city:hover { z-index: 3; }
+.mk-city .pill, .mk-city .pin, .mk-city .pin-sm { pointer-events: auto; }
+.mk-city .pill, .mk-city .pin { transition: opacity 240ms var(--ease), transform 380ms var(--ease), box-shadow 200ms var(--ease); }
+.mk-city .pill { transform-origin: 14px 36px; }
+.mk-city .pin  { transform-origin: 10px 32px; }
+.mk-city.sm .pill, .mk-city.sm .pin { opacity: 0; transform: scale(.3); pointer-events: none; }
+.mk-city .pin-sm { left: 9px; bottom: 0; opacity: 0; transform: scale(2); transform-origin: 5px 15px; transition: opacity 200ms var(--ease), transform 380ms var(--ease); pointer-events: none; }
+.mk-city.sm .pin-sm { opacity: 1; transform: none; pointer-events: auto; }
+.mk-city.sm:hover .pill, .mk-city.sm:hover .pin { opacity: 1; transform: none; pointer-events: auto; }
+.mk-city.sm:hover .pin-sm { opacity: 0; transform: scale(2); }
+
 /* whichever marker is the way down keeps a slow ring going */
 .mk.hero .pin .head::before {
   content: ''; position: absolute; inset: 0; border-radius: 50%;
@@ -541,11 +557,16 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   ];
 
   // The unpriced pins — the map has more in it than the eleven it names.
+  // EVERY DOT HAS A NAME (John, 2026-10-06: hover a small pin and it grows into the full pill, glyph and all) — the quiet
+  // texture of the map is real places with real fares; they stay dots until the pointer asks
   var DOTS = [
-    [-123.12, 49.28], [-122.33, 47.61], [-114.07, 51.05], [-111.89, 40.76],
-    [ -93.27, 44.98], [ -79.38, 43.65], [ -71.06, 42.36], [ -75.17, 39.95],
-    [-112.07, 33.45], [ -95.37, 29.76], [ -86.78, 36.16], [ -84.39, 33.75],
-    [-103.33, 20.66], [ -86.85, 21.16]
+    { n: 'Vancouver',    p: 180, ll: [-123.12, 49.28] }, { n: 'Seattle',      p: 120, ll: [-122.33, 47.61] },
+    { n: 'Calgary',      p: 210, ll: [-114.07, 51.05] }, { n: 'Salt Lake City',p: 130, ll: [-111.89, 40.76] },
+    { n: 'Minneapolis',  p: 220, ll: [ -93.27, 44.98] }, { n: 'Toronto',      p: 300, ll: [ -79.38, 43.65] },
+    { n: 'Boston',       p: 290, ll: [ -71.06, 42.36] }, { n: 'Philadelphia', p: 270, ll: [ -75.17, 39.95] },
+    { n: 'Phoenix',      p: 120, ll: [-112.07, 33.45] }, { n: 'Houston',      p: 190, ll: [ -95.37, 29.76] },
+    { n: 'Nashville',    p: 230, ll: [ -86.78, 36.16] }, { n: 'Atlanta',      p: 240, ll: [ -84.39, 33.75] },
+    { n: 'Guadalajara',  p: 260, ll: [-103.33, 20.66] }, { n: 'Canc\u00fan',     p: 340, ll: [ -86.85, 21.16] }
   ];
 
   var ME = [-122.42, 37.77];   // San Francisco — where the traveller is standing
@@ -563,10 +584,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     { n: 'Los Angeles',     t: '7 hrs',   ll: [-118.24, 34.05] }
   ];
   var DRIVE_DOTS = [
-    [-122.27, 37.80], [-121.30, 38.68], [-119.70, 36.75], [-118.39, 37.36],
-    [-120.69, 38.35], [-123.21, 39.15], [-122.71, 38.44], [-121.29, 40.49],
-    [-116.98, 36.46], [-119.29, 34.27], [-117.16, 32.72], [-122.03, 36.97],
-    [-121.64, 41.49], [-118.78, 39.53]
+    { n: 'Oakland',      t: '25 min',  ll: [-122.27, 37.80] }, { n: 'Auburn',       t: '2.5 hrs', ll: [-121.30, 38.68] },
+    { n: 'Fresno',       t: '3 hrs',   ll: [-119.70, 36.75] }, { n: 'Bishop',       t: '6 hrs',   ll: [-118.39, 37.36] },
+    { n: 'Jackson',      t: '2.5 hrs', ll: [-120.69, 38.35] }, { n: 'Ukiah',        t: '2.5 hrs', ll: [-123.21, 39.15] },
+    { n: 'Santa Rosa',   t: '1.5 hrs', ll: [-122.71, 38.44] }, { n: 'Lassen',       t: '4.5 hrs', ll: [-121.29, 40.49] },
+    { n: 'Death Valley', t: '7.5 hrs', ll: [-116.98, 36.46] }, { n: 'Ventura',      t: '6 hrs',   ll: [-119.29, 34.27] },
+    { n: 'San Diego',    t: '8 hrs',   ll: [-117.16, 32.72] }, { n: 'Santa Cruz',   t: '1.5 hrs', ll: [-122.03, 36.97] },
+    { n: 'Lava Beds',    t: '6 hrs',   ll: [-121.64, 41.49] }, { n: 'Fallon',       t: '4.5 hrs', ll: [-118.78, 39.53] }
   ];
 
   // ── Rail: the California Zephyr, and what the whole way costs you in time.
@@ -591,9 +615,12 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     { n: 'Miami',          t: '3d 2hrs', ll: [ -80.19, 25.76], via: [Z, 'Floridian'] }
   ];
   var RAIL_DOTS = [
-    [-121.49, 38.58], [-117.70, 40.78], [-108.55, 39.06], [-102.00, 40.60],
-    [ -94.58, 39.10], [ -90.05, 35.15], [ -84.39, 33.75], [ -79.99, 40.44],
-    [ -81.69, 41.50], [-106.49, 31.76], [ -98.49, 29.42], [ -93.27, 44.98]
+    { n: 'Sacramento',    t: '2hrs',     ll: [-121.49, 38.58], via: [Z] },                      { n: 'Winnemucca',  t: '9hrs',     ll: [-117.70, 40.78], via: [Z] },
+    { n: 'Grand Junction',t: '20hrs',    ll: [-108.55, 39.06], via: [Z] },                      { n: 'McCook',      t: '1d 1hr',   ll: [-102.00, 40.60], via: [Z] },
+    { n: 'Kansas City',   t: '1d 10hrs', ll: [ -94.58, 39.10], via: [CS, 'Southwest Chief'] },  { n: 'Memphis',     t: '2d',       ll: [ -90.05, 35.15], via: [Z, 'City of New Orleans'] },
+    { n: 'Atlanta',       t: '2d 10hrs', ll: [ -84.39, 33.75], via: [Z, 'Crescent'] },           { n: 'Pittsburgh',  t: '2d',       ll: [ -79.99, 40.44], via: [Z, 'Capitol Limited'] },
+    { n: 'Cleveland',     t: '1d 20hrs', ll: [ -81.69, 41.50], via: [Z, 'Lake Shore Limited'] }, { n: 'El Paso',     t: '1d 14hrs', ll: [-106.49, 31.76], via: [CS, 'Sunset Limited'] },
+    { n: 'San Antonio',   t: '1d 22hrs', ll: [ -98.49, 29.42], via: [CS, 'Sunset Limited'] },   { n: 'Minneapolis', t: '1d 16hrs', ll: [ -93.27, 44.98], via: [Z, 'Empire Builder'] }
   ];
 
   var HOODS = [
@@ -618,8 +645,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // Placed in the gaps between the named markers, not scattered — an unnamed
   // pin landing on the LaGuardia card is a collision, not a texture.
   var NYC_DOTS = [
-    [-74.060, 40.820], [-73.995, 40.870], [-74.090, 40.640],
-    [-73.960, 40.600], [-73.720, 40.750], [-73.830, 40.598]
+    { n: 'Fort Lee',     p: 410, ll: [-74.060, 40.820] }, { n: 'Yonkers',    p: 350, ll: [-73.995, 40.870] },
+    { n: 'Bayonne',      p: 280, ll: [-74.090, 40.640] }, { n: 'Coney Island',p: 320, ll: [-73.960, 40.600] },
+    { n: 'Great Neck',   p: 360, ll: [-73.720, 40.750] }, { n: 'Rockaway',   p: 300, ll: [-73.830, 40.598] }
   ];
 
   // ── Williamsburg ────────────────────────────────────────────────────────
@@ -809,23 +837,41 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   var PIN = '<div class="pin"><i class="stem"></i><i class="head"><img src="assets/icons/pin-plane.svg" alt=""></i></div>';
   var PIN_SM = '<div class="pin-sm"><i class="stem"></i><i class="head"></i></div>';
 
-  function makeCity(c) {
-    var o = mk('mk-city' + (c.hero ? ' hero' : ''), 142, 36,
-      '<div class="pill"><b>' + c.n + ' ·</b><span>$' + c.p + '</span></div>' + PIN,
+  // ONE MARKER, TWO FORMS (John, 2026-10-06): every named place is built with both the pill (20 head with the mode's glyph, the
+  // name and the fare or the hours) AND the small 10 pin, on one element, their points on the same spot. `sm` shows the small
+  // one — a dot is simply a place at rest (`small: true`), and a pill the declutter pass has set down for want of room is the
+  // same thing; hovering either grows it into the pill (`:hover` beats `sm`), with the leg, and the pointer gone it settles back.
+  // The element itself takes no pointer: only the pin and the pill do, so a 142-wide box over the sea hides nothing beside it.
+  function makePill(cls, glyph, d, hover, small) {
+    var pin = '<div class="pin"><i class="stem"></i><i class="head"><img src="assets/icons/' + glyph + '" alt=""></i></div>';
+    var val = d.p != null ? '$' + d.p : d.t;
+    var o = mk('mk-city' + (cls ? ' ' + cls : '') + (d.hero ? ' hero' : '') + (small ? ' sm dot' : ''), 142, 36,
+      '<div class="pill"><b>' + d.n + ' ·</b><span>' + val + '</span></div>' + pin + PIN_SM,
       'bottom-left', [-14, 0]);
-    o.marker.setLngLat(c.ll);
-    // Hovering any city you can fly to draws the leg you would fly, with the hours on it (John, 2026-10-06); the hero is the way down
-    o.el.addEventListener('mouseenter', function () { var h = flightHours(c.ll); showFlight(ME, c.ll, mins(h * 3600), 0.24); });
-    o.el.addEventListener('mouseleave', hideRoute);
-    if (c.hero) o.el.addEventListener('click', function () { go('nyc'); });
-    else o.el.style.cursor = 'default';
+    o.marker.setLngLat(d.ll); o.d = d; o.dot = !!small;
+    o.el.style.cursor = hover || d.hero ? 'pointer' : 'default';
+    if (hover === 'flight') {
+      // Hovering any city you can fly to draws the leg you would fly, with the hours on it (John, 2026-10-06); the hero is the way down
+      o.el.addEventListener('mouseenter', function () { var h = flightHours(d.ll); showFlight(ME, d.ll, mins(h * 3600), 0.24); });
+      o.el.addEventListener('mouseleave', hideRoute);
+    } else if (hover === 'drive' || hover === 'walk') {
+      // The road, and only the road. The pill is already carrying the hours,
+      // so a chip sitting on the line just says the same thing twice. (A walk: the Directions walking route.)
+      o.el.addEventListener('mouseenter', function () {
+        showDrives([{ ll: ME, fallback: null }], d.ll, hover === 'walk' ? 'walking' : 'driving-traffic');
+      });
+      o.el.addEventListener('mouseleave', hideRoute);
+    } else if (hover === 'rail') {
+      // The line you would actually ride, on its real alignment — not a curve
+      // drawn from SF to the dot, which is the one thing a rail map cannot be.
+      o.el.addEventListener('mouseenter', function () { showRail(d.via || [], d.ll); });
+      o.el.addEventListener('mouseleave', hideRail);
+    }
+    if (d.hero) o.el.addEventListener('click', function () { go('nyc'); });
     return o;
   }
-  function makeDot(ll, cls) {
-    var o = mk('mk-dot' + (cls ? ' ' + cls : ''), 28, 36, PIN_SM, 'bottom');
-    o.marker.setLngLat(ll);
-    return o;
-  }
+  function makeCity(c, small) { return makePill('', 'pin-plane.svg', c, 'flight', small); }
+  function makeDot(d) { return makePill('', 'pin-plane.svg', d, null, true); }   // a city-beat dot: no leg from SF
   function makeHood(h) {
     var o = mk('mk-hood' + (h.hero ? ' hero' : ''), 139, 48,
       '<div class="pill"><b>' + h.n + '</b><span>$' + h.p + ' night avg</span></div>' + PIN,
@@ -865,31 +911,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // interpunct, then the value in Book. Only the value is hours, not dollars.
   // hover: 'drive' follows the road, 'rail' draws a dotted leg the way a flight
   // does — a train is not a car, and only the station being pointed at draws.
-  function makeTimed(cls, glyph, d, hover) {
-    var pin = '<div class="pin"><i class="stem"></i><i class="head">' +
-              '<img src="assets/icons/' + glyph + '" alt=""></i></div>';
-    var o = mk('mk-city ' + cls, 142, 36,
-      '<div class="pill"><b>' + d.n + ' ·</b><span>' + d.t + '</span></div>' + pin,
-      'bottom-left', [-14, 0]);
-    o.marker.setLngLat(d.ll);
-    o.el.style.cursor = 'default';
-    if (hover === 'drive' || hover === 'walk') {
-      // The road, and only the road. The pill is already carrying the hours,
-      // so a chip sitting on the line just says the same thing twice. (A walk: the Directions walking route.)
-      o.el.style.cursor = 'pointer';
-      o.el.addEventListener('mouseenter', function () {
-        showDrives([{ ll: ME, fallback: null }], d.ll, hover === 'walk' ? 'walking' : 'driving-traffic');
-      });
-      o.el.addEventListener('mouseleave', hideRoute);
-    } else if (hover === 'rail') {
-      // The line you would actually ride, on its real alignment — not a curve
-      // drawn from SF to the dot, which is the one thing a rail map cannot be.
-      o.el.style.cursor = 'pointer';
-      o.el.addEventListener('mouseenter', function () { showRail(d.via || [], d.ll); });
-      o.el.addEventListener('mouseleave', hideRail);
-    }
-    return o;
-  }
+  function makeTimed(cls, glyph, d, hover, small) { return makePill(cls, glyph, d, hover, small); }
 
   function makePrice(d) {
     var o = mk('mk-price', 57, 32, '<div class="pill">$' + d[0] + '</div>', 'center');
@@ -1007,7 +1029,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       { n: 'Coyote Hills',     t: '9 hrs',   ll: [-122.090, 37.552] }
     ]
   };
-  var WALK_DOTS = [[-122.418, 37.787], [-122.436, 37.770], [-122.463, 37.782], [-122.398, 37.771], [-122.470, 37.746], [-122.431, 37.796]];
+  var WALK_DOTS = [
+    { n: 'Nob Hill',       t: '30 min', ll: [-122.418, 37.787] }, { n: 'Alamo Square',   t: '35 min', ll: [-122.436, 37.770] },
+    { n: 'Inner Richmond', t: '1 hr',   ll: [-122.463, 37.782] }, { n: 'SoMa',           t: '20 min', ll: [-122.398, 37.771] },
+    { n: 'The Sunset',     t: '1.5 hrs',ll: [-122.470, 37.746] }, { n: 'The Marina',     t: '40 min', ll: [-122.431, 37.796] }
+  ];
   // THE VIBES FOR EVERY MODE (John, 2026-10-06): a car, a train and a walk each have their own Unique / Relax / Adventure
   var MODE_VIBES = {
     drive: {
@@ -1122,7 +1148,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       { n: 'Reykjavik',    p: 620,  ll: [ -21.94, 64.15] }, { n: 'Antarctica',  p: 9800, ll: [ -64.00,-64.80] }
     ]
   };
-  var WORLD_DOTS = [[-157.86, 21.31], [-149.90, 61.22], [-77.04, -12.05], [-70.67, -33.45], [-3.70, 40.42], [13.40, 52.52], [28.98, 41.01], [31.24, 30.04], [36.82, -1.29], [72.88, 19.08], [103.82, 1.35], [114.17, 22.32], [174.76, -36.85], [-43.17, -22.91]];
+  var WORLD_DOTS = [
+    { n: 'Honolulu',  p: 420,  ll: [-157.86, 21.31] }, { n: 'Anchorage', p: 450,  ll: [-149.90, 61.22] }, { n: 'Lima',      p: 780,  ll: [ -77.04,-12.05] },
+    { n: 'Santiago',  p: 920,  ll: [ -70.67,-33.45] }, { n: 'Madrid',    p: 800,  ll: [  -3.70, 40.42] }, { n: 'Berlin',    p: 830,  ll: [  13.40, 52.52] },
+    { n: 'Istanbul',  p: 900,  ll: [  28.98, 41.01] }, { n: 'Cairo',     p: 980,  ll: [  31.24, 30.04] }, { n: 'Addis Ababa',p: 1200, ll: [  38.74,  9.03] },
+    { n: 'Mumbai',    p: 950,  ll: [  72.88, 19.08] }, { n: 'Singapore', p: 880,  ll: [ 103.82,  1.35] }, { n: 'Hong Kong', p: 820,  ll: [ 114.17, 22.32] },
+    { n: 'Auckland',  p: 1000, ll: [ 174.76,-36.85] }, { n: 'Bogot\u00e1',    p: 560,  ll: [ -74.07,  4.71] }
+  ];
 
   // Build all three sets up front. Only one is ever on the map.
   // ONE TRAVELLER'S PIN (John, 2026-10-06: it kept going and coming back): made once, on the map for good on the continent's beats,
@@ -1130,23 +1162,24 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   var meMk = makeMe();
   function meOn(on) { if (on) { if (!meMk.marker._map) meMk.marker.addTo(map); requestAnimationFrame(function () { meMk.el.classList.add('in'); }); } else { meMk.el.classList.remove('in'); setTimeout(function () { if (!meMk.el.classList.contains('in')) meMk.marker.remove(); }, 420); } }
   var flightCity = function (c) { return withH(makeCity(c), flightHours(c.ll)); };
-  var usaSet  = CITIES.concat(WORLD.popular).map(flightCity).concat(DOTS.map(makeDot), WORLD_DOTS.map(makeDot));
+  var flightDot  = function (c) { return withH(makeCity(c, true), flightHours(c.ll)); };
+  var usaSet  = CITIES.concat(WORLD.popular).map(flightCity).concat(DOTS.map(flightDot), WORLD_DOTS.map(flightDot));
   // every mode's sets, by vibe: { drive: { popular, unique, relax, adventure }, usa: {…}, rail: {…}, walk: {…} }
   var vibeSets = { usa: { popular: usaSet } };
-  Object.keys(VIBES).forEach(function (k) { vibeSets.usa[k] = VIBES[k].concat(WORLD[k] || []).map(flightCity).concat(DOTS.map(makeDot), WORLD_DOTS.map(makeDot)); });
+  Object.keys(VIBES).forEach(function (k) { vibeSets.usa[k] = VIBES[k].concat(WORLD[k] || []).map(flightCity).concat(DOTS.map(flightDot), WORLD_DOTS.map(flightDot)); });
   var citySet = HOODS.map(makeHood).concat(AIRPORTS.map(makeAir), NYC_DOTS.map(makeDot));
   var hoodSet = PRICES.map(makePrice);
-  var timed = function (cls, glyph, hover) { return function (d) { return withH(makeTimed(cls, glyph, d, hover), hoursOf(d.t)); }; };
+  var timed = function (cls, glyph, hover, small) { return function (d) { return withH(makeTimed(cls, glyph, d, hover, small), hoursOf(d.t)); }; };
   var driveSet = DRIVES.concat(DRIVE_FAR.popular).map(timed('mk-drive', 'pin-car.svg', 'drive'))
-    .concat(DRIVE_DOTS.map(function (ll) { return makeDot(ll, 'mk-drive'); }));
+    .concat(DRIVE_DOTS.map(timed('mk-drive', 'pin-car.svg', 'drive', true)));
   var railSet = RAILS.map(timed('mk-rail', 'pin-train.svg', 'rail'))
-    .concat(RAIL_DOTS.map(function (ll) { return makeDot(ll, 'mk-rail'); }));
+    .concat(RAIL_DOTS.map(timed('mk-rail', 'pin-train.svg', 'rail', true)));
   var walkSet = WALKS.concat(WALK_FAR.popular).map(timed('mk-walk', 'pin-walk.svg', 'walk'))
-    .concat(WALK_DOTS.map(function (ll) { return makeDot(ll, 'mk-walk'); }));
+    .concat(WALK_DOTS.map(timed('mk-walk', 'pin-walk.svg', 'walk', true)));
   vibeSets.drive = { popular: driveSet }; vibeSets.rail = { popular: railSet }; vibeSets.walk = { popular: walkSet };
-  Object.keys(MODE_VIBES.drive).forEach(function (k) { vibeSets.drive[k] = MODE_VIBES.drive[k].concat(DRIVE_FAR[k] || []).map(timed('mk-drive', 'pin-car.svg', 'drive')).concat(DRIVE_DOTS.map(function (ll) { return makeDot(ll, 'mk-drive'); })); });
-  Object.keys(MODE_VIBES.rail).forEach(function (k) { vibeSets.rail[k] = MODE_VIBES.rail[k].map(timed('mk-rail', 'pin-train.svg', 'rail')).concat(RAIL_DOTS.map(function (ll) { return makeDot(ll, 'mk-rail'); })); });
-  Object.keys(MODE_VIBES.walk).forEach(function (k) { vibeSets.walk[k] = MODE_VIBES.walk[k].concat(WALK_FAR[k] || []).map(timed('mk-walk', 'pin-walk.svg', 'walk')).concat(WALK_DOTS.map(function (ll) { return makeDot(ll, 'mk-walk'); })); });
+  Object.keys(MODE_VIBES.drive).forEach(function (k) { vibeSets.drive[k] = MODE_VIBES.drive[k].concat(DRIVE_FAR[k] || []).map(timed('mk-drive', 'pin-car.svg', 'drive')).concat(DRIVE_DOTS.map(timed('mk-drive', 'pin-car.svg', 'drive', true))); });
+  Object.keys(MODE_VIBES.rail).forEach(function (k) { vibeSets.rail[k] = MODE_VIBES.rail[k].map(timed('mk-rail', 'pin-train.svg', 'rail')).concat(RAIL_DOTS.map(timed('mk-rail', 'pin-train.svg', 'rail', true))); });
+  Object.keys(MODE_VIBES.walk).forEach(function (k) { vibeSets.walk[k] = MODE_VIBES.walk[k].concat(WALK_FAR[k] || []).map(timed('mk-walk', 'pin-walk.svg', 'walk')).concat(WALK_DOTS.map(timed('mk-walk', 'pin-walk.svg', 'walk', true))); });
 
   // ── The neighbourhood mask ──────────────────────────────────────────────
   // A world-sized polygon with Williamsburg punched out of it dims everything
@@ -1383,12 +1416,15 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     set.forEach(function (o, i) {
       if (!within(o)) return;   // past the travel-time slider: left off
       o.marker.addTo(map);
-      setTimeout(function () { o.el.classList.add('in'); }, 40 + i * (stagger || 40));
+      setTimeout(function () { o.el.classList.add('in'); declutterSoon(); }, 40 + i * (stagger || 40));
     });
   }
   // THE TRAVEL TIME (John, 2026-10-06): the slider is a real filter — a pin whose hours are past it is off the map. Each mode has
   // its own range: a car 1–12 hours, a flight 1–12, a train 4 hours to 3 days ('Any duration' at the end), a walk 15 min to 4 hours.
-  var DUR = { drive: [1, 84], usa: [1, 20], rail: [4, 80], walk: [0.25, 10] };   // a walk's end is a long day on foot — the Bay   // hours = lo + (hi − lo) · pos²: the near end has room, and the far end still reaches days (a car to Anchorage); the end is Any duration
+  // ONE SCALE FOR EVERY MODE (John, 2026-10-06: "if it's 3 hours on flights it should be 3 hours on trains"): the knob's hours are
+  // the knob's hours, whatever the transport — 15 minutes to three and a half days, then Any. hours = lo + (hi − lo) · pos²,
+  // so the near end has room for a walk and the far end still reaches the days a car or a train takes
+  var DUR = [0.25, 84];
   var maxH = { drive: 8, usa: 8, rail: Infinity, walk: 2 };
   function within(o, beat) { var m = maxH[beat || state]; return o.h == null || m == null || o.h <= m; }
   function durLabel(h, pos) { if (pos >= 0.995) return 'Any duration'; if (h < 1) return 'Under ' + Math.round(h * 60) + ' min'; if (h >= 24) { var d = Math.round(h / 12) / 2; return 'Under ' + (d === 1 ? '1 day' : d + ' days'); } var r = Math.round(h * 2) / 2; return 'Under ' + (r === 1 ? '1 hour' : r + ' hours'); }
@@ -1396,8 +1432,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     var set = BEATS[state] && BEATS[state].set; if (!set) return;
     set.forEach(function (o, i) {
       var want = within(o), on = !!o.marker._map;
-      if (want && !on) { o.marker.addTo(map); setTimeout(function () { o.el.classList.add('in'); }, 30 + i * 12); }
-      else if (!want && on) { o.el.classList.remove('in'); setTimeout(function () { if (!within(o)) o.marker.remove(); }, 420); }
+      if (want && !on) { o.marker.addTo(map); setTimeout(function () { o.el.classList.add('in'); declutterSoon(); }, 30 + i * 12); }
+      else if (!want && on) { o.el.classList.remove('in'); setTimeout(function () { if (!within(o)) o.marker.remove(); declutterSoon(); }, 420); }
     });
     fitVisible();
   }
@@ -1425,6 +1461,32 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       map.easeTo({ center: c.center, zoom: c.zoom, padding: c.padding || PAD(), duration: 700, essential: true });
     }, 140);
   }
+  // ROOM FOR EVERY PILL (John, 2026-10-06: "collision logic so pills aren't overlapping at different zoom levels", and "a good mix
+  // of small and big"): every marker on the map is a candidate pill. In rank order — the hero, then the named places as written,
+  // then the dots — each keeps its pill if its rect (the pill plus 10 of air) clears everything already standing, the traveller
+  // included; otherwise it settles to its dot. So a sparse map fills itself with the dots' pills and a crowded one thins to dots,
+  // and the same order every pass keeps the picture steady as the camera moves. A hovered marker is never set down under the pointer.
+  var declRaf = 0, DECL_GAP = 10;
+  function declutter() {
+    declRaf = 0;
+    var set = BEATS[state] && BEATS[state].set; if (!set) return;
+    var cands = set.filter(function (o) { return o.d && o.marker._map && o.el.classList.contains('in'); });
+    var rank = function (o) { return o.d.hero ? 0 : o.dot ? 2 : 1; };
+    cands.sort(function (a, b) { return rank(a) - rank(b); });
+    var kept = [];
+    if (meMk && meMk.marker._map) { var m = map.project(meMk.marker.getLngLat()); kept.push({ l: m.x - 20, t: m.y - 48, r: m.x + 20, b: m.y }); }
+    cands.forEach(function (o) {
+      var p = map.project(o.marker.getLngLat());
+      if (!o.pw) { var pl = o.el.querySelector('.pill'); o.pw = (pl && pl.offsetWidth) || 120; }
+      var r = { l: p.x - 14, t: p.y - 36, r: p.x - 14 + o.pw, b: p.y - 8 };
+      var hits = kept.some(function (k) { return r.l < k.r + DECL_GAP && r.r > k.l - DECL_GAP && r.t < k.b + DECL_GAP && r.b > k.t - DECL_GAP; });
+      if (!hits || o.el.matches(':hover')) { kept.push(r); o.el.classList.remove('sm'); }
+      else o.el.classList.add('sm');
+    });
+  }
+  function declutterSoon() { if (!declRaf) declRaf = requestAnimationFrame(declutter); }
+  map.on('move', declutterSoon); map.on('moveend', declutterSoon);
+
   function hide(set, stagger, done) {
     set.forEach(function (o, i) {
       setTimeout(function () { o.el.classList.remove('in'); }, i * (stagger || 24));
@@ -1446,10 +1508,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // says which way a move is going. Same depth means a sideways move: the whole
   // field leaves together and the new one arrives, no marker held back.
   var BEATS = {
-    drive: { cam: DRIVE_CAM, set: driveSet, layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 0, dur: ['29%', 'Under 8 hours'] },
-    usa:   { cam: USA_CAM,   set: usaSet,   layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 1, dur: ['61%', 'Under 8 hours'] },
-    rail:  { cam: RAIL_CAM,  set: railSet,  layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 2, dur: ['100%', 'Any duration'] },
-    walk:  { cam: WALK_CAM,  set: walkSet,  layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 3, dur: ['42%', 'Under 2 hours'] },
+    drive: { cam: DRIVE_CAM, set: driveSet, layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 0, dur: ['29%', 'Under 7.5 hours'] },
+    usa:   { cam: USA_CAM,   set: usaSet,   layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 1, dur: ['29%', 'Under 7.5 hours'] },
+    rail:  { cam: RAIL_CAM,  set: railSet,  layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 2, dur: ['29%', 'Under 7.5 hours'] },
+    walk:  { cam: WALK_CAM,  set: walkSet,  layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 3, dur: ['29%', 'Under 7.5 hours'] },
     nyc:   { cam: NYC_CAM,   set: citySet,  layer: 'layerCity', cls: 'is-city', tab: 0, depth: 1 },
     hood:  { cam: HOOD_CAM,  set: hoodSet,  layer: 'layerHood', cls: 'is-hood', tab: 1, depth: 2 }
   };
@@ -1579,7 +1641,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   }
   var durPos = null;
   function applyPos(pos, quiet) {
-    var rng = DUR[state] || DUR.drive, h = rng[0] + (rng[1] - rng[0]) * pos * pos;
+    var rng = DUR, h = rng[0] + (rng[1] - rng[0]) * pos * pos;
     maxH[state] = pos >= 0.995 ? Infinity : h;
     durTrack.style.setProperty('--pos', (pos * 100).toFixed(1) + '%'); durValue.textContent = durLabel(h, pos);
     if (!quiet) applyDur();
@@ -1589,7 +1651,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     var drag = false;
     var at = function (e) { var r = durTrack.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); };
     var setPos = function (pos) { durPos = pos; applyPos(pos, false); };
-    durTrack.addEventListener('pointerdown', function (e) { if (!DUR[state]) return; drag = true; durTrack.classList.add('dragging'); durTrack.setPointerCapture(e.pointerId); setPos(at(e)); e.preventDefault(); });
+    durTrack.addEventListener('pointerdown', function (e) { if (!BEATS[state].dur) return; drag = true; durTrack.classList.add('dragging'); durTrack.setPointerCapture(e.pointerId); setPos(at(e)); e.preventDefault(); });
     durTrack.addEventListener('pointermove', function (e) { if (drag) setPos(at(e)); });
     var up = function () { drag = false; durTrack.classList.remove('dragging'); };
     durTrack.addEventListener('pointerup', up); durTrack.addEventListener('pointercancel', up);
