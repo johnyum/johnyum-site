@@ -670,7 +670,10 @@ After the Tide pool demo's answer the app fills the box with the game question, 
 Tapping a creature shows its name above it — only the tapped one — while it's enlarged: a 40px white glass pill,
 no pointer under it; on white it's held by a hairline ring and a two-layer soft shadow, never one dark drop (black
 glass was tried). **The game question flushes the pile** (`poolFlush()`): each creature hops and drops through
-everything into the chat box (a layer clipped at the box's top swallows it), one after another; then the cards
+everything into the chat box, one after another — swallowed by the box itself: the layer they fall through is the whole screen with
+the box's rounded rect cut out of it, run on down past the bottom (`flushClip()`, a CSS mask re-read each frame — the keyboard
+moves the box; a full-width cut at the box's top read as a white scrim slicing the icons with the keyboard up, John 2026-10-07;
+an SVG clip-path reference did nothing in the phone's WebKit); then the cards
 drop in from the top, straight down to the middle where the pile was. In the open game the icon sits up top, 48 under the Dynamic Island (`ISLAND`).
 **The close X is the page's** (`.tclose`): 48 round, black with a white X 12 × 12, 48 up from the bottom of the screen,
 in the app too. A native glass one (`PeekCloseButton`, asked for with `{type:'close', on}`) is still in the app but

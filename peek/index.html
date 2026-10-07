@@ -2255,11 +2255,25 @@ function poolDrop(key, extra) {
 // it, so it reads as going down a drain, not across the box. The cards then come in from the top.
 const flushing = [];
 let flushEl = null;
+// everything but the box: the screen, with the box's rounded top and its column below cut out (the keyboard moves the box, so it's re-read each frame while anything falls)
+// (a CSS mask, not an SVG clip-path: WebKit on the phone ignored a clipPath reference and the creatures fell on over the box)
+function flushClip() {
+  if (!flushEl) return;
+  const g = homeGround(), r = g ? rectOf(g) : null;
+  if (!r) { flushEl.style.webkitMaskImage = flushEl.style.maskImage = ''; return; }
+  const w = Math.round(r.width), h = Math.round(innerHeight + 200 - r.top), R = 24;   // the box's rounded rect, run on down past the screen's bottom
+  const hole = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'><rect width='${w}' height='${h}' rx='${R}' fill='black'/></svg>`)}")`;
+  const img = `${hole}, linear-gradient(#000 0 0)`, pos = `${r.left.toFixed(1)}px ${r.top.toFixed(1)}px, 0 0`, size = `${w}px ${h}px, 100% 100%`;
+  flushEl.style.webkitMaskImage = img; flushEl.style.webkitMaskPosition = pos; flushEl.style.webkitMaskSize = size; flushEl.style.webkitMaskRepeat = 'no-repeat'; flushEl.style.webkitMaskComposite = 'destination-out, source-over';   // the hole cut from the whole
+  flushEl.style.maskImage = img; flushEl.style.maskPosition = pos; flushEl.style.maskSize = size; flushEl.style.maskRepeat = 'no-repeat'; flushEl.style.maskComposite = 'exclude, add';
+}
 function poolFlush() {
   if (!critters.length) return;
   const g = homeGround(), top = g ? rectOf(g).top : innerHeight;
-  if (!flushEl) { flushEl = document.createElement('div'); flushEl.style.cssText = 'position:absolute;left:0;top:0;right:0;overflow:hidden;pointer-events:none'; poolEl.append(flushEl); }
-  flushEl.style.height = Math.max(0, top) + 'px';
+  if (!flushEl) {   // the layer the creatures fall through: the whole screen, with the chat box cut out of it — so one vanishes exactly where it passes behind the box, and nowhere else (a full-width cut at the box's top read as a white scrim cutting the icons off — John, 2026-10-07)
+    flushEl = document.createElement('div'); flushEl.style.cssText = 'position:absolute;left:0;top:0;right:0;bottom:0;overflow:hidden;pointer-events:none'; poolEl.append(flushEl);
+  }
+  flushClip();
   if (poolFocus) { poolFocus = null; tell({ type: 'highlight', terms: [] }); }
   if (tcard) closeCard();
   critters.forEach((c, i) => {
@@ -3497,6 +3511,7 @@ function poolStep(now) {
       else c.bubble.style.transform = `translate(${(b.position.x - c.bubble.offsetWidth / 2).toFixed(1)}px, ${(b.position.y - c.w * .5 - c.bubble.offsetHeight - 10).toFixed(1)}px)`;
     }
   }
+  if (flushing.length) flushClip();
   for (const c of [...flushing]) {
     const b = c.body;
     if (c.flushAt) { if (now < c.flushAt) { c.hold ||= { ...b.position }; Matter.Body.setPosition(b, c.hold); Matter.Body.setVelocity(b, { x: 0, y: 0 }); continue; } Matter.Body.setVelocity(b, { x: (Math.random() - .5) * 1.5, y: -3.5 }); Matter.Body.setAngularVelocity(b, (Math.random() - .5) * .06); c.flushAt = 0; }
