@@ -1046,11 +1046,46 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   function flightHours(ll) { var R = 6371, dLa = (ll[1] - ME[1]) * Math.PI / 180, dLo = (ll[0] - ME[0]) * Math.PI / 180, a = Math.sin(dLa / 2) * Math.sin(dLa / 2) + Math.cos(ME[1] * Math.PI / 180) * Math.cos(ll[1] * Math.PI / 180) * Math.sin(dLo / 2) * Math.sin(dLo / 2); var km = 2 * R * Math.asin(Math.sqrt(a)); return Math.round((km / 780 + 1.2) * 2) / 2; }
   var withH = function (o, h) { o.h = h; return o; };
 
+  // THE WORLD (John, 2026-10-06: slide the travel time out to Any duration and the map opens to Europe, Asia and the rest):
+  // the flights' far pins, by vibe — their hours come from the distance, so they only appear once the slider lets them
+  var WORLD = {
+    popular: [
+      { n: 'London',    p: 412, ll: [  -0.13, 51.51] }, { n: 'Paris',     p: 388, ll: [   2.35, 48.86] }, { n: 'Tokyo',      p: 296, ll: [ 139.69, 35.69] },
+      { n: 'Rome',      p: 341, ll: [  12.50, 41.90] }, { n: 'Barcelona', p: 302, ll: [   2.17, 41.39] }, { n: 'Lisbon',     p: 254, ll: [  -9.14, 38.72] },
+      { n: 'Bali',      p: 168, ll: [ 115.19, -8.41] }, { n: 'Sydney',    p: 359, ll: [ 151.21,-33.87] }, { n: 'Bangkok',    p: 142, ll: [ 100.50, 13.76] },
+      { n: 'Seoul',     p: 231, ll: [ 126.98, 37.57] }, { n: 'Dubai',     p: 377, ll: [  55.27, 25.20] }, { n: 'Cape Town',  p: 219, ll: [  18.42,-33.92] },
+      { n: 'Buenos Aires', p: 187, ll: [ -58.38,-34.60] }, { n: 'Reykjavik', p: 398, ll: [ -21.94, 64.15] }
+    ],
+    unique: [
+      { n: 'Faroe Islands', p: 356, ll: [  -6.79, 62.01] }, { n: 'Svalbard',  p: 489, ll: [  15.63, 78.22] }, { n: 'Socotra',    p: 164, ll: [  53.87, 12.46] },
+      { n: 'Tbilisi',       p: 121, ll: [  44.79, 41.72] }, { n: 'Paro',      p: 612, ll: [  89.42, 27.43] }, { n: 'Uyuni',      p: 98,  ll: [ -66.83,-20.46] },
+      { n: 'Lalibela',      p: 143, ll: [  39.04, 12.03] }, { n: 'Lofoten',   p: 377, ll: [  14.56, 68.21] }, { n: 'Muscat',     p: 233, ll: [  58.41, 23.59] },
+      { n: 'Matera',        p: 198, ll: [  16.61, 40.67] }, { n: 'Leh',       p: 112, ll: [  77.58, 34.15] }, { n: 'Ulaanbaatar',p: 134, ll: [ 106.92, 47.92] },
+      { n: 'Tristan da Cunha', p: 71, ll: [ -12.28,-37.11] }
+    ],
+    relax: [
+      { n: 'Maldives',   p: 892, ll: [  73.22,   3.20] }, { n: 'Santorini', p: 498, ll: [  25.43, 36.39] }, { n: 'Amalfi',     p: 611, ll: [  14.60, 40.63] },
+      { n: 'Lake Como',  p: 723, ll: [   9.26, 45.99] }, { n: 'Phuket',    p: 176, ll: [  98.39,  7.88] }, { n: 'Seychelles', p: 814, ll: [  55.49, -4.68] },
+      { n: 'Algarve',    p: 287, ll: [  -8.25, 37.02] }, { n: 'Zanzibar',  p: 243, ll: [  39.19, -6.16] }, { n: 'Fiji',       p: 455, ll: [ 178.07,-17.71] },
+      { n: 'Bora Bora',  p: 967, ll: [-151.74,-16.50] }, { n: 'Bali',      p: 168, ll: [ 115.19, -8.41] }, { n: 'Maui',       p: 521, ll: [-156.33, 20.80] },
+      { n: 'Ibiza',      p: 534, ll: [   1.43, 38.91] }
+    ],
+    adventure: [
+      { n: 'El Chaltén',   p: 154, ll: [ -72.89,-49.33] }, { n: 'Queenstown',  p: 312, ll: [ 168.66,-45.03] }, { n: 'Chamonix',   p: 389, ll: [   6.87, 45.92] },
+      { n: 'Kathmandu',    p: 87,  ll: [  85.32, 27.72] }, { n: 'Puerto Natales', p: 176, ll: [ -72.51,-51.73] }, { n: 'Moshi',      p: 132, ll: [  37.34, -3.35] },
+      { n: 'Niseko',       p: 298, ll: [ 140.69, 42.80] }, { n: 'Nosara',      p: 221, ll: [ -85.65,  9.98] }, { n: 'Taghazout',  p: 98,  ll: [  -9.71, 30.54] },
+      { n: 'Cape Town',    p: 219, ll: [  18.42,-33.92] }, { n: 'Interlaken',  p: 356, ll: [   7.86, 46.69] }, { n: 'Hokkaido',   p: 243, ll: [ 142.86, 43.06] },
+      { n: 'Reykjavik',    p: 398, ll: [ -21.94, 64.15] }
+    ]
+  };
+  var WORLD_DOTS = [[-157.86, 21.31], [-149.90, 61.22], [-77.04, -12.05], [-70.67, -33.45], [-3.70, 40.42], [13.40, 52.52], [28.98, 41.01], [31.24, 30.04], [36.82, -1.29], [72.88, 19.08], [103.82, 1.35], [114.17, 22.32], [174.76, -36.85], [-43.17, -22.91]];
+
   // Build all three sets up front. Only one is ever on the map.
-  var usaSet  = CITIES.map(function (c) { return withH(makeCity(c), flightHours(c.ll)); }).concat(DOTS.map(makeDot), [makeMe()]);
+  var flightCity = function (c) { return withH(makeCity(c), flightHours(c.ll)); };
+  var usaSet  = CITIES.concat(WORLD.popular).map(flightCity).concat(DOTS.map(makeDot), WORLD_DOTS.map(makeDot), [makeMe()]);
   // every mode's sets, by vibe: { drive: { popular, unique, relax, adventure }, usa: {…}, rail: {…}, walk: {…} }
   var vibeSets = { usa: { popular: usaSet } };
-  Object.keys(VIBES).forEach(function (k) { vibeSets.usa[k] = VIBES[k].map(function (c) { return withH(makeCity(c), flightHours(c.ll)); }).concat(DOTS.map(makeDot), [makeMe()]); });
+  Object.keys(VIBES).forEach(function (k) { vibeSets.usa[k] = VIBES[k].concat(WORLD[k] || []).map(flightCity).concat(DOTS.map(makeDot), WORLD_DOTS.map(makeDot), [makeMe()]); });
   var citySet = HOODS.map(makeHood).concat(AIRPORTS.map(makeAir), NYC_DOTS.map(makeDot));
   var hoodSet = PRICES.map(makePrice);
   var timed = function (cls, glyph, hover) { return function (d) { return withH(makeTimed(cls, glyph, d, hover), hoursOf(d.t)); }; };
@@ -1268,7 +1303,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   }
   // THE TRAVEL TIME (John, 2026-10-06): the slider is a real filter — a pin whose hours are past it is off the map. Each mode has
   // its own range: a car 1–12 hours, a flight 1–12, a train 4 hours to 3 days ('Any duration' at the end), a walk 15 min to 4 hours.
-  var DUR = { drive: [1, 12], usa: [1, 12], rail: [4, 80], walk: [0.25, 4] };
+  var DUR = { drive: [1, 12], usa: [1, 20], rail: [4, 80], walk: [0.25, 4] };   // a flight's slider runs to Any duration — the world
   var maxH = { drive: 8, usa: 8, rail: Infinity, walk: 2 };
   function within(o) { var m = maxH[state]; return o.h == null || m == null || o.h <= m; }
   function durLabel(h, pos) { if (pos >= 0.995) return 'Any duration'; if (h < 1) return 'Under ' + Math.round(h * 60) + ' min'; var r = Math.round(h * 2) / 2; return 'Under ' + (r === 1 ? '1 hour' : r + ' hours'); }
@@ -1279,6 +1314,22 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       if (want && !on) { o.marker.addTo(map); setTimeout(function () { o.el.classList.add('in'); }, 30 + i * 12); }
       else if (!want && on) { o.el.classList.remove('in'); setTimeout(function () { if (!within(o)) o.marker.remove(); }, 420); }
     });
+    fitVisible();
+  }
+  // THE MAP CHANGES SCALE WITH THE SLIDER (John, 2026-10-06): the camera fits whatever pins the hours allow — a short walk is
+  // downtown, a long one the whole city; a flight out to Any duration is the world
+  var fitT = 0, WORLD_CAM = { center: [20, 22], zoom: 1.05 };
+  function fitVisible() {
+    clearTimeout(fitT);
+    fitT = setTimeout(function () {
+      var set = BEATS[state] && BEATS[state].set; if (!set || busy) return;
+      var pts = []; set.forEach(function (o) { if (o.h != null && within(o)) pts.push(o.marker.getLngLat()); });
+      if (pts.length < 2) return;
+      var lngs = pts.map(function (q) { return q.lng; }), span = Math.max.apply(null, lngs) - Math.min.apply(null, lngs);
+      if (span > 200) { map.easeTo({ center: WORLD_CAM.center, zoom: WORLD_CAM.zoom, padding: PAD(), duration: 700, essential: true }); return; }
+      var b = new mapboxgl.LngLatBounds(); pts.forEach(function (q) { b.extend(q); }); b.extend(ME);
+      map.fitBounds(b, { padding: { top: 90, bottom: 70, left: PAD().left + 80, right: 100 }, maxZoom: FIT_MAX[state] || 4.6, duration: 700, essential: true });
+    }, 140);
   }
   function hide(set, stagger, done) {
     set.forEach(function (o, i) {
@@ -1302,7 +1353,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // field leaves together and the new one arrives, no marker held back.
   var BEATS = {
     drive: { cam: DRIVE_CAM, set: driveSet, layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 0, dur: ['62%', 'Under 8 hours'] },
-    usa:   { cam: USA_CAM,   set: usaSet,   layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 1, dur: ['62%', 'Under 8 hours'] },
+    usa:   { cam: USA_CAM,   set: usaSet,   layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 1, dur: ['37%', 'Under 8 hours'] },
     rail:  { cam: RAIL_CAM,  set: railSet,  layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 2, dur: ['100%', 'Any duration'] },
     walk:  { cam: WALK_CAM,  set: walkSet,  layer: 'layerUsa',  cls: '',        tab: 0, depth: 0, mode: 3, dur: ['44%', 'Under 2 hours'] },
     nyc:   { cam: NYC_CAM,   set: citySet,  layer: 'layerCity', cls: 'is-city', tab: 0, depth: 1 },
