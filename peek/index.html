@@ -239,7 +239,7 @@ button, textarea { font: inherit; color: inherit; }
 .print canvas.scene { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
 /* THE CAST (2026-10-06): three engraved portraits as avatars, hanging 16 above the chat box, 16 apart — a 1.5 black ring round each;
    tapped, one grows to 72 with its name above it and its sentences go yellow, as a creature's do */
-.cast { position: absolute; left: 0; right: 0; height: 112px; pointer-events: auto; touch-action: pan-y; cursor: grab; overflow: hidden; }   /* 24 over the faces and 24 under: a grown face and the shadows stay whole */   /* THE CAST, a carousel (John, 2026-10-06): the faces nearest the middle at 64, the next out at 48, then 32 and faint, laid out from the centre with the gaps shrinking with them; drag or scroll sideways and they slide through, snapping to a face; 3px white rings on a shadow, 24 of room under them for it; a tap scales one up from its base */
+.cast { position: absolute; left: 0; right: 0; height: 112px; pointer-events: auto; touch-action: none; cursor: grab; overflow: hidden; }   /* 24 over the faces and 24 under: a grown face and the shadows stay whole */   /* THE CAST, a carousel (John, 2026-10-06): the faces nearest the middle at 64, the next out at 48, then 32 and faint, laid out from the centre with the gaps shrinking with them; drag or scroll sideways and they slide through, snapping to a face; 3px white rings on a shadow, 24 of room under them for it; a tap scales one up from its base */
 .cast .slot { position: absolute; bottom: 24px; width: 64px; height: 64px; transform-origin: 50% 100%; }
 .cast .face { width: 100%; height: 100%; border-radius: 50%; border: 3px solid #fff; background: #fff; padding: 0; overflow: hidden; cursor: pointer; box-sizing: border-box;
   box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 5px 14px rgba(0,0,0,.18); transform-origin: 50% 100%; transition: transform .5s cubic-bezier(.22,1,.36,1); -webkit-tap-highlight-color: transparent; }
@@ -2793,7 +2793,11 @@ const mmss = (s) => { s = Math.ceil(s); return `${Math.floor(s / 60)}:${String(s
    and drops into the pile, still counting. */
 let tcard = null, audio = null;   // the grown timer, if any
 const grownSize = () => tcard?.ui.classList.contains('page') ? (tcard.ui.querySelector('.thead .tpic')?.getBoundingClientRect().width || 64) : 64;   // tapped, the timer becomes a small icon over its readout and play button
-function timerCard(c) { tcard ? shrinkTimer() : growTimer(c); }
+function timerCard(c) { if (c.call) callTap(); tcard ? shrinkTimer() : growTimer(c); }
+// the call rushed to its end — the hang-up, the puff, the receipt (the deck's next tap mid-call; on the phone a triple tap on the call, John 2026-10-07); true if there was a call to rush
+function callRush() { const call = ins?.call; if (!call || call.ended || call.rush) return false; call.rush = true; const c = critters.find((o) => o.call === call); if (c && !tcard) growTimer(c); return true; }
+let callTaps = [];
+function callTap() { const now = performance.now(); callTaps = callTaps.filter((t) => now - t < 900); callTaps.push(now); if (callTaps.length >= 3) { callTaps = []; callRush(); } }
 function growTimer(c) {
   if (c.timer) audio ||= new (window.AudioContext || window.webkitAudioContext)();   // made on a tap, so it can tick and ring
   const { Composite } = Matter;
@@ -2820,6 +2824,7 @@ function growTimer(c) {
   }   // a recipe: one white page, scrolled whole
   else if (c.call) {   // the call: the egg timer's column, live
     ui.innerHTML = callHTML(c);
+    ui.addEventListener('pointerup', () => callTap());   // three quick taps on the open call rush it to the end
     ui.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return; const call = c.call;
       if (b.dataset.a === 'listen') { audio ||= new (window.AudioContext || window.webkitAudioContext)(); audio.resume?.(); call.listen = !call.listen;
@@ -4342,7 +4347,7 @@ if (PRESO) {
     ACTS_PRESO = '<div class="acts">' + sf('doc.on.doc', 'copy') + sf('arrow.clockwise', 'retry') + sf('hand.thumbsup', 'up') + sf('hand.thumbsdown', 'down') + '</div>';
   }
   // a tap mid-call speeds the rest of it through to the hang-up and the puff (John, 2026-10-06); true if there was a call to rush
-  const rush = () => { const call = ins?.call; if (!call || call.ended || call.rush) return false; call.rush = true; const c = critters.find((o) => o.call === call); if (c && !tcard) growTimer(c); return true; };
+  const rush = callRush;
   window.__demo = { play, SCENES, rush, get scene() { return scene; }, get turn() { return turn; }, get playing() { return playing; } };
 }
 if (EMBED || PRESO) {
@@ -4444,6 +4449,7 @@ if (EMBED || PRESO) {
     if (card) { const b = card.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }
     for (const c of critters) { const b = c.el.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); }   // the creatures take touches
     if (spidey?.g) rs.push(spidey.bbox);   // so does Spider-Man
+    if (cast) { const b = cast.el.getBoundingClientRect(); rs.push([b.left, b.top, b.width, b.height]); if (cast.name) { const n = cast.name.getBoundingClientRect(); rs.push([n.left, n.top, n.width, n.height]); } }   // and the cast (on the phone its row and faces never got the touches — John, 2026-10-07)
     if (tcard) rs.push([0, 0, innerWidth, innerHeight]);
     if ((critters.length > 0) !== motionOn) { motionOn = critters.length > 0; tell({ type: 'motion', on: motionOn }); }   // the app reads the motion sensor only while there's a pile   // the grown timer has the whole screen: a tap outside shrinks it back
     // How tall the pile on the chat box is, so the app can make that much room at the chat's end.
