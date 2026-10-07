@@ -15,6 +15,11 @@
   .sheet { position: relative; flex: none; width: 1920px; height: 1080px; transform: translate(calc(var(--offx, 0px) * var(--s, 1)), calc(var(--off, 0px) * var(--s, 1))) scale(var(--s, 1)); transform-origin: center; transition: transform .9s cubic-bezier(.22,1,.36,1); }
   .tile { position: absolute; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; background: #fff; opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .7s cubic-bezier(.22,1,.36,1); transition-delay: var(--d, 0s); }
   .tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  /* THE CALENDAR IS THE REAL THING (John, 2026-10-07: "this cal is a PNG — I need this but real, and especially the dev switches at
+     the bottom"): the centre tile is the web multi-calendar itself — the 2 July build from the side studies, the one the grab was
+     taken from (its dev bar is the grab's: Bookings, Price variance, Groups, Redlines, Reset; the live /multi/ has host sizes
+     there instead) — laid out at 1500 x 938 (the grab's cell size; at 2000 it shows a month of days) and scaled to the tile */
+  .tile.centre iframe { display: block; width: 1500px; height: 938px; border: 0; transform-origin: 0 0; background: #fff; }
   .tile.centre { border-radius: 16px; opacity: 1; transform: none; }
   .tile.icon { display: grid; place-items: center; padding: 10px; box-sizing: border-box; }
   .tile.icon img { width: 34%; height: 34%; object-fit: contain; }   /* one small icon to a cell… */
@@ -45,7 +50,7 @@
   const spot = (w, h) => { const all = [], adj = []; for (let r = 0; r <= ROWS - h; r++) for (let c = 0; c <= COLS - w; c++) if (free(c, r, w, h)) { all.push([c, r]); if (touches(c, r, w, h)) adj.push([c, r]); } const pool = adj.length ? adj : all; return pool.length ? pool[Math.floor(rnd() * pool.length)] : null; };
   // the calendar 7 x 5 on a 20 x 11 board: the pieces round it smaller by a third, the calendar itself ~15% smaller (John, 2026-10-06)
   { const c = 5, r = 2; take(c, r, 7, 5); const b = cell(c, r, 7, 5), h = Math.round(b.w / 1.6), y = b.y + Math.round((b.h - h) / 2);   // the calendar keeps its own proportion (2000 x 1250) inside its 6 x 4 block, so nothing is cut off its sides
-    tiles.push({ src: 'assets/process-multical.webp', x: b.x, y, w: b.w, h, centre: true }); }
+    tiles.push({ live: 'assets/studies/proto/builds/multi-2026-07-02.html', x: b.x, y, w: b.w, h, centre: true }); }   // the real web calendar, not the grab (assets/process-multical.webp is kept)
   { take(5, 0, 5, 2); tiles.push({ src: A + 'graph-01-current-straight-line-pills.webp', ...cell(5, 0, 5, 2) }); }   // the straight-line graph right above the calendar (John, 2026-10-06)
   const CC = cell(5, 2, 7, 5), OFF = SH / 2 - (CC.y + CC.h / 2), OFFX = SW / 2 - (CC.x + CC.w / 2);   // and half a column, the same way   // the calendar sits half a row above the sheet's middle: the sheet is shifted down by that, so the calendar is centred on the screen and the board (which bleeds anyway) carries the difference
   const W = (n) => [n, 3, 2], P = (n) => [n, 1, 2];
@@ -86,7 +91,9 @@
     el.style.left = t.x + 'px'; el.style.top = t.y + 'px'; el.style.width = t.w + 'px'; el.style.height = t.h + 'px';
     const d = Math.hypot(t.x + t.w / 2 - SW / 2, t.y + t.h / 2 - SH / 2) / 900; el.style.setProperty('--d', (0.25 + d * 0.55).toFixed(2) + 's');
     if (t.icon) { el.classList.add('icon'); if (t.quad) el.classList.add('quad'); }
-    if (t.sheet) { el.classList.add('iconsheet'); el.style.gridTemplateColumns = `repeat(${t.cols}, 24px)`; el.innerHTML = t.sheet.map((n) => `<img src="${A}icons/${n}.webp" alt="" draggable="false">`).join(''); }
+    if (t.live) { try { localStorage.removeItem('mhc_groups'); } catch (_) {}   // the build restores saved groups; the grab is ungrouped (the live /multi/ clears this on every refresh anyway)
+      el.innerHTML = `<iframe src="${t.live}" title="The multi calendar, live" style="transform:scale(${(t.w / 1500).toFixed(5)})"></iframe>`; }
+    else if (t.sheet) { el.classList.add('iconsheet'); el.style.gridTemplateColumns = `repeat(${t.cols}, 24px)`; el.innerHTML = t.sheet.map((n) => `<img src="${A}icons/${n}.webp" alt="" draggable="false">`).join(''); }
     else el.innerHTML = t.icon ? t.icons.map((src) => `<img src="${src}" alt="" draggable="false">`).join('') : `<img src="${t.src}" alt="" draggable="false" loading="eager"${t.fit ? ' style="object-fit:contain"' : ''}>`;
     sheet.append(el);
   }
@@ -105,6 +112,7 @@
     sheet.classList.toggle('built', step > 0);
   };
   fit(); addEventListener('resize', fit);
+  window.presoInteractive = true;   // the calendar takes the mouse (the deck's rails shrink to the edges; the keys still step)
   window.presoNext = () => { if (step >= 1) return false; step = 1; fit(); return true; };
   window.presoPrev = () => { if (step <= 0) return false; step = 0; fit(); return true; };
   window.presoState = () => step;
