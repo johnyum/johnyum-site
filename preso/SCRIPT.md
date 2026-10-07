@@ -107,25 +107,33 @@ own: the multi calendar's V1 shipped in the same four months John was learning A
 4. Only the unassailable claim about the ship: if engineers built V1 from the prototype, say so — "my prototype was the spec;
    the team shipped V1 in four months." The deck is grounded everywhere else; one overstated line is what gets remembered.
 
-## What changed? — three cards, after the multi calendar's lesson
+## What changed? — the card, the Figma, the experiments, the board
 
-What John said it's for (2026-10-06): how he used to design, and how he designs now.
+**THE VOICEOVER, in John's words (2026-10-07), smoothed only for saying aloud.** This is the whole section's VO, and it is also the
+trash heap: there is no separate trash-heap card. The experiments strip IS it — everything in flight at once, most of it thrown
+away, the few that survived in the build beside it. Don't build a card for it.
 
-1. **What changed?** (12dp) — the card (it read "Process" until 2026-10-07). One line, then the two pictures.
-2. **The Figma** (12dq) — the Yum page of the Multi Calendar file, a grid of frames. *This is how I used to work: flats in
-   Figma, a clicking prototype on top, one screen at a time.*
-   **The experiments** (12dq1) — six studies in one strip, three on screen: the squiggly dates and the cell animations
-   (replaying), the graph studies (the slider plays itself), the cell & opportunity system with its quick-action pill; a tap, and
-   the next three slide in: the event icons, the Repeat screens with a row of tweaks, the tip cards. *And all the way through I'm
-   building side experiments — different models, graphs, the deck, iterations of the quick actions — to look at a question rather
-   than argue it, and pick.*
-3. **The web calendar, then the board** (12dr) — the live build, then one tap and every iteration tiles round it. *Now I design
-   the whole flow, end to end, as a working thing. Then I hand it to the whole team and ask them to fork it and run with it.*
-   Over the board: *The work is enormous. There are so many edge cases that all of us had to kill our egos. I run ahead — I set
-   the pace, the parameters, the foundation — and then we come together and work the solutions out as a team.*
+> What changed? Now I build everything at once. I'm doing cell studies and motion studies while building graph charts with
+> Claude to pick the best one, testing them all at the same time, with a Claude icon agent tied to an event agent, making the
+> events and the icons together, debating recurrence logic with Claude while dialing in the quick actions, while getting ready to
+> build embedded calendar modules for the AI chat.
+>
+> Then I take all of that and build a prototype, like this one, and I start setting the pace with the designers on my team. In
+> the last few months I showed we can make entire end-to-end flows together: I create and share the foundational system, and we
+> all fork it and build together, try things, and learn from each other.
 
-The beat to land: the board is not a gallery, it's the evidence of the method — the number of iterations is what "fork it and
-run with it" produces. "Kill our egos" stands on its own now — the ego card became "Where to?" (2026-10-07, below).
+Where it lands over the slides: "What changed?" (12dp) is the question. The Figma (12dq, "I'll miss you.") is how it used to be:
+flats, a clicking prototype on top, one screen at a time. The experiments (12dq1) take the first paragraph — the cells and
+motion studies, the graph studies with the slider playing itself, the quick actions, the event cards with the icons, the Repeat
+screens, the tip cards; a tap and the next three slide in. The board (12dr) takes the second: the prototype, then one tap and
+every fork tiles round it. "Kill our egos" can still be said over the board (John, 2026-10-06: *the work is enormous, there are
+so many edge cases that all of us had to kill our egos; I run ahead — the pace, the parameters, the foundation — and then we
+come together and work the solutions out as a team*).
+
+The earlier plan, kept for the record (2026-10-06): three cards — What changed? → the Figma (*this is how I used to work*) → the
+web calendar and the board (*now I design the whole flow, end to end, as a working thing, then hand it to the team to fork*).
+The beat to land is the same: the board is not a gallery, it's the evidence of the method — the number of iterations is what
+"fork it and run with it" produces. The ego card became "Where to?" (2026-10-07, below).
 
 ## A.I. — built with Claude
 
@@ -137,11 +145,10 @@ and with this line they read as the answer, not a punchline — for her, with th
 Claude." (John, 2026-10-07: the audience will anticipate what built with Claude means; by the end it's not a magic reveal, and the
 scrutiny is welcome. A day as a past-tense reveal after the A.I. card was undone.)
 
-The A.I. card and "built with Claude" are a reveal: not just that the deck was made with Claude, but the product too. Peek is
-"what I did when nobody was asking me to" — the trip app, the monsters, the hundred throwaways. Keep the section the same shape
-as the three cases: a why, the live thing, a lesson. Candidate lessons, in John's own words: "Make it do something useful, not
-just something" / "A glance, not a flow." The trash heap is sincere, not a gag — the retired cast, the thermometer, the digital
-timer detour, the character: most of what you can build with this, you shouldn't. A count, then a beat of silence.
+Peek is "what I did when nobody was asking me to" — the trip app, the monsters, the hundred throwaways. No lesson card here or
+anywhere (John, 2026-10-07: "I don't need lessons on everything"); the fee case keeps its one line because he wrote it. The
+trash heap is not a card either (2026-10-07): it's the experiments strip in What changed?, and the throwaways behind Peek —
+the retired cast, the thermometer, the digital timer detour, the character — are things to say, if at all.
 
 ### The 3D chat (12fg) — the five scenes, in the order they play
 
@@ -169,8 +176,7 @@ per idea; a new chat between them (the new-chat mark is tapped, the greeting com
    something. Then it's the mouse: drag him and he dangles; fling him into a side and he takes it as a wall, climbs to the top
    corner and spins his web there; tap him for a trick. The fun one, last: a character that lives in the interface.
 
-Then "Where to?" has already been asked; this is the answer. The trash heap, if it's built, sits after this: most of what you
-can build with this, you shouldn't.
+Then "Where to?" has already been asked; this is the answer.
 
 ## The team — the Principal proof (John, 2026-10-06)
 
