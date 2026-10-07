@@ -800,7 +800,15 @@ pulls the spacing closer and sizes the big rigs to their column (the graph page 
 at .82; the five Repeat phones at .48), and the frame is sized to the page, re-measured as fonts and pictures land, so nothing scrolls
 inside. The cells page's nine headings-over-a-row are wrapped into sections that flow side by side (`shape`), and its Replay buttons
 are clicked on an 8s loop so the left is never still. Three columns: the cells (820); the graph studies (760); the Repeat screens over
-the event cards (1000). The board is scaled to fit whatever shows it; the slide shows it on the stage with NO border, corners or
+the event cards (1000). **The builds** (John, later: "see if there's more builds we can put in here — the zig zag line build, the quick actions row build"): a
+row under the columns of whole builds, live, nothing injected but a line that hides the prototype's welcome card and dev bar —
+`/calendar.html` (June 12, the first calendar rebuilt from Figma, its quick-actions sheet), two stages of the July prototype
+(`proto/builds/jul08.html` and `jul15.html`, the prototype's own `index.html` backups from `~/Documents/Multi_Cal_Protototype`, their
+`Font_Cereal/`, `img/`, `holidays/` and `event_icons/` paths pointed at `/multi/`, which holds all of them), `/multi2/` (July 29, the
+collaborative build), and `/recurrence/?preso=1` (the web app with the quick-actions row and the Repeat flow). No build is named
+"zig zag" anywhere on disk or in git; the current product's price line is study 01 in the graph column. The three desktop builds at
+.4, the two phones at .5.
+The board is scaled to fit whatever shows it; the slide shows it on the stage with NO border, corners or
 shadow (John), `presoInteractive`, no steps. The card before it (12dp) reads "What changed?" — it read "Process" until 2026-10-07.
 Cereal from `/multi/Font_Cereal/`, the icons from `/multi/event_icons/` — nothing vendored twice. `all.html` beside it is the earlier
 long form (the same studies in rows by section), kept. Earlier takes, all rejected: a masonry wall of thumbnails; the seven calendar
