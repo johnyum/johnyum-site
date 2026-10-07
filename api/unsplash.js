@@ -17,6 +17,13 @@ export default async function handler(req) {
   const url = new URL(req.url);
   const q = (url.searchParams.get('q') || '').trim().slice(0, 80);
   const json = (o, status) => new Response(JSON.stringify(o), { status: status || 200, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+  const dl = url.searchParams.get('dl') || '';
+  if (dl) {   // "a photo was used": Unsplash's guideline is to hit its download_location then — only one of theirs
+    if (!key) return json({ error: 'no key' }, 503);
+    if (!/^https:\/\/api\.unsplash\.com\/photos\/[\w-]+\/download/.test(dl)) return json({ error: 'not a download location' }, 400);
+    const r0 = await fetch(dl, { headers: { Authorization: 'Client-ID ' + key, 'Accept-Version': 'v1' } });
+    return json({ ok: r0.ok });
+  }
   if (!q) return json({ ready: !!key, key: key ? key.slice(0, 4) + '…' + key.length : null });
   if (!key) return json({ error: 'no key' }, 503);
   const n = Math.max(1, Math.min(10, +url.searchParams.get('n') || 9));
