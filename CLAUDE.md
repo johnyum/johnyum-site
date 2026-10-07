@@ -826,7 +826,10 @@ column of 880 holding one or more pages, top-aligned, in this order:
 6. **The tip cards** (.72) — six phone takes on how the chat serves a tip; the chat-to-dates motion was the sixth for an hour
    ("sucks").
 ONE SPACE (John: "the same spacing between as the padding on the edges"): `GAP = 56` board-px is both the board's side padding and
-the gap between panels, scaled together — the slide's window runs the full width, no margins of its own. The board is scaled so
+the gap between panels, scaled together — the slide's window runs the full width, no margins of its own. ONE TYPE SCALE for the second screen's three pages (John: "all the content perfectly top aligned and consistent typography"):
+`TYPE(z)` in collage.html writes the same rules in board px over the page's zoom — no body padding, Cereal throughout, the h1 at
+24/1.15 with 8 under it, the sub at 13, section heads at 16, captions at 12 — so the three h1s sit at y 0 at one size; the Quick
+Action System's Default cells section is removed on load (`shape`) — "remove the default cells". The board is scaled so
 three panels and four spaces fill the stage's width; the tallest panel sets the height and the page scrolls under the deck's
 nav (`presoBleed`). The step slides the whole strip by three, eased .8s (`window.__collage.go(n)`; the slide's presoNext / presoPrev
 / presoState / presoRestore / presoEnd go through to it; the hash carries the step). Every page's h1 lands at 24 board-px, weight 600,
