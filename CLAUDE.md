@@ -811,6 +811,9 @@ pills — both found in calendar-mocks.zip when John asked), the graph studies (
 deck's nav (the slide's window runs to the screen's bottom and declares `presoBleed`, so the nav takes its pill). The graph's waviness
 slider plays start to finish over five seconds and lands at the end (`play`); the cells replay every 3.2s, staggered — "continuously
 animating" — so something is always moving.
+**One header size** (John): every page's h1 at 24 board-px — its font-size is 24 over the page's zoom (32.7 / 33.3 / 27.9 / 24 / 30),
+weight 600; and the graph page's grey-100 body and the controls bar's white panel and hairline are gone (white page, bare controls) —
+"get rid of the grey scrim behind the header content".
 **The builds are HELD** (John: "hold on the calendars for now — just the studies"): `SHOW_BUILDS = false` in collage.html keeps the
 whole row in the code — `/calendar.html` (June 12, the first calendar with its quick-actions sheet), thirteen versions of `/multi`
 from its git history July 2 → October 3 (`proto/builds/multi-<date>.html`, each `git show <commit>:multi/index.html` with its
