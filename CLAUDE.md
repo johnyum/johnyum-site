@@ -358,6 +358,10 @@ wordmark faint in the left corner.
 on the flights"): `within()` lets a flight pin whose `hero` names a `CITY` through whatever the knob says, and the Faroes sit on the
 flights' Popular as well as Unique. The fit's right padding is 170, a pill's label past its pin.
 
+**Every neighbourhood pill is a way down (2026-10-07, John: "let me deep dive into a neighbourhood"):** a pill with a prepared
+outline drops into it; any other is made on the spot (`hoodFor`): 22 homes within 450 m priced round its own average, a seeded
+scatter so it looks the same every time, the city's own photos, no mask. The airport legs draw for all of them.
+
 `?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
 it without faking clicks.

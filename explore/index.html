@@ -989,17 +989,16 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       '<div class="pill"><b>' + h.n + '</b><span>$' + h.p + ' night avg</span></div>' + PIN + PIN_SM,
       'bottom-left', [-21, 0]);
     o.marker.setLngLat(h.ll); o.d = h; o.hood = true;   // in the collision pass, with a dot form, like a city pill
-    if (h.hero) {
-      o.el.style.cursor = 'pointer';
-      o.el.addEventListener('click', function () { enterHood(h.hero === true ? 'wburg' : h.hero); });
-      // At city depth the question is not which airport the card quotes, it is
-      // how far this borough is from each of them — so all three draw at once,
-      // along the roads, with the durations traffic is giving them now.
-      o.el.addEventListener('mouseenter', function () { showDrives(CITY[cityKey].airports, h.ll); });
-      o.el.addEventListener('mouseleave', hideRoute);
-    } else {
-      o.el.style.cursor = 'default';
-    }
+    // EVERY PILL IS A WAY DOWN (John, 2026-10-07: "let me deep dive into a city"): a place with a prepared outline drops into it;
+    // any other drops in without the mask, its homes priced around its own average (`hoodFor`). The legs from the airport draw
+    // for all of them
+    o.el.style.cursor = 'pointer';
+    o.el.addEventListener('click', function () { enterHood(h.hero === true ? 'wburg' : (h.hero || hoodFor(h))); });
+    // At city depth the question is not which airport the card quotes, it is
+    // how far this borough is from each of them — so all three draw at once,
+    // along the roads, with the durations traffic is giving them now.
+    o.el.addEventListener('mouseenter', function () { showDrives(CITY[cityKey].airports, h.ll); });
+    o.el.addEventListener('mouseleave', hideRoute);
     return o;
   }
   function makeAir(a) {
@@ -1358,6 +1357,25 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     HOODZ[k] = { name: h.name, cam: h.cam, poly: h.poly, set: foHoodSets[k], homes: homes, photo: 'fo-home-' };
   });
   var cityKey = 'nyc', hoodKey = 'wburg', cityVibe = 'iconic';
+  // a neighbourhood made on the spot for a pill with no prepared outline: 22 homes within ~450 m, priced round its average
+  // (a seeded scatter, so the same place looks the same every time), the city's own photos, no mask
+  function hoodFor(h) {
+    var key = 'dyn:' + cityKey + ':' + h.n; if (HOODZ[key]) return key;
+    var seed = 0; for (var i = 0; i < h.n.length; i++) seed = (seed * 31 + h.n.charCodeAt(i)) >>> 0;
+    var rnd = function () { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    var prices = [], kmx = 111.32 * Math.cos(h.ll[1] * Math.PI / 180), tries = 0;
+    while (prices.length < 22 && tries++ < 4000) {
+      var a = rnd() * Math.PI * 2, r = 0.45 * Math.sqrt(rnd()), x = h.ll[0] + r / kmx * Math.cos(a), y = h.ll[1] + r / 111.32 * Math.sin(a);
+      if (prices.some(function (q) { return Math.hypot((q[1] - x) * kmx, (q[2] - y) * 111.32) < 0.05; })) continue;
+      var pr = Math.round(h.p * (0.6 + rnd() * 0.9) / 5) * 5; prices.push([pr, +x.toFixed(5), +y.toFixed(5)]);
+    }
+    var photo = cityKey === 'fo' ? 'fo-home-' : cityKey === 'ps' ? 'ps-home-' : 'home-';
+    var kinds = cityKey === 'fo' ? ['Turf house', 'Cottage', 'Home', 'Boathouse', 'Cabin', 'Home', 'Farmhouse', 'Home', 'Cottage'] : ['Home', 'Home', 'Villa', 'Home', 'Casita', 'Condo', 'Home', 'Home', 'Cabin'];
+    var rs = ['5.0', '4.9', '4.95', '4.9', '5.0', '4.95', '4.88', '4.92', '4.85'];
+    HOODZ[key] = { name: h.n, cam: { center: h.ll, zoom: 14.4, narrow: 0.004 }, poly: null, set: prices.map(makePrice),
+      homes: prices.slice(0, 9).map(function (pr, i) { return { t: kinds[i] + ' in ' + h.n, p: '$' + (pr[0] * 7).toLocaleString('en-US'), r: rs[i] }; }), photo: photo };
+    return key;
+  }
   var timed = function (cls, glyph, hover, small) { return function (d) { return withH(makeTimed(cls, glyph, d, hover, small), hoursOf(d.t)); }; };
   var driveSet = DRIVES.concat(DRIVE_FAR.popular).map(timed('mk-drive', 'pin-car.svg', 'drive'))
     .concat(DRIVE_DOTS.concat(DRIVE_NEAR).map(timed('mk-drive', 'pin-car.svg', 'drive', true)));
