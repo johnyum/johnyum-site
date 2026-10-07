@@ -719,6 +719,30 @@ const BEATS = [
   (m, instant) => { setStage('four', instant); },
 ];
 if (SIMPLE) BEATS.splice(0, 4);
+// THE FIRST PART, MUCH SIMPLER (John, 2026-10-07): in the fork the price sheet opens and CLOSES — no keypad, no $480 — and the
+// custom settings sheet opens and CLOSES — no minimum nights, no promotion. Each close is a visible tap on the sheet's own
+// head, the way a tap on the card opened it. The beat that closes the settings carries the promotion-Cancel's mark
+// ('.cp .mn-cancel') in its source, since every fork beat after it is placed by that mark; the fork's later beats expect
+// the quick actions still up over the picked nights, and that's how both closes leave them.
+if (SIMPLE) {
+  const iPrice = BEATS.findIndex(b => String(b).includes('m.setPriceSheet(true)'));
+  window.__removedBeats = [];   // the beats taken out of the run — kept, because the fork borrows the first 20% drag's logic for February's
+  window.__removedBeats.push(...BEATS.splice(iPrice + 1, 2, (m, instant) => {   // in place of the keypad and the Save: the sheet runs back into its card, nothing applied
+    if (instant) { m.setPriceSheet(false); return; }
+    const g = ++gen;
+    press(d => d.querySelector('.sqa-price.open .ps-head'));
+    setTimeout(tail(g, () => m.setPriceSheet(false)), 200);
+  }));
+  const iSet = BEATS.findIndex(b => String(b).includes('m.setSettingsSheet(true)'));
+  const iCancel = BEATS.findIndex(b => String(b).includes('.cp .mn-cancel'));
+  window.__removedBeats.push(...BEATS.splice(iSet + 1, iCancel - iSet, (m, instant) => {   // in place of minimum nights, the promotion and its Cancel: the settings sheet closes
+    const MARK = '.cp .mn-cancel';   // the fork's later beats find their place by this
+    if (instant) { m.setSettingsSheet(false); return; }
+    const g = ++gen;
+    press(d => d.querySelector('.sqa-custom.open .sqa-head'));
+    setTimeout(tail(g, () => m.setSettingsSheet(false)), 200);
+  }));
+}
 // WHERE A FORK BEAT GOES: after the beat whose source contains `mark`, `k` places on. A mark that is not found must never
 // put a beat at the START of the run — findIndex's -1 + 1 is 0, and that once had the 11th–18th, the 20% and the 50% playing
 // first, before the run had begun (John saw −50% before he had walked to it, 2026-09-30). A miss is logged and the beat goes
@@ -910,12 +934,19 @@ if (SIMPLE) {
 // the price sheet, the iOS number pad rising under it as before. The second (John: "the animation starts AFTER I tap next"):
 // the iOS pad and its Save go back down and the build's own keypad and Done come up in their place (THE SWAP, in the pad's
 // CSS). The custom keypad stays from here on.
+// THE CUSTOM KEYPAD IS THE KEYPAD (John, 2026-10-07: "skip the whole iOS keyboard to custom keyboard — it should just open up with
+// the custom keyboard"): the fork sets html.preso-custom-kb from its first beat, so every price sheet opens on the build's own
+// keypad and Done; the iOS pad never rises and THE SWAP never plays. Modernism Week is then ONE beat — the sheet opens with
+// Try $745 beside Done (preso-pills-on) — where it was two.
+if (SIMPLE) {
+  const first = BEATS[0];
+  BEATS[0] = (m, instant) => { const d = appDoc(); if (d) d.documentElement.classList.add('preso-custom-kb'); return first(m, instant); };
+}
 if (SIMPLE) {
   const at = beatAfter('cascade(m, mw[0], mw[1], 90)');
   BEATS.splice(at, 0,
-    m => m.setPriceSheet(true),
-    // ...with the custom keypad come Try $745 and Done side by side, all at once (John, 2026-09-30: "no extra tap") — THE SPLIT
-    () => { const d = appDoc(); if (d) { d.documentElement.classList.add('preso-custom-kb', 'preso-pills-on'); const c = d.defaultView.__presoCentre; if (c) c(); } },
+    // the price sheet, straight onto the custom keypad, with Try $745 and Done side by side (John, 2026-09-30: "no extra tap") — THE SPLIT
+    m => { const d = appDoc(); if (d) { d.documentElement.classList.add('preso-custom-kb', 'preso-pills-on'); const c = d.defaultView.__presoCentre; if (c) c(); } m.setPriceSheet(true); },
     // ...and the tap after that: "Try $745", visibly tapped, and the price ODOMETERS up to it — every digit rolling to
     // its new figure — and the nights take $745 and keep it (John, 2026-09-30)
     (m, instant) => {
@@ -971,7 +1002,7 @@ if (SIMPLE) BEATS.splice(beatAfter('const home = () => m.homeLocked()', 1), 0, (
 // simply TAKE their 20%-off prices when it lands — each its own (the 11th's $535 is $428, the 16th's $455 is $364), set
 // outright, no roll (the fork's first promotion set none at all). The drag is the build's beat, borrowed by what it does.
 if (SIMPLE) {
-  const drag = BEATS.find(b => String(b).includes('if (!SIMPLE) m.setPromo(0.2, 0, ns)'));
+  const drag = BEATS.find(b => String(b).includes('if (!SIMPLE) m.setPromo(0.2, 0, ns)')) || (window.__removedBeats || []).find(b => String(b).includes('if (!SIMPLE) m.setPromo(0.2, 0, ns)'));   // the first-part drag is out of the run (2026-10-07) but still borrowed
   const at = beatAfter("querySelectorAll('.sqa-custom.open .ss-row')[1]); }, up + 800");
   if (drag && at > 0) BEATS.splice(at, 0, Object.assign((m, instant) => {
     const ns = [...m.selectedNights];
