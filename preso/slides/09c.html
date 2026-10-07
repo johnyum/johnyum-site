@@ -58,8 +58,8 @@
      next — came out 2026-10-05; toTrains and toFlights stay, called in turn
      by the one move, so the page still passes through rail on its way.)
 
-     No mouseleave is ever sent, which is deliberate: a leg stays drawn for as
-     long as the hover is meant to be read.
+     A scripted hover sends mouseleave itself after HOLD_LEG, so a leg is read
+     and then goes (John, 2026-10-06: no dotted lines unless hovering).
 
      THE MAP MOVES ARE FASTER than the page ships with — its flyTo went from
      2400/2100 to 1500/1250 in explore/index.html. The move is the same, it
@@ -196,7 +196,12 @@
     cur.classList.add('on');
     el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }));
     el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    // THE LEG DOESN'T STAND (John, 2026-10-06: no dotted lines unless hovering): a scripted hover holds its line long enough to
+    // read, then lets go — the page's own mouseleave clears it — so the map is clean until a real pointer hovers a pin
+    const mine = ++hoverN;
+    setTimeout(() => { if (mine !== hoverN) return; el.dispatchEvent(new MouseEvent('mouseleave', { bubbles: false })); el.dispatchEvent(new MouseEvent('mouseout', { bubbles: true })); }, HOLD_LEG);
   }
+  let hoverN = 0; const HOLD_LEG = 2200;
 
   function tap(el) {
     const d = doc(); if (!d) return;
