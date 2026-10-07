@@ -376,6 +376,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { BODIES, PARTS, prim, smin, bodyFrameOf, bodyField, anchor, pack } from './kit.js';
+import { hostedBytes } from './files.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -454,27 +455,16 @@ async function call(method, path, body) {
 }
 
 // A model, as bytes. Hosted, Meshy's files carry no CORS header and a Vercel
-// response stops at 4.5MB — so the function hands it over in 4MB slices, all
-// at once after the first, and they're stitched back together here.
-const SLICE = 4 * 1024 * 1024;
+// response stops at 4.5MB — so they come through the function in retried 2MB
+// slices, and each is kept in this browser for Peek (./files.js).
 async function bytes(url) {
-  if (!env.hosted) {
-    const r = await fetch(asset(url)); if (!r.ok) throw new Error('Couldn\'t load the model');
-    return r.arrayBuffer();
-  }
-  const slice = async (start) => {
-    const r = await fetch(`${API}?p=asset&url=${encodeURIComponent(url)}&start=${start}&end=${start + SLICE - 1}`,
-                          { headers: headers() });
-    if (!r.ok) throw new Error('Couldn\'t load the model — Meshy\'s link may have expired');
-    return { buf: new Uint8Array(await r.arrayBuffer()), total: +r.headers.get('X-Total-Size') };
-  };
-  const first = await slice(0);
-  const out = new Uint8Array(first.total || first.buf.length); out.set(first.buf);
-  const rest = [];
-  for (let at = first.buf.length; at < out.length; at += SLICE) rest.push(slice(at).then(({ buf }) => out.set(buf, at)));
-  await Promise.all(rest);
-  return out.buffer;
+  if (env.hosted) return hostedBytes(url, pass());
+  const r = await fetch(asset(url)); if (!r.ok) throw new Error('Couldn\'t load the model');
+  return r.arrayBuffer();
 }
+// Showing a file on the stage is never what a build waits on: Meshy rigs and animates by
+// task id, so a download that fails only costs the preview, never the next step.
+const show = (p) => p.catch((e) => { note(`Couldn't show it here (${e.message}) — the build carries on.`); return null; });
 
 // Stop. What it saves is every step that hasn't started — the sculpt, rig and
 // moves are the expensive ones. The step already running can't be called back:
@@ -1254,8 +1244,9 @@ async function run(src) {
     }, (p) => { step('sculpt', 'run', p); status(`Sculpting it in 3D… ${p}%`); });
     rec.glb = mesh.model_urls.glb; rec.meshTask = mesh.id;
     step('sculpt', 'done'); save(rec);
-    setModel(await load(rec.glb)); pv.classList.remove('on');
     showDownload(rec.glb);
+    // On stage while the rig runs — unless the rigged one has got there first.
+    show(load(rec.glb)).then((g) => { if (g && shown === rec && !rec.rigged) { setModel(g); pv.classList.remove('on'); } });
 
     // 3 · Rig
     step('rig', 'run', 0); status('Giving it a skeleton…');
@@ -1278,7 +1269,8 @@ async function run(src) {
     }
     rec.rigged = rig.result.rigged_character_glb_url; rec.rigTask = rig.id;
     step('rig', 'done'); save(rec);
-    setModel(await load(rec.rigged)); showDownload(rec.rigged);
+    showDownload(rec.rigged);
+    const riggedOn = show(load(rec.rigged)).then((g) => { if (g) { setModel(g); pv.classList.remove('on'); } return !!g; });
     buildActions(new Set());
 
     // 4 · Animate — each clip lands on the stage the moment it's ready.
@@ -1287,6 +1279,7 @@ async function run(src) {
     const tick = () => { done++; step('animate', 'run', Math.round(done / total * 100)); };
     const got = async (label, url) => {
       rec.clips[label] = url; save(rec);
+      if (!await riggedOn) return;   // no rig on stage to play it on — it's still saved for Peek
       const clip = pickClip(await load(url), label);
       if (clip) { clips[label] = clip; enableAction(label); }
       if (label === 'Idle' && !current) play('Idle');
@@ -1299,7 +1292,7 @@ async function run(src) {
         .then((u) => u && got(b.label, u)).finally(tick)),
     ]);
     if (stopper.signal.aborted) throw stopped();
-    const n = Object.keys(clips).length;
+    const n = Math.max(Object.keys(clips).length, Object.keys(rec.clips).length);
     step('animate', n ? 'done' : 'fail', 100, n ? `${n} moves ready` : 'No moves came back');
     status('');
     await keepIt(rec);

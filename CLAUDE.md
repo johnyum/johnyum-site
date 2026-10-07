@@ -403,6 +403,11 @@ The page only ever talks to **`/api/monsters?p=…`**, and two things answer it:
   the site once committed. Hosted there's nowhere to write; rescue a johnyum.com build within 3 days with
   `python3 monsters/keep.py <rig task id> [name]` (it finds the moves started just after that rig).
   Peek shows the character whenever a `#m=` / `#c=` link brings one, without `?character`.
+- **Hosted downloads are `monsters/files.js`**, shared by Monsters and Peek: 2MB slices, each retried,
+  four at a time (one dropped 4MB slice used to fail the model — "Meshy's link may have expired" — and
+  stop the build before the rig), and every file kept in the browser's IndexedDB, so Peek on johnyum.com
+  opens a fresh build from there with no download, even after Meshy deletes it. **A build never waits
+  on a download**: rig and moves go by task id; showing a file on the stage is a side job (`show()`).
 - **Test on `monsters-mock` (port 5321), never 5320.** With a key saved, 5320 is live and
   every test spends real credits. `MONSTERS_MOCK=1` forces mock and refuses the key box;
   `MONSTERS_MOCK_RIGFAIL=1` fakes a rig failure.

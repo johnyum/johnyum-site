@@ -539,6 +539,7 @@ button, textarea { font: inherit; color: inherit; }
 <script type="module">
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { hostedBytes } from '../monsters/files.js';
 import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { loadRig, unpack as unpackRig, MOODS as EYE_MOODS, blankState as rigBlank } from '../rig/rig.js';
@@ -819,15 +820,8 @@ async function modelBytes(url) {
   const api = '/api/monsters', env = await fetch(`${api}?p=status`).then((r) => r.json()).catch(() => null);
   if (!env) throw new Error('no Monsters server here');
   if (!env.hosted) return (await fetch(`${api}?p=asset&url=${encodeURIComponent(url)}`)).arrayBuffer();
-  const pass = (() => { try { return localStorage.getItem('monsters.pass') || ''; } catch { return ''; } })(), SLICE = 4 * 1024 * 1024;
-  const slice = async (start) => {
-    const r = await fetch(`${api}?p=asset&url=${encodeURIComponent(url)}&start=${start}&end=${start + SLICE - 1}`, { headers: { 'X-Monsters-Pass': pass } });
-    if (!r.ok) throw new Error(r.status === 401 ? 'unlock Monsters with the passcode first' : 'the model\'s link has expired');
-    return { buf: new Uint8Array(await r.arrayBuffer()), total: +r.headers.get('X-Total-Size') };
-  };
-  const first = await slice(0), out = new Uint8Array(first.total || first.buf.length); out.set(first.buf);
-  const rest = []; for (let at = first.buf.length; at < out.length; at += SLICE) rest.push(slice(at).then(({ buf }) => out.set(buf, at)));
-  await Promise.all(rest); return out.buffer;
+  // Hosted: this browser's copy from Monsters when there is one, else retried slices (../monsters/files.js).
+  return hostedBytes(url, (() => { try { return localStorage.getItem('monsters.pass') || ''; } catch { return ''; } })());
 }
 const loader = new GLTFLoader();
 // Which of a model's clips plays which part: an exact name first, then one containing it.
