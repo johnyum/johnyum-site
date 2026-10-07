@@ -67,8 +67,11 @@ thread of the case study is trust — clarity and transparency at every step. Th
 The bones, from the 2026-10-06 critique John kept. The AI story is threaded through this case, not kept for a chapter of its
 own: the multi calendar's V1 shipped in the same four months John was learning AI.
 
-1. **Before the $0→$200 roll:** "And I did this one differently. I built it with Claude — the live calendar you're looking at
-   is that build." The room watches an AI-built prototype without being told it's a demo of AI.
+1. **Before the $0→$200 roll, THE NUMBER (John, 2026-10-06):** "The single calendar took us a year of iteration to get to
+   hosts. This one took four months." Said once, exactly like that. Then: "And I did this one differently. I built it with Claude —
+   the live calendar you're looking at is that build." The room watches an AI-built prototype without being told it's a demo of AI.
+   If asked about the year: it's where the system came from — the multi calendar was fast because the single one had settled the
+   hard questions. Be exact about the four months: prototype to shipped V1, the prototype as the spec, the team building from it.
 2. The $0→$200, the 7, the 3: the same system at 100x. What hosts said (the checks first, then the ✕s): real feedback from
    last week on a shipped V1.
 3. **The design-system sheet (12d1)** is the proof of the method, not just a library: one system, built fast, and it didn't
@@ -127,6 +130,15 @@ per idea; a new chat between them (the new-chat mark is tapped, the greeting com
 
 Then the ego card has already landed; this is what it was for. The trash heap, if it's built, sits after this: most of what you
 can build with this, you shouldn't.
+
+## The team — the Principal proof (John, 2026-10-06)
+
+Not a card; a thing to say, probably in Why Anthropic right before "four months". When John came back from leave the team was
+afraid of AI. Five minutes with Claude Code and he could see the power; nobody had asked him to fix the gap, he picked it. He
+built and shared, built and shared, until the team took it and ran — the same move as "fork it and run with it", on the team's
+habits instead of a calendar. "People are still working in Figma, which is fine" — keep the generosity; the point is the gap he
+chose to stand in. Have one concrete after (a designer who shipped a build instead of flats; a review on a prototype instead of a
+frame). The line: "and then I turned around and brought the team with me."
 
 ## Why Anthropic?
 
