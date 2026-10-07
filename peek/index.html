@@ -3500,6 +3500,8 @@ function poolStep(now) {
    like a print coming off the block — a soft edge rising, the ink settling from pale to full, a last small press — and
    then holds still (a split copy for moving water left seams). It stays till the next send. */
 const WHALE_RE = /\b(moby|white whale|sperm whale)\b/i;
+const CAST_RE = /\bcharacters?\b|\bwho (is|are|was|were)\b/i;   // the characters question, in a Moby-Dick chat: the plate goes and the cast comes (on the phone too — John, 2026-10-07)
+let castAsk = false;
 const PRINT = { src: 'moby/print.webp', aspect: 733 / 1100, water: .667, wide: 1.08, left: -.02, under: 4, room: 120 };   // the first plate (kept, unused)
 /* ONE SCENE NOW (2026-10-06, John: "a scene that's from left to right above the chat box", no empty hole in the middle, the
    sea all the way to the bottom): moby/scene.webp — a 19th-century whaling plate (gpt-image-1): the whale surging across
@@ -4390,6 +4392,7 @@ if (EMBED || PRESO) {
         workBegin();   // to work: chin on its hand till the first words come
         lastAsk = String(data || '');
         insHearSend(lastAsk);   // the insurance call: the ask (and its EOB), then your answers
+        castAsk = whaleSeen && CAST_RE.test(lastAsk); if (castAsk) { whaleOff = true; if (whale) whaleFade(); }   // Moby-Dick's characters: the plate eases away for good, the cast hangs under the answer (as the deck does)
         if (spidey) spAsk(lastAsk);   // Spider-Man: stays with the chat, and does what you ask (he comes in on the Thinking, below — John, 2026-10-06: not the instant you ask)
         if (/\bgames?\b/i.test(lastAsk) && critters.some((c) => CLUES[c.key])) poolFlush();   // the game question: the creatures pour down into the box, and the cards come in where they were
         else poolClear(false);   // a new question: last answer's creatures go (a running timer stays)
@@ -4404,6 +4407,7 @@ if (EMBED || PRESO) {
         if (!work.phase) workBegin();
       } else if (name === 'replied') {
         if (!spidey && SPIDEY_RE.test(lastAsk)) spideyStart();   // (an answer that came whole, with no stream)
+        if (castAsk) { castAsk = false; setTimeout(() => castShow(), 400); }   // the cast, under the answer about them
         spDone();   // Spider-Man: the answer's in, back up his web
         insHearReplied();   // the call: after the questions, the box gets an answer; after "calling now", the phone
         // The streaming text becomes a message row: move onto it before the stand-in goes.
@@ -4416,14 +4420,14 @@ if (EMBED || PRESO) {
           if (rc) { recipeTitle(rc); const w = stepsOf(String(data), true); if (w.length) { rc.meta = w.map(stepDetail); listSet(rc, tagSteps(w.map(stepName), w)); } }
         }
         if (rc) recipeCore(rc, String(data)); }   // the whole answer: anything still to come, and its places
-      } else if (name === 'closed') { delete plat.reply; act(leave); poolClear(); recentPool.clear(); spideyEnd(); }   // left the chat: its creatures go too
+      } else if (name === 'closed') { delete plat.reply; act(leave); poolClear(); recentPool.clear(); spideyEnd(); castHide(); whaleOff = false; castAsk = false; }   // left the chat: its creatures go too
       else if (name === 'chat') {   // another chat: nothing from the last one comes along — its pile, its whale, its Spider-Man (a cook comes back in its own chat)
         const id = String(data || '');
         if (id !== chatId) {
           // a new chat gets its id as its first message goes: that's the same conversation, not a switch — keep everything
           // (a cook started in it before the id came takes the id too)
           if (!chatId) { if (cook && !cook.chat) { cook.chat = id; saveCook(); } chatId = id; }
-          else { chatId = id; poolClear(); recentPool.clear(); whaleEnd(); whaleSeen = false; spideyEnd(); restoreCook(); }
+          else { chatId = id; poolClear(); recentPool.clear(); whaleEnd(); whaleSeen = false; whaleOff = false; castHide(); castAsk = false; spideyEnd(); restoreCook(); }
         }
       }
     },

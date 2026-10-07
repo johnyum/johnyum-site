@@ -634,6 +634,12 @@ and THEN the receipt drops in** (John, 2026-10-05); an ended phone never carries
 follow-up date whose Add opens the app's Calendar editor. All fictional: Larkspur Health, Mission Bay Dermatology,
 Dr. Okafor, Denise, a 555 number; dates hang off today. The script lives in the page (`insReply`, `insScript`), so it
 changes with a deploy; it names John and avoids pronouns for him. Code under "The call".
+**The cast on the phone too** (2026-10-07): in a Moby-Dick chat (the whale seen), a question about the characters (`CAST_RE`) sends
+the plate away for good and hangs the cast under the answer, as the deck's second turn does; the ⋯ menu's Moby-Dick demo offers
+"Who are the main characters?" after the first answer, and its prompts are the deck's ("Tell me the story of Moby Dick.", the
+Texas-style brisket). **A suggested next message is offered light, never typed in** (John: "pre-fill like Claude does, lighter
+text"): `Store.ghost` sits in the empty composer in the placeholder's grey (the demos' `then`, the page's `{type:'draft'}`); Send
+sends it as written, a tap on it makes it the draft to edit, a new chat or a send clears it.
 **Everything belongs to its chat** (2026-10-05, John: the tide pool and the timer were "sharing icons" across chats): the
 app sends `event('chat', id)` when the open chat changes; the page clears the pile, the whale and Spider-Man then. A cook
 remembers its chat (`cook.chat`) and its stopwatch only comes back there (`cookHere()`); a cook from before this, with no
