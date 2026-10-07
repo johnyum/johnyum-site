@@ -901,44 +901,49 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // the eleven above, with New York as the hero — the way down into the city belongs to Popular alone (John: New York needn't be
   // there all the time).
   var VIBES = {
-    unique: [
+    unique: [   // spread across the continent: desert, delta, coast, north, south
       { n: 'Santa Fe',     p: 342, ll: [-105.94, 35.69] },
       { n: 'Marfa',        p: 268, ll: [-104.02, 30.31] },
-      { n: 'Sedona',       p: 389, ll: [-111.76, 34.87] },
       { n: 'New Orleans',  p: 376, ll: [ -90.07, 29.95] },
       { n: 'Savannah',     p: 298, ll: [ -81.10, 32.08] },
-      { n: 'Asheville',    p: 254, ll: [ -82.55, 35.60] },
       { n: 'Quebec City',  p: 412, ll: [ -71.21, 46.81] },
       { n: 'Oaxaca',       p: 221, ll: [ -96.73, 17.07] },
       { n: 'Joshua Tree',  p: 303, ll: [-116.31, 34.13] },
       { n: 'Nashville',    p: 287, ll: [ -86.78, 36.16] },
+      { n: 'Portland',     p: 176, ll: [-122.68, 45.52] },
+      { n: 'Churchill',    p: 455, ll: [ -94.17, 58.77] },
+      { n: 'Havana',       p: 212, ll: [ -82.37, 23.11] },
+      { n: 'Detroit',      p: 164, ll: [ -83.05, 42.33] }
     ],
-    relax: [
+    relax: [   // mountains, desert, both coasts, the Caribbean, the far north
       { n: 'Tahoe',        p: 455, ll: [-120.04, 39.09] },
       { n: 'Aspen',        p: 612, ll: [-106.82, 39.19] },
       { n: 'Whistler',     p: 478, ll: [-122.96, 50.12] },
-      { n: 'Banff',        p: 433, ll: [-115.57, 51.18] },
       { n: 'Napa',         p: 598, ll: [-122.29, 38.30] },
       { n: 'Palm Springs', p: 344, ll: [-116.55, 33.83] },
       { n: 'Cabo',         p: 398, ll: [-109.92, 22.89] },
       { n: 'Tulum',        p: 367, ll: [ -87.47, 20.21] },
       { n: 'Key West',     p: 521, ll: [ -81.78, 24.56] },
-      { n: 'Hilton Head',  p: 336, ll: [ -80.75, 32.22] },
       { n: 'Outer Banks',  p: 302, ll: [ -75.70, 35.56] },
+      { n: 'Cape Cod',     p: 489, ll: [ -70.00, 41.69] },
+      { n: 'Muskoka',      p: 371, ll: [ -79.56, 45.04] },
+      { n: 'Hot Springs',  p: 198, ll: [ -93.05, 34.50] },
+      { n: 'Door County',  p: 243, ll: [ -87.35, 45.06] }
     ],
-    adventure: [
+    adventure: [   // surf towns on both coasts and in Mexico, the Rockies, the desert, the north
       { n: 'Moab',             p: 276, ll: [-109.55, 38.57] },
       { n: 'Jackson Hole',     p: 489, ll: [-110.76, 43.48] },
       { n: 'Yosemite',         p: 351, ll: [-119.59, 37.75] },
-      { n: 'Bozeman',          p: 298, ll: [-111.04, 45.68] },
-      { n: 'Boulder',          p: 241, ll: [-105.27, 40.01] },
-      { n: 'Grand Canyon',     p: 264, ll: [-112.14, 36.06] },
-      { n: 'Zion',             p: 319, ll: [-112.99, 37.19] },
-      { n: 'Bend',             p: 233, ll: [-121.32, 44.06] },
       { n: 'Tofino',           p: 312, ll: [-125.90, 49.15] },
       { n: 'Santa Cruz',       p: 287, ll: [-122.03, 36.97] },
       { n: 'Sayulita',         p: 198, ll: [-105.44, 20.87] },
       { n: 'Puerto Escondido', p: 176, ll: [ -97.07, 15.86] },
+      { n: 'Big Bend',         p: 221, ll: [-103.25, 29.25] },
+      { n: 'Boundary Waters',  p: 207, ll: [ -91.50, 47.95] },
+      { n: 'Smoky Mountains',  p: 232, ll: [ -83.51, 35.65] },
+      { n: 'Acadia',           p: 318, ll: [ -68.27, 44.34] },
+      { n: 'Juneau',           p: 346, ll: [-134.42, 58.30] },
+      { n: 'Cozumel',          p: 254, ll: [ -86.95, 20.42] }
     ]
   };
 
@@ -1279,6 +1284,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     var next = vibeSets[k]; BEATS.usa.set = next;
     if (state !== 'usa' || busy) return;   // not on the flights beat: the set is swapped for when it is
     busy = true; hideRoute();
+    // the camera fits the vibe's pins (John, 2026-10-06: zoom to fit if necessary) — Popular goes back to the continent's own camera
+    if (k === 'popular') { var c = cam(USA_CAM); map.easeTo({ center: c.center, zoom: c.zoom, padding: PAD(), duration: 1100, essential: true }); }
+    else { var b = new mapboxgl.LngLatBounds(); VIBES[k].forEach(function (d) { b.extend(d.ll); });
+      map.fitBounds(b, { padding: { top: 90, bottom: 70, left: PAD().left + 80, right: 100 }, maxZoom: 4.6, duration: 1100, essential: true }); }
     hide(was, 18, function () { show(next, 32); busy = false; });
   }
   // The picker is three beats and a fourth chip. Walking has no map of its own

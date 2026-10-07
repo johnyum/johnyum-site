@@ -267,7 +267,9 @@ straight. A beat change clears everything: a leg belongs to the beat that drew
 it.
 
 **The vibes (2026-10-06):** on the continent, Unique / Relax / Adventure each re-pin the map with their own priced cities
-(`VIBES`, `vibeSets`, `setVibe()`; Popular is the original eleven, and only Popular has New York — the way down into the city). The car and the train keep their own pins. `__explore.vibe(name)` drives it.
+(`VIBES`, `vibeSets`, `setVibe()`; Popular is the original eleven, and only Popular has New York — the way down into the city). Each
+vibe is spread across the whole continent (Juneau to Cozumel, Tofino to Acadia) and the camera fits its pins (`fitBounds`, max zoom 4.6);
+Popular eases back to the continent's own camera. The car and the train keep their own pins. `__explore.vibe(name)` drives it.
 
 `?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
