@@ -792,13 +792,16 @@ screen so it bleeds off every edge). Between the Figma and the board sits **the 
 calendar — building different models, deck, graph charts, different iterations of quick actions — I wanna see that work"; then "a
 single page like a collage of these experiments: the calendar cell animations put closer together, then right of it the fluid graph
 studies, the repeat settings studies and the demand-driving event studies"): `preso/slides/assets/studies/collage.html`, ONE board,
-the PIECES live and pulled close. Each study is still its own page in a same-origin iframe (`01-cell-animations.html`,
-`02-graph-studies.html`, `07-repeat-settings-mock.html` + `repeat-settings-mock/`, `proto/event_gallery.html`), but on load a compact
-stylesheet is dropped into it — prose, headings, buttons and padding go; the cells / graphs / phones / icons stay — and the frame is
-sized to what's left, re-measured as fonts and pictures land, so nothing scrolls inside. The eleven cell demos are the big left
-column, two to a row (`.stage` zoomed 1.75), their Replay buttons clicked on a 7s loop so the left is never still; to the right the
-graph studies on a 2-column grid (the hero across, the rigs zoomed .52), the five Repeat phones at .5, the 41 event icons as one
-strip. The board is scaled to fit whatever shows it; the slide shows it in a window fitted to the stage, `presoInteractive`, no steps.
+the PIECES live and pulled close, **each page keeping its own UI** (John, later that day: "make it look more like the original HTML
+you built for me — and the sliders and everything back"): titles, section heads, descriptions, the graph studies' controls bar, the
+Replay buttons. Each study is still its own page in a same-origin iframe (`01-cell-animations.html`, `02-graph-studies.html`,
+`07-repeat-settings-mock.html` + `repeat-settings-mock/`, `proto/event_gallery.html`); on load a stylesheet is dropped in that only
+pulls the spacing closer and sizes the big rigs to their column (the graph page zoomed .88, its rigs .56; the event cards four to a row
+at .82; the five Repeat phones at .48), and the frame is sized to the page, re-measured as fonts and pictures land, so nothing scrolls
+inside. The cells page's nine headings-over-a-row are wrapped into sections that flow side by side (`shape`), and its Replay buttons
+are clicked on an 8s loop so the left is never still. Three columns: the cells (820); the graph studies (760); the Repeat screens over
+the event cards (1000). The board is scaled to fit whatever shows it; the slide shows it on the stage with NO border, corners or
+shadow (John), `presoInteractive`, no steps. The card before it (12dp) reads "What changed?" — it read "Process" until 2026-10-07.
 Cereal from `/multi/Font_Cereal/`, the icons from `/multi/event_icons/` — nothing vendored twice. `all.html` beside it is the earlier
 long form (the same studies in rows by section), kept. Earlier takes, all rejected: a masonry wall of thumbnails; the seven calendar
 studies one to a tap; the long form with every side thing (Peek, the EOB, the fee email, the Claude icons) — "remove anything not

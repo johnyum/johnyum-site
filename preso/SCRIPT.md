@@ -107,11 +107,11 @@ own: the multi calendar's V1 shipped in the same four months John was learning A
 4. Only the unassailable claim about the ship: if engineers built V1 from the prototype, say so — "my prototype was the spec;
    the team shipped V1 in four months." The deck is grounded everywhere else; one overstated line is what gets remembered.
 
-## Process — three cards, after the multi calendar's lesson
+## What changed? — three cards, after the multi calendar's lesson
 
 What John said it's for (2026-10-06): how he used to design, and how he designs now.
 
-1. **Process** (12dp) — the card. One word, then the two pictures.
+1. **What changed?** (12dp) — the card (it read "Process" until 2026-10-07). One line, then the two pictures.
 2. **The Figma** (12dq) — the Yum page of the Multi Calendar file, a grid of frames. *This is how I used to work: flats in
    Figma, a clicking prototype on top, one screen at a time.*
    **The experiments** (12dq1) — one board, a collage of the side studies, live: the cell animations big on the left, replaying;
