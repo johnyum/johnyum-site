@@ -4,253 +4,286 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>09d</title>
-<!-- THE SERVICE FEE CHANGE — four screens of the flow that moved hosts onto a
-     single 15.5% fee: the required action (Figma 5622:4114 — the deadline in red under a warning, John, 2026-10-03), the fee explained (live, in three
-     taps — see THE FEE, ANIMATED), the price adjustment offered, and the
-     adjustment confirmed over the calendar (7 of 7).
+<!-- THE SERVICE FEE CHANGE — THE WHOLE FLOW, BUILT (John, 2026-10-07: "completely remake the build to follow this flow… completely
+     rebuild all of it. no PNGs"). One phone, the deck's drawn iPhone, and inside it the fifteen screens of the host-only fee flow as
+     Figma draws them (Yum Portfolio, Group 18 at 5653:13888 — 5650:4738 the Today tab, 5650:4781 the required action, 5650:4851–55
+     the five explainer screens, 5650:4917 and :4856 Let's adjust and its reminder, 5650:4857–61 the calendar, 5650:4862 the
+     completion), every one of them DOM: Cereal set where Figma sets it, the 393 x 852 frame scaled to the screen, no screenshot
+     anywhere. The only bitmaps are the illustrations and the 3D renders Figma itself holds as images — the coin, the money, the
+     tag, the avatars and the listing, and the graph's own bars (the frame's clean bar in three parts, able to stand any height) —
+     in assets/fee/ at the resolution Figma holds them. Two things kept from the build before this, as asked: THE GRAPH, live (the
+     bars rise, the fees are ruled off, the fill comes up, the two fees become one — see THE FEE, ANIMATED) and THE TAG, animated
+     (the closing slide's own price-tag film over the 6 of 7 tag).
 
-     NO ANIMATION OF ITS OWN. The deck pushes it in from the right and off to
-     the left, and that is the whole movement. This used to rise and fade as it
-     arrived, which ran at the same time as the push and read as a diagonal —
-     the slide coming in from the bottom right rather than the side. Gone, and
-     with it the script that drove it: nothing to reveal means nothing that can
-     fail to reveal.
+     THE TAPS, one screen a tap, the way the host sees it:
+        0  Today — "You have 1 reservation", Eslem checks out, and the bar at the foot: We're simplifying service fees
+        1  the Required actions sheet rises: the money, "We're simplifying service fees", Get started
+        2  1 of 7 — the explainer comes in from the right; the bars rise by themselves (Your price $100, Guests see $115)
+        3  2 of 7 — the guests' service fee is ruled off the top of their bar ($15)
+        4  3 of 7 — the host's fee is ruled off ($3), the bar fills pink, You earn $97
+        5  4 of 7 — the two fees go; the host's bar grows to the guests' height; Single fee 15.5%, then $18
+        6  5 of 7 — Adjusted price $100 → $115, highlighted
+        7  6 of 7 — Let's adjust your prices: the tag plays, the three points, Get started / Not now
+        8  the reminder sheet (Not now): You have until January 17… Got it
+        9  7 of 7 — the calendar comes in: the one-time adjustment over August, the old prices struck, Confirm price adjustment
+       10  Aug 9 is picked: the breakdown — your adjusted price, what guests see, what you still earn — Close details
+       11  the details close
+       12  Confirm is pressed: Confirm one-time price adjustment? Confirm / Cancel
+       13  done — the host's own calendar, the new prices on it, and Price adjustment complete rises over it
+     Back snaps a step back; arriving backwards, it all stands done. The moves between screens are plain for now — a sheet rises,
+     a screen pushes in from the right, a scrim fades — "we can dial in the animation after" (John).
 
-     THE SIZE AND THE SPACING ARE THE FOUR-UP CALENDAR'S. Slide 13 stands its
-     single, list, year and day phones on 76% of the width with 48px between
-     them, scaled down from a base of min(80vh, 1080px). Matching both means a
-     phone here is the same size as a phone there, and the gaps are the same
-     gaps — measured side by side, 268x548 against 268x547. -->
+     THE SIZE is the deck's 1-up phone, min(80vh, 1080px) tall, in the chrome every built phone in the deck wears (the rail
+     gradient, the frame image clipped outside the bezel, the island). -->
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .slide { height: 100%; display: grid; place-items: center; }
-
-  .row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    /* THE FOUR-UP CALENDAR'S SIZING, EXACTLY. Slide 13 lays its four phones with
-         GAP[4] = 48        SHARE[4] = 0.76
-         s4 = min(1, (innerWidth * 0.76 - 3 * 48) / (4 * W))
-       off a base phone of min(80vh, 1080px), where W is that phone's width.
-
-       CSS cannot divide by a length, so a unitless s4 is not expressible here.
-       Solving for the final height instead is the same arithmetic: four phones
-       plus three 48px gaps fill 76vw, so
-
-         h * 0.4895 * 4 + 144px = 76vw   ->   h = (76vw - 144px) / 1.958
-
-       and min() caps it at the unscaled phone, which is what s4's min(1, ...)
-       does. 0.4895 is this export's aspect; 1.958 is 4 x that. */
-    gap: 48px;
-    --phone-h: min(80vh, 1080px, calc((76vw - 144px) / 1.958));
-    /* ONE PHONE AT A TIME (John, 2026-10-06): the row is laid out for four and shown in part — the ones not yet in are
-       invisible, and the row is shifted so the visible ones sit centred; alone, the first stands at the deck's 1-up size
-       (min(80vh, 1080px)) by scaling the row up, and eases down as the second comes in */
-    transform-origin: 50% 50%; transition: transform 950ms cubic-bezier(.22,1,.36,1);
-  }
-  .row > * { transition: opacity 600ms ease, visibility 0s linear 0s; }
-  .row > .out { opacity: 0; visibility: hidden; transition: opacity 600ms ease, visibility 0s linear 600ms; }   /* faded, then truly gone — no sliver at the row's edge */
-  .row.still, .row.still > * { transition: none !important; }
   @font-face { font-family: 'Cereal'; src: url('../../multi/Font_Cereal/AirbnbCerealVF_Wght.ttf') format('truetype'); font-weight: 100 900; }
-  /* THE FEE, ANIMATED — THE WHOLE STORY (John, 2026-10-03, after Airbnb's own "Simplifying service fees" film, 0:07–0:45): the
-     second phone's graph is live, not two frames crossfaded. Three taps:
-       1  the host's bar rises alone ("Your price $100"), slides left as the guests' bar rises beside it ("Guests see $115"),
-          and the guests' service fee is ruled off its top ("Service fee $15") — John's 2 of 7 frame;
-       2  "3 of 7": the host's own fee is ruled off ("Service fee $3"), the bar fills pink up to the line, "You earn $97" —
-          John's 3 of 7 frame — and it holds there till the next tap (John, 2026-10-04);
-       3  "4 of 7": the two fees go, the host's bar grows to the guests' height, its cap reads "Single fee 15.5%", then "$18",
-          and "Your price $115" — the two prices are one price.
-     Everything is laid on the 393 x 852 frame John's screens are drawn on (.stage, scaled to the screen the way the screen image
-     is — object-fit: cover, from the top): the bars are the frame's own clean grey bar (hof-bar-*.webp), able to stand
-     any height, the pink is the frame's clean plate (hof-fill.webp), the words are set in Cereal where the frames set them. The
-     frame's own header and graph are papered over in white and rebuilt live, so the words can change step to step. ?ghost=2 or
-     ?ghost=3 lays that frame over the live one at half strength, to check the two still agree. Back snaps a step back. */
-  .hof { position: relative; height: var(--phone-h); aspect-ratio: 900 / 1840; flex: none; }
-  .hof .scr { position: absolute; left: 5.4444%; top: 2.5543%; width: 89.1111%; height: 94.8913%; border-radius: 15.9601% / 7.3310%; overflow: hidden; background: #fff; z-index: 1; }
-  .hof .scr > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
-  .hof .chrome { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
-  .stage { position: absolute; left: 0; top: 0; width: 393px; height: 852px; transform-origin: 0 0;
-           font-family: 'Cereal', -apple-system, sans-serif; color: #222; -webkit-font-smoothing: antialiased; }
-  .stage .cover { position: absolute; background: #fff; }
-  .stage .ghost { position: absolute; inset: 0; width: 393px; height: 852px; opacity: .5; pointer-events: none; z-index: 9; }
-  .stage .t { position: absolute; white-space: nowrap; transform: translate(-50%, -50%); font-size: 12px; line-height: 16px; opacity: 0; transition: opacity .25s ease; }
-  .stage .t b { font-weight: 700; }
-  .stage .step { left: 196.5px; top: 86px; font-size: 11px; color: #6b6b6b; }
-  .stage .head { left: 196.5px; top: 210px; font-size: 16px; line-height: 22px; text-align: center; color: #1c1c1c; }
-  /* THE BARS RISE OUT OF A SOFT FLOOR (John, 2026-10-03): the floor runs 28px past where the bars stand (y 663), and those 28px
-     fade from solid to clear — so a rising bar comes up through a short, subtle fade rather than a hard line, and a landed bar,
-     resting on y 663, is wholly above it. The fade never moves and never touches a finished bar; there is nothing to take away. */
-  .stage .floor { position: absolute; left: 0; top: 0; width: 393px; height: 691px; overflow: hidden;
-                  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 28px); mask-image: linear-gradient(to top, transparent 0, #000 28px); }
-  /* the bar is the frame's own, in two halves (top 127 rows, bottom 127) with one row of its middle stretched between them when
-     it stands taller than the frame's 254 — full-width layers, so nothing is resampled in pieces and no seam shows. The strip is
-     sized to the gap between the halves: drawn the bar's full height it showed through the halves' transparent corners as grey
-     squares. */
-  .stage .bar { position: absolute; bottom: 28px; width: 140px; transform: translateY(120%);
-                background: url('assets/hof-bar-top.webp') top / 140px 127px no-repeat, url('assets/hof-bar-bot.webp') bottom / 140px 127px no-repeat,
-                            url('assets/hof-bar-mid.webp') center / 140px calc(100% - 250px) no-repeat; }   /* the strip only between the halves, never under the rounded corners */
-  .stage .barL { left: 126.5px; height: 254px; }
-  .stage .barR { left: 207px; height: 313px; }
-  .stage .bar > * { position: absolute; }
-  .stage .bar .t { left: 70px; }                                   /* the bar's middle */
-  .stage .fill { left: 0; bottom: 0; width: 140px; height: 213px; clip-path: inset(100% 0 0 0); }
-  .stage .dash { left: 0; width: 138px; height: 1px; background: linear-gradient(90deg, #2e2e2e 50%, transparent 50%) left / 8px 1px repeat-x;
-                 clip-path: inset(0 100% 0 0); }
-  .stage .barL .dash { bottom: 213px; }                            /* y 449 on the frame, from the floor, so it stays put as the bar grows */
-  .stage .barR .dash { top: 58px; }                                /* y 408: 58 under the guests' bar top */
-  .stage .labTop { bottom: calc(100% + 10.5px); transform: translate(-50%, 0); }
-  .stage .svc3 { bottom: 232px; }  .stage .single { bottom: 263.5px; }  .stage .earn { bottom: 107px; color: #fff; }
-  .stage .svc15 { top: 30.5px; }
-  .stage .svc3, .stage .single, .stage .earn, .stage .svc15 { transform: translate(-50%, 50%); }
-  .stage .svc15 { transform: translate(-50%, -50%); }
 
-  /* 0 → 1 (John, 2026-10-03, put back as it first was): the slide lands empty and this plays by itself — the host's bar rises in
-     the middle ("Your price $100"), steps left as the guests' bar rises beside it ("Guests see $115"), then the guests' fee is
-     ruled off its top ("Service fee $15"); then it waits. */
-  .hof[data-s="0"] .s01, .hof[data-s="1"] .s01 { opacity: 1; }
-  .hof:not([data-s="0"]) .barL { left: 46px; transform: none; transition: transform .75s cubic-bezier(.2,.8,.25,1), left .6s cubic-bezier(.5,0,.3,1) 1.1s, height .6s cubic-bezier(.4,0,.2,1) .6s; }
-  .hof:not([data-s="0"]) .barR { transform: none; transition: transform .75s cubic-bezier(.2,.8,.25,1) 1.25s; }
-  .hof:not([data-s="0"]) .p100 { opacity: 1; transition: opacity .4s ease .5s; }
-  .hof:not([data-s="0"]) .g115 { opacity: 1; transition: opacity .4s ease 1.8s; }
-  .hof[data-s="1"] .barR .dash, .hof[data-s="2"] .barR .dash { clip-path: inset(0); transition: clip-path .45s cubic-bezier(.4,0,.2,1) 2.3s; }
-  .hof[data-s="1"] .svc15, .hof[data-s="2"] .svc15 { opacity: 1; transition: opacity .4s ease 2.6s; }
-  .hof[data-s="2"] .barR .dash, .hof[data-s="2"] .svc15 { transition: none; }
-  .hof[data-s="3"] .barR .dash { clip-path: inset(0); opacity: 0; transition: opacity .3s ease .3s; }
-  /* 1 → 2: the host's fee, the fill, what the host earns */
-  .hof[data-s="2"] .s2 { opacity: 1; transition: opacity .35s ease .15s; }
-  .hof[data-s="2"] .barL .dash, .hof[data-s="3"] .barL .dash { clip-path: inset(0); transition: clip-path .5s cubic-bezier(.4,0,.2,1) .25s; }
-  .hof[data-s="2"] .svc3 { opacity: 1; transition: opacity .4s ease .35s; }
-  .hof[data-s="2"] .fill, .hof[data-s="3"] .fill { clip-path: inset(0); transition: clip-path .75s cubic-bezier(.3,0,.2,1) .8s; }
-  .hof[data-s="2"] .earn, .hof[data-s="3"] .earn { opacity: 1; transition: opacity .4s ease 1.55s; }
-  /* 2 → 3: one fee */
-  .hof[data-s="3"] .s3 { opacity: 1; transition: opacity .35s ease .15s; }
-  .hof[data-s="3"] .barL .dash, .hof[data-s="3"] .fill, .hof[data-s="3"] .earn { transition: none; }
-  .hof[data-s="3"] .barL { height: 313px; }
-  .hof[data-s="3"] .p100 { opacity: 0; transition: opacity .3s ease .3s; }
-  .hof[data-s="3"] .sf155 { animation: blip 1.5s ease 1.3s both; }
-  .hof[data-s="3"] .sf18 { opacity: 1; transition: opacity .4s ease 2.7s; }
-  .hof[data-s="3"] .p115 { opacity: 1; transition: opacity .45s ease 3.6s; }
+  /* ── the phone ─────────────────────────────────────────────────────────── */
+  .hof { position: relative; height: min(80vh, 1080px); aspect-ratio: 900 / 1840; flex: none; }
+  .hof .scr { position: absolute; left: 5.4444%; top: 2.5543%; width: 89.1111%; height: 94.8913%; border-radius: 15.9601% / 7.3310%; overflow: hidden; background: #fff; z-index: 1; }
+  .hof .chrome { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+  .stage { position: absolute; left: 0; top: 0; width: 393px; height: 852px; transform-origin: 0 0; overflow: hidden;
+           font-family: 'Cereal', -apple-system, sans-serif; color: #222; -webkit-font-smoothing: antialiased; }
+  .stage, .stage * { box-sizing: border-box; }
+  .stage p { margin: 0; }
+  .stage img { display: block; user-select: none; -webkit-user-drag: none; }
+
+  /* ── screens: each the whole frame; in, off to the right, or off to the left ──────────────────── */
+  .scn { position: absolute; left: 0; top: 0; width: 393px; height: 852px; background: #fff; overflow: hidden;
+         transition: transform .55s cubic-bezier(.32,.72,0,1), opacity .35s ease; }
+  .scn.right { transform: translateX(100%); }
+  .scn.left { transform: translateX(-28%); }
+  .scn.hidden { visibility: hidden; transition: transform .55s cubic-bezier(.32,.72,0,1), opacity .35s ease, visibility 0s linear .55s; }
+  .stage.snap *, .stage.snap .scn { transition: none !important; animation: none !important; }
+
+  /* ── the pieces every screen shares ────────────────────────────────────── */
+  .status { position: absolute; left: 0; top: 0; width: 393px; height: 59px; color: #000; }
+  .status .time { position: absolute; left: 54px; top: 21px; font: 600 17px/21px -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif; letter-spacing: -.3px; }
+  .status svg { position: absolute; right: 31.8px; top: 23px; width: 79px; height: 13px; }
+  .status.white { color: #fff; }
+  .nav { position: absolute; left: 0; top: 59px; width: 393px; height: 56px; }
+  .nav .ttl { position: absolute; left: 68px; right: 68px; top: 0; height: 56px; display: flex; align-items: center; justify-content: center;
+              font-size: 12px; line-height: 16px; color: #6c6c6c; }
+  .nav .ttl.big { font-size: 16px; line-height: 20px; font-weight: 500; color: #222; }
+  .nav .ib { position: absolute; top: 4px; width: 48px; height: 48px; display: grid; place-items: center; }
+  .nav .ib svg { width: 16px; height: 16px; display: block; }
+  .nav .lead { left: 12px; }  .nav .trail { right: 12px; }
+  .marq { position: absolute; left: 32px; right: 32px; top: 187px; text-align: center; font-size: 16px; line-height: 22px; color: #222; }
+  .btn { position: absolute; left: 24px; width: 345px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+         font-size: 16px; line-height: 20px; font-weight: 500; color: #fff; background: #222; transition: transform .16s ease; }
+  .btn.sec { background: #f2f2f2; color: #222; }
+  .btn.pressing { transform: scale(.97); }
+  .home { position: absolute; left: 129px; width: 135px; height: 5px; border-radius: 100px; background: #222; top: 839px; }
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.4); opacity: 0; transition: opacity .4s ease; pointer-events: none; }
+  .sheet { position: absolute; left: 0; width: 393px; background: #fff; border-radius: 32px 32px 0 0;
+           box-shadow: 0 0 0 1px rgba(0,0,0,.02), 0 8px 24px rgba(0,0,0,.1); transform: translateY(110%);
+           transition: transform .62s cubic-bezier(.32,.72,0,1); }
+  .sheet .x { position: absolute; right: 12px; top: 8px; width: 48px; height: 48px; display: grid; place-items: center; }
+  .sheet .x svg { width: 16px; height: 16px; }
+  .up .scrim { opacity: 1; }  .up .sheet { transform: none; }
+
+  /* ── 0 · TODAY (5650:4738) ─────────────────────────────────────────────── */
+  #sToday .pills { position: absolute; left: 0; top: 67px; width: 393px; height: 40px; }
+  #sToday .pill { position: absolute; top: 0; height: 40px; border-radius: 100px; font-size: 12px; line-height: 16px; font-weight: 500; display: flex; align-items: center; justify-content: center; }
+  #sToday .pill.on { left: 103.5px; width: 75px; background: #222; color: #fff; }
+  #sToday .pill.off { left: 190.5px; width: 99px; background: #f0f0f0; color: #222; }
+  #sToday .filt { position: absolute; left: 329px; top: 0; width: 40px; height: 40px; border-radius: 100px; background: #f0f0f0; display: grid; place-items: center; }
+  #sToday .filt img { width: 16px; height: 16px; }
+  #sToday h1 { position: absolute; left: 24px; width: 345px; top: 163px; margin: 0; text-align: center; font-size: 32px; line-height: 36px; font-weight: 600; letter-spacing: -.64px; color: #222; }
+  #sToday .card { position: absolute; left: 24px; top: 281px; width: 345px; height: 322px; border-radius: 24px; background: #fff;
+                  box-shadow: 0 0 0 1px rgba(0,0,0,.02), 0 8px 12px rgba(0,0,0,.1); }
+  #sToday .card .when { position: absolute; left: 0; width: 345px; top: 40px; text-align: center; font-size: 14px; line-height: 18px; font-weight: 500; }
+  #sToday .av { position: absolute; left: 110.5px; top: 90px; width: 96px; height: 96px; border-radius: 50%; border: 3px solid #fff; object-fit: cover; }
+  #sToday .lst { position: absolute; left: 186.5px; top: 138px; width: 48px; height: 48px; border-radius: 12px; border: 3px solid #fff; overflow: hidden; background: #ddd; }
+  #sToday .lst img { width: 100%; height: 100%; object-fit: cover; }
+  #sToday .card h2 { position: absolute; left: 0; width: 345px; top: 222px; margin: 0; text-align: center; font-size: 26px; line-height: 30px; font-weight: 600; letter-spacing: -.52px; }
+  #sToday .card .sub { position: absolute; left: 40px; width: 265px; top: 264px; text-align: center; font-size: 14px; line-height: 18px; color: #6a6a6a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* the bar at the foot — the notification that starts the flow (.notif, not .bar: the graph's bars are .bar) */
+  .notif { position: absolute; left: 0; top: 689px; width: 393px; height: 163px; background: #fff; border-radius: 24px 24px 0 0;
+         box-shadow: 0 0 0 1px rgba(0,0,0,.04), 0 6px 10px rgba(0,0,0,.2); }
+  .notif .ico { position: absolute; left: 24px; top: 16px; width: 40px; height: 40px; display: grid; place-items: center; }
+  .notif .ico img { width: 32px; height: 32px; }
+  .notif .t1 { position: absolute; left: 80px; top: 16px; width: 289px; font-size: 14px; line-height: 18px; font-weight: 500; }
+  .notif .t2 { position: absolute; left: 80px; top: 38px; width: 289px; font-size: 14px; line-height: 18px; color: #6a6a6a; }
+  /* the tab nav */
+  .tabs { position: absolute; left: 0; top: 761px; width: 393px; height: 91px; background: #fff; border-top: 1px solid #ebebeb; }
+  .tabs .row { position: absolute; left: 4px; top: 1px; width: 385px; display: flex; gap: 2px; }
+  .tabs .tab { flex: 1 0 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; font-size: 10px; line-height: 12px; color: #6c6c6c; }
+  .tabs .tab img { width: 24px; height: 24px; }
+  .tabs .tab.on { color: #da1249; font-weight: 500; }
+
+  /* ── 1 · REQUIRED ACTIONS (5650:4781) — rises over Today ─────────────────── */
+  #sReq { background: linear-gradient(180deg, #fff 0%, #fff 12%, #f4f4f4 24%, #f2f2f2 100%); transform: translateY(100%); }
+  #sReq.in { transform: none; }
+  #sReq .card { position: absolute; left: 24px; top: 195px; width: 345px; height: 444px; border-radius: 24px; background: #fff; padding: 40px;
+                box-shadow: 0 0 0 1px rgba(0,0,0,.02), 0 8px 12px rgba(0,0,0,.1); text-align: center; }
+  #sReq .due { font-size: 14px; line-height: 18px; color: #6e6a66; }
+  #sReq .money { width: 112px; height: 112px; margin: 32px auto 32px; border-radius: 16px; overflow: hidden; }
+  #sReq .money img { width: 128px; height: 128px; margin: -8px 0 0 -7px; object-fit: cover; }
+  #sReq h2 { margin: 0; font-size: 26px; line-height: 30px; font-weight: 600; letter-spacing: -.52px; }
+  #sReq .sub { margin-top: 10px; font-size: 14px; line-height: 18px; color: #6a6a6a; }
+  #sReq .go { margin-top: 24px; height: 40px; border-radius: 12px; background: #222; color: #fff; font-size: 14px; line-height: 18px; font-weight: 500; display: flex; align-items: center; justify-content: center; }
+
+  /* ── 2–6 · THE EXPLAINER (5650:4851–55) — THE FEE, ANIMATED (kept from the build before, 2026-10-03, after Airbnb's own
+     "Simplifying service fees" film): the bars are the frame's own clean grey bar in three parts (hof-bar-top / mid / bot), the pink
+     its clean plate (hof-fill), both able to stand any height; the words are set in Cereal where the frames set them. Five states:
+       1  the host's bar rises alone in the middle ("Your price $100"), steps left as the guests' bar rises beside it ("Guests see $115")
+       2  the guests' fee is ruled off their top ("Service fee $15")
+       3  the host's fee is ruled off ("Service fee $3"), the bar fills pink to the line, "You earn $97"
+       4  the two fees go, the host's bar grows to the guests' height, its cap reads "Single fee 15.5%", then "$18"
+       5  "Adjusted price $100 → $115", the new price highlighted
+     Everything is laid on the 393 x 852 frame: bars 140 wide on a floor at y 663, the host's 254 tall (313 once the fee is one), the
+     guests' 313; the guests' fee line 58 under their top (y 408), the host's 213 up from the floor (y 450). */
+  #sGraph .step, #sGraph .head { position: absolute; left: 32px; right: 32px; text-align: center; opacity: 0; transition: opacity .3s ease; }
+  #sGraph .step { top: 0; height: 56px; display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 16px; color: #6c6c6c; left: 68px; right: 68px; }
+  #sGraph .head { top: 187px; font-size: 16px; line-height: 22px; color: #222; }
+  #sGraph .nav .lead { opacity: 0; transition: opacity .3s ease; }
+  #sGraph:not([data-g="1"]) .nav .lead { opacity: 1; }
+  #sGraph .t { position: absolute; white-space: nowrap; transform: translate(-50%, -50%); font-size: 12px; line-height: 16px; opacity: 0; transition: opacity .25s ease; }
+  #sGraph .t b { font-weight: 700; }
+  /* the bars rise out of a soft floor: the floor runs 28px past where the bars stand (y 663), and those 28px fade to clear */
+  #sGraph .floor { position: absolute; left: 0; top: 0; width: 393px; height: 691px; overflow: hidden;
+                   -webkit-mask-image: linear-gradient(to top, transparent 0, #000 28px); mask-image: linear-gradient(to top, transparent 0, #000 28px); }
+  #sGraph .bar { position: absolute; bottom: 28px; width: 140px; transform: translateY(120%);
+                 background: url('assets/hof-bar-top.webp') top / 140px 127px no-repeat, url('assets/hof-bar-bot.webp') bottom / 140px 127px no-repeat,
+                             url('assets/hof-bar-mid.webp') center / 140px calc(100% - 250px) no-repeat; }
+  #sGraph .barL { left: 126.5px; height: 254px; }
+  #sGraph .barR { left: 207px; height: 313px; }
+  #sGraph .bar > * { position: absolute; }
+  #sGraph .bar .t { left: 70px; }
+  #sGraph .fill { left: 0; bottom: 0; width: 140px; height: 213px; clip-path: inset(100% 0 0 0); }
+  #sGraph .dash { left: 0; width: 138px; height: 1px; background: linear-gradient(90deg, #2e2e2e 50%, transparent 50%) left / 8px 1px repeat-x; clip-path: inset(0 100% 0 0); }
+  #sGraph .barL .dash { bottom: 213px; }
+  #sGraph .barR .dash { top: 58px; }
+  #sGraph .labTop { bottom: calc(100% + 10.5px); transform: translate(-50%, 0); }
+  #sGraph .svc3 { bottom: 232px; }  #sGraph .single { bottom: 263.5px; }  #sGraph .earn { bottom: 107px; color: #fff; }
+  #sGraph .svc15 { top: 30.5px; }
+  #sGraph .svc3, #sGraph .single, #sGraph .earn { transform: translate(-50%, 50%); }
+  #sGraph .svc15 { transform: translate(-50%, -50%); }
+  #sGraph .adj s { color: #6c6c6c; text-decoration-thickness: 1px; }
+  #sGraph .adj b { position: relative; }
+  #sGraph .adj b img { position: absolute; left: -2px; top: 14px; width: 36px; height: 11px; opacity: 0; transition: opacity .3s ease .5s; }
+  #sGraph .next { top: 754px; }
+  /* state 1: the bars rise, the host's first; the words land as each stands */
+  #sGraph[data-g="1"] .s1, #sGraph[data-g="2"] .s2, #sGraph[data-g="3"] .s3, #sGraph[data-g="4"] .s4, #sGraph[data-g="5"] .s5 { opacity: 1; }
+  #sGraph.go .barL { left: 46px; transform: none; transition: transform .75s cubic-bezier(.2,.8,.25,1), left .6s cubic-bezier(.5,0,.3,1) 1.1s, height .6s cubic-bezier(.4,0,.2,1) .6s; }
+  #sGraph.go .barR { transform: none; transition: transform .75s cubic-bezier(.2,.8,.25,1) 1.25s; }
+  #sGraph.go .p100 { opacity: 1; transition: opacity .4s ease .5s; }
+  #sGraph.go .g115 { opacity: 1; transition: opacity .4s ease 1.8s; }
+  /* 2: the guests' fee */
+  #sGraph[data-g="2"] .barR .dash, #sGraph[data-g="3"] .barR .dash { clip-path: inset(0); transition: clip-path .45s cubic-bezier(.4,0,.2,1) .2s; }
+  #sGraph[data-g="2"] .svc15, #sGraph[data-g="3"] .svc15 { opacity: 1; transition: opacity .4s ease .5s; }
+  #sGraph[data-g="3"] .barR .dash, #sGraph[data-g="3"] .svc15 { transition: none; }
+  /* 3: the host's fee, the fill, what the host earns */
+  #sGraph[data-g="3"] .barL .dash, #sGraph[data-g="4"] .barL .dash, #sGraph[data-g="5"] .barL .dash { clip-path: inset(0); transition: clip-path .5s cubic-bezier(.4,0,.2,1) .25s; }
+  #sGraph[data-g="3"] .svc3 { opacity: 1; transition: opacity .4s ease .35s; }
+  #sGraph[data-g="3"] .fill, #sGraph[data-g="4"] .fill, #sGraph[data-g="5"] .fill { clip-path: inset(0); transition: clip-path .75s cubic-bezier(.3,0,.2,1) .8s; }
+  #sGraph[data-g="3"] .earn, #sGraph[data-g="4"] .earn, #sGraph[data-g="5"] .earn { opacity: 1; transition: opacity .4s ease 1.55s; }
+  /* 4: one fee — the guests' line goes, the host's bar grows to the guests' height */
+  #sGraph[data-g="4"] .barL .dash, #sGraph[data-g="4"] .fill, #sGraph[data-g="4"] .earn,
+  #sGraph[data-g="5"] .barL .dash, #sGraph[data-g="5"] .fill, #sGraph[data-g="5"] .earn { transition: none; }
+  #sGraph[data-g="4"] .barR .dash, #sGraph[data-g="5"] .barR .dash { clip-path: inset(0); opacity: 0; transition: opacity .3s ease .3s; }
+  #sGraph[data-g="4"] .barL, #sGraph[data-g="5"] .barL { height: 313px; }
+  #sGraph[data-g="4"] .p100, #sGraph[data-g="5"] .p100 { opacity: 0; transition: opacity .3s ease .3s; }
+  #sGraph[data-g="4"] .sf155 { animation: blip 1.5s ease 1.3s both; }
+  #sGraph[data-g="4"] .sf18 { opacity: 1; transition: opacity .4s ease 2.7s; }
   @keyframes blip { 0% { opacity: 0; } 22% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
-  .hof.snap *, .hof.snap .bar { transition: none !important; animation: none !important; }
-  /* THE CONFIRMATION (John, 2026-10-03): the fourth phone is the Figma frame 5618:11340 — "7 of 7", the one-time adjustment
-     over the calendar and "Confirm price adjustment" — in the same drawn iPhone as the second, on the same 393 x 852 screen, so
-     the two built phones carry the same chrome and the status bars line up. */
-  /* THE TAG, ANIMATED (John, 2026-10-03): the third phone's price tag is the closing slide's own tag (09e: price-modal.mp4, the
-     still tag its first and last frame), laid exactly over the still one — its ink 136 x 141 at 421,468 on the 979 x 2000 export,
-     the video's 629 x 660 at 181,173 in its 1000 square, so 0.2149 of it — on the screen's white, which is the video's own. It
-     plays once the fee's graph has finished, never before. */
-  .adj { position: relative; height: var(--phone-h); aspect-ratio: 979 / 2000; flex: none; }
-  .adj img { height: 100%; width: 100%; }
-  .adj video { position: absolute; left: 39.030%; top: 21.541%; width: 21.951%; height: 10.745%; display: block; }
-  /* THE CALENDAR, LIVE (John, 2026-10-03: "completely rebuild it … smooth, and the calendar actually works like a calendar"). The
-     fourth phone's calendar is built here, on the same 393 x 852 frame as Figma's 7 of 7 (5618:11340) and its details state
-     (5618:12403); the frame image underneath only gives the black header (status bar, "7 of 7", the one line about the
-     adjustment). Measured off both frames: the white sheet's top at y 231, rising 108pt to y 123 so it covers that line; cells
-     50 x 88 on a 54 x 92 pitch from x 8 / sheet y 114; the day number's cap at +19, one price at +61.5 or the struck and the new
-     at +53.5 / +69.5; the breakdown card 24–368 x 570–741 (dividers at 629, 681), the date pill right at 368 on 520–559, the
-     button 24–368 x 754–801 — pink "Confirm price adjustment" before, "Close details" after.
-     It stands on the details from the start (sheet up, prices adjusted, Aug 9 picked, the breakdown in) and the tap plays it
-     back to the 7 of 7 page: the breakdown sinks and the pick lets go, the sheet comes down on the iOS sheet curve to show the
-     header line, the prices turn back in a wave, and the Rausch button stands. Either way it is a calendar: tap any open night
-     and it is picked — the pill, the card and the cell follow (on the 7 of 7 page, the sheet rises again for it); Close details
-     puts the breakdown away; it scrolls (August into September) with a finger or a wheel. */
-  .done .stage { font-family: 'Cereal', -apple-system, sans-serif; color: #1f1f1f; }
-  .c-sheet { position: absolute; left: 0; top: 231px; width: 393px; height: 760px; background: #fff; border-radius: 24px 24px 0 0;
-             transition: transform .62s cubic-bezier(.32,.72,0,1); }
-  .done.on .c-sheet { transform: translateY(-108px); }
-  .c-month { position: absolute; left: 25px; font-size: 20.5px; line-height: 28px; font-weight: 600; letter-spacing: -.2px; color: #1f1f1f; }
+  /* 5: the adjusted price */
+  #sGraph[data-g="5"] .sf18 { opacity: 1; transition: none; }
+  #sGraph[data-g="5"] .adj { opacity: 1; transition: opacity .45s ease .25s; }
+  #sGraph[data-g="5"] .adj b img { opacity: 1; }
+
+  /* ── 7 · LET'S ADJUST YOUR PRICES (5650:4917) — THE TAG, ANIMATED (kept, 2026-10-03): the closing slide's own price-tag film
+     (09e: price-modal.mp4, the still tag its first and last frame), where the frame sets its 64pt tag; it plays once the screen is in */
+  #sAdj .tag { position: absolute; left: 153.4px; top: 183.5px; width: 86.3px; height: 91.5px; opacity: 0; }
+  #sAdj .tag.played { opacity: 1; }   /* the film shows only once it has played: before that, and arriving backwards, the still tag */
+  #sAdj .tagpng { position: absolute; left: 164.5px; top: 187px; width: 64px; height: 64px; }
+  #sAdj h2 { position: absolute; left: 52px; width: 289px; top: 267px; margin: 0; text-align: center; font-size: 26px; line-height: 30px; font-weight: 600; letter-spacing: -.52px; }
+  #sAdj .pts { position: absolute; left: 46.5px; top: 337px; width: 300px; }
+  #sAdj .pt { display: flex; gap: 20px; align-items: flex-start; font-size: 14px; line-height: 20px; color: #6a6a6a; }
+  #sAdj .pt img { width: 8px; height: 8px; margin-top: 7px; flex: none; }
+  #sAdj .pt u { text-decoration: underline; text-underline-position: from-font; }
+  #sAdj .rule { height: 1px; background: #ebebeb; margin: 28px 0; }
+  #sAdj .b1 { top: 698px; }  #sAdj .b2 { top: 754px; }
+  #sRemind .sheet { height: 306px; top: 546px; }
+  #sRemind .sheet p { position: absolute; left: 34px; width: 325px; top: 96px; text-align: center; font-size: 16px; line-height: 20px; font-weight: 500; color: #222; }
+  #sRemind .sheet .btn { top: 208px; }
+
+  /* ── 9–12 · THE CALENDAR (5650:4857–61) — LIVE (kept from the build before, 2026-10-03: "smooth, and the calendar actually works
+     like a calendar"), on the frame's own geometry: the black header with the one line about the adjustment, the white sheet at y 231
+     rising 108 to cover it; cells 50 x 88 on a 54 x 92 pitch from x 8 / sheet y 114; the breakdown card 24–368 x 570–741; the date pill
+     at the right on 520–559; the button 24–368 x 754–801 — pink "Confirm price adjustment" before, "Close details" after. Tap any open
+     night and it is picked; it scrolls (August into September). */
+  #sCal { background: #000; }
+  #sCal .status, #sCal .nav .ib { color: #fff; }
+  #sCal .nav .ttl { color: #b0b0b0; }
+  #sCal .line { position: absolute; left: 32px; right: 32px; top: 147px; text-align: center; font-size: 16px; line-height: 22px; color: #fff; }
+  .c-sheet { position: absolute; left: 0; top: 231px; width: 393px; height: 760px; background: #fff; border-radius: 24px 24px 0 0; transition: transform .62s cubic-bezier(.32,.72,0,1); }
+  .on .c-sheet { transform: translateY(-108px); }
+  .c-month { position: absolute; left: 24px; top: 24px; font-size: 24px; line-height: 30px; font-weight: 600; letter-spacing: -.3px; color: #222; }
   .c-week { position: absolute; left: 0; top: 70px; width: 393px; height: 28px; border-bottom: 1px solid #ebebeb; }
   .c-week span { position: absolute; top: 4px; width: 50px; text-align: center; font-size: 11px; line-height: 16px; color: #6a6a6a; }
-  .c-scroll { position: absolute; left: 0; top: 99px; width: 393px; bottom: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
-              overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .c-scroll { position: absolute; left: 0; top: 99px; width: 393px; bottom: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; overscroll-behavior: contain; }
   .c-scroll::-webkit-scrollbar { display: none; }
   .c-grid { position: relative; width: 393px; }
-  .c-cell { position: absolute; width: 50px; height: 88px; box-sizing: border-box; border-radius: 9px; border: 1px solid #ececec; background: #fff;
-            transition: background-color .28s ease, border-color .28s ease; cursor: default; }
-  .c-cell.open { cursor: pointer; }
+  .c-cell { position: absolute; width: 50px; height: 88px; border-radius: 9px; border: 1px solid #ececec; background: #fff; transition: background-color .28s ease, border-color .28s ease; }
   .c-cell.past, .c-cell.bk { background: #f7f7f7; border-color: #f7f7f7; }
-  .c-num { position: absolute; left: 0; right: 0; top: 9.5px; margin: 0 auto; width: 26px; height: 26px; border-radius: 13px; text-align: center;
-           font-size: 11.5px; line-height: 26px; font-weight: 500; color: #1f1f1f; transition: background-color .28s ease, color .28s ease; }
+  .c-num { position: absolute; left: 0; right: 0; top: 9.5px; margin: 0 auto; width: 26px; height: 26px; border-radius: 13px; text-align: center; font-size: 11.5px; line-height: 26px; font-weight: 500; color: #222; transition: background-color .28s ease, color .28s ease; }
   .c-cell.past .c-num { color: #696969; font-weight: 400; }
   .c-cell.today .c-num { background: #da1248; color: #fff; }
-  .c-p1, .c-p2 { position: absolute; left: 0; right: 0; text-align: center; font-size: 11.5px; line-height: 16px; color: #696969; transition: opacity .3s ease; }
-  .c-p1 { top: 53.5px; }
-  .c-p2 { top: 45px; }
-  .c-p1 { display: none; }   /* the adjusted prices stand on both pages (John, 2026-10-03): struck old over new, before and after the tap */
+  .c-p2 { position: absolute; left: 0; right: 0; top: 45px; text-align: center; font-size: 11.5px; line-height: 16px; color: #696969; transition: opacity .3s ease; }
   .c-p2 s { display: block; color: #696969; text-decoration-thickness: 1px; }
-  .c-p2 b { display: block; color: #1f1f1f; font-weight: 600; font-size: 12.5px; transition: color .28s ease; }
+  .c-p2 b { display: block; color: #222; font-weight: 600; font-size: 12.5px; transition: color .28s ease; }
+  .c-p2.one { top: 53.5px; }  .c-p2.one b { font-weight: 400; color: #696969; font-size: 11.5px; }
   .c-cell.sel { background: #222; border-color: #222; }
   .c-cell.sel .c-num { background: #fff; color: #222; }
   .c-cell.sel .c-p2 s { color: #9b9b9b; }
   .c-cell.sel .c-p2 b { color: #fff; }
   .c-bk { position: absolute; top: 0; height: 88px; border-radius: 9px; background: #f7f7f7; }
   .c-bk .c-num { position: absolute; left: auto; right: auto; margin: 0; }
-  .stage .c-guest { position: absolute; top: 43px; width: 32px; height: 32px; border-radius: 16px; display: block; }
+  .c-guest { position: absolute; top: 43px; width: 32px; height: 32px; border-radius: 16px; object-fit: cover; }
   .c-booked { position: absolute; top: 51.5px; font-size: 12px; line-height: 16px; color: #686868; }
-  .c-title2 { position: absolute; left: 25px; font-size: 26px; line-height: 32px; font-weight: 600; color: #1f1f1f; }
-  /* the breakdown, in frame coordinates (it does not move with the sheet) */
+  .c-title2 { position: absolute; left: 24px; font-size: 24px; line-height: 30px; font-weight: 600; letter-spacing: -.3px; color: #222; }
   .c-fade { position: absolute; left: 0; top: 488px; width: 393px; height: 364px; pointer-events: none; opacity: 0;
-            background: linear-gradient(to bottom, rgba(255,255,255,0) 0, rgba(255,255,255,.78) 44px, rgba(255,255,255,.86) 100%);
-            transition: opacity .4s ease; }
-  .c-pill { position: absolute; right: 25px; top: 520px; height: 39px; padding: 0 18.5px; border-radius: 20px; background: #222; color: #fff;
-            font-size: 15px; line-height: 39px; font-weight: 500; white-space: nowrap; }
+            background: linear-gradient(to bottom, rgba(255,255,255,0) 0, rgba(255,255,255,.78) 44px, rgba(255,255,255,.86) 100%); transition: opacity .4s ease; }
+  .c-pill { position: absolute; right: 25px; top: 520px; height: 39px; padding: 0 18.5px; border-radius: 20px; background: #222; color: #fff; font-size: 15px; line-height: 39px; font-weight: 500; white-space: nowrap; }
   .c-card { position: absolute; left: 24px; top: 570px; width: 345px; height: 171px; border-radius: 16px; background: #222; color: #fff; }
-  .c-row { position: absolute; left: 25px; right: 27px; height: 20px; display: flex; justify-content: space-between; align-items: center;
-           font-size: 14px; line-height: 20px; }
+  .c-row { position: absolute; left: 25px; right: 27px; height: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; line-height: 20px; }
   .c-row .v { font-weight: 600; font-size: 14.5px; }
   .c-row .v s { color: #8c8c8c; font-weight: 400; margin-right: 10px; }
   .c-rule { position: absolute; left: 25px; right: 25px; height: 1px; background: #474747; }
   .c-up { opacity: 0; transform: translateY(46px); transition: opacity .32s ease, transform .5s cubic-bezier(.2,.8,.2,1); pointer-events: none; }
-  .done.on.det .c-up { opacity: 1; transform: none; pointer-events: auto; }
-  .done.on.det .c-fade { opacity: 1; }
-  /* the 7 of 7 frame's footer: white under the button, so the weeks pass behind it (the details state hides it under its fade) */
+  .on.det .c-up { opacity: 1; transform: none; pointer-events: auto; }
+  .on.det .c-fade { opacity: 1; }
   .c-foot { position: absolute; left: 0; top: 806px; width: 393px; height: 46px; background: #fff; transition: opacity .3s ease; }
-  .done.on.det .c-foot { opacity: 0; }
-  .c-btn { position: absolute; left: 24px; top: 754px; width: 345px; height: 48px; border-radius: 12px; overflow: hidden; cursor: pointer;
-           font-size: 15.5px; line-height: 48px; font-weight: 500; color: #fff; text-align: center; }
+  .on.det .c-foot { opacity: 0; }
+  .c-btn { position: absolute; left: 24px; top: 754px; width: 345px; height: 48px; border-radius: 12px; overflow: hidden; font-size: 15.5px; line-height: 48px; font-weight: 500; color: #fff; text-align: center; transition: transform .16s ease; }
+  .c-btn.pressing { transform: scale(.97); }
   .c-btn > div { position: absolute; inset: 0; transition: opacity .3s ease; }
   .c-btn .pink { background: linear-gradient(90deg, #e61e4d 0%, #e31c5f 50%, #d70466 100%); }
   .c-btn .dark { background: #222; opacity: 0; }
-  .done.on.det .c-btn .dark { opacity: 1; }
-  .c-btn .dark { pointer-events: none; }
-  /* ADJUSTMENT COMPLETE (John, 2026-10-04: "when I tap next, make the confirm price adjustment tap and it opens up the checkmark
-     modal"): the Rausch button presses, the calendar dims to the frame's grey (white → 221), and the "Price adjustment complete"
-     sheet rises from the foot on the iOS sheet curve — its words, check and buttons cut from fee-complete.webp (the screen there
-     is x 53–926, y 50–1950 of the 979 x 2000 export, 2.2214 px a point; the sheet's top at y 894, so 380pt down), on a white
-     sheet with its 27pt corners. */
-  .c-btn { transition: transform .16s ease; }
-  .c-btn.pressing { transform: scale(.97); }
-  .c-dim { position: absolute; left: 0; top: 0; width: 393px; height: 852px; background: rgba(0, 0, 0, .134); opacity: 0;
-           transition: opacity .55s ease .1s; pointer-events: none; z-index: 30; }
-  .c-modal { position: absolute; left: 0; top: 380px; width: 393px; height: 472px; background: #fff; border-radius: 27px 27px 0 0;
-             overflow: hidden; transform: translateY(105%); transition: transform .82s cubic-bezier(.22, .88, .28, 1) .1s; z-index: 31; pointer-events: none; }
-  /* the rise eased out longer (John, 2026-10-05: "too abrupt"): .82s on a softer curve, a beat after the button's press */
-  /* .stage-scoped: the slide's own `.row img` (every phone image at the phone's height) is as specific as `.c-modal img` and
-     comes later, so unscoped it blew the sheet up to the phone's height and cut it off at the right (John, 2026-10-05) */
-  .stage .c-modal img { position: absolute; left: 27.46px; top: 0.9px; width: 338.53px; height: 473.58px; max-width: none; display: block; }
-  /* ITS BUTTONS ARE THE 6 OF 7 PAGE'S (John, 2026-10-05: "exactly the same spacing and colors… as the buttons on lets adjust your
-     prices"): the picture's own Done and Learn more ran wider and sat differently, so they are covered by a white plate and set
-     again here to fee-adjust.webp's own Get started / Not now, measured off that export (2.2214 px a point): 24 in from each side,
-     48 tall, 8 apart, the lower one's foot 47 above the screen's — on the sheet, 321–369 and 377–425 — #222 and #F2F2F2, a 10
-     corner, Cereal 16 at 500. */
-  .c-mbtns { position: absolute; left: 0; right: 0; top: 296px; bottom: 0; background: #fff; }
-  .c-mbtns div { position: absolute; left: 24px; right: 24px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-                 font-family: 'Cereal', -apple-system, sans-serif; font-size: 16px; font-weight: 500; letter-spacing: 0; -webkit-font-smoothing: antialiased; }
-  .c-mbtns .b1 { top: 25px; background: #222; color: #fff; }
-  .c-mbtns .b2 { top: 81px; background: #F2F2F2; color: #222; }
-  .done.fin .c-dim { opacity: 1; }
-  .done.fin .c-modal { transform: none; }
-  .done.snap .c-dim, .done.snap .c-modal { transition: none !important; }
-  .done.snap .c-sheet, .done.snap .c-cell, .done.snap .c-num, .done.snap .c-p1, .done.snap .c-p2, .done.snap .c-p2 b, .done.snap .c-up,
-  .done.snap .c-fade, .done.snap .c-btn > div { transition: none !important; }
-  .row img {
-    height: var(--phone-h);
-    width: auto;
-    display: block;
-    user-select: none;
-    -webkit-user-drag: none;
-  }
+  .on.det .c-btn .dark { opacity: 1; }
+  #sConfirm .sheet { height: 442px; top: 410px; }
+  #sConfirm .sheet h3 { position: absolute; left: 66px; width: 261px; top: 96px; margin: 0; text-align: center; font-size: 22px; line-height: 26px; font-weight: 600; letter-spacing: -.44px; color: #222; }
+  #sConfirm .sheet p { position: absolute; left: 59px; width: 275px; top: 168px; text-align: center; font-size: 14px; line-height: 20px; color: #6a6a6a; }
+  #sConfirm .b1 { top: 280px; }  #sConfirm .b2 { top: 344px; }
+
+  /* ── 13 · DONE (5650:4862) — the host's own calendar, the new prices on it, dimmed, and the completion sheet over it ───── */
+  #sDone { opacity: 0; }
+  #sDone.in { opacity: 1; }
+  #sDone .navbar { position: absolute; left: 0; top: 59px; width: 393px; height: 56px; }
+  #sDone .navbar .ib { position: absolute; top: 8px; width: 40px; height: 40px; border-radius: 100px; background: #f2f2f2; display: grid; place-items: center; }
+  #sDone .navbar .ib img { width: 16px; height: 16px; }
+  #sDone h1 { position: absolute; left: 24px; top: 127px; margin: 0; font-size: 32px; line-height: 36px; font-weight: 600; letter-spacing: -.96px; color: #222; }
+  #sDone .c-week { top: 183px; height: 28px; }
+  #sDone .c-week span { top: 4px; }
+  #sDone .c-grid { position: absolute; left: 0; top: 212px; }
+  #sDone .sheet { height: 430px; top: 422px; border-radius: 32px 32px 0 0; }
+  #sDone .sheet .chk { position: absolute; left: 172.5px; top: 76px; width: 48px; height: 48px; }
+  #sDone .sheet h3 { position: absolute; left: 24px; width: 345px; top: 140px; margin: 0; text-align: center; font-size: 26px; line-height: 30px; font-weight: 600; letter-spacing: -.52px; color: #222; }
+  #sDone .b1 { top: 268px; }  #sDone .b2 { top: 332px; }
 </style>
 </head>
 <body>
@@ -265,24 +298,73 @@
       <clipPath id="outsideBezel" clipPathUnits="userSpaceOnUse">
         <path clip-rule="evenodd" d="M-60,-60 H960 V1900 H-60 Z M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/>
       </clipPath>
+      <!-- the status bar's right side — signal, wifi, battery — in currentColor, so it reads on white and on black -->
+      <symbol id="sb" viewBox="0 0 79.2 12.7">
+        <rect x="0" y="8.3" width="3" height="4.4" rx=".8" fill="currentColor"/><rect x="4.9" y="5.9" width="3" height="6.8" rx=".8" fill="currentColor"/>
+        <rect x="9.8" y="3" width="3" height="9.7" rx=".8" fill="currentColor"/><rect x="14.7" y="0.3" width="3" height="12.4" rx=".8" fill="currentColor"/>
+        <path d="M30.6 3.6a9.6 9.6 0 0 1 13 0l-1.1 1.2a8 8 0 0 0-10.8 0zM32.9 6.1a6.3 6.3 0 0 1 8.4 0l-1.1 1.2a4.7 4.7 0 0 0-6.2 0zM35.2 8.6a3.1 3.1 0 0 1 3.8 0l-1.9 2.2z" fill="currentColor"/>
+        <rect x="52.6" y="0.5" width="22" height="11.7" rx="2.6" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+        <rect x="54.1" y="2" width="19" height="8.7" rx="1.5" fill="currentColor"/><path d="M76.1 4.2v4.3a2.2 2.2 0 0 0 0-4.3z" fill="currentColor" fill-opacity=".4"/>
+      </symbol>
+      <symbol id="ix" viewBox="0 0 16 16"><path d="M2.5 2.5L13.5 13.5M13.5 2.5L2.5 13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+      <symbol id="iback" viewBox="0 0 16 16"><path d="M14 8H2.5M7.5 3L2.5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+      <symbol id="ichev" viewBox="0 0 16 16"><path d="M2.5 5.5L8 11l5.5-5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
     </defs>
   </svg>
   <div class="slide">
-    <div class="row" id="row">
-      <div class="hof" aria-label="Required actions: action required by January 17 (in red, with a warning) — we're simplifying service fees">
-        <div class="scr"><img src="assets/fee-required-warn.webp" alt="" draggable="false"></div>
-        <svg class="chrome" viewBox="0 0 900 1840" fill="none" aria-hidden="true"><path fill="url(#rail)" fill-rule="evenodd" d="M177,14 H723 A161,161 0 0 1 884,175 V1665 A161,161 0 0 1 723,1826 H177 A161,161 0 0 1 16,1665 V175 A161,161 0 0 1 177,14 Z M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/><image href="assets/device/iphone-frame.png" x="0" y="0" width="900" height="1840" clip-path="url(#outsideBezel)" preserveAspectRatio="none"/><path fill="#0b0b0b" fill-rule="evenodd" d="M177,27 H723 A148,148 0 0 1 871,175 V1665 A148,148 0 0 1 723,1813 H177 A148,148 0 0 1 29,1665 V175 A148,148 0 0 1 177,27 Z M177,47 H723 A128,128 0 0 1 851,175 V1665 A128,128 0 0 1 723,1793 H177 A128,128 0 0 1 49,1665 V175 A128,128 0 0 1 177,47 Z"/><rect x="322" y="69" width="256" height="74" rx="37" fill="#000"/><circle cx="529" cy="106" r="12.7" fill="#0f1420"/><circle cx="529" cy="106" r="5.3" fill="#243046"/></svg>
-      </div>
-      <div class="hof" id="hof" data-s="0" aria-label="Steps 2 to 4 of 7: guests pay a service fee on top; a host service fee is deducted, you earn $97; the two become one 15.5% fee, so your price is the price guests see">
-        <div class="scr">
-          <img src="assets/hof-2of7.webp" alt="" draggable="false">
-          <div class="stage" id="stage">
-            <div class="cover" style="left:150px;top:74px;width:93px;height:24px"></div>
-            <div class="cover" style="left:0;top:180px;width:393px;height:520px"></div>
-            <div class="t step s01">2 of 7</div><div class="t step s2">3 of 7</div><div class="t step s3">4 of 7</div>
-            <div class="t head s01">Guests pay a service fee<br>on top of the price you set.</div>
-            <div class="t head s2">And a host service fee is<br>deducted from your earnings.</div>
-            <div class="t head s3">To make pricing simpler, we&rsquo;re<br>combining these into one fee.</div>
+    <div class="hof" id="hof" aria-label="The host-only fee flow, screen by screen: the Today tab, the required action, the fee explained in five steps, let's adjust your prices, the calendar with the one-time adjustment, and price adjustment complete">
+      <div class="scr" id="scr">
+        <div class="stage" id="stage">
+
+          <div class="scn" id="sToday">
+            <div class="status"><span class="time">8:08</span><svg><use href="#sb"/></svg></div>
+            <div class="pills"><div class="pill on">Today</div><div class="pill off">Upcoming</div><div class="filt"><img src="assets/fee/ic-filter.svg" alt=""></div></div>
+            <h1>You have 1<br>reservation</h1>
+            <div class="card">
+              <p class="when">11:00 AM</p>
+              <img class="av" src="assets/fee/avatar-eslem.png" alt="">
+              <div class="lst"><img src="assets/fee/listing-1.png" alt=""></div>
+              <h2>Eslem checks out</h2>
+              <p class="sub">Villa Carmelita: Mid-century home</p>
+            </div>
+            <div class="notif">
+              <div class="ico"><img src="assets/fee/coin.png" alt=""></div>
+              <p class="t1">We&rsquo;re simplifying service fees</p>
+              <p class="t2">Action required by January 17</p>
+            </div>
+            <div class="tabs"><div class="row">
+              <div class="tab on"><img src="assets/fee/ic-today.svg" alt="">Today</div>
+              <div class="tab"><img src="assets/fee/ic-calendar.svg" alt="">Calendar</div>
+              <div class="tab"><img src="assets/fee/ic-listings.svg" alt="">Listings</div>
+              <div class="tab"><img src="assets/fee/ic-messages.svg" alt="">Messages</div>
+              <div class="tab"><img src="assets/fee/ic-menu.svg" alt="">Menu</div>
+            </div></div>
+          </div>
+
+          <div class="scn" id="sReq">
+            <div class="status"><span class="time">8:08</span><svg><use href="#sb"/></svg></div>
+            <div class="nav"><div class="ttl big">Required actions</div><div class="ib trail"><svg><use href="#ichev"/></svg></div></div>
+            <div class="card">
+              <p class="due">Action required by January 17</p>
+              <div class="money"><img src="assets/fee/money-small.png" alt=""></div>
+              <h2>We&rsquo;re simplifying service&nbsp;fees</h2>
+              <p class="sub">To keep your earnings the same, you&rsquo;ll need to take action before January 17.</p>
+              <div class="go">Get started</div>
+            </div>
+          </div>
+
+          <div class="scn right" id="sGraph" data-g="0">
+            <div class="status"><span class="time">8:08</span><svg><use href="#sb"/></svg></div>
+            <div class="nav">
+              <div class="ib lead"><svg><use href="#iback"/></svg></div>
+              <div class="step s1">1 of 7</div><div class="step s2">2 of 7</div><div class="step s3">3 of 7</div><div class="step s4">4 of 7</div><div class="step s5">5 of 7</div>
+              <div class="ib trail"><svg><use href="#ix"/></svg></div>
+            </div>
+            <div class="head s1">Today, the price you set doesn&rsquo;t<br>match the price guests see.</div>
+            <div class="head s2">Guests pay a service fee<br>on top of the price you set.</div>
+            <div class="head s3">And a host service fee is<br>deducted from your earnings.</div>
+            <div class="head s4">To simplify pricing, we&rsquo;re combining both<br>fees into a single 15.5% fee paid by hosts.</div>
+            <div class="head s5">To keep your earnings the same,<br>we can adjust your prices to account<br>for the single service fee.</div>
             <div class="floor">
               <div class="bar barR">
                 <div class="dash"></div>
@@ -290,60 +372,111 @@
                 <div class="t labTop g115">Guests see <b>$115</b></div>
               </div>
               <div class="bar barL">
-                <img class="fill" src="assets/hof-fill.webp" alt="" draggable="false">
+                <img class="fill" src="assets/hof-fill.webp" alt="">
                 <div class="dash"></div>
                 <div class="t svc3">Service fee <b>$3</b></div>
                 <div class="t single sf155">Single fee <b>15.5%</b></div>
                 <div class="t single sf18">Single fee <b>$18</b></div>
                 <div class="t earn">You earn <b>$97</b></div>
                 <div class="t labTop p100">Your price <b>$100</b></div>
-                <div class="t labTop p115">Your price <b>$115</b></div>
+                <div class="t labTop adj">Adjusted price <s>$100</s> <b>$115<img src="assets/fee/highlight.svg" alt=""></b></div>
               </div>
             </div>
+            <div class="btn next">Next</div>
+            <div class="home"></div>
           </div>
+
+          <div class="scn right" id="sAdj">
+            <div class="status"><span class="time">8:08</span><svg><use href="#sb"/></svg></div>
+            <div class="nav"><div class="ib lead"><svg><use href="#iback"/></svg></div><div class="ttl">6 of 7</div><div class="ib trail"><svg><use href="#ix"/></svg></div></div>
+            <img class="tagpng" src="assets/fee/tag.png" alt="">
+            <video class="tag" id="adjTag" muted playsinline preload="auto" poster="assets/price-tag.webp" src="assets/price-modal.mp4" aria-hidden="true"></video>
+            <h2>Let&rsquo;s adjust your prices</h2>
+            <div class="pts">
+              <div class="pt"><img src="assets/fee/dot.svg" alt=""><p>We&rsquo;ll help you adjust your prices to account for the single 15.5% fee. <u>How it works</u></p></div>
+              <div class="rule"></div>
+              <div class="pt"><img src="assets/fee/dot.svg" alt=""><p>Your new prices will match what guests see today on your listing.</p></div>
+              <div class="rule"></div>
+              <div class="pt"><img src="assets/fee/dot.svg" alt=""><p>After you adjust your prices, your earnings will stay the same. <u>Learn more</u></p></div>
+            </div>
+            <div class="btn b1">Get started</div>
+            <div class="btn sec b2">Not now</div>
+            <div id="sRemind"><div class="scrim"></div><div class="sheet">
+              <div class="x"><svg><use href="#ix"/></svg></div>
+              <p>You have until January 17 to make this adjustment. Otherwise, your prices and earnings will be lower.</p>
+              <div class="btn">Got it</div>
+            </div></div>
+          </div>
+
+          <div class="scn right" id="sCal">
+            <div class="status white"><span class="time">8:08</span><svg><use href="#sb"/></svg></div>
+            <div class="nav"><div class="ib lead"><svg><use href="#iback"/></svg></div><div class="ttl">7 of 7</div><div class="ib trail"><svg><use href="#ix"/></svg></div></div>
+            <div class="line">This one-time adjustment will update your<br>prices to account for the single service fee.</div>
+            <div id="cal"></div>
+            <div id="sConfirm"><div class="scrim"></div><div class="sheet">
+              <div class="x"><svg><use href="#ix"/></svg></div>
+              <h3>Confirm one-time price adjustment?</h3>
+              <p>We&rsquo;ll adjust all of your prices and update your service fee now. This adjustment cannot be reversed.</p>
+              <div class="btn b1">Confirm</div>
+              <div class="btn sec b2">Cancel</div>
+            </div></div>
+          </div>
+
+          <div class="scn hidden" id="sDone">
+            <div class="status"><span class="time">9:41</span><svg><use href="#sb"/></svg></div>
+            <div class="navbar">
+              <div class="ib" style="left:241px"><img src="assets/fee/ic-wand.svg" alt=""></div>
+              <div class="ib" style="left:289px"><img src="assets/fee/ic-cal-unmarked.svg" alt=""></div>
+              <div class="ib" style="left:337px"><img src="assets/fee/ic-gear.svg" alt=""></div>
+            </div>
+            <h1>August</h1>
+            <div id="cal2"></div>
+            <div class="scrim"></div>
+            <div class="sheet">
+              <div class="x"><svg><use href="#ix"/></svg></div>
+              <img class="chk" src="assets/fee/ic-check-circle.svg" alt="">
+              <h3>Price adjustment<br>complete</h3>
+              <div class="btn b1">Done</div>
+              <div class="btn sec b2">Learn more</div>
+            </div>
+          </div>
+
         </div>
-        <svg class="chrome" viewBox="0 0 900 1840" fill="none" aria-hidden="true"><path fill="url(#rail)" fill-rule="evenodd" d="M177,14 H723 A161,161 0 0 1 884,175 V1665 A161,161 0 0 1 723,1826 H177 A161,161 0 0 1 16,1665 V175 A161,161 0 0 1 177,14 Z M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/><image href="assets/device/iphone-frame.png" x="0" y="0" width="900" height="1840" clip-path="url(#outsideBezel)" preserveAspectRatio="none"/><path fill="#0b0b0b" fill-rule="evenodd" d="M177,27 H723 A148,148 0 0 1 871,175 V1665 A148,148 0 0 1 723,1813 H177 A148,148 0 0 1 29,1665 V175 A148,148 0 0 1 177,27 Z M177,47 H723 A128,128 0 0 1 851,175 V1665 A128,128 0 0 1 723,1793 H177 A128,128 0 0 1 49,1665 V175 A128,128 0 0 1 177,47 Z"/><rect x="322" y="69" width="256" height="74" rx="37" fill="#000"/><circle cx="529" cy="106" r="12.7" fill="#0f1420"/><circle cx="529" cy="106" r="5.3" fill="#243046"/></svg>
       </div>
-      <div class="adj">
-        <img src="assets/fee-adjust.webp" width="979" height="2000"
-           alt="Step 6 of 7: let's adjust your prices, so earnings stay the same">
-        <video id="adjTag" muted playsinline preload="auto" poster="assets/price-tag.webp" src="assets/price-modal.mp4" aria-hidden="true"></video>
-      </div>
-      <div class="hof done" id="done" aria-label="Step 7 of 7: this one-time adjustment will update your prices to account for the single service fee; confirm price adjustment — then the adjusted prices, $200 to $231, and what guests see and you still earn">
-        <div class="scr"><img src="assets/fee-confirm.webp" alt="" draggable="false"><div class="stage" id="cal"></div></div>
-        <svg class="chrome" viewBox="0 0 900 1840" fill="none" aria-hidden="true"><path fill="url(#rail)" fill-rule="evenodd" d="M177,14 H723 A161,161 0 0 1 884,175 V1665 A161,161 0 0 1 723,1826 H177 A161,161 0 0 1 16,1665 V175 A161,161 0 0 1 177,14 Z M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/><image href="assets/device/iphone-frame.png" x="0" y="0" width="900" height="1840" clip-path="url(#outsideBezel)" preserveAspectRatio="none"/><path fill="#0b0b0b" fill-rule="evenodd" d="M177,27 H723 A148,148 0 0 1 871,175 V1665 A148,148 0 0 1 723,1813 H177 A148,148 0 0 1 29,1665 V175 A148,148 0 0 1 177,27 Z M177,47 H723 A128,128 0 0 1 851,175 V1665 A128,128 0 0 1 723,1793 H177 A128,128 0 0 1 49,1665 V175 A128,128 0 0 1 177,47 Z"/><rect x="322" y="69" width="256" height="74" rx="37" fill="#000"/><circle cx="529" cy="106" r="12.7" fill="#0f1420"/><circle cx="529" cy="106" r="5.3" fill="#243046"/></svg>
-      </div>
+      <svg class="chrome" viewBox="0 0 900 1840" fill="none" aria-hidden="true"><path fill="url(#rail)" fill-rule="evenodd" d="M177,14 H723 A161,161 0 0 1 884,175 V1665 A161,161 0 0 1 723,1826 H177 A161,161 0 0 1 16,1665 V175 A161,161 0 0 1 177,14 Z M177,28 H723 A147,147 0 0 1 870,175 V1665 A147,147 0 0 1 723,1812 H177 A147,147 0 0 1 30,1665 V175 A147,147 0 0 1 177,28 Z"/><image href="assets/device/iphone-frame.png" x="0" y="0" width="900" height="1840" clip-path="url(#outsideBezel)" preserveAspectRatio="none"/><path fill="#0b0b0b" fill-rule="evenodd" d="M177,27 H723 A148,148 0 0 1 871,175 V1665 A148,148 0 0 1 723,1813 H177 A148,148 0 0 1 29,1665 V175 A148,148 0 0 1 177,27 Z M177,47 H723 A128,128 0 0 1 851,175 V1665 A128,128 0 0 1 723,1793 H177 A128,128 0 0 1 49,1665 V175 A128,128 0 0 1 177,47 Z"/><rect x="322" y="69" width="256" height="74" rx="37" fill="#000"/><circle cx="529" cy="106" r="12.7" fill="#0f1420"/><circle cx="529" cy="106" r="5.3" fill="#243046"/></svg>
     </div>
   </div>
 <script>
-  // the tag plays only once the fee's graph has finished (John, 2026-10-03) — not as the slide lands: the last tap's step is
-  // the last of the graph, and the tag goes a beat after it. Back stops it on its first
-  // frame, which is the still tag, ready to play again.
+(() => {
+  const stage = document.getElementById('stage'), scr = document.getElementById('scr');
+  // the 393 x 852 frame scaled to the screen the way a screen image is — cover, from the top
+  const fit = () => { const w = scr.clientWidth, h = scr.clientHeight, k = Math.max(w / 393, h / 852);
+    stage.style.transform = `translate(${(w - 393 * k) / 2}px, 0) scale(${k})`; };
+  fit(); addEventListener('resize', fit); if (window.ResizeObserver) new ResizeObserver(fit).observe(scr);
+
+  const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+
+  // ── THE TAG: the film plays once the 6 of 7 screen is in — never before, never by itself on arrival
   const tag = (() => {
     const v = document.getElementById('adjTag'); let t = 0;
-    const play = () => { try { v.currentTime = 0; const p = v.play(); if (p && p.catch) p.catch(() => { try { v.currentTime = v.duration - 0.01; } catch (_) {} }); } catch (_) {} };
-    return { play: () => { clearTimeout(t); play(); }, after: ms => { clearTimeout(t); t = setTimeout(play, ms); },
-             reset: () => { clearTimeout(t); try { v.pause(); v.currentTime = 0; } catch (_) {} },
-             end: () => { clearTimeout(t); try { v.pause(); v.currentTime = Math.max(0, (v.duration || 5) - 0.01); } catch (_) {} } };
+    const play = () => { try { v.currentTime = 0; const p = v.play(); if (p && p.then) p.then(() => v.classList.add('played')); if (p && p.catch) p.catch(() => {}); } catch (_) {} };
+    return { after: ms => { clearTimeout(t); t = setTimeout(play, ms); },
+             reset: () => { clearTimeout(t); v.classList.remove('played'); try { v.pause(); v.currentTime = 0; } catch (_) {} },
+             end: () => { clearTimeout(t); try { v.pause(); } catch (_) {} } };
   })();
-  // THE CALENDAR (see THE CALENDAR, LIVE). Aug 1 falls on a Tuesday; today is Aug 9. Nights before it are past; 16–18 and
-  // 21–22 are booked. The adjusted price is the old one x 1.155 ($200 → $231, $220 → $254); the host still earns 84.5% of it.
-  const cal = (() => {
-    const st = document.getElementById('cal'), done = document.getElementById('done');
-    const X = c => 8 + 54 * c, ROW = 92, TODAY = 9;
-    const adj = p => Math.round(p * 1.155), earn = p => Math.round(adj(p) * 0.845);
-    const months = [
-      { name: 'August', short: 'Aug', first: 2, days: 31, booked: [[16, 18, 'cal-guest-1.webp', true], [21, 22, 'cal-guest-2.webp', false]],
-        price: d => (d === 19 || d === 20 || d === 25 || d === 26) ? 220 : 200 },
-      { name: 'September', short: 'Sep', first: 5, days: 30, booked: [],
-        price: d => { const c = (5 + d - 1) % 7; return (c === 5 || c === 6) ? 220 : 200; } }
-    ];
-    const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
-    const sheet = el('div', 'c-sheet'); st.appendChild(sheet);
-    const m0 = el('div', 'c-month', 'August'); m0.style.top = '24.5px'; sheet.appendChild(m0);
-    const wk = el('div', 'c-week'); 'SMTWTFS'.split('').forEach((d, c) => { const sp = el('span', '', d); sp.style.left = X(c) + 'px'; wk.appendChild(sp); }); sheet.appendChild(wk);
-    const scroll = el('div', 'c-scroll'); sheet.appendChild(scroll);
-    const grid = el('div', 'c-grid'); scroll.appendChild(grid);
+
+  // ── THE CALENDAR. Aug 1 falls on a Tuesday; today is Aug 9. Nights before it are past; 16–18 and 21–22 are booked. The adjusted
+  // price is the old one x 1.155 ($200 → $231, $220 → $254); the host still earns 84.5% of it.
+  const X = c => 8 + 54 * c, ROW = 92, TODAY = 9;
+  const adj = p => Math.round(p * 1.155), earn = p => Math.round(adj(p) * 0.845);
+  const months = [
+    { name: 'August', short: 'Aug', first: 2, days: 31, booked: [[16, 18, 'av1.png', true], [21, 22, 'av2.png', false]],
+      price: d => (d === 19 || d === 20 || d === 25 || d === 26) ? 220 : 200 },
+    { name: 'September', short: 'Sep', first: 5, days: 30, booked: [],
+      price: d => { const c = (5 + d - 1) % 7; return (c === 5 || c === 6) ? 220 : 200; } }
+  ];
+  // one month grid; `shown` says what a night's price reads — the old struck over the new, or just the one price
+  function buildGrid(grid, shown, onPick) {
     const cells = []; let y0 = 15, order = 0;
     months.forEach((m, mi) => {
       if (mi > 0) { const t = el('div', 'c-title2', m.name); t.style.top = (y0 + 18) + 'px'; grid.appendChild(t); y0 += 70; }
@@ -353,7 +486,7 @@
         const p = pos(a), q = pos(b), box = el('div', 'c-bk');
         box.style.left = X(p.c) + 'px'; box.style.width = (X(q.c) + 50 - X(p.c)) + 'px'; box.style.top = (y0 + p.r * ROW) + 'px';
         for (let d = a; d <= b; d++) { const n = el('div', 'c-num', d); n.style.left = (X(pos(d).c) - X(p.c) + 12) + 'px'; box.appendChild(n); }
-        const g = el('img', 'c-guest'); g.src = 'assets/' + img; g.alt = ''; g.style.left = (label ? 13 : 9) + 'px'; box.appendChild(g);
+        const g = el('img', 'c-guest'); g.src = 'assets/fee/' + img; g.alt = ''; g.style.left = (label ? 13 : 9) + 'px'; box.appendChild(g);
         if (label) { const t = el('div', 'c-booked', 'Booked'); t.style.left = '53px'; box.appendChild(t); }
         grid.appendChild(box);
       });
@@ -364,126 +497,93 @@
         cell.style.left = X(c) + 'px'; cell.style.top = (y0 + r * ROW) + 'px';
         cell.appendChild(el('div', 'c-num', d));
         if (!past) {
-          cell.appendChild(el('div', 'c-p1', '$' + price));
-          const p2 = el('div', 'c-p2', '<s>$' + price + '</s><b>$' + adj(price) + '</b>');
+          const p2 = el('div', 'c-p2' + (shown === 'one' ? ' one' : ''), shown === 'one' ? '<b>$' + adj(price) + '</b>' : '<s>$' + price + '</s><b>$' + adj(price) + '</b>');
           p2.style.transitionDelay = (0.12 + order * 0.012).toFixed(3) + 's'; order++;
           cell.appendChild(p2);
           const night = { cell, label: m.short + ' ' + d, price };
-          cell.addEventListener('click', () => { if (done.classList.contains('on')) pick(night); else { done.classList.add('on'); setTimeout(() => pick(night), 420); } });
+          if (onPick) cell.addEventListener('click', () => onPick(night));
           cells.push(night);
         }
         grid.appendChild(cell);
       }
       y0 += (Math.floor((m.first + m.days - 1) / 7) + 1) * ROW;
     });
-    grid.style.height = (y0 + 260) + 'px';   // room to scroll the last week up past the breakdown
-    // the breakdown, over the sheet
+    grid.style.height = (y0 + 260) + 'px';
+    return cells;
+  }
+  const weekRow = () => { const wk = el('div', 'c-week'); 'SMTWTFS'.split('').forEach((d, c) => { const sp = el('span', '', d); sp.style.left = X(c) + 'px'; wk.appendChild(sp); }); return wk; };
+
+  // the 7 of 7 calendar, live: the sheet, the grid, the breakdown, the button
+  const cal = (() => {
+    const st = document.getElementById('cal'), done = document.getElementById('sCal');
+    const sheet = el('div', 'c-sheet'); st.appendChild(sheet);
+    sheet.appendChild(el('div', 'c-month', 'August'));
+    sheet.appendChild(weekRow());
+    const scroll = el('div', 'c-scroll'); sheet.appendChild(scroll);
+    const grid = el('div', 'c-grid'); scroll.appendChild(grid);
+    let picked = null;
+    const cells = buildGrid(grid, 'both', night => { if (done.classList.contains('on')) pick(night); else { done.classList.add('on'); setTimeout(() => pick(night), 420); } });
     const fade = el('div', 'c-fade'); st.appendChild(fade);
     const pill = el('div', 'c-pill c-up'); st.appendChild(pill);
     const card = el('div', 'c-card c-up'); st.appendChild(card);
     const row = (top, label) => { const r = el('div', 'c-row', '<span>' + label + '</span><span class="v"></span>'); r.style.top = top + 'px'; card.appendChild(r); return r.querySelector('.v'); };
     const vAdj = row(25, 'Your adjusted price'), vSee = row(75.5, 'Guests see'), vEarn = row(127.5, 'You still earn');
-    [[58.5], [110.5]].forEach(([t]) => { const r = el('div', 'c-rule'); r.style.top = t + 'px'; card.appendChild(r); });
+    [58.5, 110.5].forEach(t => { const r = el('div', 'c-rule'); r.style.top = t + 'px'; card.appendChild(r); });
     st.appendChild(el('div', 'c-foot'));
     const btn = el('div', 'c-btn', '<div class="pink">Confirm price adjustment</div><div class="dark">Close details</div>'); st.appendChild(btn);
-    st.appendChild(el('div', 'c-dim'));
-    st.appendChild(el('div', 'c-modal', '<img src="assets/fee-complete-sheet.webp" alt="Price adjustment complete: the primary host confirmed this price adjustment to account for the service fee change. Done, Learn more" draggable="false"><div class="c-mbtns" aria-hidden="true"><div class="b1">Done</div><div class="b2">Learn more</div></div>'));
-    let picked = null;
     const show = n => { pill.textContent = n.label; vAdj.innerHTML = '<s>$' + n.price + '</s>$' + adj(n.price); vSee.textContent = '$' + adj(n.price); vEarn.textContent = '$' + earn(n.price); };
     function pick(n) { if (picked) picked.cell.classList.remove('sel'); picked = n; n.cell.classList.add('sel'); show(n); done.classList.add('det'); }
     function close() { if (picked) picked.cell.classList.remove('sel'); picked = null; done.classList.remove('det'); }
     btn.addEventListener('click', () => { if (done.classList.contains('det')) close(); });
     const nine = cells.find(n => n.label === 'Aug 9');
-    // ?cghost=a (7 of 7) or ?cghost=b (the details) lays that Figma frame over the live calendar at half strength
-    const cg = new URLSearchParams(location.search).get('cghost');
-    if (cg) { const i = el('img', 'ghost'); i.src = 'assets/' + (cg === 'b' ? 'fee-details' : 'fee-confirm') + '.webp'; i.style.zIndex = 20; st.appendChild(i); }
     let lower = 0;
     return {
-      // the details: sheet up, Aug 9 picked, the breakdown in
       details(instant) { clearTimeout(lower); done.classList.add('on'); if (instant) pick(nine); else setTimeout(() => { if (done.classList.contains('on')) pick(nine); }, 520); },
-      // the 7 of 7 page: the breakdown sinks and the pick lets go, then the sheet comes down over the header line (the adjusted
-      // prices stay), and the Rausch "Confirm price adjustment" button stands
-      // the confirmation: the button pressed, then the dim and the sheet (see ADJUSTMENT COMPLETE)
-      finish(on, instant) { clearTimeout(lower);
-        if (!on || instant) { done.classList.toggle('fin', on); return; }
-        btn.classList.add('pressing'); setTimeout(() => btn.classList.remove('pressing'), 180);
-        lower = setTimeout(() => done.classList.add('fin'), 200); },
-      confirm(instant) { clearTimeout(lower); close(); if (instant) { done.classList.remove('on'); scroll.scrollTop = 0; }
-        else lower = setTimeout(() => { done.classList.remove('on'); scroll.scrollTop = 0; }, 260); }
+      page(instant) { clearTimeout(lower); close(); if (instant) { done.classList.remove('on'); scroll.scrollTop = 0; } else lower = setTimeout(() => { done.classList.remove('on'); scroll.scrollTop = 0; }, 260); },
+      press() { btn.classList.add('pressing'); setTimeout(() => btn.classList.remove('pressing'), 180); }
     };
   })();
-  // THE BUILDS (John, 2026-10-03). The graph's three steps (see THE FEE, ANIMATED) are steps 0–3 of the slide; then two more:
-  //   0 → 1  the bars rise — by themselves, as the slide lands
-  //   1 → 3  one tap: the host's fee and the fill, then the single fee on its own 2.4s later (a tap mid-run skips to the end)
-  //   3 → 4  a tap: the tag on the third phone flips (it never plays by itself)
-  //   4 → 5  a tap: the fourth phone, standing on the details from the start (prices adjusted, Aug 9 picked, the breakdown —
-  //          John, 2026-10-03: "inverse it"), plays back to the 7 of 7 page with its Rausch "Confirm price adjustment" button
-  //   5 → 6  a tap: Confirm is pressed, and "Price adjustment complete" rises over the dimmed calendar (John, 2026-10-04)
-  // Back snaps a step back (the graph's end to "You earn $97", that to the bars); arriving backwards, all of it stands done.
-  (() => {
-    const h = document.getElementById('hof'), done = document.getElementById('done'), st = document.getElementById('stage'), scr = st.parentElement;
-    const cst = document.getElementById('cal'), cscr = cst.parentElement;
-    const GRAPH = 3, LAST = 6;
-    let s = 0;
-    // HOW MANY PHONES ARE IN (John, 2026-10-06): 1 on arrival, then one more a tap — the row shifted so the ones in are centred,
-    // and scaled up to the 1-up size while the first stands alone
-    const row = document.getElementById('row'), phones = [...row.children];
-    let vis = 1;
-    const view = (n, instant) => {
-      vis = n;
-      if (instant) { row.classList.add('still'); void row.offsetWidth; }
-      phones.forEach((p, i) => p.classList.toggle('out', i >= n));
-      const pw = phones[0].getBoundingClientRect().width / (parseFloat(row.style.getPropertyValue('--sc') || 1)), gap = 48;
-      const tx = (4 - n) * (pw + gap) / 2, S = n === 1 ? Math.min(innerHeight * 0.8, 1080) / phones[0].offsetHeight : 1;
-      row.style.setProperty('--sc', S);
-      row.style.transform = `translateX(${(tx * S).toFixed(1)}px) scale(${S.toFixed(4)})`;
-      if (instant) requestAnimationFrame(() => row.classList.remove('still'));
-    };
-    view(1, true); addEventListener('resize', () => view(vis, true));
-    const fit = () => { const w = scr.clientWidth, ht = scr.clientHeight, k = Math.max(w / 393, ht / 852);
-      st.style.transform = `translate(${(w - 393 * k) / 2}px, 0) scale(${k})`; };
-    const cfit = () => { const w = cscr.clientWidth, ht = cscr.clientHeight, k = Math.max(w / 393, ht / 852);
-      cst.style.transform = `translate(${(w - 393 * k) / 2}px, 0) scale(${k})`; };
-    fit(); cfit(); addEventListener('resize', () => { fit(); cfit(); });
-    if (window.ResizeObserver) { new ResizeObserver(fit).observe(scr); new ResizeObserver(cfit).observe(cscr); }
-    const g = new URLSearchParams(location.search).get('ghost');
-    if (g) { const i = document.createElement('img'); i.className = 'ghost'; i.src = `assets/hof-${g}of7.webp`; st.appendChild(i); }
-    const set = (n, instant) => { s = n;
-      if (instant) { h.classList.add('snap'); done.classList.add('snap'); }
-      fit(); cfit();   // refit both live layers on every step — a window that changed size (full screen) can leave them stale
-      h.dataset.s = Math.min(n, GRAPH); if (n >= 5) cal.confirm(instant); else if (!done.classList.contains('on')) cal.details(true);
-      if (n < 6 || instant) cal.finish(n >= 6, true); else cal.finish(true, false);
-      if (instant) { void h.offsetWidth; setTimeout(() => { h.classList.remove('snap'); done.classList.remove('snap'); }, 60); } };
-    // the first step plays by itself as the slide lands (John, 2026-10-03: "so it's not just sitting blank") — the deck says so
-    // with presoshown; opened on its own, it plays once the page is up
-    cal.details(true);
-    addEventListener('presoshown', () => { fit(); cfit(); view(vis, true); });
-    // THE TAPS (John, 2026-10-06): the first phone alone on arrival; 1 the second comes in and its graph plays through by itself
-    // (the bars, "You earn $97", the single fee); 2 the third comes in and the tag plays; 3 the fourth comes in, standing on the
-    // details; 4 the Confirm page; 5 Confirm pressed, "Price adjustment complete". Back snaps a step back.
-    let chain = 0, chain2 = 0, step = 0;
-    const finish = () => { clearTimeout(chain); clearTimeout(chain2); set(GRAPH); };
-    const graph = () => { set(1); chain = setTimeout(() => set(2), 1700); chain2 = setTimeout(() => set(GRAPH), 4300); };
-    const go = (n, instant) => {
-      step = n;
-      if (n === 0) { finish(); set(0, true); tag.reset(); view(1, instant); return; }
-      if (n === 1) { view(2, instant); if (instant) finish(); else graph(); return; }
-      finish(); view(Math.min(4, n + 1), instant);
-      if (n === 2) { set(4, true); if (instant) tag.end(); else tag.play(); return; }
-      tag.end();
-      if (n === 3) set(4, instant); else if (n === 4) set(5, instant); else set(6, instant);
-    };
-    window.presoNext = () => { if (step >= 5) return false; go(step + 1, false); return true; };
-    window.presoPrev = () => { if (step <= 0) return false; go(step - 1, true); return true; };
-    window.presoEnd = () => go(5, true);
-    window.presoState = () => step;
-    window.presoRestore = n => go(Math.max(0, Math.min(5, n | 0)), true);
-    // NOT KEPT (John, 2026-10-03: "when I leave that page by pressing back then come back to it, replay the animation"): the deck
-    // keeps the slide just left exactly as it was; this one asks to be built fresh instead, so coming back to it plays it again.
-    window.presoNoKeep = true;
-    // the fourth phone's calendar takes taps, so the slide keeps its surface; the deck's 32px edge rails and the keys drive it
-    window.presoInteractive = true;
-  })();
+  // the host's own calendar after the flow — the new prices alone on every night
+  (() => { const st = document.getElementById('cal2'); st.appendChild(weekRow()); const grid = el('div', 'c-grid'); st.appendChild(grid); buildGrid(grid, 'one', null); })();
+
+  // ── THE BUILDS: one screen a tap (see THE TAPS above)
+  const S = { today: document.getElementById('sToday'), req: document.getElementById('sReq'), graph: document.getElementById('sGraph'), adj: document.getElementById('sAdj'),
+              remind: document.getElementById('sRemind'), cal: document.getElementById('sCal'), confirm: document.getElementById('sConfirm'), done: document.getElementById('sDone') };
+  const LAST = 13;
+  let s = 0, t = [];
+  const later = (fn, ms) => t.push(setTimeout(fn, ms));
+  const place = (e, where) => { e.classList.toggle('right', where === 'right'); e.classList.toggle('left', where === 'left'); };
+  function set(n, snap) {
+    s = n; t.forEach(clearTimeout); t = [];
+    if (snap) { stage.classList.add('snap'); void stage.offsetWidth; }
+    // the home stack: Today, and the required-action sheet over it
+    place(S.today, n >= 2 ? 'left' : ''); S.today.classList.toggle('hidden', n >= 3);
+    S.req.classList.toggle('in', n >= 1); place(S.req, n >= 2 ? 'left' : ''); S.req.classList.toggle('hidden', n >= 3);
+    // the explainer, 1–5 of 7
+    place(S.graph, n < 2 ? 'right' : n >= 7 ? 'left' : ''); S.graph.classList.toggle('hidden', n < 2 || n >= 8);
+    const g = Math.max(0, Math.min(5, n - 1));
+    S.graph.dataset.g = g;
+    if (g >= 1) { if (snap || n > 2) S.graph.classList.add('go'); else later(() => S.graph.classList.add('go'), 420); } else S.graph.classList.remove('go');
+    // let's adjust, and its reminder
+    place(S.adj, n < 7 ? 'right' : n >= 9 ? 'left' : ''); S.adj.classList.toggle('hidden', n < 7 || n >= 10);
+    S.remind.classList.toggle('up', n === 8);
+    if (n === 7 && !snap) tag.after(650); else if (n >= 7) tag.end(); else tag.reset();
+    // the calendar
+    place(S.cal, n < 9 ? 'right' : ''); S.cal.classList.toggle('hidden', n < 9 || n >= 14);
+    if (n === 10) cal.details(snap); else if (n >= 11) cal.page(snap || n > 11); else cal.page(true);
+    S.confirm.classList.toggle('up', n === 12);
+    if (n === 12 && !snap) cal.press();
+    // done
+    S.done.classList.toggle('hidden', n < 13); S.done.classList.toggle('in', n >= 13); S.done.classList.toggle('up', n >= 13);
+    if (snap) requestAnimationFrame(() => requestAnimationFrame(() => stage.classList.remove('snap')));
+  }
+  set(0, true);
+  window.presoNext = () => { if (s >= LAST) return false; set(s + 1); return true; };
+  window.presoPrev = () => { if (s <= 0) return false; set(s - 1, true); return true; };
+  window.presoEnd = () => set(LAST, true);
+  window.presoState = () => s;
+  window.presoRestore = k => set(Math.max(0, Math.min(LAST, k | 0)), true);
+})();
 </script>
 </body>
 </html>
