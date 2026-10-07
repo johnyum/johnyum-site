@@ -142,7 +142,13 @@ frame). The line: "and then I turned around and brought the team with me."
 
 ## Why Anthropic?
 
-John's story, to say over the cards. Sincere. Five cards, one line each, the mono, same rag:
+**Built 2026-10-06 — three cards after Why Anthropic?, in John's words, one line each (12ga, 12gb, 12gc):** "I picked up Claude
+Code four months ago." → "In one session, everything I'd spent years mastering disappeared overnight." → "I was more excited than
+I've ever been in my career." Tap through them at the pace they're said; the third is the turn, loss then joy. Then Thanks. The
+earlier plan below is kept for what to say; "For myself, and for her" is cut as a card (too private to read cold — say it, with
+Roma's name, if at all), and "Then I brought the team with me" / "I did all of this in four months" can follow as cards if wanted.
+
+John's story, to say over the cards. Sincere. The earlier five-card plan, one line each, the mono, same rag:
 
 1. **Why Anthropic?** — the card.
 2. **"Everything I spent eleven years mastering disappeared overnight."** — I left to have a baby. Sketch, Figma, Adobe,
