@@ -130,7 +130,7 @@ run with it" produces. "Kill our egos" stands on its own now — the ego card be
 ## A.I. — built with Claude
 
 **Where to? (12fe, 2026-10-07):** the ego card became a question. With the process cards carrying the AI story, "The complete
-and utter deconstruction of my ego." had nothing left to do, and its loss beat is 12gb's. The back half now runs on three
+and utter deconstruction of my ego." had nothing left to do, and its loss beat is 12ga's. The back half now runs on three
 questions, each answered by a build: What changed? (how I work now) → Where to? (what I did with it when nobody was asking —
 the bots, then Peek) → Why Anthropic? A travel word, on purpose. The tap is kept: Roma and the Claude tile spring in under it,
 and with this line they read as the answer, not a punchline — for her, with this. 12eb is in the past tense now ("Everything
@@ -183,8 +183,11 @@ frame). The line: "and then I turned around and brought the team with me."
 
 ## Why Anthropic?
 
-**Built 2026-10-06 — three cards after Why Anthropic?, in John's words, one line each (12ga, 12gb, 12gc):** "I picked up Claude
-Code four months ago." → "One session, and everything I'd spent years mastering disappeared overnight." → "It's been the most joyous time of my career." Tap through them at the pace they're said; the third is the turn, loss then joy. Then Thanks. The
+**Two cards after Why Anthropic? (2026-10-07, John: "combine the next two"), in his words, one line each (12ga, 12gc):** "Four
+months ago I had my first session with Claude Code. Then I understood everything I'd spent years mastering had disappeared
+overnight." → "It's been the most joyous time of my career." Tap through them at the pace they're said; the second is the turn,
+loss then joy. Then Thanks. (Built 2026-10-06 as three — "I picked up Claude Code four months ago." / "One session, and everything
+I'd spent years mastering disappeared overnight." — the first two were one breath said aloud, so they're one card; 12gb is in _parked.) The
 earlier plan below is kept for what to say; "For myself, and for her" is cut as a card (too private to read cold — say it, with
 Roma's name, if at all), and "Then I brought the team with me" / "I did all of this in four months" can follow as cards if wanted.
 

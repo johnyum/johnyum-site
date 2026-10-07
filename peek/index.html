@@ -4189,6 +4189,8 @@ const SCENES = {
 if (PRESO) {
   let scene = null, turn = 0, playing = false;
   // the keyboard rises, the question is typed a character at a time (a person's pace, uneven), a beat, the keyboard drops
+  // THE PACE (John, 2026-10-07: "faster, but not to the point it's humanly impossible"): it was 34–90ms a letter (about 13 a second
+  // once the timers slip); now 25–51 (measured at about 21 a second, ~250 wpm — a fast thumb typist's burst, still uneven; 22–46 measured 23.5 and read as too quick), spaces 48–92
   const kbdEl = $('#kbd');
   const KB_KEYS = {"q": [0.0166, 0.1091, 0.0829, 0.1354], "w": [0.1144, 0.1091, 0.0837, 0.1354], "e": [0.2131, 0.1091, 0.0829, 0.1354], "r": [0.3109, 0.1091, 0.0837, 0.1354], "t": [0.4096, 0.1091, 0.0829, 0.1354], "y": [0.5075, 0.1091, 0.0837, 0.1354], "u": [0.6061, 0.1091, 0.0829, 0.1354], "i": [0.704, 0.1091, 0.0837, 0.1354], "o": [0.8027, 0.1091, 0.0829, 0.1354], "p": [0.9005, 0.1091, 0.0837, 0.1354], "a": [0.0655, 0.2791, 0.0829, 0.1354], "s": [0.1633, 0.2791, 0.0837, 0.1354], "d": [0.262, 0.2791, 0.0829, 0.1354], "f": [0.3599, 0.2791, 0.0837, 0.1354], "g": [0.4585, 0.2791, 0.0829, 0.1354], "h": [0.5564, 0.2791, 0.0837, 0.1354], "j": [0.6551, 0.2791, 0.0829, 0.1354], "k": [0.7529, 0.2791, 0.0837, 0.1354], "l": [0.8516, 0.2791, 0.0829, 0.1354], "shift": [0.0166, 0.4491, 0.1128, 0.1354], "z": [0.1633, 0.4491, 0.0837, 0.1354], "x": [0.262, 0.4491, 0.0829, 0.1354], "c": [0.3599, 0.4491, 0.0837, 0.1354], "v": [0.4585, 0.4491, 0.0829, 0.1354], "b": [0.5564, 0.4491, 0.0837, 0.1354], "n": [0.6551, 0.4491, 0.0829, 0.1354], "m": [0.7529, 0.4491, 0.0837, 0.1354], "backspace": [0.8706, 0.4491, 0.1136, 0.1354], "123": [0.0166, 0.6191, 0.2305, 0.1354], " ": [0.262, 0.6191, 0.476, 0.1354], "enter": [0.7529, 0.6191, 0.2313, 0.1354]};   // [x, y, w, h] as fractions of the keyboard image
   function pressKey(name, ms = 110, pop = true) {
@@ -4208,7 +4210,7 @@ if (PRESO) {
   }
   async function pressFor(ch) {
     const lower = ch.toLowerCase();
-    if (/[a-z]/.test(lower)) { if (ch !== lower) { pressKey('shift', 90, false); await new Promise((r) => setTimeout(r, 70)); } pressKey(lower); }
+    if (/[a-z]/.test(lower)) { if (ch !== lower) { pressKey('shift', 90, false); await new Promise((r) => setTimeout(r, 44)); } pressKey(lower); }
     else if (ch === ' ') pressKey(' ', 100, false);
     else pressKey('123', 90, false);
   }
@@ -4216,14 +4218,14 @@ if (PRESO) {
   const kbdDown = async () => { document.documentElement.classList.remove('kbd'); await new Promise((r) => setTimeout(r, 380)); };
   async function typeIn(text) {
     input.focus({ preventScroll: true }); await kbdUp();
-    await new Promise((r) => setTimeout(r, 260));
+    await new Promise((r) => setTimeout(r, 200));
     let out = '';
     for (const ch of text) {
       await pressFor(ch);
       out += ch; input.value = out; fit(); composer.classList.add('has'); input.scrollTop = input.scrollHeight;
-      await new Promise((r) => setTimeout(r, ch === ' ' ? 60 + Math.random() * 80 : 34 + Math.random() * 56));
+      await new Promise((r) => setTimeout(r, ch === ' ' ? 48 + Math.random() * 44 : 25 + Math.random() * 26));
     }
-    await new Promise((r) => setTimeout(r, 520));
+    await new Promise((r) => setTimeout(r, 440));
     input.blur(); await kbdDown();
   }
   // play(name, i): the i-th turn of a scene. A different scene is a new chat: the thread clears, and so does everything

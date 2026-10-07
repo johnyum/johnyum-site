@@ -1322,9 +1322,10 @@ function typeAsk(g, phrase, done) {
   // keyboard rises on that event. So it is dispatched as well (focusin: what React listens for), and the letting-go likewise.
   w.__scriptedTyping = true; ta.focus(); ta.dispatchEvent(new w.FocusEvent('focusin', { bubbles: true }));
   const KB_UP = 380;   // the keyboard's rise, then the first letter
+  const PER = 42;   // a letter every 42ms, about 24 a second (was 45 — John, 2026-10-07: the typing in every AI chat build faster, short of humanly impossible; Peek's prompts were brought up to this pace the same day)
   const tap = k => { const el = d.querySelector('.preso-kb [data-key="' + k + '"]'); if (!el) return; el.classList.add('pressing'); setTimeout(() => el.classList.remove('pressing'), 110); };
-  phrase.split('').forEach((ch, i) => setTimeout(() => { if (g !== gen) return; tap(ch.toLowerCase()); set.call(ta, phrase.slice(0, i + 1)); ta.dispatchEvent(new w.Event('input', { bubbles: true })); }, KB_UP + i * 45));
-  setTimeout(() => { if (g !== gen) return; tap('enter'); ta.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); w.__scriptedTyping = false; ta.blur(); ta.dispatchEvent(new w.FocusEvent('focusout', { bubbles: true })); done(); }, KB_UP + phrase.length * 45 + 350);
+  phrase.split('').forEach((ch, i) => setTimeout(() => { if (g !== gen) return; tap(ch.toLowerCase()); set.call(ta, phrase.slice(0, i + 1)); ta.dispatchEvent(new w.Event('input', { bubbles: true })); }, KB_UP + i * PER));
+  setTimeout(() => { if (g !== gen) return; tap('enter'); ta.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); w.__scriptedTyping = false; ta.blur(); ta.dispatchEvent(new w.FocusEvent('focusout', { bubbles: true })); done(); }, KB_UP + phrase.length * PER + 350);
 }
 // THE TIPS: the five weeks after today. Tuesdays to Thursdays in the second and third weeks come down to $480; Fridays and
 // Saturdays in the first, third and fifth go up to $535 — a spread that reads as an advisor's, not a rule's, and one that
