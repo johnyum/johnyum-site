@@ -812,7 +812,7 @@ column of 880 holding one or more pages, top-aligned, in this order:
    sweep on a row of its own — replayed every 3.2s. Both zoomed .735.
 2. **The graph studies** — titled "Seasonality graph — fluid studies" (John, 2026-10-07: "don't call it opportunities graph, call it Seasonality graph"; the page's h1 and title changed in the studies copy) (.86, rigs .58; the waviness slider plays start to finish over five seconds; white page, bare controls; its
    study 01 is the ZIGZAG PILLS).
-3. **The cell & opportunity system** (.72): Modal lifecycle (the QUICK-ACTION pill through a session) moved to the top (`shape`);
+3. **The Quick Action System** — the cell & opportunity system page, retitled in the studies copy (John, 2026-10-07: "don't call it cell and opps system, call it Quick Action system") (.72): Modal lifecycle (the QUICK-ACTION pill through a session) moved to the top (`shape`);
    the squiggly cell-states column of every opportunity block hidden (`.opp .cells-col`) — they live in panel 1 now; the modal, chip
    and decisions stay.
 4. **The demand-driving event cards** (.8, four to a row) — "demand should be 4th with the icons".
