@@ -23,13 +23,14 @@
         4  3 of 7 — the host's fee is ruled off ($3), the bar fills pink, You earn $97
         5  4 of 7 — the two fees go; the host's bar grows to the guests' height; Single fee 15.5%, then $18
         6  5 of 7 — Adjusted price $100 → $115, highlighted
-        7  6 of 7 — Let's adjust your prices: the tag plays, the three points, Get started / Not now
-        8  the reminder sheet (Not now): You have until January 17… Got it
-        9  7 of 7 — the calendar comes in: the one-time adjustment over August, the old prices struck, Confirm price adjustment
-       10  Aug 9 is picked: the breakdown — your adjusted price, what guests see, what you still earn — Close details
-       11  the details close
-       12  Confirm is pressed: Confirm one-time price adjustment? Confirm / Cancel
-       13  done — the host's own calendar, the new prices on it, and Price adjustment complete rises over it
+        7  6 of 7 — Let's adjust your prices slides in under the same nav (the count turns 6 of 7; the back and the X hold still):
+           the tag plays, the three points, Get started / Not now. (The reminder sheet behind Not now was a step; John took it out, 2026-10-07.)
+        8  7 of 7 — the calendar comes in: the one-time adjustment over August, the old prices struck, Confirm price adjustment
+        9  Aug 9 to the 15th are tapped, one after another: the breakdown sums as they join — the old prices struck, the adjusted
+           ones, what you still earn — Close details
+       10  the details close
+       11  Confirm price adjustment is pressed: the calendar dims and Price adjustment complete rises over it
+     (The "Confirm one-time price adjustment?" sheet and the host's own calendar after it were steps; John took both out, 2026-10-07.)
      Back snaps a step back; arriving backwards, it all stands done. The moves between screens are plain for now — a sheet rises,
      a screen pushes in from the right, a scrim fades — "we can dial in the animation after" (John).
 
@@ -83,6 +84,15 @@
   .sheet .x { position: absolute; right: 12px; top: 8px; width: 48px; height: 48px; display: grid; place-items: center; }
   .sheet .x svg { width: 16px; height: 16px; }
   .up .scrim { opacity: 1; }  .up .sheet { transform: none; }
+  /* THE TAP (John, 2026-10-07: "some tap animation when we walk through"): a fingertip lands on the control each step presses — a
+     44px disc, smoke-grey glass with a white rim, that drops onto the spot, presses in, and fades; the button under it presses too.
+     The step itself goes a beat after, so the tap is read before the screen moves. */
+  .tap { position: absolute; z-index: 50; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; pointer-events: none;
+         background: rgba(34,34,34,.16); border: 1.5px solid rgba(255,255,255,.9); box-shadow: 0 2px 8px rgba(0,0,0,.18);
+         opacity: 0; transform: scale(.5); }
+  .tap.go { animation: tap .62s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes tap { 0% { opacity: 0; transform: scale(.5); } 25% { opacity: 1; transform: scale(1); } 45% { transform: scale(.82); } 65% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.08); } }
+  .pressed { transform: scale(.96) !important; transition: transform .14s ease !important; }
 
   /* ── 0 · TODAY (5650:4738) ─────────────────────────────────────────────── */
   #sToday .pills { position: absolute; left: 0; top: 67px; width: 393px; height: 40px; }
@@ -136,7 +146,9 @@
        5  "Adjusted price $100 → $115", the new price highlighted
      Everything is laid on the 393 x 852 frame: bars 140 wide on a floor at y 663, the host's 254 tall (313 once the fee is one), the
      guests' 313; the guests' fee line 58 under their top (y 408), the host's 213 up from the floor (y 450). */
-  #sGraph .step, #sGraph .head { position: absolute; left: 32px; right: 32px; text-align: center; opacity: 0; transition: opacity .3s ease; }
+  /* the line above the graph, and the "n of 7": the old one goes first, then the new one comes — never both at once (John, 2026-10-07:
+     "animates away, then the new content comes in… no overlaps") — out in .22s, in over .3s a beat later, each sliding a few px */
+  #sGraph .step, #sGraph .head { position: absolute; left: 32px; right: 32px; text-align: center; opacity: 0; transform: translateY(4px); transition: opacity .22s ease, transform .22s ease; }
   #sGraph .step { top: 0; height: 56px; display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 16px; color: #6c6c6c; left: 68px; right: 68px; }
   #sGraph .head { top: 187px; font-size: 16px; line-height: 22px; color: #222; }
   #sGraph .nav .lead { opacity: 0; transition: opacity .3s ease; }
@@ -164,10 +176,10 @@
   #sGraph .svc15 { transform: translate(-50%, -50%); }
   #sGraph .adj s { color: #6c6c6c; text-decoration-thickness: 1px; }
   #sGraph .adj b { position: relative; }
-  #sGraph .adj b img { position: absolute; left: -2px; top: 14px; width: 36px; height: 11px; opacity: 0; transition: opacity .3s ease .5s; }
+  #sGraph .adj b img { position: absolute; left: 50%; top: 10px; width: 36px; height: 11px; transform: translateX(-50%); opacity: 0; transition: opacity .3s ease .5s; }   /* the pink underline centred under $115, tucked up to it (John, 2026-10-07) */
   #sGraph .next { top: 754px; }
   /* state 1: the bars rise, the host's first; the words land as each stands */
-  #sGraph[data-g="1"] .s1, #sGraph[data-g="2"] .s2, #sGraph[data-g="3"] .s3, #sGraph[data-g="4"] .s4, #sGraph[data-g="5"] .s5 { opacity: 1; }
+  #sGraph[data-g="1"] .s1, #sGraph[data-g="2"] .s2, #sGraph[data-g="3"] .s3, #sGraph[data-g="4"] .s4, #sGraph[data-g="5"] .s5 { opacity: 1; transform: none; transition: opacity .3s ease .28s, transform .3s ease .28s; }
   #sGraph.go .barL { left: 46px; transform: none; transition: transform .75s cubic-bezier(.2,.8,.25,1), left .6s cubic-bezier(.5,0,.3,1) 1.1s, height .6s cubic-bezier(.4,0,.2,1) .6s; }
   #sGraph.go .barR { transform: none; transition: transform .75s cubic-bezier(.2,.8,.25,1) 1.25s; }
   #sGraph.go .p100 { opacity: 1; transition: opacity .4s ease .5s; }
@@ -197,6 +209,16 @@
 
   /* ── 7 · LET'S ADJUST YOUR PRICES (5650:4917) — THE TAG, ANIMATED (kept, 2026-10-03): the closing slide's own price-tag film
      (09e: price-modal.mp4, the still tag its first and last frame), where the frame sets its 64pt tag; it plays once the screen is in */
+  /* 5 OF 7 → 6 OF 7 IS A PUSH UNDER THE NAV (John, 2026-10-07: "just the content and the graph moves left"): the status bar and the
+     nav hold still; the explainer's body — the line, the bars, Next — slides off to the left as Let's adjust's body comes in from the
+     right. The 6 of 7 screen is see-through but for its white nav (covering the "5 of 7") and its white body. */
+  .body { position: absolute; left: 0; top: 0; width: 393px; height: 852px; transition: transform .55s cubic-bezier(.32,.72,0,1); }
+  .body.right { transform: translateX(100%); }
+  #sGraph.bodyout .body { transform: translateX(-100%); }
+  #sAdj { background: transparent; }   /* no status bar or nav of its own — the explainer's stay, and only its count turns (John) */
+  #sAdj .body { background: #fff; }
+  #sGraph.six .step.s5 { opacity: 0; transform: translateY(4px); transition: opacity .22s ease, transform .22s ease; }
+  #sGraph.six .step.s6 { opacity: 1; transform: none; transition: opacity .3s ease .28s, transform .3s ease .28s; }
   #sAdj .tag { position: absolute; left: 153.4px; top: 183.5px; width: 86.3px; height: 91.5px; opacity: 0; }
   #sAdj .tag.played { opacity: 1; }   /* the film shows only once it has played: before that, and arriving backwards, the still tag */
   #sAdj .tagpng { position: absolute; left: 164.5px; top: 187px; width: 64px; height: 64px; }
@@ -207,16 +229,18 @@
   #sAdj .pt u { text-decoration: underline; text-underline-position: from-font; }
   #sAdj .rule { height: 1px; background: #ebebeb; margin: 28px 0; }
   #sAdj .b1 { top: 698px; }  #sAdj .b2 { top: 754px; }
-  #sRemind .sheet { height: 306px; top: 546px; }
-  #sRemind .sheet p { position: absolute; left: 34px; width: 325px; top: 96px; text-align: center; font-size: 16px; line-height: 20px; font-weight: 500; color: #222; }
-  #sRemind .sheet .btn { top: 208px; }
 
   /* ── 9–12 · THE CALENDAR (5650:4857–61) — LIVE (kept from the build before, 2026-10-03: "smooth, and the calendar actually works
      like a calendar"), on the frame's own geometry: the black header with the one line about the adjustment, the white sheet at y 231
      rising 108 to cover it; cells 50 x 88 on a 54 x 92 pitch from x 8 / sheet y 114; the breakdown card 24–368 x 570–741; the date pill
      at the right on 520–559; the button 24–368 x 754–801 — pink "Confirm price adjustment" before, "Close details" after. Tap any open
      night and it is picked; it scrolls (August into September). */
-  #sCal { background: #000; }
+  /* 6 OF 7 → 7 OF 7 (John, 2026-10-07): the page before slides off to the left, the backdrop goes black, and the calendar sheet
+     rises up from the foot — the screen fades in over .45s while everything in it (the sheet, the breakdown, the button) comes up */
+  #sCal { background: #000; opacity: 0; }
+  #sCal.in { opacity: 1; }
+  #cal { position: absolute; left: 0; top: 0; width: 393px; height: 852px; transform: translateY(100%); transition: transform .62s cubic-bezier(.32,.72,0,1); }
+  #sCal.in #cal { transform: none; }
   #sCal .status, #sCal .nav .ib { color: #fff; }
   #sCal .nav .ttl { color: #b0b0b0; }
   #sCal .line { position: absolute; left: 32px; right: 32px; top: 147px; text-align: center; font-size: 16px; line-height: 22px; color: #fff; }
@@ -265,25 +289,12 @@
   .c-btn .pink { background: linear-gradient(90deg, #e61e4d 0%, #e31c5f 50%, #d70466 100%); }
   .c-btn .dark { background: #222; opacity: 0; }
   .on.det .c-btn .dark { opacity: 1; }
-  #sConfirm .sheet { height: 442px; top: 410px; }
-  #sConfirm .sheet h3 { position: absolute; left: 66px; width: 261px; top: 96px; margin: 0; text-align: center; font-size: 22px; line-height: 26px; font-weight: 600; letter-spacing: -.44px; color: #222; }
-  #sConfirm .sheet p { position: absolute; left: 59px; width: 275px; top: 168px; text-align: center; font-size: 14px; line-height: 20px; color: #6a6a6a; }
-  #sConfirm .b1 { top: 280px; }  #sConfirm .b2 { top: 344px; }
 
-  /* ── 13 · DONE (5650:4862) — the host's own calendar, the new prices on it, dimmed, and the completion sheet over it ───── */
-  #sDone { opacity: 0; }
-  #sDone.in { opacity: 1; }
-  #sDone .navbar { position: absolute; left: 0; top: 59px; width: 393px; height: 56px; }
-  #sDone .navbar .ib { position: absolute; top: 8px; width: 40px; height: 40px; border-radius: 100px; background: #f2f2f2; display: grid; place-items: center; }
-  #sDone .navbar .ib img { width: 16px; height: 16px; }
-  #sDone h1 { position: absolute; left: 24px; top: 127px; margin: 0; font-size: 32px; line-height: 36px; font-weight: 600; letter-spacing: -.96px; color: #222; }
-  #sDone .c-week { top: 183px; height: 28px; }
-  #sDone .c-week span { top: 4px; }
-  #sDone .c-grid { position: absolute; left: 0; top: 212px; }
-  #sDone .sheet { height: 430px; top: 422px; border-radius: 32px 32px 0 0; }
-  #sDone .sheet .chk { position: absolute; left: 172.5px; top: 76px; width: 48px; height: 48px; }
-  #sDone .sheet h3 { position: absolute; left: 24px; width: 345px; top: 140px; margin: 0; text-align: center; font-size: 26px; line-height: 30px; font-weight: 600; letter-spacing: -.52px; color: #222; }
-  #sDone .b1 { top: 268px; }  #sDone .b2 { top: 332px; }
+  /* ── 11 · PRICE ADJUSTMENT COMPLETE — over the 7 of 7 calendar (Figma's Post-Confirmation sheet, 5650:4915) ─────────────── */
+  #sComplete .sheet { height: 430px; top: 422px; border-radius: 32px 32px 0 0; }
+  #sComplete .sheet .chk { position: absolute; left: 172.5px; top: 76px; width: 48px; height: 48px; }
+  #sComplete .sheet h3 { position: absolute; left: 24px; width: 345px; top: 140px; margin: 0; text-align: center; font-size: 26px; line-height: 30px; font-weight: 600; letter-spacing: -.52px; color: #222; }
+  #sComplete .b1 { top: 268px; }  #sComplete .b2 { top: 332px; }
 </style>
 </head>
 <body>
@@ -357,9 +368,10 @@
             <div class="status"><span class="time">8:08</span><svg><use href="#sb"/></svg></div>
             <div class="nav">
               <div class="ib lead"><svg><use href="#iback"/></svg></div>
-              <div class="step s1">1 of 7</div><div class="step s2">2 of 7</div><div class="step s3">3 of 7</div><div class="step s4">4 of 7</div><div class="step s5">5 of 7</div>
+              <div class="step s1">1 of 7</div><div class="step s2">2 of 7</div><div class="step s3">3 of 7</div><div class="step s4">4 of 7</div><div class="step s5">5 of 7</div><div class="step s6">6 of 7</div>
               <div class="ib trail"><svg><use href="#ix"/></svg></div>
             </div>
+            <div class="body">
             <div class="head s1">Today, the price you set doesn&rsquo;t<br>match the price guests see.</div>
             <div class="head s2">Guests pay a service fee<br>on top of the price you set.</div>
             <div class="head s3">And a host service fee is<br>deducted from your earnings.</div>
@@ -384,11 +396,11 @@
             </div>
             <div class="btn next">Next</div>
             <div class="home"></div>
+            </div>
           </div>
 
           <div class="scn right" id="sAdj">
-            <div class="status"><span class="time">8:08</span><svg><use href="#sb"/></svg></div>
-            <div class="nav"><div class="ib lead"><svg><use href="#iback"/></svg></div><div class="ttl">6 of 7</div><div class="ib trail"><svg><use href="#ix"/></svg></div></div>
+            <div class="body right">
             <img class="tagpng" src="assets/fee/tag.png" alt="">
             <video class="tag" id="adjTag" muted playsinline preload="auto" poster="assets/price-tag.webp" src="assets/price-modal.mp4" aria-hidden="true"></video>
             <h2>Let&rsquo;s adjust your prices</h2>
@@ -401,44 +413,21 @@
             </div>
             <div class="btn b1">Get started</div>
             <div class="btn sec b2">Not now</div>
-            <div id="sRemind"><div class="scrim"></div><div class="sheet">
-              <div class="x"><svg><use href="#ix"/></svg></div>
-              <p>You have until January 17 to make this adjustment. Otherwise, your prices and earnings will be lower.</p>
-              <div class="btn">Got it</div>
-            </div></div>
+            </div>
           </div>
 
-          <div class="scn right" id="sCal">
+          <div class="scn" id="sCal">
             <div class="status white"><span class="time">8:08</span><svg><use href="#sb"/></svg></div>
             <div class="nav"><div class="ib lead"><svg><use href="#iback"/></svg></div><div class="ttl">7 of 7</div><div class="ib trail"><svg><use href="#ix"/></svg></div></div>
             <div class="line">This one-time adjustment will update your<br>prices to account for the single service fee.</div>
             <div id="cal"></div>
-            <div id="sConfirm"><div class="scrim"></div><div class="sheet">
-              <div class="x"><svg><use href="#ix"/></svg></div>
-              <h3>Confirm one-time price adjustment?</h3>
-              <p>We&rsquo;ll adjust all of your prices and update your service fee now. This adjustment cannot be reversed.</p>
-              <div class="btn b1">Confirm</div>
-              <div class="btn sec b2">Cancel</div>
-            </div></div>
-          </div>
-
-          <div class="scn hidden" id="sDone">
-            <div class="status"><span class="time">9:41</span><svg><use href="#sb"/></svg></div>
-            <div class="navbar">
-              <div class="ib" style="left:241px"><img src="assets/fee/ic-wand.svg" alt=""></div>
-              <div class="ib" style="left:289px"><img src="assets/fee/ic-cal-unmarked.svg" alt=""></div>
-              <div class="ib" style="left:337px"><img src="assets/fee/ic-gear.svg" alt=""></div>
-            </div>
-            <h1>August</h1>
-            <div id="cal2"></div>
-            <div class="scrim"></div>
-            <div class="sheet">
+            <div id="sComplete"><div class="scrim"></div><div class="sheet">
               <div class="x"><svg><use href="#ix"/></svg></div>
               <img class="chk" src="assets/fee/ic-check-circle.svg" alt="">
               <h3>Price adjustment<br>complete</h3>
               <div class="btn b1">Done</div>
               <div class="btn sec b2">Learn more</div>
-            </div>
+            </div></div>
           </div>
 
         </div>
@@ -454,6 +443,17 @@
     stage.style.transform = `translate(${(w - 393 * k) / 2}px, 0) scale(${k})`; };
   fit(); addEventListener('resize', fit); if (window.ResizeObserver) new ResizeObserver(fit).observe(scr);
 
+  const tapEl = el0('div', 'tap'); stage.appendChild(tapEl);
+  // a fingertip on an element of the frame: its centre, in frame coordinates
+  function tapOn(e) {
+    if (!e) return false;
+    const sr = stage.getBoundingClientRect(), k = sr.width / 393, r = e.getBoundingClientRect();
+    tapEl.style.left = ((r.left + r.width / 2 - sr.left) / k) + 'px'; tapEl.style.top = ((r.top + r.height / 2 - sr.top) / k) + 'px';
+    tapEl.classList.remove('go'); void tapEl.offsetWidth; tapEl.classList.add('go');
+    e.classList.add('pressed'); setTimeout(() => e.classList.remove('pressed'), 260);
+    return true;
+  }
+  function el0(tag, cls) { const e = document.createElement(tag); e.className = cls; return e; }
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 
   // ── THE TAG: the film plays once the 6 of 7 screen is in — never before, never by itself on arrival
@@ -521,7 +521,10 @@
     sheet.appendChild(weekRow());
     const scroll = el('div', 'c-scroll'); sheet.appendChild(scroll);
     const grid = el('div', 'c-grid'); scroll.appendChild(grid);
-    let picked = null;
+    // THE PICK IS A RANGE (John, 2026-10-07: "multiple tapped, 9 to the 16th, and do the proper math"): the nights from Aug 9 up to the
+    // booking on the 16th, tapped one after another, the breakdown summing as each joins — the old prices added up and struck, the
+    // adjusted ones added up, and 84.5% of that still earned (Figma's 5650:4859: Aug 9 – 14, $1,200 → $1,386, $1,171)
+    let picked = [], picking = [];
     const cells = buildGrid(grid, 'both', night => { if (done.classList.contains('on')) pick(night); else { done.classList.add('on'); setTimeout(() => pick(night), 420); } });
     const fade = el('div', 'c-fade'); st.appendChild(fade);
     const pill = el('div', 'c-pill c-up'); st.appendChild(pill);
@@ -531,25 +534,32 @@
     [58.5, 110.5].forEach(t => { const r = el('div', 'c-rule'); r.style.top = t + 'px'; card.appendChild(r); });
     st.appendChild(el('div', 'c-foot'));
     const btn = el('div', 'c-btn', '<div class="pink">Confirm price adjustment</div><div class="dark">Close details</div>'); st.appendChild(btn);
-    const show = n => { pill.textContent = n.label; vAdj.innerHTML = '<s>$' + n.price + '</s>$' + adj(n.price); vSee.textContent = '$' + adj(n.price); vEarn.textContent = '$' + earn(n.price); };
-    function pick(n) { if (picked) picked.cell.classList.remove('sel'); picked = n; n.cell.classList.add('sel'); show(n); done.classList.add('det'); }
-    function close() { if (picked) picked.cell.classList.remove('sel'); picked = null; done.classList.remove('det'); }
+    const money = v => '$' + v.toLocaleString('en-US');
+    const show = () => {
+      const old = picked.reduce((a, n) => a + n.price, 0), neu = picked.reduce((a, n) => a + adj(n.price), 0), keep = Math.round(neu * 0.845);
+      const a = picked[0], b = picked[picked.length - 1];
+      pill.textContent = picked.length > 1 ? a.label + ' \u2013 ' + b.label.replace(/^\w+ /, '') : a.label;
+      vAdj.innerHTML = '<s>' + money(old) + '</s>' + money(neu); vSee.textContent = money(neu); vEarn.textContent = money(keep);
+    };
+    function pick(n) { if (!picked.includes(n)) { picked.push(n); n.cell.classList.add('sel'); } show(); done.classList.add('det'); }
+    function close() { picking.forEach(clearTimeout); picking = []; picked.forEach(n => n.cell.classList.remove('sel')); picked = []; done.classList.remove('det'); }
     btn.addEventListener('click', () => { if (done.classList.contains('det')) close(); });
-    const nine = cells.find(n => n.label === 'Aug 9');
+    const RANGE = [9, 10, 11, 12, 13, 14, 15].map(d => cells.find(n => n.label === 'Aug ' + d));
     let lower = 0;
     return {
-      details(instant) { clearTimeout(lower); done.classList.add('on'); if (instant) pick(nine); else setTimeout(() => { if (done.classList.contains('on')) pick(nine); }, 520); },
+      // the range, a night a beat: the first lands with the sheet, then the rest are tapped in turn (the deck's tap already on the 9th)
+      details(instant) { clearTimeout(lower); done.classList.add('on'); close();
+        if (instant) { RANGE.forEach(pick); return; }
+        RANGE.forEach((n, i) => picking.push(setTimeout(() => { if (!done.classList.contains('on')) return; if (i) tapOn(n.cell); pick(n); }, 520 + i * 230))); },
       page(instant) { clearTimeout(lower); close(); if (instant) { done.classList.remove('on'); scroll.scrollTop = 0; } else lower = setTimeout(() => { done.classList.remove('on'); scroll.scrollTop = 0; }, 260); },
       press() { btn.classList.add('pressing'); setTimeout(() => btn.classList.remove('pressing'), 180); }
     };
   })();
-  // the host's own calendar after the flow — the new prices alone on every night
-  (() => { const st = document.getElementById('cal2'); st.appendChild(weekRow()); const grid = el('div', 'c-grid'); st.appendChild(grid); buildGrid(grid, 'one', null); })();
 
   // ── THE BUILDS: one screen a tap (see THE TAPS above)
   const S = { today: document.getElementById('sToday'), req: document.getElementById('sReq'), graph: document.getElementById('sGraph'), adj: document.getElementById('sAdj'),
-              remind: document.getElementById('sRemind'), cal: document.getElementById('sCal'), confirm: document.getElementById('sConfirm'), done: document.getElementById('sDone') };
-  const LAST = 13;
+              cal: document.getElementById('sCal'), complete: document.getElementById('sComplete') };
+  const LAST = 11;
   let s = 0, t = [];
   const later = (fn, ms) => t.push(setTimeout(fn, ms));
   const place = (e, where) => { e.classList.toggle('right', where === 'right'); e.classList.toggle('left', where === 'left'); };
@@ -560,29 +570,41 @@
     place(S.today, n >= 2 ? 'left' : ''); S.today.classList.toggle('hidden', n >= 3);
     S.req.classList.toggle('in', n >= 1); place(S.req, n >= 2 ? 'left' : ''); S.req.classList.toggle('hidden', n >= 3);
     // the explainer, 1–5 of 7
-    place(S.graph, n < 2 ? 'right' : n >= 7 ? 'left' : ''); S.graph.classList.toggle('hidden', n < 2 || n >= 8);
+    place(S.graph, n < 2 ? 'right' : n >= 8 ? 'left' : ''); S.graph.classList.toggle('hidden', n < 2 || n >= 9);
+    S.graph.classList.toggle('bodyout', n >= 7); S.graph.classList.toggle('six', n >= 7);
     const g = Math.max(0, Math.min(5, n - 1));
     S.graph.dataset.g = g;
     if (g >= 1) { if (snap || n > 2) S.graph.classList.add('go'); else later(() => S.graph.classList.add('go'), 420); } else S.graph.classList.remove('go');
-    // let's adjust, and its reminder
-    place(S.adj, n < 7 ? 'right' : n >= 9 ? 'left' : ''); S.adj.classList.toggle('hidden', n < 7 || n >= 10);
-    S.remind.classList.toggle('up', n === 8);
+    // let's adjust — its body slides in under the explainer's nav
+    place(S.adj, n >= 8 ? 'left' : ''); S.adj.classList.toggle('hidden', n < 7 || n >= 9);
+    S.adj.querySelector('.body').classList.toggle('right', n < 7);
     if (n === 7 && !snap) tag.after(650); else if (n >= 7) tag.end(); else tag.reset();
     // the calendar
-    place(S.cal, n < 9 ? 'right' : ''); S.cal.classList.toggle('hidden', n < 9 || n >= 14);
-    if (n === 10) cal.details(snap); else if (n >= 11) cal.page(snap || n > 11); else cal.page(true);
-    S.confirm.classList.toggle('up', n === 12);
-    if (n === 12 && !snap) cal.press();
-    // done
-    S.done.classList.toggle('hidden', n < 13); S.done.classList.toggle('in', n >= 13); S.done.classList.toggle('up', n >= 13);
+    S.cal.classList.toggle('hidden', n < 8); S.cal.classList.toggle('in', n >= 8);
+    if (n === 9) cal.details(snap); else if (n >= 10) cal.page(snap || n > 10); else cal.page(true);
+    // Confirm pressed: the calendar dims and the completion sheet rises
+    S.complete.classList.toggle('up', n >= 11);
     if (snap) requestAnimationFrame(() => requestAnimationFrame(() => stage.classList.remove('snap')));
   }
   set(0, true);
-  window.presoNext = () => { if (s >= LAST) return false; set(s + 1); return true; };
-  window.presoPrev = () => { if (s <= 0) return false; set(s - 1, true); return true; };
-  window.presoEnd = () => set(LAST, true);
+  // what the host's finger presses to go from each step to the next
+  const q = sel => document.querySelector(sel);
+  const PRESS = {
+    0: () => q('#sToday .notif'), 1: () => q('#sReq .go'),
+    2: () => q('#sGraph .next'), 3: () => q('#sGraph .next'), 4: () => q('#sGraph .next'), 5: () => q('#sGraph .next'), 6: () => q('#sGraph .next'),
+    7: () => q('#sAdj .b1'),
+    8: () => q('#sCal .c-cell.today'), 9: () => q('#sCal .c-btn'), 10: () => q('#sCal .c-btn')
+  };
+  const TAP_WAIT = 240;
+  let pending = 0;
+  window.presoNext = () => { if (s >= LAST) return false; clearTimeout(pending);
+    const target = PRESS[s] && PRESS[s](); const n = s + 1;
+    if (tapOn(target)) { s = n; pending = setTimeout(() => set(n), TAP_WAIT); } else set(n);
+    return true; };
+  window.presoPrev = () => { if (s <= 0) return false; clearTimeout(pending); set(s - 1, true); return true; };
+  window.presoEnd = () => { clearTimeout(pending); set(LAST, true); };
   window.presoState = () => s;
-  window.presoRestore = k => set(Math.max(0, Math.min(LAST, k | 0)), true);
+  window.presoRestore = k => { clearTimeout(pending); set(Math.max(0, Math.min(LAST, k | 0)), true); };
 })();
 </script>
 </body>
