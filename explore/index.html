@@ -348,8 +348,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .mk-city.sm:hover .pill, .mk-city.sm:hover .pin { opacity: 1; transform: none; pointer-events: auto; }
 .mk-city.sm:hover .pin-sm { opacity: 0; transform: scale(2); }
 
-/* whichever marker is the way down keeps a slow ring going */
-.mk.hero .pin .head::before {
+/* whichever marker is the way down keeps a slow ring going — on the neighbourhood pills only now: on a city pill it read as the
+   flight icon blinking (John, 2026-10-07) */
+.mk-hood.hero .pin .head::before {
   content: ''; position: absolute; inset: 0; border-radius: 50%;
   box-shadow: 0 0 0 0 rgba(255,56,92,.5); animation: ring 2.6s var(--ease) infinite;
 }
@@ -360,12 +361,23 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 
 /* borough pill — 139×48, two lines, pin at x=11 */
-.mk-hood { width: 139px; height: 48px; }
+.mk-hood { width: 139px; height: 48px; pointer-events: none; }
+.mk-hood:hover { z-index: 3; }
+.mk-hood .pill, .mk-hood .pin, .mk-hood .pin-sm { pointer-events: auto; }
 .mk-hood .pill {
-  position: absolute; left: calc(50% - 2px); transform: translateX(-50%); top: 1px; height: 42px;
-  width: 135px; background: #fff; border-radius: 100px; box-shadow: var(--elev2);
-  padding: 8px 20px 8px 40px; overflow: hidden; white-space: nowrap;
+  position: absolute; left: 0; top: 1px; height: 42px;
+  min-width: 135px; width: max-content; background: #fff; border-radius: 100px; box-shadow: var(--elev2);   /* as wide as its name — "Racquet Club Es" was cut off (John, 2026-10-07) */
+  padding: 8px 20px 8px 40px; white-space: nowrap;
+  transition: opacity 240ms var(--ease), transform 380ms var(--ease), box-shadow 200ms var(--ease); transform-origin: 21px 48px;
 }
+.mk-hood .pin { transition: opacity 240ms var(--ease), transform 380ms var(--ease); transform-origin: 10px 36px; }
+.mk-hood.sm .pill, .mk-hood.sm .pin { opacity: 0; transform: scale(.3); pointer-events: none; }
+.mk-hood .pin-sm { left: 16px; bottom: 0; opacity: 0; transform: scale(2); transform-origin: 5px 15px; transition: opacity 200ms var(--ease), transform 380ms var(--ease); pointer-events: none; }
+.mk-hood.sm .pin-sm { opacity: 1; transform: none; pointer-events: auto; }
+.mk-hood.sm:hover .pill, .mk-hood.sm:hover .pin { opacity: 1; transform: none; pointer-events: auto; }
+.mk-hood.sm:hover .pin-sm { opacity: 0; transform: scale(2); }
+.mk-hood.sm { z-index: 1; }
+.mk-hood.sm.under .pin-sm { opacity: 0; pointer-events: none; }
 .mk-hood .pill b { display: block; font-size: 12px; line-height: 14px; font-weight: 700; }
 .mk-hood .pill span { display: block; font-size: 10px; line-height: 12px; font-weight: 400; }
 .mk-hood .pin { left: 11px; bottom: 0; top: 12px; height: 36px; }
@@ -548,6 +560,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   // Priced cities on the continent. `hero` is the one the drill-in is built
   // for; the rest are the field it has to read against.
   var CITIES = [   // fares from SF, round trip, about what they cost (John, 2026-10-06: realistic)
+    { n: 'Palm Springs',p: 140, ll: [-116.55, 33.83], hero: 'ps' },   // the deck's way down (John, 2026-10-07)
     { n: 'Winnipeg',    p: 510, ll: [ -97.14, 49.90] },
     { n: 'Portland',    p: 130, ll: [-122.68, 45.52] },
     { n: 'Montreal',    p: 420, ll: [ -73.57, 45.50] },
@@ -944,9 +957,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   function makeDot(d) { return makePill('', 'pin-plane.svg', d, null, true); }   // a city-beat dot: no leg from SF
   function makeHood(h) {
     var o = mk('mk-hood' + (h.hero ? ' hero' : ''), 139, 48,
-      '<div class="pill"><b>' + h.n + '</b><span>$' + h.p + ' night avg</span></div>' + PIN,
+      '<div class="pill"><b>' + h.n + '</b><span>$' + h.p + ' night avg</span></div>' + PIN + PIN_SM,
       'bottom-left', [-21, 0]);
-    o.marker.setLngLat(h.ll);
+    o.marker.setLngLat(h.ll); o.d = h; o.hood = true;   // in the collision pass, with a dot form, like a city pill
     if (h.hero) {
       o.el.style.cursor = 'pointer';
       o.el.addEventListener('click', function () { enterHood(h.hero === true ? 'wburg' : h.hero); });
@@ -1186,7 +1199,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   };
   // hours, from a pill's own words ('7 hrs', '45 min', '2d 5hrs', '1 day'); and a flight's, from the distance
   function hoursOf(t) { var h = 0, m; t = String(t); if ((m = t.match(/(\d+)\s*d/))) h += 24 * +m[1]; if ((m = t.match(/(\d+(?:\.\d+)?)\s*hr/))) h += +m[1]; if ((m = t.match(/(\d+)\s*min/))) h += +m[1] / 60; return h; }
-  function flightHours(ll) { var R = 6371, dLa = (ll[1] - ME[1]) * Math.PI / 180, dLo = (ll[0] - ME[0]) * Math.PI / 180, a = Math.sin(dLa / 2) * Math.sin(dLa / 2) + Math.cos(ME[1] * Math.PI / 180) * Math.cos(ll[1] * Math.PI / 180) * Math.sin(dLo / 2) * Math.sin(dLo / 2); var km = 2 * R * Math.asin(Math.sqrt(a)); return Math.round((km / 780 + 1.2) * 2) / 2; }
+  function flightHours(ll) { var R = 6371, dLa = (ll[1] - ME[1]) * Math.PI / 180, dLo = (ll[0] - ME[0]) * Math.PI / 180, a = Math.sin(dLa / 2) * Math.sin(dLa / 2) + Math.cos(ME[1] * Math.PI / 180) * Math.cos(ll[1] * Math.PI / 180) * Math.sin(dLo / 2) * Math.sin(dLo / 2); var km = 2 * R * Math.asin(Math.sqrt(a)); return Math.round((km * 1.06 / 820 + 0.65) * 60) / 60; }   // to the minute (John, 2026-10-07: not just 6h 30m or 7h) — 6% over the great circle for the airways, 820 km/h, 39 min of taxi, climb and descent
   var withH = function (o, h) { o.h = h; return o; };
 
   // THE WORLD (John, 2026-10-06: slide the travel time out to Any duration and the map opens to Europe, Asia and the rest):
@@ -1579,20 +1592,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     // SF (Sydney at 151 → −209), so the frame runs Sydney · the Americas · Europe and Africa, with nothing lost at a seam
     var lngs = pts.map(function (q) { return q.lng; }), span = Math.max.apply(null, lngs) - Math.min.apply(null, lngs);
     if (span > 200) pts = pts.map(function (q) { return q.lng > 60 ? new mapboxgl.LngLat(q.lng - 360, q.lat) : q; });
-    var b = new mapboxgl.LngLatBounds(); pts.forEach(function (q) { b.extend(q); }); b.extend(ME);
+    var b = new mapboxgl.LngLatBounds(); pts.forEach(function (q) { b.extend(q); });
+    if ((BEATS[beat || state] || {}).depth === 0) b.extend(ME);   // the traveller is in the frame on the continent, not inside a city (Escape fit all of California)
     var c = map.cameraForBounds(b, { padding: { top: 90, bottom: 70, left: PAD().left + 80, right: 100 }, maxZoom: FIT_MAX[beat || state] || 4.6 });
     return c ? { center: c.center, zoom: c.zoom } : null;
-  }
-  // ENOUGH TO SEE (John, 2026-10-06, the trains at 7.5 hours were two pins): if the knob's hours would leave fewer than a handful
-  // of pins, the knob moves up — to the lowest hours that show that handful, and no further. The one time the duration changes
-  // on its own; the knob is seen to move, and the label says the new hours
-  var MIN_PINS = 5;
-  function enough(set, beat) {
-    var hs = set.filter(function (o) { return o.h != null; }).map(function (o) { return o.h; }).sort(function (a, b) { return a - b; });
-    if (hs.length < MIN_PINS) return;
-    var need = hs[MIN_PINS - 1]; if (within({ h: need }, beat)) return;
-    var pos = Math.min(1, Math.sqrt((need * 1.08 - DUR[0]) / (DUR[1] - DUR[0])));
-    durPos = pos; applyPos(pos, true);
   }
   function fitVisible() {
     clearTimeout(fitT);
@@ -1614,12 +1617,12 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     var cands = set.filter(function (o) { return o.d && o.marker._map && o.el.classList.contains('in'); });
     var rank = function (o) { return o.d.hero ? 0 : o.dot ? 2 : 1; };
     cands.sort(function (a, b) { return rank(a) - rank(b); });
-    var kept = [], few = cands.length <= FEW_PINS;   // only a few on the map: every one of them stands as a pill (John)
+    var kept = [], few = cands.length <= FEW_PINS && BEATS[state].depth === 0;   // only a few on the continent: every one stands as a pill (John); in a city, room decides
     if (meMk && meMk.marker._map) { var m = map.project(meMk.marker.getLngLat()); kept.push({ l: m.x - 20, t: m.y - 48, r: m.x + 20, b: m.y }); }
     cands.forEach(function (o) {
       var p = map.project(o.marker.getLngLat());
       if (!o.pw) { var pl = o.el.querySelector('.pill'); o.pw = (pl && pl.offsetWidth) || 120; }
-      var r = { l: p.x - 14, t: p.y - 36, r: p.x - 14 + o.pw, b: p.y - 8 };
+      var r = o.hood ? { l: p.x - 21, t: p.y - 48, r: p.x - 21 + o.pw, b: p.y - 5 } : { l: p.x - 14, t: p.y - 36, r: p.x - 14 + o.pw, b: p.y - 8 };
       var hits = kept.some(function (k) { return r.l < k.r + DECL_GAP && r.r > k.l - DECL_GAP && r.t < k.b + DECL_GAP && r.b > k.t - DECL_GAP; });
       if (few || !hits || o.el.matches(':hover')) { kept.push(r); o.el.classList.remove('sm', 'under'); }
       else { o.el.classList.add('sm'); o.px = p; }
@@ -1652,14 +1655,12 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
       if (p.x < pad.left || p.x > b.width - pad.right || p.y < pad.top || p.y > b.height - pad.bottom) return;
       if (best == null || o.h > best) best = o.h;
     });
-    if (best == null) best = nearestHours(set); if (best == null) return;
+    if (best == null) return;
     var pos = Math.min(1, Math.sqrt((best * 1.04 - DUR[0]) / (DUR[1] - DUR[0])));
     if (Math.abs(pos - durPos) < 0.01) return;
     durPos = pos; applyPos(pos, true); applyDur(true);
   }
   map.on('zoomend', zoomSetsHours);
-  // the view says how far: with nothing in it, the knob comes down to the nearest pin rather than staying put
-  function nearestHours(set) { var m = null; set.forEach(function (o) { if (o.h != null && (m == null || o.h < m)) m = o.h; }); return m; }
   map.on('move', declutterSoon); map.on('moveend', declutterSoon);
 
   function hide(set, stagger, done) {
@@ -1713,7 +1714,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     // THE CAMERA ON A MODE CHANGE (2026-10-06): the knob keeps its place across modes, so the new mode's hours may let far pins
     // in (or few) — then the flight goes straight to the frame that holds them, not the mode's stock camera and a second move
     var dest = cam(to.cam);
-    if (to.depth === 0 && to.dur && durPos != null) { applyPos(durPos, true); enough(to.set, next); var fc = fitCam(to.set, next); if (fc) dest = fc; }   // always — the stock camera lost two train pins in a continent
+    // THE HOURS AND THE VIEW ARE ONE CONTROL (John, 2026-10-07, after a day of rules that didn't need to be there): the knob's
+    // hours are the same in every mode and a mode change keeps them — the camera simply refits to that mode's pins within them
+    if (to.depth === 0 && to.dur && durPos != null) { applyPos(durPos, true); var fc = fitCam(to.set, next); if (fc) dest = fc; }
     if (!opts.stay) map.flyTo({
       center: dest.center, zoom: dest.zoom, padding: PAD(),
       duration: deeper ? 1500 : 1250, curve: 1.5, speed: 0.9, essential: true
@@ -1751,7 +1754,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   }
 
   document.getElementById('back').addEventListener('click', function () { go(cityFrom || 'usa'); });
-  if (window.__explore) { window.__explore.vibe = setVibe; window.__explore.dbg = function () { return { fitCam: fitCam, enough: enough, BEATS: BEATS, maxH: maxH, declutter: declutter, within: within, state: state }; }; }   // for a test, nothing else
+  if (window.__explore) { window.__explore.vibe = setVibe; window.__explore.dbg = function () { return { fitCam: fitCam, BEATS: BEATS, maxH: maxH, declutter: declutter, within: within, state: state }; }; }   // for a test, nothing else
   document.getElementById('backHood').addEventListener('click', function () { go('nyc'); });
   window.__explore.enterCity = enterCity; window.__explore.enterHood = enterHood; window.__explore.cityVibe = setCityVibe;
   document.getElementById('toHomes').addEventListener('click', function () { enterHood(CITY[cityKey].hood); });
@@ -1834,7 +1837,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     var sets = vibeSets[state]; if (!sets || !sets[k] || k === vibe) return;
     var was = BEATS[state].set; vibe = k;
     var next = sets[k]; Object.keys(vibeSets).forEach(function (m) { if (vibeSets[m][k]) BEATS[m].set = vibeSets[m][k]; });   // the vibe holds across modes
-    enough(next);
     busy = true; hideRoute();
     // the camera fits the vibe's pins (John, 2026-10-06: zoom to fit if necessary) — Popular goes back to the mode's own camera
     hide(was, 18, function () { show(next, 32); busy = false; fitVisible(); });   // then the camera fits the pins the hours allow

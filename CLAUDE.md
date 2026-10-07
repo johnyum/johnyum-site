@@ -302,9 +302,12 @@ road at once: no bezier stand-in from the traveller (the airports' three legs ke
 fetches every shown pin's road into the cache, one every 120ms. Slide 09c sizes the page's height to the screen (`fit(w, h)`), or
 1512 x 977 scaled by the width alone came up a fraction short and showed a white line along the bottom.
 
-**Enough to see (2026-10-06):** a mode or vibe change that would leave fewer than five pins moves the knob UP to the lowest hours
-that show five (`enough()`, `MIN_PINS`) — the one time the duration changes on its own, and the knob is seen to move. Eight or fewer
-on the map and every one stands as a pill (`FEW_PINS` in `declutter`): no dots when there's room for all.
+**The duration, redone clean (2026-10-07, John: "I was putting in rules that didn't need to be there"):** the knob and the view are
+ONE control. The knob's hours are the same in every mode (`DUR`, pos², 8 hours to start). Move the knob and the camera fits the
+pins it allows; zoom by hand and the knob reads the farthest pin left in view; change mode and the hours stay, the camera refitting
+to that mode's pins within them; far out is the flights, close in the car (`SWITCH`, the map staying put). Nothing else moves the
+knob — the five-pin nudge, a walking cap and a nearest-pin fallback were all tried and taken out. Eight or fewer pins on the map
+and every one stands as a pill (`FEW_PINS` in `declutter`).
 
 **Palm Springs (2026-10-07):** a second city to drop into, built on the New York pair of beats — the city beat (`nyc`) and the
 neighbourhood beat (`hood`) are now generic, dressed for whichever city is entered (`CITY`, `enterCity(key)`: the card's title,
@@ -323,6 +326,14 @@ reach (`SWITCH.toFlights` 4.2) the car becomes the flights, zoomed in past 6.6 t
 (`go(next, { stay: true })`). The car has near places for that (`DRIVE_NEAR`: Sausalito, Berkeley, Half Moon Bay…) so zooming
 in on SF shows short drives with the car's own icon, never the walk's. NOTE for tests: the desktop app's browser pane pauses
 animation frames while hidden — the map then neither flies nor loads its mask; drive `requestAnimationFrame` with a timer.
+
+**Later on 2026-10-07:** flight hours are to the minute (`flightHours`: 6% over the great circle, 820 km/h, 39 min of taxi, climb
+and descent — "not just 6h 30m or 7h"). The pulsing ring is on the neighbourhood heroes only (on a city pill it read as the flight
+icon blinking). Neighbourhood pills are as wide as their name (`min-width` 135, `max-content`), have a dot form and sit in the
+collision pass like city pills (`o.hood`); the few-pins-all-pills rule is for the continent only — in a city, room decides. The
+camera fit includes the traveller on the continent only (inside a city it pulled SF into the frame: Escape fit all of California).
+Slide 09c drills into PALM SPRINGS: trains (LA hovered), flights (Palm Springs hovered — it's on the flights' Popular as a hero
+for this), Palm Springs, Vista Las Palmas. New York stays in the page; the slide no longer goes there.
 
 `?state=nyc` / `?state=hood` opens straight on a beat, and `window.__explore`
 exposes `{ map, go, at }` the way `multical/` exposes its model — a deck can step
