@@ -12,7 +12,7 @@
 <style>
   html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
   .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
-  .sheet { position: relative; flex: none; width: 1920px; height: 1080px; transform: scale(var(--s, 1)); transform-origin: center; transition: transform .9s cubic-bezier(.22,1,.36,1); }
+  .sheet { position: relative; flex: none; width: 1920px; height: 1080px; transform: translateY(calc(var(--off, 0px) * var(--s, 1))) scale(var(--s, 1)); transform-origin: center; transition: transform .9s cubic-bezier(.22,1,.36,1); }
   .tile { position: absolute; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; background: #fff; opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .7s cubic-bezier(.22,1,.36,1); transition-delay: var(--d, 0s); }
   .tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
   .tile.centre { border-radius: 16px; opacity: 1; transform: none; }
@@ -30,22 +30,23 @@
   // the calendar takes 6 x 4 dead centre (cols 6–11, rows 3–6), a phone 1 x 2, a web build 3 x 2, a graph strip 3 or 4 x 1 — packed
   // round the centre first-fit, top to bottom; then every cell still free gets one of the calendar's holiday icons, all at one size,
   // so there are no empty areas (John: the icons as fillers, all the same size)
-  const COLS = 18, ROWS = 10, C = 86, G = 16, X0 = Math.round((1920 - (COLS * C + (COLS - 1) * G)) / 2), Y0 = Math.round((1080 - (ROWS * C + (ROWS - 1) * G)) / 2);
+  const COLS = 16, ROWS = 9, C = 97, G = 16, X0 = Math.round((1920 - (COLS * C + (COLS - 1) * G)) / 2), Y0 = Math.round((1080 - (ROWS * C + (ROWS - 1) * G)) / 2);
   const cell = (c, r, w, h) => ({ x: X0 + c * (C + G), y: Y0 + r * (C + G), w: w * C + (w - 1) * G, h: h * C + (h - 1) * G });
   const used = Array.from({ length: ROWS }, () => new Array(COLS).fill(false));
   const take = (c, r, w, h) => { for (let j = r; j < r + h; j++) for (let i = c; i < c + w; i++) used[j][i] = true; };
   const free = (c, r, w, h) => { if (c + w > COLS || r + h > ROWS) return false; for (let j = r; j < r + h; j++) for (let i = c; i < c + w; i++) if (used[j][i]) return false; return true; };
   const tiles = [];
-  { const c = 6, r = 3; take(c, r, 6, 4); tiles.push({ src: 'assets/process-multical.webp', ...cell(c, r, 6, 4), centre: true }); }
+  { const c = 5, r = 2; take(c, r, 6, 4); tiles.push({ src: 'assets/process-multical.webp', ...cell(c, r, 6, 4), centre: true }); }
+  const CC = cell(5, 2, 6, 4), OFF = 540 - (CC.y + CC.h / 2);   // the calendar sits half a row above the sheet's middle: the sheet is shifted down by that, so the calendar is centred on the screen and the board (which bleeds anyway) carries the difference
   const W = (n) => [n, 3, 2], P = (n) => [n, 1, 2];
   const ICONS = ['season-la-awards', 'carousel-horse', 'comic-pow', 'cowboy-hat', 'chili-pepper', 'clapperboard', 'electric-guitar', 'flamingo-float', 'french-horn', 'gramophone', 'jockey-silks', 'maracas', 'microphone', 'new-years', 'presidents-day', 'pride-rainbow', 'rose', 'running-shoe', 'santa-hat', 'thanksgiving',
     'bicycle', 'pride-heart', 'sec-popcorn', 'sec-pretzel', 'sec-bell', 'sec-cactus', 'sec-candycanes', 'sec-flipflop', 'sec-beachball', 'sec-umbrella', 'sec-sun', 'sec-medal', 'sec-horseshoe', 'sec-ticket', 'sec-film-reel', 'sec-sparkle', 'sec-daisy', 'sec-palm', 'sec-flame', 'sec-book', 'sec-raindrop', 'superhero-mask', 'tennis-racquet', 'memorial-day', 'labor-day', 'mlk-jr-day', 'season-tahoe-winter', 'season-aspen-winter', 'season-bigbear-winter', 'season-malibu-high', 'season-la-summer', 'season-tahoe-summer', 'season-aspen-summer', 'sec-july-4th', 'sec-veterans-day', 'jockey-helmet', 'sec-comic-bolt', 'sec-rainbow-heart', 'sec-pride-balloon'];
   // in the order they're laid in — a wide one, two phones, a wide one… so the board mixes as it fills
   const items = [
-    ['03-jul29-airbnb-header-show-tips', 4, 3], ['067-2026-09-28-2047', 2, 4], P('100-2026-09-28-2204'), W('04-jul30-today-deck'), P('121-2026-09-29-1207'), P('133-2026-09-29-1212'), W('07-oct06-tips-1-0-review'), P('154-2026-09-29-1546'), P('166-2026-09-30-0842'),
-    W('08-oct06-tips-2-0-ai-gap-pills'), ['206-2026-09-30-1751', 2, 4], P('212-2026-09-30-1806'), W('13-wild-pricing-board-seasonal-demand'), P('213-2026-09-30-1810'), P('228-2026-10-01-0928'),
-    W('15-wild-groups-modal'), P('234-2026-10-05-1009'), P('240-2026-10-05-1012'), ['web-2026-06-30-week-grid-x-cells-min-badges', 4, 3], P('242-2026-10-05-1016'), ['web-2026-07-09-price-variance-groups-toggles', 4, 3],
-    ['sheet-2x', 4, 3], W('graph-00-fluid-personalized-prices-target'), ['graph-01-current-straight-line-pills', 5, 2], ['graph-03-fluid-ridge-behind-prices', 4, 1], ['graph-controls-season-waviness-peak-window', 4, 1],
+    P('067-2026-09-28-2047'), P('100-2026-09-28-2204'), W('04-jul30-today-deck'), P('121-2026-09-29-1207'), P('133-2026-09-29-1212'), W('07-oct06-tips-1-0-review'), P('154-2026-09-29-1546'), P('166-2026-09-30-0842'),
+    P('206-2026-09-30-1751'), P('212-2026-09-30-1806'), W('13-wild-pricing-board-seasonal-demand'), P('213-2026-09-30-1810'), P('228-2026-10-01-0928'),
+    W('15-wild-groups-modal'), P('234-2026-10-05-1009'), P('240-2026-10-05-1012'), P('242-2026-10-05-1016'), W('web-2026-07-09-price-variance-groups-toggles'),
+    W('sheet-2x'), W('graph-00-fluid-personalized-prices-target'), ['graph-01-current-straight-line-pills', 5, 2], ['graph-03-fluid-ridge-behind-prices', 4, 1], ['graph-controls-season-waviness-peak-window', 4, 1],   // three near-duplicate web grids left out (John: too many similar web designs)
   ];
   // mixed up (John: the phones needn't sit together): the items in a shuffled order — the same shuffle every time, from a fixed seed —
   // each put in the free spot nearest the middle, so the board packs out from the calendar and the icons take the far corners
@@ -53,7 +54,7 @@
   for (let i = items.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [items[i], items[j]] = [items[j], items[i]]; }
   // the big ones go first (they need the room), each in the free spot nearest the middle; one that can't fit takes its smaller size
   items.sort((a, b) => b[1] * b[2] - a[1] * a[2]);
-  const smaller = (w, h) => w === 2 && h === 4 ? [1, 2] : w >= 4 ? [3, 2] : null;
+  const smaller = (w, h) => w === 5 && h === 2 ? [3, 1] : null;
   for (let [n, w, h] of items) {
     let best = null;
     while (!best) {
@@ -82,9 +83,9 @@
   };
   let step = 0;
   const fit = () => {
-    const CW = 6 * 86 + 5 * 16, alone = Math.min((innerWidth - 64) / 2000, band() / 1250) * .8 * 2000 / CW;   // the calendar at the slide before's size
+    const CW = 6 * 97 + 5 * 16, alone = Math.min((innerWidth - 64) / 2000, band() / 1250) * .8 * 2000 / CW;   // the calendar at the slide before's size
     const whole = Math.max(innerWidth / 1920, innerHeight / 1080) * 1.12;   // built, the board runs off every edge (John: bleed) — a little larger than the screen, centred
-    sheet.style.setProperty('--s', (step ? whole : alone).toFixed(4));
+    sheet.style.setProperty('--s', (step ? whole : alone).toFixed(4)); sheet.style.setProperty('--off', OFF.toFixed(1) + 'px');
     sheet.classList.toggle('built', step > 0);
   };
   fit(); addEventListener('resize', fit);
