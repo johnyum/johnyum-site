@@ -463,6 +463,23 @@ button, textarea { font: inherit; color: inherit; }
 .eobp .pf { position: absolute; left: 40px; right: 40px; bottom: 26px; display: flex; justify-content: space-between; font-size: 7px; color: #777; border-top: 1px solid #ddd; padding-top: 6px; }
 /* Kept for the character's older moves, out of sight. */
 .chips, .director { display: none; }
+/* Things to try: the character's whole repertoire down the left, on the demo page (the paw button opens it). */
+.try { position: fixed; left: 20px; top: 88px; bottom: 20px; width: 236px; z-index: 30; overflow-y: auto; padding: 16px 14px 20px;
+  background: #fff; border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 28px rgba(0,0,0,.06);
+  scrollbar-width: thin; transition: opacity .2s, transform .2s; }
+.try[hidden] { display: block; opacity: 0; transform: translateX(-12px); pointer-events: none; }
+.try h2 { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
+.try > p { font-size: 12.5px; line-height: 1.4; color: var(--muted); margin: 0 0 6px; text-wrap: pretty; }
+.try h3 { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin: 16px 0 7px; }
+.try .row { display: flex; flex-wrap: wrap; gap: 6px; }
+.try button { font: inherit; font-size: 13px; line-height: 1; padding: 8px 11px; border-radius: 999px; border: 1px solid var(--line); background: #fff;
+  color: var(--ink); cursor: pointer; white-space: nowrap; transition: background .12s, border-color .12s; }
+.try button:hover { background: var(--field); border-color: #d8d7d3; }
+.try button:active { transform: scale(.97); }
+.try .say button { white-space: normal; text-align: left; border-radius: 12px; line-height: 1.3; padding: 8px 11px; width: 100%; }
+.try .say button i { display: block; font-style: normal; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.try .hands { font-size: 12.5px; line-height: 1.5; color: var(--muted); margin: 0; padding-left: 16px; }
+.top [aria-label="Character"].on { background: var(--field); }
 .carried { display: block; margin: 0 0 6px; padding: 4px 9px; border-left: 2px solid #ffc94a; color: var(--muted); font-size: 12.5px; border-radius: 4px; background: #fff8e3; }
 
 /* ── the character's layer ── */
@@ -1640,6 +1657,82 @@ let lastW = innerWidth;
 addEventListener('resize', () => { if (Math.abs(innerWidth - lastW) > 40) { lastW = innerWidth; act(leave); } });
 
 window.__peek = { C, mood, say, leave, act, standOn, runTo, jumpTo, sitOn, peekOver, peekSide, hang, holdTip, CHAR, frame, get model() { return model; }, clipsFor, get rigged() { return rigged; } };
+
+/* ═══════════════ Things to try — everything the character does, down the left ═══════════════
+   On the demo page whenever there's a character (a Monsters link, ?character). Every button is
+   something it already does: its moves, its tricks round the page, the twelve feelings it reads
+   in a chat, its faces, the model's own clips — and "Say to it" sends a real message it reacts
+   to, so the chat's own path is in here too. The paw button in the header opens and closes it. */
+if (CHARACTER && !EMBED && !PRESO) {
+  const panel = document.createElement('aside');
+  panel.className = 'try'; panel.setAttribute('aria-label', 'Things to try');
+  const paw = $('.top [aria-label="Character"]');
+  const lastMsg = () => [...msgs.querySelectorAll('.msg')].at(-1) || $('#hello');
+  const feel = (f, n = .6) => act(() => perform({ feel: f, n, cmd: null, line: '', by: 'panel' }, composer, lastMsg()));
+  const cmd = (c) => act(() => obey(c, composer, (w) => w));
+  const GROUPS = [
+    ['Moves', [
+      ['Wave', () => cmd('wave')], ['Dance', () => cmd('dance')], ['Jump around', () => cmd('jump')],
+      ['Come here', () => cmd('come')], ['Go to sleep', () => cmd('sleep')], ['Go away', () => cmd('away')],
+    ]],
+    ['Around the page', [
+      ['Peek over the box', () => act(async () => { const r = rectOf(composer); await peekOver(composer, r.left + r.width * .62, 'curious'); say('whatcha writing?', 2000); })],
+      ['Run along the box', () => act(async () => { const r = rectOf(composer); await standOn(composer, r.left + 60); await runTo(composer, r.right - 50); await wait(250); await runTo(composer, r.left + 50); await wait(300); await leave(); })],
+      ['Sit on the last message', () => act(async () => { const el = lastMsg(), r = rectOf(el); await sitOn(el, r.left + Math.min(r.width - 40, 80), 'happy'); say('comfy', 1600); })],
+      ['Hold up a tip', () => act(async () => { const [t, w] = TIPS[tipAt++ % TIPS.length]; await holdTip(t, w); })],
+      ['Lean in from the side', () => act(async () => { await peekSide('right', innerHeight * .46, 'curious'); say('psst', 1800); await wait(2000); await leave(); })],
+      ['Pop up', () => { if (C.home && C.held) popUp(); else act(leave); }],
+      ['Go home', () => act(leave)],
+    ]],
+    ['Feelings', [
+      ['Hello', () => feel('hello')], ['Excited', () => feel('excited', .9)], ['Love', () => feel('love')], ['Funny', () => feel('funny')],
+      ['Surprised', () => feel('surprised')], ['Anxious', () => feel('anxious')], ['Frustrated', () => feel('frustrated')], ['Sad', () => feel('sad')],
+      ['Hurt', () => feel('hurt')], ['Sorry', () => feel('sorry')],
+    ]],
+    ['Faces', ['happy', 'curious', 'surprised', 'thinking', 'love', 'sleepy', 'sad', 'ugh'].map((m) => [m[0].toUpperCase() + m.slice(1), () => mood(m)])],
+  ];
+  // Real messages: the chat reads each one (word lists, then Haiku in the app) and it reacts.
+  const SAY = [
+    ['hi!', 'it waves hello'], ['can you dance?', 'a command — it dances'], ['jump!', 'it jumps along the box'],
+    ['you\'re the best ♥', 'warmth — it lasts between visits'], ['ugh, this code is broken, damn it', 'a swear at the code: sympathy'],
+    ['you\'re useless', 'hurt — three of these and it sulks'], ['sorry, I didn\'t mean it', 'it forgives you'],
+    ['I got the job!!', 'it celebrates'], ['my dog died yesterday', 'it comes and sits with you'], ['go to sleep', 'z z z'], ['come here', 'out it comes'],
+  ];
+  const btn = (label, fn, sub) => { const b = document.createElement('button'); b.type = 'button'; b.innerHTML = sub ? `${label}<i>${sub}</i>` : label; b.onclick = fn; return b; };
+  const head = (t) => { const h = document.createElement('h3'); h.textContent = t; return h; };
+  panel.innerHTML = '<h2>Things to try</h2><p>Every button is something it already does. Or drag it anywhere, or tap it.</p>';
+  for (const [title, items] of GROUPS) {
+    const row = document.createElement('div'); row.className = 'row';
+    for (const [label, fn] of items) row.append(btn(label, fn));
+    panel.append(head(title), row);
+  }
+  // The model's own clips, once it's loaded — whatever Monsters (or Rig Studio) gave it.
+  const clipRow = document.createElement('div'); clipRow.className = 'row';
+  const clipHead = head('Its own clips'); clipHead.hidden = true;
+  panel.append(clipHead, clipRow);
+  let clipTries = 0;
+  const fillClips = () => {
+    const names = Object.keys(clipsFor).filter((k) => k !== 'Idle');
+    if (!names.length) { if (++clipTries < 40) setTimeout(fillClips, 750); return; }
+    clipHead.hidden = false; clipRow.innerHTML = '';
+    for (const k of names) clipRow.append(btn(k, () => { if (playClip(k, true)) oneShot = clipsFor[k].duration; }));
+  };
+  fillClips();
+  const sayRow = document.createElement('div'); sayRow.className = 'row say';
+  for (const [text, sub] of SAY) sayRow.append(btn(`“${text}”`, () => { if (!busy) send(text); }, sub));
+  const hands = document.createElement('ul'); hands.className = 'hands';
+  hands.innerHTML = '<li>Drag it — it dangles from the pointer; let go and it falls home</li><li>Tap it at home — it pops up and waves</li><li>Type a swear and it guards the send button</li><li>Sweep the pointer past it while it hangs</li>';
+  panel.append(head('Say to it'), sayRow, head('With your hands'), hands);
+  document.body.append(panel);
+  const show = (on) => { panel.hidden = !on; paw?.classList.toggle('on', on); };
+  // Open from the start only where it clears the chat column; a narrowing window closes it,
+  // unless the paw opened it — then covering the chat is what was asked for.
+  const roomy = () => rectOf(composer).left >= 276;
+  let byPaw = false;
+  show(roomy());
+  paw?.addEventListener('click', () => { byPaw = panel.hidden; show(panel.hidden); });
+  addEventListener('resize', () => { if (!byPaw) show(roomy()); });
+}
 
 /* ═══════════════ its heart: how it feels about what's said ═══════════════
    Every message gets two reads. The first is instant and on the device — a handful of word
