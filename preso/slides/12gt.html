@@ -10,7 +10,8 @@
      renders), then Photoshop, InDesign, Sketch and Figma — the tools of the eleven years. They come in as the slide lands.
      ONE TAP: five more under them, in black and white — a code icon in the same clay, Blender, Final Cut Pro, then three that
      would have helped greatly and were too hard to learn: Xcode and After Effects (Unity, Origami Studio, Houdini and Ableton Live
-     came and went, 2026-10-08 — John: "get rid of ableton"; five now, as the row above). Hover any tile and its name comes up above it.
+     came and went, 2026-10-08 — John: "get rid of ableton"; five now, as the row above). Hover any tile and its name comes up above it. A SECOND TAP gathers all ten into the middle and brings up the A\ mark (see
+     THE GATHER).
      Photoshop, Figma and Xcode are the apps' own icons, read off this Mac (sips from each .icns) and cropped to their squircle;
      the Adobe three are cut at full size (459px) from the Creative Cloud icon sheet John gave, each laid on a solid square of its
      own colour so the icon's rounded corner never shows as an edge inside the tile; Blender and
@@ -47,13 +48,23 @@
      over the page (not in the tile — the tile is tipped and clips), its centre on the tile's, 10 above its top; the hovered
      tile comes up over its neighbours. The pill is Peek's name pill: white, a hairline ring, a two-layer soft shadow. */
   .tile:hover { z-index: 20 !important; }
+  /* THE GATHER (John, 2026-10-08: "when I tap next animate it all into itself, the whole 10 icons into the center; when it goes
+     full white, slowly bring in the Anthropic icon in the center — no bounding, just the icon — and let it sit there"): every tile
+     flies to the middle, straightening and shrinking as it goes, and fades out as it arrives; on the white, the A\ mark comes
+     up slowly where they met, no tile round it, and holds. */
+  body.gather .rows { pointer-events: none; }
+  body.gather .tile { opacity: 0 !important; transition: transform 760ms cubic-bezier(0.55, 0, 0.3, 1), opacity 320ms ease 470ms !important; }
+  .mark { position: fixed; left: 50%; top: 50%; height: 84px; width: auto; pointer-events: none;
+          opacity: 0; transform: translate(-50%, -50%) scale(0.97); transition: opacity 280ms ease, transform 280ms ease; }
+  body.gather .mark { opacity: 1; transform: translate(-50%, -50%) scale(1);
+                      transition: opacity 1800ms cubic-bezier(0.4, 0, 0.2, 1) 1050ms, transform 2400ms cubic-bezier(0.2, 0.8, 0.2, 1) 1050ms; }
   #name { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 50; white-space: nowrap;
           font: 400 15px/1 "IBM Plex Mono", ui-monospace, Menlo, monospace; color: #111; background: #fff; padding: 9px 14px; border-radius: 999px;
           box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.10);
           opacity: 0; transform: translate(-50%, calc(-100% + 6px)); transition: opacity 160ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
   #name.on { opacity: 1; transform: translate(-50%, -100%); }
   /* in: each one sprung to its own tilt, one after the other */
-  body.in .row.one .tile, body.more .row.two .tile { opacity: 1; transform: translateX(var(--x, 0px)) rotate(var(--r)) scale(var(--s, 1)); }
+  body.in .row.one .tile, body.more .row.two .tile { opacity: 1; transform: translate(var(--x, 0px), var(--y, 0px)) rotate(var(--r)) scale(var(--s, 1)); }
   /* HOVER (John, 2026-10-08: "push the icons away that's not hovering and make the cell not on an angle; when I dehover it goes
      back to the stacked"): the hovered tile straightens and lifts a touch, every other tile in its row slides away from it — left
      of it to the left, right of it to the right — far enough that it stands clear; off it, all settle back into the stack. A row
@@ -92,24 +103,40 @@
       </div>
     </div>
   </div>
+  <img class="mark" src="assets/anthropic-mark.svg" alt="Anthropic">
   <div id="name" aria-hidden="true"></div>
 <script>
 (() => {
   const b = document.body;
   let step = 0;
+  const name = document.getElementById('name');
   const snap = fn => { b.classList.add('snap'); fn(); void b.offsetWidth; b.classList.remove('snap'); };
-  const set = (n, instant) => { step = n; const go = () => { b.classList.add('in'); b.classList.toggle('more', n > 0); }; instant ? snap(go) : go(); };
+  const tiles = [...document.querySelectorAll('.tile')];
+  const clear = t => ['--x', '--y', '--r', '--s'].forEach(k => t.style.removeProperty(k));
+  // each tile's way to the middle, from where it stands now (its centre: a tilt or a lift turns about it)
+  const gather = on => {
+    tiles.forEach(clear);
+    document.querySelectorAll('.row').forEach(r => r.classList.add('live'));
+    if (!on) return;
+    const cx = innerWidth / 2, cy = innerHeight / 2;
+    tiles.forEach((t, i) => { const r = t.getBoundingClientRect();
+      t.style.setProperty('--x', (cx - (r.left + r.width / 2)) + 'px'); t.style.setProperty('--y', (cy - (r.top + r.height / 2)) + 'px');
+      t.style.setProperty('--r', '0deg'); t.style.setProperty('--s', '0.3'); });   // all ten together
+  };
+  const set = (n, instant) => { step = n; name.classList.remove('on');
+    const go = () => { b.classList.add('in'); b.classList.toggle('more', n > 0); const was = b.classList.contains('gather'); b.classList.toggle('gather', n > 1); if (n > 1 || was) { void b.offsetWidth; gather(n > 1); } };   // the class first, so the flight takes the gather's own timing
+    instant ? snap(go) : go(); };
   // the first five come in as the slide lands (not while it is being built ahead, hidden)
   addEventListener('presoshown', () => { if (!b.classList.contains('in')) set(step); });
   if (window.parent === window) addEventListener('load', () => set(0));
   // the slide keeps the pointer so the names can follow it (the deck's taps shrink to its 32px edge rails; the arrows and the clicker still step)
   window.presoInteractive = true;
-  // the name over whichever tile the pointer is on, read off its picture's alt
-  const name = document.getElementById('name');
+  // (the name over whichever tile the pointer is on is read off its picture's alt — below)
   const PUSH = 30, LIFT = 1.08;
   document.querySelectorAll('.tile').forEach(t => {
     const row = t.parentElement, all = [...row.children], i = all.indexOf(t);
     t.addEventListener('mouseenter', () => {
+      if (step > 1) return;
       row.classList.add('live');
       all.forEach((o, j) => { o.style.setProperty('--x', j === i ? '0px' : (j < i ? -PUSH : PUSH) + 'px'); o.style.removeProperty('--r'); o.style.removeProperty('--s'); });
       t.style.setProperty('--r', '0deg'); t.style.setProperty('--s', LIFT);
@@ -119,14 +146,14 @@
       name.style.left = cx + 'px'; name.style.top = (cy - t.offsetHeight * LIFT / 2 - 10) + 'px'; name.classList.add('on');
     });
     t.addEventListener('mouseleave', () => {
-      name.classList.remove('on');
+      name.classList.remove('on'); if (step > 1) return;
       all.forEach(o => { o.style.removeProperty('--x'); o.style.removeProperty('--r'); o.style.removeProperty('--s'); });
     });
   });
-  window.presoNext = () => { if (step >= 1) return false; set(1); return true; };
-  window.presoPrev = () => { if (step === 0) return false; set(0); return true; };
+  window.presoNext = () => { if (step >= 2) return false; set(step + 1); return true; };
+  window.presoPrev = () => { if (step === 0) return false; set(step - 1); return true; };
   window.presoState = () => step;
-  window.presoRestore = n => set(n > 0 ? 1 : 0, true);
+  window.presoRestore = n => set(Math.max(0, Math.min(2, n | 0)), true);
 })();
 </script>
 </body>
