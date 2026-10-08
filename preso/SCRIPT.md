@@ -168,7 +168,13 @@ The phone is live: the real app's chat, Claude answering for real (Opus 5), the 
 Moby-Dick, Spider-Man; the insurance call is the page's own script (the chat, the call, Denise, the receipt), and that's said
 too: it's a demo of an agent making the call, not a live one. A live build can't be guaranteed, and that's accepted: if Claude
 is slow, say it's thinking; if the call fails, the page plays the written answer, and John says that's what happened. The
-fallback (`?live=0`) is for a dead network, not a quieter show. Tell the room which is which before the first question types. One scene
+fallback (`?live=0`) is for a dead network, not a quieter show. Tell the room which is which before the first question types.
+**And it can't hang (2026-10-07, John: "I'm concerned that in the meeting the Anthropic API is going to break"):** every call has a
+clock — the readiness check 2.5s, a chat's first words within 6s, no silence over 9s mid-answer, an ask 8s — and past any of them
+the written answer plays after its own thinking beat (1.4–2.3s), so the beats are the same either way. The written answers were
+checked end to end with the function off: the tide pool's ten creatures and the game, the cookbook's eight tagged steps and the
+stopwatch, the whale and the cast of eight, Spider-Man. **L on the keyboard** (the page focused, as S shakes) switches the written
+answers on by hand from the next turn, and back. One scene
 per idea; a new chat between them (the new-chat mark is tapped, the greeting comes fresh). What to say over each, roughly:
 
 1. **Tide pool** (2 taps). "My daughter is learning about tide pools…" — as Claude names each creature it drops into the chat

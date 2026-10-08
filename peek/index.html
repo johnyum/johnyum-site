@@ -4232,32 +4232,44 @@ function presoClear(p) {
 const LIVE = PRESO && !/[&?]live=0\b/.test(location.search);
 // (the app's system prompt, the model and the caps live in api/claude.js, which only takes the deck's own chats and asks)
 let liveReady = null;   // null: not asked yet
+// NEVER STUCK ON THE NETWORK (John, 2026-10-07: "I'm concerned that in the meeting the Anthropic API is going to break"): every
+// call to the function has a clock on it. The readiness check gets 2.5s; a chat's first words must land within 6s of the ask
+// and no silence mid-stream may run past 9s; an ask gets 8s. Past any of them the call is cut off and the scene's written
+// answer plays, after its own thinking beat — so the room sees the same beats either way, and never a spinner that doesn't end.
+const LIVE_WAIT = { ready: 2500, first: 6000, stall: 9000, ask: 8000 };
+const fetchT = (url, opts, ms, onAbort) => { const ac = new AbortController(); const t = setTimeout(() => { ac.abort(); onAbort && onAbort(); }, ms); return fetch(url, { ...opts, signal: ac.signal }).finally(() => clearTimeout(t)); };
 async function liveOk() {
   if (liveReady !== null) return liveReady;
-  try { const r = await fetch('/api/claude', { cache: 'no-store' }); const j = r.ok ? await r.json() : null; liveReady = !!(j && j.ready); } catch (_) { liveReady = false; }
+  try { const r = await fetchT('/api/claude', { cache: 'no-store' }, LIVE_WAIT.ready); const j = r.ok ? await r.json() : null; liveReady = !!(j && j.ready); } catch (_) { liveReady = false; }
   return liveReady;
 }
 async function claudeStream(messages, onText) {
-  const r = await fetch('/api/claude', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'chat', messages, stream: true }) });
-  if (!r.ok || !r.body) throw new Error('claude ' + r.status);
-  const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '', out = '';
-  for (;;) {
-    const { value, done } = await rd.read(); if (done) break;
-    buf += dec.decode(value, { stream: true });
-    let i; while ((i = buf.indexOf('\n\n')) >= 0) {
-      const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
-      for (const line of chunk.split('\n')) {
-        if (!line.startsWith('data:')) continue;
-        let ev; try { ev = JSON.parse(line.slice(5).trim()); } catch (_) { continue; }
-        if (ev.type === 'content_block_delta' && ev.delta && ev.delta.type === 'text_delta') { out += ev.delta.text; onText(out); }
-        else if (ev.type === 'error') throw new Error(ev.error && ev.error.message || 'stream error');
+  const ac = new AbortController(); let timer = 0, why = '';
+  const arm = (ms, reason) => { clearTimeout(timer); timer = setTimeout(() => { why = reason; ac.abort(); }, ms); };
+  arm(LIVE_WAIT.first, 'no first words in ' + LIVE_WAIT.first + 'ms');
+  try {
+    const r = await fetch('/api/claude', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'chat', messages, stream: true }), signal: ac.signal });
+    if (!r.ok || !r.body) throw new Error('claude ' + r.status);
+    const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '', out = '';
+    for (;;) {
+      const { value, done } = await rd.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i; while ((i = buf.indexOf('\n\n')) >= 0) {
+        const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+        for (const line of chunk.split('\n')) {
+          if (!line.startsWith('data:')) continue;
+          let ev; try { ev = JSON.parse(line.slice(5).trim()); } catch (_) { continue; }
+          if (ev.type === 'content_block_delta' && ev.delta && ev.delta.type === 'text_delta') { out += ev.delta.text; arm(LIVE_WAIT.stall, 'stalled ' + LIVE_WAIT.stall + 'ms mid-answer'); onText(out); }
+          else if (ev.type === 'error') throw new Error(ev.error && ev.error.message || 'stream error');
+        }
       }
     }
-  }
-  return out;
+    return out;
+  } catch (e) { throw (why ? new Error('live Claude cut off: ' + why) : e); }
+  finally { clearTimeout(timer); }
 }
 async function claudeOnce(system, user, max) {
-  const r = await fetch('/api/claude', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'ask', system, user, max: max || 600 }) });
+  const r = await fetchT('/api/claude', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'ask', system, user, max: max || 600 }) }, LIVE_WAIT.ask);
   if (!r.ok) throw new Error('claude ' + r.status);
   const j = await r.json(); return (j.content || []).map((c) => c.text || '').join('');
 }
@@ -4495,10 +4507,10 @@ if (PRESO) {
         out = await claudeStream(history, (t) => { begin().innerHTML = mdPara(t); log.scrollTop = log.scrollHeight; window.peek.event('stream', t); });
         begin();
         bot.innerHTML = mdPara(out); bot.insertAdjacentHTML('beforeend', ACTS_PRESO || ACTS); log.scrollTop = log.scrollHeight;
-      } catch (e) { console.warn('live Claude failed, the script plays', e); out = null; }
+      } catch (e) { console.warn('live Claude failed, the written answer plays', e); out = null; if (bot) bot.innerHTML = ''; }
       presoStreaming = false;
     }
-    if (out == null) { if (!fast) await new Promise((r) => setTimeout(r, 1300)); out = await presoStream(begin(), claude, fast); }
+    if (out == null) { if (!fast && !bot) await new Promise((r) => setTimeout(r, 1400 + Math.random() * 900)); out = await presoStream(begin(), claude, fast); }   // the written answer thinks for a beat and a half, a little different each time, as the model does; a live answer cut off mid-way is replaced at once
     said.push(['claude', out]);
     window.peek.event('replied', out);
     if (name === 'mobydick' && i === 1) setTimeout(() => { if (scene === 'mobydick') castShow(); }, 400);   // the cast hangs under the answer about them — unless the next scene has already begun (it turned up in Spider-Man)
@@ -4520,7 +4532,7 @@ if (PRESO) {
   // so the pile shifts, resettles, never sleeps. A press of S shakes it, as a shake of the phone does.
   { let px = .5, moved = 0, jolt = 0, joltAt = 0, nextJolt = 3000;
     addEventListener('pointermove', (e) => { px = e.clientX / innerWidth; moved = performance.now(); }, { passive: true });
-    addEventListener('keydown', (e) => { if (e.key === 's' || e.key === 'S') window.peek?.shake(); });
+    addEventListener('keydown', (e) => { if (e.key === 's' || e.key === 'S') window.peek?.shake(); if (e.key === 'l' || e.key === 'L') { liveReady = !liveReady; console.warn('live Claude ' + (liveReady ? 'ON' : 'OFF — the written answers play')); } });   // L: the hand kill switch for the room — the written answers from the next turn on (and back)
     setInterval(() => {
       if (!window.peek) return;
       const now = performance.now(), t = now / 1000, still = now - moved > 1500;
