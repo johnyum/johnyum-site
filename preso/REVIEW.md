@@ -130,3 +130,15 @@ Still open:
 10. **Spider-Man** is Marvel IP — an original character, or name it as a sketch you'd never ship.
 11. Bugs it saw (some may be the hidden browser pane): blank on entry at 21, 30, 28.17; 28.22–28.27 zoom crops the sheet's
     buttons under the nav; game round 2 pictures missing; objects over the answer text; the receipt on slide 8 unexplained.
+
+**Its confirming pass** (the same reviewer, re-reading the script in full) kept the ratings at 8 and 7 and the level at Senior
+Staff with a credible case for Principal. What it added:
+- The point of view for Why Anthropic is already in the deck: **"a glance, not a flow"** — buried in the brisket scene. Lead
+  with it: "Answers should become things you can use — a glance, not a flow — and agents should show their work. That's what I
+  want to build here, responsibly." Then the daughter line.
+- Slide 2 alternative: **"Every live screen you'll see was built with Claude."**
+- Name **one thing a teammate built from your fork** — one example beats the general claim.
+- "Lacked context → odometer": say what information the motion carries (what changed, and why), not the motion.
+- Credit the speed both ways at once: "Half of that was the groundwork; half was building it with Claude instead of drawing it."
+- "More power than eleven years" → "I can test ten directions in the time one used to take, and I throw nine away."
+- The narration resolved more than it expected: the crossed-out ✕ lines turn slide 28 into a set of answers.
