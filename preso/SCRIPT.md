@@ -16,8 +16,11 @@ you to an airport. Airbnb gets you somewhere you've never been.** Say it over th
 THE POV, FOR THE CARD AFTER IT (John, 2026-10-07): it's sad. Transportation had a chance to fundamentally change how we search
 for where to go — before AI was a thing. Given the chance we'd have kept pushing, and with AI we'd have built something
 truly inventive. The AI build is what it could have become; the card after it (09cz2) says so, not a lesson, and not sad
-(John, 2026-10-08: "I still thought about it and did something with it"): **"Six years later, I built it anyway."** — the title's
-"Going the extra mile" paid off: the mile gone. (Before it, "I still think about what it could have been." — the longer three-line cut, and a "Before AI." John
+(John, 2026-10-08: "me building it is not the lesson… ideas can evolve and change, ideas can die, but being a self starter, creator
+and taking chances and being curious — one person can be a conduit to make interesting things. I want people to know I try and
+make."): **"Ideas change. Ideas die. I keep making."** The thing to say over it: the brief changed under me, the idea died with the
+team, and the making didn't stop — the trip creator on my own time in 2019, Trips in 2026, nobody asking either time. ("Six years
+later, I built it anyway." came and went the same morning — the build as the lesson, not it. Before that, "I still think about what it could have been." — the longer three-line cut, and a "Before AI." John
 struck as foresight he never claimed, came and went) Then Case Study 2's card.
 
 ### The other thing (09bz — before the trip creator)
