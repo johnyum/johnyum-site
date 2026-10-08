@@ -358,6 +358,11 @@ wordmark faint in the left corner.
 on the flights"): `within()` lets a flight pin whose `hero` names a `CITY` through whatever the knob says, and the Faroes sit on the
 flights' Popular as well as Unique. The fit's right padding is 170, a pill's label past its pin.
 
+**The frame is the hours (2026-10-08, John: "my travel time slider should be auto adjusting to my zoom level but it's not here" — a
+two-hour knob framing the Atlantic):** `fitCam` fits only the pins within the knob's hours; the cities you can drop into still pass
+`within()` and stay on the map, but they no longer pull the frame out. Zoom out by hand to find them and the knob reads the view. On
+the continent one pin and the traveller make a frame; fewer than that, the camera stays.
+
 **Every neighbourhood pill is a way down (2026-10-07, John: "let me deep dive into a neighbourhood"):** a pill with a prepared
 outline drops into it; any other is made on the spot (`hoodFor`): 22 homes within 450 m priced round its own average, a seeded
 scatter so it looks the same every time, the city's own photos, no mask. The airport legs draw for all of them.

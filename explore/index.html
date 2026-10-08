@@ -1687,8 +1687,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   var fitT = 0;
   // the camera that holds a set's allowed pins: the world when they span it, else the bounds (null with nothing to fit)
   function fitCam(set, beat) {
-    var pts = []; set.forEach(function (o) { if (o.h != null && within(o, beat)) pts.push(o.marker.getLngLat()); });
-    if (pts.length < 2) return null;
+    // THE FRAME IS THE HOURS (John, 2026-10-08: "my travel time slider should be auto adjusting to my zoom level but it's not here" —
+    // a two-hour knob over the whole Atlantic): the cities you can drop into pass within() whatever the knob says, so they stay ON
+    // the map, but they don't pull the frame out — the camera fits only the pins the hours allow. Zoom out by hand to find them,
+    // and the knob reads the view (zoomSetsHours). So the knob and the view stay one control.
+    var hrs = maxH[beat || state], depth = (BEATS[beat || state] || {}).depth;
+    var pts = []; set.forEach(function (o) { if (o.h != null && (hrs == null || o.h <= hrs + 0.05)) pts.push(o.marker.getLngLat()); });
+    if (pts.length < (depth === 0 ? 1 : 2)) return null;   // on the continent the traveller joins the frame, so one pin is a frame
     // the world is fitted like anything else — every pin, SF to Sydney, in one frame (the stock world camera cut off Asia
     // and the Americas). Spanning more than half the globe, it's Pacific-centred: Asia and Oceania unwrap to the west of
     // SF (Sydney at 151 → −209), so the frame runs Sydney · the Americas · Europe and Africa, with nothing lost at a seam
