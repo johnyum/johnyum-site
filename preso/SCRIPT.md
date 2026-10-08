@@ -4,8 +4,8 @@ What John says over the deck — the voiceover, kept beside the slides rather th
 here so nothing is lost. Rough, and growing.
 
 ## Case Study 1 — Transportation
-The card: "Case Study 1 · Transportation: When the brief is too small." (It read "What to do when the brief is wrong" until
-2026-10-07 — John: "is wrong"; the case shows the brief being smaller than the opportunity, it doesn't answer what to do.) (before it: "having a dream and getting it crushed", "Designing the dream Airbnb cancelled") Then the Forbes piece, the spoiler card ("Spoiler alert. The “experiment” was selling plane tickets." — the headline's own word), the flight search, the
+The card: "Case Study 1 · Transportation: Pushing the boundaries." (John's words, 2026-10-07: "push the boundaries / outside the
+box". It read "What to do when the brief is wrong" until then — "is wrong" — and "When the brief is too small" for an hour — "not good".) (before it: "having a dream and getting it crushed", "Designing the dream Airbnb cancelled") Then the Forbes piece, the spoiler card ("Spoiler alert. The “experiment” was selling plane tickets." — the headline's own word), the flight search, the
 other-thing card ("Secretly, I had something more “experimental” in mind." — the headline's word again, claimed this time), then the trip creator (trains, flights, New York, Williamsburg). Airbnb was publicly building transportation in 2019; the bet
 was real, and it was cancelled — then the closing card ("It went to the CEO, got approved. / COVID killed travel, and us with it."). Then THE AI BUILD (09cz1): Trips,
 live, in the same device the 2019 build was in — the dream back, as the thing it never got to be. John drives it by hand.
