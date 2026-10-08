@@ -18,7 +18,7 @@ for where to go — before AI was a thing. Given the chance we'd have kept pushi
 truly inventive. The AI build is what it could have become; the card after it (09cz2) says so, not a lesson, and not sad
 (John, 2026-10-08: "me building it is not the lesson… ideas can evolve and change, ideas can die, but being a self starter, creator
 and taking chances and being curious — one person can be a conduit to make interesting things. I want people to know I try and
-make."; then "ideas change, ideas die, but curiosity always survives"): **"Ideas change. Ideas die. Curiosity doesn't."** (was "…I keep making.") The thing to say over it: the brief changed under me, the idea died with the
+make."; then "ideas change, ideas die, but curiosity always survives"): then "something more refined"): **"Ideas are fragile. Curiosity endures."** (was "Ideas change. Ideas die. Curiosity doesn't.", and "…I keep making.") The thing to say over it: the brief changed under me, the idea died with the
 team, and the making didn't stop — the trip creator on my own time in 2019, Trips in 2026, nobody asking either time. ("Six years
 later, I built it anyway." came and went the same morning — the build as the lesson, not it. Before that, "I still think about what it could have been." — the longer three-line cut, and a "Before AI." John
 struck as foresight he never claimed, came and went) Then Case Study 2's card.
