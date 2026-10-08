@@ -686,7 +686,14 @@
         (document.fullscreenElement ? document.exitFullscreen()
                                     : document.documentElement.requestFullscreen()).catch(() => {});
         break;
+      case 's': case 'S': case 'l': case 'L': relayKey(e.key); break;   // the 3D chat's own keys — S shakes the pile, L switches its written answers on by hand (2026-10-07) — reach it from the deck
     }
+  }
+  // a key the slide's page listens for, sent down into every same-origin frame under the current slide as an untrusted
+  // keydown (nestedKey ignores untrusted ones, so it never comes back up)
+  function relayKey(key) {
+    const walk = (w) => { try { if (w !== window) w.dispatchEvent(new w.KeyboardEvent('keydown', { key })); for (let i = 0; i < w.frames.length; i++) walk(w.frames[i]); } catch (_) {} };
+    try { if (current && current.frame && current.frame.contentWindow) walk(current.frame.contentWindow); } catch (_) {}
   }
   addEventListener('keydown', onKey);
 
