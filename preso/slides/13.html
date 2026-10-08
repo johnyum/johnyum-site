@@ -1608,20 +1608,27 @@ function typeKeys(keys, instant) {
         tryBtn.classList.toggle('on', split);
       };
       w.__presoMount = mount;
-      const centre = () => {
+      const centre = (still) => {
         const root = w.document.documentElement, card = w.document.querySelector('.sqa-price.open');
         const custom = root.classList.contains('preso-custom-kb'), split = !!card && custom && root.classList.contains('preso-pills-on');
-        const per = card && card.querySelector('.ps-per');
         mount();
         if (!card || !custom) { root.style.setProperty('--preso-shift', '0px'); return; }
-        const big = card.querySelector('.sqa-big'), head = card.querySelector('.ps-head'), pad = card.querySelector('.ps-pad');
         // ALL FROM LAYOUT (John, 2026-10-07: "the 500 comes in then moves up — don't add that extra animation"): every term is an
         // offset inside the card, so the sheet's own opening motion (a transform) and the shift already on the price don't
-        // enter into it — the shift is right the moment the sheet mounts, and the price rides up already in place
-        const headY = layoutTop(head, card), bigY = layoutTop(big, card), perY = layoutTop(per, card), padY = layoutTop(pad, card);
-        if (headY === null || bigY === null || perY === null || padY === null) return;
+        // enter into it — the shift is right the moment the sheet mounts, and the price rides up already in place.
+        // FROM A STILL COPY AT MOUNT (John, later that night: "$500 is animating in from the top again"): the card's top, height
+        // and keypad are the app's own .55s transitions, so at mount their offsets are still the closed card's — the shift came
+        // out at −411 and the figure rode off the top, then eased down to the right number once at rest. A fresh clone of the
+        // open card lays out straight at its final positions (a new node has nothing to transition from), so it is measured
+        // instead, invisible, and removed in the same tick — it never paints.
+        let m = card, ghost = null;
+        if (still) { ghost = card.cloneNode(true); ghost.removeAttribute('id'); ghost.querySelectorAll('[id]').forEach(e => e.removeAttribute('id')); ghost.style.cssText += ';opacity:0;pointer-events:none;transition:none'; card.parentNode.appendChild(ghost); m = ghost; }
+        const per = m.querySelector('.ps-per'), big = m.querySelector('.sqa-big'), head = m.querySelector('.ps-head'), pad = m.querySelector('.ps-pad');
+        const headY = layoutTop(head, m), bigY = layoutTop(big, m), perY = layoutTop(per, m), padY = layoutTop(pad, m);
+        if (headY === null || bigY === null || perY === null || padY === null) { if (ghost) ghost.remove(); return; }
         const top = headY + head.offsetHeight, floor = padY - (root.classList.contains('preso-pills-on') ? PAD_LIFT : 0);   // the lift is a translate: layout does not see it
         const bigT = bigY, foot = perY + per.offsetHeight;
+        if (ghost) ghost.remove();
         const shift = Math.round(((top + floor) / 2 - (bigT + foot) / 2) * 10) / 10;
         root.style.setProperty('--preso-shift', shift + 'px');
       };
@@ -1633,7 +1640,7 @@ function typeKeys(keys, instant) {
       // waits for the sheet's own opening to finish (it reads live positions; mid-animation they threw the price off-screen).
       // A close centres at once (that only puts the shift back to 0).
       let restT = 0;
-      const snap = () => { const root = w.document.documentElement; root.classList.add('preso-shift-snap'); centre(); requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('preso-shift-snap'))); };   // the shift lands with no transition
+      const snap = () => { const root = w.document.documentElement; root.classList.add('preso-shift-snap'); centre(true); requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('preso-shift-snap'))); };   // the shift lands with no transition, measured off a still copy of the open card
       const sync = () => {
         const open = !!w.document.querySelector('.sqa-price.open'); kb.classList.toggle('up', open); mount();
         clearTimeout(restT);
