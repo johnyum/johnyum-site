@@ -96,3 +96,37 @@ The 9-to-10 gap, plainly: for the talk, structure — every 10 could lose any on
 this one still has sections there because they exist (Nike, the collage, Transportation's middle). For the role,
 witnessed influence — the deck proves you can make the future yourself; a 10 proves other people now make it because of
 you, shown rather than said. Its advice: target a clean 9 and let the live demo and the honesty do the rest.
+
+---
+
+# Second review — 2026-10-08 (evening)
+
+A new reviewer, same brief, cold on the live deck after the day's changes (the tools slide and Claude spark, "Thank you",
+"Ideas are fragile. Curiosity endures.", the inventory beat, the templates screens), then re-rated with the script.
+
+| | Cold | With the script |
+|---|---|---|
+| As a talk | 7 | 8 |
+| Case for the role | 6 | 7 |
+
+Level: Staff with Senior Staff craft cold; Senior Staff, close to Principal, with the script.
+
+What the script fixed: Transportation's arc; "What changed?" now has its thesis; the team and prototype-as-spec stories as
+Principal signals; Why Anthropic has a reason.
+
+Still open:
+1. **A point of view on AI interfaces in Why Anthropic** — one belief ("answers should become things you can act on, honestly,
+   and fail gracefully") with the five scenes as evidence, and what you'd build there. "Responsibly" made concrete: the call's
+   AI says it's an AI, won't agree to pay; what happens when the model is wrong.
+2. **Evidence for the team shift** on screen — forks, a before/after, or one number — and one metric each for fee and calendar.
+3. **3.5 vs four months** — the number card says 3.5, the close says four. Pick one.
+4. **Credit for the speedup** — say up front that part of it is the single calendar paying off; the new part is the prototype as spec.
+5. **"More power than eleven years"** overclaims — "it made eleven years of craft fast enough to try a hundred ideas".
+6. **Slide 2 vs Nike/Mohawk** — "Everything you're about to see was built with Claude" sits in front of print work.
+   Suggested: "This deck was built with Claude."
+7. **Slide 28** still ~40 steps; **slide 36** collage unreadable from the room.
+8. **"We" in the fee story** hides your role — say what you owned.
+9. **Scale question**: who decides when an object appears, false matches, any topic — reusable object types, thresholds.
+10. **Spider-Man** is Marvel IP — an original character, or name it as a sketch you'd never ship.
+11. Bugs it saw (some may be the hidden browser pane): blank on entry at 21, 30, 28.17; 28.22–28.27 zoom crops the sheet's
+    buttons under the nav; game round 2 pictures missing; objects over the answer text; the receipt on slide 8 unexplained.
