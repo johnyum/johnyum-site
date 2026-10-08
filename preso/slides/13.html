@@ -1602,14 +1602,14 @@ function typeKeys(keys, instant) {
       // the Try button is mounted the moment the sheet exists (so it can come in WITH the keypad and Done — John, 2026-10-07:
       // "everything comes in together"); the measuring is a separate pass, run once the sheet is at rest
       const mount = () => {
-        const root = w.document.documentElement, card = w.document.querySelector('.sqa-price.open');
+        const root = w.document.documentElement, card = w.document.querySelector('.sqa-price.open:not(.preso-ghost)');
         const split = !!card && root.classList.contains('preso-custom-kb') && root.classList.contains('preso-pills-on');
         if (card && tryBtn.parentNode !== card) card.appendChild(tryBtn);
         tryBtn.classList.toggle('on', split);
       };
       w.__presoMount = mount;
       const centre = (still) => {
-        const root = w.document.documentElement, card = w.document.querySelector('.sqa-price.open');
+        const root = w.document.documentElement, card = w.document.querySelector('.sqa-price.open:not(.preso-ghost)');
         const custom = root.classList.contains('preso-custom-kb'), split = !!card && custom && root.classList.contains('preso-pills-on');
         mount();
         if (!card || !custom) { root.style.setProperty('--preso-shift', '0px'); return; }
@@ -1622,7 +1622,7 @@ function typeKeys(keys, instant) {
         // open card lays out straight at its final positions (a new node has nothing to transition from), so it is measured
         // instead, invisible, and removed in the same tick — it never paints.
         let m = card, ghost = null;
-        if (still) { ghost = card.cloneNode(true); ghost.removeAttribute('id'); ghost.querySelectorAll('[id]').forEach(e => e.removeAttribute('id')); ghost.style.cssText += ';opacity:0;pointer-events:none;transition:none'; card.parentNode.appendChild(ghost); m = ghost; }
+        if (still) { ghost = card.cloneNode(true); ghost.classList.add('preso-ghost'); ghost.removeAttribute('id'); ghost.querySelectorAll('[id]').forEach(e => e.removeAttribute('id')); ghost.style.cssText += ';opacity:0;pointer-events:none;transition:none'; card.parentNode.appendChild(ghost); m = ghost; }
         const per = m.querySelector('.ps-per'), big = m.querySelector('.sqa-big'), head = m.querySelector('.ps-head'), pad = m.querySelector('.ps-pad');
         const headY = layoutTop(head, m), bigY = layoutTop(big, m), perY = layoutTop(per, m), padY = layoutTop(pad, m);
         if (headY === null || bigY === null || perY === null || padY === null) { if (ghost) ghost.remove(); return; }
@@ -1641,8 +1641,15 @@ function typeKeys(keys, instant) {
       // A close centres at once (that only puts the shift back to 0).
       let restT = 0;
       const snap = () => { const root = w.document.documentElement; root.classList.add('preso-shift-snap'); centre(true); requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('preso-shift-snap'))); };   // the shift lands with no transition, measured off a still copy of the open card
+      // ONLY ON AN OPEN OR A CLOSE (2026-10-08): the still copy centre() measures is a childList mutation in the watched body,
+      // and the snap's own class flip another — reacting to those re-measured, re-cloned, and looped for ever inside the
+      // observer: the page hung on the first price sheet and the deck could not step. So the sheet's open/closed card is the
+      // only thing that sets the measuring off; the ghost is never taken for the sheet.
+      let lastCard;
       const sync = () => {
-        const open = !!w.document.querySelector('.sqa-price.open'); kb.classList.toggle('up', open); mount();
+        const card = w.document.querySelector('.sqa-price.open:not(.preso-ghost)'), open = !!card; kb.classList.toggle('up', open); mount();
+        if (card === lastCard) return;
+        lastCard = card;
         clearTimeout(restT);
         if (open) { snap(); restT = setTimeout(centre, 950); }   // at mount, at once; once more at rest (the same number, from layout)
         else centre();                                             // closing: the shift eases back to 0 over the .5s the card takes to fold, so the figure lands bottom-aligned in the card (John, 2026-10-07)
