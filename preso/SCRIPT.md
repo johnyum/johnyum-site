@@ -15,7 +15,9 @@ THE LINE FOR THIS SLIDE (John, 2026-10-07: "remember the going somewhere you've 
 you to an airport. Airbnb gets you somewhere you've never been.** Say it over the globe — the AI build is that sentence made real.
 THE POV, FOR THE CARD AFTER IT (John, 2026-10-07): it's sad. Transportation had a chance to fundamentally change how we search
 for where to go — before AI was a thing. Given the chance we'd have kept pushing, and with AI we'd have built something
-truly inventive. The AI build is what it could have become; the card after it (09cz2) says that, not a lesson: "I still think about what it could have been." — one line (the longer three-line cut, and a "Before AI." John
+truly inventive. The AI build is what it could have become; the card after it (09cz2) says so, not a lesson, and not sad
+(John, 2026-10-08: "I still thought about it and did something with it"): **"Six years later, I built it anyway."** — the title's
+"Going the extra mile" paid off: the mile gone. (Before it, "I still think about what it could have been." — the longer three-line cut, and a "Before AI." John
 struck as foresight he never claimed, came and went) Then Case Study 2's card.
 
 ### The other thing (09bz — before the trip creator)
