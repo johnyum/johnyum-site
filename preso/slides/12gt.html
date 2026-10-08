@@ -53,18 +53,23 @@
           opacity: 0; transform: translate(-50%, calc(-100% + 6px)); transition: opacity 160ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
   #name.on { opacity: 1; transform: translate(-50%, -100%); }
   /* in: each one sprung to its own tilt, one after the other */
-  body.in .row.one .tile, body.more .row.two .tile { opacity: 1; }
-  body.in .row.one .tile:nth-child(1) { transform: rotate(-8deg) scale(1); transition-delay: 120ms; }
-  body.in .row.one .tile:nth-child(2) { transform: rotate(6deg) scale(1); transition-delay: 220ms; }
-  body.in .row.one .tile:nth-child(3) { transform: rotate(-4deg) scale(1); transition-delay: 320ms; }
-  body.in .row.one .tile:nth-child(4) { transform: rotate(7deg) scale(1); transition-delay: 420ms; }
-  body.in .row.one .tile:nth-child(5) { transform: rotate(-6deg) scale(1); transition-delay: 520ms; }
-  body.more .row.two .tile:nth-child(1) { transform: rotate(6deg) scale(1); transition-delay: 260ms; }
-  body.more .row.two .tile:nth-child(2) { transform: rotate(-7deg) scale(1); transition-delay: 360ms; }
-  body.more .row.two .tile:nth-child(3) { transform: rotate(4deg) scale(1); transition-delay: 460ms; }
-  body.more .row.two .tile:nth-child(4) { transform: rotate(-5deg) scale(1); transition-delay: 560ms; }
-  body.more .row.two .tile:nth-child(5) { transform: rotate(8deg) scale(1); transition-delay: 660ms; }
-  body.more .row.two .tile:nth-child(6) { transform: rotate(-6deg) scale(1); transition-delay: 760ms; }
+  body.in .row.one .tile, body.more .row.two .tile { opacity: 1; transform: translateX(var(--x, 0px)) rotate(var(--r)) scale(var(--s, 1)); }
+  /* HOVER (John, 2026-10-08: "push the icons away that's not hovering and make the cell not on an angle; when I dehover it goes
+     back to the stacked"): the hovered tile straightens and lifts a touch, every other tile in its row slides away from it — left
+     of it to the left, right of it to the right — far enough that it stands clear; off it, all settle back into the stack. A row
+     that has been hovered drops the entrance's stagger (.live), so the move is at once. */
+  .row.live .tile { transition-delay: 0ms !important; transition: opacity 260ms ease, transform 360ms cubic-bezier(0.34, 1.4, 0.64, 1); }
+  body.in .row.one .tile:nth-child(1) { --r: -8deg; transition-delay: 120ms; }
+  body.in .row.one .tile:nth-child(2) { --r: 6deg; transition-delay: 220ms; }
+  body.in .row.one .tile:nth-child(3) { --r: -4deg; transition-delay: 320ms; }
+  body.in .row.one .tile:nth-child(4) { --r: 7deg; transition-delay: 420ms; }
+  body.in .row.one .tile:nth-child(5) { --r: -6deg; transition-delay: 520ms; }
+  body.more .row.two .tile:nth-child(1) { --r: 6deg; transition-delay: 260ms; }
+  body.more .row.two .tile:nth-child(2) { --r: -7deg; transition-delay: 360ms; }
+  body.more .row.two .tile:nth-child(3) { --r: 4deg; transition-delay: 460ms; }
+  body.more .row.two .tile:nth-child(4) { --r: -5deg; transition-delay: 560ms; }
+  body.more .row.two .tile:nth-child(5) { --r: 8deg; transition-delay: 660ms; }
+  body.more .row.two .tile:nth-child(6) { --r: -6deg; transition-delay: 760ms; }
   body.snap .row, body.snap .tile { transition: none !important; }
 </style>
 </head>
@@ -101,10 +106,22 @@
   window.presoInteractive = true;
   // the name over whichever tile the pointer is on, read off its picture's alt
   const name = document.getElementById('name');
+  const PUSH = 30, LIFT = 1.08;
   document.querySelectorAll('.tile').forEach(t => {
-    t.addEventListener('mouseenter', () => { const r = t.getBoundingClientRect(); name.textContent = t.querySelector('img').alt;
-      name.style.left = (r.left + r.width / 2) + 'px'; name.style.top = (r.top - 10) + 'px'; name.classList.add('on'); });
-    t.addEventListener('mouseleave', () => name.classList.remove('on'));
+    const row = t.parentElement, all = [...row.children], i = all.indexOf(t);
+    t.addEventListener('mouseenter', () => {
+      row.classList.add('live');
+      all.forEach((o, j) => { o.style.setProperty('--x', j === i ? '0px' : (j < i ? -PUSH : PUSH) + 'px'); o.style.removeProperty('--r'); o.style.removeProperty('--s'); });
+      t.style.setProperty('--r', '0deg'); t.style.setProperty('--s', LIFT);
+      // the name over the straightened tile: its centre doesn't move, its top is half its lifted height above that
+      const r = t.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      name.textContent = t.querySelector('img').alt;
+      name.style.left = cx + 'px'; name.style.top = (cy - t.offsetHeight * LIFT / 2 - 10) + 'px'; name.classList.add('on');
+    });
+    t.addEventListener('mouseleave', () => {
+      name.classList.remove('on');
+      all.forEach(o => { o.style.removeProperty('--x'); o.style.removeProperty('--r'); o.style.removeProperty('--s'); });
+    });
   });
   window.presoNext = () => { if (step >= 1) return false; set(1); return true; };
   window.presoPrev = () => { if (step === 0) return false; set(0); return true; };
