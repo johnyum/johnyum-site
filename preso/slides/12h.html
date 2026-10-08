@@ -56,9 +56,10 @@
 </head>
 <body>
   <div class="slide">
-    <h1><svg id="hello" role="img" aria-label="Thanks!"
+    <h1><svg id="hello" role="img" aria-label="Thank you"
              preserveAspectRatio="xMidYMid meet" viewBox="0 0 100 100">
-      <text x="0" y="0" font-size="100">Thanks!</text>
+      <text id="l1" x="0" y="0" font-size="100" text-anchor="middle">Thank</text>
+      <text id="l2" x="0" y="0" font-size="100" text-anchor="middle">you</text>
     </svg></h1>
   </div>
 <script>
@@ -76,22 +77,24 @@
   // directly — actualBoundingBox* is the painted extent, not the line box —
   // and because it works while the deck has the slide PARKED, where a layout
   // read measures zero and requestAnimationFrame never runs.
+  // THANK / YOU (John, 2026-10-08: "instead of Thanks!, make it 'Thank you' — but let the words stack"): two lines, each centred,
+  // the second's cap top a small gap under the first's baseline; both inks measured and the viewBox set round the pair, so the
+  // stack fills the stage the way the one word did.
   const svg = document.getElementById('hello');
-  const t = svg.querySelector('text');
-  const WORD = 'Thanks!';
+  const L1 = document.getElementById('l1'), L2 = document.getElementById('l2');
+  const GAP = 0.09;   // of the first line's cap height
 
   function fit() {
     const c = document.createElement('canvas').getContext('2d');
-    c.font = '400 100px Anton, sans-serif';
+    c.font = '400 100px Anton, sans-serif'; c.textAlign = 'center';
     try { c.letterSpacing = '-0.02em'; } catch (_) {}   // match the CSS; ignored where unsupported
-    const m = c.measureText(WORD);
-    const l = m.actualBoundingBoxLeft, r = m.actualBoundingBoxRight;
-    const a = m.actualBoundingBoxAscent, d = m.actualBoundingBoxDescent;
-    const w = l + r, h = a + d;
-    if (!(w > 0 && h > 0)) return false;
-    // the text sits with its baseline on the origin, so the ink runs from
-    // -left to +right across and -ascent to +descent down.
-    svg.setAttribute('viewBox', (-l) + ' ' + (-a) + ' ' + w + ' ' + h);
+    const m1 = c.measureText('Thank'), m2 = c.measureText('you');
+    const a1 = m1.actualBoundingBoxAscent, d1 = m1.actualBoundingBoxDescent, a2 = m2.actualBoundingBoxAscent, d2 = m2.actualBoundingBoxDescent;
+    if (!(a1 > 0 && a2 > 0)) return false;
+    const y2 = d1 + GAP * a1 + a2;   // the second baseline, measured from the first
+    L2.setAttribute('y', y2);
+    const left = Math.max(m1.actualBoundingBoxLeft, m2.actualBoundingBoxLeft), right = Math.max(m1.actualBoundingBoxRight, m2.actualBoundingBoxRight);
+    svg.setAttribute('viewBox', (-left) + ' ' + (-a1) + ' ' + (left + right) + ' ' + (a1 + y2 + d2));
     return true;
   }
 
