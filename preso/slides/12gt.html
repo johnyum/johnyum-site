@@ -63,8 +63,14 @@
   /* ROMA, A THIRD TAP (John, 2026-10-09: "bring back picture of Roma on the right side — no shadow, just a square visual the
      same size as the Claude logo, no bounding box, just the picture, no dancing"): her photo, a square the mark's height,
      24 to the right of the mark, which stays where it landed. It appears; nothing moves, nothing fades. */
-  .roma { position: fixed; width: 96px; height: 96px; object-fit: cover; display: none; pointer-events: none; }
-  body.her .roma { display: block; }   /* the body's state is 'her', never 'roma' — a .roma rule on the body hid the whole slide for a minute */
+  /* …then (John, later): rounded corners, and the pair CENTRED — the mark eases 60 left (half of the 24 gap and the 96 square) as
+     she comes in from the right, so mark and picture sit centred together. The body's state is 'her', never 'roma' (a .roma rule
+     on the body hid the whole slide for a minute). */
+  .roma { position: fixed; width: 96px; height: 96px; object-fit: cover; border-radius: 16px; pointer-events: none;
+          opacity: 0; transform: translateX(14px); transition: opacity 360ms ease, transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  body.her .roma { opacity: 1; transform: none; }
+  body.her .mark { transform: translate(calc(-50% - 60px), -50%) scale(1); transition: transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 280ms ease; }
+  body.snap .mark, body.snap .roma { transition: none !important; }
   #name { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 50; white-space: nowrap;
           font: 400 15px/1 "IBM Plex Mono", ui-monospace, Menlo, monospace; color: #111; background: #fff; padding: 9px 14px; border-radius: 999px;
           box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.10);
@@ -133,7 +139,8 @@
   };
   // Roma sits 24 to the right of the mark, square to its height, centred on its middle — placed off the mark's own rect
   const roma = document.getElementById('roma'), mark = document.querySelector('.mark');
-  const placeRoma = () => { const r = mark.getBoundingClientRect(); roma.style.left = (r.left + r.width + 24) + 'px'; roma.style.top = (r.top + r.height / 2 - 48) + 'px'; };
+  // her square's place once the pair is centred: the mark's width is read off it, the pair is 24 apart, 60 is half the pair's extra
+  const placeRoma = () => { const w = mark.getBoundingClientRect().width || 93; roma.style.left = (innerWidth / 2 - 60 + w / 2 + 24) + 'px'; roma.style.top = (innerHeight / 2 - 48) + 'px'; };
   addEventListener('resize', () => { if (b.classList.contains('her')) placeRoma(); });
   const set = (n, instant) => { step = n; name.classList.remove('on');
     const go = () => { b.classList.add('in'); b.classList.toggle('more', n > 0); const was = b.classList.contains('gather'); b.classList.toggle('gather', n > 1); if (n > 1 || was) { void b.offsetWidth; gather(n > 1); } if (n > 2) placeRoma(); b.classList.toggle('her', n > 2); };   // the class first, so the flight takes the gather's own timing
