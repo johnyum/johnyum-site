@@ -8,7 +8,8 @@ The card: "Case Study 1 · Transportation: Going the extra mile." (John's pick, 
 headers, with the transport in it. Before it that night: "What to do when the brief is wrong" — "is wrong"; "When the brief is too
 small" — "not good"; "Pushing the boundaries". Also liked, kept for later: "Building what nobody asked for" — "a bit cocky to be
 the first project"; "Turning plane tickets into trips"; "Incubating the bigger idea".) (before it: "having a dream and getting it crushed", "Designing the dream Airbnb cancelled") Then the Forbes piece, the spoiler card ("Spoiler alert. The “experiment” was selling plane tickets." — the headline's own word), the flight search, the
-other-thing card ("Secretly, I had something more “experimental” in mind." — the headline's word again, claimed this time), then the trip creator (trains, flights, New York, Williamsburg). Airbnb was publicly building transportation in 2019; the bet
+other-thing card ("Secretly, I had something more “experimental” in mind." — the headline's word again, claimed this time), the problem card
+(09bz1, John, 2026-10-09: "Airbnb had a problem: we were good at finding you a home but bad at finding you a destination."), then the trip creator (trains, flights, New York, Williamsburg). Airbnb was publicly building transportation in 2019; the bet
 was real, and it was cancelled — then two cards (John, 2026-10-08, split from one): "I showed my PM, then / the head of transportation, then / the CEO. Green light." and "A month later, / COVID killed travel, / and us with it." — said over it: the airlines went bankrupt, a quarter of Airbnb was laid off, the team was disbanded Then THE AI BUILD (09cz1): Trips,
 live, in the same device the 2019 build was in — the dream back, as the thing it never got to be. John drives it by hand.
 THE LINE FOR THIS SLIDE (John, 2026-10-07: "remember the going somewhere you've never been for this slide"): **Plane tickets get
