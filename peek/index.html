@@ -4589,7 +4589,8 @@ if (PRESO) {
       if (callRush()) return true;
       if (call.receiptIn) {   // the receipt in: Next opens it once (John, 2026-10-08); open or already read, Next goes on
         const r = critters.find((o) => o.key === 'receipt');
-        if (r && !r.seen) { if (tcard) shrinkTimer(); growTimer(r); return true; }
+        if (tcard) { shrinkTimer(); return true; }   // open: Next closes it first; the tap after goes on (John, 2026-10-08)
+        if (r && !r.seen) { growTimer(r); return true; }
         return false;
       }
       return !call.byYou && !call.receiptIn && !(call.endedAt && performance.now() - call.endedAt > 8000);   // (never stuck: 8s after the hang-up, Next goes on whatever happened)
@@ -4598,7 +4599,7 @@ if (PRESO) {
     const book = critters.find((c) => c.key === 'cookbook'), w = critters.find((c) => c.key === 'stopwatch');
     // ONLY FORWARD (John, 2026-10-08: "if I use the build then leave then tap, it forces the cookbook to open again"): whatever is
     // open is finished first; with nothing open, the next step is the one after the furthest already reached, never one again
-    if (tcard && w && tcard.c === w) return false;                       // the stopwatch open: the last step — on
+    if (tcard && w && tcard.c === w) { shrinkTimer(); return true; }    // the stopwatch open: Next closes it; the tap after goes on (John, 2026-10-08)
     if (tcard && book && tcard.c === book) {                             // the book open
       if (!cook) {   // Start smoke — the button is seen to be pressed (down, a beat, up), then it does what a tap does: the book goes down, the stopwatch drops in
         const go = tcard.go;
