@@ -2314,7 +2314,7 @@ const POOL = {
   snail:      { name: 'Periwinkle snail', w: 74, re: /\b(periwinkles?|snails?|whelks?)\b/i, terms: ['periwinkle', 'snail', 'whelk'] },
   chiton:     { name: 'Chiton',           w: 80, re: /\bchitons?\b/i, terms: ['chiton'] },
   shrimp:     { name: 'Shrimp',           w: 82, re: /\b(shrimp|prawns?)\b/i, terms: ['shrimp', 'prawn'] },
-  kelp:       { name: 'Kelp',             w: 92, re: /\b(kelp|seaweed|algae|rockweed|sea lettuce)\b/i, terms: ['kelp', 'seaweed', 'algae', 'rockweed', 'sea lettuce'] },
+  kelp:       { name: 'Kelp',             w: 92, re: /\b(kelp|seaweed|rockweed|sea lettuce)\b/i, terms: ['kelp', 'seaweed', 'rockweed', 'sea lettuce'] },   // not 'algae' — a kelp icon over a sentence about algae read as a stray (2026-10-09)
   sanddollar: { name: 'Sand dollar',      w: 78, re: /\bsand dollars?\b/i, terms: ['sand dollar'] },
   sponge:     { name: 'Sea sponge',       w: 78, re: /\bsponges?\b/i, terms: ['sea sponge', 'sponge'] },
   jellyfish:  { name: 'Jellyfish',        w: 86, re: /\b(jellyfish|jellies)\b/i, terms: ['jellyfish', 'jellies'] },
@@ -2474,6 +2474,22 @@ function poolClear(all = true) {
   if (poolFocus && !critters.includes(poolFocus)) { poolFocus = null; tell({ type: 'highlight', terms: [] }); }
   for (const d of drops) { Matter.Composite.remove(poolEngine.world, d.body); d.el.remove(); } drops.length = 0;
   for (const c of flushing) { Matter.Composite.remove(poolEngine.world, c.body); c.el.remove(); } flushing.length = 0;
+}
+// THE PILE IS THE ANSWER (John, 2026-10-09: "make sure the animals I'm seeing as icons always have counterparts in the chat" —
+// sometimes the hermit crab was there and the text wasn't): once the answer is final, any creature it doesn't name goes.
+// How a stray gets in: a live answer cut off and replaced by the written one (the deck's clocks), or an answer that named
+// something while streaming and ended differently. Tools, the timer, the cook and the game's cards aren't creatures and stay.
+function poolPrune(text) {
+  const t = String(text || '');
+  const stray = (c) => { const P = POOL[c.key]; return P && P.re && P.terms && !P.re.test(t); };
+  for (const c of [...critters]) {
+    if (!stray(c)) continue;
+    Matter.Composite.remove(poolEngine.world, c.body); c.el.remove(); c.bubble?.remove(); c.tb?.remove();
+    if (tcard && tcard.c === c) closeCard();
+    critters.splice(critters.indexOf(c), 1); poolSeen.delete(c.key);
+  }
+  for (const d of [...drops]) { if (d.key && stray(d)) { Matter.Composite.remove(poolEngine.world, d.body); d.el.remove(); drops.splice(drops.indexOf(d), 1); poolSeen.delete(d.key); } }
+  if (poolFocus && !critters.includes(poolFocus)) { poolFocus = null; tell({ type: 'highlight', terms: [] }); }
 }
 // The answer so far: anything it names that isn't in yet drops in.
 function poolHear(text) {
@@ -4693,7 +4709,7 @@ if (EMBED || PRESO) {
         if (C.el === V('reply') && plat.last) C.el = V('last');
         setTimeout(() => { if (C.el !== V('reply')) delete plat.reply; }, 50);
         workEnd(data);   // how it ended: sure, unsure, asking or failed
-        if (data) { spansFor = {}; poolHear(String(data)); pinsFor(String(data)); setTimeout(() => askSpans(String(data)), 600); let rc = critters.find((o) => isRecipe(o.key));
+        if (data) { spansFor = {}; poolHear(String(data)); poolPrune(String(data)); pinsFor(String(data)); setTimeout(() => askSpans(String(data)), 600); let rc = critters.find((o) => isRecipe(o.key));
         if (!rc && BBQ.test(lastAsk) && !poolSeen.has('cookbook')) {   // the cookbook: in once the answer's done, with its steps already in it
           poolSeen.add('cookbook'); rc = poolDrop('cookbook');
           if (rc) { recipeTitle(rc); const w = stepsOf(String(data), true); if (w.length) { rc.meta = w.map(stepDetail); listSet(rc, tagSteps(w.map(stepName), w)); } }
