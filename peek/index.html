@@ -3003,7 +3003,7 @@ function callRush() { const call = ins?.call; if (!call || call.ended || call.ru
 let callTaps = [];
 function callTap() { const now = performance.now(); callTaps = callTaps.filter((t) => now - t < 900); callTaps.push(now); if (callTaps.length >= 3) { callTaps = []; callRush(); } }
 function growTimer(c) {
-  if (c.key === 'stopwatch' || c.key === 'cookbook') c.seen = true;   // looked at, however it was opened — the deck's Next never opens it again
+  if (c.key === 'stopwatch' || c.key === 'cookbook' || c.key === 'receipt') c.seen = true;   // looked at, however it was opened — the deck's Next never opens it again
   if (c.timer) audio ||= new (window.AudioContext || window.webkitAudioContext)();   // made on a tap, so it can tick and ring
   const { Composite } = Matter;
   Composite.remove(poolEngine.world, c.body);   // out of the pile while it's in your hands
@@ -4587,6 +4587,11 @@ if (PRESO) {
       const c = critters.find((o) => o.call === call);
       if (!call.ended && !call.rush && c && !(tcard && tcard.c === c)) { if (tcard) shrinkTimer(); growTimer(c); return true; }
       if (callRush()) return true;
+      if (call.receiptIn) {   // the receipt in: Next opens it once (John, 2026-10-08); open or already read, Next goes on
+        const r = critters.find((o) => o.key === 'receipt');
+        if (r && !r.seen) { if (tcard) shrinkTimer(); growTimer(r); return true; }
+        return false;
+      }
       return !call.byYou && !call.receiptIn && !(call.endedAt && performance.now() - call.endedAt > 8000);   // (never stuck: 8s after the hang-up, Next goes on whatever happened)
     }
     if (scene !== 'brisket') return false;
