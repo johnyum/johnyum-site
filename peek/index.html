@@ -319,6 +319,7 @@ html.chat-out #log, html.chat-out #pool, html.chat-out #world { opacity: 0; tran
   font: 500 16px/1 "Schibsted Grotesk", system-ui, sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap;
   opacity: 0; transform: translateY(8px); transition: opacity .3s ease, transform .35s cubic-bezier(.3,1.3,.5,1); }
 .tgo.on { opacity: 1; transform: none; }
+.tgo.on.press { transform: scale(.92); background: #000; transition: transform .12s ease-out, background .12s ease-out; }   /* the deck's Next pressing it, seen (John, 2026-10-08) */
 /* the stopwatch, opened: one line on what to expect now, under the count */
 .tui .wsay { width: min(340px, calc(100vw - 48px)); margin: 8px auto 0; text-align: center; font: 400 18px/1.35 "Source Serif 4", Georgia, serif; color: #1d1d1c; text-wrap: pretty; }
 .tui .wacts { margin-top: 4px;   /* 12 from the line to the words: 4 here + their 8px touch pad */ display: flex; justify-content: center; align-items: center; gap: 8px; font: 14px/1 "Schibsted Grotesk", system-ui, sans-serif; color: #a5a39d; }
@@ -4594,7 +4595,12 @@ if (PRESO) {
     // open is finished first; with nothing open, the next step is the one after the furthest already reached, never one again
     if (tcard && w && tcard.c === w) return false;                       // the stopwatch open: the last step — on
     if (tcard && book && tcard.c === book) {                             // the book open
-      if (!cook) { if (tcard.go) tcard.go.click(); else { shrinkTimer(); setTimeout(() => startCook(book), 420); } return true; }   // Start smoke
+      if (!cook) {   // Start smoke — the button is seen to be pressed (down, a beat, up), then it does what a tap does: the book goes down, the stopwatch drops in
+        const go = tcard.go;
+        if (go) { if (go.dataset.pressing) return true; go.dataset.pressing = '1'; go.classList.add('press'); setTimeout(() => { go.classList.remove('press'); setTimeout(() => { delete go.dataset.pressing; go.click(); }, 120); }, 220); }
+        else { shrinkTimer(); setTimeout(() => startCook(book), 420); }
+        return true;
+      }
       shrinkTimer(); if (w && !w.seen) setTimeout(() => { if (!tcard) growTimer(w); }, 640); return true;   // already smoking: the book back, the stopwatch up
     }
     if (tcard) { shrinkTimer(); return true; }
