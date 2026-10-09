@@ -4582,6 +4582,9 @@ if (PRESO) {
     if (playing) return true;
     if (scene === 'insurance') {   // mid-call, Next speeds it to the end; while it winds up (the hang-up, the puff, the receipt) Next waits for the receipt
       const call = ins?.call; if (!call) return false;
+      // two taps, not one (John, 2026-10-08): with the phone shut, Next opens it onto the transcript; with it open, Next speeds it
+      const c = critters.find((o) => o.call === call);
+      if (!call.ended && !call.rush && c && !(tcard && tcard.c === c)) { if (tcard) shrinkTimer(); growTimer(c); return true; }
       if (callRush()) return true;
       return !call.byYou && !call.receiptIn && !(call.endedAt && performance.now() - call.endedAt > 8000);   // (never stuck: 8s after the hang-up, Next goes on whatever happened)
     }
