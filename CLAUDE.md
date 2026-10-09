@@ -363,6 +363,12 @@ two-hour knob framing the Atlantic):** `fitCam` fits only the pins within the kn
 `within()` and stay on the map, but they no longer pull the frame out. Zoom out by hand to find them and the knob reads the view. On
 the continent one pin and the traveller make a frame; fewer than that, the camera stays.
 
+**The walk's vibes are their own places (2026-10-09, John: "more realistic unique / adventurous / relax — I'm seeing Nob Hill over and
+over"):** `MODE_VIBES.walk` is 18–22 real places a vibe, dense within the hour (the strange corners; parks, gardens, water and a
+soak; the hills, stairs, bluffs and the bridge), and each vibe has its OWN dots (`WALK_VIBE_DOTS`) — the shared `WALK_DOTS` (Nob
+Hill, Alamo Square…) now ride under Popular only. Times on foot from `ME`: the crow's line × 1.3 at 4.8 km/h, to five minutes.
+The picker opens on the flights, the car second (2026-10-09).
+
 **Every neighbourhood pill is a way down (2026-10-07, John: "let me deep dive into a neighbourhood"):** a pill with a prepared
 outline drops into it; any other is made on the spot (`hoodFor`): 22 homes within 450 m priced round its own average, a seeded
 scatter so it looks the same every time, the city's own photos, no mask. The airport legs draw for all of them.
