@@ -9,7 +9,7 @@ headers, with the transport in it. Before it that night: "What to do when the br
 small" — "not good"; "Pushing the boundaries". Also liked, kept for later: "Building what nobody asked for" — "a bit cocky to be
 the first project"; "Turning plane tickets into trips"; "Incubating the bigger idea".) (before it: "having a dream and getting it crushed", "Designing the dream Airbnb cancelled") Then the Forbes piece, the spoiler card ("Spoiler alert. The “experiment” was selling plane tickets." — the headline's own word), the flight search, the
 other-thing card ("Secretly, I had something more “experimental” in mind." — the headline's word again, claimed this time), then the trip creator (trains, flights, New York, Williamsburg). Airbnb was publicly building transportation in 2019; the bet
-was real, and it was cancelled — then the closing card ("It went to the CEO, got approved. / COVID killed travel, and us with it."). Then THE AI BUILD (09cz1): Trips,
+was real, and it was cancelled — then two cards (John, 2026-10-08, split from one): "I showed my PM. / Then the head of transportation. / Then the CEO. Green light." and "A month later, COVID killed travel. / Airlines went bankrupt. / We laid off 25% of the company. / The team was disbanded." Then THE AI BUILD (09cz1): Trips,
 live, in the same device the 2019 build was in — the dream back, as the thing it never got to be. John drives it by hand.
 THE LINE FOR THIS SLIDE (John, 2026-10-07: "remember the going somewhere you've never been for this slide"): **Plane tickets get
 you to an airport. Airbnb gets you somewhere you've never been.** Say it over the globe — the AI build is that sentence made real.
