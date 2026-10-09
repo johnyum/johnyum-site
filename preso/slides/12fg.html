@@ -103,7 +103,7 @@
   new ResizeObserver(fit).observe(screen); fit();
 
   // THE BEATS: each a scene and a turn of it (see SCENES in peek/index.html)
-  const BEATS = [['tidepool', 0], ['tidepool', 1], ['insurance', 0], ['insurance', 1], ['brisket', 0], ['brisket', 1], ['brisket', 2], ['brisket', 3], ['mobydick', 0], ['mobydick', 1], ['spiderman', 0]];
+  const BEATS = [['tidepool', 0], ['tidepool', 1], ['insurance', 0], ['insurance', 1], ['brisket', 0], ['mobydick', 0], ['mobydick', 1], ['spiderman', 0]];   // brisket is one beat (John, 2026-10-08: the taps that opened the book, pressed Start smoke and opened the stopwatch were 'messing things up' — he taps the cookbook himself in the build; the next tap is Moby-Dick, which closes whatever is open)
   let at = 0, pendingRestore = 0, pendingGo = null;
   // THE NAV'S 1–5 (John, 2026-10-06): a number is its scene, fresh — the phone reloads with nothing played before it, and that
   // scene's first beat plays for real straight away; the next taps carry on through the scene's beats
@@ -114,7 +114,7 @@
   app.addEventListener('load', () => { const tick = () => { if (demo()) settle(); else setTimeout(tick, 80); }; tick(); });
   window.presoNext = () => {
     if (playing()) return true;                       // mid-answer: the tap is swallowed, not skipped
-    { const d = demo(); if (d && d.rush && d.rush()) return true; }   // mid-call: this tap speeds the call to its end — the hang-up, the puff, the receipt
+    { const d = demo(); if (d && (d.advance ? d.advance() : (d.rush && d.rush()))) return true; }   // the scene's own next step, read off the screen: the brisket's book, Start smoke, the stopwatch; mid-call, the rush to the hang-up, the puff, the receipt
     if (at >= BEATS.length) return false;             // out of builds: on
     const d = demo(); if (!d) return true;            // not up yet: swallow
     const [sc, i] = BEATS[at]; at++; d.play(sc, i); return true;

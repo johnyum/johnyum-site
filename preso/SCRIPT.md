@@ -191,10 +191,11 @@ per idea; a new chat between them (the new-chat mark is tapped, the greeting com
    menu, the keypad, the hold (sped up and said so), then Denise. Tap again and the call speeds to its end: it hangs up, the
    phone goes in a puff of smoke, and the receipt drops in. $340 struck, $40, a reference number. The agent did the work; the
    chat just shows it.
-3. **Brisket** (4 taps). "Give me the best recipe for Texas style brisket on the Big Green Egg." The answer streams; when it's
-   done a cookbook drops in, already filled — one page, one word a step, a picture each. Second tap: the book opens. Third: Start smoke, the book goes back and the
-   stopwatch drops in. Fourth: it opens — the cook is running. The tap after closes it and moves on. "A
-   glance, not a flow": the useful thing is not scrolling the chat up and down looking for step four.
+3. **Brisket** (1 tap). "Give me the best recipe for Texas style brisket on the Big Green Egg." The answer streams; when it's
+   done a cookbook drops in, already filled — one page, one word a step, a picture each. John taps it himself in the build:
+   the page, Start smoke, the stopwatch — no scripted taps (2026-10-08: they were "messing things up"). The next tap goes to
+   Moby-Dick and closes whatever is open. "A glance, not a flow": the useful thing is not scrolling the chat up and down
+   looking for step four.
 4. **Moby-Dick** (2 taps). "Tell me the story of Moby Dick." The moment the whale is named, a wood engraving develops round the
    chat box — the sea, the tail, the boat and its crew flung into the air — and settles over seven seconds. Second tap: "Who are the main characters?" — the keyboard
    comes up over the plate, the answer streams, the plate stays, and three engraved portraits hang under it —

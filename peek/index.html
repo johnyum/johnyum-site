@@ -2999,6 +2999,7 @@ function callRush() { const call = ins?.call; if (!call || call.ended || call.ru
 let callTaps = [];
 function callTap() { const now = performance.now(); callTaps = callTaps.filter((t) => now - t < 900); callTaps.push(now); if (callTaps.length >= 3) { callTaps = []; callRush(); } }
 function growTimer(c) {
+  if (c.key === 'stopwatch' || c.key === 'cookbook') c.seen = true;   // looked at, however it was opened — the deck's Next never opens it again
   if (c.timer) audio ||= new (window.AudioContext || window.webkitAudioContext)();   // made on a tap, so it can tick and ring
   const { Composite } = Matter;
   Composite.remove(poolEngine.world, c.body);   // out of the pile while it's in your hands
@@ -4561,7 +4562,32 @@ if (PRESO) {
   }
   // a tap mid-call speeds the rest of it through to the hang-up and the puff (John, 2026-10-06); true if there was a call to rush
   const rush = callRush;
-  window.__demo = { play, SCENES, rush, get scene() { return scene; }, get turn() { return turn; }, get playing() { return playing; } };
+  // NEXT AND A TAP ARE ONE PATH (John, 2026-10-08: "I sometimes screw it up when I tap next or click on it — make it so if I tap
+  // next it goes, OR I can tap the brisket (or phone), then Start smoke etc., and on the last step Next goes to the next one"):
+  // the deck's Next asks this first, and it does the brisket's next step from whatever is on screen now — however it got there.
+  // The book in the pile: open it. The book open: Start smoke (already smoking: the book goes back and the stopwatch opens). The
+  // stopwatch in the pile and not yet looked at: open it. The stopwatch open, or seen already: false — Next goes on to the next
+  // scene, which closes whatever is open. A call in progress: rush it. True means the tap was used here.
+  const advance = () => {
+    if (playing) return true;
+    if (scene === 'insurance') return callRush();
+    if (scene !== 'brisket') return false;
+    const book = critters.find((c) => c.key === 'cookbook'), w = critters.find((c) => c.key === 'stopwatch');
+    // ONLY FORWARD (John, 2026-10-08: "if I use the build then leave then tap, it forces the cookbook to open again"): whatever is
+    // open is finished first; with nothing open, the next step is the one after the furthest already reached, never one again
+    if (tcard && w && tcard.c === w) return false;                       // the stopwatch open: the last step — on
+    if (tcard && book && tcard.c === book) {                             // the book open
+      if (!cook) { if (tcard.go) tcard.go.click(); else { shrinkTimer(); setTimeout(() => startCook(book), 420); } return true; }   // Start smoke
+      shrinkTimer(); if (w && !w.seen) setTimeout(() => { if (!tcard) growTimer(w); }, 640); return true;   // already smoking: the book back, the stopwatch up
+    }
+    if (tcard) { shrinkTimer(); return true; }
+    if (w) { if (w.seen) return false; growTimer(w); return true; }       // the stopwatch: open it once; seen, on
+    if (cook) return false;
+    if (book && book.seen) { startCook(book); return true; }             // the book was read: Start smoke, without opening it again
+    if (book) { growTimer(book); return true; }                           // nothing yet: open the book
+    return false;
+  };
+  window.__demo = { play, SCENES, rush, advance, get scene() { return scene; }, get turn() { return turn; }, get playing() { return playing; } };
 }
 if (EMBED || PRESO) {
   let typingTimer = 0;
