@@ -52,6 +52,14 @@
     user-select: none;
     -webkit-user-drag: none;
   }
+  /* THE WORD (John, 2026-10-08: "when I tap next on the Forbes article, give me a red underline on the word experiment"): one
+     tap draws a red line under "Experiments", the headline's last word, left to right — the word the next card quotes, and the
+     one after takes back. Placed in the picture's own pixels (1712 x 2044): the E at 768, the s ending 1268, the baseline 615 and
+     the p's descender to 630, so the line runs at 640, 9 thick — percentages of the frame, which is the image's size. */
+  .ul { position: absolute; left: 44.86%; width: 29.21%; top: 31.31%; height: 0.48%; background: #e3261b; border-radius: 999px;
+        transform: scaleX(0); transform-origin: left center; transition: transform 520ms cubic-bezier(0.65, 0, 0.35, 1); pointer-events: none; }
+  body.on .ul { transform: scaleX(1); }
+  body.snap .ul { transition: none; }
 </style>
 </head>
 <body>
@@ -59,7 +67,18 @@
     <div class="frame">
       <img src="assets/forbes-transportation.webp" width="1712" height="2044"
            alt="Forbes, February 2019: Airbnb says it isn't building an airline, but it hired ex-Virgin America CEO to lead transportation">
+      <div class="ul" aria-hidden="true"></div>
     </div>
   </div>
+<script>
+(() => {
+  const b = document.body; let step = 0;
+  const set = (n, snap) => { step = n; if (snap) b.classList.add('snap'); b.classList.toggle('on', n > 0); if (snap) { void b.offsetWidth; b.classList.remove('snap'); } };
+  window.presoNext = () => { if (step >= 1) return false; set(1); return true; };
+  window.presoPrev = () => { if (step === 0) return false; set(0); return true; };
+  window.presoState = () => step;
+  window.presoRestore = n => set(n > 0 ? 1 : 0, true);
+})();
+</script>
 </body>
 </html>
