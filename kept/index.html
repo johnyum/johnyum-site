@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kept</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css">
+<!--
+  Kept, the surface. Projects on the left, each opening onto the directions in it;
+  the work in the middle, live or as any version, with every turn in the strip under
+  it; the real Claude Code on the right. Every turn Claude finishes becomes a
+  version of the direction you're in (serve.py keeps it on a hidden git ref), so you
+  build exactly as before and nothing is lost. Push marks a version as ready.
+
+  The page polls the server every 2s. Each region redraws only when its own HTML
+  changes, and the preview iframe is never rebuilt, only pointed somewhere new:
+  redrawing it on every poll would reload the page under you.
+-->
+<style>
+:root {
+  --bg: #fff; --soft: #f5f5f5; --line: #ebebeb; --line-2: #d9d9d9;
+  --ink: #111; --ink-2: #555; --ink-3: #8a8a8a;
+  --active: #2a6fdb; --settled: #1f8a4c; --paused: #a3a3a3; --set_aside: #d93a2b;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --sans: 'IBM Plex Sans', system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 13px/1.45 var(--sans); -webkit-font-smoothing: antialiased; overflow: hidden; position: fixed; inset: 0; }
+.work, .term { overflow: hidden; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+p { margin: 0; }
+img { display: block; }
+
+.app { display: grid; grid-template-columns: 232px minmax(0, 1fr) var(--tw, min(600px, 42vw)); height: 100vh; }
+
+/* Projects and their directions */
+nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 12px 8px 40px; }
+.brand { font-weight: 600; padding: 2px 8px 12px; }
+.proj { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 8px; border-radius: 6px; font-weight: 500; }
+.proj:hover, .proj.on { background: var(--soft); }
+.proj .n { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--ink-3); font-weight: 400; }
+.dirs { padding: 2px 0 8px 8px; }
+.dir { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 8px; border-radius: 6px; color: var(--ink-2); }
+.dir:hover { background: var(--soft); }
+.dir.on { background: var(--ink); color: var(--bg); }
+.dir .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dir .n { font-family: var(--mono); font-size: 10px; opacity: .6; }
+.dir.dim { color: var(--ink-3); }
+.dot { flex: 0 0 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--c); display: inline-block; }
+[data-s="active"] { --c: var(--active); } [data-s="settled"] { --c: var(--settled); }
+[data-s="paused"] { --c: var(--paused); } [data-s="set_aside"] { --c: var(--set_aside); }
+.more { padding: 4px 8px; color: var(--ink-3); font-size: 12px; }
+.more:hover { color: var(--ink); }
+.new { display: flex; padding: 4px 0 0 8px; }
+.new input { flex: 1; min-width: 0; height: 26px; border: 0; border-radius: 6px; background: var(--soft); padding: 0 8px; font: inherit; outline: none; }
+
+/* The work */
+.work { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.bar { display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px; border-bottom: 1px solid var(--line); flex: 0 0 auto; }
+.bar h1 { font-size: 14px; font-weight: 600; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar .v { font-family: var(--mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+.bar .sp { flex: 1; }
+.btn { border: 1px solid var(--line-2); border-radius: 6px; padding: 4px 10px; font-size: 12px; white-space: nowrap; }
+.btn:hover { border-color: var(--ink-3); }
+.btn.dark { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.status { position: relative; display: inline-flex; }
+.status select { appearance: none; border: 1px solid var(--line-2); border-radius: 6px; padding: 4px 10px 4px 22px; font: inherit; font-size: 12px; background: var(--bg); color: var(--ink); cursor: pointer; }
+.status .dot { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.stage { flex: 1; min-height: 0; position: relative; background: var(--soft); }
+.stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+.over { position: absolute; inset: 0; pointer-events: none; }
+.over > * { pointer-events: auto; }
+.old { position: absolute; left: 12px; top: 12px; background: var(--ink); color: var(--bg); font-size: 11px; padding: 3px 8px; border-radius: 4px; }
+.nudge { position: absolute; left: 12px; right: 12px; bottom: 12px; background: var(--bg); border: 1px solid var(--line-2); border-radius: 8px; padding: 10px 12px; display: flex; gap: 12px; align-items: center; box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+.nudge img { width: 72px; aspect-ratio: 16 / 10; object-fit: cover; object-position: top; border-radius: 4px; border: 1px solid var(--line); }
+.nudge p { flex: 1; }
+.nudge .x { color: var(--ink-3); font-size: 16px; padding: 0 4px; }
+.strip { flex: 0 0 auto; display: flex; gap: 6px; overflow-x: auto; padding: 10px 16px; border-top: 1px solid var(--line); }
+.frame { flex: 0 0 92px; }
+.frame .pic { aspect-ratio: 16 / 10; border-radius: 4px; overflow: hidden; background: var(--soft); border: 1px solid var(--line); position: relative; }
+.frame .pic img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.frame.on .pic { outline: 2px solid var(--ink); outline-offset: 1px; }
+.frame .d { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 3px; display: flex; gap: 4px; }
+.frame .d b { color: var(--ink); font-weight: 500; }
+.frame .pushed { position: absolute; right: 3px; top: 3px; width: 8px; height: 8px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 2px var(--bg); }
+.frame.live .pic { display: grid; place-items: center; font-size: 11px; color: var(--ink-2); background: var(--bg); border-style: dashed; }
+.frame.working .pic::after { content: ''; position: absolute; bottom: 0; height: 2px; width: 40%; background: var(--ink); animation: run 1.2s ease-in-out infinite; }
+@keyframes run { from { left: -40%; } to { left: 100%; } }
+
+/* A project with nothing picked: a wall of its directions */
+.wall { flex: 1; overflow-y: auto; padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px 12px; align-content: start; }
+.card .pic { aspect-ratio: 16 / 10; border-radius: 6px; overflow: hidden; background: var(--soft); border: 1px solid var(--line); }
+.card .pic img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.card:hover .pic { border-color: var(--ink-3); }
+.card.dim .pic img { filter: grayscale(1); opacity: .55; }
+.card .t { margin-top: 6px; font-weight: 500; line-height: 1.3; display: flex; gap: 6px; align-items: baseline; }
+.noimg { width: 100%; height: 100%; display: grid; place-items: center; color: var(--ink-3); font-family: var(--mono); font-size: 10px; }
+.hide { display: none !important; }
+
+/* Claude Code */
+.term { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; background: #fff; }
+.term .bar { gap: 8px; }
+.into { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.into b { color: var(--ink); font-weight: 500; }
+.xt { flex: 1; min-height: 0; padding: 8px 4px 8px 12px; }
+.xt .xterm { height: 100%; }
+.xt .xterm-viewport { background: #fff !important; }
+.gutter { position: fixed; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 5; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <nav id="nav"></nav>
+  <section class="work">
+    <div class="bar" id="bar"></div>
+    <div class="wall hide" id="wall"></div>
+    <div class="stage" id="stagebox"><iframe id="stage" title="Preview"></iframe><div class="over" id="over"></div></div>
+    <div class="strip" id="strip"></div>
+  </section>
+  <section class="term">
+    <div class="bar"><strong>Claude Code</strong><span class="into" id="into"></span><span style="flex:1"></span><button class="btn" id="restart">Restart</button></div>
+    <div class="xt" id="xt"></div>
+  </section>
+</div>
+<div class="gutter" id="gutter"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
+<script>
+const STATUS = { active: 'Active', paused: 'Paused', settled: 'Settled', set_aside: 'Set aside' };
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const day = t => t ? new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+const api = (p, body) => fetch('api/' + p, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+const thumb = v => v && v.shot ? `data/thumbs/${v.shot}` : null;
+const img = src => src ? `<img src="${src}" loading="lazy" alt="">` : '<div class="noimg">no picture</div>';
+
+let S = null;              // server state
+let open = null;           // the project open in the nav
+let viewing = null;        // a version's sha shown in the stage, or null for live
+let showAll = {};          // projects showing all their directions, not only the live ones
+let lastCount = -1, dismissed = 0;
+
+const proj = k => S.projects.find(p => p.key === k);
+const cur = () => S.current || {};
+const dirOf = () => { const c = cur(); return c.direction ? proj(c.project)?.directions.find(d => d.id === c.direction) : null; };
+// A picture the turn made (named <sha>-<n>.jpg) says more than a shot of the page; take the latest of those first.
+const cover = d => { const r = [...d.versions].reverse(); return thumb(r.find(v => v.shot && v.shot.includes('-')) || r.find(v => v.shot)); };
+
+// Set a region's HTML only when it changed, then wire it.
+function put(el, html, wire) { if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; wire && wire(el); } }
+
+async function refresh() {
+  S = await api('state');
+  if (!open) open = cur().project || S.projects[0].key;
+  const d = dirOf(), n = d ? d.versions.length : 0;
+  if (lastCount >= 0 && n > lastCount && !viewing) stage(true);   // a turn landed: show it
+  lastCount = n;
+  render();
+}
+async function setCurrent(project, direction) {
+  S = await api('current', { project, direction });
+  viewing = null; lastCount = dirOf()?.versions.length ?? 0;
+  render(); stage(true);
+}
+
+function render() { nav(); bar(); wall(); strip(); over(); stage();
+  const d = dirOf();
+  $('#into').innerHTML = d ? `turns go to <b>${esc(d.title)}</b>` : 'pick a direction to keep turns';
+}
+
+function nav() {
+  let h = `<div class="brand">Kept</div>`;
+  for (const p of S.projects) {
+    const live = p.directions.filter(d => d.status === 'active' || d.status === 'paused' || d.id === cur().direction);
+    h += `<button class="proj${open === p.key ? ' on' : ''}" data-proj="${p.key}">${esc(p.name)}<span class="n">${p.directions.length}</span></button>`;
+    if (open !== p.key) continue;
+    const list = showAll[p.key] ? p.directions : live;
+    h += `<div class="dirs">` + list.map(d => `<button class="dir${cur().direction === d.id ? ' on' : ''}${d.status === 'set_aside' ? ' dim' : ''}" data-dir="${d.id}" title="${esc(d.title)}">
+        <span class="dot" data-s="${d.status}"></span><span class="t">${esc(d.title)}</span><span class="n">${d.versions.length}</span></button>`).join('')
+      + (p.directions.length > live.length ? `<button class="more" data-all="${p.key}">${showAll[p.key] ? 'Active only' : `All ${p.directions.length}`}</button>` : '')
+      + `<form class="new" data-new="${p.key}"><input placeholder="New direction" aria-label="New direction"></form></div>`;
+  }
+  put($('#nav'), h, el => {
+    el.querySelectorAll('[data-proj]').forEach(b => b.onclick = () => { open = b.dataset.proj; setCurrent(open, null); });
+    el.querySelectorAll('[data-dir]').forEach(b => b.onclick = () => setCurrent(open, b.dataset.dir));
+    el.querySelectorAll('[data-all]').forEach(b => b.onclick = () => { showAll[b.dataset.all] = !showAll[b.dataset.all]; nav(); });
+    el.querySelectorAll('[data-new]').forEach(f => f.onsubmit = async e => {
+      e.preventDefault();
+      const title = f.querySelector('input').value.trim(); if (!title) return;
+      S = await api('direction', { project: f.dataset.new, title, from: viewing }); viewing = null; lastCount = 0; render(); stage(true);
+    });
+  });
+}
+
+function bar() {
+  const d = dirOf(), p = proj(cur().project || open);
+  if (!d) return put($('#bar'), `<h1>${esc(p.name)}</h1><span class="v">${p.directions.length} directions</span>`);
+  const vs = d.versions, at = viewing ? vs.findIndex(v => v.sha === viewing) : -1, v = vs[at];
+  put($('#bar'), `<h1>${esc(d.title)}</h1>
+    <span class="v">${viewing ? `v${at + 1} of ${vs.length} · ${day(v.t)}` : `live · ${vs.length} version${vs.length === 1 ? '' : 's'}`}</span>
+    <span class="sp"></span>
+    <label class="status"><span class="dot" data-s="${d.status}"></span><select id="st" aria-label="Status">${Object.entries(STATUS).map(([k, l]) => `<option value="${k}"${d.status === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+    ${viewing ? `<button class="btn" id="back">Back to live</button><button class="btn" id="restore" title="Put this version's files back. What's there now is kept as a version first.">Restore</button>` : ''}
+    ${v ? `<button class="btn${v.pushed ? ' dark' : ''}" id="push">${v.pushed ? 'Pushed' : 'Push'}</button>` : `<button class="btn" id="save" title="Keep the project as it is now as a version">Save version</button>`}`,
+  el => {
+    el.querySelector('#st').onchange = async e => {
+      const s = e.target.value, why = s === 'set_aside' || s === 'paused' ? prompt('Why, in a line?') : null;
+      S = await api('status', { direction: d.id, status: s, why }); render();
+    };
+    el.querySelector('#back') && (el.querySelector('#back').onclick = () => { viewing = null; render(); stage(true); });
+    el.querySelector('#push') && (el.querySelector('#push').onclick = async () => { S = await api('push', { sha: v.sha }); render(); });
+    el.querySelector('#save') && (el.querySelector('#save').onclick = async () => { S = await api('snapshot', { note: 'Saved by hand' }); render(); });
+    el.querySelector('#restore') && (el.querySelector('#restore').onclick = async () => {
+      if (!confirm(`Put ${proj(cur().project).name}'s files back to v${at + 1}? What's there now is kept as a version first.`)) return;
+      S = await api('restore', { sha: v.sha, project: cur().project }); viewing = null; lastCount = dirOf()?.versions.length ?? 0; render(); stage(true);
+    });
+  });
+}
+
+function wall() {
+  const d = dirOf(), p = proj(cur().project || open);
+  $('#wall').classList.toggle('hide', !!d);
+  $('#stagebox').classList.toggle('hide', !d);
+  $('#strip').classList.toggle('hide', !d);
+  if (d) return;
+  put($('#wall'), p.directions.map(d => `<button class="card${d.status === 'set_aside' ? ' dim' : ''}" data-dir="${d.id}">
+      <div class="pic">${img(cover(d))}</div><p class="t"><span class="dot" data-s="${d.status}"></span>${esc(d.title)}</p></button>`).join(''),
+    el => el.querySelectorAll('[data-dir]').forEach(b => b.onclick = () => setCurrent(p.key, b.dataset.dir)));
+}
+
+function strip() {
+  const d = dirOf(); if (!d) return;
+  put($('#strip'), d.versions.map((x, i) => `<button class="frame${x.sha === viewing ? ' on' : ''}" data-v="${x.sha}" title="${esc(x.prompt || x.note || '')}">
+      <div class="pic">${img(thumb(x))}${x.pushed ? '<span class="pushed" title="Pushed"></span>' : ''}</div><p class="d"><b>v${i + 1}</b>${day(x.t)}</p></button>`).join('')
+    + `<button class="frame live${!viewing ? ' on' : ''}${S.working ? ' working' : ''}" data-v=""><div class="pic">${S.working ? 'Building' : 'Live'}</div><p class="d"><b>now</b></p></button>`,
+  el => {
+    el.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { viewing = b.dataset.v || null; render(); stage(true); });
+    (viewing ? el.querySelector('.on') : null)?.scrollIntoView({ inline: 'center', block: 'nearest' }) ?? (el.scrollLeft = 1e6);
+  });
+}
+
+function over() {
+  const d = dirOf(); if (!d) return;
+  const v = viewing && d.versions.find(v => v.sha === viewing);
+  const n = S.nudge && S.nudge.t > dismissed ? S.nudge : null;
+  const nd = n && proj(cur().project).directions.find(x => x.id === n.direction);
+  put($('#over'), (v ? `<span class="old">As it was ${day(v.t)}</span>` : '')
+    + (n ? `<div class="nudge">${nd && cover(nd) ? `<img src="${cover(nd)}" alt="">` : ''}<p>${esc(n.text)}</p>${nd ? `<button class="btn" data-go="${nd.id}">Look</button>` : ''}<button class="x" id="nx" aria-label="Dismiss">×</button></div>` : ''),
+  el => {
+    el.querySelector('#nx') && (el.querySelector('#nx').onclick = () => { dismissed = S.nudge.t; over(); });
+    el.querySelectorAll('[data-go]').forEach(b => b.onclick = () => setCurrent(cur().project, b.dataset.go));
+  });
+}
+
+/* The stage: the page live from the working tree, or as a version was, straight out of git. */
+function pageOf() {
+  const d = dirOf(), p = proj(cur().project || open);
+  const v = viewing && d?.versions.find(v => v.sha === viewing);
+  const page = (v && v.page) || [...(d?.versions || [])].reverse().find(v => v.page)?.page || p.page;
+  return viewing ? `/kept/v/${viewing}/${page}` : '/' + page;
+}
+function stage(force) {
+  if (!dirOf()) return;
+  const f = $('#stage'), src = pageOf();
+  if (force || f.dataset.src !== src) { f.dataset.src = src; f.src = src; }
+}
+
+/* Claude Code, in a real terminal. */
+const term = new Terminal({
+  fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 12.5, lineHeight: 1.25, cursorBlink: true, scrollback: 5000,
+  theme: { background: '#ffffff', foreground: '#111111', cursor: '#111111', cursorAccent: '#ffffff', selectionBackground: '#d9d9d9',
+           black: '#111111', brightBlack: '#8a8a8a', white: '#d9d9d9', brightWhite: '#f5f5f5' },
+});
+const fit = new FitAddon.FitAddon();
+term.loadAddon(fit);
+term.loadAddon(new WebLinksAddon.WebLinksAddon((e, url) => window.open(url, '_blank')));   // /login prints a URL to open
+term.open($('#xt'));
+let pending = '', timer = 0;
+term.onData(s => { pending += s; clearTimeout(timer); timer = setTimeout(() => { const b = pending; pending = ''; fetch('api/term/input', { method: 'POST', body: b }); }, 8); });
+const size = () => { try { fit.fit(); api('term/resize', { cols: term.cols, rows: term.rows }); } catch (e) {} };
+addEventListener('resize', size);
+function connect() {
+  const es = new EventSource('api/term/stream');
+  es.onmessage = e => { const b = atob(e.data), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); term.write(u); };
+  es.onerror = () => { es.close(); setTimeout(connect, 1500); };
+}
+async function startTerm() { fit.fit(); await api('term/start', { cols: term.cols, rows: term.rows }); size(); }
+$('#restart').onclick = async () => { await api('term/stop', {}); term.reset(); setTimeout(startTerm, 400); };
+
+/* Drag the line between the work and Claude Code. */
+const gut = $('#gutter');
+const place = () => { gut.style.left = ($('.term').getBoundingClientRect().left - 3) + 'px'; };
+gut.onpointerdown = e => {
+  gut.setPointerCapture(e.pointerId);
+  gut.onpointermove = m => { $('#app').style.setProperty('--tw', Math.max(360, Math.min(innerWidth - 600, innerWidth - m.clientX)) + 'px'); place(); };
+  gut.onpointerup = () => { gut.onpointermove = null; size(); };
+};
+addEventListener('resize', place);
+
+refresh().then(() => { place(); connect(); startTerm(); stage(true); });
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>

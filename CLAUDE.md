@@ -21,6 +21,7 @@ don't introduce bundlers, npm, or a component framework.
 | `rig/` | johnyum.com/rig — Rig Studio: reshape a rigged, animated character (proportions + sculpt) and send it to Peek. See below |
 | `peek/` | johnyum.com/peek — a 3D furry character living in a chat UI, built from a Monsters character. See below |
 | `monsters/` | johnyum.com/monsters — sketch → rigged, animated 3D character (Meshy), with `api/monsters.py`. See below |
+| `kept/` | **Kept** — build with Claude Code, every turn kept as a version by direction. Local only: run `python3 kept/serve.py`. See below |
 | `bento-widgets/` | Standalone widget experiments |
 | `test/` | Scratch prototypes |
 | `playful/`, `claude-icons/`, `icons/` | Icon systems — see below |
@@ -940,6 +941,37 @@ Jump / Wave / Yes / No; the blobs have 4-bone rigs with Idle / Walk / Jump / Yes
 - A character is JSON (`{ v, model, prop, colors, fur, sculpt }`). **Save file** downloads it;
   Claude can read it from Downloads, change it, and write a version to load. **Bring it into
   Peek** gzips it into `/peek/#r=…`.
+
+## `kept/` — build on it, and every turn is kept (2026-10-14)
+
+John's thesis made concrete: AI tools are organised around sessions, but the work isn't. Kept is the surface he builds on:
+projects on the left (each opening onto its directions: an idea chased, with a status), the work in the middle (live, or as any
+version), every turn in a filmstrip under it, and **the real Claude Code** on the right in a terminal (xterm.js over a pty).
+John chose the real terminal over a custom chat UI (2026-10-14): build exactly as before, and nothing falls behind Claude Code.
+
+**Run it from a terminal, not the app's preview** — the preview's sandbox stops Claude Code starting (it hangs, printing nothing):
+`python3 kept/serve.py` → localhost:5350/kept/. The pane's Claude Code needs `/login` once.
+
+- **Versions never touch your git.** Claude Code is launched with two hooks for that instance only (`--settings`): UserPromptSubmit
+  and Stop, both curl back to serve.py. On Stop the working tree goes into a throwaway index → `commit-tree` → `refs/kept/<project>/<direction>`.
+  HEAD, index and branch are untouched; a turn that changed nothing makes no version. `git log refs/kept/...` reads them.
+- **Any version is served out of git**: `/kept/v/<sha>/<path>` (`git cat-file`), so the preview shows the page as it was with no checkout.
+  Each new version is shot with headless Chrome for the strip.
+- **Restore** puts one project's folders back to a version (`git restore --source`), keeping what's there as a version first.
+- **Memory, specific or silent** (`recall()`): on each prompt, a set-aside or paused direction in this project sharing two real words
+  with the ask comes back to Claude as additionalContext (with John's own words and the date) and to the page as a card. Otherwise nothing.
+- History: `extract.py` (commits + every prompt → raw.json), `distill.py` (a model names the directions per project; `--dump` /
+  `--ingest` for any engine), `thumbs.py` (the images each turn made, from git at that commit, plus a page shot). The history
+  directions sit in the nav beside the ones started here, and a turn can continue either.
+- **`kept/data/` holds every prompt from every session: gitignored, never deploy it.**
+- Look: white and tight, no warm tints, no yellow (John). Pictures over words: a project with no direction picked is a wall of covers;
+  a cover prefers an image the turn made (`<sha>-<n>.jpg`) over a page shot, since Peek's page shots are all the empty greeting.
+- Run for real 2026-10-14 (direction "First real turn", `test/kept-hello.html`): two Claude turns → two versions on the hidden ref,
+  each previewed as it was and shot. What that run taught, all fixed: the recall fired on "white", "kept", "don't" (it now needs a word
+  from the direction's NAME plus a rare word, in ≤3 of the project's directions); a version previews the HTML page its turn touched,
+  even outside the project's folders; and a server started from inside a Claude Code session passed its CLAUDE_CODE_* variables to the
+  pane, which then took itself for a child and stopped saving transcripts, so they're stripped at launch. `pkill -f "kept/serve.py"`
+  is the way to stop it (macOS lists it as `.../Python kept/serve.py`, not `python3`).
 
 ## Drawing in Claude's visual language
 
