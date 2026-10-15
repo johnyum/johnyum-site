@@ -8,13 +8,15 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css">
 <!--
-  Kept, the surface. Organised the way Figma is: a sidebar of what you're working on
-  and your projects, each project holding the things made in it (Tide pool, Moby Dick),
-  and a canvas. A thing's canvas is its directions as rows, each row its versions left to
-  right, newest at the right: what you tried, what landed, what you set aside and why.
-  Open a direction to build on it. Each direction has its own folder and branch (a git
-  worktree) and its own Claude Code on the right, so several ideas run at once and never
-  collide; every turn Claude finishes is a commit on that branch, and Open PR sends it.
+  Kept, the surface. As little as it takes (John: "I just want it to work"):
+
+  - The sidebar is your projects, most recently touched first. That's all.
+  - A project is Main, what's live, as a strip of what shipped; then the branches open on
+    it, each its own folder, branch and Claude Code, so several ideas build at once and
+    never collide; then Closed, folded away, each with the reason it was dropped.
+  - Just start typing: with no branch open, what you ask becomes a new branch, named
+    from your words, and its Claude starts on it. Nothing ever edits Main directly.
+  - Push puts a branch into Main and sends it live.
 
   The page polls every 2s. Each region redraws only when its own HTML changed, and the
   preview iframe is only ever pointed somewhere new, never rebuilt.
@@ -22,8 +24,7 @@
 <style>
 :root {
   --bg: #fff; --soft: #f5f5f5; --line: #ebebeb; --line-2: #d9d9d9;
-  --ink: #111; --ink-2: #555; --ink-3: #8a8a8a;
-  --active: #2a6fdb; --settled: #1f8a4c; --paused: #a3a3a3; --set_aside: #d93a2b;
+  --ink: #111; --ink-2: #555; --ink-3: #8a8a8a; --blue: #2a6fdb;
   --mono: 'IBM Plex Mono', ui-monospace, monospace;
   --sans: 'IBM Plex Sans', system-ui, sans-serif;
 }
@@ -33,36 +34,23 @@ body { background: var(--bg); color: var(--ink); font: 13px/1.45 var(--sans); -w
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
 p { margin: 0; }
 img { display: block; }
-svg { flex: 0 0 auto; }
-.app { display: grid; grid-template-columns: 248px minmax(0, 1fr) var(--tw, min(560px, 40vw)); height: 100vh; }
+.app { display: grid; grid-template-columns: 208px minmax(0, 1fr) var(--tw, min(560px, 40vw)); height: 100vh; }
 .main, .term { overflow: hidden; }
 
-/* Sidebar */
+/* Projects */
 nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 40px; }
-.brand { font-weight: 600; padding: 4px 8px 10px; }
-.sec { display: flex; align-items: center; gap: 4px; width: 100%; padding: 6px 8px 4px; font-size: 11px; color: var(--ink-3); }
-.sec:hover { color: var(--ink); }
-.row { display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 8px; border-radius: 6px; min-height: 28px; }
-.row:hover { background: var(--soft); }
-.row.on { background: var(--ink); color: var(--bg); }
-.row.on .n, .row.on .sub { color: inherit; opacity: .6; }
-.row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row .n { font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
-.row .sub { color: var(--ink-3); font-size: 11px; white-space: nowrap; }
-.row.proj { font-weight: 500; }
-.row.thing { padding-left: 34px; color: var(--ink-2); }
-.row.thing.on { color: var(--bg); }
-.row.work { padding-left: 22px; }
-.chev { width: 12px; height: 12px; color: var(--ink-3); transition: transform .15s; }
-.chev.open { transform: rotate(90deg); }
-.gap { height: 10px; }
-.add { display: flex; padding: 2px 0 6px 34px; }
-.add input { flex: 1; min-width: 0; height: 26px; border: 0; border-radius: 6px; background: var(--soft); padding: 0 8px; font: inherit; outline: none; }
-.dot { flex: 0 0 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--c); display: inline-block; }
-[data-s="active"] { --c: var(--active); } [data-s="settled"] { --c: var(--settled); }
-[data-s="paused"] { --c: var(--paused); } [data-s="set_aside"] { --c: var(--set_aside); }
+.brand { font-weight: 600; padding: 4px 8px 12px; }
+.proj { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border-radius: 6px; }
+.proj:hover { background: var(--soft); }
+.proj.on { background: var(--ink); color: var(--bg); }
+.proj .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proj .n { font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+.proj.on .n { color: inherit; opacity: .6; }
+.dot { flex: 0 0 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--blue); display: inline-block; }
+.dot.pulse { animation: pulse 1.1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
 
-/* Main */
+/* The middle */
 .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .bar { display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px; border-bottom: 1px solid var(--line); flex: 0 0 auto; }
 .crumbs { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
@@ -70,51 +58,45 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
 .crumbs button:hover { color: var(--ink); }
 .crumbs b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 .crumbs i { color: var(--line-2); font-style: normal; }
-.bar .v { font-family: var(--mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+.v { font-family: var(--mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+.branch { font-family: var(--mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
 .sp { flex: 1; }
 .btn { border: 1px solid var(--line-2); border-radius: 6px; padding: 4px 10px; font-size: 12px; white-space: nowrap; }
 .btn:hover { border-color: var(--ink-3); }
 .btn.dark { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.status { position: relative; display: inline-flex; }
-.status select { appearance: none; border: 1px solid var(--line-2); border-radius: 6px; padding: 4px 10px 4px 22px; font: inherit; font-size: 12px; background: var(--bg); color: var(--ink); cursor: pointer; }
-.status .dot { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.btn.quiet { border-color: transparent; color: var(--ink-3); }
+.btn.quiet:hover { color: var(--ink); }
 .scroll { flex: 1; overflow-y: auto; }
 
-/* A project: its things as cards */
-.cards { padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px 12px; }
-.pic { aspect-ratio: 16 / 10; border-radius: 6px; overflow: hidden; background: var(--soft); border: 1px solid var(--line); position: relative; }
-.pic img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
-.card:hover .pic { border-color: var(--ink-3); }
-.card .t { margin-top: 6px; font-weight: 500; }
-.card .m { color: var(--ink-3); font-size: 11px; display: flex; gap: 6px; align-items: center; margin-top: 1px; }
-.noimg { width: 100%; height: 100%; display: grid; place-items: center; color: var(--ink-3); font-family: var(--mono); font-size: 10px; }
-
-/* A thing: its directions as rows of versions */
-.canvas { padding: 8px 0 40px; }
-.dirrow { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
-.dirrow.dim .frames, .dirrow.dim .head .t { opacity: .5; }
-.dirrow.cur { background: linear-gradient(90deg, var(--soft), var(--bg) 70%); }
-.head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
-.head .t { font-weight: 600; }
-.head .t:hover { text-decoration: underline; }
-.head .s { color: var(--ink-3); font-size: 11px; white-space: nowrap; }
-.head .why { color: var(--ink-3); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.head .dot { transform: translateY(-1px); }
+.lane { padding: 16px 16px 12px; border-bottom: 1px solid var(--line); }
+.lane .head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; min-height: 26px; }
+.lane .head .t { font-weight: 600; }
+.lane .head .t:hover { text-decoration: underline; }
+.lane .head .s { color: var(--ink-3); font-size: 11px; white-space: nowrap; }
+.lane.main .head .t { font-size: 14px; }
 .frames { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 4px; }
 .frame { flex: 0 0 132px; }
-.frame .pic { border-radius: 4px; }
+.pic { aspect-ratio: 16 / 10; border-radius: 4px; overflow: hidden; background: var(--soft); border: 1px solid var(--line); position: relative; }
+.pic img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
 .frame:hover .pic { border-color: var(--ink-3); }
 .frame.on .pic { outline: 2px solid var(--ink); outline-offset: 1px; }
-.frame .d { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 3px; display: flex; gap: 4px; }
+.frame .d { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 3px; display: flex; gap: 4px; overflow: hidden; white-space: nowrap; }
 .frame .d b { color: var(--ink); font-weight: 500; }
-.frame .pushed { position: absolute; right: 4px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 2px var(--bg); }
 .frame.live .pic { display: grid; place-items: center; font-size: 11px; color: var(--ink-2); background: var(--bg); border-style: dashed; }
 .frame.working .pic::after { content: ''; position: absolute; bottom: 0; height: 2px; width: 40%; background: var(--ink); animation: run 1.2s ease-in-out infinite; }
 @keyframes run { from { left: -40%; } to { left: 100%; } }
-.newdir { display: flex; gap: 8px; padding: 14px 16px; }
-.newdir input { flex: 0 1 320px; height: 30px; border: 0; border-radius: 6px; background: var(--soft); padding: 0 10px; font: inherit; outline: none; }
+.noimg { width: 100%; height: 100%; display: grid; place-items: center; color: var(--ink-3); font-family: var(--mono); font-size: 10px; }
+.hint { padding: 18px 16px; color: var(--ink-3); }
+.closed { padding: 12px 16px 40px; }
+.closed > button { color: var(--ink-3); font-size: 12px; }
+.closed > button:hover { color: var(--ink); }
+.crow { display: flex; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.crow .pic { flex: 0 0 72px; opacity: .6; }
+.crow .pic img { filter: grayscale(1); }
+.crow .t { font-weight: 500; color: var(--ink-2); }
+.crow .why { color: var(--ink-3); font-size: 12px; }
 
-/* A direction open: the work, and its strip */
+/* A branch or Main open */
 .stage { flex: 1; min-height: 0; position: relative; background: var(--soft); }
 .stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
 .over { position: absolute; inset: 0; pointer-events: none; }
@@ -127,22 +109,22 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
 .strip { flex: 0 0 auto; display: flex; gap: 6px; overflow-x: auto; padding: 10px 16px; border-top: 1px solid var(--line); }
 .strip .frame { flex-basis: 92px; }
 .hide { display: none !important; }
-.branch { font-family: var(--mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
-.dot.pulse { animation: pulse 1.1s ease-in-out infinite; }
-@keyframes pulse { 50% { opacity: .25; } }
-.buildhere { margin: auto; max-width: 300px; text-align: center; color: var(--ink-2); display: grid; gap: 12px; justify-items: center; }
-.buildhere .btn { font-size: 13px; padding: 6px 14px; }
-.err { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 12px; border-radius: 6px; font-size: 12px; z-index: 9; max-width: 80vw; }
-.empty { padding: 40px 16px; color: var(--ink-3); }
 
-/* Claude Code */
+/* Claude Code, or the box that starts a branch */
 .term { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; background: #fff; }
 .into { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .into b { color: var(--ink); font-weight: 500; }
 .xt { flex: 1; min-height: 0; padding: 8px 4px 8px 12px; }
 .xt .xterm { height: 100%; }
 .xt .xterm-viewport { background: #fff !important; }
+.ask { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 24px; gap: 10px; }
+.ask h2 { font-size: 15px; font-weight: 600; margin: 0; }
+.ask p { color: var(--ink-3); }
+.ask textarea { width: 100%; min-height: 96px; resize: vertical; border: 1px solid var(--line-2); border-radius: 8px; padding: 10px 12px; font: inherit; font-size: 14px; outline: none; }
+.ask textarea:focus { border-color: var(--ink-3); }
+.ask .row { display: flex; align-items: center; gap: 10px; }
 .gutter { position: fixed; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 5; }
+.err { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 12px; border-radius: 6px; font-size: 12px; z-index: 9; max-width: 80vw; }
 </style>
 </head>
 <body>
@@ -155,9 +137,9 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
     <div class="strip hide" id="strip"></div>
   </section>
   <section class="term">
-    <div class="bar"><strong>Claude Code</strong><span class="into" id="into"></span><span class="sp"></span><button class="btn" id="restart">Restart</button></div>
+    <div class="bar"><strong>Claude Code</strong><span class="into" id="into"></span><span class="sp"></span><button class="btn hide" id="restart">Restart</button></div>
     <div class="xt" id="xt"></div>
-    <div class="buildhere hide" id="buildhere"></div>
+    <div class="ask hide" id="ask"></div>
   </section>
 </div>
 <div class="gutter" id="gutter"></div>
@@ -166,170 +148,128 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
 <script>
-const STATUS = { active: 'Active', paused: 'Paused', settled: 'Settled', set_aside: 'Set aside' };
+const MAIN = '__main';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const day = t => t ? new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
 const short = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n).replace(/\s+\S*$/, '') + '…' : s; };
 const api = (p, body) => fetch('api/' + p, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   .then(r => r.json()).then(j => { if (j.error) { oops(j.error); throw new Error(j.error); } return j; });
-function oops(msg) { const e = document.createElement('div'); e.className = 'err'; e.textContent = msg; document.body.appendChild(e); setTimeout(() => e.remove(), 6000); }
+function oops(msg) { const e = document.createElement('div'); e.className = 'err'; e.textContent = msg; document.body.appendChild(e); setTimeout(() => e.remove(), 7000); }
 const thumb = v => v && v.shot ? `data/thumbs/${v.shot}` : null;
 const img = src => src ? `<img src="${src}" loading="lazy" alt="">` : '<div class="noimg">no picture</div>';
-const CHEV = open => `<svg class="chev${open ? ' open' : ''}" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4.5 2.5L8 6l-3.5 3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const FOLDER = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" style="color:var(--ink-3)"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h3l1.5 1.5h4.5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5z"/></svg>';
+const lastPic = vs => { const r = [...vs].reverse(); return thumb(r.find(v => v.shot && v.shot.includes('-')) || r.find(v => v.shot)); };
 
-let S = null;           // server state
-let viewing = null;     // a version shown on the stage, or null for live
-let lastCount = -1, dismissed = 0;
-
-// What's folded in the sidebar is yours to keep, per browser.
-let fold = {};
-try { fold = JSON.parse(localStorage.getItem('kept-fold') || '{}'); } catch (e) {}
-const toggle = k => { fold[k] = !fold[k]; try { localStorage.setItem('kept-fold', JSON.stringify(fold)); } catch (e) {} nav(); };
-const isOpen = (k, dflt) => fold[k] === undefined ? dflt : !fold[k];
+let S = null;            // server state
+let viewing = null;      // a version on the stage, or null for live
+let lastCount = -1, dismissed = 0, showClosed = false;
 
 const cur = () => S.current || {};
-const proj = k => S.projects.find(p => p.key === k);
-const thingOf = (pk, tid) => proj(pk)?.things.find(t => t.id === tid);
-const thingFor = (pk, did) => proj(pk)?.things.find(t => t.directions.some(d => d.id === did));
-const dirOf = () => { const c = cur(); return c.direction ? thingFor(c.project, c.direction)?.directions.find(d => d.id === c.direction) : null; };
-const coverOf = vs => { const r = [...vs].reverse(); return thumb(r.find(v => v.shot && v.shot.includes('-')) || r.find(v => v.shot)); };
+const proj = () => S.projects.find(p => p.key === cur().project) || S.projects[0];
+const onMain = () => cur().direction === MAIN;
+const branchOf = () => { const d = cur().direction; return d && d !== MAIN ? [...proj().branches, ...proj().closed].find(b => b.id === d) || null : null; };
+const opened = () => onMain() ? { main: true, versions: proj().main } : branchOf();
 
 function put(el, html, wire) { if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; wire && wire(el); } }
 
 async function refresh() {
   S = await api('state');
-  const d = dirOf(), n = d ? d.versions.length : 0;
+  const o = branchOf(), n = o ? o.versions.length : 0;
   if (lastCount >= 0 && n > lastCount && !viewing) stage(true);   // a turn landed: show it
   lastCount = n;
   render();
-  pane();
 }
-async function go(project, thing = null, direction = null) {
-  if (direction && !thing) thing = thingFor(project, direction)?.id;
-  S = await api('current', { project, thing, direction });
-  viewing = null; lastCount = dirOf()?.versions.length ?? 0;
-  render(); stage(true); pane();
+async function go(project, direction = null) {
+  S = await api('current', { project, direction });
+  viewing = null; lastCount = branchOf()?.versions.length ?? 0;
+  render(); stage(true);
 }
+function render() { nav(); bar(); body(); strip(); over(); stage(); pane(); }
 
-function render() {
-  nav(); bar(); body(); strip(); over(); stage();
-  const d = dirOf();
-  $('#into').innerHTML = d ? (d.folder ? `in <b>${esc(d.title)}</b>'s own folder` : `not built here yet`) : 'main folder · turns are not kept';
-}
-
-/* Sidebar: what you're working on, then your projects and the things in them. */
+/* Projects, most recent first. */
 function nav() {
-  const c = cur();
-  let h = `<div class="brand">Kept</div>`;
-  const wOpen = isOpen('working', true), pOpen = isOpen('projects', true);
-  h += `<button class="sec" data-fold="working">${CHEV(wOpen)}Working on</button>`;
-  if (wOpen) h += S.working_on.map(w => `<button class="row work${c.direction === w.direction ? ' on' : ''}" data-dir="${w.direction}" data-p="${w.project}" title="${esc(w.title)}">
-      <span class="dot${w.building ? ' pulse' : ''}" data-s="active" title="${w.building ? 'Claude is building' : w.running ? 'Claude is open' : ''}"></span><span class="t">${esc(w.title)}</span><span class="sub">${w.building ? 'building' : esc(short(w.thingName, 16))}</span></button>`).join('');
-  h += `<div class="gap"></div><button class="sec" data-fold="projects">${CHEV(pOpen)}Projects</button>`;
-  if (pOpen) for (const p of S.projects) {
-    const open = isOpen('p:' + p.key, p.key === c.project);
-    h += `<button class="row proj${c.project === p.key && !c.thing ? ' on' : ''}" data-proj="${p.key}"><span data-fold="p:${p.key}">${CHEV(open)}</span>${FOLDER}<span class="t">${esc(p.name)}</span><span class="n">${p.things.length}</span></button>`;
-    if (!open) continue;
-    h += p.things.map(t => `<button class="row thing${c.thing === t.id ? ' on' : ''}" data-thing="${t.id}" data-p="${p.key}"><span class="t">${esc(t.name)}</span><span class="n">${t.directions.length}</span></button>`).join('')
-      + `<form class="add" data-newthing="${p.key}"><input placeholder="New thing" aria-label="New thing in ${esc(p.name)}"></form>`;
-  }
-  put($('#nav'), h, el => {
-    el.querySelectorAll('[data-fold]').forEach(b => b.onclick = e => { e.stopPropagation(); toggle(b.dataset.fold); });
-    el.querySelectorAll('[data-proj]').forEach(b => b.onclick = () => { fold['p:' + b.dataset.proj] = false; go(b.dataset.proj); });
-    el.querySelectorAll('[data-thing]').forEach(b => b.onclick = () => go(b.dataset.p, b.dataset.thing));
-    el.querySelectorAll('[data-dir]').forEach(b => b.onclick = () => go(b.dataset.p, null, b.dataset.dir));
-    el.querySelectorAll('[data-newthing]').forEach(f => f.onsubmit = async e => {
-      e.preventDefault();
-      const name = f.querySelector('input').value.trim(); if (!name) return;
-      S = await api('thing', { project: f.dataset.newthing, name }); render();
-    });
-  });
+  put($('#nav'), `<div class="brand">Kept</div>` + S.projects.map(p => {
+    const building = p.branches.some(b => b.building);
+    return `<button class="proj${p.key === cur().project ? ' on' : ''}" data-p="${p.key}">${building ? '<span class="dot pulse" title="Claude is building"></span>' : ''}<span class="t">${esc(p.name)}</span><span class="n">${p.branches.length || ''}</span></button>`;
+  }).join(''), el => el.querySelectorAll('[data-p]').forEach(b => b.onclick = () => go(b.dataset.p)));
 }
 
-/* The top bar: where you are, and what you can do there. */
+/* Where you are, and what you can do there. */
 function bar() {
-  const c = cur(), p = proj(c.project) || S.projects[0], t = thingOf(p.key, c.thing), d = dirOf();
-  const crumb = (label, act) => `<button data-crumb="${act}">${esc(label)}</button><i>/</i>`;
-  if (!d) return put($('#bar'), `<div class="crumbs">${t ? crumb(p.name, 'p') + `<b>${esc(t.name)}</b>` : `<b>${esc(p.name)}</b>`}</div>
-      <span class="v">${t ? `${t.directions.length} direction${t.directions.length === 1 ? '' : 's'}` : `${p.things.length} things`}</span>`, wireCrumbs);
-  const vs = d.versions, at = viewing ? vs.findIndex(v => v.sha === viewing) : -1, v = vs[at];
-  put($('#bar'), `<div class="crumbs">${crumb(p.name, 'p')}${crumb(t?.name || '', 't')}<b>${esc(d.title)}</b></div>
-    <span class="v">${viewing ? `v${at + 1} of ${vs.length}` : `live · ${vs.length}`}</span>${d.branch ? `<span class="branch" title="Its own branch and folder">${esc(d.branch)}</span>` : ''}<span class="sp"></span>
-    <label class="status"><span class="dot" data-s="${d.status}"></span><select id="st" aria-label="Status">${Object.entries(STATUS).map(([k, l]) => `<option value="${k}"${d.status === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
-    ${viewing ? `<button class="btn" id="back">Back to live</button><button class="btn" id="fork" title="Try something else from this version, in a folder of its own">Branch from here</button>${d.folder && v.from === 'here' ? `<button class="btn" id="restore" title="Take this direction back to this version. What's there now is kept first.">Restore</button>` : ''}` : ''}
-    ${d.pr ? `<a class="btn dark" href="${esc(d.pr)}" target="_blank" rel="noopener">PR ↗</a>` : d.folder && vs.some(v => v.from === 'here') ? `<button class="btn" id="pr" title="Push this branch and open a pull request">Open PR</button>` : ''}`,
+  const p = proj(), o = opened();
+  const crumb = `<button data-home>${esc(p.name)}</button><i>/</i>`;
+  if (!o) return put($('#bar'), `<div class="crumbs"><b>${esc(p.name)}</b></div><span class="v">${p.branches.length ? `${p.branches.length} open` : ''}</span>`);
+  const vs = o.versions, at = viewing ? vs.findIndex(v => v.sha === viewing) : -1, v = vs[at];
+  const pushed = o.status === 'pushed', closed = o.status === 'closed';
+  put($('#bar'), `<div class="crumbs">${crumb}<b>${o.main ? 'Main' : esc(o.title)}</b></div>
+    <span class="v">${viewing ? `${o.main ? '' : 'v'}${at + 1} of ${vs.length}` : o.main ? "what's live" : pushed ? `pushed ${day(o.pushed)}` : closed ? 'closed' : `live · ${vs.length}`}</span>
+    ${o.branch && !pushed ? `<span class="branch" title="Its own branch and folder">${esc(o.branch)}</span>` : ''}<span class="sp"></span>
+    ${viewing ? `<button class="btn quiet" id="back">Back to ${o.main ? 'live' : 'now'}</button><button class="btn" id="fork" title="Try something new from this version, on a branch of its own">Branch from here</button>` : ''}
+    ${viewing && o.folder && v?.from === 'here' ? `<button class="btn" id="restore" title="Take this branch back to this version. What's there now is kept first.">Restore</button>` : ''}
+    ${!o.main && !pushed && !closed ? `<button class="btn quiet" id="close">Close</button>${o.folder ? `<button class="btn dark" id="push" title="Put this branch into Main and send it live">Push</button>` : ''}` : ''}`,
   el => {
-    wireCrumbs(el);
-    el.querySelector('#st').onchange = async e => {
-      const s = e.target.value, why = s === 'set_aside' || s === 'paused' ? prompt('Why, in a line?') : null;
-      S = await api('status', { direction: d.id, status: s, why }); render();
-    };
+    el.querySelector('[data-home]').onclick = () => go(p.key);
     el.querySelector('#back') && (el.querySelector('#back').onclick = () => { viewing = null; render(); stage(true); });
     el.querySelector('#fork') && (el.querySelector('#fork').onclick = async () => {
-      const title = prompt(`A new direction from v${at + 1} of "${d.title}". Call it:`); if (!title) return;
-      S = await api('direction', { project: p.key, thing: t?.id, title, from: v.full || v.sha }); viewing = null; lastCount = 0; render(); stage(true); pane();
+      const title = prompt('A new branch from this version. Call it:'); if (!title) return;
+      S = await api('direction', { project: p.key, title, from: v.full || v.sha }); viewing = null; lastCount = 0; render(); stage(true);
     });
     el.querySelector('#restore') && (el.querySelector('#restore').onclick = async () => {
-      if (!confirm(`Take "${d.title}" back to v${at + 1}? What's there now is kept as a version first.`)) return;
-      S = await api('restore', { direction: d.id, sha: v.full || v.sha }); viewing = null; lastCount = dirOf()?.versions.length ?? 0; render(); stage(true);
+      if (!confirm(`Take "${o.title}" back to v${at + 1}? What's there now is kept as a version first.`)) return;
+      S = await api('restore', { direction: o.id, sha: v.full || v.sha }); viewing = null; lastCount = branchOf()?.versions.length ?? 0; render(); stage(true);
     });
-    el.querySelector('#pr') && (el.querySelector('#pr').onclick = async () => {
-      if (!confirm(`Push ${d.branch} to GitHub and open a pull request into main? The repo is public, so the branch will be too.`)) return;
-      const r = await api('pr', { direction: d.id }); S = r; render(); if (r.url) window.open(r.url, '_blank');
+    el.querySelector('#close') && (el.querySelector('#close').onclick = async () => {
+      const why = prompt(`Close "${o.title}"? Say why in a line; Kept remembers it if you try this again.`); if (why === null) return;
+      S = await api('close', { direction: o.id, why }); await go(p.key);
     });
-  });
-}
-function wireCrumbs(el) {
-  el.querySelectorAll('[data-crumb]').forEach(b => b.onclick = () => {
-    const c = cur();
-    b.dataset.crumb === 'p' ? go(c.project) : go(c.project, c.thing || thingFor(c.project, c.direction)?.id);
+    el.querySelector('#push') && (el.querySelector('#push').onclick = async () => {
+      if (!confirm(`Push "${o.title}" into Main? It merges and goes live on johnyum.com.`)) return;
+      el.querySelector('#push').textContent = 'Pushing…';
+      try { const r = await api('push', { direction: o.id }); S = r; await go(p.key); } catch (e) { render(); }
+    });
   });
 }
 
-/* The middle: a project's things, a thing's directions, or one direction open on the stage. */
-function frame(v, i, on) {
-  return `<button class="frame${on ? ' on' : ''}" data-v="${v.sha}" title="${esc(v.prompt || v.note || '')}"><div class="pic">${img(thumb(v))}${v.pushed ? '<span class="pushed" title="Pushed"></span>' : ''}</div><p class="d"><b>v${i + 1}</b>${day(v.t)}</p></button>`;
+/* A project: Main, the open branches, and Closed. */
+function frame(v, i, on, label) {
+  return `<button class="frame${on ? ' on' : ''}" data-v="${v.sha}" title="${esc(v.prompt || v.note || '')}"><div class="pic">${img(thumb(v))}</div><p class="d"><b>${label ?? 'v' + (i + 1)}</b>${day(v.t)}</p></button>`;
 }
 function body() {
-  const c = cur(), p = proj(c.project) || S.projects[0], t = thingOf(p.key, c.thing), d = dirOf();
-  $('#scroll').classList.toggle('hide', !!d);
-  $('#stagebox').classList.toggle('hide', !d);
-  $('#strip').classList.toggle('hide', !d);
-  if (d) return;
-  if (!t) return put($('#scroll'), `<div class="cards">${p.things.map(t => {
-      const vs = t.directions.flatMap(d => d.versions), live = t.directions.filter(d => d.status === 'active').length;
-      return `<button class="card" data-thing="${t.id}"><div class="pic">${img(coverOf(vs))}</div><p class="t">${esc(t.name)}</p>
-        <p class="m">${live ? `<span class="dot" data-s="active"></span>${live} active · ` : ''}${t.directions.length} direction${t.directions.length === 1 ? '' : 's'}${t.last ? ` · ${day(t.last)}` : ''}</p></button>`;
-    }).join('')}</div>`,
-    el => el.querySelectorAll('[data-thing]').forEach(b => b.onclick = () => go(p.key, b.dataset.thing)));
-  put($('#scroll'), `<div class="canvas">${t.directions.map(d => `<div class="dirrow${d.status === 'set_aside' ? ' dim' : ''}">
-      <div class="head"><span class="dot${d.building ? ' pulse' : ''}" data-s="${d.status}"></span><button class="t" data-open="${d.id}">${esc(d.title)}</button>
-        <span class="s">${STATUS[d.status]}${d.versions.length ? ` · ${d.versions.length}` : ''}${d.building ? ' · building' : d.folder ? ' · own folder' : ''}</span>
-        ${d.status === 'set_aside' || d.status === 'paused' ? `<span class="why">${esc(short(d.why, 120))}</span>` : ''}</div>
-      <div class="frames">${d.versions.map((v, i) => frame(v, i)).join('') || `<button class="frame live" data-open="${d.id}"><div class="pic">Start</div></button>`}</div></div>`).join('')}
-    <form class="newdir"><input placeholder="New direction in ${esc(t.name)}" aria-label="New direction"><button class="btn">Start</button></form></div>`,
+  const p = proj(), o = opened();
+  $('#scroll').classList.toggle('hide', !!o);
+  $('#stagebox').classList.toggle('hide', !o);
+  $('#strip').classList.toggle('hide', !o);
+  if (o) return;
+  const lane = b => `<div class="lane" data-b="${b.id}">
+      <div class="head"><span class="dot${b.building ? ' pulse' : ''}"></span><button class="t" data-open="${b.id}">${esc(b.title)}</button>
+        <span class="s">${b.versions.length} version${b.versions.length === 1 ? '' : 's'}${b.building ? ' · building' : ''}</span>
+        <span class="sp"></span>${b.folder ? `<button class="btn" data-push="${b.id}">Push</button>` : ''}</div>
+      <div class="frames">${b.versions.map((v, i) => frame(v, i)).join('') || `<button class="frame live" data-open="${b.id}"><div class="pic">${b.building ? 'Building' : 'Empty'}</div></button>`}</div></div>`;
+  put($('#scroll'), `<div class="lane main"><div class="head"><button class="t" data-main>Main</button><span class="s">what's live</span></div>
+      <div class="frames">${p.main.map((v, i) => frame(v, i, false, day(v.t) ? '' : '')).join('')}</div></div>`
+    + p.branches.map(lane).join('')
+    + (p.branches.length ? '' : `<p class="hint">No branches open. Type what you want to try in the box on the right: it becomes a branch with its own Claude, and Main isn't touched until you Push.</p>`)
+    + (p.closed.length ? `<div class="closed"><button id="ctog">Closed · ${p.closed.length} ${showClosed ? '▾' : '▸'}</button>${showClosed ? p.closed.map(c => `<div class="crow"><div class="pic">${img(lastPic(c.versions))}</div><div><p class="t">${esc(c.title)}</p><p class="why">${esc(short(c.why, 160))}</p></div></div>`).join('') : ''}</div>` : ''),
   el => {
-    el.querySelectorAll('[data-open]').forEach(b => b.onclick = () => go(p.key, t.id, b.dataset.open));
-    el.querySelectorAll('.dirrow').forEach(row => {
-      const did = row.querySelector('[data-open]').dataset.open;
-      row.querySelectorAll('[data-v]').forEach(b => b.onclick = async () => { await go(p.key, t.id, did); viewing = b.dataset.v; render(); stage(true); });
+    el.querySelector('[data-main]').onclick = () => go(p.key, MAIN);
+    el.querySelectorAll('[data-open]').forEach(b => b.onclick = () => go(p.key, b.dataset.open));
+    el.querySelector('.lane.main').querySelectorAll('[data-v]').forEach(b => b.onclick = async () => { await go(p.key, MAIN); viewing = b.dataset.v; render(); stage(true); });
+    el.querySelectorAll('[data-b]').forEach(row => row.querySelectorAll('[data-v]').forEach(b => b.onclick = async () => { await go(p.key, row.dataset.b); viewing = b.dataset.v; render(); stage(true); }));
+    el.querySelectorAll('[data-push]').forEach(b => b.onclick = async () => {
+      const t = p.branches.find(x => x.id === b.dataset.push).title;
+      if (!confirm(`Push "${t}" into Main? It merges and goes live on johnyum.com.`)) return;
+      b.textContent = 'Pushing…';
+      try { S = await api('push', { direction: b.dataset.push }); render(); } catch (e) { render(); }
     });
-    el.querySelector('.newdir').onsubmit = async e => {
-      e.preventDefault();
-      const title = e.target.querySelector('input').value.trim(); if (!title) return;
-      S = await api('direction', { project: p.key, thing: t.id, title }); viewing = null; lastCount = 0; render(); stage(true); pane();
-    };
-    // Each row opens at its newest version.
+    el.querySelector('#ctog') && (el.querySelector('#ctog').onclick = () => { showClosed = !showClosed; el.dataset.h = ''; body(); });
     el.querySelectorAll('.frames').forEach(f => f.scrollLeft = 1e6);
   });
 }
 
 function strip() {
-  const d = dirOf(); if (!d) return;
-  put($('#strip'), d.versions.map((v, i) => frame(v, i, v.sha === viewing)).join('')
-    + `<button class="frame live${!viewing ? ' on' : ''}${d.building ? ' working' : ''}" data-v=""><div class="pic">${d.building ? 'Building' : 'Live'}</div><p class="d"><b>now</b></p></button>`,
+  const o = opened(); if (!o) return;
+  put($('#strip'), o.versions.map((v, i) => frame(v, i, v.sha === viewing, o.main ? '' : undefined)).join('')
+    + `<button class="frame live${!viewing ? ' on' : ''}${o.building ? ' working' : ''}" data-v=""><div class="pic">${o.building ? 'Building' : o.main ? 'Live' : 'Now'}</div><p class="d"><b>now</b></p></button>`,
   el => {
     el.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { viewing = b.dataset.v || null; render(); stage(true); });
     (viewing ? el.querySelector('.on') : null)?.scrollIntoView({ inline: 'center', block: 'nearest' }) ?? (el.scrollLeft = 1e6);
@@ -337,32 +277,29 @@ function strip() {
 }
 
 function over() {
-  const d = dirOf(); if (!d) return;
-  const v = viewing && d.versions.find(v => v.sha === viewing);
-  const nn = S.nudges[d.id], n = nn && nn.t > dismissed ? nn : null;
-  const nt = n && thingFor(cur().project, n.direction), nd = nt?.directions.find(x => x.id === n.direction);
+  const o = opened(); if (!o) return;
+  const v = viewing && o.versions.find(v => v.sha === viewing);
+  const nn = !o.main && S.nudges[o.id], n = nn && nn.t > dismissed ? nn : null;
+  const nd = n && proj().closed.find(x => x.id === n.direction);
   put($('#over'), (v ? `<span class="old">As it was ${day(v.t)}</span>` : '')
-    + (n ? `<div class="nudge">${nd && coverOf(nd.versions) ? `<img src="${coverOf(nd.versions)}" alt="">` : ''}<p>${esc(n.text)}</p>${nd ? `<button class="btn" data-go="${nd.id}">Look</button>` : ''}<button class="x" id="nx" aria-label="Dismiss">×</button></div>` : ''),
-  el => {
-    el.querySelector('#nx') && (el.querySelector('#nx').onclick = () => { dismissed = n.t; over(); });
-    el.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(cur().project, null, b.dataset.go));
-  });
+    + (n ? `<div class="nudge">${nd && lastPic(nd.versions) ? `<img src="${lastPic(nd.versions)}" alt="">` : ''}<p>${esc(n.text)}</p><button class="x" id="nx" aria-label="Dismiss">×</button></div>` : ''),
+  el => el.querySelector('#nx') && (el.querySelector('#nx').onclick = () => { dismissed = n.t; over(); }));
 }
 
-/* The stage: the page live from the working tree, or as a version was, straight out of git. */
+/* The stage: Main live from the main folder, a branch live from its own folder, or any version out of git. */
 function pageOf() {
-  const d = dirOf(), p = proj(cur().project);
-  const v = viewing && d?.versions.find(v => v.sha === viewing);
-  const page = (v && v.page) || [...(d?.versions || [])].reverse().find(v => v.page)?.page || p.page;
-  return viewing ? `/kept/v/${viewing}/${page}` : d?.folder ? `/kept/w/${d.id}/${page}` : '/' + page;
+  const o = opened(), p = proj();
+  const v = viewing && o?.versions.find(v => v.sha === viewing);
+  const page = (v && v.page) || [...(o?.versions || [])].reverse().find(v => v.page)?.page || p.page;
+  return viewing ? `/kept/v/${viewing}/${page}` : !o.main && o.folder ? `/kept/w/${o.id}/${page}` : '/' + page;
 }
 function stage(force) {
-  if (!dirOf()) return;
+  if (!opened()) return;
   const f = $('#stage'), src = pageOf();
   if (force || f.dataset.src !== src) { f.dataset.src = src; f.src = src; }
 }
 
-/* Claude Code, in a real terminal. */
+/* The right side: the open branch's Claude, or the box where typing starts a new branch. */
 const term = new Terminal({
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 12.5, lineHeight: 1.25, cursorBlink: true, scrollback: 5000,
   theme: { background: '#ffffff', foreground: '#111111', cursor: '#111111', cursorAccent: '#ffffff', selectionBackground: '#d9d9d9',
@@ -372,8 +309,6 @@ const fit = new FitAddon.FitAddon();
 term.loadAddon(fit);
 term.loadAddon(new WebLinksAddon.WebLinksAddon((e, url) => window.open(url, '_blank')));   // /login prints a URL to open
 term.open($('#xt'));
-/* One xterm, pointed at whichever Claude is showing: the open direction's (in its own folder), or the
-   main folder's when no direction is open. The others keep running; switching only changes the view. */
 let K = null, es = null, pending = '', timer = 0;
 const kq = () => 'k=' + encodeURIComponent(K);
 term.onData(s => { pending += s; clearTimeout(timer); timer = setTimeout(() => { const b = pending; pending = ''; fetch('api/term/input?' + kq(), { method: 'POST', body: b }); }, 8); });
@@ -388,20 +323,37 @@ function connect() {
 }
 async function startTerm() { fit.fit(); S = await api('term/start', { k: K, cols: term.cols, rows: term.rows }); size(); connect(); }
 function pane() {
-  const d = dirOf();
-  const want = d ? (d.folder ? d.id : null) : '_main';
+  const b = branchOf(), live = b && b.status === 'active';
+  const want = live && b.folder ? b.id : null;
   $('#xt').classList.toggle('hide', !want);
-  $('#buildhere').classList.toggle('hide', !!want);
+  $('#ask').classList.toggle('hide', !!want);
+  $('#restart').classList.toggle('hide', !want);
+  $('#into').innerHTML = want ? `on <b>${esc(b.title)}</b>` : '';
   if (!want) {
-    put($('#buildhere'), `<p>“${esc(d.title)}” doesn't have a folder of its own yet. Build on it and it gets one, on its own branch, with its own Claude. Nothing else is touched.</p><button class="btn dark" id="bh">Build on this direction</button>`,
-      el => el.querySelector('#bh').onclick = async () => { S = await api('build', { direction: d.id }); render(); stage(true); pane(); });
+    const p = proj();
+    put($('#ask'), live && !b.folder
+      ? `<h2>${esc(b.title)}</h2><p>This branch has no folder of its own yet. Build on it and it gets one, with its own Claude.</p><div class="row"><button class="btn dark" id="bh">Build on it</button></div>`
+      : `<h2>What do you want to try in ${esc(p.name)}?</h2><p>It becomes a new branch with its own folder and Claude. Main isn't touched until you Push.</p>
+         <textarea id="q" placeholder="Make the whale surge left to right"></textarea><div class="row"><button class="btn dark" id="go">Start</button><span class="v">Enter to start · Shift-Enter for a new line</span></div>`,
+    el => {
+      el.querySelector('#bh') && (el.querySelector('#bh').onclick = async () => { S = await api('build', { direction: b.id }); render(); stage(true); });
+      const q = el.querySelector('#q'); if (!q) return;
+      const send = async () => {
+        const prompt = q.value.trim(); if (!prompt) return;
+        el.querySelector('#go').textContent = 'Starting…';
+        fit.fit();
+        S = await api('start', { project: p.key, prompt, cols: term.cols, rows: term.rows });
+        viewing = null; lastCount = 0; render(); stage(true);
+      };
+      el.querySelector('#go').onclick = send;
+      q.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
+    });
     if (K) { es && es.close(); K = null; }
     return;
   }
   if (want === K) return;
   K = want; term.reset();
-  const running = want === '_main' ? S.main.running : d.running;
-  running ? (connect(), setTimeout(size, 50)) : startTerm();
+  setTimeout(() => { b.running ? (connect(), size()) : startTerm(); }, 30);
 }
 $('#restart').onclick = async () => { if (!K) return; await api('term/stop', { k: K }); term.reset(); setTimeout(startTerm, 400); };
 

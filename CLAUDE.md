@@ -952,12 +952,16 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
 **Run it from a terminal, not the app's preview** — the preview's sandbox stops Claude Code starting (it hangs, printing nothing):
 `python3 kept/serve.py` → localhost:5350/kept/. The pane's Claude Code needs `/login` once.
 
-- **Organised like Figma (2026-10-14, John: "the left side should be projects… collapsible… make sense in terms of what I'm working
-  on"):** the sidebar is **Working on** (active directions touched in the last three weeks, any project) then **Projects**, each
-  folding open onto its **things** (Peek → Tide pool, Cooking, Moby Dick…). A thing's canvas is its directions as rows, versions
-  left to right, newest at the right, set-aside rows faded with their reason. Click a frame to open that version; the bar's crumbs
-  go back. Things come from `data/things.json` (Claude grouped the 80 history directions once; regroup by editing it) plus any made
-  here ("New thing" under a project); a direction in none sits in Loose. The fold state is per browser (`kept-fold`).
+- **As little as it takes (2026-10-14, John: "is it projects and that's it? … a Main tree, then branches … and hit Push"; "I just
+  want it to work"):** the sidebar is projects only, most recently touched first (that's Recents; Working on and Things were taken
+  out). A project is **Main** (what's live: its commits on main, as pictures) over the **branches** open on it, each its own folder
+  and Claude, then **Closed**, folded, each with its reason (history's set-aside and paused ideas live there, and the recall still
+  reads them). **Just start typing**: with no branch open the right side is a box; what you type becomes a branch named from your
+  words, and its Claude is handed the prompt once it's up (`start()`). Nothing edits Main directly. **Push** = merge into main in
+  the main folder and `git push origin main`, so it goes live (John chose this over a PR step). If your own unsaved edits in the
+  main folder touch the same files, git refuses, nothing changes, and Kept says which files; the branch stays. Push tested
+  end to end in a throwaway repo with a fake remote (merge, push, folder removed; and the refusal), never on the real site.
+  `data/things.json` is still read by the old code paths but no longer shown.
 - The mapping to git, for when a team needs it: direction = branch, version = commit, Push = open a PR (a preview link),
   Settled = merged into main, Set aside = closed with the reason.
 - **A folder per direction, so ideas never collide (2026-10-14, John: "I always want to try multiple things but I'm always

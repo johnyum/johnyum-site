@@ -196,6 +196,40 @@ def working_on(limit=8, days=21):
     return [r for r in rows if r['last'] >= newest - days * 86400][:limit]
 
 
+def main_versions(project, n=40):
+    """Main's strip: the commits on main that touched this project, oldest first. What's live, and how it got there."""
+    paths = [x.rstrip('/') for x in P[project]['paths']]
+    out = git('log', 'main', f'-n{n}', '--format=%h%x09%at%x09%s', '--', *paths, check=False).decode().strip().split('\n')
+    th = thumbs()
+    vs = []
+    for line in reversed([l for l in out if l]):
+        sha, t, subj = line.split('\t', 2)
+        sha = sha[:7]
+        e = th.get(sha, {})
+        pic = (e.get('pics') or [{}])[0].get('src')
+        shot = pic or (e.get('shot') or {}).get('src') or (f'{sha}.jpg' if os.path.exists(os.path.join(THUMBS, f'{sha}.jpg')) else None)
+        vs.append({'sha': sha, 't': int(t), 'note': short(subj, 90), 'prompt': subj, 'shot': shot,
+                   'page': (e.get('shot') or {}).get('url', '').lstrip('/') or P[project]['page'], 'from': 'main'})
+    return vs
+
+
+OPEN = ('active',)                 # a branch you're working on
+CLOSED = ('set_aside', 'paused', 'closed')
+
+
+def project_view(project):
+    """One project: Main (what's live), the branches open on it, and what was closed and why.
+    The four months' settled and active work is Main's history now; set-aside and paused ideas are Closed."""
+    ds = directions(project)
+    branches = [d for d in ds if d['kind'] == 'new' and d['status'] in OPEN]
+    branches.sort(key=lambda d: -max([v['t'] for v in d['versions']] or [d.get('t', 0)]))
+    closed = [d for d in ds if d['status'] in CLOSED]
+    closed.sort(key=lambda d: -max([v['t'] for v in d['versions']] or [d.get('t', 0)]))
+    main = main_versions(project)
+    last = max([v['t'] for v in main] + [v['t'] for d in branches for v in d['versions']] + [d.get('t', 0) for d in branches] + [0])
+    return {'main': main, 'branches': branches, 'closed': closed, 'last': last}
+
+
 def find(did):
     proj = did.split('-')[1] if did.startswith('h-') else S['directions'].get(did, {}).get('project', '')
     return next((d for d in directions(proj) if d['id'] == did), None)
@@ -347,6 +381,79 @@ def open_pr(did):
         w['pr'] = url
         save(S)
     return url
+
+
+def name_from(prompt):
+    """A branch named from what was asked: its first few words, the way you'd say it."""
+    w = re.sub(r'\s+', ' ', re.sub(r'[^\w\s\'-]', ' ', prompt)).strip().split(' ')
+    n = ' '.join(w[:6])
+    return (n[:1].upper() + n[1:]) if n else 'Untitled'
+
+
+def start(project, prompt, cols=100, rows=30):
+    """Just start typing: a new branch with its own folder and Claude, and the prompt handed to it once it's up."""
+    with LOCK:
+        did = 'd' + str(int(time.time() * 1000))[-9:]
+        S['directions'][did] = {'project': project, 'title': name_from(prompt), 'status': 'active', 'why': '',
+                                'quotes': [], 't': int(time.time()), 'versions': []}
+        S['current'] = {'project': project, 'direction': did}
+        save(S)
+    t = term(did, make=True)
+    t.start(cols, rows)
+
+    def hand_over():
+        end = time.time() + 25
+        while time.time() < end and b'\xe2\x9d\xaf' not in bytes(t.buf):   # the prompt mark: Claude is ready
+            time.sleep(0.3)
+        time.sleep(0.6)
+        t.write(prompt.encode())
+        time.sleep(0.4)
+        t.write(b'\r')
+    threading.Thread(target=hand_over, daemon=True).start()
+    return did
+
+
+def push(did):
+    """Push: put a branch into main and send it live. It merges in the main folder, so if your own unsaved
+    edits there touch the same files, git refuses and nothing changes; you're told why."""
+    with LOCK:
+        w, d = S['wt'][did], find(did)
+        keep(did, 'Kept before pushing')
+        if git('rev-parse', '--abbrev-ref', 'HEAD').decode().strip() != 'main':
+            raise RuntimeError('The main folder is not on main. Switch it back to main, then push.')
+        r = subprocess.run(['git', 'merge', '--no-ff', '--no-edit', '-m', f"{d['title']} (from Kept)", w['branch']],
+                           cwd=ROOT, capture_output=True, text=True)
+        if r.returncode:
+            subprocess.run(['git', 'merge', '--abort'], cwd=ROOT, capture_output=True)
+            out = r.stderr + r.stdout
+            mine = re.findall(r'^\t(\S+)$', out, re.M)
+            if 'local changes' in out and mine:
+                raise RuntimeError(f"Not pushed. You have unsaved edits in the main folder to {', '.join(mine[:4])}, which this branch "
+                                   f"also changes. Save or undo them there, then Push again. Nothing changed.")
+            if 'CONFLICT' in out:
+                raise RuntimeError('Not pushed. Main has changed the same lines since this branch started; ask its Claude to '
+                                   '"bring in the latest main and resolve it", then Push again. Nothing changed.')
+            raise RuntimeError('Not pushed: ' + out.strip()[-300:])
+        merged = git('rev-parse', '--short=7', 'HEAD').decode().strip()
+        r = subprocess.run(['git', 'push', 'origin', 'main'], cwd=ROOT, capture_output=True, text=True)
+        live = r.returncode == 0
+        S['directions'][did].update(status='pushed', pushed=int(time.time()), merged=merged, live=live)
+        save(S)
+        t = TERMS.pop(did, None)
+        t and t.stop()
+        # Its folder has done its job; the branch stays, so its history is still there.
+        subprocess.run(['git', 'worktree', 'remove', '--force', w['path']], cwd=ROOT, capture_output=True)
+        if not live:
+            raise RuntimeError('Merged into main, but the push to GitHub failed: ' + r.stderr.strip()[-200:])
+        return merged
+
+
+def close(did, why):
+    with LOCK:
+        S['directions'][did].update(status='closed', why=why or '', closed=int(time.time()))
+        save(S)
+        t = TERMS.pop(did, None)
+        t and t.stop()
 
 
 # ---------------------------------------------------------------- memory
@@ -663,6 +770,12 @@ class Handler(SimpleHTTPRequestHandler):
                     save(S)
                     folder(did, j.get('from'))
                     return self.send_json(state())
+                if p == '/kept/api/start':
+                    start(j['project'], j['prompt'], int(j.get('cols', 100)), int(j.get('rows', 30)))
+                    return self.send_json(state())
+                if p == '/kept/api/close':
+                    close(j['direction'], j.get('why'))
+                    return self.send_json(state())
                 if p == '/kept/api/build':
                     folder(j['direction'])
                     return self.send_json(state())
@@ -685,6 +798,8 @@ class Handler(SimpleHTTPRequestHandler):
                     v = keep(did, j.get('note') or 'Saved by hand') if did in S['wt'] else \
                         snapshot(find(did)['project'], did, j.get('note') or 'Saved by hand')
                     return self.send_json({'version': v, **state()})
+            if p == '/kept/api/push':
+                return self.send_json({'merged': push(j['direction']), **state()})
             if p == '/kept/api/pr':
                 return self.send_json({'url': open_pr(j['direction']), **state()})
         except Exception as e:  # the page shows it; the server keeps going
@@ -694,16 +809,28 @@ class Handler(SimpleHTTPRequestHandler):
 
 def state():
     return {
-        'projects': [{'key': p['key'], 'name': p['name'], 'page': p['page'], 'things': things(p['key'])} for p in PROJECTS],
-        'working_on': working_on(),
+        'projects': sorted([dict(project_view(p['key']), key=p['key'], name=p['name'], page=p['page']) for p in PROJECTS],
+                           key=lambda x: -x['last']),
         'current': S.get('current'),
         'nudges': {k: v for k, v in NUDGES.items() if v and time.time() - v['t'] < 600},
         'main': {'running': bool(term(MAIN) and term(MAIN).alive()), 'building': building(MAIN)},
     }
 
 
+def shoot_main(per=12):
+    """Main's strip should be pictures: shoot the newest commits in each project that have none yet, once, quietly."""
+    time.sleep(3)
+    for p in PROJECTS:
+        for v in main_versions(p['key'])[-per:]:
+            if v['shot']:
+                continue
+            files = git('show', '--name-only', '--format=', v['sha']).decode().split('\n')
+            shoot(v['sha'], page_for(p['key'], [f for f in files if f]))
+
+
 if __name__ == '__main__':
     print(f'Kept on http://localhost:{PORT}/kept/  (worktrees in {WT})')
+    threading.Thread(target=shoot_main, daemon=True).start()
     srv = ThreadingHTTPServer(('127.0.0.1', PORT), functools.partial(Handler, directory=ROOT))
     srv.daemon_threads = True
     srv.serve_forever()
