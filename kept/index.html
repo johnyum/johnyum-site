@@ -154,6 +154,16 @@ h2 span { color: var(--ink-3); font-weight: 400; }
 .clash .pane.big .frame { border: 2px solid var(--ink); }
 .clash .acts { display: flex; gap: 8px; align-items: center; }
 .clash.with-convo { padding-bottom: 200px; }
+.piles { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; align-content: start; }
+.pile { border: 1px solid var(--line-2); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.pile.off { opacity: .4; }
+.pile .frame { height: 150px; flex: none; }
+.pile input[type=text] { font: inherit; font-weight: 600; border: 0; border-bottom: 1px solid var(--line); padding: 2px 0; outline: none; }
+.pile select { font: inherit; font-size: 12px; border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 6px; background: var(--bg); }
+.pile .why { color: var(--ink-3); font-size: 12px; }
+.pile .files { font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+.pile label { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--ink-2); }
+.reading { flex: 1; display: grid; place-items: center; color: var(--ink-3); }
 .err { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 12px; border-radius: 6px; font-size: 12px; z-index: 9; max-width: 80vw; }
 </style>
 </head>
@@ -165,7 +175,7 @@ h2 span { color: var(--ink-3); font-weight: 400; }
     <div class="stage" id="stagebox"><iframe id="stage2" title="Main"></iframe><span class="tag2" id="tag2">Main · live</span><iframe id="stage" title="The work"></iframe><span class="tag hide" id="tag"></span>
       <div class="versions" id="versions"></div></div>
     <div class="clash hide" id="clash"></div>
-    <div class="fresh hide" id="fresh"><div><h1>What do you want to make?</h1><p>It starts as a new project, with Claude building the first version. Nothing is live until you Push.</p></div></div>
+    <div class="fresh hide" id="fresh"><div><h1>What do you want to work on?</h1><p>Talk across anything: the deck, Peek, something new. When you're done, Sort it,<br>and Kept files what you made into the right projects. Nothing is live until you Push.</p></div></div>
     <div class="below" id="below"></div>
     <div class="convo" id="convo"></div>
     <form class="box" id="box"><textarea id="q" rows="1" aria-label="Message"></textarea>
@@ -221,7 +231,7 @@ function render() {
 }
 
 function nav() {
-  put($('#nav'), `<div class="brand">Kept</div>` + S.projects.map(p => {
+  put($('#nav'), `<div class="brand">Kept</div>` + S.projects.filter(p => p.key !== 'sessions' || p.branches.length).map(p => {
     const busy = p.branches.some(b => b.building);
     return `<button class="proj${p.key === cur().project && !creating ? ' on' : ''}" data-p="${p.key}">${busy ? '<span class="dot pulse" title="Claude is working"></span>' : ''}<span class="t">${esc(p.name)}</span><span class="n">${p.branches.length || ''}</span></button>`;
   }).join('') + `<button class="plus${creating ? ' on' : ''}" id="plus" title="Start something new" aria-label="Start something new"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg></button>`,
@@ -243,7 +253,7 @@ function bar() {
     ${open && t.behind && !t.conflict ? `<span class="moved">Main has moved · ${t.behind} change${t.behind === 1 ? '' : 's'}<button class="btn" id="bringin" title="Bring what others pushed into your version">Bring in</button></span>` : ''}
     ${!t ? `<button class="btn quiet" id="hist">${showHist ? 'Hide history' : 'History'}</button>` : ''}
     ${viewing ? `<button class="btn quiet" id="back">Back to now</button>` : ''}
-    ${open ? `<button class="btn quiet" id="close">Close</button>${t.folder && t.versions.length ? `<button class="btn dark" id="push" title="Put this thread into Main and send it live">Push</button>` : ''}` : ''}`,
+    ${open ? `<button class="btn quiet" id="close">Close</button>${t.project === 'sessions' ? `<button class="btn dark" id="sortit" title="Kept reads the session and files what you made into the right projects">Sort it</button>` : t.folder && t.versions.length ? `<button class="btn dark" id="push" title="Put this thread into Main and send it live">Push</button>` : ''}` : ''}`,
   el => {
     el.querySelector('[data-home]') && (el.querySelector('[data-home]').onclick = () => go(p.key));
     el.querySelector('#back') && (el.querySelector('#back').onclick = () => { viewing = null; render(); stage(true); });
@@ -259,6 +269,7 @@ function bar() {
       const why = prompt(`Close "${t.title}"? Why, in a line (Kept remembers it if you try this again):`); if (why === null) return;
       S = await api('close', { direction: t.id, why }); go(p.key);
     });
+    el.querySelector('#sortit') && (el.querySelector('#sortit').onclick = async () => { S = await api('sort', { direction: t.id }); render(); });
     el.querySelector('#push') && (el.querySelector('#push').onclick = async () => {
       if (!confirm(`Push "${t.title}" into Main? It merges and goes live.`)) return;
       el.querySelector('#push').textContent = 'Pushing…';
@@ -290,7 +301,7 @@ function convo() {
   const t = threadOf();
   if (!t) return put($('#convo'), '');
   const last = (t.chat || []).slice(-1)[0];
-  if ((t.conflict || t.resolved) && !t.building && !last?.error) return put($('#convo'), '');
+  if ((t.conflict || t.resolved || t.plan || t.planning) && !t.building && !last?.error) return put($('#convo'), '');
   const chat = t.chat || [], nudge = S.nudges[t.id];
   const shown = showAll ? chat : chat.slice(-2);
   const msg = m => m.role === 'you' ? `<div class="msg you">${esc(m.text)}</div>`
@@ -310,8 +321,43 @@ function convo() {
 }
 
 /* Main changed the same part you did: Main now, yours, and how it started, side by side; then the combined one. */
+function sortScreen(t, el) {
+  const pl = t.plan, P = S.projects.filter(p => p.key !== 'sessions');
+  el.classList.remove('with-convo');
+  if (t.planning) return put(el, `<h3>Sorting the session</h3><p class="sub">Reading what you asked and what changed…</p><div class="reading">One moment</div>`);
+  if (!pl.piles.length) return put(el, `<h3>Nothing to sort</h3><p class="sub">${esc(pl.note || '')}</p><div class="acts"><button class="btn" id="cancel">Back</button></div>`,
+    e => e.querySelector('#cancel').onclick = async () => { S = await api('cancelsort', { direction: t.id }); render(); });
+  const opts = cur => P.map(p => `<option value="${p.key}"${p.key === cur ? ' selected' : ''}>${esc(p.name)}</option>`).join('')
+    + (cur.startsWith('new:') ? `<option value="${esc(cur)}" selected>New project: ${esc(cur.slice(4))}</option>` : '')
+    + `<option value="sessions"${cur === 'other' || cur === 'sessions' ? ' selected' : ''}>Not a project (keep as a session)</option>`;
+  put(el, `<h3>This session splits into ${pl.piles.length} thread${pl.piles.length === 1 ? '' : 's'}</h3>
+    <p class="sub">Each becomes its own thread in its project, with only its own changes. Rename one, move it, or leave it out.</p>
+    <div class="piles">${pl.piles.map((x, i) => `<div class="pile" data-i="${i}">
+      <div class="frame"><iframe src="${x.page !== undefined ? `/kept/v/${pl.head}/${x.page}` : 'about:blank'}" title="${esc(x.title)}"></iframe></div>
+      <input type="text" value="${esc(x.title)}" aria-label="Thread name">
+      <select aria-label="Project">${opts(x.project)}</select>
+      <p class="why">${esc(x.why)}</p><p class="files">${x.files.map(esc).join('<br>')}</p>
+      <label><input type="checkbox" checked> Make this thread</label></div>`).join('')}</div>
+    <div class="acts"><button class="btn dark" id="make">Make these threads</button><button class="btn quiet" id="cancel">Not yet</button></div>`,
+  e => {
+    e.querySelectorAll('.pile input[type=checkbox]').forEach(c => c.onchange = () => c.closest('.pile').classList.toggle('off', !c.checked));
+    e.querySelector('#cancel').onclick = async () => { S = await api('cancelsort', { direction: t.id }); render(); };
+    e.querySelector('#make').onclick = async () => {
+      const piles = [...e.querySelectorAll('.pile')].filter(d => d.querySelector('input[type=checkbox]').checked).map(d => {
+        const x = pl.piles[+d.dataset.i];
+        return { ...x, title: d.querySelector('input[type=text]').value.trim() || x.title, project: d.querySelector('select').value };
+      });
+      if (!piles.length) return oops('Pick at least one to make, or choose Not yet.');
+      e.querySelector('#make').textContent = 'Making threads…';
+      try { S = await api('applysort', { direction: t.id, piles }); creating = false; render(); stage(true); } catch (err) { render(); }
+    };
+  });
+}
+
 function clash() {
-  const t = threadOf(), c = t && (t.conflict || t.resolved), el = $('#clash');
+  const t = threadOf(), el = $('#clash');
+  if (t && (t.planning || t.plan)) { el.classList.remove('hide'); return sortScreen(t, el); }
+  const c = t && (t.conflict || t.resolved);
   el.classList.toggle('hide', !c);
   if (!c) return put(el, '');
   const pane = (label, note, src, big) => `<div class="pane${big ? ' big' : ''}"><b>${label} <span>${note}</span></b><div class="frame"><iframe src="${src}" title="${label}"></iframe></div></div>`;
@@ -344,7 +390,7 @@ function versions() {
 /* The box: one place to say what you want. */
 function box() {
   const t = creating ? null : threadOf(), q = $('#q'), busy = t && t.building;
-  q.placeholder = creating ? 'A guestbook page where visitors leave a doodle' : t ? (t.status !== 'active' ? 'This thread is closed' : t.conflict ? 'How should they combine? e.g. keep their colours, my layout' : `What next for “${short(t.title, 40)}”?`) : `What do you want to try in ${proj().name}?`;
+  q.placeholder = creating ? 'Tighten the deck opening, then try a softer dial on the Peek timer' : t ? (t.status !== 'active' ? 'This thread is closed' : t.conflict ? 'How should they combine? e.g. keep their colours, my layout' : `What next for “${short(t.title, 40)}”?`) : `What do you want to try in ${proj().name}?`;
   q.disabled = !!(t && t.status !== 'active');
   const send = $('#send');
   send.classList.toggle('stop', !!busy);
@@ -359,7 +405,7 @@ $('#box').onsubmit = async e => {
   if (t && t.building && !creating) { S = await api('stop', { direction: t.id }); return render(); }
   const text = q.value.trim(); if (!text) return;
   if (creating) {
-    try { S = await api('newproject', { text }); creating = false; q.value = ''; q.style.height = 'auto'; viewing = null; lastCount = 0; render(); stage(true); } catch (err) {}
+    try { S = await api('talk', { text }); creating = false; q.value = ''; q.style.height = 'auto'; viewing = null; lastCount = 0; render(); stage(true); } catch (err) {}
     return;
   }
   try {

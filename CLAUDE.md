@@ -988,6 +988,16 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   is a blank start ("What do you want to make?"): a sentence makes a new project, a new folder named from the words
   (`new_project()`, kept in build.json's `made`), with a first thread building it as one self-contained page; it goes live only
   when pushed. Tested with a real new project, then removed.
+- **Just talk, then Sort it (2026-10-14, John: "if I keep talking and building, can the AI read through it and cut it up into
+  the proper project sections by itself?").** The + is now a free session (`just_talk()`, project `sessions`, shown in the sidebar
+  only while one is open): no project to pick, it works wherever the ask leads. **Sort it** (`plan_sort()`) reads the session: the
+  FILES decide the project (`owner_of()`: a project's folders; a new top-level folder is a new project), the CONVERSATION decides
+  the ideas (headless Claude, `PLAN_SCHEMA`, every file in exactly one pile, enforced after). The piles screen shows each proposed
+  thread as a picture with its name, project and files; rename, move or leave one out, then **Make these threads**
+  (`apply_sort()`): each pile's files, and only those, checked out from the session into a new thread off Main, as its v1; the
+  session is marked sorted. With no reading to be had it falls back to one pile per project. Tested 2026-10-14: one session
+  touched the deck, the front page and a new folder; it split into three threads, one file each, Main untouched; then removed.
+  Not yet: splitting two ideas tangled in the same lines of one file (piles are whole files for now).
 - The mapping to git, for when a team needs it: direction = branch, version = commit, Push = open a PR (a preview link),
   Settled = merged into main, Set aside = closed with the reason.
 - **A folder per direction, so ideas never collide (2026-10-14, John: "I always want to try multiple things but I'm always

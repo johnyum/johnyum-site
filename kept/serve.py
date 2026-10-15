@@ -51,6 +51,9 @@ PROJECTS = [
     {'key': 'icons',   'name': 'Icon systems',        'paths': ['claude-icons/', 'playful/', 'icons/'],     'page': 'claude-icons/index.html'},
     {'key': 'site',    'name': 'johnyum.com',         'paths': ['index.html', 'img/', 'Website_Images/'],   'page': ''},
 ]
+# Free sessions (the +): you just talk, across anything, and sort it into projects when you're done.
+SESSIONS = 'sessions'
+PROJECTS.append({'key': SESSIONS, 'name': 'Sessions', 'paths': [], 'page': ''})
 P = {p['key']: p for p in PROJECTS}
 LOCK = threading.RLock()
 
@@ -157,6 +160,8 @@ def directions(project):
             d['behind'] = int(git('rev-list', '--count', f"{w['branch']}..main", check=False).decode().strip() or 0)
             d['head'] = git('rev-parse', '--short=7', w['branch'], check=False).decode().strip()
         src = S['directions'].get(d['id'], {})
+        d['plan'] = src.get('plan')
+        d['planning'] = src.get('planning')
         d['conflict'] = src.get('conflict')
         d['resolved'] = src.get('resolved')
     return ds
@@ -210,6 +215,8 @@ def working_on(limit=8, days=21):
 def main_versions(project, n=40):
     """Main's strip: the commits on main that touched this project, oldest first. What's live, and how it got there."""
     paths = [x.rstrip('/') for x in P[project]['paths']]
+    if not paths:
+        return []
     out = git('log', 'main', f'-n{n}', '--format=%h%x09%at%x09%s', '--', *paths, check=False).decode().strip().split('\n')
     th = thumbs()
     vs = []
@@ -699,6 +706,140 @@ def turn(did, text, allow=None, send=None):
     threading.Thread(target=run, daemon=True).start()
 
 
+def just_talk(text):
+    """The +: a free session. No project to pick; it works wherever the ask leads, and is sorted when you're done."""
+    if len(re.findall(r'\w+', text)) < 3:
+        raise RuntimeError('Say a little more: a few words about what you want to do.')
+    hint = ("\n\n(This is a free session in the whole repo: work wherever the request leads. If it's something new, "
+            "make it a new folder with one self-contained index.html, inline CSS and JS, no build step.)")
+    return begin(SESSIONS, text, send=text + hint)
+
+
+def owner_of(f):
+    """Which project a file belongs to: its folder decides. A new top-level folder is a new project."""
+    for p in PROJECTS:
+        if p['key'] == SESSIONS:
+            continue
+        for x in p['paths']:
+            if f == x.rstrip('/') or f.startswith(x if x.endswith('/') else x + '/') or f == x:
+                return p['key']
+    top = f.split('/')[0]
+    if '/' in f and subprocess.run(['git', 'cat-file', '-e', f'main:{top}'], cwd=ROOT, capture_output=True).returncode:
+        return 'new:' + top
+    return 'other'
+
+
+PLAN_SCHEMA = {'type': 'object', 'additionalProperties': False, 'required': ['piles'], 'properties': {'piles': {
+    'type': 'array', 'items': {'type': 'object', 'additionalProperties': False, 'required': ['title', 'project', 'files', 'why'],
+                               'properties': {'title': {'type': 'string'}, 'project': {'type': 'string'},
+                                              'files': {'type': 'array', 'items': {'type': 'string'}}, 'why': {'type': 'string'}}}}}}
+
+
+def plan_sort(did):
+    """Read the session (what was asked, what changed) and propose how to cut it into threads, one per idea,
+    each in the project its files belong to. Files decide the project; the conversation decides the ideas."""
+    d, w = S['directions'][did], S['wt'][did]
+    try:
+        keep(did, 'Kept before sorting')
+        head = git('rev-parse', 'HEAD', cwd=w['path']).decode().strip()
+        rows = [l.split('\t') for l in git('diff', '--name-status', '--no-renames', w['base'], head, cwd=w['path']).decode().split('\n') if l]
+        files = [r[-1] for r in rows]
+        if not files:
+            d['plan'] = {'head': head, 'piles': [], 'note': 'Nothing changed in this session, so there is nothing to sort.'}
+            return
+        guess = {f: owner_of(f) for f in files}
+        stat = git('diff', '--stat=120', w['base'], head, cwd=w['path']).decode()
+        talk = '\n'.join(f"{'HIM' if m['role'] == 'you' else 'CLAUDE'}: {short(m.get('text') or '', 400)}" for m in d.get('chat', []))
+        names = ', '.join(f"{p['key']} ({p['name']})" for p in PROJECTS if p['key'] != SESSIONS)
+        ask = (f"A designer just finished a free working session. Cut what it changed into piles, one per idea he worked on, "
+               f"so each pile becomes its own thread.\n\nProjects: {names}. A file's project is given below; keep it unless it is "
+               f"clearly wrong. Use 'new:<folder>' for a new top-level folder, 'other' for anything else.\n\n"
+               f"Rules: every file goes in exactly one pile. One pile per idea; ideas in different projects are always separate "
+               f"piles. Title each pile the way he'd say it, three to six words. 'why' is one short sentence. Plain language.\n\n"
+               f"THE CONVERSATION\n{talk}\n\nWHAT CHANGED\n{stat}\nFILES AND THEIR PROJECTS\n" +
+               '\n'.join(f'{f}  ->  {guess[f]}' for f in files))
+        piles = None
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                env = {k: v for k, v in os.environ.items() if not (k.startswith('CLAUDE_CODE') or k in ('CLAUDECODE', 'CLAUDE_AGENT_SDK_VERSION'))}
+                r = subprocess.run([CLAUDE, '-p', '--output-format', 'json', '--tools', '', '--no-session-persistence',
+                                    '--json-schema', json.dumps(PLAN_SCHEMA)], input=ask, capture_output=True, text=True,
+                                   cwd=tmp, env=env, timeout=240)
+            out = json.loads(r.stdout)
+            piles = (out.get('structured_output') or json.loads(out['result']))['piles']
+        except Exception:
+            piles = None
+        if not piles:   # no reading to be had: one pile per project, which is the part that's never wrong
+            by = {}
+            for f in files:
+                by.setdefault(guess[f], []).append(f)
+            piles = [{'title': (P[k]['name'] if k in P else k.replace('new:', 'New: ')), 'project': k, 'files': fs,
+                      'why': 'Everything this session changed there.'} for k, fs in by.items()]
+        # Every file exactly once, whatever the reading said.
+        seen = set()
+        for pl in piles:
+            pl['files'] = [f for f in pl['files'] if f in guess and f not in seen and not seen.add(f)]
+        left = [f for f in files if f not in seen]
+        for f in left:
+            home = next((pl for pl in piles if pl['project'] == guess[f]), None)
+            if home:
+                home['files'].append(f)
+            else:
+                piles.append({'title': guess[f], 'project': guess[f], 'files': [f], 'why': 'Left over.'})
+        piles = [pl for pl in piles if pl['files']]
+        for pl in piles:
+            if pl['project'] not in P and not pl['project'].startswith('new:'):
+                pl['project'] = 'other'
+            key = pl['project'] if pl['project'] in P else SESSIONS
+            pl['page'] = page_for(key, pl['files']) if key != SESSIONS or any(f.endswith('.html') for f in pl['files']) else ''
+            if pl['project'].startswith('new:') and not pl['page']:
+                pl['page'] = pl['project'][4:] + '/'
+        d['plan'] = {'head': head, 'piles': piles}
+    except Exception as e:
+        d['plan'] = {'piles': [], 'note': f'Could not sort it: {str(e)[-200:]}'}
+    finally:
+        d['planning'] = False
+        save(S)
+
+
+def apply_sort(did, piles):
+    """Make the threads: each pile's changes, and only those, in a new thread in its project, from Main."""
+    with LOCK:
+        d = S['directions'][did]
+        head = d['plan']['head']
+        made = []
+        for pl in piles:
+            key = pl['project']
+            if key.startswith('new:'):
+                folder_name = key[4:]
+                if folder_name not in P:
+                    proj = {'key': folder_name, 'name': pl['title'], 'paths': [folder_name + '/'], 'page': folder_name + '/',
+                            'made': int(time.time())}
+                    PROJECTS.append(proj)
+                    P[folder_name] = proj
+                    S['made'].append(proj)
+                key = folder_name
+            if key not in P or key == SESSIONS:
+                key = SESSIONS
+            nid = 'd' + str(int(time.time() * 1000))[-9:] + str(len(made))
+            S['directions'][nid] = {'project': key, 'title': pl['title'], 'status': 'active', 'why': '', 'quotes': [],
+                                    't': int(time.time()), 'versions': [], 'from_session': did,
+                                    'chat': [{'role': 'claude', 'text': f"Sorted out of the session “{d['title']}”: {pl.get('why', '')}",
+                                              't': int(time.time()), 'steps': []}]}
+            w = folder(nid)
+            for f in pl['files']:
+                if subprocess.run(['git', 'cat-file', '-e', f'{head}:{f}'], cwd=ROOT).returncode == 0:
+                    git('checkout', head, '--', f, cwd=w['path'])
+                else:
+                    subprocess.run(['git', 'rm', '-q', '--ignore-unmatch', '--', f], cwd=w['path'], capture_output=True)
+            keep(nid, pl['title'])
+            made.append(nid)
+        d.update(status='sorted', why=f"Sorted into {len(made)} thread{'s' if len(made) != 1 else ''}", plan=None)
+        S['current'] = {'project': S['directions'][made[0]]['project'], 'direction': None} if made else S.get('current')
+        save(S)
+        return made
+
+
 def new_project(text):
     """The + in the sidebar: something new from scratch. A new folder in the repo, named from the words, and a first
     thread already building it. Nothing is live until it's pushed."""
@@ -1014,6 +1155,25 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.send_json(state())
                 if p == '/kept/api/newproject':
                     new_project((j.get('text') or '').strip())
+                    return self.send_json(state())
+                if p == '/kept/api/talk':
+                    just_talk((j.get('text') or '').strip())
+                    return self.send_json(state())
+                if p == '/kept/api/sort':
+                    did = j['direction']
+                    if did in RUNS:
+                        raise RuntimeError('Claude is still working. Wait, or stop it, then sort.')
+                    S['directions'][did]['planning'] = True
+                    S['directions'][did].pop('plan', None)
+                    save(S)
+                    threading.Thread(target=plan_sort, args=(did,), daemon=True).start()
+                    return self.send_json(state())
+                if p == '/kept/api/applysort':
+                    apply_sort(j['direction'], j['piles'])
+                    return self.send_json(state())
+                if p == '/kept/api/cancelsort':
+                    S['directions'][j['direction']].pop('plan', None)
+                    save(S)
                     return self.send_json(state())
                 if p == '/kept/api/bringin':
                     bring_in(j['direction'])
