@@ -38,24 +38,9 @@ body { background: var(--bg); color: var(--ink); font: 13px/1.45 var(--sans); -w
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
 p { margin: 0; }
 img { display: block; }
-.app { display: grid; height: 100vh; grid-template-rows: minmax(0, 1fr);
-       grid-template-columns: var(--nw) minmax(0, 1fr) var(--cw, 380px); grid-template-areas: "nav canvas chat"; }
-.app[data-dock="left"] { grid-template-columns: var(--nw) var(--cw, 380px) minmax(0, 1fr); grid-template-areas: "nav chat canvas"; }
-.app[data-dock="bottom"] { grid-template-columns: var(--nw) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) var(--ch, 300px);
-                           grid-template-areas: "nav canvas" "nav chat"; }
-nav { grid-area: nav; } .canvas { grid-area: canvas; } .chat { grid-area: chat; }
-.app[data-dock="left"] .chat { border-left: 0; border-right: 1px solid var(--line); }
-.app[data-dock="bottom"] .chat { border-left: 0; border-top: 1px solid var(--line); }
-.app[data-dock="bottom"] .msgs { padding-top: 8px; }
-/* Moving the chat: grab its bar; the three places it can go light up */
-.chead { cursor: grab; }
-.chead button, .chead select { cursor: pointer; }
-.zones { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
-.zone { position: absolute; border: 2px dashed var(--ink-3); border-radius: 12px; background: rgba(42,111,219,.06); display: grid; place-items: center;
-        color: var(--ink-2); font-size: 12px; transition: background .12s, border-color .12s; }
-.zone.on { background: rgba(42,111,219,.16); border-color: var(--blue); color: var(--ink); }
-.ghost { position: fixed; z-index: 21; pointer-events: none; width: 220px; padding: 10px 12px; border-radius: 10px; background: var(--bg);
-         border: 1px solid var(--line-2); box-shadow: 0 12px 30px rgba(0,0,0,.18); font-weight: 600; font-size: 12px; }
+.app { display: grid; height: 100vh; grid-template-rows: minmax(0, 1fr); grid-template-columns: var(--nw) minmax(0, 1fr); grid-template-areas: "nav work"; }
+nav { grid-area: nav; } .work { grid-area: work; position: relative; overflow: hidden; }
+
 .hide { display: none !important; }
 .sp { flex: 1; }
 .btn { border: 1px solid var(--line-2); border-radius: 6px; padding: 4px 10px; font-size: 12px; white-space: nowrap; background: var(--bg); }
@@ -104,9 +89,9 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
 .plus.on { background: var(--ink); color: var(--bg); }
 
 /* The canvas: every screen the chat is building, floating */
-.canvas { position: relative; overflow: auto; background-color: #fafafa;
+.canvas { position: absolute; inset: 0; overflow: auto; background-color: #fafafa;
           background-image: radial-gradient(circle, #dcdcdc 1px, transparent 1.2px); background-size: 20px 20px; }
-.tools { position: sticky; top: 0; left: 0; z-index: 5; display: flex; gap: 8px; align-items: center; padding: 10px 12px; pointer-events: none; }
+.tools { position: absolute; top: 10px; left: 12px; z-index: 5; display: flex; gap: 8px; align-items: center; pointer-events: none; }
 .tools > * { pointer-events: auto; }
 .seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 7px; padding: 2px; gap: 2px; background: var(--bg); }
 .seg button { padding: 2px 10px; border-radius: 5px; font-size: 12px; color: var(--ink-2); }
@@ -146,7 +131,7 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
 .dragging iframe { pointer-events: none; }
 
 /* A clash, or sorting a session: over the canvas */
-.clash { position: absolute; inset: 0; background: var(--bg); display: flex; flex-direction: column; padding: 16px; gap: 12px; z-index: 6; }
+.clash { position: absolute; inset: 0; background: var(--bg); display: flex; flex-direction: column; padding: 16px 16px 150px; gap: 12px; z-index: 6; }
 .clash h3 { margin: 0; font-size: 16px; font-weight: 600; }
 .clash .sub { color: var(--ink-3); }
 .clash .three { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 12px; }
@@ -168,52 +153,69 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
 .pile label { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--ink-2); }
 .reading { flex: 1; display: grid; place-items: center; color: var(--ink-3); }
 
-/* The chat */
-.chat { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg); }
-.chead { display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 12px; border-bottom: 1px solid var(--line); flex: 0 0 auto; }
-.chead select { flex: 1; min-width: 0; font: inherit; font-weight: 600; border: 0; background: transparent; color: var(--ink); text-overflow: ellipsis; cursor: pointer; padding: 0; }
-.chead .title { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.newchat { width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center; color: var(--ink-2); }
+/* The chat, floating over the work: its controls top right, its messages as bubbles, the composer bottom centre */
+.chatbar { position: absolute; top: 10px; right: 12px; z-index: 7; display: flex; align-items: center; gap: 6px; max-width: 46%;
+           background: var(--bg); border: 1px solid var(--line-2); border-radius: 10px; padding: 3px 4px 3px 10px; box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+.chatbar:empty { display: none; }
+.chatbar select { min-width: 0; max-width: 260px; font: inherit; font-weight: 600; border: 0; background: transparent; color: var(--ink); text-overflow: ellipsis; cursor: pointer; padding: 0; }
+.chatbar .title { min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.newchat { width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center; color: var(--ink-2); flex: none; }
 .newchat:hover { background: var(--soft); color: var(--ink); }
-.moved { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); background: var(--soft); padding: 6px 12px; flex: 0 0 auto; }
-.msgs { flex: 1; overflow-y: auto; padding: 14px 12px; display: flex; flex-direction: column; gap: 8px; }
-.msgs .hint { margin: auto 0; color: var(--ink-3); text-align: center; padding: 0 20px; }
-.msg { max-width: 92%; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
-.msg.you { align-self: flex-end; background: var(--ink); color: var(--bg); }
-.msg.claude { align-self: flex-start; background: var(--soft); }
+.moved { position: absolute; top: 54px; right: 12px; z-index: 7; display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-2);
+         background: var(--bg); border: 1px solid var(--line-2); border-radius: 10px; padding: 4px 4px 4px 10px; box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+.bubbles { position: absolute; left: 50%; transform: translateX(-50%); bottom: var(--above, 132px); z-index: 7; width: min(680px, calc(100% - 48px));
+           max-height: 52%; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; pointer-events: none;
+           -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 28px); mask-image: linear-gradient(to bottom, transparent 0, #000 28px); }
+.bubbles.all { max-height: calc(100% - 200px); pointer-events: auto; }
+.bubbles > * { pointer-events: auto; }
+.msg { max-width: 84%; padding: 9px 13px; border-radius: 16px; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+       box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+.msg.you { align-self: flex-end; background: var(--ink); color: var(--bg); border-bottom-right-radius: 6px; }
+.msg.claude { align-self: flex-start; background: var(--bg); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
 .msg .steps { color: var(--ink-3); font-size: 12px; margin-top: 2px; }
 .msg .steps.live::after { content: '…'; }
 .msg .vchip { display: inline-block; margin-top: 6px; font-family: var(--mono); font-size: 10px; border: 1px solid var(--line-2); border-radius: 4px; padding: 0 6px; color: var(--ink-2); background: var(--bg); }
 .msg .vchip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .msg .blocked { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-2); display: flex; gap: 10px; align-items: center; color: var(--ink-2); font-size: 12px; }
-.msg.nudge { align-self: stretch; max-width: none; background: var(--bg); border: 1px dashed var(--line-2); color: var(--ink-2); font-size: 12px; }
-.box { margin: 0 12px 12px; display: flex; align-items: flex-end; gap: 8px; border: 1px solid var(--line-2); border-radius: 14px; padding: 10px 10px 10px 12px; flex: 0 0 auto; }
-.box:focus-within { border-color: var(--ink-3); }
-.box textarea { flex: 1; border: 0; outline: none; resize: none; font: inherit; font-size: 14px; line-height: 1.45; max-height: 180px; min-height: 22px; padding: 2px 0; background: transparent; color: var(--ink); }
-.send { flex: 0 0 30px; height: 30px; border-radius: 50%; background: var(--ink); color: var(--bg); display: grid; place-items: center; }
-.send.stop { background: var(--bg); color: var(--ink); border: 1px solid var(--line-2); }
-.gutter { position: fixed; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 8; }
-.gutter.row { top: auto; bottom: auto; left: var(--nw); right: 0; width: auto; height: 6px; cursor: row-resize; }
+.msg.nudge { align-self: stretch; max-width: none; background: var(--bg); border: 1px dashed var(--line-2); color: var(--ink-2); font-size: 12px; box-shadow: none; }
+.showall { align-self: center; font-size: 11px; color: var(--ink-3); background: var(--bg); border: 1px solid var(--line-2); border-radius: 999px; padding: 2px 10px; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+.showall:hover { color: var(--ink); }
+/* Claude's composer: the text on top, a row of controls under it, the clay send button */
+.composer { position: absolute; left: 50%; transform: translateX(-50%); bottom: 20px; z-index: 8; width: min(680px, calc(100% - 48px));
+            background: var(--bg); border: 1px solid var(--line-2); border-radius: 20px; padding: 14px 12px 10px 16px;
+            box-shadow: 0 6px 28px rgba(0,0,0,.10); display: flex; flex-direction: column; gap: 8px; }
+.composer:focus-within { border-color: var(--ink-3); }
+.composer textarea { border: 0; outline: none; resize: none; font: inherit; font-size: 15px; line-height: 1.5; max-height: 200px; min-height: 24px; padding: 0; background: transparent; color: var(--ink); }
+.composer .crow { display: flex; align-items: center; gap: 8px; }
+.composer .side { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line-2); display: grid; place-items: center; color: var(--ink-2); }
+.composer .side:hover { color: var(--ink); border-color: var(--ink-3); }
+.composer .model { margin-left: auto; color: var(--ink-3); font-size: 12.5px; }
+.send { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 8px; background: #c6613f; color: #fff; display: grid; place-items: center; }
+.send:hover { background: #b5562f; }
+.send.stop { background: var(--ink); }
 </style>
 </head>
 <body>
 <div class="app" id="app">
   <nav id="nav"></nav>
-  <section class="canvas" id="canvas">
+  <section class="work">
+    <div class="canvas" id="canvas">
+      <div class="wins" id="wins"></div>
+      <div class="empty hide" id="empty"></div>
+    </div>
     <div class="tools" id="tools"></div>
-    <div class="wins" id="wins"></div>
-    <div class="empty hide" id="empty"></div>
-    <div class="clash hide" id="clash"></div>
-  </section>
-  <section class="chat">
-    <div class="chead" id="chead" title="Drag to move the chat: right, bottom, or left beside the projects"></div>
+    <div class="chatbar" id="chead"></div>
     <div class="moved hide" id="moved"></div>
-    <div class="msgs" id="msgs"></div>
-    <form class="box" id="box"><textarea id="q" rows="1" aria-label="Message"></textarea>
-      <button class="send" id="send" aria-label="Send"></button></form>
+    <div class="clash hide" id="clash"></div>
+    <div class="bubbles" id="msgs"></div>
+    <form class="composer" id="box">
+      <textarea id="q" rows="1" aria-label="Message"></textarea>
+      <div class="crow"><button type="button" class="side" id="fresh" title="New chat" aria-label="New chat"></button><span class="model">Claude Code</span>
+        <button class="send" id="send" aria-label="Send"></button></div>
+    </form>
   </section>
 </div>
-<div class="gutter" id="gutter"></div>
+
 
 <script>
 const $ = s => document.querySelector(s);
@@ -243,7 +245,7 @@ let S = null;            // server state
 let viewing = null;      // a version shown on every screen, or null for now
 let creating = false;    // the + : a free session, not inside any project yet
 let show = 'yours';      // yours | live | both
-let lastCount = -1;
+let lastCount = -1, showAll = false;
 
 const cur = () => S.current || {};
 const proj = () => S.projects.find(p => p.key === cur().project) || S.projects[0];
@@ -350,7 +352,10 @@ function screens() {
   put($('#empty'), creating ? `<div><h1>What do you want to work on?</h1><p>Talk across anything on the right. When you're done, Sort it, and Kept files what you made into the right projects.</p></div>`
     : `<div><h1>${esc(p.name)}</h1><p>Nothing here yet. Say what you want to make in the chat.</p></div>`);
   // Place new windows left to right; keep the ones you've moved where you put them.
-  let x = 40, y = 64, rowH = 0;
+  // New ones start below everything already on the canvas, so nothing lands on top of a screen you can see.
+  let bottom = 0;
+  for (const s2 of list) { const L2 = lay[s2.key]; if (L2) { const [dw, dh] = DEV[L2.dev]; bottom = Math.max(bottom, L2.y + L2.w * dh / dw + 26); } }
+  let x = 40, y = bottom ? bottom + 40 : 64, rowH = 0;
   const W = $('#canvas').clientWidth;
   for (const s of list) {
     let L = lay[s.key];
@@ -477,19 +482,19 @@ function tools() {
 /* ---------------------------------------------------------------- the chat */
 function chead() {
   const p = proj(), t = chatOf();
-  if (creating) { $('#moved').classList.add('hide'); return put($('#chead'), `<span class="title">New session</span>`); }
+  if (creating) { $('#moved').classList.add('hide'); return put($('#chead'), ''); }
   const open = t && t.status === 'active';
   const chats = p.branches;
   put($('#chead'), `${chats.length > 1 || (t && !open) ? `<select id="pick" aria-label="Chats in ${esc(p.name)}">${chats.map(b => `<option value="${b.id}"${t && b.id === t.id ? ' selected' : ''}>${esc(b.title)}</option>`).join('')}${t && !open ? `<option selected>${esc(t.title)} (closed)</option>` : ''}</select>`
-      : `<span class="title">${t ? esc(t.title) : esc(p.name)}</span>`}
+      : t ? `<span class="title">${esc(t.title)}</span>` : ''}
     ${t && t.building ? '<span class="v">working…</span>' : ''}
     ${open ? `<button class="btn quiet" id="close">Close</button>` : ''}
     ${open && t.project === 'sessions' ? `<button class="btn dark" id="sortit" title="Kept reads the session and files what you made into the right projects">Sort it</button>` : ''}
     ${open && t.project !== 'sessions' && t.folder && t.versions.length ? `<button class="btn dark" id="push" title="Put this into Main and send it live">Push</button>` : ''}
-    <button class="newchat" id="newchat" title="New chat in ${esc(p.name)}" aria-label="New chat">${PEN}</button>`,
+    ${t ? `<button class="newchat" id="newchat" title="New chat in ${esc(p.name)}" aria-label="New chat">${PEN}</button>` : ''}`.trim(),
   el => {
     el.querySelector('#pick') && (el.querySelector('#pick').onchange = e => go(p.key, e.target.value));
-    el.querySelector('#newchat').onclick = () => go(p.key, null);
+    el.querySelector('#newchat') && (el.querySelector('#newchat').onclick = () => go(p.key, null));
     el.querySelector('#close') && (el.querySelector('#close').onclick = async () => {
       const why = prompt(`Close "${t.title}"? Why, in a line (Kept remembers it if you try this again):`); if (why === null) return;
       S = await api('close', { direction: t.id, why }); go(p.key, null);
@@ -517,9 +522,12 @@ function msgs() {
     : `<div class="msg claude">${m.text ? esc(m.text) : ''}${m.busy || (!m.text && m.steps.length) ? `<p class="steps${m.busy ? ' live' : ''}">${esc(m.steps.at(-1) || 'Thinking')}</p>` : ''}${
         m.version ? `<br><button class="vchip${viewing === m.version ? ' on' : ''}" data-ver="${m.version}" title="Show every screen as it was here">v${t.versions.findIndex(v => v.sha === m.version) + 1}</button>` : ''}${
         m.blocked ? `<div class="blocked"><span>Claude wants to: ${esc(m.blocked.what)}</span><button class="btn dark" data-allow="${esc(m.blocked.allow)}">Allow</button></div>` : ''}</div>`;
-  put($('#msgs'), chat.length ? (nudge ? `<div class="msg nudge">${esc(nudge.text)}</div>` : '') + chat.map(msg).join('')
-    : `<p class="hint">${creating ? 'Say what you want to do. It can span projects.' : `Say what you want to make or change in ${esc(p.name)}. The screens appear on the canvas as Claude builds them.`}</p>`,
+  const shown = showAll ? chat : chat.slice(-4);
+  put($('#msgs'), (chat.length > 4 ? `<button class="showall" id="showall">${showAll ? 'Show fewer' : `Show all ${chat.length}`}</button>` : '')
+    + (nudge ? `<div class="msg nudge">${esc(nudge.text)}</div>` : '') + shown.map(msg).join(''),
   el => {
+    el.classList.toggle('all', showAll);
+    el.querySelector('#showall') && (el.querySelector('#showall').onclick = () => { showAll = !showAll; msgs(); });
     el.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => { viewing = viewing === b.dataset.ver ? null : b.dataset.ver; render(); });
     el.querySelectorAll('[data-allow]').forEach(b => b.onclick = async () => { S = await api('allow', { direction: t.id, allow: b.dataset.allow }); render(); });
     el.scrollTop = 1e6;
@@ -529,14 +537,18 @@ function msgs() {
 function box() {
   const t = creating ? null : chatOf(), q = $('#q'), busy = t && t.building;
   q.placeholder = creating ? 'Tighten the deck opening, then try a softer dial on the timer' : t && t.status !== 'active' ? 'This chat is closed. Start a new one with the pen above.'
-    : t && t.conflict ? 'How should they combine? e.g. keep their colours, my layout' : t ? 'Reply…' : `What do you want to make in ${proj().name}?`;
+    : t && t.conflict ? 'How should they combine? e.g. keep their colours, my layout' : t ? 'Reply to Claude…' : `How can I help with ${proj().name} today?`;
   q.disabled = !!(t && t.status !== 'active');
   const send = $('#send');
   send.classList.toggle('stop', !!busy);
   send.innerHTML = busy ? STOP : UP;
   send.setAttribute('aria-label', busy ? 'Stop' : 'Send');
 }
-$('#q').addEventListener('input', e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(180, e.target.scrollHeight) + 'px'; });
+const fitAbove = () => $('.work').style.setProperty('--above', ($('#box').offsetHeight + 32) + 'px');
+$('#q').addEventListener('input', e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(200, e.target.scrollHeight) + 'px'; fitAbove(); });
+addEventListener('resize', fitAbove);
+$('#fresh').innerHTML = icon('add');
+$('#fresh').onclick = () => { if (creating) return; showAll = false; go(proj().key, null); };
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#box').requestSubmit(); } });
 $('#box').onsubmit = async e => {
   e.preventDefault();
@@ -547,7 +559,7 @@ $('#box').onsubmit = async e => {
     S = creating ? await api('talk', { text })
       : t && t.conflict ? await api('resolve', { direction: t.id, text })
       : await api('say', { project: proj().key, direction: t && t.status === 'active' ? t.id : null, text });
-    creating = false; q.value = ''; q.style.height = 'auto'; viewing = null;
+    creating = false; q.value = ''; q.style.height = 'auto'; viewing = null; fitAbove();
     lastCount = chatOf()?.versions.length ?? 0;
     render();
   } catch (err) {}
@@ -608,82 +620,16 @@ function clash() {
   });
 }
 
-/* Where the chat sits: right, left (beside the projects) or bottom. Yours to keep, per browser. */
-let dock = 'right';
-try { dock = localStorage.getItem('kept-dock') || 'right'; } catch (e) {}
-function setDock(d) {
-  dock = d; $('#app').dataset.dock = d;
-  try { localStorage.setItem('kept-dock', d); } catch (e) {}
-  requestAnimationFrame(() => { placeGut(); $('#wins').innerHTML = ''; screens(); });
-}
-
-/* Drag the line between the canvas and the chat; it runs along whichever side the chat is on. */
-const gut = $('#gutter');
-const placeGut = () => {
-  const r = $('.chat').getBoundingClientRect();
-  gut.classList.toggle('row', dock === 'bottom');
-  if (dock === 'bottom') { gut.style.top = (r.top - 3) + 'px'; gut.style.left = ''; }
-  else { gut.style.top = ''; gut.style.left = ((dock === 'left' ? r.right : r.left) - 3) + 'px'; }
-};
-gut.onpointerdown = e => {
-  gut.setPointerCapture(e.pointerId); document.body.classList.add('dragging');
-  gut.onpointermove = m => {
-    const app = $('#app');
-    if (dock === 'bottom') app.style.setProperty('--ch', Math.max(180, Math.min(innerHeight - 200, innerHeight - m.clientY)) + 'px');
-    else if (dock === 'left') app.style.setProperty('--cw', Math.max(300, Math.min(innerWidth - 560, m.clientX - navW())) + 'px');
-    else app.style.setProperty('--cw', Math.max(300, Math.min(innerWidth - 560, innerWidth - m.clientX)) + 'px');
-    placeGut();
-  };
-  gut.onpointerup = () => { gut.onpointermove = null; document.body.classList.remove('dragging'); };
-};
-addEventListener('resize', placeGut);
-
-/* Move the chat: grab its bar, drop it on one of the three places. */
-$('#chead').addEventListener('pointerdown', e => {
-  if (e.target.closest('button, select, input')) return;
-  e.preventDefault();
-  const sx = e.clientX, sy = e.clientY;
-  let started = false, zones, ghost, pick = dock;
-  const nav = navW(), W = innerWidth, H = innerHeight;
-  const rects = { left: { l: nav + 8, t: 8, w: 300, h: H - 16, label: 'Left, beside the projects' },
-                  right: { l: W - 308, t: 8, w: 300, h: H - 16, label: 'Right' },
-                  bottom: { l: nav + 316, t: H - 228, w: W - nav - 632, h: 220, label: 'Bottom' } };
-  const move = m => {
-    if (!started) {
-      if (Math.hypot(m.clientX - sx, m.clientY - sy) < 6) return;   // a click on the bar, not a drag
-      started = true; document.body.classList.add('dragging');
-      zones = document.createElement('div'); zones.className = 'zones';
-      zones.innerHTML = Object.entries(rects).map(([k, r]) => `<div class="zone" data-z="${k}" style="left:${r.l}px;top:${r.t}px;width:${r.w}px;height:${r.h}px">${r.label}</div>`).join('');
-      ghost = document.createElement('div'); ghost.className = 'ghost'; ghost.textContent = $('#chead').innerText.split('\n')[0] || 'Chat';
-      document.body.append(zones, ghost);
-    }
-    ghost.style.left = (m.clientX + 12) + 'px'; ghost.style.top = (m.clientY + 12) + 'px';
-    // Nearest place to the pointer wins; being over it decides outright.
-    const x = m.clientX, y = m.clientY;
-    pick = y > H - 240 && x > nav + 300 && x < W - 300 ? 'bottom' : x < (nav + W) / 2 ? 'left' : 'right';
-    zones.querySelectorAll('.zone').forEach(z => z.classList.toggle('on', z.dataset.z === pick));
-  };
-  const up = () => {
-    removeEventListener('pointermove', move); removeEventListener('pointerup', up);
-    if (!started) return;
-    zones.remove(); ghost.remove(); document.body.classList.remove('dragging');
-    if (pick !== dock) setDock(pick);
-  };
-  addEventListener('pointermove', move); addEventListener('pointerup', up);
-});
-$('#app').dataset.dock = dock;
-
 /* The sidebar folds to a strip of icons; per browser. */
 function setSlim(on) {
   $('#app').classList.toggle('slim', on);
   try { localStorage.setItem('kept-slim', on ? '1' : ''); } catch (e) {}
   $('#nav').dataset.h = ''; nav();
-  requestAnimationFrame(() => { placeGut(); screens(); });
+  requestAnimationFrame(() => screens());
 }
 try { if (localStorage.getItem('kept-slim')) $('#app').classList.add('slim'); } catch (e) {}
 
 refresh().then(async () => {
-  placeGut();
   const c = cur();
   if (c.project && !c.direction) await go(c.project);   // land in the project's chat
 });

@@ -1019,8 +1019,13 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   new branch "Copy of …" starts from exactly what that screen showed (live: main's commit; a branch: its work is kept first, then
   its HEAD; `from_direction` on `/api/direction`), its window where you dropped it, its chat open. Let go where it started and
   nothing is made. Tested: a copy of Presentation became a branch at main's commit with its own folder; then removed.
-- **The chat moves (2026-10-14):** grab its bar and drop it right, bottom (full width under the canvas) or left beside the
-  projects; the three places light up while you drag; the resize line follows it (`dock`, per browser in `kept-dock`).
+- **The chat floats (2026-10-14, John: "not something sticky; I just want the chat box, Claude's, bottom centred, floating, and
+  the chats and replies as floating bubbles above").** No chat panel and no docking: the work fills everything right of the
+  projects. Claude's composer floats bottom centre (text on top; a row under it with + for a new chat, "Claude Code", and the clay
+  send button), the last four messages float above it as bubbles (yours dark on the right, Claude's white on the left; "Show all"
+  for the rest; they ride above the composer however tall it grows, `--above`), and the chat's controls (which chat, Close, Push,
+  Sort it, a pen for a new chat) are a small bar top right, there only while a chat is open. New screens land below whatever is
+  already on the canvas, never on top of one.
 - **Project icons are Google Material Symbols, outlined** (off Google Fonts; `ICONS` in the page): Presentation `slideshow`,
   AI Chat Animations `animation`, Trip Creator `travel_explore`, Johnyum.com `language`, Multi Cal `calendar_month`, Icon
   Systems `interests`, Sessions `forum`. **The black dot** (Material Symbols `circle`, filled; the font is loaded with FILL 0..1
