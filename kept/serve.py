@@ -640,11 +640,32 @@ def allow_rules(tool, inp):
     return '\n'.join(f'Bash({p}:*)' for p in progs) or 'Bash'
 
 
-def turn(did, text, allow=None, send=None, pointer=None):
+def page_file(pg):
+    """A screen's page as the file behind it: '' is index.html, 'lantern/' is lantern/index.html."""
+    pg = (pg or '').lstrip('/')
+    return pg + 'index.html' if pg == '' or pg.endswith('/') else pg
+
+
+def scope_of(j):
+    """The screen he tapped before sending: only its page may change. The other screens of that branch stay as they are."""
+    if j.get('page') is None:
+        return None
+    page = page_file(j['page'])
+    others = [f for f in dict.fromkeys(page_file(o) for o in j.get('others') or []) if f != page]
+    return {'page': page, 'others': others}
+
+
+def turn(did, text, allow=None, send=None, pointer=None, scope=None):
     """One message to the thread's Claude. Runs in the background; the page watches the chat fill in."""
     with LOCK:
         w = folder(did)
         d = S['directions'][did]
+        if not allow:   # a tapped screen holds for this message and any Allow that re-runs it
+            if scope:
+                d['scope'] = scope
+            else:
+                d.pop('scope', None)
+        sc = d.get('scope')
         chat = chat_of(did)
         if not allow:
             chat.append({'role': 'you', 'text': text, 't': int(time.time()), **({'pointer': pointer['label']} if pointer else {})})
@@ -666,7 +687,12 @@ def turn(did, text, allow=None, send=None, pointer=None):
         proc = subprocess.Popen(args, cwd=w['path'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 text=True, env=env)
         RUNS[did] = proc
-        proc.stdin.write(('Go ahead, that step is allowed now.' if allow else send or text))
+        note = ''
+        if sc and not allow:
+            note = (f"\n\n[He tapped the screen for {sc['page']}: change only that file. "
+                    + (f"Leave {', '.join(sc['others'])} exactly as they are, even if the same change would suit them." if sc['others'] else '')
+                    + ']')
+        proc.stdin.write(('Go ahead, that step is allowed now.' if allow else (send or text) + note))
         proc.stdin.close()
         last = None
         for line in proc.stdout:
@@ -703,6 +729,14 @@ def turn(did, text, allow=None, send=None, pointer=None):
                 reply['text'] = reply['text'] or 'Stopped.'
             reply['busy'] = False
             save(S)
+        if sc and sc['others']:   # held to the tapped screen: any other screen's page it touched goes back as it was
+            undone = [f for f in sc['others'] if subprocess.run(['git', 'diff', '--quiet', 'HEAD', '--', f], cwd=w['path']).returncode]
+            for f in undone:
+                subprocess.run(['git', 'checkout', 'HEAD', '--', f], cwd=w['path'], capture_output=True)
+            if undone:
+                with LOCK:
+                    reply['steps'].append(f"Put back {', '.join(undone)}: only {sc['page']} was tapped")
+                    save(S)
         c = d.get('conflict')
         if c:
             left = [f for f in c['files'] if os.path.exists(os.path.join(w['path'], f)) and
@@ -1002,7 +1036,7 @@ def choose(did, reasons, why_all):
         return {'into': parent}
 
 
-def begin(project, text, send=None, pointer=None):
+def begin(project, text, send=None, pointer=None, scope=None):
     """A sentence on a project's home starts a thread: its own branch and folder, named from the words."""
     with LOCK:
         did = 'd' + str(int(time.time() * 1000))[-9:]
@@ -1010,7 +1044,7 @@ def begin(project, text, send=None, pointer=None):
                                 'quotes': [], 't': int(time.time()), 'versions': [], 'chat': []}
         S['current'] = {'project': project, 'direction': did}
         save(S)
-    turn(did, text, send=send, pointer=pointer)
+    turn(did, text, send=send, pointer=pointer, scope=scope)
     return did
 
 
@@ -1300,12 +1334,12 @@ class Handler(SimpleHTTPRequestHandler):
                     if j.get('direction') and j['direction'] in S['directions']:
                         if j['direction'] in RUNS:
                             raise RuntimeError('Claude is still working on the last message. Wait, or stop it.')
-                        turn(j['direction'], text, send=send, pointer=ptr)
+                        turn(j['direction'], text, send=send, pointer=ptr, scope=scope_of(j))
                     else:
                         # Pointing at something says most of it: "bigger" is enough then.
                         if len(re.findall(r'\w+', text)) < (1 if ptr else 3):
                             raise RuntimeError('Say a little more: a few words about what you want to try.')
-                        begin(j['project'], text, send=send, pointer=ptr)
+                        begin(j['project'], text, send=send, pointer=ptr, scope=scope_of(j))
                     return self.send_json(state())
                 if p == '/kept/api/newproject':
                     new_project((j.get('text') or '').strip())
