@@ -100,7 +100,7 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
 #links path { fill: none; stroke: #cfcfcf; stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
 #links path.on { stroke: #8a8a8a; }
 #links circle { fill: #cfcfcf; } #links circle.on { fill: #8a8a8a; }
-.win .won { margin-left: 6px; font-size: 10px; font-weight: 500; color: #fff; background: #111; border-radius: 4px; padding: 0 5px; }
+.win .won { font-size: calc(11px * var(--iz, 1)); font-weight: 500; color: #fff; background: #111; border-radius: calc(4px * var(--iz, 1)); padding: 0 calc(5px * var(--iz, 1)); }
 .fanbtn { height: 32px; min-width: 40px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line-2); font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .fanbtn:hover { border-color: var(--ink-3); color: var(--ink); }
 .fanbtn.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
@@ -147,10 +147,12 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
 .empty h1 { font-size: 26px; font-weight: 600; letter-spacing: -.02em; margin: 0 0 6px; color: var(--ink); }
 
 .win { position: absolute; display: flex; flex-direction: column; }
-.win .wbar { height: 26px; flex: 0 0 26px; display: flex; align-items: center; gap: 6px; padding: 0 8px; font-size: 11px; color: var(--ink-2);
+/* The name floats over the screen, as a Figma frame's does: always 12px on screen, 8 above the design, whatever the zoom (--iz = 1 / zoom). */
+.win .wbar { position: absolute; left: 0; bottom: 100%; max-width: 100%; display: flex; align-items: center; gap: calc(6px * var(--iz, 1));
+             padding-bottom: calc(8px * var(--iz, 1)); font-size: calc(12px * var(--iz, 1)); line-height: 1; color: var(--ink-2);
              cursor: grab; user-select: none; white-space: nowrap; overflow: hidden; }
 .win .wbar:active { cursor: grabbing; }
-.win .wbar b { font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+.win .wbar b { font-weight: 600; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; }
 .win .dev { margin-left: auto; font-size: 10px; border: 1px solid var(--line-2); border-radius: 4px; padding: 0 5px; color: var(--ink-2); background: var(--bg); }
 .win .dev:hover { border-color: var(--ink-3); }
 .win .view { position: relative; overflow: hidden; background: #fff; flex: 1; }
@@ -161,11 +163,13 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
 .win.top { z-index: 3; }
 /* A website: a browser window */
 .win.desktop, .win.tablet { background: var(--bg); border: 1px solid var(--line-2); border-radius: 10px; overflow: visible; box-shadow: 0 10px 30px rgba(0,0,0,.10); }
-.win.desktop .wbar, .win.tablet .wbar { background: var(--soft); border-bottom: 1px solid var(--line); border-radius: 10px 10px 0 0; }
+.win .chrome { display: none; }
+/* The browser's grey bar: part of the screen, so it zooms with it. No traffic lights. */
+.win.desktop .chrome, .win.tablet .chrome { display: block; height: 26px; flex: 0 0 26px; background: var(--soft); border-bottom: 1px solid var(--line); border-radius: 10px 10px 0 0; }
 .win.desktop .view, .win.tablet .view { border-radius: 0 0 10px 10px; }
-.win.desktop .wbar::before { content: ''; flex: 0 0 34px; height: 8px; background: radial-gradient(circle at 4px 4px, #e0e0e0 3.5px, transparent 4px) 0 0 / 12px 8px repeat-x; }
+/* On web and tablet the name sits inside the grey bar: 12px on screen, shrinking with the bar only once the bar is too small for it. */
+.win.desktop .wbar, .win.tablet .wbar { top: 0; bottom: auto; right: 0; height: 26px; padding: 0 12px; font-size: min(calc(12px * var(--iz, 1)), 13px); z-index: 1; }
 /* A phone: a phone */
-.win.phone .wbar { background: transparent; padding: 0 4px; }
 .win.phone .view { border: 7px solid #111; border-radius: 34px; box-shadow: 0 14px 36px rgba(0,0,0,.18); }
 .win.live .wbar b::before { content: 'Live · '; font-weight: 400; color: var(--ink-3); }
 .win.sel .view { outline: 2px solid var(--blue); outline-offset: 2px; }
@@ -396,6 +400,7 @@ function nav() {
 }
 
 /* ---------------------------------------------------------------- the canvas */
+const CHROME = 26;   // the web and tablet screens' grey browser bar, in world units
 const DEV = { phone: [393, 852], tablet: [834, 1194], desktop: [1440, 900] };
 const DEV_W = { phone: 270, tablet: 380, desktop: 640 };          // a new window's width on the canvas
 let lay = {};   // window key -> {x, y, w, dev}: yours to keep, per browser
@@ -444,7 +449,7 @@ function screens() {
   // different ideas and down is variations of one. Live sits at the start of the top row; a fork of live goes to the right in
   // that row; a variation (a fork of a branch) goes below that branch, its siblings in a row under it. A screen you've moved
   // stays where you put it; Tidy forgets them all and lays the grid out again.
-  const GAP = 60, hOf = L2 => L2.w * DEV[L2.dev][1] / DEV[L2.dev][0] + 26 + (L2.dev === 'phone' ? 14 : 0);
+  const GAP = 60, hOf = L2 => L2.w * DEV[L2.dev][1] / DEV[L2.dev][0] + (L2.dev === 'phone' ? 14 : CHROME);
   const brOf = id => p.branches.find(b => b.id === id);
   const depth = id => { let d = 0, b = brOf(id); while (b && b.copied_from && b.copied_from !== 'live' && d < 20) { d++; b = brOf(b.copied_from); } return id === 'live' ? -1 : d; };
   const order = [...list].sort((A, B) => depth(A.from) - depth(B.from) || (brOf(A.from)?.t || 0) - (brOf(B.from)?.t || 0));
@@ -454,8 +459,9 @@ function screens() {
     const dev = device, w = DEV_W[dev], L = { w, dev, x: 40, y: 64 };
     const placed = list.map(x => lay[x.key]).filter(Boolean);
     const br = brOf(s.from), own = keyOf(s.from);
-    if (own && own !== s.key && lay[own]) {                        // another page of the same branch: beside its first
-      L.x = lay[own].x + lay[own].w + 40; L.y = lay[own].y;
+    if (own && own !== s.key && lay[own]) {                        // another page of the same branch: after its others, in their row
+      const mine = list.filter(x => x.from === s.from && lay[x.key] && Math.abs(lay[x.key].y - lay[own].y) < 1).map(x => lay[x.key]);
+      L.x = Math.max(...mine.map(o => o.x + o.w)) + 40; L.y = lay[own].y;
     } else if (br) {
       const src = br.copied_from || 'live', pk = keyOf(src), P0 = pk && lay[pk];
       if (P0 && src === 'live') {                                     // a fork of live: to the right, in live's row
@@ -481,18 +487,17 @@ function screens() {
     if (!el) {
       el = document.createElement('div');
       el.className = 'win'; el.dataset.key = s.key;
-      el.innerHTML = `<div class="wbar"><b></b></div><div class="view"><iframe></iframe><div class="marks"></div></div><div class="grip" title="Drag to resize"></div>`;
+      el.innerHTML = `<div class="wbar"><b></b></div><div class="chrome"></div><div class="view"><iframe></iframe><div class="marks"></div></div><div class="grip" title="Drag to resize"></div>`;
       el.querySelector('iframe').addEventListener('load', () => hookDoc(el, el.querySelector('iframe'), () => ({ x: 0, y: 0 })));
       el.querySelector('iframe').title = pageName(s.page);
       el.querySelector('.wbar').onpointerdown = e => { if (e.target.closest('.dev')) return; e.altKey ? copyDrag(e, el) : drag(e, el, false); };
       el.querySelector('.grip').onpointerdown = e => drag(e, el, true);
       el.onpointerdown = () => { wins.querySelectorAll('.win.top').forEach(w => w.classList.remove('top')); el.classList.add('top'); };
-      el.onclick = e => { if (e.target.closest('.dev, .grip') || el.dataset.moved) return; pickScreen(el.dataset.from); };
+      el.onclick = e => { if (e.target.closest('.dev, .grip') || el.dataset.moved) return; tapped = el.dataset.key; pickScreen(el.dataset.from); markTapped(); };
       wins.appendChild(el);
     }
     el.dataset.from = s.from; el.dataset.page = s.page; el.dataset.label = s.label;
     el.classList.toggle('live', s.from === 'live');
-    el.classList.toggle('sel', s.from === (cur().direction || 'live'));
     el.querySelector('b').textContent = s.label + (s.building ? ' · working…' : '');
     const br = p.branches.find(x => x.id === s.from);
     el.querySelector('.won')?.remove();
@@ -504,7 +509,21 @@ function screens() {
   }
   saveLay();
   if (!creating) enterView(p.key);
+  markTapped();
   drawInk(); drawLinks();
+}
+/* The screen you tapped is the one your next message is about: only its page changes (John: "when I tap on a design and send a
+   prompt, I only want that page to be affected"). It's outlined alone; with no tap in this chat, every screen of the chat is. */
+let tapped = null;
+function markTapped() {
+  const dir = cur().direction || 'live', all = [...$('#wins').querySelectorAll('.win')];
+  const t = all.find(w => w.dataset.key === tapped && w.dataset.from === dir);
+  all.forEach(w => w.classList.toggle('sel', t ? w === t : w.dataset.from === dir));
+}
+function tappedScope(from) {   // the tapped page and its branch's other pages, when the message goes to that branch
+  const all = [...$('#wins').querySelectorAll('.win')], t = all.find(w => w.dataset.key === tapped && w.dataset.from === from);
+  if (!t) return {};
+  return { page: t.dataset.page, others: all.filter(w => w.dataset.from === from && w !== t).map(w => w.dataset.page) };
 }
 /* ---------------------------------------------------------------- the view: pan and zoom, as in Figma
    The screens live in a world as big as you like; the canvas is a camera on it. Cmd + scroll or a pinch zooms at the
@@ -515,6 +534,7 @@ try { views = JSON.parse(localStorage.getItem('kept-view') || '{}'); } catch (e)
 const ZMIN = 0.05, ZMAX = 4;
 function applyView() {
   $('#wins').style.transform = `translate(${V.x}px, ${V.y}px) scale(${V.z})`;
+  $('#wins').style.setProperty('--iz', 1 / V.z);
   const c = $('#canvas');
   c.style.backgroundSize = `${20 * V.z}px ${20 * V.z}px`;
   c.style.backgroundPosition = `${V.x}px ${V.y}px`;
@@ -701,12 +721,12 @@ function readMarks() {
     const a = st.pts[0], z = st.pts[st.pts.length - 1];
     const closed = Math.hypot(a[0] - z[0], a[1] - z[1]) < 0.35 * Math.hypot(r - l, b - t);
     const cx = (l + r) / 2, cy = closed ? (t + b) / 2 : t - 6;   // a line under something points at what's just above it
-    const win = [...$('#wins').querySelectorAll('.win')].find(el => cx >= el.offsetLeft && cx <= el.offsetLeft + el.offsetWidth && cy >= el.offsetTop + 26 && cy <= el.offsetTop + el.offsetHeight);
+    const win = [...$('#wins').querySelectorAll('.win')].find(el => cx >= el.offsetLeft && cx <= el.offsetLeft + el.offsetWidth && cy >= el.offsetTop + (el.classList.contains('phone') ? 0 : CHROME) && cy <= el.offsetTop + el.offsetHeight);
     if (!win) continue;
     const k = +win.dataset.k || 1, pad = lay[win.dataset.key]?.dev === 'phone' ? 7 : 0;
     const fr = win.querySelector('iframe'); let doc; try { doc = fr.contentDocument; } catch (e) {}
     if (!doc) continue;
-    const got = seen(doc, (cx - win.offsetLeft - pad) / k, (cy - win.offsetTop - 26 - pad) / k, () => ({ x: 0, y: 0 }));
+    const got = seen(doc, (cx - win.offsetLeft - pad) / k, (cy - win.offsetTop - (win.classList.contains('phone') ? 0 : CHROME) - pad) / k, () => ({ x: 0, y: 0 }));
     if (!got) continue;
     const el = got.el, sp = specs(el);
     out.push({ kind: closed ? 'circled' : 'underlined', screen: win.dataset.label, selector: selectorOf(el), file: fileOf(el.ownerDocument),
@@ -722,7 +742,7 @@ function place(el) {
   const L = lay[el.dataset.key], [dw, dh] = DEV[L.dev];
   el.className = el.className.replace(/\b(phone|tablet|desktop)\b/g, '').trim() + ' ' + L.dev;
   const pad = L.dev === 'phone' ? 14 : 0, vw = L.w - pad, k = vw / dw;
-  Object.assign(el.style, { left: L.x + 'px', top: L.y + 'px', width: L.w + 'px', height: (dh * k + pad + 26) + 'px' });
+  Object.assign(el.style, { left: L.x + 'px', top: L.y + 'px', width: L.w + 'px', height: (dh * k + pad + (L.dev === 'phone' ? 0 : CHROME)) + 'px' });
   Object.assign(el.querySelector('iframe').style, { width: dw + 'px', height: dh + 'px', transform: `scale(${k})` });
   el.dataset.k = k;
   drawMarks(el);
@@ -938,9 +958,11 @@ $('#box').onsubmit = async e => {
       q.value = ''; q.style.height = 'auto'; viewing = null; clearPoint(); fitAbove(); lastCount = 0; render();
       return;
     }
+    if (pointed) tapped = pointed.key;   // Option-clicking an element taps its screen too
     S = creating ? await api('talk', { text })
       : t && t.conflict ? await api('resolve', { direction: t.id, text })
-      : await api('say', { project: proj().key, direction: to, text, pointer: pointed && pointed.info, marks: readMarks() });
+      : await api('say', { project: proj().key, direction: to, text, pointer: pointed && pointed.info, marks: readMarks(),
+                           ...tappedScope(pointed ? pointed.from : (to || 'live')) });
     markSent();
     creating = false; q.value = ''; q.style.height = 'auto'; viewing = null; clearPoint(); fitAbove();
     lastCount = chatOf()?.versions.length ?? 0;

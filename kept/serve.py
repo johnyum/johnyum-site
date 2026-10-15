@@ -615,11 +615,57 @@ def chat_of(did):
     return d.setdefault('chat', [])
 
 
-def turn(did, text, allow=None, send=None, pointer=None):
+def allow_rules(tool, inp):
+    """What Allow lets through, as Claude Code permission rules. Not the exact command: a multi-line command with quotes and
+    parentheses never matched as a rule, so Allow kept being asked again (2026-10-15, John's lantern session, three times).
+    Instead, each program in the command (split at && || ; |) is allowed for the rest of that reply: Bash(python3:*)."""
+    if tool != 'Bash' or not inp.get('command'):
+        return tool
+    import shlex
+    progs, start = [], True
+    try:
+        lex = shlex.shlex(inp['command'], posix=True, punctuation_chars=True)
+        lex.whitespace_split = True
+        for tok in lex:   # quote-aware: a ; inside a python -c "…" string is not a new command
+            if tok in ('&&', '||', ';', '|', '&', ';;', '(', ')'):
+                start = True
+            elif start and re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', tok):   # FOO=bar cmd
+                continue
+            elif start:
+                start = False
+                if tok not in progs:
+                    progs.append(tok)
+    except ValueError:
+        progs = inp['command'].split()[:1]
+    return '\n'.join(f'Bash({p}:*)' for p in progs) or 'Bash'
+
+
+def page_file(pg):
+    """A screen's page as the file behind it: '' is index.html, 'lantern/' is lantern/index.html."""
+    pg = (pg or '').lstrip('/')
+    return pg + 'index.html' if pg == '' or pg.endswith('/') else pg
+
+
+def scope_of(j):
+    """The screen he tapped before sending: only its page may change. The other screens of that branch stay as they are."""
+    if j.get('page') is None:
+        return None
+    page = page_file(j['page'])
+    others = [f for f in dict.fromkeys(page_file(o) for o in j.get('others') or []) if f != page]
+    return {'page': page, 'others': others}
+
+
+def turn(did, text, allow=None, send=None, pointer=None, scope=None):
     """One message to the thread's Claude. Runs in the background; the page watches the chat fill in."""
     with LOCK:
         w = folder(did)
         d = S['directions'][did]
+        if not allow:   # a tapped screen holds for this message and any Allow that re-runs it
+            if scope:
+                d['scope'] = scope
+            else:
+                d.pop('scope', None)
+        sc = d.get('scope')
         chat = chat_of(did)
         if not allow:
             chat.append({'role': 'you', 'text': text, 't': int(time.time()), **({'pointer': pointer['label']} if pointer else {})})
@@ -635,13 +681,18 @@ def turn(did, text, allow=None, send=None, pointer=None):
         if d.get('session'):
             args += ['--resume', d['session']]
         if allow:
-            args += ['--allowedTools', allow]
+            args += ['--allowedTools', *[a for a in allow.split('\n') if a]]
         env = {k: v for k, v in os.environ.items() if not (k.startswith('CLAUDE_CODE') or k in ('CLAUDECODE', 'CLAUDE_AGENT_SDK_VERSION'))}
         env['PATH'] = os.path.expanduser('~/.local/bin') + ':' + env.get('PATH', '')
         proc = subprocess.Popen(args, cwd=w['path'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 text=True, env=env)
         RUNS[did] = proc
-        proc.stdin.write(('Go ahead, that step is allowed now.' if allow else send or text))
+        note = ''
+        if sc and not allow:
+            note = (f"\n\n[He tapped the screen for {sc['page']}: change only that file. "
+                    + (f"Leave {', '.join(sc['others'])} exactly as they are, even if the same change would suit them." if sc['others'] else '')
+                    + ']')
+        proc.stdin.write(('Go ahead, that step is allowed now.' if allow else (send or text) + note))
         proc.stdin.close()
         last = None
         for line in proc.stdout:
@@ -671,13 +722,21 @@ def turn(did, text, allow=None, send=None, pointer=None):
                     x = denied[0]
                     inp = x.get('tool_input') or {}
                     reply['blocked'] = {'tool': x['tool_name'], 'what': step_of(x['tool_name'], inp, w['path']),
-                                        'allow': f"Bash({inp['command']})" if x['tool_name'] == 'Bash' and inp.get('command') else x['tool_name']}
+                                        'allow': allow_rules(x['tool_name'], inp)}
                 if last.get('is_error'):
                     reply['error'] = True
             elif proc.returncode:
                 reply['text'] = reply['text'] or 'Stopped.'
             reply['busy'] = False
             save(S)
+        if sc and sc['others']:   # held to the tapped screen: any other screen's page it touched goes back as it was
+            undone = [f for f in sc['others'] if subprocess.run(['git', 'diff', '--quiet', 'HEAD', '--', f], cwd=w['path']).returncode]
+            for f in undone:
+                subprocess.run(['git', 'checkout', 'HEAD', '--', f], cwd=w['path'], capture_output=True)
+            if undone:
+                with LOCK:
+                    reply['steps'].append(f"Put back {', '.join(undone)}: only {sc['page']} was tapped")
+                    save(S)
         c = d.get('conflict')
         if c:
             left = [f for f in c['files'] if os.path.exists(os.path.join(w['path'], f)) and
@@ -795,6 +854,10 @@ def plan_sort(did):
             if pl['project'].startswith('new:') and not pl['page']:
                 pl['page'] = pl['project'][4:] + '/'
         d['plan'] = {'head': head, 'piles': piles}
+        if len(piles) == 1:   # nothing to split: file it straight away (John: "I want it to become a project on the left panel")
+            d['planning'] = False
+            apply_sort(did, piles)
+            return
     except Exception as e:
         d['plan'] = {'piles': [], 'note': f'Could not sort it: {str(e)[-200:]}'}
     finally:
@@ -835,7 +898,7 @@ def apply_sort(did, piles):
             keep(nid, pl['title'])
             made.append(nid)
         d.update(status='sorted', why=f"Sorted into {len(made)} thread{'s' if len(made) != 1 else ''}", plan=None)
-        S['current'] = {'project': S['directions'][made[0]]['project'], 'direction': None} if made else S.get('current')
+        S['current'] = {'project': S['directions'][made[0]]['project'], 'direction': made[0]} if made else S.get('current')
         save(S)
         return made
 
@@ -973,7 +1036,7 @@ def choose(did, reasons, why_all):
         return {'into': parent}
 
 
-def begin(project, text, send=None, pointer=None):
+def begin(project, text, send=None, pointer=None, scope=None):
     """A sentence on a project's home starts a thread: its own branch and folder, named from the words."""
     with LOCK:
         did = 'd' + str(int(time.time() * 1000))[-9:]
@@ -981,7 +1044,7 @@ def begin(project, text, send=None, pointer=None):
                                 'quotes': [], 't': int(time.time()), 'versions': [], 'chat': []}
         S['current'] = {'project': project, 'direction': did}
         save(S)
-    turn(did, text, send=send, pointer=pointer)
+    turn(did, text, send=send, pointer=pointer, scope=scope)
     return did
 
 
@@ -1271,12 +1334,12 @@ class Handler(SimpleHTTPRequestHandler):
                     if j.get('direction') and j['direction'] in S['directions']:
                         if j['direction'] in RUNS:
                             raise RuntimeError('Claude is still working on the last message. Wait, or stop it.')
-                        turn(j['direction'], text, send=send, pointer=ptr)
+                        turn(j['direction'], text, send=send, pointer=ptr, scope=scope_of(j))
                     else:
                         # Pointing at something says most of it: "bigger" is enough then.
                         if len(re.findall(r'\w+', text)) < (1 if ptr else 3):
                             raise RuntimeError('Say a little more: a few words about what you want to try.')
-                        begin(j['project'], text, send=send, pointer=ptr)
+                        begin(j['project'], text, send=send, pointer=ptr, scope=scope_of(j))
                     return self.send_json(state())
                 if p == '/kept/api/newproject':
                     new_project((j.get('text') or '').strip())
