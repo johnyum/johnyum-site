@@ -119,6 +119,28 @@ h2 span { color: var(--ink-3); font-weight: 400; }
 .send:disabled { opacity: .3; cursor: default; }
 .send.stop { background: var(--bg); color: var(--ink); border: 1px solid var(--line-2); }
 .hide { display: none !important; }
+.box, .convo { z-index: 3; }
+.home .below .hist { display: none; }
+.home.hist .below .hist { display: flex; }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 7px; padding: 2px; gap: 2px; }
+.seg button { padding: 2px 10px; border-radius: 5px; font-size: 12px; color: var(--ink-2); }
+.seg button.on { background: var(--ink); color: var(--bg); }
+.moved { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); background: var(--soft); border-radius: 7px; padding: 3px 4px 3px 10px; white-space: nowrap; }
+.moved .btn { background: var(--bg); }
+
+/* A clash: the three pictures, and a sentence to combine them */
+.clash { position: absolute; left: 0; right: 0; bottom: 0; top: 48px; background: var(--bg); display: flex; flex-direction: column; padding: 16px 16px 92px; gap: 12px; z-index: 2; }
+.clash h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.clash .sub { color: var(--ink-3); }
+.clash .three { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 12px; }
+.clash .pane { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+.clash .pane b { font-weight: 600; font-size: 12px; }
+.clash .pane b span { color: var(--ink-3); font-weight: 400; }
+.clash .frame { flex: 1; position: relative; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; background: var(--soft); }
+.clash .frame iframe { position: absolute; left: 0; top: 0; width: 200%; height: 200%; border: 0; transform: scale(.5); transform-origin: 0 0; background: #fff; }
+.clash .pane.big .frame { border: 2px solid var(--ink); }
+.clash .acts { display: flex; gap: 8px; align-items: center; }
+.clash.with-convo { padding-bottom: 200px; }
 .err { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 12px; border-radius: 6px; font-size: 12px; z-index: 9; max-width: 80vw; }
 </style>
 </head>
@@ -129,6 +151,7 @@ h2 span { color: var(--ink-3); font-weight: 400; }
     <div class="bar" id="bar"></div>
     <div class="stage" id="stagebox"><iframe id="stage" title="The work"></iframe><span class="tag hide" id="tag"></span>
       <div class="versions" id="versions"></div></div>
+    <div class="clash hide" id="clash"></div>
     <div class="below" id="below"></div>
     <div class="convo" id="convo"></div>
     <form class="box" id="box"><textarea id="q" rows="1" aria-label="Message"></textarea>
@@ -154,7 +177,7 @@ const STOP = '<svg width="10" height="10" viewBox="0 0 10 10"><rect width="10" h
 
 let S = null;            // server state
 let viewing = null;      // a version on the stage, or null for now
-let lastCount = -1, showAll = false, showClosed = false;
+let lastCount = -1, showAll = false, showClosed = false, showHist = false, compare = false;
 
 const cur = () => S.current || {};
 const proj = () => S.projects.find(p => p.key === cur().project) || S.projects[0];
@@ -171,13 +194,13 @@ async function refresh() {
 }
 async function go(project, direction = null) {
   S = await api('current', { project, direction });
-  viewing = null; showAll = false; lastCount = threadOf()?.versions.length ?? 0;
+  viewing = null; showAll = false; compare = false; lastCount = threadOf()?.versions.length ?? 0;
   render(); stage(true);
 }
 function render() {
   const t = threadOf();
-  $('#work').className = 'work ' + (t ? 'thread' : 'home');
-  nav(); bar(); below(); convo(); versions(); box(); stage();
+  $('#work').className = 'work ' + (t ? 'thread' : 'home') + (showHist && !t ? ' hist' : '');
+  nav(); bar(); below(); convo(); versions(); clash(); box(); stage();
 }
 
 function nav() {
@@ -192,12 +215,23 @@ function bar() {
   const vs = t ? t.versions : p.main, at = viewing ? vs.findIndex(v => v.sha === viewing) : -1, v = vs[at];
   const open = t && t.status === 'active';
   put($('#bar'), `<div class="crumbs">${t ? `<button data-home>${esc(p.name)}</button><i>/</i><b>${esc(t.title)}</b>` : `<b>${esc(p.name)}</b>`}</div>
-    <span class="v">${viewing ? `as it was ${day(v?.t)}` : t ? (t.building ? 'working…' : `${t.versions.length} version${t.versions.length === 1 ? '' : 's'}`) : 'live'}</span><span class="sp"></span>
+    <span class="v">${viewing ? `as it was ${day(v?.t)}` : t ? (t.building ? 'working…' : `${t.versions.length} version${t.versions.length === 1 ? '' : 's'}`) : 'live now'}</span>
+    ${open && !t.conflict ? `<span class="seg" title="Flip between your version and what's live"><button id="mine" class="${compare ? '' : 'on'}">Yours</button><button id="vsmain" class="${compare ? 'on' : ''}">Main</button></span>` : ''}
+    <span class="sp"></span>
+    ${open && t.behind && !t.conflict ? `<span class="moved">Main has moved · ${t.behind} change${t.behind === 1 ? '' : 's'}<button class="btn" id="bringin" title="Bring what others pushed into your version">Bring in</button></span>` : ''}
+    ${!t ? `<button class="btn quiet" id="hist">${showHist ? 'Hide history' : 'History'}</button>` : ''}
     ${viewing ? `<button class="btn quiet" id="back">Back to now</button>` : ''}
     ${open ? `<button class="btn quiet" id="close">Close</button>${t.folder && t.versions.length ? `<button class="btn dark" id="push" title="Put this thread into Main and send it live">Push</button>` : ''}` : ''}`,
   el => {
     el.querySelector('[data-home]') && (el.querySelector('[data-home]').onclick = () => go(p.key));
     el.querySelector('#back') && (el.querySelector('#back').onclick = () => { viewing = null; render(); stage(true); });
+    el.querySelector('#hist') && (el.querySelector('#hist').onclick = () => { showHist = !showHist; if (!showHist) viewing = null; render(); stage(true); });
+    el.querySelector('#mine') && (el.querySelector('#mine').onclick = () => { compare = false; viewing = null; render(); stage(true); });
+    el.querySelector('#vsmain') && (el.querySelector('#vsmain').onclick = () => { compare = true; viewing = null; render(); stage(true); });
+    el.querySelector('#bringin') && (el.querySelector('#bringin').onclick = async () => {
+      el.querySelector('#bringin').textContent = 'Bringing in…';
+      try { S = await api('bringin', { direction: t.id }); lastCount = -1; render(); stage(true); } catch (e) { render(); }
+    });
     el.querySelector('#close') && (el.querySelector('#close').onclick = async () => {
       const why = prompt(`Close "${t.title}"? Why, in a line (Kept remembers it if you try this again):`); if (why === null) return;
       S = await api('close', { direction: t.id, why }); go(p.key);
@@ -205,7 +239,7 @@ function bar() {
     el.querySelector('#push') && (el.querySelector('#push').onclick = async () => {
       if (!confirm(`Push "${t.title}" into Main? It merges and goes live.`)) return;
       el.querySelector('#push').textContent = 'Pushing…';
-      try { S = await api('push', { direction: t.id }); go(p.key); } catch (e) { render(); }
+      try { S = await api('push', { direction: t.id }); go(p.key); } catch (e) { S = await api('state'); render(); }
     });
   });
 }
@@ -232,6 +266,8 @@ function below() {
 function convo() {
   const t = threadOf();
   if (!t) return put($('#convo'), '');
+  const last = (t.chat || []).slice(-1)[0];
+  if ((t.conflict || t.resolved) && !t.building && !last?.error) return put($('#convo'), '');
   const chat = t.chat || [], nudge = S.nudges[t.id];
   const shown = showAll ? chat : chat.slice(-2);
   const msg = m => m.role === 'you' ? `<div class="msg you">${esc(m.text)}</div>`
@@ -250,6 +286,30 @@ function convo() {
   });
 }
 
+/* Main changed the same part you did: Main now, yours, and how it started, side by side; then the combined one. */
+function clash() {
+  const t = threadOf(), c = t && (t.conflict || t.resolved), el = $('#clash');
+  el.classList.toggle('hide', !c);
+  if (!c) return put(el, '');
+  const pane = (label, note, src, big) => `<div class="pane${big ? ' big' : ''}"><b>${label} <span>${note}</span></b><div class="frame"><iframe src="${src}" title="${label}"></iframe></div></div>`;
+  const pg = c.page || '';
+  const busy = t.building;
+  el.classList.toggle('with-convo', busy || (t.chat || []).slice(-1)[0]?.error);
+  put(el, t.conflict
+    ? `<h3>Main changed the same part you did</h3>
+       <p class="sub">${esc(c.files.join(', '))} · someone pushed while you were working. Say below how to combine them; nothing goes live until you Push.</p>
+       <div class="three" style="--n:3">${pane('When you started', 'Main then', `/kept/v/${c.base}/${pg}`)}${pane('Main now', 'with what was pushed', `/kept/v/${c.theirs}/${pg}`)}${pane('Yours', 'your version', `/kept/v/${c.mine}/${pg}`)}</div>
+       <div class="acts"><button class="btn quiet" id="abort">Cancel, keep mine as it was</button></div>`
+    : `<h3>Combined</h3><p class="sub">You said “${esc(c.said || '')}”. ${esc((t.chat || []).filter(m => m.role === 'claude').slice(-1)[0]?.text || '')}</p>
+       <div class="three" style="--n:3">${pane('Main now', '', `/kept/v/${c.theirs}/${pg}`)}${pane('Yours before', '', `/kept/v/${c.mine}/${pg}`)}${pane('Combined', 'new', c.sha ? `/kept/v/${c.sha}/${pg}` : `/kept/w/${t.id}/${pg}`, true)}</div>
+       <div class="acts"><button class="btn dark" id="keepit">Keep it</button><button class="btn" id="undo">Undo</button></div>`,
+  el => {
+    el.querySelector('#abort') && (el.querySelector('#abort').onclick = async () => { if (!confirm('Cancel bringing in Main? Your version stays exactly as it was.')) return; S = await api('abortmerge', { direction: t.id }); render(); stage(true); });
+    el.querySelector('#keepit') && (el.querySelector('#keepit').onclick = async () => { S = await api('keepmerge', { direction: t.id }); render(); stage(true); });
+    el.querySelector('#undo') && (el.querySelector('#undo').onclick = async () => { S = await api('undomerge', { direction: t.id }); render(); stage(true); });
+  });
+}
+
 function versions() {
   const t = threadOf();
   if (!t) return put($('#versions'), '');
@@ -261,7 +321,7 @@ function versions() {
 /* The box: one place to say what you want. */
 function box() {
   const t = threadOf(), q = $('#q'), busy = t && t.building;
-  q.placeholder = t ? (t.status === 'active' ? `What next for “${short(t.title, 40)}”?` : 'This thread is closed') : `What do you want to try in ${proj().name}?`;
+  q.placeholder = t ? (t.status !== 'active' ? 'This thread is closed' : t.conflict ? 'How should they combine? e.g. keep their colours, my layout' : `What next for “${short(t.title, 40)}”?`) : `What do you want to try in ${proj().name}?`;
   q.disabled = !!(t && t.status !== 'active');
   const send = $('#send');
   send.classList.toggle('stop', !!busy);
@@ -276,7 +336,7 @@ $('#box').onsubmit = async e => {
   if (t && t.building) { S = await api('stop', { direction: t.id }); return render(); }
   const text = q.value.trim(); if (!text) return;
   try {
-    S = await api('say', { project: proj().key, direction: t?.id, text });
+    S = t && t.conflict ? await api('resolve', { direction: t.id, text }) : await api('say', { project: proj().key, direction: t?.id, text });
     q.value = ''; q.style.height = 'auto'; viewing = null; showAll = false;
     lastCount = threadOf()?.versions.length ?? 0;
     render(); stage(true);
@@ -288,14 +348,16 @@ function pageOf() {
   const p = proj(), t = threadOf(), vs = t ? t.versions : p.main;
   const v = viewing && vs.find(v => v.sha === viewing);
   const page = (v && v.page) || (t && [...t.versions].reverse().find(v => v.page)?.page) || p.page;
+  if (t && compare && !viewing) return `/kept/v/${S.main_sha}/${page}`;
   return viewing ? `/kept/v/${viewing}/${page}` : t && t.folder ? `/kept/w/${t.id}/${page}` : '/' + page;
 }
 function stage(force) {
   const f = $('#stage'), src = pageOf();
   if (force || f.dataset.src !== src) { f.dataset.src = src; f.src = src; }
   const tag = $('#tag');
-  tag.classList.toggle('hide', !viewing && !!threadOf());
-  tag.textContent = viewing ? 'As it was' : 'Main · live';
+  const t = threadOf();
+  tag.classList.toggle('hide', !viewing && !!t && !compare);
+  tag.textContent = viewing ? 'As it was' : t && compare ? 'Main · live' : 'Main · live now';
 }
 
 refresh().then(() => stage(true));

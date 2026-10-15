@@ -972,6 +972,17 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   (a command) comes back as "Claude wants to: …" with Allow, which re-runs with that tool allowed. The send button stops a turn.
   The terminal code (`Term`, hooks) is still in serve.py, unused by the page. Tested 2026-10-14: a sentence made a thread, its
   reply and v1; a follow-up kept the conversation and made v2.
+- **Many designers, one build (2026-10-14, John: "how would it be to build a design-first merge, where multiple designers can
+  build on the same build").** The home is "live now" with History behind a button; a thread has a **Yours / Main** toggle (Main as
+  committed, `/kept/v/<main sha>/`). When someone has pushed since a thread started, its bar says **Main has moved · N changes ·
+  Bring in** (`bring_in()`: merge main into the thread's folder; clean → a version). A clash isn't a screen of `<<<<<<<`: it's
+  **three pictures**, when you started, Main now, yours, and the box asks how to combine them ("keep their colours, my layout");
+  the thread's Claude merges (`resolve()`), Kept refuses to finish while markers remain, and shows **Combined** beside the two it
+  came from, with Keep it / Undo (`undo_merge()` resets to before). **Push brings Main in first**, so a clash is always met in the
+  thread, never in the main folder. Tested end to end in a throwaway repo with a fake remote: A pushed a red heading, B (blue,
+  new words) brought it in, the clash showed, "keep the red colour from Main, but use my words" merged it, B pushed, and main had
+  both. The single `index.html` per project is what makes clashes common: a build split into a file per slide or component (as
+  `preso/slides/` already is) is what lets several designers work at once without meeting at all.
 - The mapping to git, for when a team needs it: direction = branch, version = commit, Push = open a PR (a preview link),
   Settled = merged into main, Set aside = closed with the reason.
 - **A folder per direction, so ideas never collide (2026-10-14, John: "I always want to try multiple things but I'm always

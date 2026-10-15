@@ -148,6 +148,13 @@ def directions(project):
         d['pr'] = w and w.get('pr')
         d['building'] = building(d['id']) or d['id'] in RUNS
         d['running'] = d['id'] in TERMS and TERMS[d['id']].alive()
+        if d['folder'] and d['status'] == 'active':
+            # How many changes Main has that this thread doesn't: someone pushed while you were working.
+            d['behind'] = int(git('rev-list', '--count', f"{w['branch']}..main", check=False).decode().strip() or 0)
+            d['head'] = git('rev-parse', '--short=7', w['branch'], check=False).decode().strip()
+        src = S['directions'].get(d['id'], {})
+        d['conflict'] = src.get('conflict')
+        d['resolved'] = src.get('resolved')
     return ds
 
 
@@ -419,6 +426,9 @@ def push(did):
     with LOCK:
         w, d = S['wt'][did], find(did)
         keep(did, 'Kept before pushing')
+        if int(git('rev-list', '--count', f"{w['branch']}..main").decode().strip() or 0):
+            if bring_in(did):
+                raise RuntimeError('CONFLICT: Main changed the same part you did. Say how to combine them, then Push again.')
         if git('rev-parse', '--abbrev-ref', 'HEAD').decode().strip() != 'main':
             raise RuntimeError('The main folder is not on main. Switch it back to main, then push.')
         r = subprocess.run(['git', 'merge', '--no-ff', '--no-edit', '-m', f"{d['title']} (from Kept)", w['branch']],
@@ -446,6 +456,61 @@ def push(did):
         if not live:
             raise RuntimeError('Merged into main, but the push to GitHub failed: ' + r.stderr.strip()[-200:])
         return merged
+
+
+def bring_in(did):
+    """Bring the latest Main into a thread. Clean: a new version. A clash: the merge is left open in the thread's
+    folder and recorded, so the page can show the three pictures and ask how to combine them."""
+    with LOCK:
+        w, d = S['wt'][did], S['directions'][did]
+        if d.get('conflict'):
+            return d['conflict']
+        keep(did, 'Kept before bringing in Main')
+        pre = git('rev-parse', 'HEAD', cwd=w['path']).decode().strip()
+        theirs = git('rev-parse', 'main').decode().strip()
+        base = git('merge-base', pre, theirs).decode().strip()
+        r = subprocess.run(['git', 'merge', '--no-edit', '-m', 'Brought in the latest Main', 'main'], cwd=w['path'],
+                           capture_output=True, text=True)
+        if r.returncode == 0:
+            keep(did, 'Brought in the latest Main')
+            return None
+        files = [f for f in git('diff', '--name-only', '--diff-filter=U', cwd=w['path']).decode().split('\n') if f]
+        if not files:
+            subprocess.run(['git', 'merge', '--abort'], cwd=w['path'], capture_output=True)
+            raise RuntimeError('Could not bring in Main: ' + (r.stderr or r.stdout).strip()[-300:])
+        page = page_for(d['project'], files)
+        d['conflict'] = {'files': files, 'pre': pre, 'mine': pre[:7], 'theirs': theirs[:7], 'base': base[:7], 'page': page,
+                         't': int(time.time())}
+        save(S)
+        return d['conflict']
+
+
+def resolve(did, text):
+    """Combine the clash the way you say: the thread's Claude does the merge in its folder."""
+    c = S['directions'][did]['conflict']
+    send = (f"Main has been merged into this thread and these files clash: {', '.join(c['files'])}. Combine the two sides "
+            f"the way he says: \"{text}\". Remove every conflict marker (<<<<<<<, =======, >>>>>>>), keep the page working, "
+            f"and don't commit. Then say in one sentence what you kept from each side.")
+    turn(did, text, send=send)
+
+
+def abort_merge(did):
+    with LOCK:
+        w, d = S['wt'][did], S['directions'][did]
+        subprocess.run(['git', 'merge', '--abort'], cwd=w['path'], capture_output=True)
+        d.pop('conflict', None)
+        save(S)
+
+
+def undo_merge(did):
+    """Didn't like how it combined: go back to the thread as it was before Main was brought in."""
+    with LOCK:
+        w, d = S['wt'][did], S['directions'][did]
+        r = d.pop('resolved', None)
+        if r:
+            git('reset', '--hard', r['pre'], cwd=w['path'])
+            keep(did, 'Undid bringing in Main')
+        save(S)
 
 
 def close(did, why):
@@ -539,7 +604,7 @@ def chat_of(did):
     return d.setdefault('chat', [])
 
 
-def turn(did, text, allow=None):
+def turn(did, text, allow=None, send=None):
     """One message to the thread's Claude. Runs in the background; the page watches the chat fill in."""
     with LOCK:
         w = folder(did)
@@ -565,7 +630,7 @@ def turn(did, text, allow=None):
         proc = subprocess.Popen(args, cwd=w['path'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 text=True, env=env)
         RUNS[did] = proc
-        proc.stdin.write(('Go ahead, that step is allowed now.' if allow else text))
+        proc.stdin.write(('Go ahead, that step is allowed now.' if allow else send or text))
         proc.stdin.close()
         last = None
         for line in proc.stdout:
@@ -602,6 +667,25 @@ def turn(did, text, allow=None):
                 reply['text'] = reply['text'] or 'Stopped.'
             reply['busy'] = False
             save(S)
+        c = d.get('conflict')
+        if c:
+            left = [f for f in c['files'] if os.path.exists(os.path.join(w['path'], f)) and
+                    re.search(r'^(<{7}|>{7}) ', open(os.path.join(w['path'], f), errors='ignore').read(), re.M)]
+            if left:
+                with LOCK:
+                    reply['text'] = (reply['text'] + ' ' if reply['text'] else '') + f"Still clashing in {', '.join(left)}."
+                    reply['error'] = True
+                    save(S)
+                return
+            v = keep(did, f'Brought in the latest Main: {text}')
+            with LOCK:
+                reply.pop('blocked', None)   # the merge is done; a check it wanted to run after doesn't need you
+                d['resolved'] = dict(c, sha=v['sha'] if v else None, said=text)
+                d.pop('conflict', None)
+                if v:
+                    reply['version'] = v['sha']
+                save(S)
+            return
         v = keep(did, text if not allow else f'{text} (allowed)')
         with LOCK:
             if v:
@@ -903,6 +987,24 @@ class Handler(SimpleHTTPRequestHandler):
                             raise RuntimeError('Say a little more: a few words about what you want to try.')
                         begin(j['project'], text)
                     return self.send_json(state())
+                if p == '/kept/api/bringin':
+                    bring_in(j['direction'])
+                    return self.send_json(state())
+                if p == '/kept/api/resolve':
+                    if j['direction'] in RUNS:
+                        raise RuntimeError('Claude is still working. Wait, or stop it.')
+                    resolve(j['direction'], (j.get('text') or '').strip() or 'combine both sensibly')
+                    return self.send_json(state())
+                if p == '/kept/api/abortmerge':
+                    abort_merge(j['direction'])
+                    return self.send_json(state())
+                if p == '/kept/api/undomerge':
+                    undo_merge(j['direction'])
+                    return self.send_json(state())
+                if p == '/kept/api/keepmerge':
+                    S['directions'][j['direction']].pop('resolved', None)
+                    save(S)
+                    return self.send_json(state())
                 if p == '/kept/api/allow':
                     did = j['direction']
                     chat = chat_of(did)
@@ -956,6 +1058,7 @@ def state():
         'current': S.get('current'),
         'nudges': {k: v for k, v in NUDGES.items() if v and time.time() - v['t'] < 600},
         'main': {'running': bool(term(MAIN) and term(MAIN).alive()), 'building': building(MAIN)},
+        'main_sha': git('rev-parse', '--short=7', 'main', check=False).decode().strip(),
     }
 
 
