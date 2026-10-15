@@ -91,6 +91,10 @@ def save(s):
 
 
 S = load()
+# Projects started here with the +: a new folder each, added to the fixed ones above.
+for _p in S.setdefault('made', []):
+    PROJECTS.append(_p)
+    P[_p['key']] = _p
 PEND = {}     # pane key -> {prompt, t, done}: what was last asked there, and whether it's still building
 NUDGES = {}   # pane key -> the last recall shown for it
 
@@ -695,7 +699,28 @@ def turn(did, text, allow=None, send=None):
     threading.Thread(target=run, daemon=True).start()
 
 
-def begin(project, text):
+def new_project(text):
+    """The + in the sidebar: something new from scratch. A new folder in the repo, named from the words, and a first
+    thread already building it. Nothing is live until it's pushed."""
+    if len(re.findall(r'\w+', text)) < 3:
+        raise RuntimeError('Say a little more: a few words about what you want to make.')
+    with LOCK:
+        name = name_from(text)
+        base = slug(' '.join(name.split()[:4]))[:24] or 'new'
+        key, n = base, 2
+        while key in P or os.path.exists(os.path.join(ROOT, key)):
+            key, n = f'{base}-{n}', n + 1
+        proj = {'key': key, 'name': name, 'paths': [key + '/'], 'page': key + '/', 'made': int(time.time())}
+        PROJECTS.append(proj)
+        P[key] = proj
+        S['made'].append(proj)
+        save(S)
+    hint = (f"\n\n(This is a new project. Make it as a self-contained page at {key}/index.html: one hand-written file with "
+            f"inline CSS and JS, no build step and no framework, the way the other pages in this repo are made.)")
+    return begin(key, text, send=text + hint)
+
+
+def begin(project, text, send=None):
     """A sentence on a project's home starts a thread: its own branch and folder, named from the words."""
     with LOCK:
         did = 'd' + str(int(time.time() * 1000))[-9:]
@@ -703,7 +728,7 @@ def begin(project, text):
                                 'quotes': [], 't': int(time.time()), 'versions': [], 'chat': []}
         S['current'] = {'project': project, 'direction': did}
         save(S)
-    turn(did, text)
+    turn(did, text, send=send)
     return did
 
 
@@ -986,6 +1011,9 @@ class Handler(SimpleHTTPRequestHandler):
                         if len(re.findall(r'\w+', text)) < 3:
                             raise RuntimeError('Say a little more: a few words about what you want to try.')
                         begin(j['project'], text)
+                    return self.send_json(state())
+                if p == '/kept/api/newproject':
+                    new_project((j.get('text') or '').strip())
                     return self.send_json(state())
                 if p == '/kept/api/bringin':
                     bring_in(j['direction'])

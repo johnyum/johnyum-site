@@ -983,6 +983,11 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   new words) brought it in, the clash showed, "keep the red colour from Main, but use my words" merged it, B pushed, and main had
   both. The single `index.html` per project is what makes clashes common: a build split into a file per slide or component (as
   `preso/slides/` already is) is what lets several designers work at once without meeting at all.
+- **Side by side, and the + (2026-10-14).** A thread's toggle is **Yours / Main / Both**; Both splits the work, Main live on the
+  left, yours on the right. A project with nothing on Main yet says so rather than showing a 404. The **+** under the last project
+  is a blank start ("What do you want to make?"): a sentence makes a new project, a new folder named from the words
+  (`new_project()`, kept in build.json's `made`), with a first thread building it as one self-contained page; it goes live only
+  when pushed. Tested with a real new project, then removed.
 - The mapping to git, for when a team needs it: direction = branch, version = commit, Push = open a PR (a preview link),
   Settled = merged into main, Set aside = closed with the reason.
 - **A folder per direction, so ideas never collide (2026-10-14, John: "I always want to try multiple things but I'm always
