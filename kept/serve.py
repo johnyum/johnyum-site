@@ -146,7 +146,7 @@ def directions(project):
         d['folder'] = bool(w and os.path.isdir(w['path']))
         d['branch'] = w and w['branch']
         d['pr'] = w and w.get('pr')
-        d['building'] = building(d['id'])
+        d['building'] = building(d['id']) or d['id'] in RUNS
         d['running'] = d['id'] in TERMS and TERMS[d['id']].alive()
     return ds
 
@@ -508,7 +508,128 @@ def building(key):
     return bool(p and p['t'] > p['done'] and time.time() - p['t'] < 3600)
 
 
-# ---------------------------------------------------------------- the terminals: one Claude Code per direction
+# ---------------------------------------------------------------- the chat: Claude Code, headless, one session per thread
+
+GUIDE = """You are working inside Kept, for a designer who builds in code and doesn't read terminals. You're in this
+thread's own copy of the project (a git worktree on its own branch); edit files here freely, nothing else is touched until
+he pushes. Reply in one or two short plain sentences: what you changed and where, or the one question you need answered.
+No code blocks, no file listings, no headings unless he asks. Don't commit; Kept saves every turn as a version itself."""
+
+RUNS = {}   # thread id -> the running claude process
+
+
+def step_of(tool, inp, cwd):
+    """A tool call as a few words a designer can follow."""
+    f = os.path.relpath(inp.get('file_path') or inp.get('path') or '', cwd) if (inp.get('file_path') or inp.get('path')) else ''
+    if tool in ('Edit', 'MultiEdit', 'Write', 'NotebookEdit'):
+        return f'Editing {f}'
+    if tool == 'Read':
+        return f'Reading {f}'
+    if tool in ('Grep', 'Glob'):
+        return 'Looking through the files'
+    if tool == 'Bash':
+        return 'Running ' + short(inp.get('command', ''), 60)
+    if tool in ('WebSearch', 'WebFetch'):
+        return 'Looking it up'
+    return tool
+
+
+def chat_of(did):
+    d = S['directions'][did]
+    return d.setdefault('chat', [])
+
+
+def turn(did, text, allow=None):
+    """One message to the thread's Claude. Runs in the background; the page watches the chat fill in."""
+    with LOCK:
+        w = folder(did)
+        d = S['directions'][did]
+        chat = chat_of(did)
+        if not allow:
+            chat.append({'role': 'you', 'text': text, 't': int(time.time())})
+        reply = {'role': 'claude', 'text': '', 'steps': [], 't': int(time.time()), 'busy': True}
+        chat.append(reply)
+        save(S)
+        hit = recall(d['project'], text) if not allow else None
+        NUDGES[did] = hit
+
+    def run():
+        args = [CLAUDE, '-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'acceptEdits',
+                '--append-system-prompt', GUIDE + ('\n\n' + hit['context'] if hit else '')]
+        if d.get('session'):
+            args += ['--resume', d['session']]
+        if allow:
+            args += ['--allowedTools', allow]
+        env = {k: v for k, v in os.environ.items() if not (k.startswith('CLAUDE_CODE') or k in ('CLAUDECODE', 'CLAUDE_AGENT_SDK_VERSION'))}
+        env['PATH'] = os.path.expanduser('~/.local/bin') + ':' + env.get('PATH', '')
+        proc = subprocess.Popen(args, cwd=w['path'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                text=True, env=env)
+        RUNS[did] = proc
+        proc.stdin.write(('Go ahead, that step is allowed now.' if allow else text))
+        proc.stdin.close()
+        last = None
+        for line in proc.stdout:
+            try:
+                o = json.loads(line)
+            except ValueError:
+                continue
+            with LOCK:
+                if o.get('session_id'):
+                    d['session'] = o['session_id']
+                if o.get('type') == 'assistant':
+                    for c in o.get('message', {}).get('content', []):
+                        if c.get('type') == 'tool_use':
+                            reply['steps'].append(step_of(c.get('name', ''), c.get('input') or {}, w['path']))
+                        elif c.get('type') == 'text' and c.get('text', '').strip():
+                            reply['text'] = c['text'].strip()
+                    save(S)
+                if o.get('type') == 'result':
+                    last = o
+        proc.wait()
+        RUNS.pop(did, None)
+        with LOCK:
+            if last:
+                reply['text'] = (last.get('result') or reply['text'] or '').strip()
+                denied = [x for x in last.get('permission_denials') or [] if x.get('tool_name')]
+                if denied:
+                    x = denied[0]
+                    inp = x.get('tool_input') or {}
+                    reply['blocked'] = {'tool': x['tool_name'], 'what': step_of(x['tool_name'], inp, w['path']),
+                                        'allow': f"Bash({inp['command']})" if x['tool_name'] == 'Bash' and inp.get('command') else x['tool_name']}
+                if last.get('is_error'):
+                    reply['error'] = True
+            elif proc.returncode:
+                reply['text'] = reply['text'] or 'Stopped.'
+            reply['busy'] = False
+            save(S)
+        v = keep(did, text if not allow else f'{text} (allowed)')
+        with LOCK:
+            if v:
+                reply['version'] = v['sha']
+                save(S)
+
+    threading.Thread(target=run, daemon=True).start()
+
+
+def begin(project, text):
+    """A sentence on a project's home starts a thread: its own branch and folder, named from the words."""
+    with LOCK:
+        did = 'd' + str(int(time.time() * 1000))[-9:]
+        S['directions'][did] = {'project': project, 'title': name_from(text), 'status': 'active', 'why': '',
+                                'quotes': [], 't': int(time.time()), 'versions': [], 'chat': []}
+        S['current'] = {'project': project, 'direction': did}
+        save(S)
+    turn(did, text)
+    return did
+
+
+def stop_turn(did):
+    p = RUNS.get(did)
+    if p and p.poll() is None:
+        p.terminate()
+
+
+# ---------------------------------------------------------------- the terminals: one Claude Code per direction (kept, unused by the page)
 
 class Term:
     def __init__(self, key, cwd):
@@ -769,6 +890,27 @@ class Handler(SimpleHTTPRequestHandler):
                     S['current'] = {'project': j['project'], 'thing': j.get('thing'), 'direction': did}
                     save(S)
                     folder(did, j.get('from'))
+                    return self.send_json(state())
+                if p == '/kept/api/say':
+                    # One box for everything: on a thread it continues it; on a project's home it starts one.
+                    text = (j.get('text') or '').strip()
+                    if j.get('direction') and j['direction'] in S['directions']:
+                        if j['direction'] in RUNS:
+                            raise RuntimeError('Claude is still working on the last message. Wait, or stop it.')
+                        turn(j['direction'], text)
+                    else:
+                        if len(re.findall(r'\w+', text)) < 3:
+                            raise RuntimeError('Say a little more: a few words about what you want to try.')
+                        begin(j['project'], text)
+                    return self.send_json(state())
+                if p == '/kept/api/allow':
+                    did = j['direction']
+                    chat = chat_of(did)
+                    asked = next((m['text'] for m in reversed(chat) if m['role'] == 'you'), '')
+                    turn(did, asked, allow=j['allow'])
+                    return self.send_json(state())
+                if p == '/kept/api/stop':
+                    stop_turn(j['direction'])
                     return self.send_json(state())
                 if p == '/kept/api/start':
                     start(j['project'], j['prompt'], int(j.get('cols', 100)), int(j.get('rows', 30)))

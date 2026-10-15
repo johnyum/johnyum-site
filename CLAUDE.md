@@ -962,6 +962,16 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   main folder touch the same files, git refuses, nothing changes, and Kept says which files; the branch stays. Push tested
   end to end in a throwaway repo with a fake remote (merge, push, folder removed; and the refusal), never on the real site.
   `data/things.json` is still read by the old code paths but no longer shown.
+- **No terminal; one box (2026-10-14, John: "I don't want to see terminal"; "natural language, just like Anthropic or Codex").**
+  The right-side terminal is gone. A project's home is Main live and big, its past as a strip, the threads listed under it, and
+  one box at the bottom: a sentence there (three words or more; one stray word is refused) starts a thread (`begin()`). A thread is
+  its work live from its own folder with the conversation floating over it, last exchange showing, "Whole thread" for all of it;
+  versions top right. Claude Code runs headless underneath (`turn()`: `claude -p --output-format stream-json --permission-mode
+  acceptEdits`, `--resume` the thread's session, `GUIDE` asks for one or two plain sentences), each reply's steps shown as words
+  ("Editing test/box-check.html"), and a reply that changed something carries its version. A step headless mode won't take
+  (a command) comes back as "Claude wants to: …" with Allow, which re-runs with that tool allowed. The send button stops a turn.
+  The terminal code (`Term`, hooks) is still in serve.py, unused by the page. Tested 2026-10-14: a sentence made a thread, its
+  reply and v1; a follow-up kept the conversation and made v2.
 - The mapping to git, for when a team needs it: direction = branch, version = commit, Push = open a PR (a preview link),
   Settled = merged into main, Set aside = closed with the reason.
 - **A folder per direction, so ideas never collide (2026-10-14, John: "I always want to try multiple things but I'm always
