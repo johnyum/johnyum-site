@@ -1000,6 +1000,11 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   session is marked sorted. With no reading to be had it falls back to one pile per project. Tested 2026-10-14: one session
   touched the deck, the front page and a new folder; it split into three threads, one file each, Main untouched; then removed.
   Not yet: splitting two ideas tangled in the same lines of one file (piles are whole files for now).
+  **One pile skips the screen (2026-10-15, John: "I want it to become a project on the left panel"):** `plan_sort()` files it
+  straight away (`apply_sort()`) and lands in the new chat; the piles screen is only for a real split.
+- **Allow remembers the program, not the command (2026-10-15).** A blocked Bash call's Allow passes `allow_rules()` to the next
+  turn's `--allowedTools`: one `Bash(<prog>:*)` per program in the command, split quote-aware with `shlex` (a `;` inside a quoted
+  `python3 -c` is not a separator). Passing the exact multi-line command as `Bash(<cmd>)` never matched, and Allow looped.
 - **Rename a project by double-clicking it** in the sidebar (as a Figma layer): Enter saves, Escape cancels, an empty name goes
   back to the original. Names are labels only (`S['names']`); folders and history don't change.
 - **Projects, canvas, chat (2026-10-14, John: "projects on the left, chat on the right, and all the things I'm building floating

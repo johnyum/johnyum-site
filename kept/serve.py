@@ -615,6 +615,31 @@ def chat_of(did):
     return d.setdefault('chat', [])
 
 
+def allow_rules(tool, inp):
+    """What Allow lets through, as Claude Code permission rules. Not the exact command: a multi-line command with quotes and
+    parentheses never matched as a rule, so Allow kept being asked again (2026-10-15, John's lantern session, three times).
+    Instead, each program in the command (split at && || ; |) is allowed for the rest of that reply: Bash(python3:*)."""
+    if tool != 'Bash' or not inp.get('command'):
+        return tool
+    import shlex
+    progs, start = [], True
+    try:
+        lex = shlex.shlex(inp['command'], posix=True, punctuation_chars=True)
+        lex.whitespace_split = True
+        for tok in lex:   # quote-aware: a ; inside a python -c "…" string is not a new command
+            if tok in ('&&', '||', ';', '|', '&', ';;', '(', ')'):
+                start = True
+            elif start and re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', tok):   # FOO=bar cmd
+                continue
+            elif start:
+                start = False
+                if tok not in progs:
+                    progs.append(tok)
+    except ValueError:
+        progs = inp['command'].split()[:1]
+    return '\n'.join(f'Bash({p}:*)' for p in progs) or 'Bash'
+
+
 def turn(did, text, allow=None, send=None, pointer=None):
     """One message to the thread's Claude. Runs in the background; the page watches the chat fill in."""
     with LOCK:
@@ -635,7 +660,7 @@ def turn(did, text, allow=None, send=None, pointer=None):
         if d.get('session'):
             args += ['--resume', d['session']]
         if allow:
-            args += ['--allowedTools', allow]
+            args += ['--allowedTools', *[a for a in allow.split('\n') if a]]
         env = {k: v for k, v in os.environ.items() if not (k.startswith('CLAUDE_CODE') or k in ('CLAUDECODE', 'CLAUDE_AGENT_SDK_VERSION'))}
         env['PATH'] = os.path.expanduser('~/.local/bin') + ':' + env.get('PATH', '')
         proc = subprocess.Popen(args, cwd=w['path'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -671,7 +696,7 @@ def turn(did, text, allow=None, send=None, pointer=None):
                     x = denied[0]
                     inp = x.get('tool_input') or {}
                     reply['blocked'] = {'tool': x['tool_name'], 'what': step_of(x['tool_name'], inp, w['path']),
-                                        'allow': f"Bash({inp['command']})" if x['tool_name'] == 'Bash' and inp.get('command') else x['tool_name']}
+                                        'allow': allow_rules(x['tool_name'], inp)}
                 if last.get('is_error'):
                     reply['error'] = True
             elif proc.returncode:
@@ -795,6 +820,10 @@ def plan_sort(did):
             if pl['project'].startswith('new:') and not pl['page']:
                 pl['page'] = pl['project'][4:] + '/'
         d['plan'] = {'head': head, 'piles': piles}
+        if len(piles) == 1:   # nothing to split: file it straight away (John: "I want it to become a project on the left panel")
+            d['planning'] = False
+            apply_sort(did, piles)
+            return
     except Exception as e:
         d['plan'] = {'piles': [], 'note': f'Could not sort it: {str(e)[-200:]}'}
     finally:
@@ -835,7 +864,7 @@ def apply_sort(did, piles):
             keep(nid, pl['title'])
             made.append(nid)
         d.update(status='sorted', why=f"Sorted into {len(made)} thread{'s' if len(made) != 1 else ''}", plan=None)
-        S['current'] = {'project': S['directions'][made[0]]['project'], 'direction': None} if made else S.get('current')
+        S['current'] = {'project': S['directions'][made[0]]['project'], 'direction': made[0]} if made else S.get('current')
         save(S)
         return made
 
