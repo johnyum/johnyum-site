@@ -93,6 +93,8 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
           background-image: radial-gradient(circle, #dcdcdc 1px, transparent 1.2px); background-size: 20px 20px; }
 .canvas.panning, .shield { cursor: grabbing !important; }
 .shield { position: absolute; inset: 0; z-index: 4; cursor: grab !important; }
+.shield.zoomin { cursor: zoom-in !important; }
+.shield.zoomout { cursor: zoom-out !important; }
 .zoom { position: relative; }
 .zoom > button { min-width: 58px; text-align: center; font-variant-numeric: tabular-nums; }
 .zmenu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 9; background: var(--bg); border: 1px solid var(--line-2); border-radius: 10px;
@@ -179,11 +181,11 @@ span.cname { cursor: default; }
 .newchat:hover { background: var(--soft); color: var(--ink); }
 .moved { position: absolute; top: 54px; right: 12px; z-index: 7; display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-2);
          background: var(--bg); border: 1px solid var(--line-2); border-radius: 10px; padding: 4px 4px 4px 10px; box-shadow: 0 4px 16px rgba(0,0,0,.06); }
-.bubbles { position: absolute; left: 50%; transform: translateX(-50%); bottom: var(--above, 132px); z-index: 7; width: min(680px, calc(100% - 48px));
+.bubbles { position: absolute; left: var(--cx, 24px); bottom: var(--above, 132px); z-index: 7; width: var(--cwid, 680px);
            max-height: 52%; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; pointer-events: none;
            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 70%); mask-image: linear-gradient(to bottom, transparent 0%, #000 70%); }
 .bubbles.all { -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 64px); mask-image: linear-gradient(to bottom, transparent 0, #000 64px); }
-.bubbles.all { max-height: calc(100% - 200px); pointer-events: auto; }
+.bubbles.all { max-height: calc(100% - var(--above, 132px) - 60px); pointer-events: auto; }
 .bubbles > * { pointer-events: auto; }
 .msg { max-width: 84%; padding: 9px 13px; border-radius: 16px; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
        -webkit-backdrop-filter: blur(18px) saturate(1.2); backdrop-filter: blur(18px) saturate(1.2); }
@@ -199,10 +201,19 @@ span.cname { cursor: default; }
            -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
 .showall:hover { color: var(--ink); }
 /* Claude's composer: the text on top, a row of controls under it, the clay send button */
-.composer { position: absolute; left: 50%; transform: translateX(-50%); bottom: 20px; z-index: 8; width: min(680px, calc(100% - 48px));
+.composer { position: absolute; left: var(--cx, 24px); bottom: var(--cb, 20px); z-index: 8; width: var(--cwid, 680px); cursor: grab;
             background: var(--bg); border: 1px solid var(--line-2); border-radius: 20px; padding: 14px 12px 10px 16px;
             box-shadow: 0 6px 28px rgba(0,0,0,.10); display: flex; flex-direction: column; gap: 8px; }
 .composer:focus-within { border-color: var(--ink-3); }
+.composer.moving { cursor: grabbing; }
+.composer textarea, .composer button, .composer select, .composer .pchip { cursor: auto; }
+.composer button, .composer select { cursor: pointer; }
+/* Move the box by its empty parts or this handle; widen it from the corner */
+.chandle { position: absolute; left: 50%; top: 5px; width: 34px; height: 4px; margin-left: -17px; border-radius: 2px; background: var(--line-2); }
+.composer:hover .chandle { background: var(--ink-3); }
+.cgrip { position: absolute; right: 2px; bottom: 2px; width: 14px; height: 14px; cursor: nwse-resize; }
+.cgrip::after { content: ''; position: absolute; right: 4px; bottom: 4px; width: 6px; height: 6px; border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3); border-radius: 0 0 2px 0; opacity: .6; }
+.composer:hover .cgrip::after { opacity: 1; }
 .composer textarea { border: 0; outline: none; resize: none; font: inherit; font-size: 15px; line-height: 1.5; max-height: 200px; min-height: 24px; padding: 0; background: transparent; color: var(--ink); }
 .composer .crow { display: flex; align-items: center; gap: 8px; }
 .composer .side { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line-2); display: grid; place-items: center; color: var(--ink-2); }
@@ -247,7 +258,8 @@ span.cname { cursor: default; }
     <div class="moved hide" id="moved"></div>
     <div class="clash hide" id="clash"></div>
     <div class="bubbles" id="msgs"></div>
-    <form class="composer" id="box">
+    <form class="composer" id="box" title="Drag to move · drag the corner to widen">
+      <span class="chandle" aria-hidden="true"></span><span class="cgrip" id="cgrip" aria-hidden="true"></span>
       <div class="pchip hide" id="pchip"></div>
       <textarea id="q" rows="1" aria-label="Message"></textarea>
       <div class="crow"><button type="button" class="side" id="fresh" title="New chat" aria-label="New chat"></button><span id="cmeta"></span>
@@ -491,16 +503,32 @@ function zoomKey(e) {
   const mod = e.metaKey || e.ctrlKey;
   if (mod && (e.key === '=' || e.key === '+')) { e.preventDefault(); const [cx, cy] = canvasMid(); zoomAt(1.25, cx, cy); return true; }
   if (mod && (e.key === '-' || e.key === '_')) { e.preventDefault(); const [cx, cy] = canvasMid(); zoomAt(0.8, cx, cy); return true; }
+  if (!typing && !mod && e.code === 'KeyZ') { e.preventDefault(); if (!e.repeat) shield(e.altKey ? 'zoomout' : 'zoomin'); return true; }   // Figma's zoom tool, Option first or after
   if (typing || mod || e.altKey) return false;
   if (e.shiftKey && e.code === 'Digit0') { e.preventDefault(); zoomTo(1); return true; }
   if (e.shiftKey && e.code === 'Digit1') { e.preventDefault(); fit(); return true; }
   if (e.shiftKey && e.code === 'Digit2') { e.preventDefault(); fit(selWin()); return true; }
-  if (e.code === 'Space' && !e.repeat) { e.preventDefault(); $('#shield').classList.remove('hide'); return true; }
+  if (e.code === 'Space' && !e.repeat) { e.preventDefault(); shield('pan'); return true; }
   return false;
 }
+/* While Space or Z is held, a shield covers the canvas (screens are real pages and would take the click):
+   Space drags to pan; Z clicks to zoom in at that spot, Z + Option to zoom out. */
+let shieldMode = null;
+function shield(mode) {
+  shieldMode = mode;
+  const sh = $('#shield');
+  sh.classList.toggle('hide', !mode);
+  sh.classList.toggle('zoomin', mode === 'zoomin'); sh.classList.toggle('zoomout', mode === 'zoomout');
+}
 addEventListener('keydown', zoomKey);
-addEventListener('keyup', e => { if (e.code === 'Space') $('#shield').classList.add('hide'); });
-addEventListener('blur', () => $('#shield').classList.add('hide'));
+const unshield = e => {
+  if (e.code === 'Space' && shieldMode === 'pan') shield(null);
+  if (e.code === 'KeyZ' && /zoom/.test(shieldMode || '')) shield(null);
+  if (e.key === 'Alt' && /zoom/.test(shieldMode || '')) shield('zoomin');
+};
+addEventListener('keyup', unshield);
+addEventListener('keydown', e => { if (e.key === 'Alt' && /zoom/.test(shieldMode || '')) shield('zoomout'); });
+addEventListener('blur', () => shield(null));
 /* Pan: drag empty canvas, or anything while Space is held. */
 function pan(e) {
   e.preventDefault();
@@ -511,7 +539,12 @@ function pan(e) {
   addEventListener('pointermove', move); addEventListener('pointerup', up);
 }
 $('#canvas').addEventListener('pointerdown', e => { if (e.target === $('#canvas') || e.target === $('#wins') || e.button === 1) pan(e); });
-$('#shield').addEventListener('pointerdown', pan);
+$('#shield').addEventListener('pointerdown', e => {
+  if (shieldMode === 'pan') return pan(e);
+  e.preventDefault();
+  const r = $('#canvas').getBoundingClientRect();
+  zoomAt(e.altKey || shieldMode === 'zoomout' ? 0.5 : 2, e.clientX - r.left, e.clientY - r.top);
+});
 
 /* A window keeps its device's shape: the page renders at the device's size and scales to the window. */
 function place(el) {
@@ -678,7 +711,34 @@ function box() {
   send.innerHTML = busy ? STOP : UP;
   send.setAttribute('aria-label', busy ? 'Stop' : 'Send');
 }
-const fitAbove = () => $('.work').style.setProperty('--above', ($('#box').offsetHeight + 32) + 'px');
+let C = null;   // the chat box: { x: left, b: from the bottom, w: width }, in the work area; yours to keep, per browser
+try { C = JSON.parse(localStorage.getItem('kept-chatbox') || 'null'); } catch (e) {}
+function fitAbove() {
+  const work = $('.work'), W = work.clientWidth, H = work.clientHeight, box = $('#box');
+  if (!C) { const w = Math.min(680, W - 48); C = { w, x: (W - w) / 2, b: 20 }; }
+  C.w = Math.max(320, Math.min(C.w, W - 16));
+  C.x = Math.max(8, Math.min(C.x, W - C.w - 8));
+  C.b = Math.max(8, Math.min(C.b, H - box.offsetHeight - 8));
+  work.style.setProperty('--cx', C.x + 'px'); work.style.setProperty('--cb', C.b + 'px'); work.style.setProperty('--cwid', C.w + 'px');
+  work.style.setProperty('--above', (C.b + box.offsetHeight + 12) + 'px');
+}
+const saveBox = () => { try { localStorage.setItem('kept-chatbox', JSON.stringify(C)); } catch (e) {} };
+/* Drag the box by anything that isn't for typing or pressing; drag its corner to change its width. */
+$('#box').addEventListener('pointerdown', e => {
+  const resize = !!e.target.closest('#cgrip');
+  if (!resize && e.target.closest('textarea, button, select, input, .pchip')) return;
+  e.preventDefault();
+  const sx = e.clientX, sy = e.clientY, c0 = { ...C }, box = $('#box');
+  box.classList.add('moving'); document.body.classList.add('dragging');
+  const move = m => {
+    if (resize) C.w = c0.w + (m.clientX - sx);
+    else { C.x = c0.x + (m.clientX - sx); C.b = c0.b - (m.clientY - sy); }
+    fitAbove();
+  };
+  const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); box.classList.remove('moving'); document.body.classList.remove('dragging'); saveBox(); };
+  addEventListener('pointermove', move); addEventListener('pointerup', up);
+});
+requestAnimationFrame(fitAbove);
 $('#q').addEventListener('input', e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(200, e.target.scrollHeight) + 'px'; fitAbove(); });
 addEventListener('resize', fitAbove);
 $('#fresh').innerHTML = icon('add');
@@ -730,7 +790,7 @@ function hookDoc(win, frame, off) {
     onWheel(e, fr.left + (o.x + e.clientX) * ratio - cr.left, fr.top + (o.y + e.clientY) * ratio - cr.top);
   }, { passive: false, capture: true });
   doc.addEventListener('keydown', e => zoomKey(e), true);
-  doc.addEventListener('keyup', e => { if (e.code === 'Space') $('#shield').classList.add('hide'); }, true);
+  doc.addEventListener('keyup', e => unshield(e), true);
   const hookChild = fr => { const go = () => hookDoc(win, fr, () => { const o = off(), r = fr.getBoundingClientRect(); return { x: o.x + r.left + fr.clientLeft, y: o.y + r.top + fr.clientTop }; }); fr.addEventListener('load', go); go(); };
   doc.querySelectorAll('iframe').forEach(hookChild);
   try { new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if (n.tagName === 'IFRAME') hookChild(n); else n.querySelectorAll && n.querySelectorAll('iframe').forEach(hookChild); })))

@@ -1024,7 +1024,9 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   first visit fits everything). Cmd + scroll or a pinch zooms at the pointer (also over a screen: its frame forwards the wheel);
   plain scroll pans the board, and over a screen scrolls that page; Space-drag or dragging empty canvas pans; Cmd + / Cmd − zoom,
   Shift 0 is 100%, Shift 1 fits everything, Shift 2 fits the selected screen (keys forwarded from inside screens too, never while
-  typing in a field). The zoom % in the artboard bar opens the same as a menu. Window drags, resizes and Option-drag copies work
+  typing in a field). **Z + click zooms in** at that spot, **Z + Option + click zooms out** (Figma's zoom tool; while Space or Z is
+  held a shield covers the canvas, since screens are real pages and would take the click). The zoom % in the artboard bar opens the
+  same as a menu. Window drags, resizes and Option-drag copies work
   in world units at any zoom; Tidy and a device switch fit again.
 - **Redlines and pointing (2026-10-14, John: "tap individual things, not to manipulate, just as a pointer for the AI… a blue
   bounding box with its type, size, like a redlines view"; then "I want the build truly tappable… option tap").** The screens are
@@ -1041,7 +1043,8 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   projects. Claude's composer floats bottom centre (text on top; a row under it with + for a new chat, "Claude Code", and the black
   send button), the latest exchange floats above it as bubbles (yours near-black on the right, Claude's white on the left; no shadow,
   a frosted backdrop blur; a long fade from nothing at the top to solid at 70% so older ones go quickly; "Show all" at the
-  bottom for the rest; they ride above the composer however tall it grows, `--above`). **The top right is the artboard's bar** (John:
+  bottom for the rest; **the box moves**: drag it by anything that isn't for typing or pressing, or by the handle on top, and widen
+  it from its bottom-right corner; the bubbles follow it, same left edge and width (`C`, per browser in `kept-chatbox`); they ride above the composer however tall it grows, `--above`). **The top right is the artboard's bar** (John:
   "this art board as my design project bar"): **Phone · Web · Tablet** switches every screen at once (`setDevice`, laid out again
   so nothing overlaps; `kept-device` per browser) and Tidy; the per-screen device buttons are gone. The chat's own bits live in
   the composer: + for a new chat, the chat's name (a menu when there are several), and Push (Sort it for a free session) beside
