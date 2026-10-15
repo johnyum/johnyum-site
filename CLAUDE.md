@@ -1016,7 +1016,10 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   projects; the three places light up while you drag; the resize line follows it (`dock`, per browser in `kept-dock`).
 - **Project icons are Google Material Symbols, outlined** (off Google Fonts; `ICONS` in the page): Presentation `slideshow`,
   AI Chat Animations `animation`, Trip Creator `travel_explore`, Johnyum.com `language`, Multi Cal `calendar_month`, Icon
-  Systems `interests`, Sessions `forum`, a project made here `draft`. The + is the same system (`add`), no box round it.
+  Systems `interests`, Sessions `forum`. **The black dot** (Material Symbols `circle`, filled; the font is loaded with FILL 0..1
+  for it) is Kept's mark left of its name and the placeholder for any project without its own icon. The + is the same system
+  (`add`), no box round it. The sidebar **folds** to a 52px strip of icons (toggle by the name; `kept-slim` per browser); its
+  width is `--nw`, which the chat dock and resize line read.
   This sidebar is a third icon system, apart from claude-icons and playful: don't mix them.
 - The mapping to git, for when a team needs it: direction = branch, version = commit, Push = open a PR (a preview link),
   Settled = merged into main, Set aside = closed with the reason.
