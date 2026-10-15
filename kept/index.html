@@ -89,8 +89,17 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
 .plus.on { background: var(--ink); color: var(--bg); }
 
 /* The canvas: every screen the chat is building, floating */
-.canvas { position: absolute; inset: 0; overflow: auto; background-color: #fafafa;
+.canvas { position: absolute; inset: 0; overflow: hidden; background-color: #fafafa; cursor: default; touch-action: none;
           background-image: radial-gradient(circle, #dcdcdc 1px, transparent 1.2px); background-size: 20px 20px; }
+.canvas.panning, .shield { cursor: grabbing !important; }
+.shield { position: absolute; inset: 0; z-index: 4; cursor: grab !important; }
+.zoom { position: relative; }
+.zoom > button { min-width: 58px; text-align: center; font-variant-numeric: tabular-nums; }
+.zmenu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 9; background: var(--bg); border: 1px solid var(--line-2); border-radius: 10px;
+         box-shadow: 0 10px 30px rgba(0,0,0,.12); padding: 4px; min-width: 210px; }
+.zmenu button { display: flex; width: 100%; padding: 6px 10px; border-radius: 6px; font-size: 12.5px; }
+.zmenu button:hover { background: var(--soft); }
+.zmenu kbd { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
 .tools { position: absolute; top: 10px; left: 12px; z-index: 5; display: flex; gap: 8px; align-items: center; pointer-events: none; }
 .tools > * { pointer-events: auto; }
 .seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 7px; padding: 2px; gap: 2px; background: var(--bg); }
@@ -98,7 +107,7 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
 .seg button.on { background: var(--ink); color: var(--bg); }
 .chip { background: var(--ink); color: var(--bg); font-size: 11px; padding: 3px 8px; border-radius: 5px; display: inline-flex; gap: 8px; align-items: center; }
 .chip button { color: var(--bg); text-decoration: underline; }
-.wins { position: absolute; left: 0; top: 0; }
+.wins { position: absolute; left: 0; top: 0; width: 1px; height: 1px; transform-origin: 0 0; }
 .empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-3); text-align: center; padding: 40px; pointer-events: none; }
 .empty h1 { font-size: 26px; font-weight: 600; letter-spacing: -.02em; margin: 0 0 6px; color: var(--ink); }
 
@@ -172,20 +181,22 @@ span.cname { cursor: default; }
          background: var(--bg); border: 1px solid var(--line-2); border-radius: 10px; padding: 4px 4px 4px 10px; box-shadow: 0 4px 16px rgba(0,0,0,.06); }
 .bubbles { position: absolute; left: 50%; transform: translateX(-50%); bottom: var(--above, 132px); z-index: 7; width: min(680px, calc(100% - 48px));
            max-height: 52%; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; pointer-events: none;
-           -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 28px); mask-image: linear-gradient(to bottom, transparent 0, #000 28px); }
+           -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 70%); mask-image: linear-gradient(to bottom, transparent 0%, #000 70%); }
+.bubbles.all { -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 64px); mask-image: linear-gradient(to bottom, transparent 0, #000 64px); }
 .bubbles.all { max-height: calc(100% - 200px); pointer-events: auto; }
 .bubbles > * { pointer-events: auto; }
 .msg { max-width: 84%; padding: 9px 13px; border-radius: 16px; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
-       box-shadow: 0 4px 16px rgba(0,0,0,.08); }
-.msg.you { align-self: flex-end; background: var(--ink); color: var(--bg); border-bottom-right-radius: 6px; }
-.msg.claude { align-self: flex-start; background: var(--bg); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
+       -webkit-backdrop-filter: blur(18px) saturate(1.2); backdrop-filter: blur(18px) saturate(1.2); }
+.msg.you { align-self: flex-end; background: rgba(17,17,17,.78); color: #fff; border-bottom-right-radius: 6px; }
+.msg.claude { align-self: flex-start; background: rgba(255,255,255,.72); border: 1px solid rgba(0,0,0,.08); border-bottom-left-radius: 6px; }
 .msg .steps { color: var(--ink-3); font-size: 12px; margin-top: 2px; }
 .msg .steps.live::after { content: '…'; }
 .msg .vchip { display: inline-block; margin-top: 6px; font-family: var(--mono); font-size: 10px; border: 1px solid var(--line-2); border-radius: 4px; padding: 0 6px; color: var(--ink-2); background: var(--bg); }
 .msg .vchip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .msg .blocked { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-2); display: flex; gap: 10px; align-items: center; color: var(--ink-2); font-size: 12px; }
-.msg.nudge { align-self: stretch; max-width: none; background: var(--bg); border: 1px dashed var(--line-2); color: var(--ink-2); font-size: 12px; box-shadow: none; }
-.showall { align-self: center; font-size: 11px; color: var(--ink-3); background: var(--bg); border: 1px solid var(--line-2); border-radius: 999px; padding: 2px 10px; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+.msg.nudge { align-self: stretch; max-width: none; background: rgba(255,255,255,.72); border: 1px dashed var(--line-2); color: var(--ink-2); font-size: 12px; }
+.showall { align-self: center; font-size: 11px; color: var(--ink-3); background: rgba(255,255,255,.72); border: 1px solid var(--line-2); border-radius: 999px; padding: 2px 10px;
+           -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
 .showall:hover { color: var(--ink); }
 /* Claude's composer: the text on top, a row of controls under it, the clay send button */
 .composer { position: absolute; left: 50%; transform: translateX(-50%); bottom: 20px; z-index: 8; width: min(680px, calc(100% - 48px));
@@ -228,8 +239,9 @@ span.cname { cursor: default; }
   <section class="work">
     <div class="canvas" id="canvas">
       <div class="wins" id="wins"></div>
-      <div class="empty hide" id="empty"></div>
     </div>
+    <div class="empty hide" id="empty"></div>
+    <div class="shield hide" id="shield"></div>
     <div class="tools" id="tools"></div>
     <div class="chatbar" id="chead"></div>
     <div class="moved hide" id="moved"></div>
@@ -384,7 +396,7 @@ function screens() {
   let bottom = 0;
   for (const s2 of list) { const L2 = lay[s2.key]; if (L2) { const [dw, dh] = DEV[L2.dev]; bottom = Math.max(bottom, L2.y + L2.w * dh / dw + 26); } }
   let x = 40, y = bottom ? bottom + 40 : 64, rowH = 0;
-  const W = $('#canvas').clientWidth;
+  const W = Math.max(900, $('#canvas').clientWidth / V.z);
   for (const s of list) {
     let L = lay[s.key];
     if (!L) {
@@ -422,12 +434,85 @@ function screens() {
     if (f.dataset.src !== src) { f.dataset.src = src; f.src = src; }
     place(el);
   }
-  // The canvas grows to hold whatever you've spread out.
-  let mx = 0, my = 0;
-  wins.querySelectorAll('.win').forEach(el => { mx = Math.max(mx, el.offsetLeft + el.offsetWidth); my = Math.max(my, el.offsetTop + el.offsetHeight); });
-  Object.assign(wins.style, { width: (mx + 200) + 'px', height: (my + 200) + 'px' });
   saveLay();
+  if (!creating) enterView(p.key);
 }
+/* ---------------------------------------------------------------- the view: pan and zoom, as in Figma
+   The screens live in a world as big as you like; the canvas is a camera on it. Cmd + scroll or a pinch zooms at the
+   pointer, scroll pans, Space-drag or dragging empty canvas pans, and Figma's keys work: Cmd + and Cmd − zoom,
+   Shift 0 is 100%, Shift 1 fits everything, Shift 2 fits the screen you're working in. Per project, per browser. */
+let V = { x: 0, y: 0, z: 1 }, views = {}, viewed = null;
+try { views = JSON.parse(localStorage.getItem('kept-view') || '{}'); } catch (e) {}
+const ZMIN = 0.05, ZMAX = 4;
+function applyView() {
+  $('#wins').style.transform = `translate(${V.x}px, ${V.y}px) scale(${V.z})`;
+  const c = $('#canvas');
+  c.style.backgroundSize = `${20 * V.z}px ${20 * V.z}px`;
+  c.style.backgroundPosition = `${V.x}px ${V.y}px`;
+  const zb = document.querySelector('#zoomlabel'); if (zb) zb.textContent = Math.round(V.z * 100) + '%';
+}
+function saveView() { if (!viewed) return; views[viewed] = { ...V }; try { localStorage.setItem('kept-view', JSON.stringify(views)); } catch (e) {} }
+function zoomAt(f, cx, cy) {   // cx, cy: a point in the canvas that stays put
+  const nz = Math.max(ZMIN, Math.min(ZMAX, V.z * f));
+  V.x = cx - (cx - V.x) * nz / V.z; V.y = cy - (cy - V.y) * nz / V.z; V.z = nz;
+  applyView(); saveView();
+}
+const canvasMid = () => { const r = $('#canvas').getBoundingClientRect(); return [r.width / 2, (r.height - 120) / 2]; };
+function zoomTo(z) { const [cx, cy] = canvasMid(); zoomAt(z / V.z, cx, cy); }
+function fit(only) {   // fit the screens (or one) in the space between the top bar and the composer
+  const els = [...$('#wins').querySelectorAll('.win')].filter(el => !only || el === only);
+  if (!els.length) { V = { x: 40, y: 64, z: 1 }; applyView(); saveView(); return; }
+  let l = 1e9, t = 1e9, r = -1e9, b = -1e9;
+  els.forEach(el => { l = Math.min(l, el.offsetLeft); t = Math.min(t, el.offsetTop); r = Math.max(r, el.offsetLeft + el.offsetWidth); b = Math.max(b, el.offsetTop + el.offsetHeight); });
+  const cr = $('#canvas').getBoundingClientRect(), top = 60, bot = 150, side = 40;
+  const z = Math.max(ZMIN, Math.min(only ? ZMAX : 1, (cr.width - side * 2) / (r - l), (cr.height - top - bot) / (b - t)));
+  V = { z, x: side + ((cr.width - side * 2) - (r - l) * z) / 2 - l * z, y: top + ((cr.height - top - bot) - (b - t) * z) / 2 - t * z };
+  applyView(); saveView();
+}
+function enterView(project) {   // each project keeps its own camera; the first visit fits everything
+  if (viewed === project) return;
+  viewed = project;
+  if (views[project]) { V = { ...views[project] }; applyView(); }
+  else requestAnimationFrame(() => fit());
+}
+function selWin() { return $('#wins').querySelector('.win.sel') || $('#wins').querySelector('.win'); }
+function onWheel(e, cx, cy) {
+  if (e.ctrlKey || e.metaKey) zoomAt(Math.exp(-e.deltaY * (e.ctrlKey && !e.metaKey ? 0.01 : 0.0025)), cx, cy);   // a pinch arrives as ctrl + wheel
+  else { V.x -= e.deltaX; V.y -= e.deltaY; applyView(); saveView(); }
+}
+$('#canvas').addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = $('#canvas').getBoundingClientRect();
+  onWheel(e, e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+/* Hotkeys, from anywhere: the page, or inside a screen (forwarded by its frame). Typing in a field keeps its keys. */
+function zoomKey(e) {
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && (e.key === '=' || e.key === '+')) { e.preventDefault(); const [cx, cy] = canvasMid(); zoomAt(1.25, cx, cy); return true; }
+  if (mod && (e.key === '-' || e.key === '_')) { e.preventDefault(); const [cx, cy] = canvasMid(); zoomAt(0.8, cx, cy); return true; }
+  if (typing || mod || e.altKey) return false;
+  if (e.shiftKey && e.code === 'Digit0') { e.preventDefault(); zoomTo(1); return true; }
+  if (e.shiftKey && e.code === 'Digit1') { e.preventDefault(); fit(); return true; }
+  if (e.shiftKey && e.code === 'Digit2') { e.preventDefault(); fit(selWin()); return true; }
+  if (e.code === 'Space' && !e.repeat) { e.preventDefault(); $('#shield').classList.remove('hide'); return true; }
+  return false;
+}
+addEventListener('keydown', zoomKey);
+addEventListener('keyup', e => { if (e.code === 'Space') $('#shield').classList.add('hide'); });
+addEventListener('blur', () => $('#shield').classList.add('hide'));
+/* Pan: drag empty canvas, or anything while Space is held. */
+function pan(e) {
+  e.preventDefault();
+  const sx = e.clientX, sy = e.clientY, x0 = V.x, y0 = V.y, c = $('#canvas');
+  c.classList.add('panning'); document.body.classList.add('dragging');
+  const move = m => { V.x = x0 + m.clientX - sx; V.y = y0 + m.clientY - sy; applyView(); };
+  const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); c.classList.remove('panning'); document.body.classList.remove('dragging'); saveView(); };
+  addEventListener('pointermove', move); addEventListener('pointerup', up);
+}
+$('#canvas').addEventListener('pointerdown', e => { if (e.target === $('#canvas') || e.target === $('#wins') || e.button === 1) pan(e); });
+$('#shield').addEventListener('pointerdown', pan);
+
 /* A window keeps its device's shape: the page renders at the device's size and scales to the window. */
 function place(el) {
   const L = lay[el.dataset.key], [dw, dh] = DEV[L.dev];
@@ -445,8 +530,8 @@ function drag(e, el, resize) {
   el.dataset.moved = '';
   const move = m => {
     if (Math.hypot(m.clientX - sx, m.clientY - sy) > 4) el.dataset.moved = '1';
-    if (resize) L.w = Math.max(160, b0.w + (m.clientX - sx));
-    else { L.x = Math.max(0, b0.x + m.clientX - sx); L.y = Math.max(44, b0.y + m.clientY - sy); }
+    if (resize) L.w = Math.max(160, b0.w + (m.clientX - sx) / V.z);
+    else { L.x = b0.x + (m.clientX - sx) / V.z; L.y = b0.y + (m.clientY - sy) / V.z; }
     place(el);
   };
   const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); document.body.classList.remove('dragging'); saveLay(); screens(); setTimeout(() => el.dataset.moved = '', 0); };
@@ -469,15 +554,16 @@ function copyDrag(e, el) {
   const ghost = document.createElement('div');
   ghost.className = 'copyghost';
   ghost.textContent = 'Copy of ' + el.dataset.label;
-  Object.assign(ghost.style, { width: r.width + 'px', height: r.height + 'px', left: (r.left - wr.left) + 'px', top: (r.top - wr.top) + 'px' });
+  const toW = (cx, cy) => [(cx - wr.left) / V.z, (cy - wr.top) / V.z];
+  Object.assign(ghost.style, { width: r.width / V.z + 'px', height: r.height / V.z + 'px', left: toW(r.left, 0)[0] + 'px', top: toW(0, r.top)[1] + 'px' });
   $('#wins').appendChild(ghost);
   document.body.classList.add('dragging');
-  const move = m => { ghost.style.left = (m.clientX - wr.left - ox) + 'px'; ghost.style.top = (m.clientY - wr.top - oy) + 'px'; };
+  const move = m => { const [gx, gy] = toW(m.clientX - ox, m.clientY - oy); ghost.style.left = gx + 'px'; ghost.style.top = gy + 'px'; };
   const up = async m => {
     removeEventListener('pointermove', move); removeEventListener('pointerup', up);
     document.body.classList.remove('dragging');
-    const x = Math.max(0, m.clientX - wr.left - ox), y = Math.max(44, m.clientY - wr.top - oy);
-    if (Math.hypot(x - (r.left - wr.left), y - (r.top - wr.top)) < 20) { ghost.remove(); return; }   // let go where it started: no copy
+    const [x, y] = toW(m.clientX - ox, m.clientY - oy), [x0, y0] = toW(r.left, r.top);
+    if (Math.hypot(x - x0, y - y0) * V.z < 20) { ghost.remove(); return; }   // let go where it started: no copy
     ghost.textContent = 'Copying…';
     try {
       const res = await api('direction', { project: p.key, title: 'Copy of ' + el.dataset.label, pages: [page],
@@ -503,6 +589,7 @@ function tidy() {
   const pre = proj().key + '|';
   Object.keys(lay).forEach(k => { if (k.startsWith(pre)) delete lay[k]; });
   saveLay(); $('#wins').innerHTML = ''; screens();
+  requestAnimationFrame(() => fit());
 }
 /* One device for every screen. Switching lays them out again at the new size, so nothing overlaps. */
 let device = 'desktop';
@@ -520,8 +607,21 @@ function chead() {
   const devs = [['phone', 'Phone'], ['desktop', 'Web'], ['tablet', 'Tablet']];
   put($('#chead'), creating ? '' : `<span class="seg" role="group" aria-label="Show every screen as">${devs.map(([k, l]) =>
       `<button type="button" data-dev="${k}" class="${device === k ? 'on' : ''}">${l}</button>`).join('')}</span>
-    <button class="btn" id="tidy" title="Put the screens back in a row">Tidy</button>`,
+    <button class="btn" id="tidy" title="Put the screens back in a row">Tidy</button>
+    <span class="zoom"><button class="btn" id="zoomlabel" title="Zoom">${Math.round(V.z * 100)}%</button></span>`,
   el => {
+    el.querySelector('#zoomlabel').onclick = e => {
+      e.stopPropagation();
+      const host = el.querySelector('.zoom'), open = host.querySelector('.zmenu');
+      if (open) return open.remove();
+      const m = document.createElement('div'); m.className = 'zmenu';
+      const items = [['Zoom in', '⌘ +', () => zoomTo(V.z * 1.25)], ['Zoom out', '⌘ −', () => zoomTo(V.z * 0.8)],
+                     ['Zoom to fit', '⇧ 1', () => fit()], ['Zoom to 100%', '⇧ 0', () => zoomTo(1)], ['Zoom to selection', '⇧ 2', () => fit(selWin())]];
+      m.innerHTML = items.map(([l, k], i) => `<button type="button" data-i="${i}">${l}<kbd>${k}</kbd></button>`).join('');
+      m.querySelectorAll('button').forEach(b => b.onclick = () => { items[+b.dataset.i][2](); m.remove(); });
+      host.appendChild(m);
+      setTimeout(() => addEventListener('pointerdown', function off(ev) { if (!m.contains(ev.target)) { m.remove(); removeEventListener('pointerdown', off); } }), 0);
+    };
     el.querySelectorAll('[data-dev]').forEach(b => b.onclick = () => setDevice(b.dataset.dev));
     el.querySelector('#tidy').onclick = () => tidy();
   });
@@ -556,9 +656,9 @@ function msgs() {
     : `<div class="msg claude">${m.text ? esc(m.text) : ''}${m.busy || (!m.text && m.steps.length) ? `<p class="steps${m.busy ? ' live' : ''}">${esc(m.steps.at(-1) || 'Thinking')}</p>` : ''}${
         m.version ? `<br><button class="vchip${viewing === m.version ? ' on' : ''}" data-ver="${m.version}" title="Show every screen as it was here">v${t.versions.findIndex(v => v.sha === m.version) + 1}</button>` : ''}${
         m.blocked ? `<div class="blocked"><span>Claude wants to: ${esc(m.blocked.what)}</span><button class="btn dark" data-allow="${esc(m.blocked.allow)}">Allow</button></div>` : ''}</div>`;
-  const shown = showAll ? chat : chat.slice(-4);
-  put($('#msgs'), (chat.length > 4 ? `<button class="showall" id="showall">${showAll ? 'Show fewer' : `Show all ${chat.length}`}</button>` : '')
-    + (nudge ? `<div class="msg nudge">${esc(nudge.text)}</div>` : '') + shown.map(msg).join(''),
+  const shown = showAll ? chat : chat.slice(-2);   // the latest exchange; the rest fades and goes
+  put($('#msgs'), (nudge ? `<div class="msg nudge">${esc(nudge.text)}</div>` : '') + shown.map(msg).join('')
+    + (chat.length > 2 ? `<button class="showall" id="showall">${showAll ? 'Show fewer' : `Show all ${chat.length}`}</button>` : ''),   // at the bottom: the top is faded
   el => {
     el.classList.toggle('all', showAll);
     el.querySelector('#showall') && (el.querySelector('#showall').onclick = () => { showAll = !showAll; msgs(); });
@@ -622,6 +722,15 @@ function hookDoc(win, frame, off) {
   doc.addEventListener('keyup', e => { if (e.key === 'Alt') clearHover(); });
   doc.addEventListener('mouseleave', () => win.querySelectorAll('.hov').forEach(h => h.remove()));
   doc.addEventListener('scroll', () => drawMarks(win), true);
+  doc.addEventListener('wheel', e => {   // Cmd + scroll or a pinch over a screen zooms the canvas; plain scroll scrolls the page
+    if (!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    const fr = win.querySelector('iframe').getBoundingClientRect(), ratio = fr.width / DEV[lay[win.dataset.key].dev][0], o = off();
+    const cr = $('#canvas').getBoundingClientRect();
+    onWheel(e, fr.left + (o.x + e.clientX) * ratio - cr.left, fr.top + (o.y + e.clientY) * ratio - cr.top);
+  }, { passive: false, capture: true });
+  doc.addEventListener('keydown', e => zoomKey(e), true);
+  doc.addEventListener('keyup', e => { if (e.code === 'Space') $('#shield').classList.add('hide'); }, true);
   const hookChild = fr => { const go = () => hookDoc(win, fr, () => { const o = off(), r = fr.getBoundingClientRect(); return { x: o.x + r.left + fr.clientLeft, y: o.y + r.top + fr.clientTop }; }); fr.addEventListener('load', go); go(); };
   doc.querySelectorAll('iframe').forEach(hookChild);
   try { new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if (n.tagName === 'IFRAME') hookChild(n); else n.querySelectorAll && n.querySelectorAll('iframe').forEach(hookChild); })))

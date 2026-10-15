@@ -1019,6 +1019,13 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   new branch "Copy of …" starts from exactly what that screen showed (live: main's commit; a branch: its work is kept first, then
   its HEAD; `from_direction` on `/api/direction`), its window where you dropped it, its chat open. Let go where it started and
   nothing is made. Tested: a copy of Presentation became a branch at main's commit with its own folder; then removed.
+- **Pan and zoom, as in Figma (2026-10-14, John: "a bigger art board… zoom in and out exactly like the hotkeys, like Figma").** The
+  screens live in a world (`#wins`, transformed) and the canvas is a camera on it (`V = {x, y, z}`, per project in `kept-view`; the
+  first visit fits everything). Cmd + scroll or a pinch zooms at the pointer (also over a screen: its frame forwards the wheel);
+  plain scroll pans the board, and over a screen scrolls that page; Space-drag or dragging empty canvas pans; Cmd + / Cmd − zoom,
+  Shift 0 is 100%, Shift 1 fits everything, Shift 2 fits the selected screen (keys forwarded from inside screens too, never while
+  typing in a field). The zoom % in the artboard bar opens the same as a menu. Window drags, resizes and Option-drag copies work
+  in world units at any zoom; Tidy and a device switch fit again.
 - **Redlines and pointing (2026-10-14, John: "tap individual things, not to manipulate, just as a pointer for the AI… a blue
   bounding box with its type, size, like a redlines view"; then "I want the build truly tappable… option tap").** The screens are
   real pages: a plain tap uses them (the deck advances). **Holding Option** shows redlines under the pointer, as in Figma: a blue box
@@ -1032,8 +1039,9 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
 - **The chat floats (2026-10-14, John: "not something sticky; I just want the chat box, Claude's, bottom centred, floating, and
   the chats and replies as floating bubbles above").** No chat panel and no docking: the work fills everything right of the
   projects. Claude's composer floats bottom centre (text on top; a row under it with + for a new chat, "Claude Code", and the black
-  send button), the last four messages float above it as bubbles (yours dark on the right, Claude's white on the left; "Show all"
-  for the rest; they ride above the composer however tall it grows, `--above`). **The top right is the artboard's bar** (John:
+  send button), the latest exchange floats above it as bubbles (yours near-black on the right, Claude's white on the left; no shadow,
+  a frosted backdrop blur; a long fade from nothing at the top to solid at 70% so older ones go quickly; "Show all" at the
+  bottom for the rest; they ride above the composer however tall it grows, `--above`). **The top right is the artboard's bar** (John:
   "this art board as my design project bar"): **Phone · Web · Tablet** switches every screen at once (`setDevice`, laid out again
   so nothing overlaps; `kept-device` per browser) and Tidy; the per-screen device buttons are gone. The chat's own bits live in
   the composer: + for a new chat, the chat's name (a menu when there are several), and Push (Sort it for a free session) beside
