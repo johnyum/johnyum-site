@@ -952,6 +952,25 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
 **Run it from a terminal, not the app's preview** — the preview's sandbox stops Claude Code starting (it hangs, printing nothing):
 `python3 kept/serve.py` → localhost:5350/kept/. The pane's Claude Code needs `/login` once.
 
+- **Organised like Figma (2026-10-14, John: "the left side should be projects… collapsible… make sense in terms of what I'm working
+  on"):** the sidebar is **Working on** (active directions touched in the last three weeks, any project) then **Projects**, each
+  folding open onto its **things** (Peek → Tide pool, Cooking, Moby Dick…). A thing's canvas is its directions as rows, versions
+  left to right, newest at the right, set-aside rows faded with their reason. Click a frame to open that version; the bar's crumbs
+  go back. Things come from `data/things.json` (Claude grouped the 80 history directions once; regroup by editing it) plus any made
+  here ("New thing" under a project); a direction in none sits in Loose. The fold state is per browser (`kept-fold`).
+- The mapping to git, for when a team needs it: direction = branch, version = commit, Push = open a PR (a preview link),
+  Settled = merged into main, Set aside = closed with the reason.
+- **A folder per direction, so ideas never collide (2026-10-14, John: "I always want to try multiple things but I'm always
+  colliding").** Building on a direction gives it a git worktree at `~/.kept/worktrees/johnyum-site/<direction>` on its own branch
+  `kept/<project>/<name>`, and its own Claude Code in that folder; several run at once and switching panes stops none. The hooks
+  carry the direction (`?d=`), a turn that changed something is a real commit on that branch (`keep()`), the live preview is served
+  from the folder (`/kept/w/<direction>/`), "Branch from here" starts a new direction from any version, and **Open PR** pushes the
+  branch and runs `gh pr create` (the repo is public: the branch goes public with it). The main folder is never edited by any of them;
+  the pane with no direction open is a plain Claude in the main folder whose turns aren't kept. A history direction gets its folder
+  only when you press "Build on this direction", so 80 folders are never made for nothing. Proven 2026-10-14: two directions told to
+  write test/parallel.html at the same moment, BLUE and RED, each on its own branch, main untouched. Ignored files (fonts,
+  `monsters/.env`) aren't in a worktree; a page that needs them shows without them.
+- Versions made before worktrees (and any "Save version" on a direction with no folder) still go to hidden refs:
 - **Versions never touch your git.** Claude Code is launched with two hooks for that instance only (`--settings`): UserPromptSubmit
   and Stop, both curl back to serve.py. On Stop the working tree goes into a throwaway index → `commit-tree` → `refs/kept/<project>/<direction>`.
   HEAD, index and branch are untouched; a turn that changed nothing makes no version. `git log refs/kept/...` reads them.
