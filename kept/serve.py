@@ -1156,6 +1156,18 @@ class Handler(SimpleHTTPRequestHandler):
                 if p == '/kept/api/newproject':
                     new_project((j.get('text') or '').strip())
                     return self.send_json(state())
+                if p == '/kept/api/rename':
+                    # A project's name is yours to choose; its folders don't change.
+                    name = ' '.join((j.get('name') or '').split())[:60]
+                    if j['project'] not in P:
+                        raise RuntimeError('No such project.')
+                    S.setdefault('names', {})
+                    if name:
+                        S['names'][j['project']] = name
+                    else:
+                        S['names'].pop(j['project'], None)   # empty: back to its original name
+                    save(S)
+                    return self.send_json(state())
                 if p == '/kept/api/talk':
                     just_talk((j.get('text') or '').strip())
                     return self.send_json(state())
@@ -1241,7 +1253,8 @@ class Handler(SimpleHTTPRequestHandler):
 
 def state():
     return {
-        'projects': sorted([dict(project_view(p['key']), key=p['key'], name=p['name'], page=p['page']) for p in PROJECTS],
+        'projects': sorted([dict(project_view(p['key']), key=p['key'], name=S.get('names', {}).get(p['key']) or p['name'], page=p['page'])
+                            for p in PROJECTS],
                            key=lambda x: -x['last']),
         'current': S.get('current'),
         'nudges': {k: v for k, v in NUDGES.items() if v and time.time() - v['t'] < 600},

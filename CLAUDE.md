@@ -983,8 +983,10 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   new words) brought it in, the clash showed, "keep the red colour from Main, but use my words" merged it, B pushed, and main had
   both. The single `index.html` per project is what makes clashes common: a build split into a file per slide or component (as
   `preso/slides/` already is) is what lets several designers work at once without meeting at all.
-- **Side by side, and the + (2026-10-14).** A thread's toggle is **Yours / Main / Both**; Both splits the work, Main live on the
-  left, yours on the right. A project with nothing on Main yet says so rather than showing a 404. The **+** under the last project
+- **Side by side, and the + (2026-10-14).** A thread's toggle is **Yours / Main / Both**; Both is picture-in-picture (John: "not a half-half cut, a
+  floating inset"): yours fills the stage and Main floats over it in a window you drag by its bar and resize by its corner; the
+  page inside renders at 1280 wide and scales to the window, so it's always all of Main. Its place and size stay per browser
+  (`kept-pip`). A project with nothing on Main yet says so rather than showing a 404. The **+** under the last project
   is a blank start ("What do you want to make?"): a sentence makes a new project, a new folder named from the words
   (`new_project()`, kept in build.json's `made`), with a first thread building it as one self-contained page; it goes live only
   when pushed. Tested with a real new project, then removed.
@@ -998,6 +1000,24 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   session is marked sorted. With no reading to be had it falls back to one pile per project. Tested 2026-10-14: one session
   touched the deck, the front page and a new folder; it split into three threads, one file each, Main untouched; then removed.
   Not yet: splitting two ideas tangled in the same lines of one file (piles are whole files for now).
+- **Rename a project by double-clicking it** in the sidebar (as a Figma layer): Enter saves, Escape cancels, an empty name goes
+  back to the original. Names are labels only (`S['names']`); folders and history don't change.
+- **Projects, canvas, chat (2026-10-14, John: "projects on the left, chat on the right, and all the things I'm building floating
+  as movable screens; a phone in phone size, a website in website size").** The whole page is now three columns: projects, a dotted
+  canvas, and the chat (the whole conversation, steps, version chips, Allow, Stop; Push, Close, Sort it and a pen for a new chat in
+  its header; earlier open chats in a menu; drag the line to widen it). Opening a project opens its most recent chat; no threads
+  list. The canvas shows every page the chat's versions touched (`pagesOf()`), each a window at its device's size, rendered at the
+  device's real width and scaled: **phone** 393x852 in a black phone frame, **tablet** 834x1194, **desktop** 1440x900 as a browser
+  window. The device is guessed from the path (phone/mobile/ios/app) and switched on the window's bar; drag by the bar, resize from
+  the corner (shape kept); positions per browser in `kept-canvas`; Tidy lays them back out. **Yours / Live / Both**: Both puts each
+  screen's live twin beside it. A version chip in the chat shows every screen as it was there. Clash and sort screens open over the
+  canvas. "Main" reads "Live" in the UI now. Tested with a real chat making a phone page and a web page, then removed.
+- **The chat moves (2026-10-14):** grab its bar and drop it right, bottom (full width under the canvas) or left beside the
+  projects; the three places light up while you drag; the resize line follows it (`dock`, per browser in `kept-dock`).
+- **Project icons are Google Material Symbols, outlined** (off Google Fonts; `ICONS` in the page): Presentation `slideshow`,
+  AI Chat Animations `animation`, Trip Creator `travel_explore`, Johnyum.com `language`, Multi Cal `calendar_month`, Icon
+  Systems `interests`, Sessions `forum`, a project made here `draft`. The + is the same system (`add`), no box round it.
+  This sidebar is a third icon system, apart from claude-icons and playful: don't mix them.
 - The mapping to git, for when a team needs it: direction = branch, version = commit, Push = open a PR (a preview link),
   Settled = merged into main, Set aside = closed with the reason.
 - **A folder per direction, so ideas never collide (2026-10-14, John: "I always want to try multiple things but I'm always
