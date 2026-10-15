@@ -1012,6 +1012,13 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   the corner (shape kept); positions per browser in `kept-canvas`; Tidy lays them back out. **Yours / Live / Both**: Both puts each
   screen's live twin beside it. A version chip in the chat shows every screen as it was there. Clash and sort screens open over the
   canvas. "Main" reads "Live" in the UI now. Tested with a real chat making a phone page and a web page, then removed.
+- **Option-drag to branch (2026-10-14, John: "take Preso, option-hold and move to create a copy, which auto-creates a branch").**
+  The canvas holds the whole project at once: the live page (named after the project) and every open branch's screens, each
+  labelled; Yours / Live / Both is gone (John: not needed). Click a screen and its branch's chat comes up; click the live one and
+  the chat is fresh, so the next message starts a branch. **Option-drag a screen's bar** to pull off a dashed copy; drop it and a
+  new branch "Copy of …" starts from exactly what that screen showed (live: main's commit; a branch: its work is kept first, then
+  its HEAD; `from_direction` on `/api/direction`), its window where you dropped it, its chat open. Let go where it started and
+  nothing is made. Tested: a copy of Presentation became a branch at main's commit with its own folder; then removed.
 - **The chat moves (2026-10-14):** grab its bar and drop it right, bottom (full width under the canvas) or left beside the
   projects; the three places light up while you drag; the resize line follows it (`dock`, per browser in `kept-dock`).
 - **Project icons are Google Material Symbols, outlined** (off Google Fonts; `ICONS` in the page): Presentation `slideshow`,

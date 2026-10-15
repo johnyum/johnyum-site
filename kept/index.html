@@ -18,7 +18,8 @@
   - The canvas shows each page the chat has touched, live from the chat's own folder. Drag a window by its
     bar, resize it from its corner (it keeps its device's shape), switch its device on the bar. Where you put
     them is remembered per browser.
-  - Yours / Live / Both: your screens, what's live, or each of yours with its live twin beside it.
+  - The canvas shows the whole project at once: what's live and every open branch, each labelled. Click a screen
+    to talk to its branch. Option-drag a screen's bar to pull off a copy: a new branch from exactly what it showed.
   - Push puts the chat into Main and sends it live; a clash, or sorting a free session, opens over the canvas.
 
   The page polls every 1.5s. Each region redraws only when its own HTML changed; a screen's iframe is only
@@ -137,8 +138,11 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
 /* A phone: a phone */
 .win.phone .wbar { background: transparent; padding: 0 4px; }
 .win.phone .view { border: 7px solid #111; border-radius: 34px; box-shadow: 0 14px 36px rgba(0,0,0,.18); }
-.win.live .wbar b::after { content: ' · live'; font-weight: 400; color: var(--ink-3); }
-.win.live .view { opacity: .96; }
+.win.live .wbar b::before { content: 'Live · '; font-weight: 400; color: var(--ink-3); }
+.win.sel .view { outline: 2px solid var(--blue); outline-offset: 2px; }
+.win.phone.sel .view { outline-offset: 3px; }
+.copyghost { position: absolute; z-index: 9; border: 2px dashed var(--blue); border-radius: 10px; background: rgba(42,111,219,.06); pointer-events: none;
+             display: flex; align-items: flex-start; padding: 6px 8px; font-size: 11px; color: var(--blue); font-weight: 600; }
 .dragging iframe { pointer-events: none; }
 
 /* A clash, or sorting a session: over the canvas */
@@ -313,6 +317,7 @@ const pageName = page => !page ? 'Home' : page.replace(/\/$/, '').replace(/\.htm
 function pagesOf(t, p) {
   const out = [];
   const add = pg => { if (pg != null && !out.includes(pg)) out.push(pg); };
+  (t && t.pages || []).forEach(add);
   for (const v of (t ? t.versions : [])) {
     (v.files || []).filter(f => /\.html$/.test(f) && !f.startsWith('kept/')).forEach(f => add(f.endsWith('/index.html') ? f.slice(0, -10) : f === 'index.html' ? '' : f));
     if (v.page !== undefined && v.page !== null) add(v.page);
@@ -320,31 +325,37 @@ function pagesOf(t, p) {
   if (!out.length) add(p.page);
   return out;
 }
-function srcOf(page, live) {
-  const p = proj(), t = chatOf();
-  if (live) return p.main.length ? `/kept/v/${S.main_sha}/${page}` : 'about:blank';
-  if (viewing) return `/kept/v/${viewing}/${page}`;
-  if (t && t.folder) return `/kept/w/${t.id}/${page}`;
-  return p.main.length ? '/' + page : 'about:blank';
+function srcOf(page, from) {
+  const p = proj();
+  if (from === 'live') return p.main.length ? `/kept/v/${S.main_sha}/${page}` : 'about:blank';
+  const b = p.branches.find(x => x.id === from);
+  if (viewing && from === cur().direction) return `/kept/v/${viewing}/${page}`;
+  if (b && b.folder) return `/kept/w/${b.id}/${page}`;
+  return p.main.length ? `/kept/v/${S.main_sha}/${page}` : 'about:blank';
 }
+/* The canvas holds the whole project at once: what's live, and every branch open on it, each labelled.
+   Click a screen to talk to its branch; click a live one to start something new. */
 function screens() {
-  const p = proj(), t = chatOf(), wins = $('#wins');
+  const p = proj(), wins = $('#wins');
   const list = [];
-  if (!creating) for (const pg of pagesOf(t, p)) {
-    if (show !== 'live') list.push({ key: `${p.key}|${pg}`, page: pg, live: false });
-    if (show !== 'yours') list.push({ key: `${p.key}|${pg}|live`, page: pg, live: true, twin: `${p.key}|${pg}` });
+  if (!creating) {
+    if (p.main.length) list.push({ key: `${p.key}|live|${p.page}`, page: p.page, from: 'live', label: p.name });   // the project's own page goes by the project's name
+    for (const b of p.branches) {
+      const pgs = pagesOf(b, p);
+      for (const pg of pgs) list.push({ key: `${p.key}|${b.id}|${pg}`, page: pg, from: b.id, label: pgs.length > 1 ? `${b.title} · ${pageName(pg)}` : b.title, building: b.building });
+    }
   }
-  const empty = creating || (!list.length) || (!t && !p.main.length);
+  const empty = creating || !list.length;
   $('#empty').classList.toggle('hide', !empty);
   put($('#empty'), creating ? `<div><h1>What do you want to work on?</h1><p>Talk across anything on the right. When you're done, Sort it, and Kept files what you made into the right projects.</p></div>`
-    : `<div><h1>${esc(p.name)}</h1><p>Nothing here yet. Say what you want to make on the right.</p></div>`);
+    : `<div><h1>${esc(p.name)}</h1><p>Nothing here yet. Say what you want to make in the chat.</p></div>`);
   // Place new windows left to right; keep the ones you've moved where you put them.
   let x = 40, y = 64, rowH = 0;
   const W = $('#canvas').clientWidth;
   for (const s of list) {
     let L = lay[s.key];
     if (!L) {
-      const base = s.live && lay[s.twin];
+      const base = null;
       const dev = base ? base.dev : guessDev(s.page), w = base ? base.w : DEV_W[dev];
       const h = w * DEV[dev][1] / DEV[dev][0] + 26;
       if (base) L = { x: base.x + base.w + 28, y: base.y, w, dev };
@@ -362,15 +373,19 @@ function screens() {
       el.className = 'win'; el.dataset.key = s.key;
       el.innerHTML = `<div class="wbar"><b></b><button class="dev" title="Phone, tablet or desktop"></button></div><div class="view"><iframe></iframe></div><div class="grip" title="Drag to resize"></div>`;
       el.querySelector('iframe').title = pageName(s.page);
-      el.querySelector('.wbar').onpointerdown = e => { if (!e.target.closest('.dev')) drag(e, el, false); };
+      el.querySelector('.wbar').onpointerdown = e => { if (e.target.closest('.dev')) return; e.altKey ? copyDrag(e, el) : drag(e, el, false); };
       el.querySelector('.grip').onpointerdown = e => drag(e, el, true);
       el.querySelector('.dev').onclick = () => { const L = lay[s.key], order = ['phone', 'tablet', 'desktop']; L.dev = order[(order.indexOf(L.dev) + 1) % 3]; L.w = DEV_W[L.dev]; saveLay(); place(el); };
       el.onpointerdown = () => { wins.querySelectorAll('.win.top').forEach(w => w.classList.remove('top')); el.classList.add('top'); };
+      el.onclick = e => { if (e.target.closest('.dev, .grip') || el.dataset.moved) return; pickScreen(el.dataset.from); };
       wins.appendChild(el);
     }
-    el.classList.toggle('live', s.live);
-    el.querySelector('b').textContent = pageName(s.page);
-    const f = el.querySelector('iframe'), src = srcOf(s.page, s.live);
+    el.dataset.from = s.from; el.dataset.page = s.page; el.dataset.label = s.label;
+    el.classList.toggle('live', s.from === 'live');
+    el.classList.toggle('sel', s.from === (cur().direction || 'live'));
+    el.querySelector('b').textContent = s.label + (s.building ? ' · working…' : '');
+    el.title = s.from === 'live' ? 'Live. Option-drag the bar to copy it into a new branch.' : 'Option-drag the bar to copy this branch.';
+    const f = el.querySelector('iframe'), src = srcOf(s.page, s.from);
     if (f.dataset.src !== src) { f.dataset.src = src; f.src = src; }
     place(el);
   }
@@ -393,24 +408,63 @@ function drag(e, el, resize) {
   e.preventDefault();
   const L = lay[el.dataset.key], sx = e.clientX, sy = e.clientY, b0 = { ...L };
   document.body.classList.add('dragging');
+  el.dataset.moved = '';
   const move = m => {
+    if (Math.hypot(m.clientX - sx, m.clientY - sy) > 4) el.dataset.moved = '1';
     if (resize) L.w = Math.max(160, b0.w + (m.clientX - sx));
     else { L.x = Math.max(0, b0.x + m.clientX - sx); L.y = Math.max(44, b0.y + m.clientY - sy); }
     place(el);
   };
-  const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); document.body.classList.remove('dragging'); saveLay(); screens(); };
+  const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); document.body.classList.remove('dragging'); saveLay(); screens(); setTimeout(() => el.dataset.moved = '', 0); };
+  addEventListener('pointermove', move); addEventListener('pointerup', up);
+}
+
+/* Click a screen: its branch's chat comes up on the right. A live screen: the chat is fresh, ready to start a branch. */
+function pickScreen(from) {
+  const want = from === 'live' ? null : from;
+  if ((cur().direction || null) === want) return;
+  go(proj().key, want);
+}
+
+/* Option-drag a screen's bar: pull off a copy, and where you drop it a new branch starts from exactly what it showed. */
+function copyDrag(e, el) {
+  e.preventDefault();
+  const p = proj(), from = el.dataset.from, page = el.dataset.page, L = lay[el.dataset.key];
+  const wr = $('#wins').getBoundingClientRect(), r = el.getBoundingClientRect();
+  const ox = e.clientX - r.left, oy = e.clientY - r.top;
+  const ghost = document.createElement('div');
+  ghost.className = 'copyghost';
+  ghost.textContent = 'Copy of ' + el.dataset.label;
+  Object.assign(ghost.style, { width: r.width + 'px', height: r.height + 'px', left: (r.left - wr.left) + 'px', top: (r.top - wr.top) + 'px' });
+  $('#wins').appendChild(ghost);
+  document.body.classList.add('dragging');
+  const move = m => { ghost.style.left = (m.clientX - wr.left - ox) + 'px'; ghost.style.top = (m.clientY - wr.top - oy) + 'px'; };
+  const up = async m => {
+    removeEventListener('pointermove', move); removeEventListener('pointerup', up);
+    document.body.classList.remove('dragging');
+    const x = Math.max(0, m.clientX - wr.left - ox), y = Math.max(44, m.clientY - wr.top - oy);
+    if (Math.hypot(x - (r.left - wr.left), y - (r.top - wr.top)) < 20) { ghost.remove(); return; }   // let go where it started: no copy
+    ghost.textContent = 'Copying…';
+    try {
+      const res = await api('direction', { project: p.key, title: 'Copy of ' + el.dataset.label, pages: [page],
+                                           from_direction: from === 'live' ? null : from, from: from === 'live' ? S.main_sha : null });
+      lay[`${p.key}|${res.direction}|${page}`] = { x, y, w: L.w, dev: L.dev };
+      saveLay();
+      S = res; viewing = null; lastCount = 0;
+    } catch (err) {}
+    ghost.remove();
+    render();
+  };
   addEventListener('pointermove', move); addEventListener('pointerup', up);
 }
 function reloadScreens() { $('#wins').querySelectorAll('.win:not(.live) iframe').forEach(f => { try { f.contentWindow.location.reload(); } catch (e) { f.src = f.src; } }); }
 
 function tools() {
   const t = chatOf(), v = viewing && t && t.versions.findIndex(x => x.sha === viewing);
-  put($('#tools'), creating ? '' : `<span class="seg" title="Your screens, what's live, or each with its live twin beside it">
-      <button data-show="yours" class="${show === 'yours' ? 'on' : ''}">Yours</button><button data-show="live" class="${show === 'live' ? 'on' : ''}">Live</button><button data-show="both" class="${show === 'both' ? 'on' : ''}">Both</button></span>
-    ${viewing ? `<span class="chip">Showing v${v + 1} · as it was<button id="now">Back to now</button></span>` : ''}
+  put($('#tools'), creating ? '' : `${viewing ? `<span class="chip">Showing v${v + 1} · as it was<button id="now">Back to now</button></span>` : ''}
+    <span class="v" style="pointer-events:none">⌥-drag a screen's bar to copy it into a new branch</span>
     <span class="sp"></span><button class="btn" id="tidy" title="Put the screens back in a row">Tidy</button>`,
   el => {
-    el.querySelectorAll('[data-show]').forEach(b => b.onclick = () => { show = b.dataset.show; render(); });
     el.querySelector('#now') && (el.querySelector('#now').onclick = () => { viewing = null; render(); });
     el.querySelector('#tidy') && (el.querySelector('#tidy').onclick = () => {
       const pre = proj().key + '|';

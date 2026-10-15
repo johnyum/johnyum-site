@@ -1133,14 +1133,21 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.send_json(state())
                 if p == '/kept/api/direction':
                     # A new direction, branched from main or from a version you were looking at: its own folder from the start.
+                    # Or a copy of another branch, as it is right now (an Option-drag on the canvas): its work is kept first,
+                    # so the copy starts from exactly what that screen showed.
+                    base = j.get('from')
+                    src = j.get('from_direction')
+                    if src and src in S['wt']:
+                        keep(src, 'Kept before copying')
+                        base = git('rev-parse', 'HEAD', cwd=S['wt'][src]['path']).decode().strip()
                     did = 'd' + str(int(time.time() * 1000))[-9:]
                     S['directions'][did] = {'project': j['project'], 'thing': j.get('thing'), 'title': j.get('title') or 'Untitled direction',
-                                            'status': 'active', 'why': '', 'quotes': [], 'base': j.get('from'),
-                                            't': int(time.time()), 'versions': []}
+                                            'status': 'active', 'why': '', 'quotes': [], 'base': base, 'pages': j.get('pages') or [],
+                                            'copied_from': src or 'live', 't': int(time.time()), 'versions': [], 'chat': []}
                     S['current'] = {'project': j['project'], 'thing': j.get('thing'), 'direction': did}
                     save(S)
-                    folder(did, j.get('from'))
-                    return self.send_json(state())
+                    folder(did, base)
+                    return self.send_json({'direction': did, **state()})
                 if p == '/kept/api/say':
                     # One box for everything: on a thread it continues it; on a project's home it starts one.
                     text = (j.get('text') or '').strip()
