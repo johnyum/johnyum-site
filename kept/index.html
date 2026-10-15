@@ -94,6 +94,33 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
 .canvas.panning, .shield { cursor: grabbing !important; }
 .shield { position: absolute; inset: 0; z-index: 4; cursor: grab !important; }
 .shield.zoomin { cursor: zoom-in !important; }
+.shield.ink { cursor: crosshair !important; }
+.shield.erase { cursor: cell !important; }
+#links { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 0; }
+#links path { fill: none; stroke: #cfcfcf; stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+#links path.on { stroke: #8a8a8a; }
+#links circle { fill: #cfcfcf; } #links circle.on { fill: #8a8a8a; }
+.win .won { margin-left: 6px; font-size: 10px; font-weight: 500; color: #fff; background: #111; border-radius: 4px; padding: 0 5px; }
+.fanbtn { height: 32px; min-width: 40px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line-2); font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.fanbtn:hover { border-color: var(--ink-3); color: var(--ink); }
+.fanbtn.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.choosebox { position: absolute; z-index: 9; background: var(--bg); border: 1px solid var(--line-2); border-radius: 14px; padding: 14px; width: min(460px, calc(100% - 32px));
+             box-shadow: 0 12px 36px rgba(0,0,0,.14); display: flex; flex-direction: column; gap: 10px; }
+.choosebox h4 { margin: 0; font-size: 14px; font-weight: 600; }
+.choosebox p { color: var(--ink-3); font-size: 12.5px; }
+.choosebox .lose { display: flex; flex-direction: column; gap: 4px; }
+.choosebox .lose b { font-weight: 500; font-size: 12.5px; }
+.choosebox input { font: inherit; font-size: 13px; border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 10px; outline: none; }
+.choosebox input:focus { border-color: var(--ink-3); }
+.choosebox .acts { display: flex; gap: 8px; justify-content: flex-end; }
+#ink { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 4; }
+#ink path { fill: none; stroke: #ff2d2d; stroke-width: 3px; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+#ink path.sent { opacity: .35; }
+#ink path.hit { stroke: #111; }
+.tool { display: inline-flex; align-items: center; gap: 4px; }
+.tool .ms { font-size: 16px; flex-basis: 16px; width: 16px; color: inherit; }
+.tool.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tools3 { display: inline-flex; gap: 4px; }
 .shield.zoomout { cursor: zoom-out !important; }
 .zoom { position: relative; }
 .zoom > button { min-width: 58px; text-align: center; font-variant-numeric: tabular-nums; }
@@ -240,8 +267,8 @@ span.cname { cursor: default; }
 .pchip button { width: 20px; height: 20px; border-radius: 4px; display: grid; place-items: center; color: var(--ink-3); }
 .pchip button:hover { background: var(--soft); color: var(--ink); }
 .msg .ptr { display: block; margin-top: 4px; font-size: 11px; opacity: .7; }
-/* Colour rule (John): greys are pure greyscale, R = G = B, never warm or yellow; backgrounds are white. The one hue is the
-   selection blue. */
+/* Colour rule (John): greys are pure greyscale, R = G = B, never warm or yellow; backgrounds are white. The hues are
+   functional only: the selection blue, and the marker's red. */
 </style>
 </head>
 <body>
@@ -249,7 +276,7 @@ span.cname { cursor: default; }
   <nav id="nav"></nav>
   <section class="work">
     <div class="canvas" id="canvas">
-      <div class="wins" id="wins"></div>
+      <div class="wins" id="wins"><svg id="links" width="1" height="1" aria-hidden="true"></svg><svg id="ink" width="1" height="1" aria-hidden="true"></svg></div>
     </div>
     <div class="empty hide" id="empty"></div>
     <div class="shield hide" id="shield"></div>
@@ -262,7 +289,7 @@ span.cname { cursor: default; }
       <span class="chandle" aria-hidden="true"></span><span class="cgrip" id="cgrip" aria-hidden="true"></span>
       <div class="pchip hide" id="pchip"></div>
       <textarea id="q" rows="1" aria-label="Message"></textarea>
-      <div class="crow"><button type="button" class="side" id="fresh" title="New chat" aria-label="New chat"></button><span id="cmeta"></span>
+      <div class="crow"><button type="button" class="side" id="fresh" title="New chat" aria-label="New chat"></button><button type="button" class="fanbtn" id="fanbtn" title="Try it several ways at once: each way builds as its own fork, side by side">×1</button><span id="cmeta"></span>
         <span class="model">Claude Code</span><span id="cact"></span><button class="send" id="send" aria-label="Send"></button></div>
     </form>
   </section>
@@ -412,10 +439,17 @@ function screens() {
   for (const s of list) {
     let L = lay[s.key];
     if (!L) {
-      const base = null;
+      // A fork lands in a row beside the screen it came from, after any siblings already there.
+      const br = p.branches.find(b => b.id === s.from), parentKey = br && Object.keys(lay).find(k => k.startsWith(`${p.key}|${br.copied_from || 'live'}|`));
+      const parent = parentKey && lay[parentKey];
       const dev = device, w = DEV_W[dev];
       const h = w * DEV[dev][1] / DEV[dev][0] + 26;
-      if (base) L = { x: base.x + base.w + 28, y: base.y, w, dev };
+      if (parent) {
+        const sibs = p.branches.filter(b => b.id !== s.from && (b.copied_from || 'live') === (br.copied_from || 'live'))
+          .map(b => Object.keys(lay).find(k => k.startsWith(`${p.key}|${b.id}|`))).filter(Boolean).map(k => lay[k]).filter(o => Math.abs(o.y - parent.y) < 1);
+        const right = Math.max(parent.x + parent.w, ...sibs.map(o => o.x + o.w));
+        L = { x: right + 60, y: parent.y, w, dev };
+      }
       else { if (x + w > W - 20 && x > 40) { x = 40; y += rowH + 40; rowH = 0; } L = { x, y, w, dev }; x += w + 40; rowH = Math.max(rowH, h); }
       lay[s.key] = L;
     }
@@ -441,6 +475,9 @@ function screens() {
     el.classList.toggle('live', s.from === 'live');
     el.classList.toggle('sel', s.from === (cur().direction || 'live'));
     el.querySelector('b').textContent = s.label + (s.building ? ' · working…' : '');
+    const br = p.branches.find(x => x.id === s.from);
+    el.querySelector('.won')?.remove();
+    if (br && br.chosen) el.querySelector('.wbar').insertAdjacentHTML('beforeend', '<span class="won">Chosen</span>');
     el.title = s.from === 'live' ? 'Live. Option-drag the bar to copy it into a new branch.' : 'Option-drag the bar to copy this branch.';
     const f = el.querySelector('iframe'), src = srcOf(s.page, s.from);
     if (f.dataset.src !== src) { f.dataset.src = src; f.src = src; }
@@ -448,6 +485,7 @@ function screens() {
   }
   saveLay();
   if (!creating) enterView(p.key);
+  drawInk(); drawLinks();
 }
 /* ---------------------------------------------------------------- the view: pan and zoom, as in Figma
    The screens live in a world as big as you like; the canvas is a camera on it. Cmd + scroll or a pinch zooms at the
@@ -505,6 +543,8 @@ function zoomKey(e) {
   if (mod && (e.key === '-' || e.key === '_')) { e.preventDefault(); const [cx, cy] = canvasMid(); zoomAt(0.8, cx, cy); return true; }
   if (!typing && !mod && e.code === 'KeyZ') { e.preventDefault(); if (!e.repeat) shield(e.altKey ? 'zoomout' : 'zoomin'); return true; }   // Figma's zoom tool, Option first or after
   if (typing || mod || e.altKey) return false;
+  if (e.shiftKey && e.code === 'KeyP') { e.preventDefault(); setTool(tool === 'ink' ? null : 'ink'); return true; }
+  if (e.key === 'Escape' && tool) { e.preventDefault(); setTool(null); return true; }
   if (e.shiftKey && e.code === 'Digit0') { e.preventDefault(); zoomTo(1); return true; }
   if (e.shiftKey && e.code === 'Digit1') { e.preventDefault(); fit(); return true; }
   if (e.shiftKey && e.code === 'Digit2') { e.preventDefault(); fit(selWin()); return true; }
@@ -519,16 +559,17 @@ function shield(mode) {
   const sh = $('#shield');
   sh.classList.toggle('hide', !mode);
   sh.classList.toggle('zoomin', mode === 'zoomin'); sh.classList.toggle('zoomout', mode === 'zoomout');
+  sh.classList.toggle('ink', mode === 'ink'); sh.classList.toggle('erase', mode === 'erase');
 }
 addEventListener('keydown', zoomKey);
 const unshield = e => {
-  if (e.code === 'Space' && shieldMode === 'pan') shield(null);
-  if (e.code === 'KeyZ' && /zoom/.test(shieldMode || '')) shield(null);
+  if (e.code === 'Space' && shieldMode === 'pan') shield(tool);   // back to the marker, if it was on
+  if (e.code === 'KeyZ' && /zoom/.test(shieldMode || '')) shield(tool);
   if (e.key === 'Alt' && /zoom/.test(shieldMode || '')) shield('zoomin');
 };
 addEventListener('keyup', unshield);
 addEventListener('keydown', e => { if (e.key === 'Alt' && /zoom/.test(shieldMode || '')) shield('zoomout'); });
-addEventListener('blur', () => shield(null));
+addEventListener('blur', () => shield(tool));
 /* Pan: drag empty canvas, or anything while Space is held. */
 function pan(e) {
   e.preventDefault();
@@ -541,10 +582,121 @@ function pan(e) {
 $('#canvas').addEventListener('pointerdown', e => { if (e.target === $('#canvas') || e.target === $('#wins') || e.button === 1) pan(e); });
 $('#shield').addEventListener('pointerdown', e => {
   if (shieldMode === 'pan') return pan(e);
+  if (shieldMode === 'ink') return drawStroke(e);
+  if (shieldMode === 'erase') return eraseAt(e);
   e.preventDefault();
   const r = $('#canvas').getBoundingClientRect();
   zoomAt(e.altKey || shieldMode === 'zoomout' ? 0.5 : 2, e.clientX - r.left, e.clientY - r.top);
 });
+
+/* Choose: this fork wins. The others step aside, each with a line on why it lost: that line is taste. */
+function openChoose(t, sibs) {
+  document.querySelector('.choosebox')?.remove();
+  const box = document.createElement('div'); box.className = 'choosebox';
+  const parent = t.copied_from && t.copied_from !== 'live' ? proj().branches.find(b => b.id === t.copied_from) : null;
+  const into = parent ? `It goes into “${esc(parent.title)}”, the build it came from, and you carry on there.` : `It came from what's live, so it goes live.`;
+  box.innerHTML = `<h4>“${esc(t.title)}” wins</h4><p>${into} The other ${sibs.length === 1 ? 'one steps' : sibs.length + ' step'} aside. Why didn't ${sibs.length === 1 ? 'it' : 'they'} win? One line helps Kept learn your taste; you can skip it.</p>
+    ${sibs.map(b => `<label class="lose"><b>${esc(b.title)}</b><input data-id="${b.id}" placeholder="e.g. too busy, the type felt cold"></label>`).join('')}
+    <div class="acts"><button type="button" class="btn quiet" id="cno">Cancel</button><button type="button" class="btn dark" id="cyes">${parent ? 'Choose' : 'Choose and go live'}</button></div>`;
+  const C0 = $('#box').getBoundingClientRect(), W0 = $('.work').getBoundingClientRect();
+  box.style.left = (C0.left - W0.left) + 'px'; box.style.bottom = (W0.bottom - C0.top + 10) + 'px';
+  $('.work').appendChild(box);
+  box.querySelector('input')?.focus();
+  box.querySelector('#cno').onclick = () => box.remove();
+  box.querySelector('#cyes').onclick = async () => {
+    const reasons = {}; box.querySelectorAll('input[data-id]').forEach(i => { if (i.value.trim()) reasons[i.dataset.id] = i.value.trim(); });
+    try { S = await api('choose', { direction: t.id, reasons }); lastCount = -1; } catch (e) { S = await api('state'); }
+    box.remove(); render();
+  };
+  box.addEventListener('keydown', e => { if (e.key === 'Escape') box.remove(); if (e.key === 'Enter') box.querySelector('#cyes').click(); });
+}
+
+/* ---------------------------------------------------------------- came-from lines
+   Each fork is joined to the screen it was made from: thin and quiet, darker when either end is selected. A row of forks
+   from one screen fans out from it. Not a tree to read, just where things came from. */
+function drawLinks() {
+  const svg = $('#links'), p = proj(), wins = [...$('#wins').querySelectorAll('.win')];
+  if (creating) return svg.innerHTML = '';
+  const byFrom = f => wins.find(w => w.dataset.from === f);
+  let out = '';
+  for (const b of p.branches) {
+    const to = byFrom(b.id), from = byFrom(b.copied_from || 'live');
+    if (!to || !from || to === from) continue;
+    const A = { l: from.offsetLeft, t: from.offsetTop, r: from.offsetLeft + from.offsetWidth, b: from.offsetTop + from.offsetHeight };
+    const B = { l: to.offsetLeft, t: to.offsetTop, r: to.offsetLeft + to.offsetWidth, b: to.offsetTop + to.offsetHeight };
+    let d, x1, y1, x2, y2;
+    if (B.l > A.r) { x1 = A.r; y1 = (A.t + A.b) / 2; x2 = B.l; y2 = (B.t + B.b) / 2; const m = (x1 + x2) / 2; d = `M${x1} ${y1} C${m} ${y1} ${m} ${y2} ${x2} ${y2}`; }
+    else if (B.r < A.l) { x1 = A.l; y1 = (A.t + A.b) / 2; x2 = B.r; y2 = (B.t + B.b) / 2; const m = (x1 + x2) / 2; d = `M${x1} ${y1} C${m} ${y1} ${m} ${y2} ${x2} ${y2}`; }
+    else if (B.t > A.b) { x1 = (A.l + A.r) / 2; y1 = A.b; x2 = (B.l + B.r) / 2; y2 = B.t; const m = (y1 + y2) / 2; d = `M${x1} ${y1} C${x1} ${m} ${x2} ${m} ${x2} ${y2}`; }
+    else { x1 = (A.l + A.r) / 2; y1 = A.t; x2 = (B.l + B.r) / 2; y2 = B.b; const m = (y1 + y2) / 2; d = `M${x1} ${y1} C${x1} ${m} ${x2} ${m} ${x2} ${y2}`; }
+    const on = to.classList.contains('sel') || from.classList.contains('sel') ? ' class="on"' : '';
+    out += `<path${on} d="${d}"></path><circle${on} cx="${x1}" cy="${y1}" r="3"></circle><circle${on} cx="${x2}" cy="${y2}" r="3"></circle>`;
+  }
+  svg.innerHTML = out;
+}
+
+/* ---------------------------------------------------------------- the marker: circle, underline, scribble
+   Marks live on the board (world units), so they pan and zoom with the screens, kept per project. When you send, each new
+   mark is read: which screen it's on, and what element it goes round or under, and that goes to Claude with your words. */
+let tool = null, ink = {};
+try { ink = JSON.parse(localStorage.getItem('kept-ink') || '{}'); } catch (e) {}
+const saveInk = () => { try { localStorage.setItem('kept-ink', JSON.stringify(ink)); } catch (e) {} };
+function setTool(t) { tool = t; shield(t); $('#chead').dataset.h = ''; chead(); }
+const toWorld = (cx, cy) => { const r = $('#canvas').getBoundingClientRect(); return [(cx - r.left - V.x) / V.z, (cy - r.top - V.y) / V.z]; };
+const pathD = pts => pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+function drawInk() {
+  const svg = $('#ink'), list = (creating ? [] : ink[proj().key]) || [];
+  svg.innerHTML = list.map(st => `<path class="${st.sent ? 'sent' : ''}" data-id="${st.id}" d="${pathD(st.pts)}"></path>`).join('');
+}
+function drawStroke(e) {
+  e.preventDefault();
+  const st = { id: Date.now().toString(36), pts: [toWorld(e.clientX, e.clientY)] }, key = proj().key;
+  (ink[key] = ink[key] || []).push(st);
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); $('#ink').appendChild(path);
+  const move = m => { st.pts.push(toWorld(m.clientX, m.clientY)); path.setAttribute('d', pathD(st.pts)); };
+  const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up);
+    if (st.pts.length < 2) ink[key] = ink[key].filter(x => x !== st);
+    saveInk(); drawInk(); };
+  addEventListener('pointermove', move); addEventListener('pointerup', up);
+}
+function eraseAt(e) {   // touch a mark to take it away; drag across several
+  e.preventDefault();
+  const key = proj().key;
+  const hit = (cx, cy) => {
+    const [x, y] = toWorld(cx, cy), r = 10 / V.z;
+    const before = (ink[key] || []).length;
+    ink[key] = (ink[key] || []).filter(st => !st.pts.some(p => Math.hypot(p[0] - x, p[1] - y) < r));
+    if (ink[key].length !== before) { saveInk(); drawInk(); }
+  };
+  hit(e.clientX, e.clientY);
+  const move = m => hit(m.clientX, m.clientY);
+  const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); };
+  addEventListener('pointermove', move); addEventListener('pointerup', up);
+}
+/* What the new marks are on: for each, the screen under it and the element it goes round (a closed loop) or under. */
+function readMarks() {
+  const out = [], list = (ink[proj().key] || []).filter(st => !st.sent);
+  for (const st of list) {
+    const xs = st.pts.map(p => p[0]), ys = st.pts.map(p => p[1]);
+    const l = Math.min(...xs), r = Math.max(...xs), t = Math.min(...ys), b = Math.max(...ys);
+    const a = st.pts[0], z = st.pts[st.pts.length - 1];
+    const closed = Math.hypot(a[0] - z[0], a[1] - z[1]) < 0.35 * Math.hypot(r - l, b - t);
+    const cx = (l + r) / 2, cy = closed ? (t + b) / 2 : t - 6;   // a line under something points at what's just above it
+    const win = [...$('#wins').querySelectorAll('.win')].find(el => cx >= el.offsetLeft && cx <= el.offsetLeft + el.offsetWidth && cy >= el.offsetTop + 26 && cy <= el.offsetTop + el.offsetHeight);
+    if (!win) continue;
+    const k = +win.dataset.k || 1, pad = lay[win.dataset.key]?.dev === 'phone' ? 7 : 0;
+    const fr = win.querySelector('iframe'); let doc; try { doc = fr.contentDocument; } catch (e) {}
+    if (!doc) continue;
+    const got = seen(doc, (cx - win.offsetLeft - pad) / k, (cy - win.offsetTop - 26 - pad) / k, () => ({ x: 0, y: 0 }));
+    if (!got) continue;
+    const el = got.el, sp = specs(el);
+    out.push({ kind: closed ? 'circled' : 'underlined', screen: win.dataset.label, selector: selectorOf(el), file: fileOf(el.ownerDocument),
+               text: (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120), ...sp });
+    st.pending = true;
+  }
+  return out;
+}
+function markSent() { (ink[proj().key] || []).forEach(st => { if (st.pending) { st.sent = true; delete st.pending; } }); saveInk(); drawInk(); }
 
 /* A window keeps its device's shape: the page renders at the device's size and scales to the window. */
 function place(el) {
@@ -565,7 +717,7 @@ function drag(e, el, resize) {
     if (Math.hypot(m.clientX - sx, m.clientY - sy) > 4) el.dataset.moved = '1';
     if (resize) L.w = Math.max(160, b0.w + (m.clientX - sx) / V.z);
     else { L.x = b0.x + (m.clientX - sx) / V.z; L.y = b0.y + (m.clientY - sy) / V.z; }
-    place(el);
+    place(el); drawLinks();
   };
   const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); document.body.classList.remove('dragging'); saveLay(); screens(); setTimeout(() => el.dataset.moved = '', 0); };
   addEventListener('pointermove', move); addEventListener('pointerup', up);
@@ -640,9 +792,13 @@ function chead() {
   const devs = [['phone', 'Phone'], ['desktop', 'Web'], ['tablet', 'Tablet']];
   put($('#chead'), creating ? '' : `<span class="seg" role="group" aria-label="Show every screen as">${devs.map(([k, l]) =>
       `<button type="button" data-dev="${k}" class="${device === k ? 'on' : ''}">${l}</button>`).join('')}</span>
+    <span class="tools3"><button class="btn tool${tool === 'ink' ? ' on' : ''}" id="tmark" title="Marker: circle or underline anything (⇧P). Esc to stop.">${icon('draw')}Marker</button><button class="btn tool${tool === 'erase' ? ' on' : ''}" id="terase" title="Eraser: touch a mark to remove it">${icon('ink_eraser')}</button><button class="btn tool" id="tclear" title="Clear all marks">${icon('delete_sweep')}</button></span>
     <button class="btn" id="tidy" title="Put the screens back in a row">Tidy</button>
     <span class="zoom"><button class="btn" id="zoomlabel" title="Zoom">${Math.round(V.z * 100)}%</button></span>`,
   el => {
+    el.querySelector('#tmark').onclick = () => setTool(tool === 'ink' ? null : 'ink');
+    el.querySelector('#terase').onclick = () => setTool(tool === 'erase' ? null : 'erase');
+    el.querySelector('#tclear').onclick = () => { if (!(ink[proj().key] || []).length) return; ink[proj().key] = []; saveInk(); drawInk(); };
     el.querySelector('#zoomlabel').onclick = e => {
       e.stopPropagation();
       const host = el.querySelector('.zoom'), open = host.querySelector('.zmenu');
@@ -663,9 +819,11 @@ function chead() {
   put($('#cmeta'), !t ? '' : chats.length > 1 ? `<select class="cname" id="pick" aria-label="Chats in ${esc(p.name)}" title="Switch chat">${chats.map(b =>
       `<option value="${b.id}"${b.id === t.id ? ' selected' : ''}>${esc(b.title)}</option>`).join('')}</select>` : `<span class="cname" title="${esc(t.title)}">${esc(t.title)}</span>`,
     el => el.querySelector('#pick') && (el.querySelector('#pick').onchange = e => go(p.key, e.target.value)));
-  put($('#cact'), !open || t.building ? '' : t.project === 'sessions' ? `<button type="button" class="push" id="sortit" title="Kept reads the session and files what you made into the right projects">Sort it</button>`
-    : t.folder && t.versions.length ? `<button type="button" class="push" id="push" title="Put this into what's live">Push</button>` : '',
+  const sibs = open ? chats.filter(b => b.id !== t.id && (b.copied_from || 'live') === (t.copied_from || 'live')) : [];
+  put($('#cact'), !open || t.building ? '' : (sibs.length ? `<button type="button" class="push" id="choose" style="background:#fff;color:#111;border:1px solid #d9d9d9" title="This one wins: it goes into the build it came from, and the others step aside">Which one wins</button> ` : '') + (t.project === 'sessions' ? `<button type="button" class="push" id="sortit" title="Kept reads the session and files what you made into the right projects">Sort it</button>`
+    : t.folder && t.versions.length ? `<button type="button" class="push" id="push" title="Put this into what's live">Push</button>` : ''),
   el => {
+    el.querySelector('#choose') && (el.querySelector('#choose').onclick = () => openChoose(t, sibs));
     el.querySelector('#sortit') && (el.querySelector('#sortit').onclick = async () => { S = await api('sort', { direction: t.id }); render(); });
     el.querySelector('#push') && (el.querySelector('#push').onclick = async () => {
       if (!confirm(`Push "${t.title}" live? It goes into the live ${p.name}.`)) return;
@@ -742,6 +900,9 @@ requestAnimationFrame(fitAbove);
 $('#q').addEventListener('input', e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(200, e.target.scrollHeight) + 'px'; fitAbove(); });
 addEventListener('resize', fitAbove);
 $('#fresh').innerHTML = icon('add');
+let fanN = 1;
+$('#fanbtn').onclick = () => { fanN = fanN % 3 + 1; $('#fanbtn').textContent = '×' + fanN; $('#fanbtn').classList.toggle('on', fanN > 1);
+  $('#fanbtn').title = fanN > 1 ? `Next message tries it ${fanN} ways at once, each its own fork` : 'Try it several ways at once: each way builds as its own fork, side by side'; };
 $('#fresh').onclick = () => { if (creating) return; showAll = false; go(proj().key, null); };
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#box').requestSubmit(); } });
 $('#box').onsubmit = async e => {
@@ -751,9 +912,18 @@ $('#box').onsubmit = async e => {
   const text = q.value.trim(); if (!text) return;
   try {
     const to = pointed ? (pointed.from === 'live' ? null : pointed.from) : (t && t.status === 'active' ? t.id : null);
+    if (fanN > 1 && !creating && !(t && t.conflict)) {   // several ways at once, each a fork of the screen you're on
+      const src = pointed ? pointed.from : (to || 'live'), w = selWin();
+      S = await api('fan', { project: proj().key, from: src, text, n: fanN, pages: [pointed ? pointed.page : (w ? w.dataset.page : proj().page)],
+                             pointer: pointed && pointed.info, marks: readMarks() });
+      markSent(); fanN = 1; $('#fanbtn').textContent = '×1'; $('#fanbtn').classList.remove('on');
+      q.value = ''; q.style.height = 'auto'; viewing = null; clearPoint(); fitAbove(); lastCount = 0; render();
+      return;
+    }
     S = creating ? await api('talk', { text })
       : t && t.conflict ? await api('resolve', { direction: t.id, text })
-      : await api('say', { project: proj().key, direction: to, text, pointer: pointed && pointed.info });
+      : await api('say', { project: proj().key, direction: to, text, pointer: pointed && pointed.info, marks: readMarks() });
+    markSent();
     creating = false; q.value = ''; q.style.height = 'auto'; viewing = null; clearPoint(); fitAbove();
     lastCount = chatOf()?.versions.length ?? 0;
     render();

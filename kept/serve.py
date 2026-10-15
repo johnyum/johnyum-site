@@ -861,6 +861,21 @@ def new_project(text):
     return begin(key, text, send=text + hint)
 
 
+def marked(marks):
+    """What he drew on the screens: each mark, what it goes round or under, and where."""
+    if not marks:
+        return None
+    lines, labels = [], []
+    for m in marks[:8]:
+        t = short(m.get('text') or '', 60)
+        what = f"<{m.get('tag')}>" + (f' "{t}"' if t else '')
+        lines.append(f"- he {m.get('kind', 'marked')} {what} on the screen \"{m.get('screen')}\" ({m.get('file')}, selector `{m.get('selector')}`, "
+                     f"{m.get('w')}×{m.get('h')}px, font {m.get('font')}, colour {m.get('color')})")
+        labels.append(f"{m.get('kind', 'marked')} {m.get('tag')}" + (f" “{short(t, 24)}”" if t else ''))
+    note = "\n\n[He drew on the screens with a marker. What his marks are on:\n" + '\n'.join(lines) + "\nThat's what he means.]"
+    return {'label': '✎ ' + ', '.join(labels), 'note': note}
+
+
 def pointing(p):
     """What he tapped on a screen, as words for Claude and a short label for his bubble."""
     if not p or not p.get('selector'):
@@ -872,6 +887,90 @@ def pointing(p):
             f", {p.get('w')}×{p.get('h')}px on screen, font {p.get('font')}, colour {p.get('color')}"
             + (f", background {p['bg']}" if p.get('bg') else '') + f". Seen on a {p.get('device', 'desktop')} screen.]")
     return {'label': label, 'note': note}
+
+
+def fork(project, src, title, pages=None, base=None):
+    """A new branch from a screen: from live (main's commit) or from another branch as it is right now (its work kept first)."""
+    if src and src != 'live' and src in S['wt']:
+        keep(src, 'Kept before copying')
+        base = git('rev-parse', 'HEAD', cwd=S['wt'][src]['path']).decode().strip()
+    with LOCK:
+        did = 'd' + str(int(time.time() * 1000))[-9:]
+        while did in S['directions']:
+            did = 'd' + str(int(did[1:]) + 1)
+        S['directions'][did] = {'project': project, 'title': title or 'Untitled', 'status': 'active', 'why': '', 'quotes': [],
+                                'base': base, 'pages': pages or [], 'copied_from': src if src and src != 'live' else 'live',
+                                't': int(time.time()), 'versions': [], 'chat': []}
+        S['current'] = {'project': project, 'direction': did}
+        save(S)
+    folder(did, base)
+    return did
+
+
+# Asked to try it several ways at once, each Claude is told which way is its own, so the forks come back different.
+ANGLES = [('restrained', 'Take the most restrained, quiet version: change as little as it takes, keep it simple.'),
+          ('bold', 'Take a bold version: commit to it, make the change clearly visible.'),
+          ('unexpected', 'Take an unexpected version: a different idea than the obvious one, still answering the ask.')]
+
+
+def fan(project, src, text, n, pages=None, ptr=None):
+    """One message, several forks from the same screen, building side by side."""
+    made = []
+    head = None if not src or src == 'live' else src
+    base = git('rev-parse', 'main').decode().strip() if not head else None
+    for i in range(max(2, min(3, n))):
+        name, how = ANGLES[i]
+        did = fork(project, head or 'live', f"{name_from(text)} · {name}", pages, base)
+        S['directions'][did]['fan'] = made[0] if made else did
+        note = (ptr['note'] if ptr else '') + f"\n\n[He asked for this {n} ways at once; you're way {i + 1}. {how}]"
+        turn(did, text, send=text + note, pointer=ptr)
+        made.append(did)
+    with LOCK:
+        S['current'] = {'project': project, 'direction': made[0]}
+        save(S)
+    return made
+
+
+def choose(did, reasons, why_all):
+    """This fork wins, and goes into the build it came from (John: "a which-one-wins button that commits it to the build
+    before it"). Its siblings (forks of the same screen still open) step aside, each with why it lost: the strongest taste
+    signal there is, because he compared them side by side; logged to data/taste.jsonl. A fork of a fork merges into that
+    fork, which carries on; a fork of live goes live (that's a Push)."""
+    with LOCK:
+        d = S['directions'][did]
+        sibs = [k for k, x in S['directions'].items() if k != did and x['project'] == d['project'] and x['status'] == 'active'
+                and x.get('copied_from', 'live') == d.get('copied_from', 'live')]
+        losers = []
+        for k in sibs:
+            why = (reasons or {}).get(k) or why_all or ''
+            S['directions'][k].update(status='closed', why=f"Not chosen: {why}" if why else 'Not chosen', closed=int(time.time()), lost_to=did)
+            losers.append({'id': k, 'title': S['directions'][k]['title'], 'why': why})
+            t = RUNS.get(k)
+            t and t.poll() is None and t.terminate()
+        d['chosen'] = int(time.time())
+        save(S)
+        with open(os.path.join(DATA, 'taste.jsonl'), 'a') as f:
+            f.write(json.dumps({'t': int(time.time()), 'kind': 'choose', 'project': d['project'],
+                                'winner': {'id': did, 'title': d['title']}, 'losers': losers}) + '\n')
+    parent = d.get('copied_from') or 'live'
+    if parent == 'live':
+        return {'into': 'live', 'merged': push(did)}
+    # Into the parent fork: the winner's work merges into it, and you carry on there.
+    with LOCK:
+        pw, w = S['wt'].get(parent), S['wt'][did]
+        if not pw or S['directions'].get(parent, {}).get('status') != 'active':
+            return {'into': None}
+        keep(did, 'Kept before choosing')
+        keep(parent, 'Kept before taking in the chosen one')
+        r = subprocess.run(['git', 'merge', '--no-ff', '-m', f"Chose: {d['title']}", w['branch']], cwd=pw['path'], capture_output=True, text=True)
+        if r.returncode:
+            subprocess.run(['git', 'merge', '--abort'], cwd=pw['path'], capture_output=True)
+            raise RuntimeError(f"Chosen, but it couldn't go into “{S['directions'][parent]['title']}” on its own: that build changed the same part since. Nothing moved.")
+        keep(parent, f"Chose: {d['title']}")
+        d.update(status='merged', merged_into=parent, why=f"Chosen, and taken into “{S['directions'][parent]['title']}”")
+        S['current'] = {'project': d['project'], 'direction': parent}
+        save(S)
+        return {'into': parent}
 
 
 def begin(project, text, send=None, pointer=None):
@@ -1148,23 +1247,26 @@ class Handler(SimpleHTTPRequestHandler):
                     # A new direction, branched from main or from a version you were looking at: its own folder from the start.
                     # Or a copy of another branch, as it is right now (an Option-drag on the canvas): its work is kept first,
                     # so the copy starts from exactly what that screen showed.
-                    base = j.get('from')
-                    src = j.get('from_direction')
-                    if src and src in S['wt']:
-                        keep(src, 'Kept before copying')
-                        base = git('rev-parse', 'HEAD', cwd=S['wt'][src]['path']).decode().strip()
-                    did = 'd' + str(int(time.time() * 1000))[-9:]
-                    S['directions'][did] = {'project': j['project'], 'thing': j.get('thing'), 'title': j.get('title') or 'Untitled direction',
-                                            'status': 'active', 'why': '', 'quotes': [], 'base': base, 'pages': j.get('pages') or [],
-                                            'copied_from': src or 'live', 't': int(time.time()), 'versions': [], 'chat': []}
-                    S['current'] = {'project': j['project'], 'thing': j.get('thing'), 'direction': did}
-                    save(S)
-                    folder(did, base)
+                    did = fork(j['project'], j.get('from_direction') or 'live', j.get('title'), j.get('pages'), j.get('from'))
                     return self.send_json({'direction': did, **state()})
+                if p == '/kept/api/fan':
+                    text = (j.get('text') or '').strip()
+                    ptr, mk = pointing(j.get('pointer')), marked(j.get('marks'))
+                    if mk:
+                        ptr = {'label': ' · '.join(x['label'] for x in (ptr, mk) if x), 'note': (ptr['note'] if ptr else '') + mk['note']}
+                    if len(re.findall(r'\w+', text)) < (1 if ptr else 3):
+                        raise RuntimeError('Say a little more: a few words about what you want to try.')
+                    fan(j['project'], j.get('from') or 'live', text, int(j.get('n') or 3), j.get('pages'), ptr)
+                    return self.send_json(state())
+                if p == '/kept/api/choose':
+                    r = choose(j['direction'], j.get('reasons'), (j.get('why') or '').strip())
+                    return self.send_json({'chose': r, **state()})
                 if p == '/kept/api/say':
                     # One box for everything: on a thread it continues it; on a project's home it starts one.
                     text = (j.get('text') or '').strip()
-                    ptr = pointing(j.get('pointer'))
+                    ptr, mk = pointing(j.get('pointer')), marked(j.get('marks'))
+                    if mk:   # marks and a pointer travel together; the bubble shows both
+                        ptr = {'label': ' · '.join(x['label'] for x in (ptr, mk) if x), 'note': (ptr['note'] if ptr else '') + mk['note']}
                     send = text + ptr['note'] if ptr else None
                     if j.get('direction') and j['direction'] in S['directions']:
                         if j['direction'] in RUNS:

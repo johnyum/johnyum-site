@@ -1019,6 +1019,24 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   new branch "Copy of …" starts from exactly what that screen showed (live: main's commit; a branch: its work is kept first, then
   its HEAD; `from_direction` on `/api/direction`), its window where you dropped it, its chat open. Let go where it started and
   nothing is made. Tested: a copy of Presentation became a branch at main's commit with its own folder; then removed.
+- **Fork, try several ways, choose (2026-10-15, John: "I have one Main live, multiple things I've built, then I choose one I
+  like… a which-one-wins button that commits it to the build before it").** The model: one Main (live); forks, made by Option-drag,
+  or **×2 / ×3** in the composer (one message makes that many forks of the screen you're on, `fan()`, each Claude told its own way:
+  restrained, bold, unexpected, `ANGLES`); then **Which one wins** (`choose()`), on a fork that has siblings (other open forks of the
+  same screen): the winner goes into the build it came from (a fork of a fork merges into that fork and you carry on there; a fork
+  of live goes live, i.e. Push, and the dialog says so), the siblings step aside with one line each on why they lost, and that line
+  is logged to `data/taste.jsonl` as the strongest taste signal (a side-by-side comparison). No Commit button: every reply that
+  changes something is already a version. Forks land in a row beside the screen they came from, joined to it by thin
+  **came-from lines** (`drawLinks()`), darker when either end is selected; a chosen fork wears "Chosen". `fork()` is the one way
+  to branch (Option-drag uses it too). Tested end to end: ×2 from a parent fork came back restrained (system font) and bold
+  (Anton on black); choosing restrained merged it into the parent and logged "too loud for this page"; removed after.
+- **The marker (2026-10-15, John: "a marker I can make circles and shit with, and erase or clear all").** Marker, Eraser and Clear
+  all in the artboard bar (Shift P for the marker, Esc puts it down; Space still pans while it's on). Marks are drawn on the board
+  in world units, red (John: "make the marker red"), so they pan and zoom with the screens; kept per project in `kept-ink`. Touch a mark with the
+  eraser to remove it. **When you send, each new mark is read** (`readMarks()`): the screen under it, and the element it goes round
+  (a closed loop: "circled") or under (a line: "underlined", reading just above it), with the same details as an Option-click; the
+  server turns them into a note for Claude (`marked()`), your bubble shows ✎ what you marked, and sent marks fade so the next message
+  doesn't repeat them. Tested: a loop round the site's name read as circled h1 "John Yum" in index.html; the eraser took it away.
 - **Pan and zoom, as in Figma (2026-10-14, John: "a bigger art board… zoom in and out exactly like the hotkeys, like Figma").** The
   screens live in a world (`#wins`, transformed) and the canvas is a camera on it (`V = {x, y, z}`, per project in `kept-view`; the
   first visit fits everything). Cmd + scroll or a pinch zooms at the pointer (also over a screen: its frame forwards the wheel);
