@@ -1026,7 +1026,9 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   same screen): the winner goes into the build it came from (a fork of a fork merges into that fork and you carry on there; a fork
   of live goes live, i.e. Push, and the dialog says so), the siblings step aside with one line each on why they lost, and that line
   is logged to `data/taste.jsonl` as the strongest taste signal (a side-by-side comparison). No Commit button: every reply that
-  changes something is already a version. Forks land in a row beside the screen they came from, joined to it by thin
+  changes something is already a version. **The board is a grid** (John: "fork towards the right, unless I'm doing a variation
+  of that branch"): live starts the top row, a fork of live goes to its right in that row, a variation (a fork of a branch) goes
+  below that branch with its siblings in a row under it; a moved screen stays put, Tidy lays the grid out again. Screens are joined by thin
   **came-from lines** (`drawLinks()`), darker when either end is selected; a chosen fork wears "Chosen". `fork()` is the one way
   to branch (Option-drag uses it too). Tested end to end: ×2 from a parent fork came back restrained (system font) and bold
   (Anton on black); choosing restrained merged it into the parent and logged "too loud for this page"; removed after.
@@ -1038,8 +1040,9 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   server turns them into a note for Claude (`marked()`), your bubble shows ✎ what you marked, and sent marks fade so the next message
   doesn't repeat them. Tested: a loop round the site's name read as circled h1 "John Yum" in index.html; the eraser took it away.
 - **Pan and zoom, as in Figma (2026-10-14, John: "a bigger art board… zoom in and out exactly like the hotkeys, like Figma").** The
-  screens live in a world (`#wins`, transformed) and the canvas is a camera on it (`V = {x, y, z}`, per project in `kept-view`; the
-  first visit fits everything). Cmd + scroll or a pinch zooms at the pointer (also over a screen: its frame forwards the wheel);
+  screens live in a world (`#wins`, transformed) and the canvas is a camera on it (`V = {x, y, z}`). Opening Kept or a project
+  always starts with its builds fitted and centred on the artboard (John: "when it starts, the builds start from the centre"),
+  clear of the chat box wherever it is. Tidy only removes `.win` elements: the `#ink` and `#links` layers live in `#wins` too. Cmd + scroll or a pinch zooms at the pointer (also over a screen: its frame forwards the wheel);
   plain scroll pans the board, and over a screen scrolls that page; Space-drag or dragging empty canvas pans; Cmd + / Cmd − zoom,
   Shift 0 is 100%, Shift 1 fits everything, Shift 2 fits the selected screen (keys forwarded from inside screens too, never while
   typing in a field). **Z + click zooms in** at that spot, **Z + Option + click zooms out** (Figma's zoom tool; while Space or Z is
@@ -1064,9 +1067,10 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   bottom for the rest; **the box moves**: drag it by anything that isn't for typing or pressing, or by the handle on top, and widen
   it from its bottom-right corner; the bubbles follow it, same left edge and width (`C`, per browser in `kept-chatbox`); they ride above the composer however tall it grows, `--above`). **The top right is the artboard's bar** (John:
   "this art board as my design project bar"): **Phone · Web · Tablet** switches every screen at once (`setDevice`, laid out again
-  so nothing overlaps; `kept-device` per browser) and Tidy; the per-screen device buttons are gone. The chat's own bits live in
-  the composer: + for a new chat, the chat's name (a menu when there are several), and Push (Sort it for a free session) beside
-  send. Close was taken out of the UI (John didn't know what it did; the server route stays). New screens land below whatever is
+  so nothing overlaps; `kept-device` per browser), Tidy and the zoom; nothing else. **The composer holds the essentials only**
+  (John, 2026-10-15: "give me the essentials"): + for a new chat, Marker · Eraser · Clear all, the try-several-ways icon (shows
+  "3 ways" only when on), then Which one wins and Push (or Sort it) when they apply, and send. The chat-name menu and the "Claude
+  Code" label were taken out: clicking a screen is how you pick its chat. Close was taken out of the UI (John didn't know what it did; the server route stays). New screens land below whatever is
   already on the canvas, never on top of one.
 - **Project icons are Google Material Symbols, outlined** (off Google Fonts; `ICONS` in the page): Presentation `slideshow`,
   AI Chat Animations `animation`, Trip Creator `travel_explore`, Johnyum.com `language`, Multi Cal `calendar_month`, Icon

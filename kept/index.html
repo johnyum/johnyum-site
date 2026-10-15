@@ -120,7 +120,13 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
 .tool { display: inline-flex; align-items: center; gap: 4px; }
 .tool .ms { font-size: 16px; flex-basis: 16px; width: 16px; color: inherit; }
 .tool.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.tools3 { display: inline-flex; gap: 4px; }
+.composer .tb { height: 32px; min-width: 32px; padding: 0 7px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+                color: var(--ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.composer .tb:hover { background: var(--soft); color: var(--ink); }
+.composer .tb.on { background: var(--ink); color: var(--bg); }
+.composer .tb .ms { font-size: 18px; flex-basis: 18px; width: 18px; color: inherit; }
+.composer .tb.mark.on .ms { color: #ff2d2d; }
+.composer .sep { width: 1px; height: 18px; background: var(--line-2); margin: 0 4px; }
 .shield.zoomout { cursor: zoom-out !important; }
 .zoom { position: relative; }
 .zoom > button { min-width: 58px; text-align: center; font-variant-numeric: tabular-nums; }
@@ -289,8 +295,12 @@ span.cname { cursor: default; }
       <span class="chandle" aria-hidden="true"></span><span class="cgrip" id="cgrip" aria-hidden="true"></span>
       <div class="pchip hide" id="pchip"></div>
       <textarea id="q" rows="1" aria-label="Message"></textarea>
-      <div class="crow"><button type="button" class="side" id="fresh" title="New chat" aria-label="New chat"></button><button type="button" class="fanbtn" id="fanbtn" title="Try it several ways at once: each way builds as its own fork, side by side">×1</button><span id="cmeta"></span>
-        <span class="model">Claude Code</span><span id="cact"></span><button class="send" id="send" aria-label="Send"></button></div>
+      <div class="crow"><button type="button" class="side" id="fresh" title="New chat" aria-label="New chat"></button><span class="sep"></span>
+        <button type="button" class="tb mark" id="tmark" title="Marker: circle or underline anything (⇧P). Esc to put it down." aria-label="Marker"></button>
+        <button type="button" class="tb" id="terase" title="Eraser: touch a mark to remove it" aria-label="Eraser"></button>
+        <button type="button" class="tb" id="tclear" title="Clear all marks" aria-label="Clear all marks"></button><span class="sep"></span>
+        <button type="button" class="tb" id="fanbtn" title="Try it several ways at once: your next message makes that many forks, each built a different way" aria-label="Try several ways"></button>
+        <span class="sp"></span><span id="cact"></span><button class="send" id="send" aria-label="Send"></button></div>
     </form>
   </section>
 </div>
@@ -430,29 +440,38 @@ function screens() {
   $('#empty').classList.toggle('hide', !empty);
   put($('#empty'), creating ? `<div><h1>What do you want to work on?</h1><p>Talk across anything on the right. When you're done, Sort it, and Kept files what you made into the right projects.</p></div>`
     : `<div><h1>${esc(p.name)}</h1><p>Nothing here yet. Say what you want to make in the chat.</p></div>`);
-  // Place new windows left to right; keep the ones you've moved where you put them.
-  // New ones start below everything already on the canvas, so nothing lands on top of a screen you can see.
-  let bottom = 0;
-  for (const s2 of list) { const L2 = lay[s2.key]; if (L2) { const [dw, dh] = DEV[L2.dev]; bottom = Math.max(bottom, L2.y + L2.w * dh / dw + 26); } }
-  let x = 40, y = bottom ? bottom + 40 : 64, rowH = 0;
-  const W = Math.max(900, $('#canvas').clientWidth / V.z);
-  for (const s of list) {
-    let L = lay[s.key];
-    if (!L) {
-      // A fork lands in a row beside the screen it came from, after any siblings already there.
-      const br = p.branches.find(b => b.id === s.from), parentKey = br && Object.keys(lay).find(k => k.startsWith(`${p.key}|${br.copied_from || 'live'}|`));
-      const parent = parentKey && lay[parentKey];
-      const dev = device, w = DEV_W[dev];
-      const h = w * DEV[dev][1] / DEV[dev][0] + 26;
-      if (parent) {
-        const sibs = p.branches.filter(b => b.id !== s.from && (b.copied_from || 'live') === (br.copied_from || 'live'))
-          .map(b => Object.keys(lay).find(k => k.startsWith(`${p.key}|${b.id}|`))).filter(Boolean).map(k => lay[k]).filter(o => Math.abs(o.y - parent.y) < 1);
-        const right = Math.max(parent.x + parent.w, ...sibs.map(o => o.x + o.w));
-        L = { x: right + 60, y: parent.y, w, dev };
+  // Where new screens go (John: "fork towards the right, unless I'm doing a variation of that branch"): a grid where across is
+  // different ideas and down is variations of one. Live sits at the start of the top row; a fork of live goes to the right in
+  // that row; a variation (a fork of a branch) goes below that branch, its siblings in a row under it. A screen you've moved
+  // stays where you put it; Tidy forgets them all and lays the grid out again.
+  const GAP = 60, hOf = L2 => L2.w * DEV[L2.dev][1] / DEV[L2.dev][0] + 26 + (L2.dev === 'phone' ? 14 : 0);
+  const brOf = id => p.branches.find(b => b.id === id);
+  const depth = id => { let d = 0, b = brOf(id); while (b && b.copied_from && b.copied_from !== 'live' && d < 20) { d++; b = brOf(b.copied_from); } return id === 'live' ? -1 : d; };
+  const order = [...list].sort((A, B) => depth(A.from) - depth(B.from) || (brOf(A.from)?.t || 0) - (brOf(B.from)?.t || 0));
+  const keyOf = from => list.find(x => x.from === from)?.key;
+  for (const s of order) {
+    if (lay[s.key]) continue;
+    const dev = device, w = DEV_W[dev], L = { w, dev, x: 40, y: 64 };
+    const placed = list.map(x => lay[x.key]).filter(Boolean);
+    const br = brOf(s.from), own = keyOf(s.from);
+    if (own && own !== s.key && lay[own]) {                        // another page of the same branch: beside its first
+      L.x = lay[own].x + lay[own].w + 40; L.y = lay[own].y;
+    } else if (br) {
+      const src = br.copied_from || 'live', pk = keyOf(src), P0 = pk && lay[pk];
+      if (P0 && src === 'live') {                                     // a fork of live: to the right, in live's row
+        L.y = P0.y; L.x = Math.max(P0.x + P0.w, ...placed.filter(o => Math.abs(o.y - P0.y) < 1).map(o => o.x + o.w)) + GAP;
+      } else if (P0) {                                                // a variation: below its branch, after its siblings
+        L.y = P0.y + hOf(P0) + GAP;
+        const row = placed.filter(o => Math.abs(o.y - L.y) < 1 && o.x + o.w > P0.x - 1);
+        L.x = row.length ? Math.max(...row.map(o => o.x + o.w)) + 40 : P0.x;
+      } else if (placed.length) {                                     // nothing to hang it on: the end of the top row
+        const top = Math.min(...placed.map(o => o.y));
+        L.y = top; L.x = Math.max(...placed.filter(o => Math.abs(o.y - top) < 1).map(o => o.x + o.w)) + GAP;
       }
-      else { if (x + w > W - 20 && x > 40) { x = 40; y += rowH + 40; rowH = 0; } L = { x, y, w, dev }; x += w + 40; rowH = Math.max(rowH, h); }
-      lay[s.key] = L;
+    } else if (placed.length) {                                       // live, after the others were placed by hand
+      L.x = Math.min(...placed.map(o => o.x)) - w - GAP; L.y = Math.min(...placed.map(o => o.y));
     }
+    lay[s.key] = L;
   }
   // Add, keep or drop windows without rebuilding the ones that stay.
   const keys = new Set(list.map(s => s.key));
@@ -514,16 +533,16 @@ function fit(only) {   // fit the screens (or one) in the space between the top 
   if (!els.length) { V = { x: 40, y: 64, z: 1 }; applyView(); saveView(); return; }
   let l = 1e9, t = 1e9, r = -1e9, b = -1e9;
   els.forEach(el => { l = Math.min(l, el.offsetLeft); t = Math.min(t, el.offsetTop); r = Math.max(r, el.offsetLeft + el.offsetWidth); b = Math.max(b, el.offsetTop + el.offsetHeight); });
-  const cr = $('#canvas').getBoundingClientRect(), top = 60, bot = 150, side = 40;
+  const cr = $('#canvas').getBoundingClientRect(), top = 60, side = 40;
+  const bx = $('#box').getBoundingClientRect(), bot = Math.max(40, cr.bottom - bx.top + 24);   // stay clear of the chat box, wherever it is
   const z = Math.max(ZMIN, Math.min(only ? ZMAX : 1, (cr.width - side * 2) / (r - l), (cr.height - top - bot) / (b - t)));
   V = { z, x: side + ((cr.width - side * 2) - (r - l) * z) / 2 - l * z, y: top + ((cr.height - top - bot) - (b - t) * z) / 2 - t * z };
   applyView(); saveView();
 }
-function enterView(project) {   // each project keeps its own camera; the first visit fits everything
+function enterView(project) {   // opening a project (or Kept) starts with its builds centred on the artboard (John)
   if (viewed === project) return;
   viewed = project;
-  if (views[project]) { V = { ...views[project] }; applyView(); }
-  else requestAnimationFrame(() => fit());
+  requestAnimationFrame(() => fit());
 }
 function selWin() { return $('#wins').querySelector('.win.sel') || $('#wins').querySelector('.win'); }
 function onWheel(e, cx, cy) {
@@ -641,7 +660,7 @@ function drawLinks() {
 let tool = null, ink = {};
 try { ink = JSON.parse(localStorage.getItem('kept-ink') || '{}'); } catch (e) {}
 const saveInk = () => { try { localStorage.setItem('kept-ink', JSON.stringify(ink)); } catch (e) {} };
-function setTool(t) { tool = t; shield(t); $('#chead').dataset.h = ''; chead(); }
+function setTool(t) { tool = t; shield(t); $('#tmark').classList.toggle('on', t === 'ink'); $('#terase').classList.toggle('on', t === 'erase'); }
 const toWorld = (cx, cy) => { const r = $('#canvas').getBoundingClientRect(); return [(cx - r.left - V.x) / V.z, (cy - r.top - V.y) / V.z]; };
 const pathD = pts => pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
 function drawInk() {
@@ -773,7 +792,7 @@ function tools() {
 function tidy() {
   const pre = proj().key + '|';
   Object.keys(lay).forEach(k => { if (k.startsWith(pre)) delete lay[k]; });
-  saveLay(); $('#wins').innerHTML = ''; screens();
+  saveLay(); $('#wins').querySelectorAll('.win').forEach(w => w.remove()); screens();
   requestAnimationFrame(() => fit());
 }
 /* One device for every screen. Switching lays them out again at the new size, so nothing overlaps. */
@@ -792,13 +811,9 @@ function chead() {
   const devs = [['phone', 'Phone'], ['desktop', 'Web'], ['tablet', 'Tablet']];
   put($('#chead'), creating ? '' : `<span class="seg" role="group" aria-label="Show every screen as">${devs.map(([k, l]) =>
       `<button type="button" data-dev="${k}" class="${device === k ? 'on' : ''}">${l}</button>`).join('')}</span>
-    <span class="tools3"><button class="btn tool${tool === 'ink' ? ' on' : ''}" id="tmark" title="Marker: circle or underline anything (⇧P). Esc to stop.">${icon('draw')}Marker</button><button class="btn tool${tool === 'erase' ? ' on' : ''}" id="terase" title="Eraser: touch a mark to remove it">${icon('ink_eraser')}</button><button class="btn tool" id="tclear" title="Clear all marks">${icon('delete_sweep')}</button></span>
     <button class="btn" id="tidy" title="Put the screens back in a row">Tidy</button>
     <span class="zoom"><button class="btn" id="zoomlabel" title="Zoom">${Math.round(V.z * 100)}%</button></span>`,
   el => {
-    el.querySelector('#tmark').onclick = () => setTool(tool === 'ink' ? null : 'ink');
-    el.querySelector('#terase').onclick = () => setTool(tool === 'erase' ? null : 'erase');
-    el.querySelector('#tclear').onclick = () => { if (!(ink[proj().key] || []).length) return; ink[proj().key] = []; saveInk(); drawInk(); };
     el.querySelector('#zoomlabel').onclick = e => {
       e.stopPropagation();
       const host = el.querySelector('.zoom'), open = host.querySelector('.zmenu');
@@ -816,9 +831,6 @@ function chead() {
   });
   // The chat's own controls live in the composer: which chat, and Push (or Sort it, for a free session).
   const p = proj(), t = creating ? null : chatOf(), open = t && t.status === 'active', chats = p.branches;
-  put($('#cmeta'), !t ? '' : chats.length > 1 ? `<select class="cname" id="pick" aria-label="Chats in ${esc(p.name)}" title="Switch chat">${chats.map(b =>
-      `<option value="${b.id}"${b.id === t.id ? ' selected' : ''}>${esc(b.title)}</option>`).join('')}</select>` : `<span class="cname" title="${esc(t.title)}">${esc(t.title)}</span>`,
-    el => el.querySelector('#pick') && (el.querySelector('#pick').onchange = e => go(p.key, e.target.value)));
   const sibs = open ? chats.filter(b => b.id !== t.id && (b.copied_from || 'live') === (t.copied_from || 'live')) : [];
   put($('#cact'), !open || t.building ? '' : (sibs.length ? `<button type="button" class="push" id="choose" style="background:#fff;color:#111;border:1px solid #d9d9d9" title="This one wins: it goes into the build it came from, and the others step aside">Which one wins</button> ` : '') + (t.project === 'sessions' ? `<button type="button" class="push" id="sortit" title="Kept reads the session and files what you made into the right projects">Sort it</button>`
     : t.folder && t.versions.length ? `<button type="button" class="push" id="push" title="Put this into what's live">Push</button>` : ''),
@@ -900,9 +912,15 @@ requestAnimationFrame(fitAbove);
 $('#q').addEventListener('input', e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(200, e.target.scrollHeight) + 'px'; fitAbove(); });
 addEventListener('resize', fitAbove);
 $('#fresh').innerHTML = icon('add');
+$('#tmark').innerHTML = icon('draw'); $('#terase').innerHTML = icon('ink_eraser'); $('#tclear').innerHTML = icon('delete_sweep');
+$('#tmark').onclick = () => setTool(tool === 'ink' ? null : 'ink');
+$('#terase').onclick = () => setTool(tool === 'erase' ? null : 'erase');
+$('#tclear').onclick = () => { if (!(ink[proj().key] || []).length) return; ink[proj().key] = []; saveInk(); drawInk(); };
 let fanN = 1;
-$('#fanbtn').onclick = () => { fanN = fanN % 3 + 1; $('#fanbtn').textContent = '×' + fanN; $('#fanbtn').classList.toggle('on', fanN > 1);
-  $('#fanbtn').title = fanN > 1 ? `Next message tries it ${fanN} ways at once, each its own fork` : 'Try it several ways at once: each way builds as its own fork, side by side'; };
+const showFan = () => { const b = $('#fanbtn'); b.innerHTML = icon('call_split') + (fanN > 1 ? `${fanN} ways` : ''); b.classList.toggle('on', fanN > 1);
+  b.title = fanN > 1 ? `Your next message tries it ${fanN} ways at once, each its own fork. Click again for ${fanN === 3 ? 'one way' : '3 ways'}.` : 'Try it several ways at once: your next message makes that many forks, each built a different way'; };
+showFan();
+$('#fanbtn').onclick = () => { fanN = fanN % 3 + 1; showFan(); };
 $('#fresh').onclick = () => { if (creating) return; showAll = false; go(proj().key, null); };
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#box').requestSubmit(); } });
 $('#box').onsubmit = async e => {
@@ -916,7 +934,7 @@ $('#box').onsubmit = async e => {
       const src = pointed ? pointed.from : (to || 'live'), w = selWin();
       S = await api('fan', { project: proj().key, from: src, text, n: fanN, pages: [pointed ? pointed.page : (w ? w.dataset.page : proj().page)],
                              pointer: pointed && pointed.info, marks: readMarks() });
-      markSent(); fanN = 1; $('#fanbtn').textContent = '×1'; $('#fanbtn').classList.remove('on');
+      markSent(); fanN = 1; showFan();
       q.value = ''; q.style.height = 'auto'; viewing = null; clearPoint(); fitAbove(); lastCount = 0; render();
       return;
     }
