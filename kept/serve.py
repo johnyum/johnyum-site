@@ -615,14 +615,14 @@ def chat_of(did):
     return d.setdefault('chat', [])
 
 
-def turn(did, text, allow=None, send=None):
+def turn(did, text, allow=None, send=None, pointer=None):
     """One message to the thread's Claude. Runs in the background; the page watches the chat fill in."""
     with LOCK:
         w = folder(did)
         d = S['directions'][did]
         chat = chat_of(did)
         if not allow:
-            chat.append({'role': 'you', 'text': text, 't': int(time.time())})
+            chat.append({'role': 'you', 'text': text, 't': int(time.time()), **({'pointer': pointer['label']} if pointer else {})})
         reply = {'role': 'claude', 'text': '', 'steps': [], 't': int(time.time()), 'busy': True}
         chat.append(reply)
         save(S)
@@ -861,7 +861,20 @@ def new_project(text):
     return begin(key, text, send=text + hint)
 
 
-def begin(project, text, send=None):
+def pointing(p):
+    """What he tapped on a screen, as words for Claude and a short label for his bubble."""
+    if not p or not p.get('selector'):
+        return None
+    t = short(p.get('text') or '', 80)
+    label = f"{p.get('tag', 'element')}" + (f" “{t}”" if t else '')
+    note = (f"\n\n[He is pointing at one element: that's what he means. In {p.get('file') or 'the page'}: <{p.get('tag')}> "
+            f"at selector `{p['selector']}`" + (f', text "{t}"' if t else '') +
+            f", {p.get('w')}×{p.get('h')}px on screen, font {p.get('font')}, colour {p.get('color')}"
+            + (f", background {p['bg']}" if p.get('bg') else '') + f". Seen on a {p.get('device', 'desktop')} screen.]")
+    return {'label': label, 'note': note}
+
+
+def begin(project, text, send=None, pointer=None):
     """A sentence on a project's home starts a thread: its own branch and folder, named from the words."""
     with LOCK:
         did = 'd' + str(int(time.time() * 1000))[-9:]
@@ -869,7 +882,7 @@ def begin(project, text, send=None):
                                 'quotes': [], 't': int(time.time()), 'versions': [], 'chat': []}
         S['current'] = {'project': project, 'direction': did}
         save(S)
-    turn(did, text, send=send)
+    turn(did, text, send=send, pointer=pointer)
     return did
 
 
@@ -1151,14 +1164,17 @@ class Handler(SimpleHTTPRequestHandler):
                 if p == '/kept/api/say':
                     # One box for everything: on a thread it continues it; on a project's home it starts one.
                     text = (j.get('text') or '').strip()
+                    ptr = pointing(j.get('pointer'))
+                    send = text + ptr['note'] if ptr else None
                     if j.get('direction') and j['direction'] in S['directions']:
                         if j['direction'] in RUNS:
                             raise RuntimeError('Claude is still working on the last message. Wait, or stop it.')
-                        turn(j['direction'], text)
+                        turn(j['direction'], text, send=send, pointer=ptr)
                     else:
-                        if len(re.findall(r'\w+', text)) < 3:
+                        # Pointing at something says most of it: "bigger" is enough then.
+                        if len(re.findall(r'\w+', text)) < (1 if ptr else 3):
                             raise RuntimeError('Say a little more: a few words about what you want to try.')
-                        begin(j['project'], text)
+                        begin(j['project'], text, send=send, pointer=ptr)
                     return self.send_json(state())
                 if p == '/kept/api/newproject':
                     new_project((j.get('text') or '').strip())

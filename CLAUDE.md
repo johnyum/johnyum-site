@@ -1019,12 +1019,25 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   new branch "Copy of …" starts from exactly what that screen showed (live: main's commit; a branch: its work is kept first, then
   its HEAD; `from_direction` on `/api/direction`), its window where you dropped it, its chat open. Let go where it started and
   nothing is made. Tested: a copy of Presentation became a branch at main's commit with its own folder; then removed.
+- **Redlines and pointing (2026-10-14, John: "tap individual things, not to manipulate, just as a pointer for the AI… a blue
+  bounding box with its type, size, like a redlines view"; then "I want the build truly tappable… option tap").** The screens are
+  real pages: a plain tap uses them (the deck advances). **Holding Option** shows redlines under the pointer, as in Figma: a blue box
+  and its specs (element, w × h, face size / weight, colour on background). **Option-click** pins it and points the chat at it: the
+  composer shows "Pointing at h1 “…”", and the next message goes to that screen's branch (a new one, from a live screen) with the
+  element attached for Claude: file, selector, text, size, font, colour (`pointing()` in serve.py; your bubble shows ↳ what you
+  pointed at; with a pointer, one word like "bigger" is enough). Every frame in a screen is hooked, nested ones too (the deck's
+  slides), and the pick skips invisible layers pages lay over their content to catch taps (`seen()`, `draws()`: the deck's
+  `#tapnext` was the first). Escape or × clears it. A Point on/off toggle was tried first and taken out: it stopped the page working.
+  Tested: Option-click on a slide heading, "make this bold" changed exactly that heading in a branch; removed after.
 - **The chat floats (2026-10-14, John: "not something sticky; I just want the chat box, Claude's, bottom centred, floating, and
   the chats and replies as floating bubbles above").** No chat panel and no docking: the work fills everything right of the
-  projects. Claude's composer floats bottom centre (text on top; a row under it with + for a new chat, "Claude Code", and the clay
+  projects. Claude's composer floats bottom centre (text on top; a row under it with + for a new chat, "Claude Code", and the black
   send button), the last four messages float above it as bubbles (yours dark on the right, Claude's white on the left; "Show all"
-  for the rest; they ride above the composer however tall it grows, `--above`), and the chat's controls (which chat, Close, Push,
-  Sort it, a pen for a new chat) are a small bar top right, there only while a chat is open. New screens land below whatever is
+  for the rest; they ride above the composer however tall it grows, `--above`). **The top right is the artboard's bar** (John:
+  "this art board as my design project bar"): **Phone · Web · Tablet** switches every screen at once (`setDevice`, laid out again
+  so nothing overlaps; `kept-device` per browser) and Tidy; the per-screen device buttons are gone. The chat's own bits live in
+  the composer: + for a new chat, the chat's name (a menu when there are several), and Push (Sort it for a free session) beside
+  send. Close was taken out of the UI (John didn't know what it did; the server route stays). New screens land below whatever is
   already on the canvas, never on top of one.
 - **Project icons are Google Material Symbols, outlined** (off Google Fonts; `ICONS` in the page): Presentation `slideshow`,
   AI Chat Animations `animation`, Trip Creator `travel_explore`, Johnyum.com `language`, Multi Cal `calendar_month`, Icon
@@ -1058,7 +1071,7 @@ John chose the real terminal over a custom chat UI (2026-10-14): build exactly a
   `--ingest` for any engine), `thumbs.py` (the images each turn made, from git at that commit, plus a page shot). The history
   directions sit in the nav beside the ones started here, and a turn can continue either.
 - **`kept/data/` holds every prompt from every session: gitignored, never deploy it.**
-- Look: white and tight, no warm tints, no yellow (John). Pictures over words: a project with no direction picked is a wall of covers;
+- Look: white and tight, no warm tints, no yellow (John): every grey R = G = B, backgrounds white, the only hue the selection blue. Pictures over words: a project with no direction picked is a wall of covers;
   a cover prefers an image the turn made (`<sha>-<n>.jpg`) over a page shot, since Peek's page shots are all the empty greeting.
 - Run for real 2026-10-14 (direction "First real turn", `test/kept-hello.html`): two Claude turns → two versions on the hidden ref,
   each previewed as it was and shot. What that run taught, all fixed: the recall fired on "white", "kept", "don't" (it now needs a word

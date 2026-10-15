@@ -154,8 +154,15 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
 .reading { flex: 1; display: grid; place-items: center; color: var(--ink-3); }
 
 /* The chat, floating over the work: its controls top right, its messages as bubbles, the composer bottom centre */
-.chatbar { position: absolute; top: 10px; right: 12px; z-index: 7; display: flex; align-items: center; gap: 6px; max-width: 46%;
-           background: var(--bg); border: 1px solid var(--line-2); border-radius: 10px; padding: 3px 4px 3px 10px; box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+.chatbar { position: absolute; top: 10px; right: 12px; z-index: 7; display: flex; align-items: center; gap: 6px; }
+.chatbar .seg { box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+.chatbar .seg button { padding: 3px 12px; }
+.chatbar .btn { box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+.cname { min-width: 0; max-width: 260px; font: inherit; font-size: 12.5px; color: var(--ink-2); border: 0; background: transparent; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; cursor: pointer; padding: 0; }
+.cname:hover { color: var(--ink); }
+span.cname { cursor: default; }
+.composer .push { height: 32px; padding: 0 12px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 12.5px; }
+.composer .push:hover { background: #333; }
 .chatbar:empty { display: none; }
 .chatbar select { min-width: 0; max-width: 260px; font: inherit; font-weight: 600; border: 0; background: transparent; color: var(--ink); text-overflow: ellipsis; cursor: pointer; padding: 0; }
 .chatbar .title { min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -190,9 +197,29 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
 .composer .side { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line-2); display: grid; place-items: center; color: var(--ink-2); }
 .composer .side:hover { color: var(--ink); border-color: var(--ink-3); }
 .composer .model { margin-left: auto; color: var(--ink-3); font-size: 12.5px; }
-.send { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 8px; background: #c6613f; color: #fff; display: grid; place-items: center; }
-.send:hover { background: #b5562f; }
-.send.stop { background: var(--ink); }
+.send { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 8px; background: var(--ink); color: var(--bg); display: grid; place-items: center; }
+.send:hover { background: #333; }
+.send.stop { background: var(--bg); color: var(--ink); border: 1px solid var(--line-2); }
+/* Point: hover outlines, a tap draws a blue redline box with the element's specs */
+.marks { position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }
+.hov.box { position: absolute; border: 1px solid var(--blue); background: rgba(42,111,219,.04); }
+.hov.spec { opacity: .92; }
+.red { position: absolute; border: 1.5px solid var(--blue); background: rgba(42,111,219,.06); }
+.spec { position: absolute; background: var(--blue); color: #fff; font-family: var(--mono); font-size: 10px; line-height: 1.35; padding: 3px 6px;
+        border-radius: 4px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+.spec b { font-weight: 500; }
+.chatbar .ptoggle { display: inline-flex; align-items: center; gap: 4px; }
+.chatbar .ptoggle.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chatbar .ptoggle .ms { font-size: 16px; flex-basis: 16px; width: 16px; color: inherit; }
+.pchip { display: flex; align-items: center; gap: 8px; align-self: flex-start; max-width: 100%; font-size: 12px; color: var(--ink-2);
+         border: 1px solid var(--blue); border-radius: 8px; padding: 3px 4px 3px 8px; }
+.pchip .ms { font-size: 15px; flex-basis: 15px; width: 15px; color: var(--blue); }
+.pchip span.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.pchip button { width: 20px; height: 20px; border-radius: 4px; display: grid; place-items: center; color: var(--ink-3); }
+.pchip button:hover { background: var(--soft); color: var(--ink); }
+.msg .ptr { display: block; margin-top: 4px; font-size: 11px; opacity: .7; }
+/* Colour rule (John): greys are pure greyscale, R = G = B, never warm or yellow; backgrounds are white. The one hue is the
+   selection blue. */
 </style>
 </head>
 <body>
@@ -209,9 +236,10 @@ nav { border-right: 1px solid var(--line); overflow-y: auto; padding: 10px 8px 4
     <div class="clash hide" id="clash"></div>
     <div class="bubbles" id="msgs"></div>
     <form class="composer" id="box">
+      <div class="pchip hide" id="pchip"></div>
       <textarea id="q" rows="1" aria-label="Message"></textarea>
-      <div class="crow"><button type="button" class="side" id="fresh" title="New chat" aria-label="New chat"></button><span class="model">Claude Code</span>
-        <button class="send" id="send" aria-label="Send"></button></div>
+      <div class="crow"><button type="button" class="side" id="fresh" title="New chat" aria-label="New chat"></button><span id="cmeta"></span>
+        <span class="model">Claude Code</span><span id="cact"></span><button class="send" id="send" aria-label="Send"></button></div>
     </form>
   </section>
 </div>
@@ -361,7 +389,7 @@ function screens() {
     let L = lay[s.key];
     if (!L) {
       const base = null;
-      const dev = base ? base.dev : guessDev(s.page), w = base ? base.w : DEV_W[dev];
+      const dev = device, w = DEV_W[dev];
       const h = w * DEV[dev][1] / DEV[dev][0] + 26;
       if (base) L = { x: base.x + base.w + 28, y: base.y, w, dev };
       else { if (x + w > W - 20 && x > 40) { x = 40; y += rowH + 40; rowH = 0; } L = { x, y, w, dev }; x += w + 40; rowH = Math.max(rowH, h); }
@@ -376,11 +404,11 @@ function screens() {
     if (!el) {
       el = document.createElement('div');
       el.className = 'win'; el.dataset.key = s.key;
-      el.innerHTML = `<div class="wbar"><b></b><button class="dev" title="Phone, tablet or desktop"></button></div><div class="view"><iframe></iframe></div><div class="grip" title="Drag to resize"></div>`;
+      el.innerHTML = `<div class="wbar"><b></b></div><div class="view"><iframe></iframe><div class="marks"></div></div><div class="grip" title="Drag to resize"></div>`;
+      el.querySelector('iframe').addEventListener('load', () => hookDoc(el, el.querySelector('iframe'), () => ({ x: 0, y: 0 })));
       el.querySelector('iframe').title = pageName(s.page);
       el.querySelector('.wbar').onpointerdown = e => { if (e.target.closest('.dev')) return; e.altKey ? copyDrag(e, el) : drag(e, el, false); };
       el.querySelector('.grip').onpointerdown = e => drag(e, el, true);
-      el.querySelector('.dev').onclick = () => { const L = lay[s.key], order = ['phone', 'tablet', 'desktop']; L.dev = order[(order.indexOf(L.dev) + 1) % 3]; L.w = DEV_W[L.dev]; saveLay(); place(el); };
       el.onpointerdown = () => { wins.querySelectorAll('.win.top').forEach(w => w.classList.remove('top')); el.classList.add('top'); };
       el.onclick = e => { if (e.target.closest('.dev, .grip') || el.dataset.moved) return; pickScreen(el.dataset.from); };
       wins.appendChild(el);
@@ -404,10 +432,11 @@ function screens() {
 function place(el) {
   const L = lay[el.dataset.key], [dw, dh] = DEV[L.dev];
   el.className = el.className.replace(/\b(phone|tablet|desktop)\b/g, '').trim() + ' ' + L.dev;
-  el.querySelector('.dev').textContent = L.dev[0].toUpperCase() + L.dev.slice(1);
   const pad = L.dev === 'phone' ? 14 : 0, vw = L.w - pad, k = vw / dw;
   Object.assign(el.style, { left: L.x + 'px', top: L.y + 'px', width: L.w + 'px', height: (dh * k + pad + 26) + 'px' });
   Object.assign(el.querySelector('iframe').style, { width: dw + 'px', height: dh + 'px', transform: `scale(${k})` });
+  el.dataset.k = k;
+  drawMarks(el);
 }
 function drag(e, el, resize) {
   e.preventDefault();
@@ -467,41 +496,46 @@ function reloadScreens() { $('#wins').querySelectorAll('.win:not(.live) iframe')
 function tools() {
   const t = chatOf(), v = viewing && t && t.versions.findIndex(x => x.sha === viewing);
   put($('#tools'), creating ? '' : `${viewing ? `<span class="chip">Showing v${v + 1} · as it was<button id="now">Back to now</button></span>` : ''}
-    <span class="v" style="pointer-events:none">⌥-drag a screen's bar to copy it into a new branch</span>
-    <span class="sp"></span><button class="btn" id="tidy" title="Put the screens back in a row">Tidy</button>`,
-  el => {
-    el.querySelector('#now') && (el.querySelector('#now').onclick = () => { viewing = null; render(); });
-    el.querySelector('#tidy') && (el.querySelector('#tidy').onclick = () => {
-      const pre = proj().key + '|';
-      Object.keys(lay).forEach(k => { if (k.startsWith(pre)) delete lay[k]; });
-      saveLay(); $('#wins').innerHTML = ''; screens();
-    });
-  });
+    <span class="v" style="pointer-events:none">Hold ⌥ to see redlines · ⌥-click to point Claude at it · ⌥-drag a screen's bar to copy it</span>`,
+  el => el.querySelector('#now') && (el.querySelector('#now').onclick = () => { viewing = null; render(); }));
+}
+function tidy() {
+  const pre = proj().key + '|';
+  Object.keys(lay).forEach(k => { if (k.startsWith(pre)) delete lay[k]; });
+  saveLay(); $('#wins').innerHTML = ''; screens();
+}
+/* One device for every screen. Switching lays them out again at the new size, so nothing overlaps. */
+let device = 'desktop';
+try { device = localStorage.getItem('kept-device') || 'desktop'; } catch (e) {}
+function setDevice(d) {
+  device = d;
+  try { localStorage.setItem('kept-device', d); } catch (e) {}
+  $('#chead').dataset.h = '';
+  tidy(); chead();
 }
 
 /* ---------------------------------------------------------------- the chat */
+/* The artboard bar, top right: one device for every screen (Phone, Web, Tablet), and Tidy. */
 function chead() {
-  const p = proj(), t = chatOf();
-  if (creating) { $('#moved').classList.add('hide'); return put($('#chead'), ''); }
-  const open = t && t.status === 'active';
-  const chats = p.branches;
-  put($('#chead'), `${chats.length > 1 || (t && !open) ? `<select id="pick" aria-label="Chats in ${esc(p.name)}">${chats.map(b => `<option value="${b.id}"${t && b.id === t.id ? ' selected' : ''}>${esc(b.title)}</option>`).join('')}${t && !open ? `<option selected>${esc(t.title)} (closed)</option>` : ''}</select>`
-      : t ? `<span class="title">${esc(t.title)}</span>` : ''}
-    ${t && t.building ? '<span class="v">working…</span>' : ''}
-    ${open ? `<button class="btn quiet" id="close">Close</button>` : ''}
-    ${open && t.project === 'sessions' ? `<button class="btn dark" id="sortit" title="Kept reads the session and files what you made into the right projects">Sort it</button>` : ''}
-    ${open && t.project !== 'sessions' && t.folder && t.versions.length ? `<button class="btn dark" id="push" title="Put this into Main and send it live">Push</button>` : ''}
-    ${t ? `<button class="newchat" id="newchat" title="New chat in ${esc(p.name)}" aria-label="New chat">${PEN}</button>` : ''}`.trim(),
+  const devs = [['phone', 'Phone'], ['desktop', 'Web'], ['tablet', 'Tablet']];
+  put($('#chead'), creating ? '' : `<span class="seg" role="group" aria-label="Show every screen as">${devs.map(([k, l]) =>
+      `<button type="button" data-dev="${k}" class="${device === k ? 'on' : ''}">${l}</button>`).join('')}</span>
+    <button class="btn" id="tidy" title="Put the screens back in a row">Tidy</button>`,
   el => {
-    el.querySelector('#pick') && (el.querySelector('#pick').onchange = e => go(p.key, e.target.value));
-    el.querySelector('#newchat') && (el.querySelector('#newchat').onclick = () => go(p.key, null));
-    el.querySelector('#close') && (el.querySelector('#close').onclick = async () => {
-      const why = prompt(`Close "${t.title}"? Why, in a line (Kept remembers it if you try this again):`); if (why === null) return;
-      S = await api('close', { direction: t.id, why }); go(p.key, null);
-    });
+    el.querySelectorAll('[data-dev]').forEach(b => b.onclick = () => setDevice(b.dataset.dev));
+    el.querySelector('#tidy').onclick = () => tidy();
+  });
+  // The chat's own controls live in the composer: which chat, and Push (or Sort it, for a free session).
+  const p = proj(), t = creating ? null : chatOf(), open = t && t.status === 'active', chats = p.branches;
+  put($('#cmeta'), !t ? '' : chats.length > 1 ? `<select class="cname" id="pick" aria-label="Chats in ${esc(p.name)}" title="Switch chat">${chats.map(b =>
+      `<option value="${b.id}"${b.id === t.id ? ' selected' : ''}>${esc(b.title)}</option>`).join('')}</select>` : `<span class="cname" title="${esc(t.title)}">${esc(t.title)}</span>`,
+    el => el.querySelector('#pick') && (el.querySelector('#pick').onchange = e => go(p.key, e.target.value)));
+  put($('#cact'), !open || t.building ? '' : t.project === 'sessions' ? `<button type="button" class="push" id="sortit" title="Kept reads the session and files what you made into the right projects">Sort it</button>`
+    : t.folder && t.versions.length ? `<button type="button" class="push" id="push" title="Put this into what's live">Push</button>` : '',
+  el => {
     el.querySelector('#sortit') && (el.querySelector('#sortit').onclick = async () => { S = await api('sort', { direction: t.id }); render(); });
     el.querySelector('#push') && (el.querySelector('#push').onclick = async () => {
-      if (!confirm(`Push "${t.title}" into Main? It merges and goes live.`)) return;
+      if (!confirm(`Push "${t.title}" live? It goes into the live ${p.name}.`)) return;
       el.querySelector('#push').textContent = 'Pushing…';
       try { S = await api('push', { direction: t.id }); go(p.key, null); } catch (e) { S = await api('state'); render(); }
     });
@@ -518,7 +552,7 @@ function chead() {
 function msgs() {
   const p = proj(), t = creating ? null : chatOf();
   const chat = t ? t.chat || [] : [], nudge = t && S.nudges[t.id];
-  const msg = m => m.role === 'you' ? `<div class="msg you">${esc(m.text)}</div>`
+  const msg = m => m.role === 'you' ? `<div class="msg you">${esc(m.text)}${m.pointer ? `<span class="ptr">↳ ${esc(m.pointer)}</span>` : ''}</div>`
     : `<div class="msg claude">${m.text ? esc(m.text) : ''}${m.busy || (!m.text && m.steps.length) ? `<p class="steps${m.busy ? ' live' : ''}">${esc(m.steps.at(-1) || 'Thinking')}</p>` : ''}${
         m.version ? `<br><button class="vchip${viewing === m.version ? ' on' : ''}" data-ver="${m.version}" title="Show every screen as it was here">v${t.versions.findIndex(v => v.sha === m.version) + 1}</button>` : ''}${
         m.blocked ? `<div class="blocked"><span>Claude wants to: ${esc(m.blocked.what)}</span><button class="btn dark" data-allow="${esc(m.blocked.allow)}">Allow</button></div>` : ''}</div>`;
@@ -556,14 +590,159 @@ $('#box').onsubmit = async e => {
   if (t && t.building) { S = await api('stop', { direction: t.id }); return render(); }
   const text = q.value.trim(); if (!text) return;
   try {
+    const to = pointed ? (pointed.from === 'live' ? null : pointed.from) : (t && t.status === 'active' ? t.id : null);
     S = creating ? await api('talk', { text })
       : t && t.conflict ? await api('resolve', { direction: t.id, text })
-      : await api('say', { project: proj().key, direction: t && t.status === 'active' ? t.id : null, text });
-    creating = false; q.value = ''; q.style.height = 'auto'; viewing = null; fitAbove();
+      : await api('say', { project: proj().key, direction: to, text, pointer: pointed && pointed.info });
+    creating = false; q.value = ''; q.style.height = 'auto'; viewing = null; clearPoint(); fitAbove();
     lastCount = chatOf()?.versions.length ?? 0;
     render();
   } catch (err) {}
 };
+
+/* ---------------------------------------------------------------- Point: tell Claude what you mean by tapping it
+   The screens are real pages: a tap uses them. Holding Option (as in Figma, for redlines) outlines what's under the
+   pointer, and an Option-click picks it instead of using the page. Every frame in a screen is
+   hooked, nested ones too (the deck's slides live in frames), and each knows its offset in the screen, so the blue box can
+   be drawn on the window over the scaled page. The pick rides with your next message: file, selector, text and specs. */
+let pointed = null;
+const clearHover = () => document.querySelectorAll('.win .hov').forEach(h => h.remove());   // let go of Option: the redlines go
+addEventListener('keyup', e => { if (e.key === 'Alt') clearHover(); });
+addEventListener('blur', clearHover);   // { key, from, page, el, off, info }
+
+function hookDoc(win, frame, off) {
+  let doc; try { doc = frame.contentDocument; } catch (e) { return; }
+  if (!doc || doc.__kept) return;
+  doc.__kept = true;
+  // A plain tap uses the page. Holding Option is Kept's: the outline follows the pointer, and Option-click points.
+  const stop = e => { if (!e.altKey) return; e.preventDefault(); e.stopPropagation(); };
+  ['pointerdown', 'mousedown', 'mouseup', 'touchstart', 'dblclick'].forEach(t => doc.addEventListener(t, stop, true));
+  doc.addEventListener('click', e => { if (!e.altKey) return; stop(e); const t = seen(doc, e.clientX, e.clientY, off); t && pick(win, t.el, t.off, doc); }, true);
+  doc.addEventListener('mousemove', e => { if (!e.altKey) return clearHover(); const t = seen(doc, e.clientX, e.clientY, off); t && hover(win, t.el, t.off); }, true);
+  doc.addEventListener('keyup', e => { if (e.key === 'Alt') clearHover(); });
+  doc.addEventListener('mouseleave', () => win.querySelectorAll('.hov').forEach(h => h.remove()));
+  doc.addEventListener('scroll', () => drawMarks(win), true);
+  const hookChild = fr => { const go = () => hookDoc(win, fr, () => { const o = off(), r = fr.getBoundingClientRect(); return { x: o.x + r.left + fr.clientLeft, y: o.y + r.top + fr.clientTop }; }); fr.addEventListener('load', go); go(); };
+  doc.querySelectorAll('iframe').forEach(hookChild);
+  try { new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if (n.tagName === 'IFRAME') hookChild(n); else n.querySelectorAll && n.querySelectorAll('iframe').forEach(hookChild); })))
+          .observe(doc.documentElement, { childList: true, subtree: true }); } catch (e) {}
+  if (pointed && pointed.key === win.dataset.key && !pointed.el.isConnected) {   // the page reloaded: find it again
+    try { const again = doc.querySelector(pointed.info.selector); if (again) { pointed.el = again; pointed.off = off; } } catch (e) {}
+  }
+}
+/* What you can actually see at a point. Pages lay invisible layers over their content to catch taps (the deck's
+   "tap for next" is one), so the topmost element is often empty. Look down through everything under the pointer,
+   skip what draws nothing, and follow into frames, until something visible is there. */
+function draws(el) {
+  const v = el.ownerDocument.defaultView, cs = v.getComputedStyle(el);
+  if (cs.visibility === 'hidden' || +cs.opacity === 0 || cs.display === 'none') return false;
+  if (/^(IMG|SVG|svg|CANVAS|VIDEO|INPUT|TEXTAREA|BUTTON|SELECT|PICTURE|text|path|circle|rect|polygon|line|image|use)$/.test(el.tagName)) return true;
+  if ([...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) return true;
+  if (cs.backgroundImage !== 'none') return true;
+  const bg = cs.backgroundColor; if (bg && !/rgba\(.*,\s*0\)$/.test(bg) && bg !== 'transparent') return true;
+  if (parseFloat(cs.borderTopWidth) || parseFloat(cs.borderLeftWidth)) return true;
+  return false;
+}
+function seen(doc, x, y, off, depth = 0) {
+  let list; try { list = doc.elementsFromPoint(x, y); } catch (e) { return null; }
+  for (const el of list) {
+    if (el.tagName === 'HTML' || el.tagName === 'BODY') continue;
+    if (el.tagName === 'IFRAME' && depth < 4) {
+      let inner; try { inner = el.contentDocument; } catch (e) {}
+      if (inner) {
+        const r = el.getBoundingClientRect();
+        const innerOff = () => { const o = off(), rr = el.getBoundingClientRect(); return { x: o.x + rr.left + el.clientLeft, y: o.y + rr.top + el.clientTop }; };
+        const got = seen(inner, x - r.left - el.clientLeft, y - r.top - el.clientTop, innerOff, depth + 1);
+        if (got) return got;
+      }
+      continue;
+    }
+    if (draws(el)) return { el, off };
+  }
+  const first = list.find(el => el.tagName !== 'HTML' && el.tagName !== 'BODY' && el.tagName !== 'IFRAME');
+  return first ? { el: first, off } : null;
+}
+const rectIn = (el, off) => { const r = el.getBoundingClientRect(), o = off(); return { x: o.x + r.left, y: o.y + r.top, w: r.width, h: r.height }; };
+function hover(win, el, off) {
+  const k = +win.dataset.k || 1, r = rectIn(el, off), layer = win.querySelector('.marks');
+  let h = layer.querySelector('.hov.box'), sp = layer.querySelector('.hov.spec');
+  if (!h) { h = document.createElement('div'); h.className = 'hov box'; sp = document.createElement('div'); sp.className = 'hov spec'; layer.append(h, sp); }
+  Object.assign(h.style, { left: r.x * k + 'px', top: r.y * k + 'px', width: r.w * k + 'px', height: r.h * k + 'px' });
+  sp.innerHTML = specHTML(specs(el));
+  placeSpec(sp, layer, r, k);
+}
+/* An element's redlines: its type, size, type face, size and weight, colour. */
+function specs(el) {
+  const cs = el.ownerDocument.defaultView.getComputedStyle(el), r = el.getBoundingClientRect();
+  const bg = hex(cs.backgroundColor);
+  return { tag: el.tagName.toLowerCase(), w: Math.round(r.width), h: Math.round(r.height),
+           font: `${cs.fontFamily.split(',')[0].replace(/["']/g, '').trim()} ${Math.round(parseFloat(cs.fontSize))}px / ${cs.fontWeight}`,
+           color: hex(cs.color), bg: bg === 'transparent' ? '' : bg };
+}
+const specHTML = i => `<b>${esc(i.tag)}</b> · ${i.w} × ${i.h}<br>${esc(i.font)}<br>${esc(i.color)}${i.bg ? ' on ' + esc(i.bg) : ''}`;
+function placeSpec(sp, layer, r, k) {
+  const below = (r.y + r.h) * k + 6, vh = layer.clientHeight;
+  sp.style.left = Math.max(2, Math.min(r.x * k, layer.clientWidth - sp.offsetWidth - 2)) + 'px';
+  sp.style.top = (below + sp.offsetHeight < vh ? below : Math.max(2, r.y * k - sp.offsetHeight - 6)) + 'px';
+}
+const hex = c => { const m = String(c).match(/\d+(\.\d+)?/g); if (!m) return c; const [r, g, b, a] = m.map(Number); if (a === 0) return 'transparent'; return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join(''); };
+function selectorOf(el) {
+  const parts = [];
+  for (let n = el; n && n.nodeType === 1 && n.tagName !== 'HTML' && parts.length < 6; n = n.parentElement) {
+    if (n.id) { parts.unshift('#' + CSS.escape(n.id)); break; }
+    let p = n.tagName.toLowerCase();
+    const cls = [...n.classList].filter(c => !/^(on|sel|active|hover)$/.test(c)).slice(0, 2);
+    if (cls.length) p += '.' + cls.map(c => CSS.escape(c)).join('.');
+    const sib = n.parentElement ? [...n.parentElement.children].filter(c => c.tagName === n.tagName) : [];
+    if (sib.length > 1) p += `:nth-of-type(${sib.indexOf(n) + 1})`;
+    parts.unshift(p);
+  }
+  return parts.join(' > ');
+}
+function fileOf(doc) {
+  const path = decodeURIComponent(doc.location.pathname).replace(/^\/kept\/(w|v)\/[^/]+\//, '').replace(/^\//, '');
+  return path === '' || path.endsWith('/') ? path + 'index.html' : path;
+}
+function pick(win, el, off, doc) {
+  if (el.tagName === 'HTML' || el.tagName === 'BODY') return;
+  const cs = el.ownerDocument.defaultView.getComputedStyle(el), r = el.getBoundingClientRect();
+  const text = (el.innerText || el.textContent || el.getAttribute('aria-label') || el.getAttribute('alt') || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  const family = cs.fontFamily.split(',')[0].replace(/["']/g, '').trim();
+  const bg = hex(cs.backgroundColor);
+  const info = { tag: el.tagName.toLowerCase(), selector: selectorOf(el), text, file: fileOf(el.ownerDocument),
+                 w: Math.round(r.width), h: Math.round(r.height), font: `${family} ${Math.round(parseFloat(cs.fontSize))}px / ${cs.fontWeight}`,
+                 color: hex(cs.color), bg: bg === 'transparent' ? '' : bg, device: lay[win.dataset.key]?.dev === 'desktop' ? 'web' : lay[win.dataset.key]?.dev };
+  pointed = { key: win.dataset.key, from: win.dataset.from, page: win.dataset.page, el, off, info };
+  document.querySelectorAll('.win .marks .red, .win .marks .spec:not(.hov)').forEach(x => x.remove());
+  clearHover(); drawMarks(win);
+  const label = `${info.tag}${text ? ` “${text.slice(0, 40)}${text.length > 40 ? '…' : ''}”` : ''}`;
+  put($('#pchip'), `${icon('arrow_selector_tool')}<span class="t">Pointing at ${esc(label)} · ${info.w}×${info.h} · ${esc(info.font)}</span><button type="button" id="unpoint" title="Stop pointing" aria-label="Stop pointing">${icon('close')}</button>`,
+    e => e.querySelector('#unpoint').onclick = () => clearPoint());
+  $('#pchip').classList.remove('hide');
+  // Talking about a screen means talking to its branch.
+  const want = win.dataset.from === 'live' ? null : win.dataset.from;
+  if (!creating && (cur().direction || null) !== want) go(proj().key, want).then(() => { pointed && drawMarks(win); });
+  fitAbove(); $('#q').focus();
+}
+function drawMarks(win) {
+  const layer = win.querySelector('.marks'); if (!layer) return;
+  layer.querySelectorAll('.red, .spec:not(.hov)').forEach(x => x.remove());
+  if (!pointed || pointed.key !== win.dataset.key || !pointed.el.isConnected) return;
+  const k = +win.dataset.k || 1, r = rectIn(pointed.el, pointed.off), i = pointed.info;
+  const box = document.createElement('div'); box.className = 'red';
+  Object.assign(box.style, { left: r.x * k + 'px', top: r.y * k + 'px', width: r.w * k + 'px', height: r.h * k + 'px' });
+  const spec = document.createElement('div'); spec.className = 'spec';
+  spec.innerHTML = specHTML(i);
+  layer.append(box, spec);
+  placeSpec(spec, layer, r, k);
+}
+function clearPoint() {
+  pointed = null;
+  document.querySelectorAll('.win .marks .red, .win .marks .spec').forEach(x => x.remove());
+  $('#pchip').classList.add('hide'); put($('#pchip'), ''); fitAbove();
+}
+setInterval(() => { if (pointed) { const w = document.querySelector(`.win[data-key="${CSS.escape(pointed.key)}"]`); w && drawMarks(w); } }, 400);   // things move: keep the box on it
+addEventListener('keydown', e => { if (e.key === 'Escape' && pointed) clearPoint(); });
 
 /* ---------------------------------------------------------------- a clash, or sorting a session, over the canvas */
 function sortScreen(t, el) {
