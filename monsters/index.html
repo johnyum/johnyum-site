@@ -175,6 +175,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
             <button type="button" data-style="fuzzy" aria-pressed="false">Fuzzy</button>
             <button type="button" data-style="clay" aria-pressed="false">Clay</button>
             <button type="button" data-style="vinyl" aria-pressed="false">Vinyl</button>
+            <button type="button" data-style="person" aria-pressed="false">Person</button>
           </div>
         </div>
         <div class="group" id="passBox" hidden>
@@ -215,6 +216,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       <button type="button" data-mode="shave" aria-pressed="false">Shave</button>
     </div>
     <button id="shake" type="button">Shake</button>
+    <button id="furBtn" type="button" hidden aria-pressed="true">Fur</button>
     <button id="unshave" type="button" hidden>Grow it all back</button>
   </div>
   <div class="sliders">
@@ -259,7 +261,7 @@ const $ = id => document.getElementById(id);
 const canvas = $('c'), stage = $('stage');
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const S = { mode:'spin', len:0.22, density:64, shells:28, grav:1, floppy:0.6, wind:0, color:'#F2A07B', custom:false, own:false };
+const S = { fur:true, mode:'spin', len:0.22, density:64, shells:28, grav:1, floppy:0.6, wind:0, color:'#F2A07B', custom:false, own:false };
 const COLORS = ['#F2A07B','#B9A3F0','#8FD6B4','#F5D36B','#43434F'];
 
 // ---------- three setup ----------
@@ -301,10 +303,18 @@ new ResizeObserver(resize).observe(stage);
 const VS = `
 #include <common>
 #include <skinning_pars_vertex>
-uniform float uT, uLen, uGrav, uWind, uTime, uUseMap, uBald;
+uniform float uT, uLen, uGrav, uWind, uTime, uUseMap, uBald, uFollow;
 uniform vec3 uDisp, uDisp2, uSpin, uSpin2, uCenter;
-attribute vec3 rest; attribute float shave; uniform sampler2D uMap;
-varying vec3 vRest; varying vec3 vN; varying vec2 vUv; varying float vBare;
+attribute vec3 rest; attribute float shave; uniform sampler2D uMap, uLagTex;
+varying vec3 vRest; varying vec3 vN; varying vec2 vUv; varying float vBare; varying vec3 vT, vW;
+#ifdef USE_SKINNING
+// the lagged skeleton: a springy, delayed copy of the bones (same layout as three's bone texture)
+mat4 lagMatrix(const in float i){
+  int size = textureSize(uLagTex, 0).x, j = int(i) * 4, x = j % size, y = j / size;
+  return mat4(texelFetch(uLagTex, ivec2(x, y), 0), texelFetch(uLagTex, ivec2(x + 1, y), 0),
+              texelFetch(uLagTex, ivec2(x + 2, y), 0), texelFetch(uLagTex, ivec2(x + 3, y), 0));
+}
+#endif
 float h3(vec3 p){ p = fract(p*0.3183099 + 0.1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
 float vn(vec3 x){ vec3 i = floor(x), f = fract(x); f = f*f*(3.0-2.0*f);
   return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x), mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x), f.y),
@@ -345,12 +355,25 @@ void main(){
   vec4 wp = root;
   wp.xyz += nW * grow * uT * reach;
   wp.xyz += bend * uT * uT * grow * 0.95;
+  // Follow-through: the tips are pulled toward where the springy, delayed skeleton has this point, so
+  // when a limb swings the coat trails it, overshoots and settles — per clump, a little out of step.
+  #ifdef USE_SKINNING
+  vec4 sv = bindMatrix * vec4(position, 1.0);
+  vec4 lagged = lagMatrix(skinIndex.x) * sv * skinWeight.x + lagMatrix(skinIndex.y) * sv * skinWeight.y
+              + lagMatrix(skinIndex.z) * sv * skinWeight.z + lagMatrix(skinIndex.w) * sv * skinWeight.w;
+  vec3 trail = (modelMatrix * vec4((bindMatrixInverse * lagged).xyz, 1.0)).xyz - root.xyz;
+  float tl = length(trail), cap = grow * 2.2;
+  if (tl > cap) trail *= cap / tl;
+  wp.xyz += trail * uFollow * pow(uT, 1.6) * mix(0.7, 1.3, clump) * (1.0 - bare);
+  #endif
   vN = nW;
+  vT = normalize(wp.xyz - root.xyz + nW * 1e-4);   // the strand's direction, for its highlight
+  vW = wp.xyz;
   gl_Position = projectionMatrix * viewMatrix * wp;
 }`;
 const FS = `
 uniform float uT, uDensity, uUseMap; uniform vec3 uColor, uLight; uniform sampler2D uMap;
-varying vec3 vRest; varying vec3 vN; varying vec2 vUv; varying float vBare;
+varying vec3 vRest; varying vec3 vN; varying vec2 vUv; varying float vBare; varying vec3 vT, vW;
 float hash(vec3 p){ p = fract(p*0.3183099 + 0.1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
 void main(){
   vec3 q = vRest * uDensity;
@@ -370,8 +393,19 @@ void main(){
   vec3 col = mix(base * 0.35, tip, smoothstep(0.0, 1.0, uT));
   col = mix(col, base, vBare);   // bare skin is its own colour, not the dark under-fur
   col *= mix(0.86, 1.08, hash(cell + 9.0));
-  float diff = max(dot(normalize(vN), uLight), 0.0);
+  vec3 N = normalize(vN), V = normalize(cameraPosition - vW), T = normalize(vT);
+  float diff = max(dot(N, uLight), 0.0);
   col *= 0.55 + 0.6 * diff;
+  // Kajiya-Kay: hair shines along a band across the strands, not in a spot. Two lobes, as on real fur:
+  // a white one, and a wider one tinted by the coat, shifted toward the root.
+  vec3 H = normalize(uLight + V);
+  float th = dot(T, H), s1 = pow(sqrt(max(1.0 - th * th, 0.0)), 80.0);
+  float th2 = dot(normalize(T + N * 0.25), H), s2 = pow(sqrt(max(1.0 - th2 * th2, 0.0)), 18.0);
+  float lit = smoothstep(-0.1, 0.4, dot(N, uLight)) * uT * (1.0 - vBare);
+  col += (vec3(0.22) * s1 + base * 0.28 * s2) * lit;
+  // backlight through the tips, so the silhouette glows a little
+  float rim = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+  col += mix(base, vec3(1.0), 0.4) * rim * uT * uT * 0.35 * (1.0 - vBare);
   gl_FragColor = vec4(col, 1.0);
 }`;
 
@@ -379,7 +413,7 @@ const U = {
   uLen:{value:S.len}, uDensity:{value:S.density},
   uDisp:{value:new THREE.Vector3()}, uSpin:{value:new THREE.Vector3()}, uCenter:{value:new THREE.Vector3()},
   uDisp2:{value:new THREE.Vector3()}, uSpin2:{value:new THREE.Vector3()},
-  uGrav:{value:S.grav}, uWind:{value:S.wind}, uTime:{value:0}, uBald:{value:1},
+  uGrav:{value:S.grav}, uWind:{value:S.wind}, uTime:{value:0}, uBald:{value:1}, uFollow:{value:1},
   uLight:{value:new THREE.Vector3(0.4,0.75,0.55).normalize()},
 };
 const swatch = new THREE.Color(S.color);
@@ -421,18 +455,52 @@ function buildShells(){
       if (i === 0) baseMeshes.push(mesh);
     }
   });
+  showFur();
   updateReadout();
 }
+// Fur off: the creature as Meshy made it (its own materials), the shells hidden. The ball has no bare body.
+function showFur(){
+  furMeshes.forEach((m, i) => m.visible = S.fur || !sources[Math.floor(i / S.shells)]?.from);
+  sources.forEach(s => s.from && (s.from.visible = !S.fur));
+  const b = $('furBtn'); b.hidden = !S.custom; b.setAttribute('aria-pressed', String(S.fur)); b.textContent = S.fur ? 'Fur on' : 'Fur off';
+}
+function setFur(on){ S.fur = on; showFur(); if (on) autoFace(); }
 function newSource(geom, from, skin, map, color){
   if (!geom.attributes.rest) geom.setAttribute('rest', geom.attributes.position.clone());
   geom.setAttribute('shave', new THREE.BufferAttribute(new Float32Array(geom.attributes.position.count), 1));
-  const src = { geom, from, skin, map, color, u:{ uMap:{value:null}, uUseMap:{value:0}, uColor:{value:new THREE.Color()} } };
+  const src = { geom, from, skin, map, color, u:{ uMap:{value:null}, uUseMap:{value:0}, uColor:{value:new THREE.Color()},
+                                                    uLagTex:{value: skin ? lagFor(skin.skeleton).tex : null} } };
   look(src); return src;
 }
+
+// The lagged skeleton, one per skeleton: every bone matrix chases the real one on an underdamped spring,
+// so it trails, overshoots and settles. The fur's tips are pulled toward it (uFollow, in the shader).
+// Floppiness sets the spring: stiff and quick at 0, loose and wobbly at 1.
+const LAGS = new Map();
+function lagFor(sk){
+  let L = LAGS.get(sk); if (L) return L;
+  if (!sk.boneTexture) sk.computeBoneTexture();
+  sk.update();
+  const lag = sk.boneMatrices.slice(), img = sk.boneTexture.image;
+  L = { sk, lag, vel: new Float32Array(lag.length), tex: new THREE.DataTexture(lag, img.width, img.height, THREE.RGBAFormat, THREE.FloatType) };
+  L.tex.needsUpdate = true; LAGS.set(sk, L); return L;
+}
+function stepLag(dt){
+  if (!LAGS.size) return;
+  scene.updateMatrixWorld();
+  const f = S.floppy, k = 320 * (1 - 0.75 * f), c = 2 * Math.sqrt(k) * (0.32 - 0.16 * f);
+  for (const L of LAGS.values()){
+    L.sk.update();
+    const cur = L.sk.boneMatrices, a = L.lag, v = L.vel;
+    for (let i = 0; i < a.length; i++){ v[i] += ((cur[i] - a[i]) * k - v[i] * c) * dt; a[i] += v[i] * dt; }
+    L.tex.needsUpdate = true;
+  }
+}
+function dropLags(){ for (const L of LAGS.values()) L.tex.dispose(); LAGS.clear(); }
 function dropSources(){
   furMeshes.forEach(m => { m.parent?.remove(m); m.material.dispose(); });
   furMeshes = []; baseMeshes = [];
-  sources.forEach(s => s.geom.dispose()); sources = [];
+  sources.forEach(s => s.geom.dispose()); sources = []; dropLags();
 }
 
 // ---------- default creature ----------
@@ -600,7 +668,7 @@ $('file').addEventListener('change', e => {
   const file = e.target.files[0]; if (!file) return;
   toast('Loading ' + file.name + '…');
   const fr = new FileReader();
-  fr.onload = () => loader.parse(fr.result, '', gltf => { if (useModel(gltf, file.name)) { loadShave('file:' + file.name); $('credit').hidden = true; startMove(); } },
+  fr.onload = () => loader.parse(fr.result, '', gltf => { if (useModel(gltf, file.name)) { loadShave('file:' + file.name); S.fur = true; showFur(); autoFace(); $('credit').hidden = true; startMove(); } },
     () => toast('Could not read that file. Export as a single .glb and try again.'));
   fr.readAsArrayBuffer(file);
   e.target.value = '';
@@ -608,7 +676,7 @@ $('file').addEventListener('change', e => {
 $('fox').addEventListener('click', () => {
   toast('Loading Fox…');
   loader.loadAsync('/monsters/assets/fox.glb')
-    .then(g => { if (useModel(g, 'Fox')) { loadShave('fox'); $('credit').hidden = false; startMove(); shown = null; drawShelf(); } })
+    .then(g => { if (useModel(g, 'Fox')) { loadShave('fox'); S.fur = true; showFur(); autoFace(); $('credit').hidden = false; startMove(); shown = null; drawShelf(); } })
     .catch(() => toast('Could not load the Fox.'));
 });
 function startMove(){ if (clips.Idle) play('Idle'); else if (clips.Survey) play('Survey'); }
@@ -676,19 +744,83 @@ const BRUSH = 0.09;
 function brush(e){
   const h = hit(e); if (!h || !h.face) return;
   const src = sources[baseMeshes.indexOf(h.object)]; if (!src) return;
-  const rest = src.geom.attributes.rest, sh = src.geom.attributes.shave, grow = e.altKey;
-  const cx = rest.getX(h.face.a), cy = rest.getY(h.face.a), cz = rest.getZ(h.face.a);
+  const rest = src.geom.attributes.rest;
+  shaveAt(rest.getX(h.face.a), rest.getY(h.face.a), rest.getZ(h.face.a), BRUSH, e.altKey);
+}
+function shaveAt(cx, cy, cz, R, grow = false){
   for (const other of sources){   // a brush crosses from one mesh to the next (an eye is often its own)
     const r = other.geom.attributes.rest, a = other.geom.attributes.shave; let hitAny = false;
     for (let i = 0; i < r.count; i++){
       const d = Math.hypot(r.getX(i) - cx, r.getY(i) - cy, r.getZ(i) - cz);
-      if (d > BRUSH) continue;
-      const k = 1 - THREE.MathUtils.smoothstep(d, BRUSH * 0.55, BRUSH);
+      if (d > R) continue;
+      const k = 1 - THREE.MathUtils.smoothstep(d, R * 0.55, R);
       a.array[i] = grow ? Math.min(a.array[i], 1 - k) : Math.max(a.array[i], k); hitAny = true;
     }
     if (hitAny) a.needsUpdate = true;
   }
 }
+
+// ---------- the face, found: Claude boxes the eyes, mouth and nose on a front render, and they're shaved ----------
+// Once per creature (remembered as fuzzball.face.<key>); "Grow it all back" doesn't bring the question back.
+const FACES = 'fuzzball.face.';
+function withFront(fn){
+  // the spinner as it loaded: straight on, unmoved, unsquashed
+  const q = spinner.quaternion.clone(), p = group.position.clone(), sc = squash.scale.clone();
+  spinner.quaternion.identity(); group.position.set(0,0,0); squash.scale.set(1,1,1); scene.updateMatrixWorld(true);
+  try { return fn(); } finally { spinner.quaternion.copy(q); group.position.copy(p); squash.scale.copy(sc); scene.updateMatrixWorld(true); }
+}
+function frontCam(back){
+  // Meshy doesn't always face +Z, so each creature is shot from both sides and Claude says which has the face
+  const box = new THREE.Box3(); sources.forEach(s => s.from && box.expandByObject(s.from));
+  const c = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3()), half = Math.max(sz.x, sz.y) / 2 * 1.06;
+  const cam = new THREE.OrthographicCamera(-half, half, half, -half, 0.01, sz.z + 20);
+  cam.position.set(c.x, c.y, back ? box.min.z - 5 : box.max.z + 5); cam.lookAt(c); cam.updateMatrixWorld(true);
+  return cam;
+}
+function frontShot(back = false){
+  const N = 768, rt = new THREE.WebGLRenderTarget(N, N); rt.texture.colorSpace = THREE.SRGBColorSpace;
+  const shown = furMeshes.map(m => m.visible), bg = scene.background;
+  furMeshes.forEach(m => m.visible = false); sources.forEach(s => s.from && (s.from.visible = true));
+  scene.background = new THREE.Color('#ffffff');
+  const cam = withFront(() => { const cam = frontCam(back); renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(null); return cam; });
+  const px = new Uint8Array(N * N * 4); renderer.readRenderTargetPixels(rt, 0, 0, N, N, px); rt.dispose();
+  furMeshes.forEach((m, i) => m.visible = shown[i]); showFur(); scene.background = bg;
+  const c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), im = x.createImageData(N, N);
+  for (let y = 0; y < N; y++) im.data.set(px.subarray((N - 1 - y) * N * 4, (N - y) * N * 4), y * N * 4);   // GL rows run bottom up
+  x.putImageData(im, 0, 0);
+  return { url: c.toDataURL('image/png'), cam };
+}
+function clearFeature(f, cam){
+  // a 4x4 grid of rays straight in across the box; each ray's hit is shaved, sized to its cell
+  const W = cam.right - cam.left, H = cam.top - cam.bottom, G = 4;
+  const cw = f.w * W / G, ch = f.h * H / G, R = Math.max(cw, ch) * 0.8 + 0.01, ndc = new THREE.Vector2();
+  const targets = sources.map(s => s.from).filter(Boolean), ray = new THREE.Raycaster();
+  withFront(() => {
+    for (let i = 0; i < G; i++) for (let j = 0; j < G; j++){
+      const u = f.x + f.w * (i + .5) / G, v = f.y + f.h * (j + .5) / G;
+      ray.setFromCamera(ndc.set(u * 2 - 1, 1 - v * 2), cam);
+      const h = ray.intersectObjects(targets, false)[0]; if (!h?.face) continue;
+      const src = sources.find(s => s.from === h.object), rest = src.geom.attributes.rest;
+      shaveAt(rest.getX(h.face.a), rest.getY(h.face.a), rest.getZ(h.face.a), R);
+    }
+  });
+}
+async function autoFace(){
+  const key = shaveKey; if (!key || !model || !S.fur || env.offline || (env.gated && !pass())) return;
+  try { if (localStorage.getItem(FACES + key)) return; } catch {}
+  const shots = [frontShot(false), frontShot(true)];
+  let j; try {
+    const r = await fetch(`${API}?p=face`, { method:'POST', headers: headers(), body: JSON.stringify({ images: shots.map(s => s.url) }) });
+    if (!r.ok) return; j = await r.json();
+  } catch { return; }
+  if (shaveKey !== key) return;   // it's a different creature by now
+  try { localStorage.setItem(FACES + key, '1'); } catch {}
+  const fs = j.features || []; if (!fs.length) return;
+  fs.forEach(f => clearFeature(f, shots[f.view === 'B' ? 1 : 0].cam)); saveShave();
+  const n = k => fs.filter(f => f.kind === k).length;
+  toast('Kept the face clear: ' + [n('eye') && `${n('eye')} eye${n('eye') > 1 ? 's' : ''}`, n('mouth') && 'the mouth', n('nose') && 'the nose', n('brow') && 'the brows'].filter(Boolean).join(', '));
+}
+window.__face = { frontShot, autoFace, clearFeature };
 let shaveKey = null;
 const SHAVES = 'fuzzball.shave.';
 function saveShave(){
@@ -699,7 +831,8 @@ function saveShave(){
   try { out.length ? localStorage.setItem(SHAVES + shaveKey, JSON.stringify(out)) : localStorage.removeItem(SHAVES + shaveKey); } catch {}
 }
 function loadShave(key){
-  shaveKey = key; if (!key) return;
+  // keyed by the mesh too: a creature's sculpt and its rig number their vertices differently
+  shaveKey = key && key + ':' + sources.reduce((n, s) => n + s.geom.attributes.position.count, 0); key = shaveKey; if (!key) return;
   let d; try { d = JSON.parse(localStorage.getItem(SHAVES + key) || '[]'); } catch { d = []; }
   for (let j = 0; j < d.length; j += 3){
     const a = sources[d[j]]?.geom.attributes.shave; if (!a || d[j+1] >= a.count) continue;
@@ -760,6 +893,7 @@ COLORS.forEach(c => {
   swWrap.appendChild(b);
 });
 $('own').addEventListener('click', setOwn);
+$('furBtn').addEventListener('click', () => setFur(!S.fur));
 function markSwatch(){
   swWrap.querySelectorAll('.sw').forEach(x => x.setAttribute('aria-pressed', String(x.id === 'own' ? S.own : !S.own && x.dataset.c === S.color)));
 }
@@ -792,7 +926,19 @@ const ACTIONS = [
   { label: 'Jump',  id: 466 },
 ];
 const BASIC = [ { label: 'Walk', key: 'walking_glb_url' }, { label: 'Run', key: 'running_glb_url' } ];
+// A person: likeness first, no fur and none of the creature rules (CUTE would turn them into a mascot).
+function personPrompt(desc){
+  return [
+    'Turn the person in this photo into one finished full-body 3D character in a friendly, stylised animated-film look.',
+    desc ? `They are ${desc}.` : '',
+    'Keep their likeness: face shape, skin tone, hairstyle and hair colour, clothing and its colours. If the photo shows only the head or upper body, give them a full body and an outfit that fits.',
+    'Hair as a smooth, sculpted form, not strands.',
+    'Front view, standing upright facing the camera in an A-pose, arms held away from the body, legs slightly apart,',
+    'whole body in frame and centred, soft even studio lighting, plain white background, no ground shadow, no text, no props.',
+  ].filter(Boolean).join(' ');
+}
 function promptFor(style, desc){
+  if (style === 'person') return personPrompt(desc);
   return [
     `Turn this rough sketch into one finished full-body 3D character: ${STYLES[style]}.`,
     desc ? `It is ${desc}.` : '',
@@ -904,7 +1050,7 @@ function drawShelf(){
 // A Meshy build's moves are the ones the pipeline asked for; whatever clips the file itself carries are dropped.
 async function wear(gltf, name, own = false){
   if (!useModel(own ? gltf : { ...gltf, animations: [] }, name)) return false;
-  loadShave(shown?.id || null);
+  loadShave(shown?.id || null); S.fur = shown?.fur !== false; showFur(); if (S.fur) autoFace();
   $('credit').hidden = true; preview(null); setLen(0.12);
   return true;
 }
@@ -919,7 +1065,7 @@ async function run(){
   $('stop').hidden = false; $('stop').disabled = false; $('stop').textContent = 'Stop';
   $('draw').disabled = true; $('reset').disabled = true;
   const src = drawSource();
-  const rec = { id: Date.now().toString(36), at: Date.now(), desc: src.desc, style, sketch: src.thumb, kind: 'sketch', clips: {}, from: 'fuzzball' };
+  const rec = { id: Date.now().toString(36), at: Date.now(), desc: src.desc, style, sketch: src.thumb, kind: 'sketch', clips: {}, from: 'fuzzball', fur: style !== 'person' };
   shown = rec; preview(src.image);
   try {
     // 1 · Render — three views, so the sculpt isn't guessing the back
@@ -1091,6 +1237,13 @@ $('finish').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   style = b.dataset.style;
   for (const x of $('finish').children) x.setAttribute('aria-pressed', String(x === b));
+  // a person comes from a photo and keeps their own look: no fur
+  const person = style === 'person', note = $('sheetNote');
+  note.dataset.base ??= note.textContent;
+  if (!env.offline && env.ready && !env.mock) note.textContent = person
+    ? 'Add a photo of a person (Picture…). They become a 3D character with their own hair and clothes, rigged and moving, with no fur.'
+    : note.dataset.base;
+  $('desc').placeholder = person ? 'who it is, or what they wear' : 'a sleepy mountain yeti';
 });
 function drawSource(){
   const c = document.createElement('canvas'); c.width = c.height = SK;
@@ -1155,7 +1308,7 @@ function frame(){
     omega.multiplyScalar(Math.exp(-2.2*dt));
     if (!reduced && !ptr && !S.custom) spinner.rotation.z += Math.sin(time*1.3)*0.0006;
   }
-  mixer?.update(dt);
+  mixer?.update(dt); stepLag(dt);
   // linear velocity
   vel.copy(group.position).sub(prevPos).divideScalar(dt); prevPos.copy(group.position);
   if (vel.length() > 25) vel.setLength(25);

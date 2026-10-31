@@ -38,7 +38,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, "api"))
-from monsters import API, allowed, forward, meshy_asset  # noqa: E402  (api/monsters.py)
+from monsters import API, allowed, find_face, forward, meshy_asset  # noqa: E402  (api/monsters.py)
 import keep as keeper  # noqa: E402  (monsters/keep.py)
 
 CACHE = os.path.join(HERE, ".cache")
@@ -164,6 +164,8 @@ class Handler(SimpleHTTPRequestHandler):
                        "&".join("%s=%s" % (k, urllib.parse.quote(v[0])) for k, v in q.items() if k not in ("p", "path")))
         elif p == "asset":
             self.asset(q.get("url", [""])[0])
+        elif p == "face" and method == "POST":
+            self.send_json(*find_face(json.loads(body or b"{}").get("images") or []))
         elif p == "keep" and method == "POST":
             self.keep(json.loads(body or b"{}"))
         else:

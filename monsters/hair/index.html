@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Verlet Hair</title>
+<style>
+:root{ --bg:#E6ECEE; --panel:rgba(246,248,249,.9); --ink:#1C2A30; --muted:#5B6D74; --line:#C8D3D7; --accent:#0E7C79 }
+@media (prefers-color-scheme: dark){ :root{ --bg:#11171A; --panel:rgba(26,34,39,.9); --ink:#E6EDEF; --muted:#8C9EA5; --line:#2A353B; --accent:#3CC4BF } }
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,sans-serif;overflow:hidden}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+canvas.drag{cursor:grabbing}
+.panel{position:fixed;right:16px;top:16px;width:220px;background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:14px;display:grid;gap:12px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.panel h1{font-size:15px;margin:0}
+.panel p{margin:0;color:var(--muted);font-size:12px}
+label{display:grid;gap:4px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+label span{display:flex;justify-content:space-between}
+output{font:500 12px ui-monospace,Menlo,monospace;color:var(--ink);text-transform:none;letter-spacing:0}
+input[type=range]{width:100%;accent-color:var(--accent)}
+button{font:600 13px system-ui;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:999px;padding:8px 12px;cursor:pointer}
+@media (max-width:520px){ .panel{left:16px;right:16px;top:auto;bottom:16px;width:auto} }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="panel">
+  <h1>Verlet hair</h1>
+  <p>Move the pointer through the hair to push it. Drag the head to swing it.</p>
+  <label><span>Gravity <output id="gOut"></output></span><input id="g" type="range" min="0" max="2400" step="20" value="1200"></label>
+  <label><span>Stiffness <output id="kOut"></output></span><input id="k" type="range" min="0" max="1" step="0.01" value="0.35"></label>
+  <label><span>Wind speed <output id="wOut"></output></span><input id="w" type="range" min="0" max="3" step="0.05" value="0.6"></label>
+  <button id="reset" type="button">Reset</button>
+</div>
+<script>
+(() => {
+// ── Setup ──────────────────────────────────────────────────────────────────────────────────────
+// 2D Verlet strands on a head. Each strand: N point masses. Per step:
+//   integrate (Verlet, damped) → forces (gravity, wind, pointer) → K constraint passes, each:
+//     pin the root to the scalp, the first segment along the scalp normal,
+//     bending: pull every node toward where its rest shape says it should be (relative to the two before it),
+//     distance: keep every segment at its rest length (last, so length always holds),
+//     pointer: push nodes out of the cursor's circle.
+const cv = document.getElementById('c'), cx = cv.getContext('2d');
+const DPR = Math.min(devicePixelRatio || 1, 2);
+const P = { grav: 1200, stiff: 0.35, wind: 0.6 };
+const STRANDS = 260, NODES = 16, ITER = 10, SUB = 2, DAMP = 0.985;
+let W = 0, H = 0, head = null, strands = [], t = 0;
+
+const angleTo = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));   // shortest turn, −π..π
+function resize(){
+  W = innerWidth; H = innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR; cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (!head) build();
+}
+function build(){
+  const r = Math.min(W, H) * 0.14;
+  head = { x: W * 0.42, y: H * 0.36, r, vx: 0, vy: 0, tx: W * 0.42, ty: H * 0.36 };
+  strands = [];
+  for (let s = 0; s < STRANDS; s++){
+    // roots spread over the top of the head, from ear to ear; a little jitter so it isn't a comb
+    const u = s / (STRANDS - 1);
+    const a = Math.PI * (1.08 + 0.84 * u) + (Math.random() - .5) * 0.02;         // angle on the head (canvas: π..2π is the top)
+    const len = r * (2.0 + 0.9 * Math.sin(u * Math.PI) + Math.random() * 0.35);    // longer at the crown
+    const seg = len / (NODES - 1);
+    // rest shape, as it's combed: out of the scalp, swept over the head toward its side, then falling,
+    // with a slight wave of its own. Stored as each segment's turn from the one before (`rel`).
+    const side = Math.cos(a) < 0 ? -1 : 1, wave = (Math.random() - .5) * 0.06, phase = Math.random() * 6.3;
+    const sweep = a + side * Math.PI * 0.5;                                      // along the scalp, toward the ear
+    const abs = [];
+    for (let i = 0; i < NODES; i++){
+      const v = i / (NODES - 1), lie = Math.min(1, v / 0.12), fall = Math.max(0, (v - 0.3) / 0.7);
+      let d = a + angleTo(a, sweep) * lie;                                     // lie down over the head
+      d += angleTo(d, Math.PI / 2) * fall * 0.9;                                 // then hang
+      abs.push(d + Math.sin(v * 7 + phase) * wave * v);
+    }
+    const rel = abs.map((d, i) => i < 1 ? 0 : angleTo(abs[i - 1], d));
+    const nodes = [];
+    let x = head.x + Math.cos(a) * r, y = head.y + Math.sin(a) * r;
+    for (let i = 0; i < NODES; i++){
+      nodes.push({ x, y, px: x, py: y });
+      x += Math.cos(abs[i]) * seg; y += Math.sin(abs[i]) * seg;
+    }
+    strands.push({ a, seg, rel, nodes, w: 1.6 + Math.random() * 1.2, hue: 24 + Math.random() * 10, light: 30 + Math.random() * 18, depth: Math.random() });
+  }
+  strands.sort((p, q) => p.depth - q.depth);                                    // back strands draw first
+}
+
+// ── Pointer ────────────────────────────────────────────────────────────────────────────────────
+const mouse = { x: -1e4, y: -1e4, vx: 0, vy: 0, r: 46, down: false, onHead: false };
+cv.addEventListener('pointermove', e => {
+  const nx = e.clientX, ny = e.clientY;
+  mouse.vx = nx - mouse.x; mouse.vy = ny - mouse.y; mouse.x = nx; mouse.y = ny;
+  if (mouse.onHead){ head.tx = nx - mouse.ox; head.ty = ny - mouse.oy; }
+});
+cv.addEventListener('pointerdown', e => {
+  cv.setPointerCapture(e.pointerId); mouse.x = e.clientX; mouse.y = e.clientY;
+  if (Math.hypot(e.clientX - head.x, e.clientY - head.y) < head.r * 1.3){
+    mouse.onHead = true; mouse.ox = e.clientX - head.x; mouse.oy = e.clientY - head.y; cv.classList.add('drag');
+  }
+});
+const up = () => { mouse.onHead = false; cv.classList.remove('drag'); };
+cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+cv.addEventListener('pointerleave', () => { if (!mouse.onHead){ mouse.x = mouse.y = -1e4; } });
+
+// ── Simulation ─────────────────────────────────────────────────────────────────────────────────
+function step(dt){
+  t += dt;
+  // the head follows the pointer on a spring, so a drag swings it and the hair follows through
+  const k = 140, c = 18;
+  head.vx += ((head.tx - head.x) * k - head.vx * c) * dt; head.vy += ((head.ty - head.y) * k - head.vy * c) * dt;
+  head.x += head.vx * dt; head.y += head.vy * dt;
+
+  const g = P.grav, dt2 = dt * dt;
+  for (const s of strands){
+    const n = s.nodes;
+    for (let i = 1; i < NODES; i++){
+      const p = n[i];
+      // wind: a slow oscillation plus gusts that roll across the head; tips catch more of it
+      const gust = Math.sin(t * 1.3 * (0.6 + P.wind) + p.y * 0.012 + s.a * 3) * 0.5 + Math.sin(t * 3.7 + p.x * 0.02) * 0.25 + 0.4;
+      const wx = P.wind * 260 * gust * (i / NODES), wy = P.wind * 40 * Math.sin(t * 2.1 + i);
+      const vx = (p.x - p.px) * DAMP, vy = (p.y - p.py) * DAMP;
+      p.px = p.x; p.py = p.y;
+      p.x += vx + wx * dt2; p.y += vy + (g + wy) * dt2;
+    }
+  }
+  for (let it = 0; it < ITER; it++){
+    for (const s of strands){
+      const n = s.nodes, seg = s.seg;
+      // root pinned to the scalp; the first segment held along the scalp normal (the follicle)
+      const rx = head.x + Math.cos(s.a) * head.r, ry = head.y + Math.sin(s.a) * head.r;
+      n[0].x = n[0].px = rx; n[0].y = n[0].py = ry;
+      const fa = s.a + angleTo(s.a, s.a + (Math.cos(s.a) < 0 ? -1 : 1) * Math.PI * 0.5) * 0.15;   // follicles lean the way it's combed
+      n[1].x += (rx + Math.cos(fa) * seg - n[1].x) * 0.8; n[1].y += (ry + Math.sin(fa) * seg - n[1].y) * 0.8;
+      // bending: each node wants to sit where its rest turn puts it, given the two nodes before it.
+      // Stronger near the root (hair is stiffer there), weaker toward the tip.
+      for (let i = 2; i < NODES; i++){
+        const a = n[i - 2], b = n[i - 1], p = n[i];
+        const dir = Math.atan2(b.y - a.y, b.x - a.x) + s.rel[i - 1];
+        const tx = b.x + Math.cos(dir) * seg, ty = b.y + Math.sin(dir) * seg;
+        const k = P.stiff * P.stiff * 0.12 * (1 - 0.7 * i / NODES);            // per pass: ten passes add up fast
+        const dx = (tx - p.x) * k, dy = (ty - p.y) * k;
+        p.x += dx; p.y += dy;
+        a.x -= dx * 0.15; a.y -= dy * 0.15;                                     // a little reaction, so it bends rather than snaps
+        if (i - 2 === 0){ a.x = rx; a.y = ry; }
+      }
+      // distance: every segment exactly its rest length
+      for (let i = 1; i < NODES; i++){
+        const a = n[i - 1], b = n[i];
+        const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1e-6, diff = (d - seg) / d;
+        if (i === 1){ b.x -= dx * diff; b.y -= dy * diff; }
+        else { a.x += dx * diff * 0.5; a.y += dy * diff * 0.5; b.x -= dx * diff * 0.5; b.y -= dy * diff * 0.5; }
+      }
+      // the pointer: a soft round body that pushes hair out of its way and drags it with its motion
+      if (!mouse.onHead) for (let i = 2; i < NODES; i++){
+        const p = n[i], dx = p.x - mouse.x, dy = p.y - mouse.y, d = Math.hypot(dx, dy);
+        if (d < mouse.r && d > 1e-4){
+          const push = (mouse.r - d) / d;
+          p.x += dx * push * 0.5; p.y += dy * push * 0.5;
+          p.px -= mouse.vx * 0.03; p.py -= mouse.vy * 0.03;
+        }
+      }
+      // keep tips out of the head
+      for (let i = 2; i < NODES; i++){
+        const p = n[i], dx = p.x - head.x, dy = p.y - head.y, d = Math.hypot(dx, dy), R = head.r * 1.02;
+        if (d < R){ p.x = head.x + dx / d * R; p.y = head.y + dy / d * R; }
+      }
+    }
+  }
+  mouse.vx *= 0.8; mouse.vy *= 0.8;
+}
+
+// ── Drawing ────────────────────────────────────────────────────────────────────────────────────
+function drawHead(){
+  const { x, y, r } = head;
+  const g = cx.createRadialGradient(x - r * .35, y - r * .4, r * .1, x, y, r * 1.05);
+  g.addColorStop(0, '#F6D2B8'); g.addColorStop(1, '#D89E7E');
+  cx.fillStyle = g; cx.beginPath(); cx.arc(x, y, r, 0, Math.PI * 2); cx.fill();
+  cx.fillStyle = '#2A1E1A';
+  for (const s of [-1, 1]){ cx.beginPath(); cx.ellipse(x + s * r * .34, y + r * .12, r * .07, r * .1, 0, 0, Math.PI * 2); cx.fill(); }
+  cx.strokeStyle = '#8A4E3C'; cx.lineWidth = r * .04; cx.lineCap = 'round';
+  cx.beginPath(); cx.arc(x, y + r * .38, r * .18, 0.2 * Math.PI, 0.8 * Math.PI); cx.stroke();
+}
+// The scalp under the strands: strands lying flat along a 2D head read as a thin outline, so the
+// crown is filled with the hair's own colour, down to a soft hairline across the forehead.
+function drawCap(){
+  const { x, y, r } = head;
+  cx.save();
+  cx.beginPath(); cx.arc(x, y, r * 1.03, 0, Math.PI * 2); cx.clip();
+  const g = cx.createLinearGradient(x, y - r, x, y - r * .1);
+  g.addColorStop(0, 'hsl(28 55% 42%)'); g.addColorStop(1, 'hsl(26 50% 32%)');
+  cx.fillStyle = g;
+  cx.beginPath();
+  cx.moveTo(x - r * 1.1, y + r * .1);
+  cx.quadraticCurveTo(x - r * .9, y - r * .5, x - r * .1, y - r * .42);        // the hairline, parted just off centre
+  cx.quadraticCurveTo(x + r * .6, y - r * .55, x + r * 1.1, y + r * .05);
+  cx.lineTo(x + r * 1.1, y - r * 1.2); cx.lineTo(x - r * 1.1, y - r * 1.2); cx.closePath();
+  cx.fill();
+  cx.restore();
+}
+function drawStrand(s, front){
+  const n = s.nodes;
+  // smooth through the segment midpoints, a few pieces at a time so each piece can taper
+  for (let i = 1; i < NODES - 1; i++){
+    const a = i === 1 ? n[0] : { x: (n[i - 1].x + n[i].x) / 2, y: (n[i - 1].y + n[i].y) / 2 };
+    const m = { x: (n[i].x + n[i + 1].x) / 2, y: (n[i].y + n[i + 1].y) / 2 };
+    const e = i === NODES - 2 ? n[NODES - 1] : m, u = i / (NODES - 1);
+    const l = s.light + (front ? 8 : -6) + u * 14;                             // tips catch more light
+    cx.strokeStyle = `hsl(${s.hue} 55% ${l}%)`;
+    cx.lineWidth = s.w * (1 - u * 0.85);
+    cx.beginPath(); cx.moveTo(a.x, a.y); cx.quadraticCurveTo(n[i].x, n[i].y, e.x, e.y); cx.stroke();
+  }
+}
+function draw(){
+  cx.clearRect(0, 0, W, H);
+  cx.lineCap = 'round';
+  const half = strands.length >> 1;
+  for (let i = 0; i < half; i++) drawStrand(strands[i], false);                  // hair behind the head
+  drawHead(); drawCap();
+  for (let i = half; i < strands.length; i++) drawStrand(strands[i], true);      // hair over it
+  if (mouse.x > -1e3 && !mouse.onHead){
+    cx.strokeStyle = 'rgba(14,124,121,.35)'; cx.lineWidth = 1.5;
+    cx.beginPath(); cx.arc(mouse.x, mouse.y, mouse.r, 0, Math.PI * 2); cx.stroke();
+  }
+}
+
+// ── Loop: fixed steps, so the feel doesn't change with the display's frame rate ────────────────
+let last = performance.now(), acc = 0;
+function frame(now){
+  acc += Math.min((now - last) / 1000, 0.05); last = now;
+  const h = 1 / 120;
+  while (acc >= h){ for (let s = 0; s < SUB / 2; s++) step(h); acc -= h; }
+  draw();
+  requestAnimationFrame(frame);
+}
+
+// ── Controls ───────────────────────────────────────────────────────────────────────────────────
+function bind(id, key, fmt){
+  const el = document.getElementById(id), out = document.getElementById(id + 'Out');
+  const sync = () => { P[key] = +el.value; out.textContent = fmt(P[key]); };
+  el.addEventListener('input', sync); sync();
+}
+bind('g', 'grav', v => String(v));
+bind('k', 'stiff', v => v.toFixed(2));
+bind('w', 'wind', v => v.toFixed(2));
+document.getElementById('reset').onclick = () => { head = null; build(); };
+addEventListener('resize', () => { const hx = head && head.x / W, hy = head && head.y / H; resize(); if (hx){ head.tx = hx * W; head.ty = hy * H; } });
+
+resize(); requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -69,6 +69,80 @@ def meshy_asset(src):
     return src.startswith("https://") and (host == "meshy.ai" or host.endswith(".meshy.ai"))
 
 
+# ── the face: where a creature's eyes, mouth and nose are, so its fur stays off them ──
+# Fuzzball renders the bare model straight on and asks Claude to box each feature; the page
+# then shaves those spots. Stdlib HTTP like the rest of this file (no requirements.txt here).
+FACE_SCHEMA = {
+    "type": "object", "additionalProperties": False, "required": ["features"],
+    "properties": {"features": {"type": "array", "items": {
+        "type": "object", "additionalProperties": False, "required": ["view", "kind", "x", "y", "w", "h"],
+        "properties": {
+            "view": {"type": "string", "enum": ["A", "B"]},
+            "kind": {"type": "string", "enum": ["eye", "mouth", "nose", "brow"]},
+            "x": {"type": "number"}, "y": {"type": "number"}, "w": {"type": "number"}, "h": {"type": "number"},
+        }}}},
+}
+FACE_PROMPT = (
+    "Images A and B are straight-on renders of one 3D cartoon character on white, from opposite sides (one is "
+    "its front, one its back). Fur is about to be grown over its whole surface, and its face must stay clear. "
+    "On the image that shows its face, box every eye (the whole eye, whites included), the mouth, the nose and "
+    "any eyebrows that are painted or sculpted on it, and say which image (view A or B). Boxes are fractions of "
+    "that image: x and y are the top-left corner, w and h the size, all from 0 to 1, drawn tightly round each "
+    "feature. If it has no face on either side, return no features.")
+
+
+def anthropic_key():
+    key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    env = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "monsters", ".env")
+    if not key and os.path.exists(env):
+        for line in open(env):
+            name, _, value = line.partition("=")
+            if name.strip() == "ANTHROPIC_API_KEY":
+                key = value.strip().strip('"').strip("'")
+    return key
+
+
+def find_face(images):
+    """images: [front, back] as data:image/png;base64,… URLs. Returns (status, {"features": [...]})."""
+    key = anthropic_key()
+    if not key:
+        return 503, {"message": "No ANTHROPIC_API_KEY — the face can't be found automatically"}
+    content = []
+    for label, image in zip("AB", (images or [])[:2]):
+        head, _, data = (image or "").partition(",")
+        media = head[5:].split(";")[0] if head.startswith("data:") else ""
+        if media not in ("image/png", "image/jpeg") or not data or len(data) > 6_000_000:
+            return 400, {"message": "Send PNG or JPEG data URLs"}
+        content += [{"type": "text", "text": "Image %s:" % label},
+                    {"type": "image", "source": {"type": "base64", "media_type": media, "data": data}}]
+    if not content:
+        return 400, {"message": "Send the two renders"}
+    req = urllib.request.Request("https://api.anthropic.com/v1/messages", method="POST", data=json.dumps({
+        "model": "claude-opus-5-5", "max_tokens": 16000,
+        "output_config": {"effort": "low", "format": {"type": "json_schema", "schema": FACE_SCHEMA}},
+        "fallbacks": "default",
+        "messages": [{"role": "user", "content": content + [{"type": "text", "text": FACE_PROMPT}]}],
+    }).encode(), headers={"x-api-key": key, "anthropic-version": "2026-10-21",
+                          "anthropic-beta": "server-side-fallback-2026-07-01", "content-type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=55) as r:
+            msg = json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        return 502, {"message": "Claude said %d: %s" % (e.code, e.read()[:200].decode("utf-8", "replace"))}
+    except Exception as e:
+        return 502, {"message": str(e)}
+    if msg.get("stop_reason") == "refusal":
+        return 200, {"features": []}
+    text = "".join(b.get("text", "") for b in msg.get("content", []) if b.get("type") == "text")
+    try:
+        out = json.loads(text)
+    except ValueError:
+        return 502, {"message": "Couldn't read Claude's answer"}
+    clamp = lambda v: max(0.0, min(1.0, float(v)))
+    return 200, {"features": [{"view": f["view"], "kind": f["kind"], "x": clamp(f["x"]), "y": clamp(f["y"]),
+                               "w": clamp(f["w"]), "h": clamp(f["h"])} for f in out.get("features", [])][:12]}
+
+
 class handler(BaseHTTPRequestHandler):
     def send_json(self, code, obj):
         self.send_bytes(code, json.dumps(obj).encode())
@@ -111,6 +185,11 @@ class handler(BaseHTTPRequestHandler):
             return self.send_json(401, {"message": "Wrong passcode"})
         if p == "check":
             return self.send_json(200, {"ok": True})
+
+        if p == "face" and method == "POST":
+            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
+            return self.send_json(*find_face(body.get("images") or []))
+
         if not key:
             return self.send_json(503, {"message": "Building is switched off — no Meshy key on the server"})
 
