@@ -411,7 +411,7 @@ void main(){
 }`;
 
 const U = {
-  uLen:{value:S.len}, uDensity:{value:S.density},
+  uLen:{value:S.len * 0.45}, uDensity:{value:S.density},
   uDisp:{value:new THREE.Vector3()}, uSpin:{value:new THREE.Vector3()}, uCenter:{value:new THREE.Vector3()},
   uDisp2:{value:new THREE.Vector3()}, uSpin2:{value:new THREE.Vector3()},
   uGrav:{value:S.grav}, uWind:{value:S.wind}, uTime:{value:0}, uBald:{value:1}, uFollow:{value:1},
@@ -431,9 +431,9 @@ function look(src){
 }
 function setColor(hex){
   S.color = hex; swatch.set(hex); S.own = false;
-  sources.forEach(look); markSwatch();
+  sources.forEach(look); markSwatch(); hairColour();
 }
-function setOwn(){ S.own = true; sources.forEach(look); markSwatch(); }
+function setOwn(){ S.own = true; sources.forEach(look); markSwatch(); hairColour(); }
 
 function buildShells(){
   furMeshes.forEach(m => { m.parent?.remove(m); m.material.dispose(); });
@@ -457,12 +457,14 @@ function buildShells(){
     }
   });
   showFur();
+  buildHair();
   updateReadout();
 }
 // Fur off: the creature as Meshy made it (its own materials), the shells hidden. The ball has no bare body.
 function showFur(){
   furMeshes.forEach((m, i) => m.visible = S.fur || !sources[Math.floor(i / S.shells)]?.from);
   sources.forEach(s => s.from && (s.from.visible = !S.fur));
+  if (HAIR.mesh) HAIR.mesh.visible = S.fur || !S.custom;
   const b = $('furBtn'); b.hidden = !S.custom; b.setAttribute('aria-pressed', String(S.fur)); b.textContent = S.fur ? 'Fur on' : 'Fur off';
 }
 function setFur(on){ S.fur = on; showFur(); if (on) autoFace(); }
@@ -498,6 +500,227 @@ function stepLag(dt){
   }
 }
 function dropLags(){ for (const L of LAGS.values()) L.tex.dispose(); LAGS.clear(); }
+// ---------- strands: real hair, simulated (the Verlet hair, in 3D, on the creature) ----------
+// Guide hairs are rooted on the surface, area-weighted, each a chain of NP points: Verlet-integrated
+// (gravity, wind, and the inertia of a moving root), then held by a follicle constraint, a bending
+// constraint toward its combed rest direction, rigid segment lengths and a "stay outside the body"
+// plane at the root. Their points go to the GPU as a float texture; many rendered hairs are drawn
+// round each guide (instanced ribbons on a Catmull-Rom curve), clumping toward its tip. The shells
+// stay underneath, short, as the undercoat, so no skin shows between strands.
+const NP = 8;                                          // points per guide (7 segments)
+const HAIR = { G: 0, gsrc: null, gtri: null, gbar: null, glen: null, gcol: null, pos: null, prev: null,
+               root: null, nrm: null, tex: null, mesh: null, fresh: true };
+const HAIR_VS = `
+attribute float hs, ht; attribute float gIdx, lenK, jit; attribute vec2 off; attribute vec3 hcol;
+uniform sampler2D uPts; uniform float uWidth, uSpread, uClump, uTime; uniform vec3 uSwatch; uniform float uOwn;
+varying vec3 vT, vW, vCol; varying float vU;
+vec3 P(int k){ return texelFetch(uPts, ivec2(clamp(k, 0, ${NP - 1}), int(gIdx)), 0).xyz; }
+void main(){
+  float u = ht * lenK, x = u * float(${NP - 1}); int k = int(floor(min(x, float(${NP - 1}) - 0.001))); float f = x - float(k);
+  vec3 p0 = P(k - 1), p1 = P(k), p2 = P(k + 1), p3 = P(k + 2);
+  if (k == 0) p0 = 2.0 * p1 - p2;
+  // Catmull-Rom through the guide's points, and its derivative for the strand's direction
+  float f2 = f * f, f3 = f2 * f;
+  vec3 c = 0.5 * ((2.0 * p1) + (-p0 + p2) * f + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * f2 + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * f3);
+  vec3 tan = normalize(0.5 * ((-p0 + p2) + 2.0 * (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * f + 3.0 * (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * f2) + 1e-5);
+  // this hair's place round its guide, in a frame at the root; hairs gather toward the guide's tip (clumps)
+  vec3 d0 = normalize(P(1) - P(0) + 1e-6), a = abs(d0.y) < 0.9 ? vec3(0, 1, 0) : vec3(1, 0, 0);
+  vec3 t1 = normalize(cross(d0, a)), t2 = cross(d0, t1);
+  vec3 pos = c + (off.x * t1 + off.y * t2) * uSpread * (1.0 - uClump * u * u);
+  pos += t1 * sin(u * 9.0 + jit * 40.0) * uSpread * 0.08 * u;            // a little wave of its own
+  vec3 V = normalize(cameraPosition - pos), side = normalize(cross(tan, V) + 1e-6);
+  pos += side * hs * uWidth * (1.0 - 0.88 * ht);                           // tapered to a point
+  vT = tan; vW = pos; vU = ht;
+  vCol = mix(uSwatch, hcol, uOwn) * mix(0.82, 1.12, jit);
+  gl_Position = projectionMatrix * viewMatrix * vec4(pos, 1.0);
+}`;
+const HAIR_FS = `
+uniform vec3 uLight;
+varying vec3 vT, vW, vCol; varying float vU;
+void main(){
+  vec3 T = normalize(vT), V = normalize(cameraPosition - vW), L = uLight, H = normalize(L + V);
+  // Kajiya-Kay: diffuse from the strand's sine to the light, two specular lobes along it
+  float tl = dot(T, L), dif = sqrt(max(1.0 - tl * tl, 0.0));
+  float th = dot(T, H), s1 = pow(sqrt(max(1.0 - th * th, 0.0)), 90.0);
+  float th2 = dot(normalize(T + vec3(0.0, 0.12, 0.0)), H), s2 = pow(sqrt(max(1.0 - th2 * th2, 0.0)), 22.0);
+  float ao = mix(0.3, 1.0, smoothstep(0.0, 0.7, vU));                     // dark at the root, deep in the coat
+  vec3 col = vCol * ao * (0.38 + 0.72 * dif) + vec3(0.2) * s1 * vU + vCol * 0.3 * s2 * ao;
+  gl_FragColor = vec4(col, 1.0);
+}`;
+const HU = { uPts:{value:null}, uWidth:{value:0.004}, uSpread:{value:0.03}, uClump:{value:0.65}, uTime:{value:0},
+             uSwatch:{value:new THREE.Vector3()}, uOwn:{value:1}, uLight: U.uLight };
+const PIX = new WeakMap();   // a texture's pixels, read once, to colour each root from it
+function pixelsOf(map){
+  const img = map?.image; if (!img || !img.width) return null;
+  let p = PIX.get(img); if (p) return p;
+  const c = document.createElement('canvas'); c.width = Math.min(img.width, 1024); c.height = Math.min(img.height, 1024);
+  const x = c.getContext('2d'); x.drawImage(img, 0, 0, c.width, c.height);
+  p = { w: c.width, h: c.height, d: x.getImageData(0, 0, c.width, c.height).data }; PIX.set(img, p); return p;
+}
+function hairColour(){
+  const c = new THREE.Color(S.color).convertLinearToSRGB();
+  HU.uSwatch.value.set(c.r, c.g, c.b); HU.uOwn.value = S.own ? 1 : 0;
+}
+function buildHair(){
+  if (HAIR.mesh){ scene.remove(HAIR.mesh); HAIR.mesh.geometry.dispose(); HAIR.mesh.material.dispose(); HAIR.tex?.dispose(); HAIR.mesh = null; }
+  if (!sources.length) return;
+  // area of every triangle on the rest pose, skipping shaved and dark-painted (eyes, mouth) ones
+  const tris = [], areas = []; let total = 0;
+  const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3();
+  sources.forEach((src, si) => {
+    const g = src.geom, r = g.attributes.rest, sh = g.attributes.shave, uv = g.attributes.uv, idx = g.index;
+    const n = idx ? idx.count : r.count;
+    for (let t = 0; t < n; t += 3){
+      const a = idx ? idx.getX(t) : t, b = idx ? idx.getX(t + 1) : t + 1, c = idx ? idx.getX(t + 2) : t + 2;
+      if (sh.getX(a) + sh.getX(b) + sh.getX(c) > 1.2) continue;
+      A.fromBufferAttribute(r, a); B.fromBufferAttribute(r, b); C.fromBufferAttribute(r, c);
+      const ar = B.sub(A).cross(C.sub(A)).length() / 2; if (!(ar > 0)) continue;
+      tris.push(si, a, b, c); areas.push(ar); total += ar;
+    }
+  });
+  if (!total) return;
+  const G = Math.min(6000, Math.round(2600 * Math.sqrt(total / 15)) + 800);   // ~3000 on a body the stage's size
+  const cum = new Float64Array(areas.length); let acc = 0; areas.forEach((a, i) => cum[i] = acc += a);
+  let seed = 1234567; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const gsrc = new Uint16Array(G), gtri = new Uint32Array(G * 3), gbar = new Float32Array(G * 2), glen = new Float32Array(G), gcol = new Float32Array(G * 3);
+  let g = 0;
+  for (let tries = 0; g < G && tries < G * 4; tries++){
+    const pick = rnd() * total; let lo = 0, hi = cum.length - 1;
+    while (lo < hi){ const m = (lo + hi) >> 1; if (cum[m] < pick) lo = m + 1; else hi = m; }
+    let u = rnd(), v = rnd(); if (u + v > 1){ u = 1 - u; v = 1 - v; }
+    const si = tris[lo * 4], a = tris[lo * 4 + 1], b = tris[lo * 4 + 2], c = tris[lo * 4 + 3], src = sources[si];
+    // colour at the root: the texture under it, or the material's own colour, or the swatch
+    let col = [1, 1, 1];
+    const px = src.map ? pixelsOf(src.map) : null, uvA = src.geom.attributes.uv;
+    if (px && uvA){
+      const w = 1 - u - v, tu = uvA.getX(a) * w + uvA.getX(b) * u + uvA.getX(c) * v, tv = uvA.getY(a) * w + uvA.getY(b) * u + uvA.getY(c) * v;
+      const ix = Math.min(px.w - 1, Math.max(0, Math.floor((tu % 1 + 1) % 1 * px.w))), iy = Math.min(px.h - 1, Math.max(0, Math.floor((tv % 1 + 1) % 1 * px.h)));
+      const o = (iy * px.w + ix) * 4; col = [px.d[o] / 255, px.d[o + 1] / 255, px.d[o + 2] / 255];
+      if (0.299 * col[0] + 0.587 * col[1] + 0.114 * col[2] < 0.13 && U.uBald.value > 0) continue;   // painted eyes, mouth: no hair
+    } else if (src.color){ const s2 = src.color.clone().convertLinearToSRGB(); col = [s2.r, s2.g, s2.b]; }
+    gsrc[g] = si; gtri[g * 3] = a; gtri[g * 3 + 1] = b; gtri[g * 3 + 2] = c; gbar[g * 2] = u; gbar[g * 2 + 1] = v;
+    glen[g] = 0.75 + rnd() * 0.45; gcol.set(col, g * 3); g++;
+  }
+  Object.assign(HAIR, { G: g, gsrc, gtri, gbar, glen, gcol, pos: new Float32Array(g * NP * 3), prev: new Float32Array(g * NP * 3),
+                        root: new Float32Array(g * 3), nrm: new Float32Array(g * 3), fresh: true });
+  // the guides' points, on the GPU
+  const data = new Float32Array(NP * g * 4);
+  HAIR.tex = new THREE.DataTexture(data, NP, g, THREE.RGBAFormat, THREE.FloatType); HAIR.tex.needsUpdate = true;
+  HU.uPts.value = HAIR.tex;
+  // the rendered hairs: a ribbon of 12 sections, instanced round the guides
+  const per = Math.max(2, Math.round(S.density / 6)), N = g * per, SEC = 12;
+  const geo = new THREE.InstancedBufferGeometry();
+  const hs = [], ht = [], ind = [];
+  for (let i = 0; i <= SEC; i++){ hs.push(-1, 1); ht.push(i / SEC, i / SEC); if (i < SEC){ const q = i * 2; ind.push(q, q + 1, q + 2, q + 1, q + 3, q + 2); } }
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(hs.length * 3), 3));
+  geo.setAttribute('hs', new THREE.Float32BufferAttribute(hs, 1)); geo.setAttribute('ht', new THREE.Float32BufferAttribute(ht, 1));
+  geo.setIndex(ind);
+  const gI = new Float32Array(N), lk = new Float32Array(N), jt = new Float32Array(N), of = new Float32Array(N * 2), hc = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++){
+    const gg = Math.floor(i / per), r = Math.sqrt(rnd()), th = rnd() * Math.PI * 2;
+    gI[i] = gg; lk[i] = 0.7 + rnd() * 0.3; jt[i] = rnd(); of[i * 2] = Math.cos(th) * r; of[i * 2 + 1] = Math.sin(th) * r;
+    hc[i * 3] = gcol[gg * 3]; hc[i * 3 + 1] = gcol[gg * 3 + 1]; hc[i * 3 + 2] = gcol[gg * 3 + 2];
+  }
+  geo.setAttribute('gIdx', new THREE.InstancedBufferAttribute(gI, 1)); geo.setAttribute('lenK', new THREE.InstancedBufferAttribute(lk, 1));
+  geo.setAttribute('jit', new THREE.InstancedBufferAttribute(jt, 1)); geo.setAttribute('off', new THREE.InstancedBufferAttribute(of, 2));
+  geo.setAttribute('hcol', new THREE.InstancedBufferAttribute(hc, 3));
+  geo.instanceCount = N;
+  const mat = new THREE.ShaderMaterial({ vertexShader: HAIR_VS, fragmentShader: HAIR_FS, uniforms: HU, side: THREE.DoubleSide });
+  HAIR.mesh = new THREE.Mesh(geo, mat); HAIR.mesh.frustumCulled = false; HAIR.mesh.renderOrder = 100;
+  scene.add(HAIR.mesh);
+  hairColour(); showFur();
+}
+// where each root is this frame, through the skin as it moves, and the surface's normal there
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _n = new THREE.Vector3();
+function hairRoots(){
+  const { G, gsrc, gtri, gbar, root, nrm } = HAIR;
+  for (let g = 0; g < G; g++){
+    const src = sources[gsrc[g]], m = src.from || spinner;
+    const get = (i, v) => src.from ? src.from.getVertexPosition(i, v).applyMatrix4(m.matrixWorld)
+                                   : v.fromBufferAttribute(src.geom.attributes.position, i).applyMatrix4(m.matrixWorld);
+    get(gtri[g * 3], _a); get(gtri[g * 3 + 1], _b); get(gtri[g * 3 + 2], _c);
+    const u = gbar[g * 2], v = gbar[g * 2 + 1], w = 1 - u - v;
+    root[g * 3] = _a.x * w + _b.x * u + _c.x * v; root[g * 3 + 1] = _a.y * w + _b.y * u + _c.y * v; root[g * 3 + 2] = _a.z * w + _b.z * u + _c.z * v;
+    _n.subVectors(_b, _a).cross(_c.sub(_a)).normalize();
+    nrm[g * 3] = _n.x; nrm[g * 3 + 1] = _n.y; nrm[g * 3 + 2] = _n.z;
+  }
+}
+function stepHair(dt){
+  if (!HAIR.G || !HAIR.mesh?.visible) return;
+  scene.updateMatrixWorld();
+  hairRoots();
+  const { G, pos, prev, root, nrm, glen } = HAIR;
+  const L = S.len * 1.6, f = S.floppy, grav = 9 * S.grav, stiff = 0.04 + 0.4 * (1 - f) * (1 - f), damp = 0.97 - 0.04 * f;
+  const SUB = 2, h = dt / SUB, h2 = h * h, ITER = 4;
+  if (HAIR.fresh){   // lay every guide out along its rest direction
+    for (let g = 0; g < G; g++) for (let i = 0; i < NP; i++){
+      const o = (g * NP + i) * 3, s = L * glen[g] / (NP - 1) * i;
+      for (let k = 0; k < 3; k++) pos[o + k] = prev[o + k] = root[g * 3 + k] + nrm[g * 3 + k] * s;
+    }
+    HAIR.fresh = false;
+  }
+  for (let sub = 0; sub < SUB; sub++){
+    const tw = time + sub * h;
+    for (let g = 0; g < G; g++){
+      const rx = root[g * 3], ry = root[g * 3 + 1], rz = root[g * 3 + 2], nx = nrm[g * 3], ny = nrm[g * 3 + 1], nz = nrm[g * 3 + 2];
+      const seg = L * glen[g] / (NP - 1);
+      // combed: out of the skin, then laid along it, downhill
+      const cx = nx * ny, cy = -1 + ny * ny, cz = nz * ny;                  // down, projected onto the skin: (0,-1,0) − n(n·(0,−1,0))
+      const cl = Math.hypot(cx, cy, cz) || 1, lay = 0.55;
+      let dx = nx * (1 - lay) + cx / cl * lay, dy = ny * (1 - lay) + cy / cl * lay, dz = nz * (1 - lay) + cz / cl * lay;
+      const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
+      const b = g * NP * 3;
+      // the root goes where the skin goes; everything else integrates
+      pos[b] = prev[b] = rx; pos[b + 1] = prev[b + 1] = ry; pos[b + 2] = prev[b + 2] = rz;
+      for (let i = 1; i < NP; i++){
+        const o = b + i * 3, x = pos[o], y = pos[o + 1], z = pos[o + 2];
+        const gust = S.wind * (0.6 + 0.4 * Math.sin(tw * 2.3 + x * 2.5 + y * 1.3 + g * 0.01)) * 6;
+        pos[o] += (x - prev[o]) * damp + gust * h2;
+        pos[o + 1] += (y - prev[o + 1]) * damp + (-grav + gust * 0.12) * h2;
+        pos[o + 2] += (z - prev[o + 2]) * damp + gust * 0.35 * h2;
+        prev[o] = x; prev[o + 1] = y; prev[o + 2] = z;
+      }
+      for (let it = 0; it < ITER; it++){
+        // follicle: the first segment leaves the skin along the comb
+        let o = b + 3;
+        pos[o] += (rx + dx * seg - pos[o]) * 0.85; pos[o + 1] += (ry + dy * seg - pos[o + 1]) * 0.85; pos[o + 2] += (rz + dz * seg - pos[o + 2]) * 0.85;
+        // bending: each segment wants to carry on its parent's direction, turned a little back toward the comb
+        for (let i = 2; i < NP; i++){
+          const p = b + (i - 2) * 3, q = b + (i - 1) * 3; o = b + i * 3;
+          let ex = pos[q] - pos[p], ey = pos[q + 1] - pos[p + 1], ez = pos[q + 2] - pos[p + 2];
+          const el = Math.hypot(ex, ey, ez) || 1; ex = ex / el * 0.7 + dx * 0.3; ey = ey / el * 0.7 + dy * 0.3; ez = ez / el * 0.7 + dz * 0.3;
+          const fl = Math.hypot(ex, ey, ez) || 1, k = stiff * (1 - 0.6 * i / NP);
+          pos[o] += (pos[q] + ex / fl * seg - pos[o]) * k; pos[o + 1] += (pos[q + 1] + ey / fl * seg - pos[o + 1]) * k; pos[o + 2] += (pos[q + 2] + ez / fl * seg - pos[o + 2]) * k;
+        }
+        // rigid lengths (the root never moves), then keep every point out in front of the skin
+        for (let i = 1; i < NP; i++){
+          const p = b + (i - 1) * 3; o = b + i * 3;
+          const ex = pos[o] - pos[p], ey = pos[o + 1] - pos[p + 1], ez = pos[o + 2] - pos[p + 2], el = Math.hypot(ex, ey, ez) || 1e-6, d = (el - seg) / el;
+          if (i === 1){ pos[o] -= ex * d; pos[o + 1] -= ey * d; pos[o + 2] -= ez * d; }
+          else { pos[p] += ex * d * .5; pos[p + 1] += ey * d * .5; pos[p + 2] += ez * d * .5; pos[o] -= ex * d * .5; pos[o + 1] -= ey * d * .5; pos[o + 2] -= ez * d * .5; }
+          const above = (pos[o] - rx) * nx + (pos[o + 1] - ry) * ny + (pos[o + 2] - rz) * nz, want = seg * 0.25 * i;
+          if (above < want){ const push = want - above; pos[o] += nx * push; pos[o + 1] += ny * push; pos[o + 2] += nz * push; }
+        }
+      }
+    }
+  }
+  // to the GPU
+  const d = HAIR.tex.image.data;
+  for (let j = 0, n = G * NP; j < n; j++){ d[j * 4] = pos[j * 3]; d[j * 4 + 1] = pos[j * 3 + 1]; d[j * 4 + 2] = pos[j * 3 + 2]; }
+  HAIR.tex.needsUpdate = true;
+  HU.uWidth.value = 0.0035 * (0.8 + S.len * 2); HU.uSpread.value = 0.012 + 0.09 * Math.sqrt(1 / Math.max(S.density, 10)) * 2;
+}
+// a hand in the fur: points near `at` are shoved by `by` (world units); a poke, a stroke, a shake
+function shoveHair(at, by, radius){
+  const { G, pos } = HAIR; if (!G) return;
+  const r2 = radius * radius;
+  for (let j = 0; j < G * NP; j++){
+    if (j % NP === 0) continue;
+    const o = j * 3, dx = pos[o] - at.x, dy = pos[o + 1] - at.y, dz = pos[o + 2] - at.z, d2 = dx * dx + dy * dy + dz * dz;
+    if (at.x === Infinity || d2 < r2){ const k = at.x === Infinity ? 1 : 1 - d2 / r2; pos[o] += by.x * k; pos[o + 1] += by.y * k; pos[o + 2] += by.z * k; }
+  }
+}
+
 function dropSources(){
   furMeshes.forEach(m => { m.parent?.remove(m); m.material.dispose(); });
   furMeshes = []; baseMeshes = [];
@@ -558,7 +781,9 @@ function loadCreature(){
   clearModel(); dropSources();
   sources = [newSource(creatureGeometry(), null, null, null, null)];
   S.custom = false; $('own').hidden = true; if (S.own) S.own = false; sources.forEach(look); markSwatch();
-  eyes.visible = true; placeEyes(); buildShells(); loadShave('ball');
+  eyes.visible = true; placeEyes();
+  eyeList.forEach(e => { const d = e.userData.dir; shaveAt(d.x, d.y * 0.9, d.z, 0.24); });   // nothing grows over the eyes
+  buildShells(); loadShave('ball');
 }
 
 const loader = new GLTFLoader();
@@ -734,7 +959,9 @@ canvas.addEventListener('pointermove', e => {
       group.position.y = THREE.MathUtils.clamp(group.position.y, -1.6, 1.6);
     }
   } else if (S.mode === 'pet'){
-    if (hit(e)){ const st = new THREE.Vector3(dx, -dy, 0).multiplyScalar(0.35); dispV.add(st); disp2V.addScaledVector(st, 0.7); }
+    const h = hit(e);
+    if (h){ const st = new THREE.Vector3(dx, -dy, 0).multiplyScalar(0.35); dispV.add(st); disp2V.addScaledVector(st, 0.7);
+      shoveHair(h.point, new THREE.Vector3(dx, -dy, 0).multiplyScalar(0.004), 0.35); }   // the stroke parts the strands under it
   } else if (S.mode === 'shave') brush(e);
 });
 
@@ -781,7 +1008,7 @@ function frontCam(back){
 function frontShot(back = false){
   const N = 768, rt = new THREE.WebGLRenderTarget(N, N); rt.texture.colorSpace = THREE.SRGBColorSpace;
   const shown = furMeshes.map(m => m.visible), bg = scene.background;
-  furMeshes.forEach(m => m.visible = false); sources.forEach(s => s.from && (s.from.visible = true));
+  furMeshes.forEach(m => m.visible = false); sources.forEach(s => s.from && (s.from.visible = true)); if (HAIR.mesh) HAIR.mesh.visible = false;
   scene.background = new THREE.Color('#ffffff');
   const cam = withFront(() => { const cam = frontCam(back); renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(null); return cam; });
   const px = new Uint8Array(N * N * 4); renderer.readRenderTargetPixels(rt, 0, 0, N, N, px); rt.dispose();
@@ -830,6 +1057,7 @@ function saveShave(){
   const out = [];
   sources.forEach((src, si) => src.geom.attributes.shave.array.forEach((v, i) => { if (v > .02) out.push(si, i, Math.round(v * 100)); }));
   try { out.length ? localStorage.setItem(SHAVES + shaveKey, JSON.stringify(out)) : localStorage.removeItem(SHAVES + shaveKey); } catch {}
+  buildHair();   // shaved skin grows no strands
 }
 function loadShave(key){
   // keyed by the mesh too: a creature's sculpt and its rig number their vertices differently
@@ -838,7 +1066,7 @@ function loadShave(key){
   for (let j = 0; j < d.length; j += 3){
     const a = sources[d[j]]?.geom.attributes.shave; if (!a || d[j+1] >= a.count) continue;
     a.array[d[j+1]] = d[j+2] / 100; a.needsUpdate = true;
-  }
+  }  if (d.length) buildHair();
 }
 $('unshave').onclick = () => { sources.forEach(s => { s.geom.attributes.shave.array.fill(0); s.geom.attributes.shave.needsUpdate = true; }); saveShave(); };
 function up(e){
@@ -855,6 +1083,7 @@ function poke(e){
   const h = hit(e); if (!h) return;
   const n = (h.face ? h.face.normal.clone() : new THREE.Vector3(0,0,1)).transformDirection(h.object.matrixWorld);
   dispV.addScaledVector(n, -7); disp2V.addScaledVector(n, -4);
+  shoveHair(h.point, n.clone().multiplyScalar(-0.06), 0.4);   // a dent in the coat that springs back
   sqV += 6; blink = 1;
   omega.add(new THREE.Vector3(-n.y, n.x, 0).multiplyScalar(1.2));
   if (clips.Jump && !running && Math.random() < 0.35) play('Jump');
@@ -863,6 +1092,7 @@ $('shake').addEventListener('click', () => {
   const r = () => (Math.random()-0.5);
   omega.add(new THREE.Vector3(r()*8, r()*10, r()*3));
   const kick = new THREE.Vector3(r()*14, r()*10, r()*6); dispV.add(kick); disp2V.addScaledVector(kick, 0.6);
+  shoveHair({ x: Infinity }, kick.clone().multiplyScalar(0.006), 0);
   sqV += 4; blink = 1;
 });
 
@@ -879,9 +1109,10 @@ function bindSlider(id, key, fmt, onChange){
   const sync = () => { S[key] = +el.value; out.textContent = fmt(S[key]); onChange(); updateReadout(); };
   el.addEventListener('input', sync); out.textContent = fmt(+el.value);
 }
-function setLen(v){ S.len = v; $('len').value = v; $('lenOut').textContent = v.toFixed(2); U.uLen.value = v; placeEyes(); }
-bindSlider('len', 'len', v => v.toFixed(2), () => { U.uLen.value = S.len; placeEyes(); });
-bindSlider('den', 'density', v => String(v), () => { U.uDensity.value = S.density; });
+function setLen(v){ S.len = v; $('len').value = v; $('lenOut').textContent = v.toFixed(2); U.uLen.value = v * UNDER; placeEyes(); }
+const UNDER = 0.45;   // the shells are the undercoat: this much of the strands' length
+bindSlider('len', 'len', v => v.toFixed(2), () => { U.uLen.value = S.len * UNDER; placeEyes(); });
+let denTimer; bindSlider('den', 'density', v => String(v), () => { U.uDensity.value = S.density; clearTimeout(denTimer); denTimer = setTimeout(buildHair, 150); });
 bindSlider('gr', 'grav', v => v.toFixed(2), () => { U.uGrav.value = S.grav; });
 bindSlider('fl', 'floppy', v => v.toFixed(2), () => {});
 bindSlider('wi', 'wind', v => v.toFixed(2), () => { U.uWind.value = S.wind; });
@@ -1323,7 +1554,7 @@ function frame(){
     omega.multiplyScalar(Math.exp(-2.2*dt));
     if (!reduced && !ptr && !S.custom) spinner.rotation.z += Math.sin(time*1.3)*0.0006;
   }
-  mixer?.update(dt); stepLag(dt);
+  mixer?.update(dt); stepLag(dt); stepHair(dt);
   // linear velocity
   vel.copy(group.position).sub(prevPos).divideScalar(dt); prevPos.copy(group.position);
   if (vel.length() > 25) vel.setLength(25);
