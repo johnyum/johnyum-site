@@ -1,0 +1,1454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monsters — sketch to 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!--
+  Monsters — draw something simple, get a realistic 3D character that moves.
+
+  Four steps, all Meshy, one key (held by serve.py, never by this page):
+    1 Render   image-to-image   the sketch, restyled as a finished character
+    2 Sculpt   image-to-3d      that render as a textured mesh, A-posed for the rig
+    3 Rig      rigging          a skeleton (bipeds only — a blob gets no bones)
+    4 Animate  animations       Idle / Wave / Dance / Jump, plus the rig's own walk + run
+
+  Each step hands the next its task id rather than a URL, so nothing is
+  uploaded twice. The character is on the stage from step 2 onward and is
+  never still: a procedural layer (breath, gaze, boop) sits on top of
+  whatever clip is playing, and is all a character gets if rigging fails.
+
+  Hosted at johnyum.com/monsters on api/monsters.py (passcode-gated, daily cap);
+  locally with  python3 monsters/serve.py  — see those two files for the key and mock mode.
+-->
+<style>
+:root {
+  /* White and greyscale, always — no dark mode. Colour on the page belongs to the character. */
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --paper: #ffffff;
+  --field: #f5f5f5;
+  --ink: #111111;
+  --ink-2: #666666;
+  --ink-3: #a3a3a3;
+  --line: #e6e6e6;
+  --accent: #111111;
+  --accent-ink: #ffffff;
+  --ok: #111111;
+  --bad: #111111;
+  --radius: 14px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 14px/1.45 "IBM Plex Sans", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+p { margin: 0; }
+button { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+
+.app { display: grid; grid-template-columns: 400px 1fr; height: 100vh; }
+
+/* ── left: the drawing side ── */
+.side {
+  background: var(--panel); border-right: 1px solid var(--line);
+  padding: 22px 22px 28px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px;
+}
+.side > * { flex: none; }   /* the column scrolls; nothing in it may shrink — the pad would collapse to a strip */
+.brand { display: flex; align-items: center; justify-content: space-between; }
+.brand h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+.brand h1 span { color: var(--ink-3); font-weight: 400; }
+.mode {
+  font: 500 11px/1 "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: .06em;
+  padding: 6px 8px; border-radius: 99px; background: var(--line); color: var(--ink-2);
+}
+.mode.live { background: var(--ink); color: #fff; }
+.mode.off { background: var(--field); color: var(--ink-3); }
+
+.keybox { border-radius: 12px; background: var(--field); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.keybox p { font-size: 12.5px; color: var(--ink-2); }
+.keybox p a { color: inherit; }
+.keybox form { display: flex; gap: 6px; }
+.keybox input { flex: 1; min-width: 0; height: 36px; border-radius: 9px; border: 1px solid var(--line); background: #fff;
+  padding: 0 10px; font: 13px "IBM Plex Mono", monospace; color: var(--ink); outline: none; }
+.keybox button { height: 36px; padding: 0 14px; border-radius: 9px; border: 0; background: var(--ink); color: var(--panel); font-weight: 500; cursor: pointer; }
+.keybox .err { color: var(--ink); font-weight: 500; }
+.pad { position: relative; border-radius: var(--radius); overflow: hidden; background: var(--paper);
+  box-shadow: 0 0 0 1px var(--line); aspect-ratio: 1; }
+.pad canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+.pad .hint { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;
+  color: var(--ink-3); font-size: 15px; transition: opacity .3s; }
+.pad.dirty .hint { opacity: 0; }
+.pad.drop { box-shadow: 0 0 0 2px var(--ink); }
+.pad.drop .hint { opacity: 1; background: rgba(255,255,255,.85); color: var(--ink); }
+
+.tools { display: flex; gap: 5px; flex-wrap: wrap; }
+.tool {
+  height: 34px; min-width: 32px; padding: 0 9px; border-radius: 10px; border: 1px solid var(--line);
+  background: transparent; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  color: var(--ink-2);
+}
+.tool:hover { border-color: var(--ink-3); color: var(--ink); }
+.tool[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+.tool .dot { border-radius: 50%; background: currentColor; }
+.tools .spacer { flex: 1; }
+
+.upload { height: 38px; border-radius: 10px; border: 1px dashed var(--ink-3); background: transparent; cursor: pointer;
+  color: var(--ink-2); font-weight: 500; margin-top: -10px; }
+.upload:hover { border-color: var(--ink); color: var(--ink); }
+
+label.field { display: flex; flex-direction: column; gap: 6px; }
+.field > span { font-size: 12px; color: var(--ink-2); font-weight: 500; }
+.field input {
+  height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--field);
+  padding: 0 12px; font: inherit; color: var(--ink); outline: none;
+}
+.field input:focus { border-color: var(--ink-3); }
+
+.seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; border-radius: 12px; background: var(--field); }
+.seg button { border: 0; background: transparent; height: 32px; border-radius: 9px; cursor: pointer; color: var(--ink-2); font-weight: 500; }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+
+.go {
+  height: 48px; border: 0; border-radius: 12px; background: var(--accent); color: var(--accent-ink);
+  font-weight: 600; font-size: 15px; cursor: pointer; transition: transform .15s, opacity .2s;
+}
+.go:hover:not(:disabled) { transform: translateY(-1px); }
+.go:disabled { opacity: .3; cursor: default; }
+.go.stop { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.step { display: grid; grid-template-columns: 22px 1fr auto; gap: 4px 10px; align-items: center; padding: 8px 0; }
+.step .ring { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--ink-3); justify-self: center; }
+.step.run .ring { border-color: var(--accent); border-top-color: transparent; animation: spin .8s linear infinite; }
+.step.done .ring { background: var(--ok); border-color: var(--ok); }
+.step.fail .ring, .step.stop .ring { background: #fff; border-color: var(--ink); border-width: 4px; }
+.step.fail small { color: var(--ink); }
+.step.skip .ring { border-style: dashed; }
+.step b { font-weight: 500; }
+.step small { grid-column: 2 / 4; color: var(--ink-2); font-size: 12px; }
+.step .pct { font: 12px "IBM Plex Mono", monospace; color: var(--ink-3); }
+.step .bar { grid-column: 2 / 4; height: 3px; border-radius: 3px; background: var(--line); overflow: hidden; display: none; }
+.step.run .bar { display: block; }
+.step .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .5s; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.shelf h2 { font-size: 12px; font-weight: 500; color: var(--ink-2); margin: 0 0 8px; }
+.shelf .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.shelf button { width: 56px; height: 56px; border-radius: 12px; border: 1px solid var(--line); padding: 0; overflow: hidden;
+  background: var(--paper); cursor: pointer; }
+.shelf button[aria-current="true"] { outline: 2px solid var(--accent); outline-offset: 2px; }
+.shelf img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ── right: the stage ── */
+.stage { position: relative; overflow: hidden; background: #fff; }
+.stage canvas { display: block; width: 100%; height: 100%; }
+.empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; color: var(--ink-3); }
+.empty p { font-size: 17px; }
+.preview { position: absolute; left: 50%; top: 46%; width: min(46%, 440px); transform: translate(-50%, -50%);
+  border-radius: 20px; opacity: 0; transition: opacity .6s; pointer-events: none; }
+.preview.on { opacity: 1; }
+.status { position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+  background: color-mix(in srgb, var(--panel) 85%, transparent); backdrop-filter: blur(10px);
+  padding: 8px 14px; border-radius: 99px; font-size: 13px; color: var(--ink-2); opacity: 0; transition: opacity .3s;
+  box-shadow: 0 0 0 1px var(--line); white-space: nowrap; max-width: calc(100% - 32px); overflow: hidden; text-overflow: ellipsis; }
+.status.on { opacity: 1; }
+.corner { position: absolute; top: 16px; right: 16px; display: flex; gap: 6px; }
+.corner a, .corner button {
+  height: 34px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel);
+  display: inline-flex; align-items: center; font-size: 13px; color: var(--ink); text-decoration: none; cursor: pointer;
+}
+.corner [hidden] { display: none; }
+.actions { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+  max-width: calc(100% - 32px); }
+.actions button {
+  height: 36px; padding: 0 14px; border-radius: 99px; border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 90%, transparent); backdrop-filter: blur(10px); cursor: pointer; font-weight: 500;
+}
+.actions button:disabled { opacity: .35; cursor: default; }
+.actions button[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.note { position: absolute; bottom: 72px; left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--ink-2);
+  text-align: center; max-width: 420px; padding: 0 16px; }
+
+/* ── blobs: a monster kit ── */
+.modes { grid-template-columns: 1fr 1fr; }
+.drawui, .blobs { display: flex; flex-direction: column; gap: 14px; }
+.drawui > *, .blobs > * { flex: none; }
+.trayhead { display: flex; align-items: baseline; justify-content: space-between; font-size: 12px; font-weight: 500; color: var(--ink-2); margin-bottom: -6px; }
+.trayhead span { font-weight: 400; color: var(--ink-3); }
+.tray { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.tray button { height: 62px; border-radius: 12px; border: 1px solid var(--line); background: transparent; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--ink-2); font-size: 11.5px; }
+.tray button[draggable="true"] { cursor: grab; }
+.tray button:hover { border-color: var(--ink); color: var(--ink); }
+.tray button[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: #fff; }
+.tray svg { width: 24px; height: 24px; }
+.sel { border-radius: 12px; background: var(--field); padding: 12px; display: flex; flex-direction: column; gap: 9px; }
+.selhead { display: flex; align-items: center; justify-content: space-between; }
+.selhead b { font-weight: 600; }
+.selhead span { display: flex; gap: 5px; }
+.selhead .tool { height: 30px; background: #fff; }
+.range { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-2); }
+.range > span { width: 38px; flex: none; }
+.range input { flex: 1; min-width: 0; accent-color: var(--ink); }
+.swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.swatches button { width: 24px; height: 24px; border-radius: 50%; border: 0; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+.swatches button[aria-pressed="true"] { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--ink); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--ink-2); cursor: pointer; }
+.check input { accent-color: var(--ink); width: 15px; height: 15px; }
+.trio { display: flex; gap: 6px; }
+.trio .tool { flex: 1; }
+.topeek { display: flex; align-items: center; justify-content: center; height: 42px; border-radius: 12px; border: 1px solid var(--ink);
+  color: var(--ink); text-decoration: none; font-weight: 500; font-size: 13.5px; }
+.topeek:hover { background: var(--ink); color: #fff; }
+.topeek.off { border-color: var(--line); color: var(--ink-3); pointer-events: none; }
+.side > .topeek { margin-top: -8px; }
+.sel[data-for="body"] [data-only="part"], .sel[data-for="part"] [data-only="body"] { display: none; }
+.stage:not(.sculpting) #sculptHint { display: none; }
+.stage.sculpting .actions, .stage.sculpting #recenter, .stage.sculpting #download, .stage.sculpting .note,
+.stage.sculpting .empty, .stage.sculpting .preview { display: none !important; }
+#sculptHint { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 12.5px; color: var(--ink-3);
+  white-space: nowrap; pointer-events: none; }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; height: auto; }
+  .side { border-right: 0; border-bottom: 1px solid var(--line); padding: 18px 16px 22px; }
+  .stage { height: 78vh; min-height: 460px; }
+}
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <h1>Monsters <span>· sketch to 3D</span></h1>
+      <span class="mode" id="mode">…</span>
+    </div>
+
+    <div class="seg modes" id="modes">
+      <button data-mode="draw" aria-pressed="true">Draw</button>
+      <button data-mode="blobs" aria-pressed="false">Blobs</button>
+    </div>
+
+    <div class="keybox" id="keybox" hidden>
+      <p id="keymsg"></p>
+      <form id="keyform" autocomplete="off">
+        <input id="key" type="password" placeholder="msy_…" spellcheck="false" aria-label="Meshy API key">
+        <button>Save</button>
+      </form>
+      <p class="err" id="keyerr" hidden></p>
+    </div>
+
+    <div class="drawui" id="drawUI">
+    <div class="pad" id="pad">
+      <canvas id="sketch"></canvas>
+      <div class="hint" id="hint">Draw a character, or drop in a picture of one</div>
+    </div>
+
+    <div class="tools" id="tools">
+      <button class="tool" data-size="5" aria-pressed="false" title="Fine pen"><i class="dot" style="width:4px;height:4px"></i></button>
+      <button class="tool" data-size="10" aria-pressed="true" title="Pen"><i class="dot" style="width:7px;height:7px"></i></button>
+      <button class="tool" data-size="22" aria-pressed="false" title="Marker"><i class="dot" style="width:11px;height:11px"></i></button>
+      <button class="tool" data-erase aria-pressed="false" title="Eraser">Erase</button>
+      <span class="spacer"></span>
+      <button class="tool" id="undo" title="Undo (⌘Z)">Undo</button>
+      <button class="tool" id="clear" title="Clear">Clear</button>
+    </div>
+
+    <label class="check" id="blankRow"><input type="checkbox" id="blank" checked> Blank face — Peek adds live expressions</label>
+    <button class="upload" id="upload" title="A photo or scan of a drawing — you can also drag one onto the pad, or paste it">Upload a drawing</button>
+    <input type="file" id="file" accept="image/*" hidden>
+    </div>
+
+    <div class="blobs" id="blobsUI" hidden>
+      <div class="trayhead">Body</div>
+      <div class="tray" id="bodies">
+        <button data-body="0" aria-pressed="false" title="Start from a round body"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="13" r="9"/></svg>Round</button>
+        <button data-body="1" aria-pressed="false" title="Start from a gumdrop body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c3 0 8 9 8 13a8 6 0 0 1-16 0c0-4 5-13 8-13z"/></svg>Gumdrop</button>
+        <button data-body="2" aria-pressed="false" title="Start from a hunch body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 10c0-4.5 4-7 8-7s8 2.5 8 7c0 6-3 11-8 11s-8-5-8-11z"/></svg>Hunch</button>
+        <button data-body="3" aria-pressed="false" title="Start from a bell body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 7a4 4 0 0 1 8 0c0 4 5 8 5 11a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3c0-3 5-7 5-11z"/></svg>Bell</button>
+        <button data-body="4" aria-pressed="false" title="Start from a peanut body"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7.5" r="4.6"/><circle cx="12" cy="16" r="5.8"/></svg>Peanut</button>
+        <button data-body="5" aria-pressed="false" title="Start from a noodle body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 2h4c1 0 1.6 1 1.2 2L12.8 12l2.4 8c.3 1-.4 2-1.4 2h-4c-1 0-1.6-1-1.2-2L11 12 8.6 4C8.3 3 9 2 10 2z"/></svg>Noodle</button>
+        <button data-body="6" aria-pressed="false" title="Start from a slug body"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="15" rx="10" ry="5.5"/></svg>Slug</button>
+        <button data-body="7" aria-pressed="false" title="Start from a mochi body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 15.5C3 10 7 6 12 6s9 4 9 9.5c0 2.6-1.6 3.5-3.6 3.5H6.6C4.6 19 3 18.1 3 15.5z"/></svg>Mochi</button>
+      </div>
+      <div class="trayhead">Parts <span>click, or drag onto the body</span></div>
+      <div class="tray" id="tray">
+        <button data-part="eye" draggable="true" title="Add eyes — or drag one onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="12" rx="6" ry="7"/><circle cx="9.6" cy="9.2" r="1.8" fill="#fff"/></svg>Eyes</button>
+        <button data-part="smile" draggable="true" title="Add a smile — or drag it onto the body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M6 10c2.2 5.5 9.8 5.5 12 0"/></svg>Smile</button>
+        <button data-part="blush" draggable="true" title="Add blush — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="6.5" cy="13" rx="4" ry="2.8" opacity=".55"/><ellipse cx="17.5" cy="13" rx="4" ry="2.8" opacity=".55"/></svg>Blush</button>
+        <button data-part="nose" draggable="true" title="Add nose — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="13" rx="5.5" ry="4.8"/></svg>Nose</button>
+        <button data-part="horn" draggable="true" title="Add horn — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 21c0-7 3-14 10-18-2 5-3 10-3 18z"/></svg>Horn</button>
+        <button data-part="ear" draggable="true" title="Add ear — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="12" rx="5" ry="9"/></svg>Ear</button>
+        <button data-part="antenna" draggable="true" title="Add antenna — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="11" y="8" width="2" height="14" rx="1"/><circle cx="12" cy="6" r="3.6"/></svg>Antenna</button>
+        <button data-part="arm" draggable="true" title="Add arm — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 21c0-7 3-11 9-12" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><circle cx="17" cy="8" r="3.6"/></svg>Arm</button>
+        <button data-part="leg" draggable="true" title="Add leg — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="9" y="2" width="6" height="14" rx="3"/><ellipse cx="13.5" cy="18.5" rx="6.5" ry="3.2"/></svg>Leg</button>
+        <button data-part="tentacle" draggable="true" title="Add tentacle — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3c4 3-3 6 1 10s-2 6 2 8" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>Tentacle</button>
+        <button data-part="lump" draggable="true" title="Add lump — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="14" r="7.5"/></svg>Lump</button>
+        <button data-part="spots" draggable="true" title="Add spots — or drag it onto the body"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="10" r="3.2"/><circle cx="15.5" cy="7.5" r="2.3"/><circle cx="14.5" cy="15.5" r="3.8"/></svg>Spots</button>
+      </div>
+
+      <div class="sel" id="selUI" data-for="part" hidden>
+        <div class="selhead"><b id="selName">Eye</b><span data-only="part">
+          <button class="tool" id="dup" title="Duplicate (⌘D)">Duplicate</button>
+          <button class="tool" id="del" title="Delete (⌫)">Delete</button></span></div>
+        <label class="range"><span>Size</span><input type="range" data-k="s" min="0.04" max="1.3" step="0.005"></label>
+        <label class="range"><span>Tall</span><input type="range" data-k="h" min="0.35" max="2.6" step="0.01"></label>
+        <label class="range" data-only="body"><span>Wide</span><input type="range" data-k="w" min="0.4" max="2.4" step="0.01"></label>
+        <label class="range" data-only="body"><span>Deep</span><input type="range" data-k="d" min="0.4" max="2.4" step="0.01"></label>
+        <label class="range" data-only="part"><span>Out</span><input type="range" data-k="lift" min="-0.8" max="1.2" step="0.01"></label>
+        <label class="range" data-only="part"><span>Tilt</span><input type="range" data-k="tilt" min="-3.1416" max="3.1416" step="0.01"></label>
+        <label class="range" data-only="part"><span>Spin</span><input type="range" data-k="turn" min="-3.1416" max="3.1416" step="0.01"></label>
+        <div class="swatches" id="swatches"></div>
+        <label class="check" data-only="part"><input type="checkbox" id="carve"> Carve — cut into the body instead of adding</label>
+      </div>
+
+      <label class="range"><span>Melt</span><input type="range" id="melt" min="0.005" max="0.5" step="0.005" value="0.12" aria-label="How much the parts melt into the body"></label>
+      <div class="trio">
+        <button class="tool" id="mirror" aria-pressed="true" title="Mirror left and right">Mirror</button>
+        <button class="tool" id="bundo" title="Undo (⌘Z)">Undo</button>
+        <button class="tool" id="bclear">Start over</button>
+      </div>
+    </div>
+
+    <label class="field">
+      <span>What is it? <em style="font-style:normal;color:var(--ink-3)">— optional, helps a lot</em></span>
+      <input id="desc" placeholder="a piece of toast wearing sunglasses" maxlength="200">
+    </label>
+
+    <div class="field">
+      <span>Finish</span>
+      <div class="seg" id="style">
+        <button data-style="plush" aria-pressed="true">Plush</button>
+        <button data-style="vinyl" aria-pressed="false">Vinyl</button>
+        <button data-style="clay" aria-pressed="false">Clay</button>
+        <button data-style="fuzzy" aria-pressed="false">Fuzzy</button>
+      </div>
+    </div>
+
+    <button class="go" id="go" disabled>Bring it to life</button>
+    <a class="topeek" id="toPeek" href="/peek/" target="_blank" rel="noopener">Bring it into Peek — watch it live in a chat →</a>
+
+    <ol class="steps" id="steps">
+      <li class="step" data-step="render"><span class="ring"></span><b>Render</b><span class="pct"></span><small>Your sketch, finished as a character</small><span class="bar"><i></i></span></li>
+      <li class="step" data-step="sculpt"><span class="ring"></span><b>Sculpt</b><span class="pct"></span><small>Turned into a textured 3D model</small><span class="bar"><i></i></span></li>
+      <li class="step" data-step="rig"><span class="ring"></span><b>Rig</b><span class="pct"></span><small>Given a skeleton</small><span class="bar"><i></i></span></li>
+      <li class="step" data-step="animate"><span class="ring"></span><b>Animate</b><span class="pct"></span><small>Idle, wave, dance, jump, walk, run</small><span class="bar"><i></i></span></li>
+    </ol>
+
+    <section class="shelf" id="shelf" hidden>
+      <h2>Your monsters</h2>
+      <div class="row" id="shelfRow"></div>
+    </section>
+  </aside>
+
+  <main class="stage" id="stage">
+    <canvas id="view"></canvas>
+    <p id="sculptHint">Drag a part over the body to move it · drag the background to turn around</p>
+    <div class="empty" id="empty"><p>Draw something on the left,<br>and it'll stand up here.</p></div>
+    <img class="preview" id="preview" alt="">
+    <div class="status" id="status"></div>
+    <div class="corner">
+      <button id="backToSculpt" hidden>Back to sculpting</button>
+      <button id="recenter" hidden>Reset view</button>
+      <a id="download" hidden download>Download .glb</a>
+    </div>
+    <p class="note" id="note"></p>
+    <div class="actions" id="actions" hidden></div>
+  </main>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { BODIES, PARTS, prim, smin, bodyFrameOf, bodyField, anchor, pack } from '../kit.js';
+import { hostedBytes } from '../files.js';
+
+const $ = (s) => document.querySelector(s);
+
+/* ═══════════════ the pipeline's settings ═══════════════ */
+
+const IMAGE_MODEL = 'nano-banana-2';   // Meshy image-to-image; nano-banana-pro is finer and costs more
+// Every finish is toy-like on purpose. A photoreal finish read "monster" as veins,
+// wrinkles and wet eyeballs — this is a page for cute, cuddly, simple characters.
+const STYLES = {
+  plush: 'a soft, huggable plush toy: short fuzzy fabric, gentle rounded shapes, simple embroidered features',
+  vinyl: 'a smooth glossy vinyl collectible toy: soft rounded shapes, clean simple surfaces, a little shine',
+  clay:  'a cute handmade clay figure: smooth soft plasticine, rounded and simple',
+  fuzzy: 'a soft fluffy little creature with a short, even, velvety fur coat, like a cuddly mascot',
+};
+// Said in every prompt, whatever the finish.
+const CUTE = 'Make it adorable and cuddly, in a simple, minimal style: soft rounded forms, smooth clean surfaces, very few details, '
+  + 'a gentle happy expression and simple cute eyes. Nothing scary, gross or realistic: no veins, wrinkles, warts, pores, slime, '
+  + 'sharp teeth, claws or bulging realistic eyeballs.';
+// The library ids, from GET /animations/library. The rig adds walk + run for free.
+const ACTIONS = [
+  { label: 'Idle',  id: 0,   loop: true  },
+  { label: 'Wave',  id: 28,  loop: false },
+  { label: 'Dance', id: 22,  loop: true  },
+  { label: 'Jump',  id: 466, loop: false },
+];
+const BASIC = [ { label: 'Walk', key: 'walking_glb_url' }, { label: 'Run', key: 'running_glb_url' } ];
+
+// For Peek: the face is left smooth and blank, and Peek gives it an animated one — eyes
+// that blink and look, a mouth for every mood. A painted face would show underneath.
+const BLANK = 'Give it a smooth, completely blank face: no eyes, no eyebrows, no mouth, no nose, no facial features or face markings at all — they are added later as animated parts.';
+function promptFor(style, desc, blank = false) {
+  return [
+    `Turn this rough sketch into one finished full-body 3D character: ${STYLES[style]}.`,
+    desc ? `It is ${desc}.` : '',
+    blank ? 'Keep the sketch\'s silhouette and proportions — refine them, do not redesign them — but ignore any face drawn on it.'
+          : 'Keep the sketch\'s silhouette, proportions and features — refine them, do not redesign them.',
+    blank ? CUTE.replace(' and simple cute eyes', '').replace('a gentle happy expression', 'a calm, friendly shape') + ' ' + BLANK : CUTE,
+    'Front view, standing upright facing the camera, arms held a little away from the body, legs slightly apart,',
+    'whole body in frame and centred, soft even studio lighting, plain white background, no ground shadow, no text, no props.',
+  ].filter(Boolean).join(' ');
+}
+
+// A kit character is the person's own design: the prompt holds Meshy to the body and
+// the parts they placed, and asks it to simplify rather than add.
+function blobPrompt(style, desc) {
+  return [
+    `Turn this rough clay model into one finished 3D character: ${STYLES[style]}.`,
+    desc ? `It is ${desc}.` : '',
+    'Keep its body shape, proportions and colours, and the parts that were placed (eyes, smile, blush, ears, horns, antennae, arms, legs, tentacles, spots) in the same places. Simplify them; do not add parts that are not there.',
+    CUTE,
+    'Whole character in frame and centred, the same viewing angle, soft even studio lighting, plain white background, no ground shadow, no text, no props.',
+  ].filter(Boolean).join(' ');
+}
+
+/* ═══════════════ talking to serve.py ═══════════════ */
+
+// One route either way: api/monsters.py on johnyum.com, monsters/serve.py on the Mac.
+const API = '/api/monsters';
+const env = { hosted: false, gated: false, ready: true, mock: false };
+const PASS = 'monsters.pass';
+const pass = () => { try { return localStorage.getItem(PASS) || ''; } catch { return ''; } };
+const headers = () => ({ 'Content-Type': 'application/json', 'X-Monsters-Pass': pass() });
+
+// For an <img> or a link the browser fetches Meshy's file itself — CORS doesn't
+// apply. Locally it goes through serve.py's cache, so it outlives Meshy's link.
+const asset = (u) => !u || u.startsWith('data:') || env.hosted ? u : `${API}?p=asset&url=${encodeURIComponent(u)}`;
+
+async function call(method, path, body) {
+  const r = await fetch(`${API}?p=meshy&path=${encodeURIComponent(path)}`, {
+    method, headers: headers(), body: body && JSON.stringify(body),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { askPass('That passcode didn\'t work — try again.'); }
+  if (!r.ok) throw new Error(j.message || `Meshy said ${r.status}`);
+  return j;
+}
+
+// A model, as bytes. Hosted, Meshy's files carry no CORS header and a Vercel
+// response stops at 4.5MB — so they come through the function in retried 2MB
+// slices, and each is kept in this browser for Peek (./files.js).
+async function bytes(url) {
+  if (env.hosted) return hostedBytes(url, pass());
+  const r = await fetch(asset(url)); if (!r.ok) throw new Error('Couldn\'t load the model');
+  return r.arrayBuffer();
+}
+// Showing a file on the stage is never what a build waits on: Meshy rigs and animates by
+// task id, so a download that fails only costs the preview, never the next step.
+const show = (p) => p.catch((e) => { note(`Couldn't show it here (${e.message}) — the build carries on.`); return null; });
+
+// Stop. What it saves is every step that hasn't started — the sculpt, rig and
+// moves are the expensive ones. The step already running can't be called back:
+// Meshy answers a DELETE on a running task with 409, finishes it, and charges for
+// it. The DELETE is still sent, in case a task is caught before it starts.
+let stopper = null;
+const inFlight = new Set();
+const stopped = () => Object.assign(new Error('Stopped'), { stopped: true });
+const wait = (ms, signal) => new Promise((res, rej) => {
+  if (signal?.aborted) return rej(stopped());
+  const t = setTimeout(res, ms);
+  signal?.addEventListener('abort', () => { clearTimeout(t); rej(stopped()); }, { once: true });
+});
+
+// Create a task, then poll it to the end. onProgress(0–100) as it goes.
+async function task(kind, body, onProgress) {
+  const signal = stopper?.signal;
+  if (signal?.aborted) throw stopped();
+  const { result: id } = await call('POST', kind, body);
+  const ref = `${kind}/${id}`;
+  if (signal?.aborted) { call('DELETE', ref).catch(() => {}); throw stopped(); }
+  inFlight.add(ref);
+  try { for (;;) {
+    await wait(2500, signal);
+    const t = await call('GET', ref);
+    if (signal?.aborted) throw stopped();
+    onProgress?.(t.progress ?? 0);
+    if (t.status === 'SUCCEEDED') return t;
+    if (t.status === 'FAILED' || t.status === 'CANCELED') {
+      const e = new Error(t.task_error?.message || `${kind} ${t.status.toLowerCase()}`);
+      e.task = t; throw e;
+    }
+  } } finally { inFlight.delete(ref); }
+}
+
+function stop() {
+  if (!stopper) return;
+  stopper.abort();
+  for (const ref of inFlight) call('DELETE', ref).catch(() => {});
+  inFlight.clear();
+  const go = $('#go'); go.disabled = true; go.textContent = 'Stopping…';
+}
+
+/* ═══════════════ the sketchpad ═══════════════ */
+
+const pad = $('#pad'), sk = $('#sketch'), sx = sk.getContext('2d');
+const SK = 1024;                         // drawn at this size, whatever it's shown at
+sk.width = sk.height = SK;
+const pen = { size: 10, erase: false };
+let undo = [], drawing = null, dirty = false;
+
+function blank() { sx.fillStyle = '#fff'; sx.fillRect(0, 0, SK, SK); }
+blank();
+
+// Drawing needs a mark on the pad; the kit always has a body.
+let blocked = false, mode = 'draw';
+const canGo = () => !blocked && (mode === 'blobs' ? shapes.length > 0 : dirty);
+function setDirty(v) { dirty = v; pad.classList.toggle('dirty', v); if (!running) $('#go').disabled = !canGo(); }
+
+function pt(e) {
+  const r = sk.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / r.width * SK, y: (e.clientY - r.top) / r.height * SK,
+           p: e.pointerType === 'pen' ? Math.max(.25, e.pressure) : 1 };
+}
+sk.addEventListener('pointerdown', (e) => {
+  sk.setPointerCapture(e.pointerId);
+  undo.push(sx.getImageData(0, 0, SK, SK)); if (undo.length > 30) undo.shift();
+  const p = pt(e); drawing = [p, p];
+  sx.lineCap = sx.lineJoin = 'round';
+  sx.strokeStyle = pen.erase ? '#fff' : '#111';
+  dot(p);
+});
+sk.addEventListener('pointermove', (e) => {
+  if (!drawing) return;
+  const co = e.getCoalescedEvents?.();   // empty, not absent, in some browsers
+  for (const ce of co?.length ? co : [e]) {
+    const p = pt(ce), [a, b] = drawing.slice(-2);
+    // Quadratic through the midpoints: smooth without lagging the pen.
+    const m1 = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, m2 = { x: (b.x + p.x) / 2, y: (b.y + p.y) / 2 };
+    sx.lineWidth = width(p);
+    sx.beginPath(); sx.moveTo(m1.x, m1.y); sx.quadraticCurveTo(b.x, b.y, m2.x, m2.y); sx.stroke();
+    drawing.push(p);
+  }
+  if (!pen.erase) setDirty(true);
+});
+const end = () => { drawing = null; };
+sk.addEventListener('pointerup', end); sk.addEventListener('pointercancel', end);
+function width(p) { return (pen.erase ? pen.size * 3 : pen.size) * p.p; }
+function dot(p) { sx.fillStyle = sx.strokeStyle; sx.beginPath(); sx.arc(p.x, p.y, width(p) / 2, 0, 7); sx.fill(); if (!pen.erase) setDirty(true); }
+
+$('#tools').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-size],[data-erase]'); if (!b) return;
+  for (const t of document.querySelectorAll('#tools [aria-pressed]')) t.setAttribute('aria-pressed', 'false');
+  b.setAttribute('aria-pressed', 'true');
+  pen.erase = b.hasAttribute('data-erase');
+  if (!pen.erase) pen.size = +b.dataset.size;
+});
+function doUndo() { const im = undo.pop(); if (im) sx.putImageData(im, 0, 0); setDirty(undo.length > 0 || !isBlank()); }
+function isBlank() {
+  const d = sx.getImageData(0, 0, SK, SK).data;
+  for (let i = 0; i < d.length; i += 64) if (d[i] < 240) return false;
+  return true;
+}
+$('#undo').onclick = doUndo;
+$('#clear').onclick = () => { undo.push(sx.getImageData(0, 0, SK, SK)); blank(); setDirty(false); };
+addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z' && document.activeElement !== $('#desc')) { e.preventDefault(); mode === 'blobs' ? blobUndo() : doUndo(); }
+});
+
+// A drawing from a photo or a scan: fitted into the pad on white, and then it is
+// just the sketch — draw over it, erase bits, undo back past it.
+async function placeImage(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  let img;
+  try { img = await createImageBitmap(file); }
+  catch {
+    // iPhone photos are often HEIC, which Chrome can't open.
+    status('Couldn\'t open that image — try a JPG or PNG'); setTimeout(() => status(''), 3500); return;
+  }
+  undo.push(sx.getImageData(0, 0, SK, SK)); if (undo.length > 30) undo.shift();
+  blank();
+  const m = SK * .04, k = Math.min((SK - 2 * m) / img.width, (SK - 2 * m) / img.height);
+  const w = img.width * k, h = img.height * k;
+  sx.drawImage(img, (SK - w) / 2, (SK - h) / 2, w, h);
+  img.close?.();
+  setDirty(true);
+}
+$('#upload').onclick = () => $('#file').click();
+$('#file').onchange = (e) => { placeImage(e.target.files[0]); e.target.value = ''; };
+pad.addEventListener('dragover', (e) => { e.preventDefault(); pad.classList.add('drop'); $('#hint').textContent = 'Drop to use this drawing'; });
+pad.addEventListener('dragleave', () => { pad.classList.remove('drop'); $('#hint').textContent = 'Draw a character, or drop in a picture of one'; });
+pad.addEventListener('drop', (e) => {
+  e.preventDefault(); pad.classList.remove('drop');
+  $('#hint').textContent = 'Draw a character, or drop in a picture of one';
+  placeImage(e.dataTransfer.files[0]);
+});
+// Dropped anywhere else, the browser would open the image in place of the page.
+addEventListener('dragover', (e) => e.preventDefault());
+addEventListener('drop', (e) => e.preventDefault());
+addEventListener('paste', (e) => {
+  const f = [...(e.clipboardData?.files || [])].find((f) => f.type.startsWith('image/'));
+  if (f) { e.preventDefault(); placeImage(f); }
+});
+
+let style = 'plush';
+$('#style').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  for (const t of $('#style').children) t.setAttribute('aria-pressed', String(t === b));
+  style = b.dataset.style;
+});
+
+function thumb(size = 160) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  c.getContext('2d').drawImage(sk, 0, 0, size, size);
+  return c.toDataURL('image/jpeg', .8);
+}
+
+/* ═══════════════ the stage ═══════════════ */
+
+const view = $('#view'), stageEl = $('#stage');
+const renderer = new THREE.WebGLRenderer({ canvas: view, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), .04).texture;
+scene.environmentIntensity = .85;
+
+const camera = new THREE.PerspectiveCamera(28, 1, .05, 100);
+const HOME = { pos: new THREE.Vector3(0, 1.15, 5.6), target: new THREE.Vector3(0, .82, 0) };
+camera.position.copy(HOME.pos);
+const controls = new OrbitControls(camera, view);
+controls.target.copy(HOME.target);
+controls.enablePan = false; controls.enableDamping = true;
+controls.minDistance = 2.2; controls.maxDistance = 10;
+controls.minPolarAngle = .35; controls.maxPolarAngle = Math.PI / 2 - .02;
+
+const key = new THREE.DirectionalLight(0xffffff, 2.2);
+key.position.set(2.2, 4.5, 3); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 6; key.shadow.bias = -.0004;
+Object.assign(key.shadow.camera, { left: -2, right: 2, top: 3, bottom: -1, near: .5, far: 12 });
+scene.add(key);
+const rim = new THREE.DirectionalLight(0xffffff, 1.1); rim.position.set(-3, 2.5, -3); scene.add(rim);
+
+const ground = new THREE.Mesh(new THREE.CircleGeometry(6, 64), new THREE.ShadowMaterial({ opacity: .12 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+// life → holder → model.  `life` is the procedural layer; `holder` normalises
+// whatever Meshy sent to 1.6 tall with its feet on the floor.
+const life = new THREE.Group(), holder = new THREE.Group();
+life.add(holder); scene.add(life);
+let model = null, mixer = null, current = null;
+const shapes = [];   // the kit monster: [body, ...parts] — see 'blobs' below
+
+const loader = new GLTFLoader();
+const load = async (url) => url.startsWith('http') && !url.includes('threejs.org')
+  ? loader.parseAsync(await bytes(url), '')
+  : loader.loadAsync(asset(url));
+
+function setModel(gltf) {
+  if (model) { holder.remove(model); mixer?.stopAllAction(); }
+  model = gltf.scene;
+  model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
+  model.position.set(0, 0, 0); holder.scale.setScalar(1); model.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(model), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  holder.scale.setScalar(1.6 / (Math.max(size.y, Math.max(size.x, size.z) * .75) || 1));
+  model.position.set(-c.x, -box.min.y, -c.z);
+  holder.add(model);
+  mixer = new THREE.AnimationMixer(model); current = null;
+  mixer.addEventListener('finished', onFinished);
+  $('#empty').hidden = true; $('#recenter').hidden = false;
+  pop = 1;   // arrives with a little squash
+}
+
+// A clip from an animation file, played on the rigged model: same rig, same bone names.
+const clips = {};   // label → AnimationClip
+function pickClip(gltf, label) {
+  const want = label.toLowerCase();
+  return gltf.animations.find((a) => a.name.toLowerCase().includes(want))
+      ?? gltf.animations.reduce((a, b) => (b.duration > (a?.duration ?? 0) ? b : a), null);
+}
+function play(label) {
+  const clip = clips[label]; if (!clip || !mixer) return;
+  const spec = [...ACTIONS, ...BASIC].find((a) => a.label === label);
+  const act = mixer.clipAction(clip);
+  act.reset(); act.setLoop(spec?.loop === false ? THREE.LoopOnce : THREE.LoopRepeat, Infinity);
+  act.clampWhenFinished = true;
+  if (current && current !== act) act.crossFadeFrom(current, .35, true);
+  act.play(); current = act;
+  for (const b of $('#actions').children) b.setAttribute('aria-pressed', String(b.dataset.label === label));
+}
+function still() {
+  current?.fadeOut(.35); current = null;
+  for (const b of $('#actions').children) b.setAttribute('aria-pressed', String(b.dataset.label === 'Still'));
+}
+// One-shots (wave, jump) hand back to idle when they finish.
+function onFinished() { if (clips.Idle) play('Idle'); else still(); }
+
+function buildActions(available) {
+  const row = $('#actions'); row.innerHTML = ''; row.hidden = false;
+  for (const label of ['Still', ...ACTIONS.map((a) => a.label), ...BASIC.map((a) => a.label)]) {
+    const b = document.createElement('button');
+    b.textContent = label; b.dataset.label = label;
+    b.disabled = label !== 'Still' && !available.has(label);
+    b.setAttribute('aria-pressed', 'false');
+    b.onclick = () => (label === 'Still' ? still() : play(label));
+    row.append(b);
+  }
+}
+function enableAction(label) { const b = $(`#actions [data-label="${label}"]`); if (b) b.disabled = false; }
+
+// ── the procedural layer ──
+const pointer = new THREE.Vector2(), ray = new THREE.Raycaster();
+let pop = 0, boop = 0, boopV = 0, yaw = 0;
+const aim = (e) => {
+  const r = view.getBoundingClientRect();
+  pointer.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+};
+view.addEventListener('pointermove', aim);
+let downAt = null;
+view.addEventListener('pointerdown', (e) => { aim(e); downAt = [e.clientX, e.clientY]; });
+view.addEventListener('pointerup', (e) => {
+  if (!downAt || !model || stageView !== 'single' || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 4) return;
+  ray.setFromCamera(pointer, camera);
+  if (ray.intersectObject(model, true).length) boopV -= 9;   // a tap squashes it
+});
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), .05), t = clock.elapsedTime;
+  sculptMat.uniforms.uTime.value = t;
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, stageEl.clientWidth, stageEl.clientHeight);
+  mixer?.update(dt);
+  // Spring for the boop and the arrival pop: stiff, lightly damped, so it wobbles twice.
+  boopV += (-140 * boop - 7 * boopV) * dt; boop += boopV * dt;
+  if (pop > 0) { pop = Math.max(0, pop - dt * 2.2); }
+  const arrive = pop > 0 ? Math.sin((1 - pop) * Math.PI * 2.5) * pop * .12 : 0;
+  const breath = Math.sin(t * 2.1) * (current ? .006 : .016);
+  const sq = breath + boop * .08 + arrive;
+  life.scale.set(1 - sq * .6, 1 + sq, 1 - sq * .6);
+  // Turn a little towards the pointer — less when a clip is driving the body.
+  yaw += ((pointer.x * (current ? .25 : .55)) - yaw) * Math.min(1, dt * 3);
+  life.rotation.y = yaw;
+  if (!current) life.rotation.z = Math.sin(t * 1.3) * .015;
+  controls.update();
+  renderer.render(scene, camera);
+});
+function resize() {
+  const { clientWidth: w, clientHeight: h } = stageEl;
+  renderer.setSize(w, h, false); camera.aspect = w / h;
+  // Narrow stages widen the lens so the whole character stays in frame.
+  camera.fov = w / h < .8 ? 38 : 28;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stageEl); resize();
+$('#recenter').onclick = () => { camera.position.copy(HOME.pos); controls.target.copy(HOME.target); };
+
+
+/* ═══════════════ blobs: a monster kit ═══════════════
+   A body to start from and parts to build on it. Everything is a signed distance
+   field: the body is one organic shape; a part is a few shapes in its own frame
+   (an eye is a white ball, an iris and a pupil). The monster is their smooth
+   union, minus any part set to Carve, raymarched in one shader — so parts melt
+   into the body like clay, each by its own amount (an eye stays crisp, an arm
+   melts in). A part doesn't store a position, it stores a direction from the
+   body's centre; it sits where that direction meets the body's surface, pointing
+   out along the normal there. So swap or stretch the body and every part re-seats.
+   The same distance functions run in JS for anchoring, picking and dragging. */
+
+// BODIES and PARTS — what a character is made of — are in kit.js, shared with peek/.
+const SWATCHES = ['#f1ece4', '#e8b04a', '#e5734f', '#d6456b', '#8a5cd6', '#4a7fd9', '#3fae9a', '#79b84a', '#6b5444', '#222222'];
+const MAX = 48;   // prims the shader takes — sub-shapes and mirror twins included
+const BOX = { min: new THREE.Vector3(-2.6, -.05, -2.6), max: new THREE.Vector3(2.6, 3.6, 2.6) };
+
+// prim(), smin() and roundCone() come from kit.js — the shader below keeps its own prim(): change one, change both.
+
+const sculptMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide,   // the back faces, so it still draws with the camera inside the box
+  uniforms: {
+    uCount: { value: 0 }, uK: { value: .12 }, uTime: { value: 0 },
+    uPos: { value: Array.from({ length: MAX }, () => new THREE.Vector3()) },
+    uRot: { value: Array.from({ length: MAX }, () => new THREE.Matrix3()) },
+    uScale: { value: Array.from({ length: MAX }, () => new THREE.Vector3(1, 1, 1)) },
+    uColor: { value: Array.from({ length: MAX }, () => new THREE.Vector3(1, 1, 1)) },
+    uType: { value: new Array(MAX).fill(0) }, uCarve: { value: new Array(MAX).fill(0) },
+    uSel: { value: new Array(MAX).fill(0) }, uKm: { value: new Array(MAX).fill(1) },
+    uBoxMin: { value: BOX.min }, uBoxMax: { value: BOX.max },
+  },
+  vertexShader: `
+    varying vec3 vWorld;
+    void main() { vec4 w = modelMatrix * vec4(position, 1.); vWorld = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+  fragmentShader: `
+    uniform mat4 projectionMatrix;
+    uniform int uCount; uniform float uK, uTime;
+    uniform vec3 uPos[${MAX}]; uniform mat3 uRot[${MAX}]; uniform vec3 uScale[${MAX}]; uniform vec3 uColor[${MAX}];
+    uniform float uType[${MAX}]; uniform float uCarve[${MAX}]; uniform float uSel[${MAX}]; uniform float uKm[${MAX}];
+    uniform vec3 uBoxMin, uBoxMax;
+    varying vec3 vWorld;
+    float roundCone(vec2 q, float r1, float r2, float h) {
+      float b = (r1 - r2) / h, a = sqrt(1. - b * b), k = dot(q, vec2(-b, a));
+      if (k < 0.) return length(q) - r1;
+      if (k > a * h) return length(q - vec2(0., h)) - r2;
+      return dot(q, vec2(a, b)) - r1;
+    }
+    float smin(float a, float b, float k) { float h = clamp(.5 + .5 * (b - a) / k, 0., 1.); return mix(b, a, h) - k * h * (1. - h); }
+    float prim(float t, vec3 p) {
+      if (t < .5) return length(p) - 1.;
+      if (t < 2.5) { vec3 q = p; q.y -= clamp(q.y, -.6, .6); return length(q) - .5; }
+      if (t < 5.5) return roundCone(vec2(length(p.xz), p.y + .7), .7, .08, 1.5);
+      if (t < 6.5) { vec3 q = p; q.y -= clamp(q.y, -1., 1.); return length(q) - .14; }
+      if (t < 7.5) { vec2 d = vec2(length(p.xz) - .85, abs(p.y) - .06); return min(max(d.x, d.y), 0.) + length(max(d, 0.)) - .04; }
+      if (t < 8.5) return length(p) - 1.;
+      if (t < 9.5) return (length(vec3(p.x, p.y * .85, p.z)) - (1. - .32 * p.y)) * .62;
+      if (t < 10.5) return (length(vec3(p.x * .92, p.y * .85, p.z * 1.12)) - (1. + .3 * p.y)) * .62;
+      if (t < 11.5) return roundCone(vec2(length(p.xz), p.y + .75), 1., .5, 1.45);
+      if (t < 12.5) return smin(length(p - vec3(0., .55, 0.)) - .6, length(p + vec3(0., .42, 0.)) - .78, .3);
+      if (t < 13.5) { vec3 q = p; q.z -= .3 * sin(p.y * 1.4); q.y -= clamp(q.y, -1.15, 1.15); return (length(q) - .45) * .75; }
+      if (t < 14.5) return (length(vec3(p.x * .58, p.y * 1.3, p.z * .95)) - (1. + .2 * p.z)) * .5;
+      if (t < 15.5) return smin(length(vec3(p.x * .82, p.y * 1.25, p.z * .9)) - 1., -.55 - p.y, -.25);
+      if (t < 16.5) { float qz = p.z + .28 * p.y * p.y; return roundCone(vec2(length(vec2(p.x, qz)), p.y), .45, .06, 1.8) * .8; }
+      if (t < 17.5) { vec3 q = vec3(p.x, p.y - clamp(p.y, 0., 1.5), p.z - .18 * p.y * p.y); return (length(q) - .3) * .85; }
+      if (t < 18.5) { float qx = p.x - .25 * sin(p.y * 2.2), r = mix(.38, .08, clamp(p.y / 2., 0., 1.));
+                      return (length(vec3(qx, p.y - clamp(p.y, 0., 2.), p.z)) - r) * .7; }
+      if (t < 19.5) return max(length(vec2(length(p.xz) - .8, p.y)) - .2, .25 - p.z);
+      return length(p) - 1.;
+    }
+    float one(int i, vec3 p) {
+      vec3 s = uScale[i];
+      return prim(uType[i], (transpose(uRot[i]) * (p - uPos[i])) / s) * min(s.x, min(s.y, s.z));
+    }
+    // Smooth union of everything that adds, each by its own melt; then every cutter, smoothly.
+    float map(vec3 p, out vec3 col, out float sel) {
+      float d = 1e5; col = vec3(.8); sel = 0.; bool first = true;
+      for (int i = 0; i < ${MAX}; i++) {
+        if (i >= uCount) break;
+        if (uCarve[i] > .5) continue;
+        float di = one(i, p);
+        if (first) { d = di; col = uColor[i]; sel = uSel[i]; first = false; continue; }
+        float k = max(.002, uK * uKm[i]), h = clamp(.5 + .5 * (d - di) / k, 0., 1.);
+        d = mix(d, di, h) - k * h * (1. - h); col = mix(col, uColor[i], h); sel = mix(sel, uSel[i], h);
+      }
+      for (int i = 0; i < ${MAX}; i++) {
+        if (i >= uCount) break;
+        if (uCarve[i] < .5) continue;
+        float di = one(i, p), k = max(.002, uK * uKm[i]), h = clamp(.5 - .5 * (d + di) / k, 0., 1.);
+        d = mix(d, -di, h) + k * h * (1. - h); col = mix(col, uColor[i], h); sel = max(sel, uSel[i] * h);
+      }
+      return d;
+    }
+    float sdf(vec3 p) { vec3 c; float s; return map(p, c, s); }
+    vec3 normalAt(vec3 p) {
+      vec2 e = vec2(1., -1.) * .0015;
+      return normalize(e.xyy * sdf(p + e.xyy) + e.yyx * sdf(p + e.yyx) + e.yxy * sdf(p + e.yxy) + e.xxx * sdf(p + e.xxx));
+    }
+    float shadow(vec3 p, vec3 l) {
+      float r = 1., t = .03;
+      for (int i = 0; i < 24; i++) { float h = sdf(p + l * t); r = min(r, 8. * h / t); t += clamp(h, .03, .3); if (r < .002 || t > 4.) break; }
+      return clamp(r, 0., 1.);
+    }
+    float occlusion(vec3 p, vec3 n) {
+      float o = 0., k = 1.;
+      for (int i = 0; i < 5; i++) { float h = .01 + .14 * float(i) / 4.; o += (h - sdf(p + n * h)) * k; k *= .9; }
+      return clamp(1. - 2.6 * o, 0., 1.);
+    }
+    void main() {
+      vec3 ro = cameraPosition, rd = normalize(vWorld - cameraPosition);
+      vec3 ta = (uBoxMin - ro) / rd, tb = (uBoxMax - ro) / rd, tn = min(ta, tb), tf = max(ta, tb);
+      float t = max(max(max(tn.x, tn.y), tn.z), 0.), tEnd = min(min(tf.x, tf.y), tf.z);
+      vec3 col; float sel; bool hit = false;
+      for (int i = 0; i < 180; i++) {
+        float d = map(ro + rd * t, col, sel);
+        if (d < .0006 * t + .0004) { hit = true; break; }
+        t += d * .85; if (t > tEnd) break;
+      }
+      if (!hit || uCount == 0) discard;
+      vec3 p = ro + rd * t, n = normalAt(p); map(p, col, sel);
+      vec3 l = normalize(vec3(2.2, 4.5, 3.));
+      float dif = clamp(dot(n, l), 0., 1.) * shadow(p + n * .01, l), ao = occlusion(p, n);
+      float rim = pow(1. - clamp(dot(n, -rd), 0., 1.), 3.), spec = pow(clamp(dot(n, normalize(l - rd)), 0., 1.), 40.) * .16 * dif;
+      vec3 c = col * (dif * 1.15 + (.5 + .5 * n.y) * .55 * ao + .07) + spec + rim * .1 * ao;
+      c += sel * (.16 + .08 * sin(uTime * 5.));   // the selected part breathes a little light
+      gl_FragColor = vec4(c, 1.);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+      vec4 clip = projectionMatrix * viewMatrix * vec4(p, 1.);
+      gl_FragDepth = clip.z / clip.w * .5 + .5;
+    }`,
+});
+const sculpt = new THREE.Mesh(new THREE.BoxGeometry(...BOX.max.clone().sub(BOX.min).toArray()), sculptMat);
+sculpt.position.copy(BOX.min.clone().add(BOX.max).multiplyScalar(.5)); sculpt.frustumCulled = false; sculpt.visible = false;
+scene.add(sculpt);
+// A soft round shadow under the monster (the raymarched surface casts none of its own on the floor).
+const footTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(0,0,0,.2)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+})();
+const foot = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: footTex, transparent: true, depthWrite: false }));
+foot.rotation.x = -Math.PI / 2; foot.position.y = .002; foot.visible = false; scene.add(foot);
+
+// ── the monster: shapes[0] is the body, the rest are parts ──
+let selected = -1, mirror = true, prims = [];
+const past = [];
+const state = () => JSON.stringify(shapes);
+function mark() { past.push(state()); if (past.length > 80) past.shift(); }
+function blobUndo() {
+  const prev = past.pop(); if (!prev) return;
+  shapes.splice(0, shapes.length, ...JSON.parse(prev)); select(Math.min(selected, shapes.length - 1));
+}
+const newBody = (type = 1) => ({ kind: 'body', type, s: .72, w: 1, h: 1, d: 1, color: '#9ccf7a' });
+function newPart(key, dir) {
+  const P = PARTS[key];
+  return { kind: 'part', key, s: P.s, h: 1, lift: 0, tilt: 0, turn: 0, carve: !!P.carve,
+           color: P.color || shapes[0]?.color || '#79b84a', dir: new THREE.Vector3(...(dir || P.dir)).normalize().toArray() };
+}
+
+// The body alone, as a field — what parts anchor to.
+const UP = new THREE.Vector3(0, 1, 0), tmp = new THREE.Vector3();
+// The body's frame and part anchoring live in kit.js, shared with peek/.
+const bodyFrame = () => bodyFrameOf(shapes[0]);
+
+// Body and parts into the shader's arrays: sub-shapes expanded, mirror twins added.
+function rebuild() {
+  prims = [];
+  if (!shapes.length) { sculptMat.uniforms.uCount.value = 0; return; }
+  const B = bodyFrame(), b0 = shapes[0];
+  prims.push({ type: B.type, c: B.c.clone(), q: new THREE.Quaternion(), s: B.s.clone(), color: b0.color, carve: false, km: 1, base: 0 });
+  const e = new THREE.Euler(), qa = new THREE.Quaternion(), qt = new THREE.Quaternion();
+  shapes.forEach((b, i) => {
+    if (i === 0) return;
+    // A mirror twin is the part reflected through x = 0 — direction, spin, tilt and sub-shapes all
+    // flipped — but anchored on its own, so it sits right even on a body that isn't symmetric.
+    const sides = mirror && Math.abs(b.dir[0]) > .06 ? [1, -1] : [1];
+    for (const m of sides) {
+      const at = anchor(B, [b.dir[0] * m, b.dir[1], b.dir[2]]);
+      const q = new THREE.Quaternion().setFromUnitVectors(UP, at.n);
+      q.multiply(qa.setFromAxisAngle(UP, b.turn * m)).multiply(qt.setFromAxisAngle(new THREE.Vector3(0, 0, 1), b.tilt * m));
+      const origin = at.p.clone().addScaledVector(at.n, b.lift * b.s);
+      for (const sub of PARTS[b.key].subs) {
+        const local = new THREE.Vector3(sub.p[0] * m * b.s, sub.p[1] * b.s * b.h, sub.p[2] * b.s);
+        const sq = sub.r ? new THREE.Quaternion().setFromEuler(e.set(sub.r[0], sub.r[1] * m, sub.r[2] * m)) : new THREE.Quaternion();
+        prims.push({ type: sub.t, c: origin.clone().add(local.applyQuaternion(q)), q: q.clone().multiply(sq),
+                     s: new THREE.Vector3(sub.s[0], sub.s[1] * b.h, sub.s[2]).multiplyScalar(b.s),
+                     color: sub.c === 'self' ? b.color : sub.c, carve: b.carve, km: sub.k, base: i });
+      }
+    }
+  });
+  if (prims.length > MAX) prims.length = MAX;
+  const u = sculptMat.uniforms, m4 = new THREE.Matrix4(), col = new THREE.Color();
+  u.uCount.value = prims.length;
+  prims.forEach((r, i) => {
+    r.inv = r.q.clone().invert();
+    u.uPos.value[i].copy(r.c); u.uRot.value[i].setFromMatrix4(m4.makeRotationFromQuaternion(r.q));
+    u.uScale.value[i].copy(r.s); col.set(r.color); u.uColor.value[i].set(col.r, col.g, col.b);
+    u.uType.value[i] = r.type; u.uCarve.value[i] = r.carve ? 1 : 0; u.uKm.value[i] = r.km; u.uSel.value[i] = r.base === selected ? 1 : 0;
+  });
+  const w = Math.max(B.s.x, B.s.z) * 2.6;
+  foot.position.set(0, .002, 0); foot.scale.set(w, w, 1); foot.visible = stageView === 'sculpt';
+  for (const btn of $('#bodies').children) btn.setAttribute('aria-pressed', String(+btn.dataset.body === b0.type));
+  if (!running) $('#go').disabled = !canGo();
+}
+// The whole monster as a field in JS, for picking.
+function one(r, p) {
+  tmp.copy(p).sub(r.c).applyQuaternion(r.inv);
+  return prim(r.type, tmp.x / r.s.x, tmp.y / r.s.y, tmp.z / r.s.z) * Math.min(r.s.x, r.s.y, r.s.z);
+}
+function field(p) {
+  const K = Math.max(.005, +$('#melt').value); let d = 1e5, first = true;
+  for (const r of prims) if (!r.carve) {
+    const di = one(r, p); if (first) { d = di; first = false; continue; }
+    d = smin(di, d, Math.max(.002, K * r.km));
+  }
+  for (const r of prims) if (r.carve) {
+    const di = one(r, p), k = Math.max(.002, K * r.km), h = Math.min(1, Math.max(0, .5 - .5 * (d + di) / k));
+    d = d + (-di - d) * h + k * h * (1 - h);
+  }
+  return d;
+}
+function march(ndc, f) {
+  ray.setFromCamera(ndc, camera);
+  const o = ray.ray.origin, dir = ray.ray.direction, p = new THREE.Vector3();
+  for (let i = 0, t = 0; i < 240 && t < 40; i++) {
+    p.copy(o).addScaledVector(dir, t);
+    const d = f(p); if (d < .002) return p;
+    t += Math.max(d * .9, .002);
+  }
+  return null;
+}
+// The part under the pointer — a cutter counts too, so a mouth can be grabbed by its hole.
+function pickAt(ndc) {
+  const p = march(ndc, field); if (!p) return null;
+  let best = -1, bd = 1e9;
+  for (const r of prims) { const di = Math.abs(one(r, p)); if (di < bd) { bd = di; best = r.base; } }
+  return { point: p, index: best };
+}
+
+function select(i) {
+  selected = i; const b = shapes[i]; $('#selUI').hidden = !b;
+  if (b) {
+    $('#selUI').dataset.for = b.kind;
+    $('#selName').textContent = b.kind === 'body' ? `${BODIES[b.type]} body` : (b.carve ? 'Cut · ' : '') + PARTS[b.key].name;
+    for (const r of document.querySelectorAll('#selUI input[data-k]')) if (b[r.dataset.k] != null) r.value = b[r.dataset.k];
+    $('#carve').checked = !!b.carve;
+    for (const sw of $('#swatches').children) sw.setAttribute('aria-pressed', String(sw.dataset.c === b.color));
+  }
+  rebuild();
+}
+function addPart(key, dir) {
+  mark(); shapes.push(newPart(key, dir)); select(shapes.length - 1);
+}
+function setBody(type) {
+  mark(); shapes[0].type = type; select(0);   // parts keep their directions, so they re-seat on the new shape
+}
+
+// Body tray: click to swap the body. Part tray: click to add where it usually goes, or drag it to a spot.
+$('#bodies').addEventListener('click', (e) => { const b = e.target.closest('[data-body]'); if (b && !running) setBody(+b.dataset.body); });
+$('#tray').addEventListener('click', (e) => { const b = e.target.closest('[data-part]'); if (b && !running) addPart(b.dataset.part); });
+$('#tray').addEventListener('dragstart', (e) => {
+  const b = e.target.closest('[data-part]'); if (!b) return;
+  e.dataTransfer.setData('text/x-part', b.dataset.part); e.dataTransfer.effectAllowed = 'copy';
+});
+stageEl.addEventListener('dragover', (e) => { if (mode === 'blobs' && e.dataTransfer.types.includes('text/x-part')) e.preventDefault(); });
+stageEl.addEventListener('drop', (e) => {
+  const key = e.dataTransfer.getData('text/x-part'); if (!key || running) return;
+  e.preventDefault(); aim(e);
+  const B = bodyFrame(), p = march(pointer, (q) => bodyField(B, q));
+  addPart(key, p ? p.sub(B.c).toArray() : null);   // missed the body: its usual place
+});
+
+// Drag a part and it slides over the body; drag anywhere else and the camera orbits.
+let drag = null;
+view.addEventListener('pointerdown', (e) => {
+  if (stageView !== 'sculpt' || running || e.button !== 0) return;
+  aim(e);
+  const hit = pickAt(pointer);
+  if (!hit || hit.index < 0) { drag = { miss: true, x: e.clientX, y: e.clientY }; return; }
+  select(hit.index);
+  if (hit.index === 0) { drag = { miss: true, x: e.clientX, y: e.clientY }; return; }   // the body stays put: orbit
+  const b = shapes[hit.index];
+  // A twin was grabbed: drag it as itself, so the original follows mirrored.
+  const side = mirror && Math.abs(b.dir[0]) > .06 && Math.sign(hit.point.x) !== Math.sign(b.dir[0]) ? -1 : 1;
+  mark(); drag = { i: hit.index, side, moved: false };
+  controls.enabled = false;
+  try { view.setPointerCapture(e.pointerId); } catch {}   // keeps the drag when the pointer leaves the canvas
+}, { capture: true });   // ahead of OrbitControls, so a grab never also turns the camera
+view.addEventListener('pointermove', (e) => {
+  if (!drag || drag.miss) return;
+  aim(e);
+  const B = bodyFrame(), p = march(pointer, (q) => bodyField(B, q)); if (!p) return;
+  const d = p.sub(B.c).normalize(); d.x *= drag.side;
+  shapes[drag.i].dir = d.toArray(); drag.moved = true; rebuild();
+});
+view.addEventListener('pointerup', (e) => {
+  if (drag?.miss && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 4 && !pickAt(pointer)) select(-1);   // a click on nothing lets go
+  if (drag && !drag.miss && !drag.moved) past.pop();   // a click without a move isn't an edit
+  drag = null; controls.enabled = true;
+});
+
+// The selected thing's panel.
+for (const c of SWATCHES) {
+  const b = document.createElement('button'); b.dataset.c = c; b.style.background = c; b.title = c;
+  b.onclick = () => {
+    const s = shapes[selected]; if (!s) return; mark();
+    // Recolouring the body takes the parts that were its colour along — they're the same skin.
+    if (s.kind === 'body') for (const p of shapes) if (p !== s && p.color === s.color) p.color = c;
+    s.color = c; select(selected);
+  };
+  $('#swatches').append(b);
+}
+let sliding = false;
+$('#selUI').addEventListener('input', (e) => {
+  const k = e.target.dataset.k, b = shapes[selected]; if (!k || !b) return;
+  if (!sliding) { mark(); sliding = true; }
+  b[k] = +e.target.value; rebuild();
+});
+$('#selUI').addEventListener('change', () => { sliding = false; });
+$('#carve').onchange = (e) => { const b = shapes[selected]; if (!b || b.kind === 'body') return; mark(); b.carve = e.target.checked; select(selected); };
+function duplicate() {
+  const b = shapes[selected]; if (!b || b.kind === 'body') return; mark();
+  const c = structuredClone(b), d = new THREE.Vector3(...b.dir); d.applyAxisAngle(UP, .35).y += .12;
+  c.dir = d.normalize().toArray(); shapes.push(c); select(shapes.length - 1);
+}
+function remove() { if (selected < 1) return; mark(); shapes.splice(selected, 1); select(-1); }
+$('#dup').onclick = duplicate; $('#del').onclick = remove;
+$('#melt').addEventListener('input', (e) => { sculptMat.uniforms.uK.value = Math.max(.005, +e.target.value); });
+$('#mirror').onclick = () => { mirror = !mirror; $('#mirror').setAttribute('aria-pressed', String(mirror)); rebuild(); };
+$('#bundo').onclick = blobUndo;
+function starter() { shapes.length = 0; shapes.push(newBody(1), newPart('eye'), newPart('smile'), newPart('blush')); select(-1); }   // a gumdrop with a face
+$('#bclear').onclick = () => { if (running) return; mark(); starter(); };
+addEventListener('keydown', (e) => {
+  if (mode !== 'blobs' || stageView !== 'sculpt' || e.target.closest?.('input:not([type=range]), textarea')) return;
+  if ((e.key === 'Backspace' || e.key === 'Delete') && selected > 0) { e.preventDefault(); remove(); }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'd') { e.preventDefault(); duplicate(); }
+});
+
+// The view as it stands — the angle you left it at — square, on white, nothing selected.
+function blobSource() {
+  const keep = selected; selected = -1; rebuild(); foot.visible = false;
+  const W = stageEl.clientWidth, H = stageEl.clientHeight;
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, W, H);
+  renderer.render(scene, camera);   // read back in the same task, before the canvas is presented
+  const src = renderer.domElement, side = Math.min(src.width, src.height);
+  const big = document.createElement('canvas'); big.width = big.height = 1024;
+  const x = big.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 1024, 1024);
+  x.drawImage(src, (src.width - side) / 2, (src.height - side) / 2, side, side, 0, 0, 1024, 1024);
+  const small = document.createElement('canvas'); small.width = small.height = 160;
+  small.getContext('2d').drawImage(big, 0, 0, 160, 160);
+  selected = keep; rebuild();
+  return { kind: 'blobs', blobs: structuredClone(shapes), image: big.toDataURL('image/png'),
+           thumb: small.toDataURL('image/jpeg', .85), prompt: blobPrompt(style, $('#desc').value.trim()) };
+}
+function drawSource() {
+  const c = document.createElement('canvas'); c.width = c.height = SK;   // flattened onto white
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, SK, SK); x.drawImage(sk, 0, 0);
+  // A photo drawn in can make a PNG too big for a Vercel request (4.5MB); JPEG then.
+  const png = c.toDataURL('image/png');
+  return { kind: 'sketch', image: png.length < 3e6 ? png : c.toDataURL('image/jpeg', .9), thumb: thumb(),
+           prompt: promptFor(style, $('#desc').value.trim(), $('#blank').checked) };
+}
+
+// ── modes and views ──
+let stageView = 'single';   // 'sculpt' — the kit; 'single' — a finished model
+// Sculpting wants more room round the work than a finished model does.
+const SCULPT_HOME = { pos: new THREE.Vector3(0, 1.7, 8.2), target: new THREE.Vector3(0, 1.05, 0) };
+function setView(v) {
+  if (v !== stageView) {
+    const h = v === 'sculpt' ? SCULPT_HOME : HOME;
+    camera.position.copy(h.pos); controls.target.copy(h.target);
+  }
+  stageView = v; stageEl.classList.toggle('sculpting', v === 'sculpt');
+  sculpt.visible = v === 'sculpt'; life.visible = v !== 'sculpt';
+  $('#backToSculpt').hidden = !(mode === 'blobs' && v === 'single' && !running);
+  rebuild();
+}
+function setMode(m) {
+  mode = m;
+  for (const b of $('#modes').children) b.setAttribute('aria-pressed', String(b.dataset.mode === m));
+  $('#drawUI').hidden = m !== 'draw'; $('#blobsUI').hidden = m !== 'blobs';
+  $('#desc').placeholder = m === 'blobs' ? 'name it, or say what it is' : 'a piece of toast wearing sunglasses';
+  if (m === 'blobs' && !shapes.length) starter();
+  setView(m === 'blobs' && !running ? 'sculpt' : 'single');
+  if (!running) $('#go').disabled = !canGo();
+  peekReady();
+}
+$('#modes').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && !running) setMode(b.dataset.mode); });
+$('#backToSculpt').onclick = () => !running && setView('sculpt');
+// The character goes to Peek in the link itself, so the link can be shared too.
+$('#toPeek').addEventListener('click', () => {
+  const r = shown;
+  $('#toPeek').href = mode === 'blobs' ? '/peek/#c=' + pack(shapes)
+                    : '/peek/#m=' + pack(r.kept ? { file: r.kept } : { glb: r.glb, rigged: r.rigged || null, clips: r.clips || {} });
+});
+
+/* ═══════════════ status, steps, shelf ═══════════════ */
+
+function step(name, state, pct, text) {
+  const li = $(`.step[data-step="${name}"]`);
+  li.className = 'step ' + (state || '');
+  li.querySelector('.pct').textContent = state === 'run' && pct != null ? pct + '%' : '';
+  li.querySelector('.bar i').style.width = (pct ?? 0) + '%';
+  if (text) li.querySelector('small').textContent = text;
+}
+const DEFAULT_TEXT = {
+  render: 'Your sketch, finished as a character', sculpt: 'Turned into a textured 3D model',
+  rig: 'Given a skeleton', animate: 'Idle, wave, dance, jump, walk, run',
+};
+function resetSteps() { for (const s in DEFAULT_TEXT) step(s, '', 0, DEFAULT_TEXT[s]); }
+function status(text) { const s = $('#status'); s.textContent = text || ''; s.classList.toggle('on', !!text); }
+function note(text) { $('#note').textContent = text || ''; }
+
+const SHELF = 'monsters.shelf';
+function shelf() { try { return JSON.parse(localStorage.getItem(SHELF)) || []; } catch { return []; } }
+function save(rec) {
+  try {
+    const all = shelf().filter((r) => r.id !== rec.id); all.unshift(rec);
+    localStorage.setItem(SHELF, JSON.stringify(all.slice(0, 24)));
+  } catch {}
+  drawShelf(rec.id);
+}
+function drawShelf(activeId) {
+  const all = shelf(); $('#shelf').hidden = !all.length;
+  const row = $('#shelfRow'); row.innerHTML = '';
+  for (const r of all) {
+    const b = document.createElement('button');
+    b.title = r.desc || 'Character'; b.setAttribute('aria-current', String(r.id === activeId));
+    b.innerHTML = `<img alt="" src="${r.sketch}">`;
+    b.onclick = () => !running && open(r);
+    row.append(b);
+  }
+}
+
+/* ═══════════════ the run ═══════════════ */
+
+let running = false;
+
+async function run(src) {
+  running = true; stopper = new AbortController(); resetSteps(); note('');
+  setView('single'); $('#backToSculpt').hidden = true;
+  // A sculpture is on stage from the first second — its own snapshot, until Meshy's render replaces it.
+  if (src.blobs) { $('#preview').src = src.image; $('#preview').classList.add('on'); $('#empty').hidden = true; }
+  const go = $('#go'); go.disabled = false; go.textContent = 'Stop'; go.classList.add('stop');
+  $('#actions').hidden = true; $('#download').hidden = true;
+  for (const k in clips) delete clips[k];
+  const desc = $('#desc').value.trim();
+  const rec = { id: Date.now().toString(36), at: Date.now(), desc, style, sketch: src.thumb, kind: src.kind, blobs: src.blobs, clips: {} };
+  shown = rec; peekReady();
+
+  try {
+    // 1 · Render
+    step('render', 'run', 0, src.blobs ? 'Your monster, made real' : DEFAULT_TEXT.render);
+    status(src.blobs ? 'Rendering your monster…' : 'Rendering your sketch…');
+    // Three views, not one: from a single front view Meshy has to guess the back and sides,
+    // which is where lumpy, warped backs come from. The sculpt step builds from all three.
+    const img = await task('image-to-image', {
+      ai_model: IMAGE_MODEL, prompt: src.prompt, reference_image_urls: [src.image], generate_multi_view: true,
+    }, (p) => step('render', 'run', p));
+    rec.render = img.image_urls?.[0]; rec.views = img.image_urls || []; rec.renderTask = img.id;
+    step('render', 'done'); save(rec);
+    const pv = $('#preview'); pv.src = asset(rec.render); pv.classList.add('on'); $('#empty').hidden = true;
+
+    // 2 · Sculpt
+    step('sculpt', 'run', 0); status('Sculpting it in 3D — this is the slow one, a few minutes…');
+    // Full detail: 2k geometry, 4k textures, and no remesh — squeezing every model to 30k
+    // triangles was what dented surfaces and stretched textures. The arms-out A-pose helps
+    // the rig but bends a round character out of shape, so it's asked for only when a kit
+    // character actually has arms and legs.
+    const limbs = src.blobs && src.blobs.some((b) => b.key === 'arm') && src.blobs.some((b) => b.key === 'leg');
+    const mesh = await task('multi-image-to-3d', {
+      input_task_id: img.id, ai_model: 'latest', geometry_resolution: '2k', texture_resolution: '4k',
+      should_texture: true, enable_pbr: true, should_remesh: false, pose_mode: limbs ? 'a-pose' : '',
+      target_formats: ['glb'],
+    }, (p) => { step('sculpt', 'run', p); status(`Sculpting it in 3D… ${p}%`); });
+    rec.glb = mesh.model_urls.glb; rec.meshTask = mesh.id;
+    step('sculpt', 'done'); save(rec);
+    showDownload(rec.glb);
+    // On stage while the rig runs — unless the rigged one has got there first.
+    show(load(rec.glb)).then((g) => { if (g && shown === rec && !rec.rigged) { setModel(g); pv.classList.remove('on'); } });
+
+    // 3 · Rig
+    step('rig', 'run', 0); status('Giving it a skeleton…');
+    let rig;
+    try {
+      try { rig = await task('rigging', { input_task_id: mesh.id, height_meters: 1.2 }, (p) => step('rig', 'run', p)); }
+      catch (e) {
+        if (e.stopped) throw e;
+        // If the rig won't take a multi-view task by id, hand it the model file itself.
+        rig = await task('rigging', { model_url: mesh.model_urls.glb, height_meters: 1.2 }, (p) => step('rig', 'run', p));
+      }
+    } catch (e) {
+      if (e.stopped) throw e;
+      // Not a biped. It still lives — the procedural layer is all it needs.
+      rec.rigError = e.message; save(rec);
+      step('rig', 'fail', 0, 'No skeleton — it isn\'t shaped like a person');
+      step('animate', 'skip', 0, 'Breathing and reacting instead');
+      note('This one can\'t take a skeleton, so it moves without one: it breathes, follows you, and squashes when you tap it.');
+      status(''); await keepIt(rec); return;
+    }
+    rec.rigged = rig.result.rigged_character_glb_url; rec.rigTask = rig.id;
+    step('rig', 'done'); save(rec);
+    showDownload(rec.rigged);
+    const riggedOn = show(load(rec.rigged)).then((g) => { if (g) { setModel(g); pv.classList.remove('on'); } return !!g; });
+    buildActions(new Set());
+
+    // 4 · Animate — each clip lands on the stage the moment it's ready.
+    step('animate', 'run', 0); status('Teaching it to move…');
+    let done = 0; const total = ACTIONS.length + BASIC.length;
+    const tick = () => { done++; step('animate', 'run', Math.round(done / total * 100)); };
+    const got = async (label, url) => {
+      rec.clips[label] = url; save(rec);
+      if (!await riggedOn) return;   // no rig on stage to play it on — it's still saved for Peek
+      const clip = pickClip(await load(url), label);
+      if (clip) { clips[label] = clip; enableAction(label); }
+      if (label === 'Idle' && !current) play('Idle');
+      if (label === 'Wave' && clips.Idle !== undefined) play('Wave');   // says hello once
+    };
+    await Promise.allSettled([
+      ...ACTIONS.map((a) => task('animations', { rig_task_id: rig.id, action_id: a.id })
+        .then((t) => got(a.label, t.result.animation_glb_url)).finally(tick)),
+      ...BASIC.map((b) => Promise.resolve(rig.result.basic_animations?.[b.key])
+        .then((u) => u && got(b.label, u)).finally(tick)),
+    ]);
+    if (stopper.signal.aborted) throw stopped();
+    const n = Math.max(Object.keys(clips).length, Object.keys(rec.clips).length);
+    step('animate', n ? 'done' : 'fail', 100, n ? `${n} moves ready` : 'No moves came back');
+    status('');
+    await keepIt(rec);
+  } catch (e) {
+    const s = document.querySelector('.step.run')?.dataset.step || 'render';
+    if (e.stopped || stopper.signal.aborted) {
+      // Whatever already finished stays — a stopped sculpt still leaves its render on the shelf.
+      step(s, 'stop', 0, 'Stopped — nothing after this ran');
+      note('Meshy finishes a step once it has started, so the one that was running still used its credits. Nothing after it started.');
+      status('Stopped'); setTimeout(() => status(''), 2500);
+    } else {
+      step(s, 'fail', 0, e.message); status('');
+    }
+    $('#preview').classList.remove('on');
+  } finally {
+    running = false; stopper = null;
+    $('#backToSculpt').hidden = mode !== 'blobs';
+    const go = $('#go'); go.textContent = 'Bring it to life'; go.classList.remove('stop'); go.disabled = !canGo();
+  }
+}
+$('#go').onclick = () => (running ? stop() : needsPass() ? askPass()
+  : run(mode === 'blobs' ? blobSource() : drawSource()));
+
+function showDownload(url) { const a = $('#download'); a.href = asset(url); a.hidden = false; peekReady(); }
+// Into Peek, from either mode, by one button. Blobs sends the kit character itself (#c=);
+// Draw sends the finished model's Meshy files (#m=) — the rigged one and its moves — so
+// it's live once there's a model. Meshy deletes its files after 3 days, so on the Mac the finished
+// build is kept first (serve.py p=keep → monsters/keep.py): one small GLB in peek/monsters/ with every
+// move merged in, and the link points at that instead — it never expires, and ships once committed.
+// Hosted there's nowhere to write it; `python3 monsters/keep.py <rig task id>` rescues one within 3 days.
+let shown = null;
+async function keepIt(rec) {
+  if (env.hosted || rec.kept || !(rec.rigged || rec.glb)) return;
+  status('Keeping it for Peek…');
+  try {
+    const r = await fetch(`${API}?p=keep`, { method: 'POST', headers: headers(),
+      body: JSON.stringify({ name: `${rec.desc || 'monster'}-${rec.id}`, model: rec.rigged || rec.glb, clips: rec.clips || {} }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.message || r.status);
+    rec.kept = j.file; save(rec); if (shown === rec) peekReady();
+    status('Kept — Peek will always find it'); setTimeout(() => status(''), 2500);
+  } catch (e) { status('Couldn\'t keep it: ' + e.message); setTimeout(() => status(''), 4000); }
+}
+function peekReady() {
+  const b = $('#toPeek'), ready = mode === 'blobs' || !!shown?.glb;
+  b.classList.toggle('off', !ready);
+  b.textContent = ready ? 'Bring it into Peek — watch it live in a chat →'
+                        : 'Bring it into Peek — build it first, then it’s ready';
+}
+
+// Re-open a character from the shelf. Its files come out of serve.py's cache,
+// so this works after Meshy's own links have expired.
+async function open(rec) {
+  shown = rec;
+  resetSteps(); note(''); for (const k in clips) delete clips[k];
+  setView('single');
+  $('#actions').hidden = true; $('#preview').classList.remove('on');
+  drawShelf(rec.id);
+  if (rec.render) step('render', 'done');
+  if (!rec.glb) return;
+  step('sculpt', 'done');
+  try {
+    if (rec.rigged) {
+      step('rig', 'done');
+      setModel(await load(rec.rigged)); showDownload(rec.rigged);
+      buildActions(new Set());
+      for (const [label, url] of Object.entries(rec.clips || {})) {
+        const clip = pickClip(await load(url), label);
+        if (clip) { clips[label] = clip; enableAction(label); }
+      }
+      const n = Object.keys(clips).length;
+      step('animate', n ? 'done' : '', 0, n ? `${n} moves ready` : DEFAULT_TEXT.animate);
+      if (clips.Idle) play('Idle');
+    } else {
+      setModel(await load(rec.glb)); showDownload(rec.glb);
+      if (rec.rigError) {
+        step('rig', 'fail', 0, 'No skeleton — it isn\'t shaped like a person');
+        step('animate', 'skip', 0, 'Breathing and reacting instead');
+      }
+    }
+    keepIt(rec);   // from the cache, so even an old one whose links have expired
+  } catch (e) { status('Couldn\'t open that one: ' + e.message); setTimeout(() => status(''), 4000); }
+}
+
+/* ═══════════════ start ═══════════════ */
+
+// The box at the top does one of two jobs. On the Mac with no key, it takes the
+// Meshy key (and serve.py writes it to monsters/.env). On johnyum.com, it takes
+// the passcode — kept in this browser, sent with every call, checked server-side.
+let boxFor = null;
+function showBox(kind, msg, err) {
+  boxFor = kind;
+  $('#keybox').hidden = false;
+  $('#keymsg').innerHTML = kind === 'key'
+    ? 'Running on a sample robot. Paste your Meshy key to make real monsters — it\'s saved on this Mac only. <a href="https://www.meshy.ai/developers/keys" target="_blank" rel="noopener">Get a key</a>'
+    : (msg || 'Building monsters takes a passcode.');
+  $('#key').placeholder = kind === 'key' ? 'msy_…' : 'Passcode';
+  $('#keyform button').textContent = kind === 'key' ? 'Save' : 'Unlock';
+  $('#keyerr').hidden = !err; $('#keyerr').textContent = err || '';
+}
+function askPass(err) { showBox('pass', null, err); $('#key').focus(); }
+function needsPass() { return env.gated && !pass(); }
+
+function showMode() {
+  const m = $('#mode');
+  if (env.hosted) { m.hidden = true; }
+  else {
+    m.textContent = env.mock ? 'Mock' : 'Live';
+    m.className = 'mode' + (env.mock ? '' : ' live');
+    m.title = env.mock ? 'No Meshy key — every step is faked, and a sample robot stands in for your monster'
+                       : 'Using your Meshy key — each run spends credits';
+  }
+  if (!env.hosted && env.mock) showBox('key');
+  else if (needsPass()) showBox('pass');
+  else $('#keybox').hidden = true;
+}
+$('#keyform').onsubmit = async (e) => {
+  e.preventDefault();
+  const err = $('#keyerr'), btn = $('#keyform button'), label = btn.textContent, value = $('#key').value.trim();
+  if (!value) return;
+  err.hidden = true; btn.disabled = true; btn.textContent = 'Checking…';
+  try {
+    if (boxFor === 'key') {
+      const r = await fetch(`${API}?p=key`, { method: 'POST', headers: headers(), body: JSON.stringify({ key: value }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.message || 'That key didn\'t work');
+      env.mock = false;
+    } else {
+      const r = await fetch(`${API}?p=check`, { method: 'POST', headers: { 'X-Monsters-Pass': value } });
+      if (!r.ok) throw new Error('That passcode didn\'t work');
+      try { localStorage.setItem(PASS, value); } catch {}
+    }
+    $('#key').value = ''; showMode();
+  } catch (x) { err.textContent = x.message; err.hidden = false; }
+  btn.disabled = false; if (!$('#keybox').hidden) btn.textContent = label;
+};
+fetch(`${API}?p=status`).then((r) => { if (!r.ok) throw 0; return r.json(); }).then((s) => {
+  Object.assign(env, s);
+  if (!env.ready) {
+    $('#go').textContent = 'Building is switched off right now'; $('#go').disabled = true;
+    blocked = true;
+  }
+  showMode();
+}).catch(() => {
+  // Plain static hosting (or serve.py not running): nothing to build with.
+  const m = $('#mode'); m.textContent = 'Offline'; m.className = 'mode off';
+  m.title = 'Run python3 monsters/serve.py and open this page from it';
+  $('#go').textContent = 'Building is unavailable'; $('#go').disabled = true;
+  blocked = true;
+});
+drawShelf();
+peekReady();
+
+// The way in for a deck or a test, as explore/ has window.__explore.
+window.__monsters = { play, still, clips, get playing() { return current?.getClip().name ?? null; },
+  setMode, addPart, setBody, select, shapes, get selected() { return selected; } };
+</script>
+</body>
+</html>
