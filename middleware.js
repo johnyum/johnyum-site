@@ -16,6 +16,9 @@ export default async function middleware(req) {
   var url = new URL(req.url);
   var jar = (req.headers.get('cookie') || '').split(/;\s*/);
   if (jar.indexOf(COOKIE + '=' + TOKEN) >= 0) return;          // unlocked — pass through
+  // Open to everyone (John, 2026-10-30): /monsters (Fuzzball) and its Meshy route. Building
+  // still takes the Monsters passcode in api/monsters.py, so credits can't be spent anonymously.
+  if (/^\/monsters(\/|$)/.test(url.pathname) || url.pathname === '/api/monsters') return;
   if (url.pathname === '/__knock' && req.method === 'POST') {
     var form = new URLSearchParams(await req.text());
     var next = form.get('next') || '/';
